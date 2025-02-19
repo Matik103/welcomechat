@@ -37,27 +37,34 @@ const ClientView = () => {
     },
   });
 
-  // Query the AI agent's vector table for chat history using RPC
+  // Query the AI agent's vector table for chat history
   const { data: chatHistory } = useQuery<ChatInteraction[]>({
     queryKey: ["chat-history", client?.agent_name],
-    queryFn: async () => {
+    queryFn: async (): Promise<ChatInteraction[]> => {
       if (!client?.agent_name) return [];
       
-      // First get table name
+      // Convert agent name to table name
       const tableName = client.agent_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
       
-      // Use raw query to fetch from dynamic table
+      // Use raw query instead of RPC
       const { data, error } = await supabase
-        .rpc('fetch_chat_history', {
-          table_name: tableName,
-          chat_limit: 10
-        });
+        .from(tableName)
+        .select('id, content, metadata')
+        .eq('metadata->type', 'chat_interaction')
+        .order('id', { ascending: false })
+        .limit(10);
         
       if (error) {
         console.error("Error fetching chat history:", error);
         return [];
       }
-      return data || [];
+
+      // Ensure the data matches our ChatInteraction type
+      return (data || []).map(row => ({
+        id: row.id,
+        content: row.content,
+        metadata: row.metadata
+      }));
     },
     enabled: !!client?.agent_name,
   });
