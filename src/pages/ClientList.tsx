@@ -1,4 +1,3 @@
-
 import { ArrowLeft, Plus, Search, ChevronDown, Trash2, Edit, Eye, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -51,13 +50,11 @@ const ClientList = () => {
     },
   });
 
-  // Filter clients based on search query
   const filteredClients = clients.filter(client =>
     client.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.agent_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Calculate pagination
   const totalPages = Math.ceil(filteredClients.length / ITEMS_PER_PAGE);
   const paginatedClients = filteredClients.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
@@ -174,7 +171,7 @@ const ClientList = () => {
                         <Eye className="w-4 h-4" />
                       </Link>
                       <Link
-                        to={`/clients/${client.id}/widget`}
+                        to={`/clients/${client.id}/widget-settings`}
                         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
                         title="Widget Settings"
                       >
