@@ -147,29 +147,25 @@ const AddEditClient = () => {
 
   const addWebsiteUrlMutation = useMutation({
     mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
+      if (!id) throw new Error("Client ID is required");
       const { data, error } = await supabase
         .from("website_urls")
         .insert([{ client_id: id, url, refresh_rate }])
         .select('*')
         .single();
       
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
       return data;
     },
-    onSettled: async (data, error) => {
-      if (data) {
-        await refetchWebsiteUrls();
-        setNewWebsiteUrl("");
-        setNewWebsiteUrlRefreshRate(30);
-        setShowNewWebsiteUrlForm(false);
-        toast.success("Website URL added successfully");
-      }
-      if (error) {
-        console.error("Error in mutation:", error);
-        toast.error(`Error adding website URL: ${error.message}`);
-      }
+    onSuccess: () => {
+      refetchWebsiteUrls();
+      setNewWebsiteUrl("");
+      setNewWebsiteUrlRefreshRate(30);
+      setShowNewWebsiteUrlForm(false);
+      toast.success("Website URL added successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Error adding website URL: ${error.message}`);
     }
   });
 
@@ -197,17 +193,14 @@ const AddEditClient = () => {
         .delete()
         .eq("id", urlId);
       
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
     },
-    onSettled: async (_, error) => {
-      if (error) {
-        toast.error(`Error removing website URL: ${error.message}`);
-      } else {
-        await refetchWebsiteUrls();
-        toast.success("Website URL removed successfully");
-      }
+    onSuccess: () => {
+      refetchWebsiteUrls();
+      toast.success("Website URL removed successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Error removing website URL: ${error.message}`);
     }
   });
 
@@ -240,15 +233,14 @@ const AddEditClient = () => {
     e.stopPropagation();
     if (!newWebsiteUrl) return;
     
-    try {
-      console.log("Attempting to add URL:", newWebsiteUrl);
-      await addWebsiteUrlMutation.mutateAsync({
-        url: newWebsiteUrl,
-        refresh_rate: newWebsiteUrlRefreshRate
-      });
-    } catch (error) {
-      console.error("Error in handleAddWebsiteUrl:", error);
-    }
+    await addWebsiteUrlMutation.mutateAsync({
+      url: newWebsiteUrl,
+      refresh_rate: newWebsiteUrlRefreshRate
+    });
+  };
+
+  const handleDeleteWebsiteUrl = async (urlId: number) => {
+    await deleteWebsiteUrlMutation.mutateAsync(urlId);
   };
 
   const renderWebsiteUrls = () => (
@@ -262,7 +254,7 @@ const AddEditClient = () => {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => deleteWebsiteUrlMutation.mutate(url.id)}
+              onClick={() => handleDeleteWebsiteUrl(url.id)}
               disabled={deleteWebsiteUrlMutation.isPending}
             >
               {deleteWebsiteUrlMutation.isPending ? (
@@ -314,7 +306,7 @@ const AddEditClient = () => {
                     {addWebsiteUrlMutation.isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      "Add"
+                      "Save"
                     )}
                   </Button>
                   <Button
