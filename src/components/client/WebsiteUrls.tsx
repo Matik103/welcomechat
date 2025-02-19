@@ -23,20 +23,36 @@ export const WebsiteUrls = ({
   const [showNewForm, setShowNewForm] = useState(false);
   const [newUrl, setNewUrl] = useState("");
   const [newRefreshRate, setNewRefreshRate] = useState(30);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!newUrl) return;
     
-    await onAdd({
-      url: newUrl,
-      refresh_rate: newRefreshRate,
-    });
-    
-    setNewUrl("");
-    setNewRefreshRate(30);
-    setShowNewForm(false);
+    try {
+      await onAdd({
+        url: newUrl,
+        refresh_rate: newRefreshRate,
+      });
+      
+      setNewUrl("");
+      setNewRefreshRate(30);
+      setShowNewForm(false);
+    } catch (error) {
+      console.error("Error adding URL:", error);
+    }
+  };
+
+  const handleDelete = (id: number) => {
+    setDeletingId(id);
+    try {
+      onDelete(id);
+    } catch (error) {
+      console.error("Error deleting URL:", error);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -48,10 +64,10 @@ export const WebsiteUrls = ({
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => onDelete(url.id)}
-            disabled={isDeleteLoading}
+            onClick={() => handleDelete(url.id)}
+            disabled={isDeleteLoading || deletingId === url.id}
           >
-            {isDeleteLoading ? (
+            {(isDeleteLoading && deletingId === url.id) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               "Delete"
