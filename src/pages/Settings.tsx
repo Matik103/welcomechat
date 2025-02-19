@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, KeyRound, LogOut, Shield } from "lucide-react";
+import { Loader2, KeyRound, LogOut, UserCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Settings = () => {
@@ -16,6 +16,8 @@ const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "");
+  const [email, setEmail] = useState(user?.email || "");
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,22 +42,20 @@ const Settings = () => {
     }
   };
 
-  const setupMFA = async () => {
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
     try {
-      const { data, error } = await supabase.auth.mfa.enroll({
-        factorType: 'totp'
+      const { error } = await supabase.auth.updateUser({
+        email: email,
+        data: { full_name: fullName }
       });
       if (error) throw error;
-      
-      // Open the MFA setup UI in a new window
-      if (data.totp) {
-        const { uri, secret } = data.totp;
-        // You might want to create a modal or a dedicated page for this
-        window.open(`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(uri)}`, '_blank');
-        toast.info("Scan the QR code with your authenticator app");
-      }
+      toast.success("Profile updated successfully");
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,6 +75,47 @@ const Settings = () => {
         <p className="text-muted-foreground">
           Manage your account settings and security preferences
         </p>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCircle className="h-5 w-5" />
+              Profile Information
+            </CardTitle>
+            <CardDescription>
+              Update your profile details and email address
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleProfileUpdate} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Update Profile
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -115,23 +156,6 @@ const Settings = () => {
                 Update Password
               </Button>
             </form>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Two-Factor Authentication
-            </CardTitle>
-            <CardDescription>
-              Add an extra layer of security to your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={setupMFA} variant="outline">
-              Set up 2FA
-            </Button>
           </CardContent>
         </Card>
 
