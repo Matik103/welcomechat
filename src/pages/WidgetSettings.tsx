@@ -1,8 +1,7 @@
-
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Loader2, ArrowLeft, Copy, Upload } from "lucide-react";
+import { Loader2, ArrowLeft, Copy, Code, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,6 +56,7 @@ const WidgetSettings = () => {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [settings, setSettings] = useState<WidgetSettings>(defaultSettings);
+  const [showPreview, setShowPreview] = useState(true);
 
   const { data: client, isLoading } = useQuery({
     queryKey: ["client", id],
@@ -151,6 +151,22 @@ const WidgetSettings = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleCopyCode = () => {
+    const embedCode = `<script>
+  window.CHATBOT_CONFIG = {
+    clientId: "${id}",
+    settings: ${JSON.stringify(settings, null, 2)}
+  };
+</script>
+<script src="https://cdn.example.com/widget.js" async></script>`;
+
+    navigator.clipboard.writeText(embedCode);
+    toast({
+      title: "Code copied! 📋",
+      description: "The widget code has been copied to your clipboard.",
+    });
   };
 
   const handleSave = async () => {
@@ -267,6 +283,87 @@ const WidgetSettings = () => {
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Embed Code</CardTitle>
+            <CardDescription>Copy this code to add the widget to your website</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="relative">
+              <pre className="p-4 bg-gray-50 rounded-lg text-sm overflow-x-auto">
+                {`<script>
+  window.CHATBOT_CONFIG = {
+    clientId: "${id}",
+    settings: ${JSON.stringify(settings, null, 2)}
+  };
+</script>
+<script src="https://cdn.example.com/widget.js" async></script>`}
+              </pre>
+              <Button
+                size="sm"
+                onClick={handleCopyCode}
+                className="absolute top-2 right-2"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Code
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Widget Preview</CardTitle>
+              <CardDescription>See how your widget will appear</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPreview(!showPreview)}
+            >
+              <Monitor className="w-4 h-4 mr-2" />
+              {showPreview ? "Hide Preview" : "Show Preview"}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {showPreview && (
+              <div className="border rounded-lg h-[500px] relative">
+                <div className="absolute bottom-4 right-4 w-96 h-[450px] border rounded-lg shadow-lg bg-white">
+                  <div
+                    className="h-12 flex items-center px-4 rounded-t-lg"
+                    style={{ backgroundColor: settings.chat_color }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {settings.logo_url && (
+                        <img
+                          src={settings.logo_url}
+                          alt="Agent logo"
+                          className="w-8 h-8 rounded object-contain bg-white"
+                        />
+                      )}
+                      <span className="font-medium text-white">
+                        {settings.agent_name || "AI Agent"}
+                      </span>
+                    </div>
+                  </div>
+                  <div
+                    className="flex-1 p-4 overflow-y-auto"
+                    style={{
+                      backgroundColor: settings.background_color,
+                      color: settings.text_color,
+                    }}
+                  >
+                    <div className="text-center text-sm opacity-50 my-8">
+                      This is a preview of how your widget will look
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
