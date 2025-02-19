@@ -117,15 +117,15 @@ const ClientView = () => {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{client.client_name}</h1>
-            <p className="text-gray-500">Client Overview</p>
+            <p className="text-gray-500">AI Agent Performance Dashboard</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Client Information</CardTitle>
-              <CardDescription>Basic client details and configuration</CardDescription>
+              <CardTitle>AI Agent Configuration</CardTitle>
+              <CardDescription>Settings and basic information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -133,11 +133,11 @@ const ClientView = () => {
                 <p className="font-medium">{client.agent_name}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Email</p>
+                <p className="text-sm text-gray-500">Client Email</p>
                 <p className="font-medium">{client.email}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Status</p>
+                <p className="text-sm text-gray-500">AI Agent Status</p>
                 <span
                   className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                     client.status === "active"
@@ -149,11 +149,11 @@ const ClientView = () => {
                 </span>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Last Active</p>
+                <p className="text-sm text-gray-500">Last Chat Interaction</p>
                 <p className="font-medium">
                   {client.last_active 
                     ? format(new Date(client.last_active), 'PPP')
-                    : 'Never'}
+                    : 'No interactions yet'}
                 </p>
               </div>
             </CardContent>
@@ -161,15 +161,15 @@ const ClientView = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Top End-User Queries</CardTitle>
-              <CardDescription>Most common questions asked to the AI Agent</CardDescription>
+              <CardTitle>End-User Questions</CardTitle>
+              <CardDescription>Most frequently asked questions by end-users</CardDescription>
             </CardHeader>
             <CardContent>
               {commonQueries?.length ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User Question</TableHead>
+                      <TableHead>End-User Question</TableHead>
                       <TableHead className="text-right">Times Asked</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -183,15 +183,15 @@ const ClientView = () => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-gray-500 text-center py-4">No user queries recorded yet</p>
+                <p className="text-gray-500 text-center py-4">No end-user questions recorded yet</p>
               )}
             </CardContent>
           </Card>
 
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>AI Agent Interactions</CardTitle>
-              <CardDescription>Recent conversations between end-users and the AI Agent</CardDescription>
+              <CardTitle>Chat History</CardTitle>
+              <CardDescription>Recent conversations between end-users and the AI chatbot</CardDescription>
             </CardHeader>
             <CardContent>
               {activities?.length ? (
@@ -199,7 +199,7 @@ const ClientView = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Interaction Type</TableHead>
+                      <TableHead>Chat Type</TableHead>
                       <TableHead>Details</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -218,15 +218,15 @@ const ClientView = () => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-gray-500 text-center py-4">No AI interactions recorded yet</p>
+                <p className="text-gray-500 text-center py-4">No chat history available yet</p>
               )}
             </CardContent>
           </Card>
 
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>AI Agent Issues</CardTitle>
-              <CardDescription>Recent errors or problems in AI Agent interactions</CardDescription>
+              <CardTitle>Chatbot Issues</CardTitle>
+              <CardDescription>Errors encountered during end-user conversations</CardDescription>
             </CardHeader>
             <CardContent>
               {errorLogs?.length ? (
@@ -234,9 +234,9 @@ const ClientView = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Issue Type</TableHead>
-                      <TableHead>Details</TableHead>
-                      <TableHead>Resolution Status</TableHead>
+                      <TableHead>Error Type</TableHead>
+                      <TableHead>Error Details</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -265,7 +265,7 @@ const ClientView = () => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-gray-500 text-center py-4">No AI Agent issues found</p>
+                <p className="text-gray-500 text-center py-4">No chatbot issues reported</p>
               )}
             </CardContent>
           </Card>
