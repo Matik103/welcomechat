@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import type { Json } from "@/integrations/supabase/types";
 
 const MetricCard = ({ title, value, change }: { title: string; value: string | number; change?: string }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 animate-fade-in">
@@ -23,7 +24,7 @@ const ActivityItem = ({ item }: { item: {
   activity_type: string;
   description: string;
   created_at: string;
-  metadata: Record<string, any>;
+  metadata: Json;
   client_name?: string;
 } }) => (
   <div className="flex items-center gap-4 py-3 animate-slide-in">
