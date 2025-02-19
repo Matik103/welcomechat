@@ -40,6 +40,17 @@ function isWidgetSettings(value: unknown): value is WidgetSettings {
          typeof settings.text_color === 'string';
 }
 
+function convertSettingsToJson(settings: WidgetSettings): { [key: string]: Json } {
+  return {
+    agent_name: settings.agent_name,
+    logo_url: settings.logo_url,
+    webhook_url: settings.webhook_url,
+    chat_color: settings.chat_color,
+    background_color: settings.background_color,
+    text_color: settings.text_color
+  };
+}
+
 const WidgetSettings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -79,7 +90,7 @@ const WidgetSettings = () => {
       const { error } = await supabase
         .from("clients")
         .update({
-          widget_settings: newSettings
+          widget_settings: convertSettingsToJson(newSettings)
         })
         .eq("id", id);
       if (error) throw error;
