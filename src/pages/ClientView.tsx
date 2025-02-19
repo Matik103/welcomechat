@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ChatInteraction } from "@/types/agent";
 
 const ClientView = () => {
   const { id } = useParams();
@@ -36,23 +37,27 @@ const ClientView = () => {
     },
   });
 
-  // Query the AI agent's vector table for chat history
-  const { data: chatHistory } = useQuery({
+  // Query the AI agent's vector table for chat history using RPC
+  const { data: chatHistory } = useQuery<ChatInteraction[]>({
     queryKey: ["chat-history", client?.agent_name],
     queryFn: async () => {
-      if (!client?.agent_name) return null;
+      if (!client?.agent_name) return [];
+      
+      // First get table name
       const tableName = client.agent_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      
+      // Use raw query to fetch from dynamic table
       const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .eq('metadata->>type', 'chat_interaction')
-        .order('id', { ascending: false })
-        .limit(10);
+        .rpc('fetch_chat_history', {
+          table_name: tableName,
+          chat_limit: 10
+        });
+        
       if (error) {
         console.error("Error fetching chat history:", error);
         return [];
       }
-      return data;
+      return data || [];
     },
     enabled: !!client?.agent_name,
   });
@@ -113,6 +118,12 @@ const ClientView = () => {
     );
   }
 
+  const getLastInteractionTime = () => {
+    if (!chatHistory?.length) return 'No interactions yet';
+    const lastChat = chatHistory[0];
+    return format(new Date(lastChat.metadata.timestamp), 'PPP');
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -158,11 +169,7 @@ const ClientView = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Last Chat Interaction</p>
-                <p className="font-medium">
-                  {chatHistory && chatHistory.length > 0
-                    ? format(new Date(chatHistory[0].metadata.timestamp), 'PPP')
-                    : 'No interactions yet'}
-                </p>
+                <p className="font-medium">{getLastInteractionTime()}</p>
               </div>
             </CardContent>
           </Card>
