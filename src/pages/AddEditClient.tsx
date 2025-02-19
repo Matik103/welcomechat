@@ -146,24 +146,33 @@ const AddEditClient = () => {
   });
 
   const addWebsiteUrlMutation = useMutation({
-    mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
-      if (!id) throw new Error("Client ID is required");
-      const { data, error } = await supabase
+    mutationFn: async (data: { url: string; refresh_rate: number }) => {
+      console.log("Adding website URL:", data);
+      const { data: newUrl, error } = await supabase
         .from("website_urls")
-        .insert([{ client_id: id, url, refresh_rate }])
+        .insert({
+          client_id: id,
+          url: data.url,
+          refresh_rate: data.refresh_rate
+        })
         .select()
         .single();
-      if (error) throw error;
-      return data;
+      
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+      return newUrl;
     },
     onSuccess: () => {
-      refetchWebsiteUrls();
+      queryClient.invalidateQueries({ queryKey: ["websiteUrls", id] });
       setNewWebsiteUrl("");
       setNewWebsiteUrlRefreshRate(30);
       setShowNewWebsiteUrlForm(false);
       toast.success("Website URL added successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
+      console.error("Error in mutation:", error);
       toast.error(`Error adding website URL: ${error.message}`);
     },
   });
@@ -187,17 +196,23 @@ const AddEditClient = () => {
 
   const deleteWebsiteUrlMutation = useMutation({
     mutationFn: async (urlId: number) => {
+      console.log("Deleting website URL:", urlId);
       const { error } = await supabase
         .from("website_urls")
         .delete()
         .eq("id", urlId);
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Supabase delete error:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
-      refetchWebsiteUrls();
+      queryClient.invalidateQueries({ queryKey: ["websiteUrls", id] });
       toast.success("Website URL removed successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
+      console.error("Error in delete mutation:", error);
       toast.error(`Error removing website URL: ${error.message}`);
     },
   });
@@ -230,15 +245,99 @@ const AddEditClient = () => {
     e.preventDefault();
     e.stopPropagation();
     if (!newWebsiteUrl) return;
+    
     try {
+      console.log("Attempting to add URL:", newWebsiteUrl);
       await addWebsiteUrlMutation.mutateAsync({
         url: newWebsiteUrl,
-        refresh_rate: newWebsiteUrlRefreshRate,
+        refresh_rate: newWebsiteUrlRefreshRate
       });
     } catch (error) {
-      console.error("Error adding website URL:", error);
+      console.error("Error in handleAddWebsiteUrl:", error);
     }
   };
+
+  const renderWebsiteUrls = () => (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
+      <div className="space-y-4">
+        {websiteUrls.map((url) => (
+          <div key={url.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+            <span className="flex-1 truncate text-sm">{url.url}</span>
+            <span className="text-sm text-gray-500 whitespace-nowrap">({url.refresh_rate} days)</span>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => deleteWebsiteUrlMutation.mutate(url.id)}
+              disabled={deleteWebsiteUrlMutation.isPending}
+            >
+              {deleteWebsiteUrlMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </div>
+        ))}
+
+        {!showNewWebsiteUrlForm ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowNewWebsiteUrlForm(true)}
+            className="w-full"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add Website URL
+          </Button>
+        ) : (
+          <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+            <div className="space-y-4">
+              <Input
+                type="url"
+                placeholder="https://example.com"
+                value={newWebsiteUrl}
+                onChange={(e) => setNewWebsiteUrl(e.target.value)}
+                required
+              />
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Refresh Rate (days)
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={newWebsiteUrlRefreshRate}
+                    onChange={(e) => setNewWebsiteUrlRefreshRate(parseInt(e.target.value))}
+                    required
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-6">
+                  <Button 
+                    onClick={handleAddWebsiteUrl}
+                    disabled={addWebsiteUrlMutation.isPending}
+                  >
+                    {addWebsiteUrlMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Add"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowNewWebsiteUrlForm(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   if (isLoadingClient) {
     return (
@@ -410,85 +509,7 @@ const AddEditClient = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
-                <div className="space-y-4">
-                  {websiteUrls.map((url) => (
-                    <div key={url.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
-                      <span className="flex-1 truncate text-sm">{url.url}</span>
-                      <span className="text-sm text-gray-500 whitespace-nowrap">({url.refresh_rate} days)</span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => deleteWebsiteUrlMutation.mutate(url.id)}
-                        disabled={deleteWebsiteUrlMutation.isPending}
-                      >
-                        {deleteWebsiteUrlMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "Delete"
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-
-                  {!showNewWebsiteUrlForm ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowNewWebsiteUrlForm(true)}
-                      className="w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" /> Add Website URL
-                    </Button>
-                  ) : (
-                    <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                      <div className="space-y-4">
-                        <Input
-                          type="url"
-                          placeholder="https://example.com"
-                          value={newWebsiteUrl}
-                          onChange={(e) => setNewWebsiteUrl(e.target.value)}
-                          required
-                        />
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Refresh Rate (days)
-                            </label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={newWebsiteUrlRefreshRate}
-                              onChange={(e) => setNewWebsiteUrlRefreshRate(parseInt(e.target.value))}
-                              required
-                            />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Button 
-                              onClick={handleAddWebsiteUrl}
-                              disabled={addWebsiteUrlMutation.isPending}
-                            >
-                              {addWebsiteUrlMutation.isPending ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                "Add"
-                              )}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              onClick={() => setShowNewWebsiteUrlForm(false)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {renderWebsiteUrls()}
             </>
           )}
         </div>
