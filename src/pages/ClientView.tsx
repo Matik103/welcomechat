@@ -161,16 +161,16 @@ const ClientView = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Common Queries</CardTitle>
-              <CardDescription>Most frequent user interactions</CardDescription>
+              <CardTitle>Top End-User Queries</CardTitle>
+              <CardDescription>Most common questions asked to the AI Agent</CardDescription>
             </CardHeader>
             <CardContent>
               {commonQueries?.length ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Query</TableHead>
-                      <TableHead className="text-right">Frequency</TableHead>
+                      <TableHead>User Question</TableHead>
+                      <TableHead className="text-right">Times Asked</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -183,15 +183,15 @@ const ClientView = () => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-gray-500 text-center py-4">No common queries recorded yet</p>
+                <p className="text-gray-500 text-center py-4">No user queries recorded yet</p>
               )}
             </CardContent>
           </Card>
 
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>Recent Activities</CardTitle>
-              <CardDescription>Latest interactions and system events</CardDescription>
+              <CardTitle>AI Agent Interactions</CardTitle>
+              <CardDescription>Recent conversations between end-users and the AI Agent</CardDescription>
             </CardHeader>
             <CardContent>
               {activities?.length ? (
@@ -199,8 +199,8 @@ const ClientView = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Description</TableHead>
+                      <TableHead>Interaction Type</TableHead>
+                      <TableHead>Details</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -218,15 +218,15 @@ const ClientView = () => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-gray-500 text-center py-4">No recent activities</p>
+                <p className="text-gray-500 text-center py-4">No AI interactions recorded yet</p>
               )}
             </CardContent>
           </Card>
 
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>Error Logs</CardTitle>
-              <CardDescription>Recent issues requiring attention</CardDescription>
+              <CardTitle>AI Agent Issues</CardTitle>
+              <CardDescription>Recent errors or problems in AI Agent interactions</CardDescription>
             </CardHeader>
             <CardContent>
               {errorLogs?.length ? (
@@ -234,9 +234,9 @@ const ClientView = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Message</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Issue Type</TableHead>
+                      <TableHead>Details</TableHead>
+                      <TableHead>Resolution Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -265,7 +265,7 @@ const ClientView = () => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-gray-500 text-center py-4">No error logs found</p>
+                <p className="text-gray-500 text-center py-4">No AI Agent issues found</p>
               )}
             </CardContent>
           </Card>
