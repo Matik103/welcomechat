@@ -53,40 +53,49 @@ const ClientView = () => {
     queryFn: async (): Promise<ChatInteraction[]> => {
       if (!client?.agent_name) return [];
       
-      // Convert agent name to table name
-      const tableName = client.agent_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-      
-      // Use a raw query with types
-      const query = `SELECT id::bigint, content::text, metadata::jsonb 
-                    FROM "${tableName}" 
-                    WHERE metadata->>'type' = 'chat_interaction'
-                    ORDER BY id DESC 
-                    LIMIT 10`;
-      
-      const { data, error } = await supabase
-        .from('clients')
-        .select()
-        .eq('id', client.id)
-        .then(async () => {
-          // Execute the raw query after confirming client exists
-          return await supabase.from(tableName).select('*');
-        });
+      try {
+        // Use table select based on agent name
+        let query;
+        switch (client.agent_name.toLowerCase()) {
+          case 'coca cola':
+            query = supabase.from('coca_cola');
+            break;
+          case 'the agent':
+            query = supabase.from('the_agent');
+            break;
+          case 'ai agent':
+            query = supabase.from('ai_agent');
+            break;
+          default:
+            console.error('Unknown agent type:', client.agent_name);
+            return [];
+        }
         
-      if (error) {
-        console.error("Error fetching chat history:", error);
+        const { data: chatData, error } = await query
+          .select('id, content, metadata')
+          .eq('metadata->>type', 'chat_interaction')
+          .order('id', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error("Error fetching chat history:", error);
+          return [];
+        }
+
+        // Transform and validate the data
+        return (chatData || []).map(row => ({
+          id: Number(row.id),
+          content: row.content || '',
+          metadata: {
+            timestamp: row.metadata?.timestamp || new Date().toISOString(),
+            user_message: row.metadata?.user_message || '',
+            type: row.metadata?.type || 'chat_interaction'
+          }
+        }));
+      } catch (error) {
+        console.error("Error in chat history query:", error);
         return [];
       }
-
-      // Transform the data to match ChatInteraction type
-      return (data || []).map(row => ({
-        id: Number(row.id),
-        content: row.content || '',
-        metadata: {
-          timestamp: row.metadata?.timestamp || new Date().toISOString(),
-          user_message: row.metadata?.user_message || '',
-          type: row.metadata?.type || 'chat_interaction'
-        }
-      }));
     },
     enabled: !!client?.agent_name,
   });
