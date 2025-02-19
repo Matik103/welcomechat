@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ArrowRight, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +13,7 @@ const MetricCard = ({ title, value, change }: { title: string; value: string | n
       <span className="text-3xl font-bold text-gray-900">{value}</span>
       {change && (
         <span className="text-secondary text-sm font-medium mb-1">
-          +{change}
+          {change.startsWith('-') ? '' : '+'}{change}%
         </span>
       )}
     </div>
@@ -76,22 +77,46 @@ const Index = () => {
           startDate = new Date(0);
       }
 
-      const { data: total, error: totalError } = await supabase
+      const { data: total } = await supabase
         .from("clients")
         .select("*", { count: "exact" });
 
-      const { data: active, error: activeError } = await supabase
+      const { data: active } = await supabase
         .from("clients")
         .select("*", { count: "exact" })
         .eq("status", "active")
         .gt("last_active", startDate.toISOString());
 
-      if (totalError || activeError) throw new Error("Failed to fetch client stats");
+      const previousPeriodStart = new Date(startDate);
+      switch (timeRange) {
+        case "1d":
+          previousPeriodStart.setDate(previousPeriodStart.getDate() - 1);
+          break;
+        case "1m":
+          previousPeriodStart.setMonth(previousPeriodStart.getMonth() - 1);
+          break;
+        case "1y":
+          previousPeriodStart.setFullYear(previousPeriodStart.getFullYear() - 1);
+          break;
+      }
+
+      const { data: previousActive } = await supabase
+        .from("clients")
+        .select("*", { count: "exact" })
+        .eq("status", "active")
+        .gt("last_active", previousPeriodStart.toISOString())
+        .lt("last_active", startDate.toISOString());
+
+      const currentActiveCount = active?.length ?? 0;
+      const previousActiveCount = previousActive?.length ?? 0;
+      const changePercentage = previousActiveCount === 0 
+        ? currentActiveCount > 0 ? 100 : 0
+        : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
 
       return {
         total: total?.length ?? 0,
-        active: active?.length ?? 0,
-        change: total?.length ? ((active?.length ?? 0) / total.length * 100).toFixed(1) : "0"
+        active: currentActiveCount,
+        change: changePercentage.toFixed(1)
       };
     }
   });
@@ -130,10 +155,22 @@ const Index = () => {
       const totalInteractions = filteredActivities?.length ?? 0;
       const avgInteractions = Math.round(totalInteractions / (clientStats?.total || 1));
 
+      const previousActivities = activities?.filter(
+        activity => {
+          const activityDate = new Date(activity.created_at);
+          return activityDate >= startDate && activityDate < now;
+        }
+      );
+
+      const previousTotal = previousActivities?.length ?? 0;
+      const changePercentage = previousTotal === 0 
+        ? totalInteractions > 0 ? 100 : 0
+        : ((totalInteractions - previousTotal) / previousTotal * 100);
+
       return {
         total: totalInteractions,
         average: avgInteractions,
-        change: ((totalInteractions / (activities?.length || 1)) * 100 - 100).toFixed(1)
+        change: changePercentage.toFixed(1)
       };
     },
     enabled: !!clientStats?.total
@@ -175,26 +212,27 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard 
             title="Total Clients" 
-            value={clientStats?.total || 0} 
-            change={((clientStats?.total || 0) / 100 * 25).toFixed(1) + "%"} 
+            value={clientStats?.total || 0}
           />
           <MetricCard 
             title="Active Clients" 
-            value={clientStats?.active || 0} 
-            change={((clientStats?.active || 0) / (clientStats?.total || 1) * 100).toFixed(1) + "%"} 
+            value={clientStats?.active || 0}
+            change={clientStats?.change}
           />
           <MetricCard 
             title="Avg. Interactions" 
-            value={interactionStats?.average || 0} 
+            value={interactionStats?.average || 0}
           />
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 animate-fade-in">
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <h3 className="text-gray-500 text-sm font-medium mb-2">Total Interactions</h3>
             <div className="flex items-center gap-2 mb-4">
               <span className="text-3xl font-bold text-gray-900">
                 {interactionStats?.total || 0}
               </span>
               <span className="text-secondary text-sm font-medium">
-                {interactionStats?.change && `+${interactionStats.change}%`}
+                {interactionStats?.change && 
+                  `${interactionStats.change.startsWith('-') ? '' : '+'}${interactionStats.change}%`
+                }
               </span>
             </div>
             <div className="flex gap-2">
@@ -215,7 +253,7 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 animate-fade-in">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
           <div className="divide-y divide-gray-100">
             {recentActivities?.map((activity, index) => (
