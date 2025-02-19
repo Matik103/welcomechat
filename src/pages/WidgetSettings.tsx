@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 interface WidgetSettings {
   agent_name: string;
@@ -19,19 +20,21 @@ interface WidgetSettings {
   text_color: string;
 }
 
+const defaultSettings: WidgetSettings = {
+  agent_name: "",
+  logo_url: "",
+  webhook_url: "",
+  chat_color: "#854fff",
+  background_color: "#ffffff",
+  text_color: "#333333"
+};
+
 const WidgetSettings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [settings, setSettings] = useState<WidgetSettings>({
-    agent_name: "",
-    logo_url: "",
-    webhook_url: "",
-    chat_color: "#854fff",
-    background_color: "#ffffff",
-    text_color: "#333333"
-  });
+  const [settings, setSettings] = useState<WidgetSettings>(defaultSettings);
 
   const { data: client, isLoading } = useQuery({
     queryKey: ["client", id],
@@ -49,20 +52,30 @@ const WidgetSettings = () => {
   // Load existing settings when client data is available
   useEffect(() => {
     if (client) {
-      setSettings(prev => ({
-        ...prev,
+      const widgetSettings = client.widget_settings as WidgetSettings | null;
+      setSettings({
+        ...defaultSettings,
         agent_name: client.agent_name || "",
-        ...(client.widget_settings || {})
-      }));
+        ...(widgetSettings || {})
+      });
     }
   }, [client]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettings) => {
+      const settingsAsJson: Json = {
+        agent_name: newSettings.agent_name,
+        logo_url: newSettings.logo_url,
+        webhook_url: newSettings.webhook_url,
+        chat_color: newSettings.chat_color,
+        background_color: newSettings.background_color,
+        text_color: newSettings.text_color
+      };
+
       const { error } = await supabase
         .from("clients")
         .update({
-          widget_settings: newSettings
+          widget_settings: settingsAsJson
         })
         .eq("id", id);
       if (error) throw error;
