@@ -21,6 +21,14 @@ const AddEditClient = () => {
     navigate("/clients");
   };
 
+  const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
+    await addDriveLinkMutation.mutateAsync(data);
+  };
+
+  const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
+    await addWebsiteUrlMutation.mutateAsync(data);
+  };
+
   if (isLoadingClient) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
@@ -64,7 +72,7 @@ const AddEditClient = () => {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Share Links</h2>
                 <DriveLinks
                   driveLinks={driveLinks}
-                  onAdd={addDriveLinkMutation.mutateAsync}
+                  onAdd={handleAddDriveLink}
                   onDelete={deleteDriveLinkMutation.mutate}
                   isAddLoading={addDriveLinkMutation.isPending}
                   isDeleteLoading={deleteDriveLinkMutation.isPending}
@@ -75,7 +83,7 @@ const AddEditClient = () => {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
                 <WebsiteUrls
                   urls={websiteUrls}
-                  onAdd={addWebsiteUrlMutation.mutateAsync}
+                  onAdd={handleAddWebsiteUrl}
                   onDelete={deleteWebsiteUrlMutation.mutate}
                   isAddLoading={addWebsiteUrlMutation.isPending}
                   isDeleteLoading={deleteWebsiteUrlMutation.isPending}
