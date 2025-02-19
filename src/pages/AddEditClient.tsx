@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
@@ -27,7 +26,8 @@ type NewLinkInput = {
 const AddEditClient = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [clientName, setClientName] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [aiAgentName, setAiAgentName] = useState("");
   const [newDriveLink, setNewDriveLink] = useState<NewLinkInput>({ url: "", refresh_rate: 30 });
   const [newWebsiteUrl, setNewWebsiteUrl] = useState<NewLinkInput>({ url: "", refresh_rate: 30 });
@@ -48,12 +48,15 @@ const AddEditClient = () => {
       return data;
     },
     enabled: !!id,
-    onSuccess: (data) => {
-      if (data) {
-        setClientName(data.name);
-        setAiAgentName(data.agent_name);
+    meta: {
+      onSuccess: (data: any) => {
+        if (data) {
+          setFullName(data.full_name);
+          setEmail(data.email);
+          setAiAgentName(data.agent_name);
+        }
       }
-    },
+    }
   });
 
   // Fetch drive links if editing
@@ -88,7 +91,7 @@ const AddEditClient = () => {
 
   // Add/Update client mutation
   const clientMutation = useMutation({
-    mutationFn: async (data: { name: string; agent_name: string }) => {
+    mutationFn: async (data: { full_name: string; email: string; agent_name: string }) => {
       if (id) {
         const { error } = await supabase
           .from("clients")
@@ -189,7 +192,8 @@ const AddEditClient = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     clientMutation.mutate({
-      name: clientName,
+      full_name: fullName,
+      email,
       agent_name: aiAgentName,
     });
   };
@@ -214,7 +218,7 @@ const AddEditClient = () => {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {id ? `Edit Client - ${client?.name}` : "Add New Client"}
+              {id ? `Edit Client - ${client?.full_name}` : "Add New Client"}
             </h1>
             <p className="text-gray-500">
               {id ? "Update client information" : "Create a new client"}
@@ -226,14 +230,27 @@ const AddEditClient = () => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
             <div className="space-y-4">
               <div>
-                <label htmlFor="clientName" className="block text-sm font-medium text-gray-700 mb-1">
-                  Client Name
+                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
                 </label>
                 <input
-                  id="clientName"
+                  id="fullName"
                   type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                   required
                 />
