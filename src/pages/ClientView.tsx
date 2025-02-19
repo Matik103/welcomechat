@@ -46,13 +46,17 @@ const ClientView = () => {
       // Convert agent name to table name
       const tableName = client.agent_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
       
-      // Create a raw SQL query using the stored function
+      // Use a raw query instead of the builder
       const { data, error } = await supabase
-        .from(tableName)
-        .select('id, content, metadata')
-        .eq('metadata->type', 'chat_interaction')
-        .order('id', { ascending: false })
-        .limit(10);
+        .rpc('execute_raw_query', {
+          query_text: `
+            SELECT id, content, metadata 
+            FROM "${tableName}" 
+            WHERE metadata->>'type' = 'chat_interaction'
+            ORDER BY id DESC 
+            LIMIT 10
+          `
+        });
         
       if (error) {
         console.error("Error fetching chat history:", error);
@@ -60,13 +64,13 @@ const ClientView = () => {
       }
 
       // Transform the data to match ChatInteraction type
-      return (data || []).map(item => ({
-        id: item.id,
-        content: item.content || '',
+      return (data || []).map(row => ({
+        id: Number(row.id),
+        content: row.content || '',
         metadata: {
-          timestamp: item.metadata?.timestamp || new Date().toISOString(),
-          user_message: item.metadata?.user_message || '',
-          type: item.metadata?.type || 'chat_interaction'
+          timestamp: row.metadata?.timestamp || new Date().toISOString(),
+          user_message: row.metadata?.user_message || '',
+          type: row.metadata?.type || 'chat_interaction'
         }
       }));
     },
