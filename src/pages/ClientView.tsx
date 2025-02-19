@@ -36,21 +36,28 @@ const ClientView = () => {
     },
   });
 
-  const { data: activities } = useQuery({
-    queryKey: ["client-activities", id],
+  // Query the AI agent's vector table for chat history
+  const { data: chatHistory } = useQuery({
+    queryKey: ["chat-history", client?.agent_name],
     queryFn: async () => {
+      if (!client?.agent_name) return null;
+      const tableName = client.agent_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
       const { data, error } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq("client_id", id)
-        .order("created_at", { ascending: false })
+        .from(tableName)
+        .select('*')
+        .eq('metadata->>type', 'chat_interaction')
+        .order('id', { ascending: false })
         .limit(10);
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching chat history:", error);
+        return [];
+      }
       return data;
     },
-    enabled: !!id,
+    enabled: !!client?.agent_name,
   });
 
+  // Query common end-user questions
   const { data: commonQueries } = useQuery({
     queryKey: ["common-queries", id],
     queryFn: async () => {
@@ -66,6 +73,7 @@ const ClientView = () => {
     enabled: !!id,
   });
 
+  // Query error logs for chatbot issues
   const { data: errorLogs } = useQuery({
     queryKey: ["error-logs", id],
     queryFn: async () => {
@@ -151,8 +159,8 @@ const ClientView = () => {
               <div>
                 <p className="text-sm text-gray-500">Last Chat Interaction</p>
                 <p className="font-medium">
-                  {client.last_active 
-                    ? format(new Date(client.last_active), 'PPP')
+                  {chatHistory && chatHistory.length > 0
+                    ? format(new Date(chatHistory[0].metadata.timestamp), 'PPP')
                     : 'No interactions yet'}
                 </p>
               </div>
@@ -194,25 +202,23 @@ const ClientView = () => {
               <CardDescription>Recent conversations between end-users and the AI chatbot</CardDescription>
             </CardHeader>
             <CardContent>
-              {activities?.length ? (
+              {chatHistory?.length ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Chat Type</TableHead>
-                      <TableHead>Details</TableHead>
+                      <TableHead>User Message</TableHead>
+                      <TableHead>AI Response</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {activities.map((activity) => (
-                      <TableRow key={activity.id}>
+                    {chatHistory.map((chat) => (
+                      <TableRow key={chat.id}>
                         <TableCell>
-                          {format(new Date(activity.created_at!), 'PP')}
+                          {format(new Date(chat.metadata.timestamp), 'PP')}
                         </TableCell>
-                        <TableCell>
-                          <span className="capitalize">{activity.activity_type}</span>
-                        </TableCell>
-                        <TableCell>{activity.description}</TableCell>
+                        <TableCell>{chat.metadata.user_message}</TableCell>
+                        <TableCell>{chat.content}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
