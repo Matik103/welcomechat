@@ -66,9 +66,12 @@ const WidgetSettings = () => {
       const widgetSettings = client.widget_settings;
       if (isWidgetSettings(widgetSettings)) {
         setSettings({
-          ...defaultSettings,
-          agent_name: client.agent_name || "",
-          ...widgetSettings
+          agent_name: widgetSettings.agent_name,
+          logo_url: widgetSettings.logo_url,
+          webhook_url: widgetSettings.webhook_url,
+          chat_color: widgetSettings.chat_color,
+          background_color: widgetSettings.background_color,
+          text_color: widgetSettings.text_color
         });
       } else {
         setSettings({
