@@ -12,6 +12,7 @@ import ClientList from "./pages/ClientList";
 import AddEditClient from "./pages/AddEditClient";
 import ClientView from "./pages/ClientView";
 import WidgetSettings from "./pages/WidgetSettings";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,14 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/settings"
+              element={
+                <PrivateRoute>
+                  <Settings />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/clients"
               element={
