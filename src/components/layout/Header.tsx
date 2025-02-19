@@ -27,9 +27,20 @@ export const Header = () => {
     <header className="border-b bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <Link to="/clients" className="text-xl font-bold">
-            AI Chatbot Admin
-          </Link>
+          <nav className="flex items-center gap-6">
+            <Link 
+              to="/" 
+              className="text-gray-600 hover:text-gray-900 font-medium"
+            >
+              Dashboard
+            </Link>
+            <Link 
+              to="/clients" 
+              className="text-gray-600 hover:text-gray-900 font-medium"
+            >
+              Clients
+            </Link>
+          </nav>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
