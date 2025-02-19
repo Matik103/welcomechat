@@ -146,35 +146,31 @@ const AddEditClient = () => {
   });
 
   const addWebsiteUrlMutation = useMutation({
-    mutationFn: async (data: { url: string; refresh_rate: number }) => {
-      console.log("Adding website URL:", data);
-      const { data: newUrl, error } = await supabase
+    mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
+      const { data, error } = await supabase
         .from("website_urls")
-        .insert({
-          client_id: id,
-          url: data.url,
-          refresh_rate: data.refresh_rate
-        })
-        .select()
+        .insert([{ client_id: id, url, refresh_rate }])
+        .select('*')
         .single();
       
       if (error) {
-        console.error("Supabase error:", error);
         throw error;
       }
-      return newUrl;
+      return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["websiteUrls", id] });
-      setNewWebsiteUrl("");
-      setNewWebsiteUrlRefreshRate(30);
-      setShowNewWebsiteUrlForm(false);
-      toast.success("Website URL added successfully");
-    },
-    onError: (error: Error) => {
-      console.error("Error in mutation:", error);
-      toast.error(`Error adding website URL: ${error.message}`);
-    },
+    onSettled: async (data, error) => {
+      if (data) {
+        await refetchWebsiteUrls();
+        setNewWebsiteUrl("");
+        setNewWebsiteUrlRefreshRate(30);
+        setShowNewWebsiteUrlForm(false);
+        toast.success("Website URL added successfully");
+      }
+      if (error) {
+        console.error("Error in mutation:", error);
+        toast.error(`Error adding website URL: ${error.message}`);
+      }
+    }
   });
 
   const deleteDriveLinkMutation = useMutation({
@@ -196,25 +192,23 @@ const AddEditClient = () => {
 
   const deleteWebsiteUrlMutation = useMutation({
     mutationFn: async (urlId: number) => {
-      console.log("Deleting website URL:", urlId);
       const { error } = await supabase
         .from("website_urls")
         .delete()
         .eq("id", urlId);
       
       if (error) {
-        console.error("Supabase delete error:", error);
         throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["websiteUrls", id] });
-      toast.success("Website URL removed successfully");
-    },
-    onError: (error: Error) => {
-      console.error("Error in delete mutation:", error);
-      toast.error(`Error removing website URL: ${error.message}`);
-    },
+    onSettled: async (_, error) => {
+      if (error) {
+        toast.error(`Error removing website URL: ${error.message}`);
+      } else {
+        await refetchWebsiteUrls();
+        toast.success("Website URL removed successfully");
+      }
+    }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -261,7 +255,7 @@ const AddEditClient = () => {
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
       <div className="space-y-4">
-        {websiteUrls.map((url) => (
+        {websiteUrls?.map((url) => (
           <div key={url.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
             <span className="flex-1 truncate text-sm">{url.url}</span>
             <span className="text-sm text-gray-500 whitespace-nowrap">({url.refresh_rate} days)</span>
