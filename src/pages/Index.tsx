@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ArrowRight, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -22,9 +21,10 @@ const MetricCard = ({ title, value, change }: { title: string; value: string | n
 
 const ActivityItem = ({ item }: { item: { 
   activity_type: string;
-  client_name: string;
   description: string;
   created_at: string;
+  metadata: Record<string, any>;
+  client_name?: string;
 } }) => (
   <div className="flex items-center gap-4 py-3 animate-slide-in">
     <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
@@ -77,17 +77,22 @@ const Index = () => {
           startDate = new Date(0);
       }
 
-      const { data: total } = await supabase
+      const { data: totalClients, error: totalError } = await supabase
         .from("clients")
         .select("*", { count: "exact" });
 
-      const { data: active } = await supabase
+      if (totalError) throw totalError;
+
+      const { data: activeClients, error: activeError } = await supabase
         .from("clients")
-        .select("*", { count: "exact" })
-        .eq("status", "active")
-        .gt("last_active", startDate.toISOString());
+        .select("*")
+        .eq("status", 'active');
+
+      if (activeError) throw activeError;
 
       const previousPeriodStart = new Date(startDate);
+      const previousPeriodEnd = new Date(startDate);
+      
       switch (timeRange) {
         case "1d":
           previousPeriodStart.setDate(previousPeriodStart.getDate() - 1);
@@ -102,19 +107,20 @@ const Index = () => {
 
       const { data: previousActive } = await supabase
         .from("clients")
-        .select("*", { count: "exact" })
-        .eq("status", "active")
-        .gt("last_active", previousPeriodStart.toISOString())
-        .lt("last_active", startDate.toISOString());
+        .select("*")
+        .eq("status", 'active')
+        .gte("last_active", previousPeriodStart.toISOString())
+        .lt("last_active", previousPeriodEnd.toISOString());
 
-      const currentActiveCount = active?.length ?? 0;
+      const currentActiveCount = activeClients?.length ?? 0;
       const previousActiveCount = previousActive?.length ?? 0;
+      
       const changePercentage = previousActiveCount === 0 
         ? currentActiveCount > 0 ? 100 : 0
         : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
 
       return {
-        total: total?.length ?? 0,
+        total: totalClients?.length ?? 0,
         active: currentActiveCount,
         change: changePercentage.toFixed(1)
       };
@@ -187,18 +193,23 @@ const Index = () => {
             client_name
           )
         `)
-        .order("created_at", { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(5);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching activities:", error);
+        throw error;
+      }
 
       return activities.map(activity => ({
         activity_type: activity.activity_type,
-        client_name: activity.clients?.client_name || "Unknown Client",
         description: activity.description,
-        created_at: activity.created_at
+        created_at: activity.created_at,
+        metadata: activity.metadata,
+        client_name: activity.clients?.client_name || "Unknown Client"
       }));
-    }
+    },
+    refetchInterval: 5000
   });
 
   return (
@@ -256,9 +267,13 @@ const Index = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
           <div className="divide-y divide-gray-100">
-            {recentActivities?.map((activity, index) => (
-              <ActivityItem key={index} item={activity} />
-            ))}
+            {recentActivities?.length === 0 ? (
+              <p className="text-gray-500 py-4">No recent activities</p>
+            ) : (
+              recentActivities?.map((activity, index) => (
+                <ActivityItem key={index} item={activity} />
+              ))
+            )}
           </div>
         </div>
 
