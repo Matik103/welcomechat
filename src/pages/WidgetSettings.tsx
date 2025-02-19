@@ -64,11 +64,18 @@ const WidgetSettings = () => {
   useEffect(() => {
     if (client) {
       const widgetSettings = client.widget_settings;
-      setSettings({
-        ...defaultSettings,
-        agent_name: client.agent_name || "",
-        ...(isWidgetSettings(widgetSettings) ? widgetSettings : {})
-      });
+      if (isWidgetSettings(widgetSettings)) {
+        setSettings({
+          ...defaultSettings,
+          agent_name: client.agent_name || "",
+          ...widgetSettings
+        });
+      } else {
+        setSettings({
+          ...defaultSettings,
+          agent_name: client.agent_name || ""
+        });
+      }
     }
   }, [client]);
 
