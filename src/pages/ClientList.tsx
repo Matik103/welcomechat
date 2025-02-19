@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ArrowLeft, Plus, Search, ChevronDown, Eye, Settings, Edit, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -153,30 +152,12 @@ const ClientList = () => {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => console.log("View client", client.id)}
-                          className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => console.log("Widget settings", client.id)}
-                          className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                          <Settings className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => console.log("Edit client", client.id)}
+                        <Link
+                          to={`/clients/${client.id}/edit`}
                           className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
                         >
                           <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => console.log("Delete client", client.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -209,12 +190,12 @@ const ClientList = () => {
         </div>
 
         <div className="flex justify-end">
-          <button
-            onClick={() => console.log("Add new client")}
+          <Link
+            to="/clients/new"
             className="bg-primary text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" /> Add New Client
-          </button>
+          </Link>
         </div>
       </div>
     </div>
