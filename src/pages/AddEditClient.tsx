@@ -1,335 +1,25 @@
-import { useState, useEffect } from "react";
+
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { ArrowLeft, Loader2, Plus, X } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-
-type DriveLink = {
-  id: number;
-  link: string;
-  refresh_rate: number;
-  client_id: string;
-};
-
-type WebsiteUrl = {
-  id: number;
-  url: string;
-  refresh_rate: number;
-  client_id: string;
-};
-
-type ClientFormData = {
-  client_name: string;
-  email: string;
-  agent_name: string;
-};
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useClientData } from "@/hooks/useClientData";
+import { useDriveLinks } from "@/hooks/useDriveLinks";
+import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
+import { ClientForm } from "@/components/client/ClientForm";
+import { DriveLinks } from "@/components/client/DriveLinks";
+import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 
 const AddEditClient = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   
-  const [clientName, setClientName] = useState("");
-  const [email, setEmail] = useState("");
-  const [aiAgentName, setAiAgentName] = useState("");
-  
-  const [newDriveLink, setNewDriveLink] = useState("");
-  const [newWebsiteUrl, setNewWebsiteUrl] = useState("");
-  const [newDriveLinkRefreshRate, setNewDriveLinkRefreshRate] = useState(30);
-  const [newWebsiteUrlRefreshRate, setNewWebsiteUrlRefreshRate] = useState(30);
-  const [showNewDriveLinkForm, setShowNewDriveLinkForm] = useState(false);
-  const [showNewWebsiteUrlForm, setShowNewWebsiteUrlForm] = useState(false);
+  const { client, isLoadingClient, clientMutation } = useClientData(id);
+  const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation } = useDriveLinks(id);
+  const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(id);
 
-  const { data: client, isLoading: isLoadingClient } = useQuery({
-    queryKey: ["client", id],
-    queryFn: async () => {
-      if (!id) return null;
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!id,
-  });
-
-  const { data: driveLinks = [], refetch: refetchDriveLinks } = useQuery({
-    queryKey: ["driveLinks", id],
-    queryFn: async () => {
-      if (!id) return [];
-      const { data, error } = await supabase
-        .from("google_drive_links")
-        .select("*")
-        .eq("client_id", id);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!id,
-  });
-
-  const { data: websiteUrls = [], refetch: refetchWebsiteUrls } = useQuery({
-    queryKey: ["websiteUrls", id],
-    queryFn: async () => {
-      if (!id) return [];
-      const { data, error } = await supabase
-        .from("website_urls")
-        .select("*")
-        .eq("client_id", id);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!id,
-  });
-
-  useEffect(() => {
-    if (client) {
-      setClientName(client.client_name);
-      setEmail(client.email);
-      setAiAgentName(client.agent_name);
-    }
-  }, [client]);
-
-  const clientMutation = useMutation({
-    mutationFn: async (data: ClientFormData) => {
-      if (id) {
-        const { error } = await supabase
-          .from("clients")
-          .update(data)
-          .eq("id", id);
-        if (error) throw error;
-        return id;
-      } else {
-        const { data: newClient, error } = await supabase
-          .from("clients")
-          .insert(data)
-          .select()
-          .single();
-        if (error) throw error;
-        return newClient.id;
-      }
-    },
-    onSuccess: () => {
-      toast.success(id ? "Client updated successfully" : "Client created successfully");
-      navigate("/clients");
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
-    },
-  });
-
-  const addDriveLinkMutation = useMutation({
-    mutationFn: async ({ link, refresh_rate }: { link: string; refresh_rate: number }) => {
-      if (!id) throw new Error("Client ID is required");
-      const { data, error } = await supabase
-        .from("google_drive_links")
-        .insert([{ client_id: id, link, refresh_rate }])
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      refetchDriveLinks();
-      setNewDriveLink("");
-      setNewDriveLinkRefreshRate(30);
-      setShowNewDriveLinkForm(false);
-      toast.success("Drive link added successfully");
-    },
-    onError: (error) => {
-      toast.error(`Error adding drive link: ${error.message}`);
-    },
-  });
-
-  const addWebsiteUrlMutation = useMutation({
-    mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
-      if (!id) throw new Error("Client ID is required");
-      
-      const { data, error } = await supabase
-        .from("website_urls")
-        .insert({
-          client_id: id,
-          url,
-          refresh_rate
-        })
-        .select('id, url, refresh_rate')
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      refetchWebsiteUrls();
-      setNewWebsiteUrl("");
-      setNewWebsiteUrlRefreshRate(30);
-      setShowNewWebsiteUrlForm(false);
-      toast.success("Website URL added successfully");
-    },
-    onError: (error: Error) => {
-      console.error("Error details:", error);
-      toast.error(`Error adding website URL: ${error.message}`);
-    }
-  });
-
-  const deleteDriveLinkMutation = useMutation({
-    mutationFn: async (linkId: number) => {
-      const { error } = await supabase
-        .from("google_drive_links")
-        .delete()
-        .eq("id", linkId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      refetchDriveLinks();
-      toast.success("Drive link removed successfully");
-    },
-    onError: (error) => {
-      toast.error(`Error removing drive link: ${error.message}`);
-    },
-  });
-
-  const deleteWebsiteUrlMutation = useMutation({
-    mutationFn: async (urlId: number) => {
-      const { error } = await supabase
-        .from("website_urls")
-        .delete()
-        .eq("id", urlId);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      refetchWebsiteUrls();
-      toast.success("Website URL removed successfully");
-    },
-    onError: (error: Error) => {
-      toast.error(`Error removing website URL: ${error.message}`);
-    }
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload: ClientFormData = {
-      client_name: clientName,
-      email,
-      agent_name: aiAgentName,
-    };
-    clientMutation.mutate(payload);
+  const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
+    await clientMutation.mutateAsync(data);
+    navigate("/clients");
   };
-
-  const handleAddDriveLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!newDriveLink) return;
-    try {
-      await addDriveLinkMutation.mutateAsync({
-        link: newDriveLink,
-        refresh_rate: newDriveLinkRefreshRate,
-      });
-    } catch (error) {
-      console.error("Error adding drive link:", error);
-    }
-  };
-
-  const handleAddWebsiteUrl = async (e: React.FormEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!newWebsiteUrl) return;
-    
-    await addWebsiteUrlMutation.mutateAsync({
-      url: newWebsiteUrl,
-      refresh_rate: newWebsiteUrlRefreshRate
-    });
-  };
-
-  const handleDeleteWebsiteUrl = async (urlId: number) => {
-    await deleteWebsiteUrlMutation.mutateAsync(urlId);
-  };
-
-  const renderWebsiteUrls = () => (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
-      <div className="space-y-4">
-        {websiteUrls?.map((url) => (
-          <div key={url.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
-            <span className="flex-1 truncate text-sm">{url.url}</span>
-            <span className="text-sm text-gray-500 whitespace-nowrap">({url.refresh_rate} days)</span>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => handleDeleteWebsiteUrl(url.id)}
-              disabled={deleteWebsiteUrlMutation.isPending}
-            >
-              {deleteWebsiteUrlMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </Button>
-          </div>
-        ))}
-
-        {!showNewWebsiteUrlForm ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowNewWebsiteUrlForm(true)}
-            className="w-full"
-          >
-            <Plus className="w-4 h-4 mr-2" /> Add Website URL
-          </Button>
-        ) : (
-          <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-            <div className="space-y-4">
-              <Input
-                type="url"
-                placeholder="https://example.com"
-                value={newWebsiteUrl}
-                onChange={(e) => setNewWebsiteUrl(e.target.value)}
-                required
-              />
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Refresh Rate (days)
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={newWebsiteUrlRefreshRate}
-                    onChange={(e) => setNewWebsiteUrlRefreshRate(parseInt(e.target.value))}
-                    required
-                  />
-                </div>
-                <div className="flex items-center gap-2 pt-6">
-                  <Button 
-                    onClick={handleAddWebsiteUrl}
-                    disabled={addWebsiteUrlMutation.isPending}
-                  >
-                    {addWebsiteUrlMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      "Save"
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setShowNewWebsiteUrlForm(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   if (isLoadingClient) {
     return (
@@ -361,224 +51,35 @@ const AddEditClient = () => {
 
         <div className="space-y-8">
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="clientName" className="block text-sm font-medium text-gray-700 mb-1">
-                  Client Name
-                </label>
-                <Input
-                  id="clientName"
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="aiAgentName" className="block text-sm font-medium text-gray-700 mb-1">
-                  AI Agent Name
-                </label>
-                <Input
-                  id="aiAgentName"
-                  type="text"
-                  value={aiAgentName}
-                  onChange={(e) => setAiAgentName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex items-center justify-end gap-4">
-                <Link
-                  to="/clients"
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900"
-                >
-                  Cancel
-                </Link>
-                <Button
-                  type="submit"
-                  disabled={clientMutation.isPending}
-                >
-                  {clientMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Save Client"
-                  )}
-                </Button>
-              </div>
-            </form>
+            <ClientForm
+              initialData={client}
+              onSubmit={handleSubmit}
+              isLoading={clientMutation.isPending}
+            />
           </div>
 
           {id && (
             <>
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Share Links</h2>
-                <div className="space-y-4">
-                  {driveLinks.map((link) => (
-                    <div key={link.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
-                      <span className="flex-1 truncate text-sm">{link.link}</span>
-                      <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => deleteDriveLinkMutation.mutate(link.id)}
-                        disabled={deleteDriveLinkMutation.isPending}
-                      >
-                        {deleteDriveLinkMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "Delete"
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-
-                  {!showNewDriveLinkForm ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowNewDriveLinkForm(true)}
-                      className="w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" /> Add Google Drive Link
-                    </Button>
-                  ) : (
-                    <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                      <div className="space-y-4">
-                        <Input
-                          type="url"
-                          placeholder="https://drive.google.com/..."
-                          value={newDriveLink}
-                          onChange={(e) => setNewDriveLink(e.target.value)}
-                          required
-                        />
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Refresh Rate (days)
-                            </label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={newDriveLinkRefreshRate}
-                              onChange={(e) => setNewDriveLinkRefreshRate(parseInt(e.target.value))}
-                              required
-                            />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Button 
-                              onClick={handleAddDriveLink}
-                              disabled={addDriveLinkMutation.isPending}
-                            >
-                              {addDriveLinkMutation.isPending ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                "Add"
-                              )}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              onClick={() => setShowNewDriveLinkForm(false)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <DriveLinks
+                  driveLinks={driveLinks}
+                  onAdd={addDriveLinkMutation.mutateAsync}
+                  onDelete={deleteDriveLinkMutation.mutate}
+                  isAddLoading={addDriveLinkMutation.isPending}
+                  isDeleteLoading={deleteDriveLinkMutation.isPending}
+                />
               </div>
 
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
-                <div className="space-y-4">
-                  {websiteUrls?.map((url) => (
-                    <div key={url.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
-                      <span className="flex-1 truncate text-sm">{url.url}</span>
-                      <span className="text-sm text-gray-500 whitespace-nowrap">({url.refresh_rate} days)</span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteWebsiteUrl(url.id)}
-                        disabled={deleteWebsiteUrlMutation.isPending}
-                      >
-                        {deleteWebsiteUrlMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "Delete"
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-
-                  {!showNewWebsiteUrlForm ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowNewWebsiteUrlForm(true)}
-                      className="w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" /> Add Website URL
-                    </Button>
-                  ) : (
-                    <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                      <div className="space-y-4">
-                        <Input
-                          type="url"
-                          placeholder="https://example.com"
-                          value={newWebsiteUrl}
-                          onChange={(e) => setNewWebsiteUrl(e.target.value)}
-                          required
-                        />
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Refresh Rate (days)
-                            </label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={newWebsiteUrlRefreshRate}
-                              onChange={(e) => setNewWebsiteUrlRefreshRate(parseInt(e.target.value))}
-                              required
-                            />
-                          </div>
-                          <div className="flex items-center gap-2 pt-6">
-                            <Button 
-                              onClick={handleAddWebsiteUrl}
-                              disabled={addWebsiteUrlMutation.isPending}
-                            >
-                              {addWebsiteUrlMutation.isPending ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                "Save"
-                              )}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              onClick={() => setShowNewWebsiteUrlForm(false)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <WebsiteUrls
+                  urls={websiteUrls}
+                  onAdd={addWebsiteUrlMutation.mutateAsync}
+                  onDelete={deleteWebsiteUrlMutation.mutate}
+                  isAddLoading={addWebsiteUrlMutation.isPending}
+                  isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+                />
               </div>
             </>
           )}
