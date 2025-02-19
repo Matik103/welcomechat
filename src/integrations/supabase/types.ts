@@ -292,6 +292,12 @@ export type Database = {
             }
             Returns: unknown
           }
+      create_ai_agent_table: {
+        Args: {
+          agent_name: string
+        }
+        Returns: undefined
+      }
       create_chatbot_embeddings_table: {
         Args: {
           chatbot_name: string
