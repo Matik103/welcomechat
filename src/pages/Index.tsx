@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ArrowRight, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -122,7 +123,7 @@ const Index = () => {
         </div>
 
         <div className="flex flex-wrap gap-4">
-          <ActionButton primary onClick={() => console.log("Add new client")}>
+          <ActionButton primary onClick={() => navigate('/clients/new')}>
             <Plus className="w-4 h-4" /> Add New Client
           </ActionButton>
           <ActionButton onClick={() => navigate("/clients")}>
