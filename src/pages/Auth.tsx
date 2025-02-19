@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,16 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const { session } = useAuth();
 
-  // Redirect if already logged in
+  // Auto sign out on component mount
+  useEffect(() => {
+    const signOutExistingSession = async () => {
+      await supabase.auth.signOut();
+      toast.info("Please sign in to continue");
+    };
+    signOutExistingSession();
+  }, []);
+
+  // Redirect if somehow still logged in
   if (session) {
     return <Navigate to="/clients" replace />;
   }
