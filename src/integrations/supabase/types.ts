@@ -50,6 +50,9 @@ export type Database = {
           company: string | null
           created_at: string | null
           description: string | null
+          drive_link: string | null
+          drive_link_added_at: string | null
+          drive_link_refresh_rate: number | null
           email: string
           full_name: string
           google_drive_links_added_at: string | null
@@ -58,6 +61,9 @@ export type Database = {
           status: Database["public"]["Enums"]["client_status"] | null
           updated_at: string | null
           website: string | null
+          website_url: string | null
+          website_url_added_at: string | null
+          website_url_refresh_rate: number | null
           website_urls_added_at: string | null
         }
         Insert: {
@@ -65,6 +71,9 @@ export type Database = {
           company?: string | null
           created_at?: string | null
           description?: string | null
+          drive_link?: string | null
+          drive_link_added_at?: string | null
+          drive_link_refresh_rate?: number | null
           email: string
           full_name: string
           google_drive_links_added_at?: string | null
@@ -73,6 +82,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["client_status"] | null
           updated_at?: string | null
           website?: string | null
+          website_url?: string | null
+          website_url_added_at?: string | null
+          website_url_refresh_rate?: number | null
           website_urls_added_at?: string | null
         }
         Update: {
@@ -80,6 +92,9 @@ export type Database = {
           company?: string | null
           created_at?: string | null
           description?: string | null
+          drive_link?: string | null
+          drive_link_added_at?: string | null
+          drive_link_refresh_rate?: number | null
           email?: string
           full_name?: string
           google_drive_links_added_at?: string | null
@@ -88,6 +103,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["client_status"] | null
           updated_at?: string | null
           website?: string | null
+          website_url?: string | null
+          website_url_added_at?: string | null
+          website_url_refresh_rate?: number | null
           website_urls_added_at?: string | null
         }
         Relationships: []
