@@ -1,4 +1,3 @@
-
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -60,7 +59,6 @@ const WidgetSettings = () => {
     },
   });
 
-  // Load existing settings when client data is available
   useEffect(() => {
     if (client) {
       const widgetSettings = client.widget_settings;
@@ -133,6 +131,7 @@ const WidgetSettings = () => {
         description: "Your brand is looking great!",
       });
     } catch (error) {
+      console.error("Upload error:", error);
       toast({
         title: "Upload failed",
         description: "There was an error uploading your logo. Please try again.",

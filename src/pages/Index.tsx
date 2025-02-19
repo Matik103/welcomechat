@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ArrowRight, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -57,7 +56,6 @@ const Index = () => {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
 
-  // Fetch total clients and active clients
   const { data: clientStats } = useQuery({
     queryKey: ["client-stats", timeRange],
     queryFn: async () => {
@@ -75,29 +73,29 @@ const Index = () => {
           startDate = new Date(now.setFullYear(now.getFullYear() - 1));
           break;
         default:
-          startDate = new Date(0); // Beginning of time for "all"
+          startDate = new Date(0);
       }
 
       const { data: total, error: totalError } = await supabase
         .from("clients")
-        .select("id", { count: "exact" });
+        .select("*", { count: "exact" });
 
       const { data: active, error: activeError } = await supabase
         .from("clients")
-        .select("id", { count: "exact" })
+        .select("*", { count: "exact" })
         .eq("status", "active")
-        .gte("last_active", startDate.toISOString());
+        .gt("last_active", startDate.toISOString());
 
       if (totalError || activeError) throw new Error("Failed to fetch client stats");
 
       return {
         total: total?.length ?? 0,
-        active: active?.length ?? 0
+        active: active?.length ?? 0,
+        change: total?.length ? ((active?.length ?? 0) / total.length * 100).toFixed(1) : "0"
       };
     }
   });
 
-  // Fetch interaction metrics
   const { data: interactionStats } = useQuery({
     queryKey: ["interaction-stats", timeRange],
     queryFn: async () => {
@@ -141,7 +139,6 @@ const Index = () => {
     enabled: !!clientStats?.total
   });
 
-  // Fetch recent activities
   const { data: recentActivities } = useQuery({
     queryKey: ["recent-activities"],
     queryFn: async () => {
