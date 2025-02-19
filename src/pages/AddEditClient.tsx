@@ -139,10 +139,14 @@ const AddEditClient = () => {
 
   const addDriveLinkMutation = useMutation({
     mutationFn: async ({ link, refresh_rate }: { link: string; refresh_rate: number }) => {
-      const { error } = await supabase
+      if (!id) throw new Error("Client ID is required");
+      const { data, error } = await supabase
         .from("google_drive_links")
-        .insert({ client_id: id, link, refresh_rate });
+        .insert({ client_id: id, link, refresh_rate })
+        .select()
+        .single();
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["driveLinks", id] });
@@ -158,10 +162,14 @@ const AddEditClient = () => {
 
   const addWebsiteUrlMutation = useMutation({
     mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
-      const { error } = await supabase
+      if (!id) throw new Error("Client ID is required");
+      const { data, error } = await supabase
         .from("website_urls")
-        .insert({ client_id: id, url, refresh_rate });
+        .insert({ client_id: id, url, refresh_rate })
+        .select()
+        .single();
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["websiteUrls", id] });
@@ -313,15 +321,15 @@ const AddEditClient = () => {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Share Links</h2>
                 <div className="space-y-4">
                   {driveLinks.map((link) => (
-                    <div key={link.id} className="flex items-center gap-2">
-                      <span className="flex-1 truncate">{link.link}</span>
-                      <span className="text-sm text-gray-500">({link.refresh_rate} days)</span>
+                    <div key={link.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
+                      <span className="flex-1 truncate text-sm">{link.link}</span>
+                      <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="sm"
                         onClick={() => deleteDriveLinkMutation.mutate(link.id)}
                       >
-                        <X className="w-4 h-4" />
+                        Delete
                       </Button>
                     </div>
                   ))}
@@ -331,6 +339,7 @@ const AddEditClient = () => {
                       type="button"
                       variant="outline"
                       onClick={() => setShowNewDriveLinkForm(true)}
+                      className="w-full"
                     >
                       <Plus className="w-4 h-4 mr-2" /> Add Google Drive Link
                     </Button>
@@ -357,7 +366,13 @@ const AddEditClient = () => {
                           />
                         </div>
                         <div className="flex items-center gap-2 pt-6">
-                          <Button type="submit">Add</Button>
+                          <Button type="submit" disabled={addDriveLinkMutation.isPending}>
+                            {addDriveLinkMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              "Add"
+                            )}
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"
@@ -376,15 +391,15 @@ const AddEditClient = () => {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
                 <div className="space-y-4">
                   {websiteUrls.map((url) => (
-                    <div key={url.id} className="flex items-center gap-2">
-                      <span className="flex-1 truncate">{url.url}</span>
-                      <span className="text-sm text-gray-500">({url.refresh_rate} days)</span>
+                    <div key={url.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
+                      <span className="flex-1 truncate text-sm">{url.url}</span>
+                      <span className="text-sm text-gray-500 whitespace-nowrap">({url.refresh_rate} days)</span>
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="sm"
                         onClick={() => deleteWebsiteUrlMutation.mutate(url.id)}
                       >
-                        <X className="w-4 h-4" />
+                        Delete
                       </Button>
                     </div>
                   ))}
@@ -394,6 +409,7 @@ const AddEditClient = () => {
                       type="button"
                       variant="outline"
                       onClick={() => setShowNewWebsiteUrlForm(true)}
+                      className="w-full"
                     >
                       <Plus className="w-4 h-4 mr-2" /> Add Website URL
                     </Button>
@@ -420,7 +436,13 @@ const AddEditClient = () => {
                           />
                         </div>
                         <div className="flex items-center gap-2 pt-6">
-                          <Button type="submit">Add</Button>
+                          <Button type="submit" disabled={addWebsiteUrlMutation.isPending}>
+                            {addWebsiteUrlMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              "Add"
+                            )}
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"
