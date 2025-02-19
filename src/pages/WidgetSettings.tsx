@@ -1,4 +1,3 @@
-
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -18,6 +17,10 @@ interface WidgetSettings {
   chat_color: string;
   background_color: string;
   text_color: string;
+  secondary_color: string;
+  position: 'left' | 'right';
+  welcome_text: string;
+  response_time_text: string;
 }
 
 const defaultSettings: WidgetSettings = {
@@ -25,8 +28,12 @@ const defaultSettings: WidgetSettings = {
   logo_url: "",
   webhook_url: "",
   chat_color: "#854fff",
+  secondary_color: "#6b3fd4",
   background_color: "#ffffff",
-  text_color: "#333333"
+  text_color: "#333333",
+  position: "right",
+  welcome_text: "Hi 👋, how can I help?",
+  response_time_text: "I typically respond right away"
 };
 
 function isWidgetSettings(value: unknown): value is WidgetSettings {
@@ -37,7 +44,11 @@ function isWidgetSettings(value: unknown): value is WidgetSettings {
          typeof settings.webhook_url === 'string' &&
          typeof settings.chat_color === 'string' &&
          typeof settings.background_color === 'string' &&
-         typeof settings.text_color === 'string';
+         typeof settings.text_color === 'string' &&
+         typeof settings.secondary_color === 'string' &&
+         (settings.position === 'left' || settings.position === 'right') &&
+         typeof settings.welcome_text === 'string' &&
+         typeof settings.response_time_text === 'string';
 }
 
 function convertSettingsToJson(settings: WidgetSettings): { [key: string]: Json } {
@@ -47,7 +58,11 @@ function convertSettingsToJson(settings: WidgetSettings): { [key: string]: Json 
     webhook_url: settings.webhook_url,
     chat_color: settings.chat_color,
     background_color: settings.background_color,
-    text_color: settings.text_color
+    text_color: settings.text_color,
+    secondary_color: settings.secondary_color,
+    position: settings.position,
+    welcome_text: settings.welcome_text,
+    response_time_text: settings.response_time_text
   };
 }
 
@@ -155,13 +170,30 @@ const WidgetSettings = () => {
   };
 
   const handleCopyCode = () => {
-    const embedCode = `<script>
-  window.CHATBOT_CONFIG = {
-    clientId: "${id}",
-    settings: ${JSON.stringify(settings, null, 2)}
-  };
+    const embedCode = `<!-- Widget Configuration -->
+<script>
+    window.ChatWidgetConfig = {
+        webhook: {
+            url: '${settings.webhook_url}',
+            route: 'general'
+        },
+        branding: {
+            logo: '${settings.logo_url}',
+            name: '${settings.agent_name}',
+            welcomeText: '${settings.welcome_text}',
+            responseTimeText: '${settings.response_time_text}'
+        },
+        style: {
+            primaryColor: '${settings.chat_color}',
+            secondaryColor: '${settings.secondary_color}',
+            position: '${settings.position}',
+            backgroundColor: '${settings.background_color}',
+            fontColor: '${settings.text_color}'
+        }
+    };
 </script>
-<script src="https://cdn.example.com/widget.js" async></script>`;
+<script src="https://cdn.jsdelivr.net/gh/WayneSimpson/n8n-chatbot-template@ba944c3/chat-widget.js"></script>
+<!-- Widget Script -->`;
 
     navigator.clipboard.writeText(embedCode);
     toast({
@@ -246,18 +278,38 @@ const WidgetSettings = () => {
             </div>
 
             <div>
-              <Label htmlFor="webhook_url">Webhook URL</Label>
+              <Label htmlFor="webhook_url">N8N Webhook URL</Label>
               <Input
                 id="webhook_url"
                 value={settings.webhook_url}
                 onChange={(e) => setSettings({ ...settings, webhook_url: e.target.value })}
-                placeholder="https://your-webhook-url.com"
+                placeholder="https://your-n8n-webhook-url.com"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="welcome_text">Welcome Message</Label>
+              <Input
+                id="welcome_text"
+                value={settings.welcome_text}
+                onChange={(e) => setSettings({ ...settings, welcome_text: e.target.value })}
+                placeholder="Hi 👋, how can I help?"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="response_time_text">Response Time Message</Label>
+              <Input
+                id="response_time_text"
+                value={settings.response_time_text}
+                onChange={(e) => setSettings({ ...settings, response_time_text: e.target.value })}
+                placeholder="I typically respond right away"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="chat_color">Chat Color</Label>
+                <Label htmlFor="chat_color">Primary Color</Label>
                 <Input
                   id="chat_color"
                   type="color"
@@ -265,6 +317,18 @@ const WidgetSettings = () => {
                   onChange={(e) => setSettings({ ...settings, chat_color: e.target.value })}
                 />
               </div>
+              <div>
+                <Label htmlFor="secondary_color">Secondary Color</Label>
+                <Input
+                  id="secondary_color"
+                  type="color"
+                  value={settings.secondary_color}
+                  onChange={(e) => setSettings({ ...settings, secondary_color: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="background_color">Background Color</Label>
                 <Input
@@ -282,6 +346,18 @@ const WidgetSettings = () => {
                   value={settings.text_color}
                   onChange={(e) => setSettings({ ...settings, text_color: e.target.value })}
                 />
+              </div>
+              <div>
+                <Label htmlFor="position">Widget Position</Label>
+                <select
+                  id="position"
+                  value={settings.position}
+                  onChange={(e) => setSettings({ ...settings, position: e.target.value as 'left' | 'right' })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
               </div>
             </div>
           </CardContent>
