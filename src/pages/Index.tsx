@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Plus, Users } from "lucide-react";
+import { ArrowRight, Plus, Users, Settings, Link, UserPlus, Edit, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,22 @@ const MetricCard = ({ title, value, change }: { title: string; value: string | n
   </div>
 );
 
+const getActivityIcon = (type: string) => {
+  switch (type) {
+    case 'client_created':
+      return <UserPlus className="w-4 h-4 text-primary" />;
+    case 'client_updated':
+      return <Edit className="w-4 h-4 text-primary" />;
+    case 'widget_settings_updated':
+      return <Settings className="w-4 h-4 text-primary" />;
+    case 'website_url_added':
+    case 'drive_link_added':
+      return <Link className="w-4 h-4 text-primary" />;
+    default:
+      return <Users className="w-4 h-4 text-primary" />;
+  }
+};
+
 const ActivityItem = ({ item }: { item: { 
   activity_type: string;
   description: string;
@@ -29,14 +45,14 @@ const ActivityItem = ({ item }: { item: {
 } }) => (
   <div className="flex items-center gap-4 py-3 animate-slide-in">
     <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-      <Users className="w-4 h-4 text-primary" />
+      {getActivityIcon(item.activity_type)}
     </div>
     <div className="flex-1">
       <p className="text-sm text-gray-900">
         <span className="font-medium">{item.client_name}</span>{" "}
         {item.description}
       </p>
-      <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy')}</p>
+      <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>
     </div>
   </div>
 );
@@ -189,13 +205,16 @@ const Index = () => {
       const { data: activities, error } = await supabase
         .from("client_activities")
         .select(`
-          *,
-          clients (
+          activity_type,
+          description,
+          created_at,
+          metadata,
+          clients:client_id (
             client_name
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (error) {
         console.error("Error fetching activities:", error);
@@ -210,7 +229,7 @@ const Index = () => {
         client_name: activity.clients?.client_name || "Unknown Client"
       }));
     },
-    refetchInterval: 5000
+    refetchInterval: 3000
   });
 
   return (
@@ -272,7 +291,7 @@ const Index = () => {
               <p className="text-gray-500 py-4">No recent activities</p>
             ) : (
               recentActivities?.map((activity, index) => (
-                <ActivityItem key={index} item={activity} />
+                <ActivityItem key={`${activity.created_at}-${index}`} item={activity} />
               ))
             )}
           </div>
