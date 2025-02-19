@@ -148,10 +148,15 @@ const AddEditClient = () => {
   const addWebsiteUrlMutation = useMutation({
     mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
       if (!id) throw new Error("Client ID is required");
+      
       const { data, error } = await supabase
         .from("website_urls")
-        .insert([{ client_id: id, url, refresh_rate }])
-        .select('*')
+        .insert({
+          client_id: id,
+          url,
+          refresh_rate
+        })
+        .select('id, url, refresh_rate')
         .single();
       
       if (error) throw error;
@@ -165,6 +170,7 @@ const AddEditClient = () => {
       toast.success("Website URL added successfully");
     },
     onError: (error: Error) => {
+      console.error("Error details:", error);
       toast.error(`Error adding website URL: ${error.message}`);
     }
   });
