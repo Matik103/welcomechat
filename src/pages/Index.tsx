@@ -2,34 +2,9 @@
 import { useState } from "react";
 import { ArrowRight, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-const dummyRecentActivity = [
-  {
-    clientName: "TechCorp Inc",
-    action: "added Google Drive link",
-    date: "2024-02-20",
-  },
-  {
-    clientName: "Innovation Labs",
-    action: "updated widget settings",
-    date: "2024-02-19",
-  },
-  {
-    clientName: "Digital Solutions",
-    action: "created",
-    date: "2024-02-18",
-  },
-  {
-    clientName: "Future Systems",
-    action: "added URL",
-    date: "2024-02-17",
-  },
-  {
-    clientName: "Smart Services",
-    action: "updated AI Agent Name",
-    date: "2024-02-16",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 const MetricCard = ({ title, value, change }: { title: string; value: string | number; change?: string }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 animate-fade-in">
@@ -45,17 +20,22 @@ const MetricCard = ({ title, value, change }: { title: string; value: string | n
   </div>
 );
 
-const ActivityItem = ({ item }: { item: typeof dummyRecentActivity[0] }) => (
+const ActivityItem = ({ item }: { item: { 
+  activity_type: string;
+  client_name: string;
+  description: string;
+  created_at: string;
+} }) => (
   <div className="flex items-center gap-4 py-3 animate-slide-in">
     <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
       <Users className="w-4 h-4 text-primary" />
     </div>
     <div className="flex-1">
       <p className="text-sm text-gray-900">
-        <span className="font-medium">{item.clientName}</span>{" "}
-        {item.action}
+        <span className="font-medium">{item.client_name}</span>{" "}
+        {item.description}
       </p>
-      <p className="text-xs text-gray-500">{new Date(item.date).toLocaleDateString()}</p>
+      <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy')}</p>
     </div>
   </div>
 );
@@ -77,6 +57,116 @@ const Index = () => {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
 
+  // Fetch total clients and active clients
+  const { data: clientStats } = useQuery({
+    queryKey: ["client-stats", timeRange],
+    queryFn: async () => {
+      const now = new Date();
+      let startDate;
+
+      switch (timeRange) {
+        case "1d":
+          startDate = new Date(now.setDate(now.getDate() - 1));
+          break;
+        case "1m":
+          startDate = new Date(now.setMonth(now.getMonth() - 1));
+          break;
+        case "1y":
+          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+          break;
+        default:
+          startDate = new Date(0); // Beginning of time for "all"
+      }
+
+      const { data: total, error: totalError } = await supabase
+        .from("clients")
+        .select("id", { count: "exact" });
+
+      const { data: active, error: activeError } = await supabase
+        .from("clients")
+        .select("id", { count: "exact" })
+        .eq("status", "active")
+        .gte("last_active", startDate.toISOString());
+
+      if (totalError || activeError) throw new Error("Failed to fetch client stats");
+
+      return {
+        total: total?.length ?? 0,
+        active: active?.length ?? 0
+      };
+    }
+  });
+
+  // Fetch interaction metrics
+  const { data: interactionStats } = useQuery({
+    queryKey: ["interaction-stats", timeRange],
+    queryFn: async () => {
+      const { data: activities, error } = await supabase
+        .from("client_activities")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const now = new Date();
+      let startDate;
+
+      switch (timeRange) {
+        case "1d":
+          startDate = new Date(now.setDate(now.getDate() - 1));
+          break;
+        case "1m":
+          startDate = new Date(now.setMonth(now.getMonth() - 1));
+          break;
+        case "1y":
+          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+          break;
+        default:
+          startDate = new Date(0);
+      }
+
+      const filteredActivities = activities?.filter(
+        activity => new Date(activity.created_at) >= startDate
+      );
+
+      const totalInteractions = filteredActivities?.length ?? 0;
+      const avgInteractions = Math.round(totalInteractions / (clientStats?.total || 1));
+
+      return {
+        total: totalInteractions,
+        average: avgInteractions,
+        change: ((totalInteractions / (activities?.length || 1)) * 100 - 100).toFixed(1)
+      };
+    },
+    enabled: !!clientStats?.total
+  });
+
+  // Fetch recent activities
+  const { data: recentActivities } = useQuery({
+    queryKey: ["recent-activities"],
+    queryFn: async () => {
+      const { data: activities, error } = await supabase
+        .from("client_activities")
+        .select(`
+          *,
+          clients (
+            client_name
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      return activities.map(activity => ({
+        activity_type: activity.activity_type,
+        client_name: activity.clients?.client_name || "Unknown Client",
+        description: activity.description,
+        created_at: activity.created_at
+      }));
+    }
+  });
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -86,14 +176,29 @@ const Index = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard title="Total Clients" value="128" change="25%" />
-          <MetricCard title="Active Clients" value="85" change="12%" />
-          <MetricCard title="Avg. Interactions" value="42" />
+          <MetricCard 
+            title="Total Clients" 
+            value={clientStats?.total || 0} 
+            change={((clientStats?.total || 0) / 100 * 25).toFixed(1) + "%"} 
+          />
+          <MetricCard 
+            title="Active Clients" 
+            value={clientStats?.active || 0} 
+            change={((clientStats?.active || 0) / (clientStats?.total || 1) * 100).toFixed(1) + "%"} 
+          />
+          <MetricCard 
+            title="Avg. Interactions" 
+            value={interactionStats?.average || 0} 
+          />
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 animate-fade-in">
             <h3 className="text-gray-500 text-sm font-medium mb-2">Total Interactions</h3>
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-3xl font-bold text-gray-900">2,420</span>
-              <span className="text-secondary text-sm font-medium">+28%</span>
+              <span className="text-3xl font-bold text-gray-900">
+                {interactionStats?.total || 0}
+              </span>
+              <span className="text-secondary text-sm font-medium">
+                {interactionStats?.change && `+${interactionStats.change}%`}
+              </span>
             </div>
             <div className="flex gap-2">
               {(["1d", "1m", "1y", "all"] as const).map((range) => (
@@ -116,7 +221,7 @@ const Index = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 animate-fade-in">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
           <div className="divide-y divide-gray-100">
-            {dummyRecentActivity.map((activity, index) => (
+            {recentActivities?.map((activity, index) => (
               <ActivityItem key={index} item={activity} />
             ))}
           </div>
