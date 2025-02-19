@@ -59,6 +59,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
       toast.success("Website URL removed successfully");
     },
     onError: (error: Error) => {
+      console.error("Error details:", error);
       toast.error(`Error removing website URL: ${error.message}`);
     }
   });
