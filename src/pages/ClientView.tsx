@@ -1,3 +1,4 @@
+
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -45,18 +46,29 @@ const ClientView = () => {
       // Convert agent name to table name
       const tableName = client.agent_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
       
-      // Use the stored procedure instead of direct table access
+      // Create a raw SQL query using the stored function
       const { data, error } = await supabase
-        .rpc('fetch_agent_chat_history', {
-          agent_table: tableName
-        });
+        .from(tableName)
+        .select('id, content, metadata')
+        .eq('metadata->type', 'chat_interaction')
+        .order('id', { ascending: false })
+        .limit(10);
         
       if (error) {
         console.error("Error fetching chat history:", error);
         return [];
       }
 
-      return data || [];
+      // Transform the data to match ChatInteraction type
+      return (data || []).map(item => ({
+        id: item.id,
+        content: item.content || '',
+        metadata: {
+          timestamp: item.metadata?.timestamp || new Date().toISOString(),
+          user_message: item.metadata?.user_message || '',
+          type: item.metadata?.type || 'chat_interaction'
+        }
+      }));
     },
     enabled: !!client?.agent_name,
   });
