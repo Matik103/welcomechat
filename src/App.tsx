@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import ClientList from "./pages/ClientList";
 import AddEditClient from "./pages/AddEditClient";
 import ClientView from "./pages/ClientView";
+import WidgetSettings from "./pages/WidgetSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/clients/new" element={<AddEditClient />} />
           <Route path="/clients/:id" element={<ClientView />} />
           <Route path="/clients/:id/edit" element={<AddEditClient />} />
+          <Route path="/clients/:id/widget-settings" element={<WidgetSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
