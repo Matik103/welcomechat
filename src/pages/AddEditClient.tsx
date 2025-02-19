@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { ArrowLeft, Loader2, Plus, X } from "lucide-react";
@@ -33,12 +32,10 @@ const AddEditClient = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  // Client basic info state
   const [clientName, setClientName] = useState("");
   const [email, setEmail] = useState("");
   const [aiAgentName, setAiAgentName] = useState("");
   
-  // URL and Drive Link states
   const [newDriveLink, setNewDriveLink] = useState("");
   const [newWebsiteUrl, setNewWebsiteUrl] = useState("");
   const [newDriveLinkRefreshRate, setNewDriveLinkRefreshRate] = useState(30);
@@ -46,7 +43,6 @@ const AddEditClient = () => {
   const [showNewDriveLinkForm, setShowNewDriveLinkForm] = useState(false);
   const [showNewWebsiteUrlForm, setShowNewWebsiteUrlForm] = useState(false);
 
-  // Fetch client data
   const { data: client, isLoading: isLoadingClient } = useQuery({
     queryKey: ["client", id],
     queryFn: async () => {
@@ -62,7 +58,6 @@ const AddEditClient = () => {
     enabled: !!id,
   });
 
-  // Fetch drive links
   const { data: driveLinks = [], refetch: refetchDriveLinks } = useQuery({
     queryKey: ["driveLinks", id],
     queryFn: async () => {
@@ -77,7 +72,6 @@ const AddEditClient = () => {
     enabled: !!id,
   });
 
-  // Fetch website URLs
   const { data: websiteUrls = [], refetch: refetchWebsiteUrls } = useQuery({
     queryKey: ["websiteUrls", id],
     queryFn: async () => {
@@ -100,7 +94,6 @@ const AddEditClient = () => {
     }
   }, [client]);
 
-  // Mutations
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       if (id) {
@@ -221,6 +214,7 @@ const AddEditClient = () => {
 
   const handleAddDriveLink = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!newDriveLink) return;
     try {
       await addDriveLinkMutation.mutateAsync({
@@ -234,6 +228,7 @@ const AddEditClient = () => {
 
   const handleAddWebsiteUrl = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!newWebsiteUrl) return;
     try {
       await addWebsiteUrlMutation.mutateAsync({
@@ -273,9 +268,9 @@ const AddEditClient = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="space-y-8">
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="clientName" className="block text-sm font-medium text-gray-700 mb-1">
                   Client Name
@@ -312,7 +307,25 @@ const AddEditClient = () => {
                   required
                 />
               </div>
-            </div>
+              <div className="flex items-center justify-end gap-4">
+                <Link
+                  to="/clients"
+                  className="px-4 py-2 text-gray-600 hover:text-gray-900"
+                >
+                  Cancel
+                </Link>
+                <Button
+                  type="submit"
+                  disabled={clientMutation.isPending}
+                >
+                  {clientMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Save Client"
+                  )}
+                </Button>
+              </div>
+            </form>
           </div>
 
           {id && (
@@ -350,7 +363,7 @@ const AddEditClient = () => {
                     </Button>
                   ) : (
                     <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                      <form onSubmit={handleAddDriveLink} className="space-y-4">
+                      <div className="space-y-4">
                         <Input
                           type="url"
                           placeholder="https://drive.google.com/..."
@@ -373,7 +386,7 @@ const AddEditClient = () => {
                           </div>
                           <div className="flex items-center gap-2 pt-6">
                             <Button 
-                              type="submit" 
+                              onClick={handleAddDriveLink}
                               disabled={addDriveLinkMutation.isPending}
                             >
                               {addDriveLinkMutation.isPending ? (
@@ -391,7 +404,7 @@ const AddEditClient = () => {
                             </Button>
                           </div>
                         </div>
-                      </form>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -430,7 +443,7 @@ const AddEditClient = () => {
                     </Button>
                   ) : (
                     <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                      <form onSubmit={handleAddWebsiteUrl} className="space-y-4">
+                      <div className="space-y-4">
                         <Input
                           type="url"
                           placeholder="https://example.com"
@@ -453,7 +466,7 @@ const AddEditClient = () => {
                           </div>
                           <div className="flex items-center gap-2 pt-6">
                             <Button 
-                              type="submit"
+                              onClick={handleAddWebsiteUrl}
                               disabled={addWebsiteUrlMutation.isPending}
                             >
                               {addWebsiteUrlMutation.isPending ? (
@@ -471,37 +484,17 @@ const AddEditClient = () => {
                             </Button>
                           </div>
                         </div>
-                      </form>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             </>
           )}
-
-          <div className="flex items-center justify-end gap-4">
-            <Link
-              to="/clients"
-              className="px-4 py-2 text-gray-600 hover:text-gray-900"
-            >
-              Cancel
-            </Link>
-            <Button
-              type="submit"
-              disabled={clientMutation.isPending}
-            >
-              {clientMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                "Save Client"
-              )}
-            </Button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );
 };
 
 export default AddEditClient;
-
