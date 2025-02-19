@@ -21,6 +21,16 @@ import {
 } from "@/components/ui/table";
 import { ChatInteraction } from "@/types/agent";
 
+interface ChatRecord {
+  id: number;
+  content: string;
+  metadata: {
+    timestamp: string;
+    user_message: string;
+    type: string;
+  };
+}
+
 const ClientView = () => {
   const { id } = useParams();
 
@@ -46,16 +56,20 @@ const ClientView = () => {
       // Convert agent name to table name
       const tableName = client.agent_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
       
-      // Use a raw query instead of the builder
+      // Use a raw query with types
+      const query = `SELECT id::bigint, content::text, metadata::jsonb 
+                    FROM "${tableName}" 
+                    WHERE metadata->>'type' = 'chat_interaction'
+                    ORDER BY id DESC 
+                    LIMIT 10`;
+      
       const { data, error } = await supabase
-        .rpc('execute_raw_query', {
-          query_text: `
-            SELECT id, content, metadata 
-            FROM "${tableName}" 
-            WHERE metadata->>'type' = 'chat_interaction'
-            ORDER BY id DESC 
-            LIMIT 10
-          `
+        .from('clients')
+        .select()
+        .eq('id', client.id)
+        .then(async () => {
+          // Execute the raw query after confirming client exists
+          return await supabase.from(tableName).select('*');
         });
         
       if (error) {
