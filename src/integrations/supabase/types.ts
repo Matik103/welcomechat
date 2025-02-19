@@ -65,6 +65,7 @@ export type Database = {
           website_url_added_at: string | null
           website_url_refresh_rate: number | null
           website_urls_added_at: string | null
+          widget_settings: Json | null
         }
         Insert: {
           agent_name: string
@@ -86,6 +87,7 @@ export type Database = {
           website_url_added_at?: string | null
           website_url_refresh_rate?: number | null
           website_urls_added_at?: string | null
+          widget_settings?: Json | null
         }
         Update: {
           agent_name?: string
@@ -107,6 +109,7 @@ export type Database = {
           website_url_added_at?: string | null
           website_url_refresh_rate?: number | null
           website_urls_added_at?: string | null
+          widget_settings?: Json | null
         }
         Relationships: []
       }
