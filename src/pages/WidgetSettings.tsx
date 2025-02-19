@@ -29,6 +29,17 @@ const defaultSettings: WidgetSettings = {
   text_color: "#333333"
 };
 
+function isWidgetSettings(value: unknown): value is WidgetSettings {
+  if (!value || typeof value !== 'object') return false;
+  const settings = value as Record<string, unknown>;
+  return typeof settings.agent_name === 'string' &&
+         typeof settings.logo_url === 'string' &&
+         typeof settings.webhook_url === 'string' &&
+         typeof settings.chat_color === 'string' &&
+         typeof settings.background_color === 'string' &&
+         typeof settings.text_color === 'string';
+}
+
 const WidgetSettings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -52,11 +63,11 @@ const WidgetSettings = () => {
   // Load existing settings when client data is available
   useEffect(() => {
     if (client) {
-      const widgetSettings = client.widget_settings as WidgetSettings | null;
+      const widgetSettings = client.widget_settings;
       setSettings({
         ...defaultSettings,
         agent_name: client.agent_name || "",
-        ...(widgetSettings || {})
+        ...(isWidgetSettings(widgetSettings) ? widgetSettings : {})
       });
     }
   }, [client]);
