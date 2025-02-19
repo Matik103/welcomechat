@@ -24,13 +24,21 @@ import { format } from "date-fns";
 
 const ITEMS_PER_PAGE = 10;
 
+type Client = {
+  id: string;
+  client_name: string;
+  agent_name: string;
+  status: string;
+  updated_at: string;
+};
+
 const ClientList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState("client_name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  const { data: clients = [], isLoading } = useQuery({
+  const { data: clients = [], isLoading } = useQuery<Client[]>({
     queryKey: ["clients", sortField, sortOrder],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -46,8 +54,7 @@ const ClientList = () => {
   // Filter clients based on search query
   const filteredClients = clients.filter(client =>
     client.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.agent_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchQuery.toLowerCase())
+    client.agent_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Calculate pagination

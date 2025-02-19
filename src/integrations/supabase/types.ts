@@ -47,6 +47,7 @@ export type Database = {
       clients: {
         Row: {
           agent_name: string
+          client_name: string
           company: string | null
           created_at: string | null
           description: string | null
@@ -54,7 +55,6 @@ export type Database = {
           drive_link_added_at: string | null
           drive_link_refresh_rate: number | null
           email: string
-          full_name: string
           google_drive_links_added_at: string | null
           id: string
           last_active: string | null
@@ -68,6 +68,7 @@ export type Database = {
         }
         Insert: {
           agent_name: string
+          client_name: string
           company?: string | null
           created_at?: string | null
           description?: string | null
@@ -75,7 +76,6 @@ export type Database = {
           drive_link_added_at?: string | null
           drive_link_refresh_rate?: number | null
           email: string
-          full_name: string
           google_drive_links_added_at?: string | null
           id?: string
           last_active?: string | null
@@ -89,6 +89,7 @@ export type Database = {
         }
         Update: {
           agent_name?: string
+          client_name?: string
           company?: string | null
           created_at?: string | null
           description?: string | null
@@ -96,7 +97,6 @@ export type Database = {
           drive_link_added_at?: string | null
           drive_link_refresh_rate?: number | null
           email?: string
-          full_name?: string
           google_drive_links_added_at?: string | null
           id?: string
           last_active?: string | null

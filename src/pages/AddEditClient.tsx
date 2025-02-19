@@ -1,10 +1,21 @@
+
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+type ClientFormData = {
+  client_name: string;
+  email: string;
+  agent_name: string;
+  website_url?: string | null;
+  website_url_refresh_rate?: number;
+  drive_link?: string | null;
+  drive_link_refresh_rate?: number;
+};
 
 const AddEditClient = () => {
   const { id } = useParams();
@@ -46,15 +57,7 @@ const AddEditClient = () => {
   });
 
   const clientMutation = useMutation({
-    mutationFn: async (data: {
-      client_name: string;
-      email: string;
-      agent_name: string;
-      website_url?: string;
-      website_url_refresh_rate?: number;
-      drive_link?: string;
-      drive_link_refresh_rate?: number;
-    }) => {
+    mutationFn: async (data: ClientFormData) => {
       const payload = {
         ...data,
         website_url_added_at: data.website_url ? new Date().toISOString() : null,
@@ -71,7 +74,7 @@ const AddEditClient = () => {
       } else {
         const { data: newClient, error } = await supabase
           .from("clients")
-          .insert([payload])
+          .insert(payload)
           .select()
           .single();
         if (error) throw error;
@@ -89,7 +92,7 @@ const AddEditClient = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
+    const payload: ClientFormData = {
       client_name: clientName,
       email,
       agent_name: aiAgentName,
