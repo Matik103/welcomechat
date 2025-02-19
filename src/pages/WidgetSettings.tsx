@@ -1,12 +1,12 @@
 
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Loader2, ArrowLeft, Copy, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -46,20 +46,31 @@ const WidgetSettings = () => {
     },
   });
 
+  // Load existing settings when client data is available
+  useEffect(() => {
+    if (client) {
+      setSettings(prev => ({
+        ...prev,
+        agent_name: client.agent_name || "",
+        ...(client.widget_settings || {})
+      }));
+    }
+  }, [client]);
+
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettings) => {
       const { error } = await supabase
         .from("clients")
         .update({
-          widget_settings: newSettings,
+          widget_settings: newSettings
         })
         .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast({
-        title: "Settings saved",
-        description: "Widget settings have been updated successfully.",
+        title: "Settings saved successfully! 🎉",
+        description: "Your widget is ready to be embedded.",
       });
     },
   });
@@ -72,7 +83,7 @@ const WidgetSettings = () => {
       const fileExt = file.name.split('.').pop();
       const filePath = `${id}/logo.${fileExt}`;
 
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("logos")
         .upload(filePath, file, { upsert: true });
 
@@ -84,13 +95,13 @@ const WidgetSettings = () => {
 
       setSettings(prev => ({ ...prev, logo_url: publicUrl }));
       toast({
-        title: "Logo uploaded",
-        description: "Company logo has been uploaded successfully.",
+        title: "Logo uploaded successfully! ✨",
+        description: "Your brand is looking great!",
       });
     } catch (error) {
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your logo.",
+        description: "There was an error uploading your logo. Please try again.",
         variant: "destructive",
       });
     }
@@ -126,23 +137,26 @@ const WidgetSettings = () => {
   const copyEmbedCode = () => {
     navigator.clipboard.writeText(generateEmbedCode());
     toast({
-      title: "Code copied",
-      description: "Widget embed code has been copied to clipboard.",
+      title: "Code copied! 📋",
+      description: "Ready to be pasted into your website.",
     });
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50 p-8 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-gray-600">Loading your widget settings...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50 p-8">
       <div className="max-w-4xl mx-auto space-y-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-white/50 backdrop-blur-sm rounded-lg p-4 shadow-sm">
           <div className="flex items-center gap-4">
             <Link
               to="/clients"
@@ -150,16 +164,20 @@ const WidgetSettings = () => {
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Widget Settings - {client?.client_name}
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Widget Settings
+              </h1>
+              <p className="text-gray-500">Customize your AI chat widget for {client?.client_name}</p>
+            </div>
           </div>
         </div>
 
         <div className="grid gap-6">
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Customization Options</CardTitle>
+              <CardDescription>Personalize your chat widget's appearance and behavior</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
@@ -171,23 +189,28 @@ const WidgetSettings = () => {
                     setSettings((prev) => ({ ...prev, agent_name: e.target.value }))
                   }
                   placeholder="Enter AI Agent name"
+                  className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="logo">Company Logo</Label>
                 <div className="flex items-center gap-4">
-                  {settings.logo_url && (
-                    <img
-                      src={settings.logo_url}
-                      alt="Company logo"
-                      className="h-10 w-auto object-contain"
-                    />
-                  )}
-                  <Button variant="outline" className="w-full" asChild>
+                  <div className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50">
+                    {settings.logo_url ? (
+                      <img
+                        src={settings.logo_url}
+                        alt="Company logo"
+                        className="max-h-14 w-auto object-contain"
+                      />
+                    ) : (
+                      <Upload className="w-6 h-6 text-gray-400" />
+                    )}
+                  </div>
+                  <Button variant="outline" className="flex-1" asChild>
                     <label className="cursor-pointer">
                       <Upload className="mr-2 h-4 w-4" />
-                      Upload Logo
+                      {settings.logo_url ? "Change Logo" : "Upload Logo"}
                       <input
                         type="file"
                         id="logo"
@@ -208,14 +231,15 @@ const WidgetSettings = () => {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, webhook_url: e.target.value }))
                   }
-                  placeholder="Enter webhook URL"
+                  placeholder="Enter your n8n webhook URL"
+                  className="font-mono text-sm transition-all duration-200 focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="chat_color">Chat Window Color</Label>
-                  <div className="flex gap-2">
+                  <div className="relative">
                     <Input
                       type="color"
                       id="chat_color"
@@ -223,14 +247,15 @@ const WidgetSettings = () => {
                       onChange={(e) =>
                         setSettings((prev) => ({ ...prev, chat_color: e.target.value }))
                       }
-                      className="w-full h-10"
+                      className="w-full h-10 cursor-pointer"
                     />
+                    <div className="mt-2 text-xs text-gray-500">{settings.chat_color}</div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="background_color">Background Color</Label>
-                  <div className="flex gap-2">
+                  <div className="relative">
                     <Input
                       type="color"
                       id="background_color"
@@ -241,14 +266,15 @@ const WidgetSettings = () => {
                           background_color: e.target.value,
                         }))
                       }
-                      className="w-full h-10"
+                      className="w-full h-10 cursor-pointer"
                     />
+                    <div className="mt-2 text-xs text-gray-500">{settings.background_color}</div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="text_color">Text Color</Label>
-                  <div className="flex gap-2">
+                  <div className="relative">
                     <Input
                       type="color"
                       id="text_color"
@@ -256,60 +282,75 @@ const WidgetSettings = () => {
                       onChange={(e) =>
                         setSettings((prev) => ({ ...prev, text_color: e.target.value }))
                       }
-                      className="w-full h-10"
+                      className="w-full h-10 cursor-pointer"
                     />
+                    <div className="mt-2 text-xs text-gray-500">{settings.text_color}</div>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-lg overflow-hidden">
             <CardHeader>
-              <CardTitle>Preview</CardTitle>
+              <CardTitle>Live Preview</CardTitle>
+              <CardDescription>See how your chat widget will appear on your website</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div
-                className="border rounded-lg p-4 space-y-4"
-                style={{
-                  backgroundColor: settings.background_color,
-                  color: settings.text_color,
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  {settings.logo_url && (
-                    <img
-                      src={settings.logo_url}
-                      alt="Logo"
-                      className="h-8 w-8 object-contain"
-                    />
-                  )}
-                  <span className="font-medium">{settings.agent_name || "AI Agent"}</span>
-                </div>
+            <CardContent className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-100/50 to-white/50 backdrop-blur-sm -m-6 z-0" />
+              <div className="relative z-10">
                 <div
-                  className="rounded-lg p-3"
-                  style={{ backgroundColor: settings.chat_color, color: "#ffffff" }}
+                  className="border rounded-lg p-6 space-y-4 shadow-lg transform transition-all duration-200"
+                  style={{
+                    backgroundColor: settings.background_color,
+                    color: settings.text_color,
+                  }}
                 >
-                  Hi 👋, how can we help?
+                  <div className="flex items-center gap-3">
+                    {settings.logo_url && (
+                      <img
+                        src={settings.logo_url}
+                        alt="Logo"
+                        className="h-10 w-10 object-contain rounded"
+                      />
+                    )}
+                    <span className="font-medium text-lg">
+                      {settings.agent_name || "AI Agent"}
+                    </span>
+                  </div>
+                  <div
+                    className="rounded-lg p-4 transform transition-all duration-200"
+                    style={{ backgroundColor: settings.chat_color, color: "#ffffff" }}
+                  >
+                    Hi 👋, how can we help?
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Embed Code</CardTitle>
+              <CardDescription>Copy this code and paste it into your website's HTML</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <textarea
-                className="w-full h-48 p-4 font-mono text-sm bg-gray-50 rounded-lg border"
-                value={generateEmbedCode()}
-                readOnly
-              />
-              <Button onClick={copyEmbedCode} className="w-full">
-                <Copy className="mr-2 h-4 w-4" />
-                Copy Embed Code
-              </Button>
+              <div className="relative">
+                <textarea
+                  className="w-full h-48 p-4 font-mono text-sm bg-gray-50 rounded-lg border focus:ring-2 focus:ring-primary/20 focus:border-primary/20 transition-all duration-200"
+                  value={generateEmbedCode()}
+                  readOnly
+                />
+                <Button 
+                  onClick={copyEmbedCode}
+                  className="absolute top-2 right-2"
+                  variant="secondary"
+                  size="sm"
+                >
+                  <Copy className="w-4 h-4 mr-1" />
+                  Copy
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -317,12 +358,14 @@ const WidgetSettings = () => {
             <Button
               variant="outline"
               onClick={() => navigate("/clients")}
+              className="min-w-[100px]"
             >
               Cancel
             </Button>
             <Button
               onClick={() => updateSettingsMutation.mutate(settings)}
               disabled={updateSettingsMutation.isPending}
+              className="min-w-[100px]"
             >
               {updateSettingsMutation.isPending ? (
                 <>
