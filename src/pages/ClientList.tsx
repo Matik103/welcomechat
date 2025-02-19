@@ -1,4 +1,3 @@
-
 import { ArrowLeft, Plus, Search, ChevronDown, Trash2, Edit, Eye, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -73,7 +72,7 @@ const ClientList = () => {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex items-center gap-4">
           <Link 
             to="/"
@@ -87,9 +86,9 @@ const ClientList = () => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-6 mb-6">
-          <div className="flex items-center gap-4 flex-1 max-w-xl">
-            <div className="relative flex-1">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 type="text"
@@ -101,117 +100,114 @@ const ClientList = () => {
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 whitespace-nowrap">
-                  Sort by: {sortField.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                  <ChevronDown className="w-4 h-4" />
+                <Button variant="outline" className="flex items-center gap-2">
+                  Sort by <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[200px]">
+              <DropdownMenuContent>
                 <DropdownMenuItem onClick={() => handleSort("client_name")}>
-                  Client Name {sortField === "client_name" && (sortOrder === "asc" ? "↑" : "↓")}
+                  Client Name
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleSort("agent_name")}>
-                  AI Agent Name {sortField === "agent_name" && (sortOrder === "asc" ? "↑" : "↓")}
+                  AI Agent Name
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleSort("status")}>
-                  Status {sortField === "status" && (sortOrder === "asc" ? "↑" : "↓")}
+                  Status
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleSort("updated_at")}>
-                  Last Updated {sortField === "updated_at" && (sortOrder === "asc" ? "↑" : "↓")}
+                  Last Updated
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
           <Link
             to="/clients/new"
-            className="bg-primary text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors whitespace-nowrap"
+            className="bg-primary text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" /> Add New Client
           </Link>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client Name</TableHead>
-                  <TableHead>AI Agent Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Updated</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedClients.map((client) => (
-                  <TableRow key={client.id}>
-                    <TableCell className="font-medium">{client.client_name}</TableCell>
-                    <TableCell>{client.agent_name}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          client.status === "active"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client Name</TableHead>
+                <TableHead>AI Agent Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Last Updated</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedClients.map((client) => (
+                <TableRow key={client.id}>
+                  <TableCell className="font-medium">{client.client_name}</TableCell>
+                  <TableCell>{client.agent_name}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        client.status === "active"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {client.status || 'active'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {client.updated_at 
+                      ? format(new Date(client.updated_at), 'MMM d, yyyy')
+                      : 'N/A'
+                    }
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-2">
+                      <Link
+                        to={`/clients/${client.id}`}
+                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                        title="View"
                       >
-                        {client.status || 'active'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {client.updated_at 
-                        ? format(new Date(client.updated_at), 'MMM d, yyyy')
-                        : 'N/A'
-                      }
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          to={`/clients/${client.id}`}
-                          className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                          title="View"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <Link
-                          to={`/clients/${client.id}/widget-settings`}
-                          className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                          title="Widget Settings"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                        </Link>
-                        <Link
-                          to={`/clients/${client.id}/edit`}
-                          className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        <button
-                          onClick={() => {
-                            // Delete functionality will be implemented later
-                          }}
-                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                      <Link
+                        to={`/clients/${client.id}/widget-settings`}
+                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Widget Settings"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </Link>
+                      <Link
+                        to={`/clients/${client.id}/edit`}
+                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Link>
+                      <button
+                        onClick={() => {
+                          // Delete functionality will be implemented later
+                        }}
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-            {filteredClients.length === 0 && !isLoading && (
-              <div className="text-center py-8 text-gray-500">
-                No clients found. Add your first client to get started.
-              </div>
-            )}
-          </div>
+          {filteredClients.length === 0 && !isLoading && (
+            <div className="text-center py-8 text-gray-500">
+              No clients found. Add your first client to get started.
+            </div>
+          )}
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 p-4 border-t">
+            <div className="flex items-center justify-center gap-2 mt-6">
               <Button
                 variant="outline"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
