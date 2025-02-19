@@ -1,5 +1,5 @@
 
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Loader2, ArrowLeft } from "lucide-react";
@@ -35,7 +35,7 @@ const WidgetSettings = () => {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [settings, setSettings] = useState<IWidgetSettings>(defaultSettings);
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
 
   const { data: client, isLoading } = useQuery({
     queryKey: ["client", id],
@@ -55,6 +55,10 @@ const WidgetSettings = () => {
       const widgetSettings = client.widget_settings;
       if (isWidgetSettings(widgetSettings)) {
         setSettings(widgetSettings);
+        // Show preview if required fields are present
+        if (widgetSettings.logo_url && widgetSettings.agent_name && widgetSettings.webhook_url) {
+          setShowPreview(true);
+        }
       } else {
         setSettings({
           ...defaultSettings,
@@ -63,6 +67,24 @@ const WidgetSettings = () => {
       }
     }
   }, [client]);
+
+  // Check if required fields are filled
+  const areRequiredFieldsFilled = Boolean(
+    settings.logo_url && 
+    settings.agent_name && 
+    settings.webhook_url
+  );
+
+  useEffect(() => {
+    // Automatically show preview when required fields are filled
+    if (areRequiredFieldsFilled) {
+      setShowPreview(true);
+      toast({
+        title: "Preview Generated! 🎉",
+        description: "Your widget preview and embed code are now ready.",
+      });
+    }
+  }, [settings.logo_url, settings.agent_name, settings.webhook_url]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: IWidgetSettings) => {
@@ -132,6 +154,10 @@ const WidgetSettings = () => {
     }
   };
 
+  const handleSettingsChange = (newSettings: Partial<IWidgetSettings>) => {
+    setSettings({ ...settings, ...newSettings });
+  };
+
   const handleSave = async () => {
     await updateSettingsMutation.mutateAsync(settings);
   };
@@ -158,13 +184,20 @@ const WidgetSettings = () => {
         <Card>
           <CardHeader>
             <CardTitle>Branding</CardTitle>
-            <CardDescription>Configure your widget's appearance</CardDescription>
+            <CardDescription>
+              Configure your widget's appearance
+              {!areRequiredFieldsFilled && (
+                <span className="block text-yellow-600 mt-1">
+                  * Please provide a logo, agent name, and webhook URL to generate the preview
+                </span>
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <BrandingSettings
               settings={settings}
               isUploading={isUploading}
-              onSettingsChange={(newSettings) => setSettings({ ...settings, ...newSettings })}
+              onSettingsChange={handleSettingsChange}
               onLogoUpload={handleLogoUpload}
             />
           </CardContent>
@@ -178,36 +211,38 @@ const WidgetSettings = () => {
           <CardContent>
             <AppearanceSettings
               settings={settings}
-              onSettingsChange={(newSettings) => setSettings({ ...settings, ...newSettings })}
+              onSettingsChange={handleSettingsChange}
             />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Embed Code</CardTitle>
-            <CardDescription>Copy this code to add the widget to your website</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmbedCode settings={settings} />
-          </CardContent>
-        </Card>
+        {areRequiredFieldsFilled && (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Embed Code</CardTitle>
+                <CardDescription>Copy this code to add the widget to your website</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EmbedCode settings={settings} />
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle>Widget Preview</CardTitle>
-              <CardDescription>See how your widget will appear</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <WidgetPreview
-              settings={settings}
-              showPreview={showPreview}
-              onTogglePreview={() => setShowPreview(!showPreview)}
-            />
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Widget Preview</CardTitle>
+                <CardDescription>See how your widget will appear</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WidgetPreview
+                  settings={settings}
+                  showPreview={showPreview}
+                  onTogglePreview={() => setShowPreview(!showPreview)}
+                />
+              </CardContent>
+            </Card>
+          </>
+        )}
 
         <div className="flex justify-end">
           <Button 
