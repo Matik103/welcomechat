@@ -1,6 +1,6 @@
-
 import { useState } from "react";
 import { ArrowRight, Plus, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const dummyRecentActivity = [
   {
@@ -73,6 +73,7 @@ const ActionButton = ({ children, primary = false, onClick }: { children: React.
 );
 
 const Index = () => {
+  const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
 
   return (
@@ -124,7 +125,7 @@ const Index = () => {
           <ActionButton primary onClick={() => console.log("Add new client")}>
             <Plus className="w-4 h-4" /> Add New Client
           </ActionButton>
-          <ActionButton onClick={() => console.log("View client list")}>
+          <ActionButton onClick={() => navigate("/clients")}>
             View Client List <ArrowRight className="w-4 h-4" />
           </ActionButton>
         </div>
