@@ -70,7 +70,7 @@ const Auth = () => {
             access_type: 'offline',
             prompt: 'consent',
           },
-          redirectTo: window.location.origin
+          redirectTo: window.location.origin + '/auth'
         }
       });
       
@@ -81,6 +81,7 @@ const Auth = () => {
     } catch (error: any) {
       console.error("Google sign in error:", error);
       toast.error(error.message || "Failed to sign in with Google");
+    } finally {
       setGoogleLoading(false);
     }
   };
