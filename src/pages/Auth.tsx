@@ -18,11 +18,9 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const { session } = useAuth();
   const location = useLocation();
-  
-  // Change default redirect to /clients (dashboard)
   const from = (location.state as { from?: Location })?.from?.pathname || "/clients";
 
-  // If already logged in, redirect to the dashboard
+  // If already logged in, redirect to the intended page
   if (session) {
     return <Navigate to={from} replace />;
   }
