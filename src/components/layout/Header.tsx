@@ -29,7 +29,7 @@ export const Header = () => {
         <div className="flex justify-between items-center h-16">
           <nav className="flex items-center gap-6">
             <Link 
-              to="/" 
+              to="/clients" 
               className="text-gray-600 hover:text-gray-900 font-medium"
             >
               Dashboard
