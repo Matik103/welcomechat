@@ -24,40 +24,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Get initial session
-    try {
-      supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
-        setIsLoading(false);
-      });
-
-      // Listen for auth changes
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsLoading(false);
-      });
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    } catch (error) {
-      console.error("Auth error:", error);
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
       setIsLoading(false);
-    }
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-    } catch (error) {
-      console.error("Sign out error:", error);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
       throw error;
     }
+    setSession(null);
+    setUser(null);
   };
 
   const value = {

@@ -11,17 +11,27 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { Settings, User, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
+    try {
+      await signOut();
+      toast.success("Successfully signed out");
+      navigate("/auth", { replace: true });
+    } catch (error: any) {
+      toast.error("Failed to sign out. Please try again.");
+      console.error("Sign out error:", error);
+    }
   };
 
-  if (!user) return null;
+  // Don't render header if user is not authenticated
+  if (!user) {
+    return null;
+  }
 
   return (
     <header className="border-b bg-white">
@@ -51,7 +61,7 @@ export const Header = () => {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                {user.user_metadata.full_name || user.email}
+                {user.email}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
