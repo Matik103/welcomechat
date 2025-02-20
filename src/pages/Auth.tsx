@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -61,7 +62,7 @@ const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      setLoading(true);
+      setGoogleLoading(true);
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -69,7 +70,7 @@ const Auth = () => {
             access_type: 'offline',
             prompt: 'consent',
           },
-          redirectTo: `${window.location.origin}/auth`
+          redirectTo: window.location.origin
         }
       });
       
@@ -80,7 +81,7 @@ const Auth = () => {
     } catch (error: any) {
       console.error("Google sign in error:", error);
       toast.error(error.message || "Failed to sign in with Google");
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
@@ -152,8 +153,18 @@ const Auth = () => {
               </div>
             </div>
 
-            <Button variant="outline" type="button" onClick={handleGoogleSignIn} className="w-full">
-              <Chrome className="mr-2 h-4 w-4" />
+            <Button 
+              variant="outline" 
+              type="button" 
+              onClick={handleGoogleSignIn} 
+              className="w-full"
+              disabled={googleLoading}
+            >
+              {googleLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Chrome className="mr-2 h-4 w-4" />
+              )}
               Sign in with Google
             </Button>
 
