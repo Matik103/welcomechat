@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AuthContextType {
   session: Session | null;
@@ -33,7 +34,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("Auth state changed:", _event, session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -45,12 +47,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Sign out error:", error);
+        throw error;
+      }
+      // Clear local state
+      setSession(null);
+      setUser(null);
+    } catch (error: any) {
+      console.error("Sign out failed:", error);
+      toast.error(error.message || "Failed to sign out");
       throw error;
     }
-    setSession(null);
-    setUser(null);
   };
 
   const value = {
