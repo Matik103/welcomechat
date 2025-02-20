@@ -35,7 +35,7 @@ const WidgetSettings = () => {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [settings, setSettings] = useState<IWidgetSettings>(defaultSettings);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
 
   const { data: client, isLoading } = useQuery({
     queryKey: ["client", id],
@@ -55,10 +55,6 @@ const WidgetSettings = () => {
       const widgetSettings = client.widget_settings;
       if (isWidgetSettings(widgetSettings)) {
         setSettings(widgetSettings);
-        // Show preview if required fields are present
-        if (widgetSettings.logo_url && widgetSettings.agent_name && widgetSettings.webhook_url) {
-          setShowPreview(true);
-        }
       } else {
         setSettings({
           ...defaultSettings,
@@ -67,24 +63,6 @@ const WidgetSettings = () => {
       }
     }
   }, [client]);
-
-  // Check if required fields are filled
-  const areRequiredFieldsFilled = Boolean(
-    settings.logo_url && 
-    settings.agent_name && 
-    settings.webhook_url
-  );
-
-  useEffect(() => {
-    // Automatically show preview when required fields are filled
-    if (areRequiredFieldsFilled) {
-      setShowPreview(true);
-      toast({
-        title: "Preview Generated! 🎉",
-        description: "Your widget preview and embed code are now ready.",
-      });
-    }
-  }, [settings.logo_url, settings.agent_name, settings.webhook_url]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: IWidgetSettings) => {
@@ -184,14 +162,7 @@ const WidgetSettings = () => {
         <Card>
           <CardHeader>
             <CardTitle>Branding</CardTitle>
-            <CardDescription>
-              Configure your widget's appearance
-              {!areRequiredFieldsFilled && (
-                <span className="block text-yellow-600 mt-1">
-                  * Please provide a logo, agent name, and webhook URL to generate the preview
-                </span>
-              )}
-            </CardDescription>
+            <CardDescription>Configure your widget's appearance</CardDescription>
           </CardHeader>
           <CardContent>
             <BrandingSettings
@@ -216,33 +187,29 @@ const WidgetSettings = () => {
           </CardContent>
         </Card>
 
-        {areRequiredFieldsFilled && (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Embed Code</CardTitle>
-                <CardDescription>Copy this code to add the widget to your website</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <EmbedCode settings={settings} />
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Embed Code</CardTitle>
+            <CardDescription>Copy this code to add the widget to your website</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EmbedCode settings={settings} />
+          </CardContent>
+        </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Widget Preview</CardTitle>
-                <CardDescription>See how your widget will appear</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <WidgetPreview
-                  settings={settings}
-                  showPreview={showPreview}
-                  onTogglePreview={() => setShowPreview(!showPreview)}
-                />
-              </CardContent>
-            </Card>
-          </>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Widget Preview</CardTitle>
+            <CardDescription>See how your widget will appear</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <WidgetPreview
+              settings={settings}
+              showPreview={showPreview}
+              onTogglePreview={() => setShowPreview(!showPreview)}
+            />
+          </CardContent>
+        </Card>
 
         <div className="flex justify-end">
           <Button 
