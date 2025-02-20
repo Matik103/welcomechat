@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,8 +18,8 @@ const Auth = () => {
   const { session } = useAuth();
   const location = useLocation();
   
-  // Change default redirect to /clients (dashboard)
-  const from = (location.state as { from?: Location })?.from?.pathname || "/clients";
+  // Change default redirect to root (dashboard)
+  const from = (location.state as { from?: Location })?.from?.pathname || "/";
 
   // If already logged in, redirect to the dashboard
   if (session) {

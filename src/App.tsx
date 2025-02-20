@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { PrivateRoute } from "@/components/auth/PrivateRoute";
 import { Header } from "@/components/layout/Header";
 import Auth from "./pages/Auth";
+import Index from "./pages/Index";
 import ClientList from "./pages/ClientList";
 import AddEditClient from "./pages/AddEditClient";
 import ClientView from "./pages/ClientView";
@@ -26,10 +27,14 @@ const App = () => (
             <Header />
             <main className="flex-1">
               <Routes>
-                {/* Redirect root to clients (dashboard) for authenticated users */}
+                {/* Use Index component for root route */}
                 <Route
                   path="/"
-                  element={<Navigate to="/clients" replace />}
+                  element={
+                    <PrivateRoute>
+                      <Index />
+                    </PrivateRoute>
+                  }
                 />
                 <Route path="/auth" element={<Auth />} />
                 <Route
