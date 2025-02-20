@@ -26,7 +26,7 @@ const App = () => (
             <Header />
             <main className="flex-1">
               <Routes>
-                {/* Redirect root to clients for authenticated users */}
+                {/* Redirect root to clients (dashboard) for authenticated users */}
                 <Route
                   path="/"
                   element={<Navigate to="/clients" replace />}
