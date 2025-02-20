@@ -1,11 +1,10 @@
 
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
-  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -16,8 +15,7 @@ export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!session) {
-    // Redirect to /auth but save the attempted location
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;

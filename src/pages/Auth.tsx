@@ -1,4 +1,5 @@
-import { useState, useEffect, useLocation } from "react";
+
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,12 +17,19 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const { session } = useAuth();
-  const location = useLocation();
-  const from = (location.state as { from?: Location })?.from?.pathname || "/clients";
 
-  // If already logged in, redirect to the intended page
+  // Auto sign out on component mount
+  useEffect(() => {
+    const signOutExistingSession = async () => {
+      await supabase.auth.signOut();
+      toast.info("Please sign in to continue");
+    };
+    signOutExistingSession();
+  }, []);
+
+  // Redirect if somehow still logged in
   if (session) {
-    return <Navigate to={from} replace />;
+    return <Navigate to="/clients" replace />;
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
