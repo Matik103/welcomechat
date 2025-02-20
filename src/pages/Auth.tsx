@@ -22,7 +22,6 @@ const Auth = () => {
   useEffect(() => {
     const signOutExistingSession = async () => {
       await supabase.auth.signOut();
-      toast.info("Please sign in to continue");
     };
     signOutExistingSession();
   }, []);
@@ -68,6 +67,12 @@ const Auth = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+          queryParams: {
+            prompt: 'select_account'
+          }
+        }
       });
       if (error) throw error;
     } catch (error: any) {
