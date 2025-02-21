@@ -25,8 +25,15 @@ const App = () => (
         <BrowserRouter>
           <Header />
           <Routes>
-            {/* Redirect root to clients if not authenticated */}
-            <Route path="/" element={<Navigate to="/clients" replace />} />
+            {/* Protected Index route */}
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <Index />
+                </PrivateRoute>
+              }
+            />
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/settings"

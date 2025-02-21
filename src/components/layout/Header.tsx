@@ -10,15 +10,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { Settings, User, LogOut } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/auth");
   };
 
   if (!user) return null;
@@ -30,13 +29,13 @@ export const Header = () => {
           <nav className="flex items-center gap-6">
             <Link 
               to="/" 
-              className="text-gray-600 hover:text-gray-900 font-medium"
+              className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname === '/' ? 'text-gray-900' : ''}`}
             >
               Dashboard
             </Link>
             <Link 
               to="/clients" 
-              className="text-gray-600 hover:text-gray-900 font-medium"
+              className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname.startsWith('/clients') ? 'text-gray-900' : ''}`}
             >
               Clients
             </Link>
