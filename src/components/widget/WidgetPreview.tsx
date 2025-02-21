@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Monitor, Send, Loader2 } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -20,6 +21,7 @@ export function WidgetPreview({ settings, showPreview, onTogglePreview }: Widget
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -30,26 +32,71 @@ export function WidgetPreview({ settings, showPreview, onTogglePreview }: Widget
     setIsLoading(true);
 
     try {
-      const response = await fetch("https://mgjodiqecnnltsgorife.supabase.co/functions/v1/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: userMessage,
-          agent_name: settings.agent_name,
-        }),
-      });
+      // If webhook URL is provided, use n8n
+      if (settings.webhook_url) {
+        const response = await fetch(settings.webhook_url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: userMessage,
+            sessionId: Date.now().toString(), // Unique session ID
+          }),
+        });
 
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
+        if (!response.ok) {
+          throw new Error('Webhook request failed');
+        }
+
+        const data = await response.json();
+        
+        // Save interaction to n8n_chat_histories
+        await fetch("https://mgjodiqecnnltsgorife.supabase.co/rest/v1/n8n_chat_histories", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is"
+          },
+          body: JSON.stringify({
+            session_id: Date.now().toString(),
+            message: {
+              user_message: userMessage,
+              bot_response: data.response
+            }
+          }),
+        });
+
+        setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      } else {
+        // Fallback to default chat function
+        const response = await fetch("https://mgjodiqecnnltsgorife.supabase.co/functions/v1/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: userMessage,
+            agent_name: settings.agent_name,
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        setMessages(prev => [...prev, { role: 'assistant', content: data.generatedText }]);
       }
-
-      setMessages(prev => [...prev, { role: 'assistant', content: data.generatedText }]);
     } catch (error) {
       console.error("Chat error:", error);
+      toast({
+        title: "Error",
+        description: "Sorry, I encountered an error. Please try again.",
+        variant: "destructive"
+      });
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: "I apologize, but I encountered an error. Please try again." 
