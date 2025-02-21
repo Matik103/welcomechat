@@ -627,6 +627,12 @@ export type Database = {
           similarity: number
         }[]
       }
+      setup_vector_table_policies: {
+        Args: {
+          table_name: string
+        }
+        Returns: undefined
+      }
       sparsevec_out: {
         Args: {
           "": unknown
