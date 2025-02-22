@@ -4,20 +4,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-interface RecoveryToken {
-  id: string;
-  client_id: string;
-  token: string;
-  expires_at: string;
-  created_at: string;
-  used_at: string | null;
-  clients: {
-    id: string;
-    client_name: string;
-    email: string;
-  };
-}
-
 const RecoverClient = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -33,34 +19,19 @@ const RecoverClient = () => {
       }
 
       try {
-        // Get recovery token info
-        const { data: tokenData, error: tokenError } = await supabase
-          .from("client_recovery_tokens")
-          .select(`
-            *,
-            clients (
-              id,
-              client_name,
-              email
-            )
-          `)
-          .eq("token", token)
-          .single() as { data: RecoveryToken | null; error: any };
+        // First get the client_id from your edge function
+        const { data: recoveryData, error: recoveryError } = await supabase.functions.invoke(
+          "verify-recovery-token",
+          {
+            body: { token }
+          }
+        );
 
-        if (tokenError) throw tokenError;
-        if (!tokenData) throw new Error("Recovery token not found");
-
-        if (tokenData.used_at) {
-          toast.error("This recovery link has already been used");
-          navigate("/");
-          return;
+        if (recoveryError || !recoveryData) {
+          throw new Error(recoveryError || "Invalid recovery token");
         }
 
-        if (new Date(tokenData.expires_at) < new Date()) {
-          toast.error("This recovery link has expired");
-          navigate("/");
-          return;
-        }
+        const { clientId, clientName, email } = recoveryData;
 
         // Recover the client
         const { error: updateError } = await supabase
@@ -68,24 +39,23 @@ const RecoverClient = () => {
           .update({
             deletion_scheduled_at: null,
             deleted_at: null,
-          } as any) // Using 'as any' temporarily until types are regenerated
-          .eq("id", tokenData.client_id);
+          } as any)
+          .eq("id", clientId);
 
         if (updateError) throw updateError;
 
-        // Mark token as used
-        await supabase
-          .from("client_recovery_tokens")
-          .update({ used_at: new Date().toISOString() } as any)
-          .eq("id", tokenData.id);
-
         // Send confirmation email
-        await supabase.functions.invoke("send-recovery-confirmation", {
-          body: {
-            clientName: tokenData.clients.client_name,
-            email: tokenData.clients.email,
-          },
-        });
+        const { error: emailError } = await supabase.functions.invoke(
+          "send-recovery-confirmation",
+          {
+            body: {
+              clientName,
+              email,
+            },
+          }
+        );
+
+        if (emailError) throw emailError;
 
         toast.success("Client account recovered successfully");
         navigate("/clients");
