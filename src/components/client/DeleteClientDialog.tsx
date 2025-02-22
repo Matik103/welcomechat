@@ -52,7 +52,7 @@ export function DeleteClientDialog({
         .update({
           deleted_at: null,
           deletion_scheduled_at: deletionDate.toISOString(),
-        } as any) // Using 'as any' temporarily until types are regenerated
+        })
         .eq("id", clientId);
 
       if (updateError) throw updateError;
@@ -69,12 +69,22 @@ export function DeleteClientDialog({
         }
       );
 
-      if (emailError) throw emailError;
+      if (emailError) {
+        // Revert the deletion if email fails
+        await supabase
+          .from("clients")
+          .update({
+            deletion_scheduled_at: null,
+          })
+          .eq("id", clientId);
+        throw emailError;
+      }
 
       toast.success("Client scheduled for deletion and notification email sent");
       onDeleted();
       onClose();
     } catch (error: any) {
+      console.error("Error scheduling client deletion:", error);
       toast.error(`Error scheduling client deletion: ${error.message}`);
     } finally {
       setIsDeleting(false);
