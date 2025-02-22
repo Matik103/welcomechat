@@ -51,11 +51,13 @@ const ClientList = () => {
       const { data, error } = await supabase
         .from("clients")
         .select("*")
-        .is("deleted_at", null)
-        .is("deletion_scheduled_at", null)
+        .or('deleted_at.is.null,deletion_scheduled_at.is.null')
         .order(sortField, { ascending: sortOrder === "asc" });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching clients:", error);
+        throw error;
+      }
       return data || [];
     },
   });

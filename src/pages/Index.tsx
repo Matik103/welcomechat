@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Plus, Users, Settings, Link, UserPlus, Edit, Mail } from "lucide-react";
+import { ArrowRight, Plus, Users, Settings, Link, UserPlus, Edit, Mail, Trash2, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,10 @@ const getActivityIcon = (type: string) => {
       return <UserPlus className="w-4 h-4 text-primary" />;
     case 'client_updated':
       return <Edit className="w-4 h-4 text-primary" />;
+    case 'client_deleted':
+      return <Trash2 className="w-4 h-4 text-destructive" />;
+    case 'client_recovered':
+      return <RotateCcw className="w-4 h-4 text-green-500" />;
     case 'widget_settings_updated':
       return <Settings className="w-4 h-4 text-primary" />;
     case 'website_url_added':
