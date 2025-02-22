@@ -65,12 +65,49 @@ export type Database = {
           },
         ]
       }
+      client_recovery_tokens: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          expires_at: string
+          id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_recovery_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           agent_name: string
           client_name: string
           company: string | null
           created_at: string | null
+          deleted_at: string | null
+          deletion_scheduled_at: string | null
           description: string | null
           drive_link: string | null
           drive_link_added_at: string | null
@@ -93,6 +130,8 @@ export type Database = {
           client_name: string
           company?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deletion_scheduled_at?: string | null
           description?: string | null
           drive_link?: string | null
           drive_link_added_at?: string | null
@@ -115,6 +154,8 @@ export type Database = {
           client_name?: string
           company?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deletion_scheduled_at?: string | null
           description?: string | null
           drive_link?: string | null
           drive_link_added_at?: string | null

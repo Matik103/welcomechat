@@ -51,7 +51,7 @@ const ClientList = () => {
       const { data, error } = await supabase
         .from("clients")
         .select("*")
-        .or('deleted_at.is.null,deletion_scheduled_at.is.null')
+        .is('deletion_scheduled_at', null)
         .order(sortField, { ascending: sortOrder === "asc" });
       
       if (error) {
