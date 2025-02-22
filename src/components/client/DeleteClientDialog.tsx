@@ -18,6 +18,7 @@ interface DeleteClientDialogProps {
   onClose: () => void;
   clientName: string;
   clientId: string;
+  clientEmail: string;
   onDeleted: () => void;
 }
 
@@ -26,6 +27,7 @@ export function DeleteClientDialog({
   onClose,
   clientName,
   clientId,
+  clientEmail,
   onDeleted,
 }: DeleteClientDialogProps) {
   const [confirmation, setConfirmation] = useState("");
@@ -41,18 +43,38 @@ export function DeleteClientDialog({
 
     setIsDeleting(true);
     try {
-      const { error } = await supabase
+      // Set deletion_scheduled_at to 30 days from now
+      const deletionDate = new Date();
+      deletionDate.setDate(deletionDate.getDate() + 30);
+
+      const { error: updateError } = await supabase
         .from("clients")
-        .delete()
+        .update({
+          deletion_scheduled_at: deletionDate.toISOString(),
+        })
         .eq("id", clientId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      toast.success("Client deleted successfully");
+      // Send deletion notification email
+      const { error: emailError } = await supabase.functions.invoke(
+        "send-deletion-email",
+        {
+          body: {
+            clientId,
+            clientName,
+            email: clientEmail,
+          },
+        }
+      );
+
+      if (emailError) throw emailError;
+
+      toast.success("Client scheduled for deletion and notification email sent");
       onDeleted();
       onClose();
     } catch (error: any) {
-      toast.error(`Error deleting client: ${error.message}`);
+      toast.error(`Error scheduling client deletion: ${error.message}`);
     } finally {
       setIsDeleting(false);
     }
@@ -65,8 +87,8 @@ export function DeleteClientDialog({
           <AlertDialogTitle>Delete Client</AlertDialogTitle>
           <AlertDialogDescription className="space-y-4">
             <p>
-              This action cannot be undone. This will permanently delete the client
-              and all associated data.
+              This action will schedule the client for deletion in 30 days. 
+              The client will receive an email with instructions to recover their account if needed.
             </p>
             <p>
               Please type <strong>delete {clientName.toLowerCase()}</strong> to
@@ -91,7 +113,7 @@ export function DeleteClientDialog({
               confirmation.toLowerCase() !== expectedConfirmation || isDeleting
             }
           >
-            {isDeleting ? "Deleting..." : "Delete Client"}
+            {isDeleting ? "Processing..." : "Schedule Deletion"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
