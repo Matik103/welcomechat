@@ -1,6 +1,7 @@
+
 import { ArrowLeft, Plus, Search, ChevronDown, Trash2, Edit, Eye, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -20,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
+import { DeleteClientDialog } from "@/components/client/DeleteClientDialog";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -36,6 +38,12 @@ const ClientList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState("client_name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    client?: Client;
+  }>({ isOpen: false });
+
+  const queryClient = useQueryClient();
 
   const { data: clients = [], isLoading } = useQuery<Client[]>({
     queryKey: ["clients", sortField, sortOrder],
@@ -68,6 +76,14 @@ const ClientList = () => {
       setSortField(field);
       setSortOrder("asc");
     }
+  };
+
+  const handleDeleteClick = (client: Client) => {
+    setDeleteDialog({ isOpen: true, client });
+  };
+
+  const handleDeleteComplete = () => {
+    queryClient.invalidateQueries({ queryKey: ["clients"] });
   };
 
   return (
@@ -185,9 +201,7 @@ const ClientList = () => {
                         <Edit className="w-4 h-4" />
                       </Link>
                       <button
-                        onClick={() => {
-                          // Delete functionality will be implemented later
-                        }}
+                        onClick={() => handleDeleteClick(client)}
                         className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                         title="Delete"
                       >
@@ -229,6 +243,16 @@ const ClientList = () => {
           )}
         </div>
       </div>
+
+      {deleteDialog.client && (
+        <DeleteClientDialog
+          isOpen={deleteDialog.isOpen}
+          onClose={() => setDeleteDialog({ isOpen: false })}
+          clientName={deleteDialog.client.client_name}
+          clientId={deleteDialog.client.id}
+          onDeleted={handleDeleteComplete}
+        />
+      )}
     </div>
   );
 };
