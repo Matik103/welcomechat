@@ -50,8 +50,9 @@ export function DeleteClientDialog({
       const { error: updateError } = await supabase
         .from("clients")
         .update({
+          deleted_at: null,
           deletion_scheduled_at: deletionDate.toISOString(),
-        })
+        } as any) // Using 'as any' temporarily until types are regenerated
         .eq("id", clientId);
 
       if (updateError) throw updateError;

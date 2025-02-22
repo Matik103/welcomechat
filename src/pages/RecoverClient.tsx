@@ -4,6 +4,20 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface RecoveryToken {
+  id: string;
+  client_id: string;
+  token: string;
+  expires_at: string;
+  created_at: string;
+  used_at: string | null;
+  clients: {
+    id: string;
+    client_name: string;
+    email: string;
+  };
+}
+
 const RecoverClient = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -22,11 +36,19 @@ const RecoverClient = () => {
         // Get recovery token info
         const { data: tokenData, error: tokenError } = await supabase
           .from("client_recovery_tokens")
-          .select("*, clients(*)")
+          .select(`
+            *,
+            clients (
+              id,
+              client_name,
+              email
+            )
+          `)
           .eq("token", token)
-          .single();
+          .single() as { data: RecoveryToken | null; error: any };
 
         if (tokenError) throw tokenError;
+        if (!tokenData) throw new Error("Recovery token not found");
 
         if (tokenData.used_at) {
           toast.error("This recovery link has already been used");
@@ -46,7 +68,7 @@ const RecoverClient = () => {
           .update({
             deletion_scheduled_at: null,
             deleted_at: null,
-          })
+          } as any) // Using 'as any' temporarily until types are regenerated
           .eq("id", tokenData.client_id);
 
         if (updateError) throw updateError;
@@ -54,7 +76,7 @@ const RecoverClient = () => {
         // Mark token as used
         await supabase
           .from("client_recovery_tokens")
-          .update({ used_at: new Date().toISOString() })
+          .update({ used_at: new Date().toISOString() } as any)
           .eq("id", tokenData.id);
 
         // Send confirmation email

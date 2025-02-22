@@ -1,4 +1,3 @@
-
 import { ArrowLeft, Plus, Search, ChevronDown, Trash2, Edit, Eye, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +30,7 @@ type Client = {
   agent_name: string;
   status: string;
   updated_at: string;
+  email: string;
 };
 
 const ClientList = () => {
@@ -51,6 +51,8 @@ const ClientList = () => {
       const { data, error } = await supabase
         .from("clients")
         .select("*")
+        .is("deleted_at", null)
+        .is("deletion_scheduled_at", null)
         .order(sortField, { ascending: sortOrder === "asc" });
       
       if (error) throw error;
@@ -250,6 +252,7 @@ const ClientList = () => {
           onClose={() => setDeleteDialog({ isOpen: false })}
           clientName={deleteDialog.client.client_name}
           clientId={deleteDialog.client.id}
+          clientEmail={deleteDialog.client.email}
           onDeleted={handleDeleteComplete}
         />
       )}
