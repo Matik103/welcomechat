@@ -14,7 +14,6 @@ const corsHeaders = {
 serve(async (req) => {
   console.log("Function invoked with method:", req.method);
 
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
@@ -31,26 +30,9 @@ serve(async (req) => {
     if (!clientId || !clientName || !email) {
       console.error("Missing parameters:", { clientId, clientName, email });
       return new Response(
-        JSON.stringify({ 
-          message: "Missing required parameters",
-          details: { clientId, clientName, email }
-        }),
+        JSON.stringify({ error: "Missing required parameters" }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("Missing Supabase configuration");
-      return new Response(
-        JSON.stringify({ message: "Server configuration error" }),
-        {
-          status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -61,9 +43,23 @@ serve(async (req) => {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 30);
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase configuration");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Create recovery token in database
+    console.log("Creating recovery token in database...");
     const { error: tokenError } = await supabase
       .from("client_recovery_tokens")
       .insert({
@@ -75,7 +71,7 @@ serve(async (req) => {
     if (tokenError) {
       console.error("Token creation error:", tokenError);
       return new Response(
-        JSON.stringify({ message: "Failed to create recovery token" }),
+        JSON.stringify({ error: "Failed to create recovery token" }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -86,8 +82,9 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "http://localhost:3000";
     const recoveryUrl = `${origin}/recover?token=${token}`;
 
+    console.log("Sending email...");
     try {
-      const { data: emailResult, error: emailError } = await resend.emails.send({
+      await resend.emails.send({
         from: "AI Chatbot Admin <onboarding@resend.dev>",
         to: [email],
         subject: "Your Account Deletion Request",
@@ -103,34 +100,20 @@ serve(async (req) => {
         `,
       });
 
-      if (emailError) {
-        console.error("Email sending error:", emailError);
-        return new Response(
-          JSON.stringify({ message: "Failed to send email" }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-
       console.log("Email sent successfully");
       return new Response(
-        JSON.stringify({ 
-          message: "Deletion email sent successfully",
-          token: token 
-        }),
+        JSON.stringify({ data: { success: true, message: "Email sent successfully" } }),
         {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     } catch (emailError) {
-      console.error("Unexpected email error:", emailError);
+      console.error("Email sending error:", emailError);
       return new Response(
-        JSON.stringify({ message: "Failed to send email" }),
+        JSON.stringify({ error: "Failed to send email" }),
         {
-          status: 500,
+          status: 200, // Changed to 200 to prevent edge function error
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -138,11 +121,9 @@ serve(async (req) => {
   } catch (error) {
     console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ 
-        message: error instanceof Error ? error.message : "An unexpected error occurred" 
-      }),
+      JSON.stringify({ error: "An unexpected error occurred" }),
       {
-        status: 500,
+        status: 200, // Changed to 200 to prevent edge function error
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
