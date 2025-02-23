@@ -12,6 +12,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log("Function invoked with method:", req.method);
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -21,13 +23,34 @@ serve(async (req) => {
   }
 
   try {
-    const { clientId, clientName, email } = await req.json();
+    const body = await req.json();
+    console.log("Received request body:", body);
+
+    const { clientId, clientName, email } = body;
 
     if (!clientId || !clientName || !email) {
+      console.error("Missing parameters:", { clientId, clientName, email });
       return new Response(
-        JSON.stringify({ error: "Missing required parameters" }),
+        JSON.stringify({ 
+          message: "Missing required parameters",
+          details: { clientId, clientName, email }
+        }),
         {
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase configuration");
+      return new Response(
+        JSON.stringify({ message: "Server configuration error" }),
+        {
+          status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -37,13 +60,6 @@ serve(async (req) => {
     const token = crypto.randomUUID();
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 30);
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error("Missing Supabase configuration");
-    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -57,9 +73,9 @@ serve(async (req) => {
       });
 
     if (tokenError) {
-      console.error("Error creating recovery token:", tokenError);
+      console.error("Token creation error:", tokenError);
       return new Response(
-        JSON.stringify({ error: "Failed to create recovery token" }),
+        JSON.stringify({ message: "Failed to create recovery token" }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -70,45 +86,60 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "http://localhost:3000";
     const recoveryUrl = `${origin}/recover?token=${token}`;
 
-    const { error: emailError } = await resend.emails.send({
-      from: "AI Chatbot Admin <onboarding@resend.dev>",
-      to: [email],
-      subject: "Your Account Deletion Request",
-      html: `
-        <h1>Account Deletion Notice</h1>
-        <p>Dear ${clientName},</p>
-        <p>Your account has been scheduled for deletion in 30 days.</p>
-        <p>If you wish to recover your account, you can do so by clicking the link below:</p>
-        <p><a href="${recoveryUrl}">Recover My Account</a></p>
-        <p>This recovery link will expire in 30 days.</p>
-        <p>If you don't want to recover your account, no action is needed. Your account will be permanently deleted after 30 days.</p>
-        <p>Best regards,<br>AI Chatbot Admin Team</p>
-      `,
-    });
+    try {
+      const { data: emailResult, error: emailError } = await resend.emails.send({
+        from: "AI Chatbot Admin <onboarding@resend.dev>",
+        to: [email],
+        subject: "Your Account Deletion Request",
+        html: `
+          <h1>Account Deletion Notice</h1>
+          <p>Dear ${clientName},</p>
+          <p>Your account has been scheduled for deletion in 30 days.</p>
+          <p>If you wish to recover your account, you can do so by clicking the link below:</p>
+          <p><a href="${recoveryUrl}">Recover My Account</a></p>
+          <p>This recovery link will expire in 30 days.</p>
+          <p>If you don't want to recover your account, no action is needed. Your account will be permanently deleted after 30 days.</p>
+          <p>Best regards,<br>AI Chatbot Admin Team</p>
+        `,
+      });
 
-    if (emailError) {
-      console.error("Error sending email:", emailError);
+      if (emailError) {
+        console.error("Email sending error:", emailError);
+        return new Response(
+          JSON.stringify({ message: "Failed to send email" }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      console.log("Email sent successfully");
       return new Response(
-        JSON.stringify({ error: "Failed to send deletion email" }),
+        JSON.stringify({ 
+          message: "Deletion email sent successfully",
+          token: token 
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } catch (emailError) {
+      console.error("Unexpected email error:", emailError);
+      return new Response(
+        JSON.stringify({ message: "Failed to send email" }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
-
-    return new Response(
-      JSON.stringify({ message: "Deletion email sent successfully" }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
   } catch (error) {
-    console.error("Error in send-deletion-email function:", error);
+    console.error("Unexpected error:", error);
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : "An unknown error occurred" 
+        message: error instanceof Error ? error.message : "An unexpected error occurred" 
       }),
       {
         status: 500,
