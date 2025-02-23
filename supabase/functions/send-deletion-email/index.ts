@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -10,12 +11,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface DeletionEmailRequest {
-  clientId: string;
-  clientName: string;
-  email: string;
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -23,21 +18,34 @@ serve(async (req) => {
   }
 
   try {
-    const { clientId, clientName, email }: DeletionEmailRequest = await req.json();
+    const { clientId, clientName, email } = await req.json();
 
     if (!clientId || !clientName || !email) {
-      throw new Error("Missing required parameters");
+      return new Response(
+        JSON.stringify({ error: "Missing required parameters" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
+    // Create recovery token
     const token = crypto.randomUUID();
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30); // 30 days from now
+    expiryDate.setDate(expiryDate.getDate() + 30);
 
-    // Create recovery token in database
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Missing Supabase configuration");
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Create recovery token in database
     const { error: tokenError } = await supabase
       .from("client_recovery_tokens")
       .insert({
@@ -51,9 +59,12 @@ serve(async (req) => {
       throw new Error("Failed to create recovery token");
     }
 
-    const recoveryUrl = `${req.headers.get("origin")}/recover?token=${token}`;
+    // Get the origin from the request headers or use a default
+    const origin = req.headers.get("origin") || "http://localhost:3000";
+    const recoveryUrl = `${origin}/recover?token=${token}`;
 
-    const { data: emailData, error: emailError } = await resend.emails.send({
+    // Send email
+    const { error: emailError } = await resend.emails.send({
       from: "AI Chatbot Admin <onboarding@resend.dev>",
       to: [email],
       subject: "Your Account Deletion Request",
@@ -88,7 +99,7 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : "An unknown error occurred" 
       }),
       {
-        status: 400,
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );

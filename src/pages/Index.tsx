@@ -78,129 +78,72 @@ const Index = () => {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
 
-  const { data: clientStats } = useQuery({
-    queryKey: ["client-stats", timeRange],
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats", timeRange],
     queryFn: async () => {
       const now = new Date();
-      let startDate;
+      let startDate = new Date();
 
       switch (timeRange) {
         case "1d":
-          startDate = new Date(now.setDate(now.getDate() - 1));
+          startDate.setDate(now.getDate() - 1);
           break;
         case "1m":
-          startDate = new Date(now.setMonth(now.getMonth() - 1));
+          startDate.setMonth(now.getMonth() - 1);
           break;
         case "1y":
-          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+          startDate.setFullYear(now.getFullYear() - 1);
           break;
         default:
           startDate = new Date(0);
       }
 
-      const { data: totalClients, error: totalError } = await supabase
+      const { data: totalClients } = await supabase
         .from("clients")
-        .select("*", { count: "exact" });
+        .select("*", { count: "exact" })
+        .is("deletion_scheduled_at", null);
 
-      if (totalError) throw totalError;
-
-      const { data: activeClients, error: activeError } = await supabase
+      const { data: activeClients } = await supabase
         .from("clients")
         .select("*")
-        .eq("status", 'active');
+        .eq("status", 'active')
+        .is("deletion_scheduled_at", null);
 
-      if (activeError) throw activeError;
+      const { data: activities } = await supabase
+        .from("client_activities")
+        .select("*")
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: false });
 
       const previousPeriodStart = new Date(startDate);
-      const previousPeriodEnd = new Date(startDate);
-      
-      switch (timeRange) {
-        case "1d":
-          previousPeriodStart.setDate(previousPeriodStart.getDate() - 1);
-          break;
-        case "1m":
-          previousPeriodStart.setMonth(previousPeriodStart.getMonth() - 1);
-          break;
-        case "1y":
-          previousPeriodStart.setFullYear(previousPeriodStart.getFullYear() - 1);
-          break;
-      }
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
       const { data: previousActive } = await supabase
         .from("clients")
         .select("*")
         .eq("status", 'active')
-        .gte("last_active", previousPeriodStart.toISOString())
-        .lt("last_active", previousPeriodEnd.toISOString());
+        .is("deletion_scheduled_at", null)
+        .gte("created_at", previousPeriodStart.toISOString())
+        .lt("created_at", startDate.toISOString());
 
       const currentActiveCount = activeClients?.length ?? 0;
       const previousActiveCount = previousActive?.length ?? 0;
+      const totalInteractions = activities?.length ?? 0;
+      const avgInteractions = Math.round(totalInteractions / (totalClients?.length || 1));
       
       const changePercentage = previousActiveCount === 0 
         ? currentActiveCount > 0 ? 100 : 0
         : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
 
       return {
-        total: totalClients?.length ?? 0,
-        active: currentActiveCount,
-        change: changePercentage.toFixed(1)
-      };
-    }
-  });
-
-  const { data: interactionStats } = useQuery({
-    queryKey: ["interaction-stats", timeRange],
-    queryFn: async () => {
-      const { data: activities, error } = await supabase
-        .from("client_activities")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const now = new Date();
-      let startDate;
-
-      switch (timeRange) {
-        case "1d":
-          startDate = new Date(now.setDate(now.getDate() - 1));
-          break;
-        case "1m":
-          startDate = new Date(now.setMonth(now.getMonth() - 1));
-          break;
-        case "1y":
-          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
-          break;
-        default:
-          startDate = new Date(0);
-      }
-
-      const filteredActivities = activities?.filter(
-        activity => new Date(activity.created_at) >= startDate
-      );
-
-      const totalInteractions = filteredActivities?.length ?? 0;
-      const avgInteractions = Math.round(totalInteractions / (clientStats?.total || 1));
-
-      const previousActivities = activities?.filter(
-        activity => {
-          const activityDate = new Date(activity.created_at);
-          return activityDate >= startDate && activityDate < now;
-        }
-      );
-
-      const previousTotal = previousActivities?.length ?? 0;
-      const changePercentage = previousTotal === 0 
-        ? totalInteractions > 0 ? 100 : 0
-        : ((totalInteractions - previousTotal) / previousTotal * 100);
-
-      return {
-        total: totalInteractions,
-        average: avgInteractions,
-        change: changePercentage.toFixed(1)
+        totalClients: totalClients?.length ?? 0,
+        activeClients: currentActiveCount,
+        activeClientsChange: changePercentage.toFixed(1),
+        avgInteractions,
+        totalInteractions,
       };
     },
-    enabled: !!clientStats?.total
+    refetchInterval: 30000,
   });
 
   const { data: recentActivities } = useQuery({
@@ -233,7 +176,7 @@ const Index = () => {
         client_name: activity.clients?.client_name || "Unknown Client"
       }));
     },
-    refetchInterval: 3000
+    refetchInterval: 30000,
   });
 
   return (
@@ -244,48 +187,42 @@ const Index = () => {
           <p className="text-gray-500">Monitor and manage your AI chatbot clients</p>
         </div>
 
+        <div className="flex justify-end mb-4">
+          <div className="flex gap-2">
+            {(["1d", "1m", "1y", "all"] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1 text-sm rounded-md ${
+                  timeRange === range
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                } transition-colors duration-200`}
+              >
+                {range.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard 
             title="Total Clients" 
-            value={clientStats?.total || 0}
+            value={stats?.totalClients || 0}
           />
           <MetricCard 
             title="Active Clients" 
-            value={clientStats?.active || 0}
-            change={clientStats?.change}
+            value={stats?.activeClients || 0}
+            change={stats?.activeClientsChange}
           />
           <MetricCard 
             title="Avg. Interactions" 
-            value={interactionStats?.average || 0}
+            value={stats?.avgInteractions || 0}
           />
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 className="text-gray-500 text-sm font-medium mb-2">Total Interactions</h3>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-3xl font-bold text-gray-900">
-                {interactionStats?.total || 0}
-              </span>
-              <span className="text-secondary text-sm font-medium">
-                {interactionStats?.change && 
-                  `${interactionStats.change.startsWith('-') ? '' : '+'}${interactionStats.change}%`
-                }
-              </span>
-            </div>
-            <div className="flex gap-2">
-              {(["1d", "1m", "1y", "all"] as const).map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setTimeRange(range)}
-                  className={`px-2 py-1 text-xs rounded-md ${
-                    timeRange === range
-                      ? "bg-primary text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  } transition-colors duration-200`}
-                >
-                  {range.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
+          <MetricCard 
+            title="Total Interactions" 
+            value={stats?.totalInteractions || 0}
+          />
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
