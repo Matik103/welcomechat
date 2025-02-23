@@ -7,14 +7,17 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
 
   try {
@@ -35,7 +38,6 @@ serve(async (req) => {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 30);
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -56,14 +58,18 @@ serve(async (req) => {
 
     if (tokenError) {
       console.error("Error creating recovery token:", tokenError);
-      throw new Error("Failed to create recovery token");
+      return new Response(
+        JSON.stringify({ error: "Failed to create recovery token" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    // Get the origin from the request headers or use a default
     const origin = req.headers.get("origin") || "http://localhost:3000";
     const recoveryUrl = `${origin}/recover?token=${token}`;
 
-    // Send email
     const { error: emailError } = await resend.emails.send({
       from: "AI Chatbot Admin <onboarding@resend.dev>",
       to: [email],
@@ -82,7 +88,13 @@ serve(async (req) => {
 
     if (emailError) {
       console.error("Error sending email:", emailError);
-      throw new Error("Failed to send deletion email");
+      return new Response(
+        JSON.stringify({ error: "Failed to send deletion email" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     return new Response(

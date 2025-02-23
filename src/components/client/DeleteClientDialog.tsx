@@ -50,7 +50,6 @@ export function DeleteClientDialog({
       const { error: updateError } = await supabase
         .from("clients")
         .update({
-          deleted_at: null,
           deletion_scheduled_at: deletionDate.toISOString(),
         })
         .eq("id", clientId);
@@ -85,8 +84,7 @@ export function DeleteClientDialog({
       onClose();
     } catch (error: any) {
       console.error("Error scheduling client deletion:", error);
-      toast.error(`Error scheduling client deletion: ${error.message}`);
-    } finally {
+      toast.error(error.message || "Error scheduling client deletion");
       setIsDeleting(false);
     }
   };
