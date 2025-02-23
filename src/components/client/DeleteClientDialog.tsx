@@ -43,7 +43,23 @@ export function DeleteClientDialog({
 
     setIsDeleting(true);
     try {
-      // Set deletion_scheduled_at to 30 days from now
+      // First, attempt to send the deletion email
+      const { error: emailError, data } = await supabase.functions.invoke(
+        "send-deletion-email",
+        {
+          body: {
+            clientId,
+            clientName,
+            email: clientEmail,
+          },
+        }
+      );
+
+      if (emailError || (data && data.error)) {
+        throw new Error(emailError?.message || data?.error || "Failed to send deletion email");
+      }
+
+      // If email was sent successfully, update the client's deletion status
       const deletionDate = new Date();
       deletionDate.setDate(deletionDate.getDate() + 30);
 
@@ -56,35 +72,13 @@ export function DeleteClientDialog({
 
       if (updateError) throw updateError;
 
-      // Send deletion notification email
-      const { error: emailError } = await supabase.functions.invoke(
-        "send-deletion-email",
-        {
-          body: {
-            clientId,
-            clientName,
-            email: clientEmail,
-          },
-        }
-      );
-
-      if (emailError) {
-        // Revert the deletion if email fails
-        await supabase
-          .from("clients")
-          .update({
-            deletion_scheduled_at: null,
-          })
-          .eq("id", clientId);
-        throw emailError;
-      }
-
       toast.success("Client scheduled for deletion and notification email sent");
       onDeleted();
       onClose();
     } catch (error: any) {
-      console.error("Error scheduling client deletion:", error);
-      toast.error(error.message || "Error scheduling client deletion");
+      console.error("Error in deletion process:", error);
+      toast.error(error.message || "Error processing deletion request");
+    } finally {
       setIsDeleting(false);
     }
   };

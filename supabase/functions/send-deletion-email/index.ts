@@ -32,7 +32,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Missing required parameters" }),
         {
-          status: 400,
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -51,7 +51,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
         {
-          status: 500,
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -73,7 +73,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Failed to create recovery token" }),
         {
-          status: 500,
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -82,9 +82,9 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "http://localhost:3000";
     const recoveryUrl = `${origin}/recover?token=${token}`;
 
-    console.log("Sending email...");
+    console.log("Sending email to:", email);
     try {
-      await resend.emails.send({
+      const emailResult = await resend.emails.send({
         from: "AI Chatbot Admin <onboarding@resend.dev>",
         to: [email],
         subject: "Your Account Deletion Request",
@@ -100,7 +100,7 @@ serve(async (req) => {
         `,
       });
 
-      console.log("Email sent successfully");
+      console.log("Email sent successfully:", emailResult);
       return new Response(
         JSON.stringify({ data: { success: true, message: "Email sent successfully" } }),
         {
@@ -110,10 +110,17 @@ serve(async (req) => {
       );
     } catch (emailError) {
       console.error("Email sending error:", emailError);
+      // If email fails, we should revert the token creation
+      if (token) {
+        await supabase
+          .from("client_recovery_tokens")
+          .delete()
+          .eq("token", token);
+      }
       return new Response(
-        JSON.stringify({ error: "Failed to send email" }),
+        JSON.stringify({ error: "Failed to send email", details: emailError.message }),
         {
-          status: 200, // Changed to 200 to prevent edge function error
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -121,9 +128,9 @@ serve(async (req) => {
   } catch (error) {
     console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: "An unexpected error occurred" }),
+      JSON.stringify({ error: "An unexpected error occurred", details: error.message }),
       {
-        status: 200, // Changed to 200 to prevent edge function error
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
