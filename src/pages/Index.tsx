@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ArrowRight, Plus, Users, Settings, Link, UserPlus, Edit, Mail, Trash2, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +12,7 @@ const MetricCard = ({ title, value, change }: { title: string; value: string | n
     <div className="flex items-end gap-2">
       <span className="text-3xl font-bold text-gray-900">{value}</span>
       {change && (
-        <span className="text-secondary text-sm font-medium mb-1">
+        <span className="text-green-600 text-sm font-medium mb-1">
           {change.startsWith('-') ? '' : '+'}{change}%
         </span>
       )}
@@ -105,7 +104,7 @@ const Index = () => {
         .select("*", { count: "exact" })
         .is("deletion_scheduled_at", null);
 
-      // Get active clients (based on last 48 hours only, not affected by time range)
+      // Get active clients (based on last 48 hours only)
       const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
       const { data: activeClientsData } = await supabase
         .from("client_activities")
@@ -118,15 +117,34 @@ const Index = () => {
         .from("client_activities")
         .select("*")
         .eq('activity_type', 'chat_interaction')
-        .gte("created_at", startDate.toISOString())
-        .order("created_at", { ascending: false });
+        .gte("created_at", startDate.toISOString());
 
+      // Calculate total and average interactions for the time period
       const totalClientCount = totalClients?.length ?? 0;
       const currentActiveCount = activeClientsData?.length ?? 0;
       const totalInteractions = interactions?.length ?? 0;
-      const avgInteractions = totalClientCount ? Math.round(totalInteractions / totalClientCount) : 0;
       
-      // Calculate percentage change in active clients compared to previous 48 hours
+      // Calculate average interactions and its change percentage
+      const avgInteractions = totalClientCount ? Math.round(totalInteractions / totalClientCount) : 0;
+      const previousStartDate = new Date(startDate.getTime() - (startDate.getTime() - now.getTime()));
+      
+      // Get previous period interactions for comparison
+      const { data: previousInteractions } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", previousStartDate.toISOString())
+        .lt("created_at", startDate.toISOString());
+
+      const prevAvgInteractions = totalClientCount && previousInteractions 
+        ? Math.round(previousInteractions.length / totalClientCount)
+        : 0;
+
+      const avgInteractionsChange = prevAvgInteractions === 0
+        ? avgInteractions > 0 ? 100 : 0
+        : ((avgInteractions - prevAvgInteractions) / prevAvgInteractions * 100);
+
+      // Calculate active clients change (based on 48-hour windows only)
       const previousFortyEightHours = new Date(fortyEightHoursAgo.getTime() - (48 * 60 * 60 * 1000));
       const { data: previousActive } = await supabase
         .from("client_activities")
@@ -136,15 +154,16 @@ const Index = () => {
         .lt("created_at", fortyEightHoursAgo.toISOString());
 
       const previousActiveCount = previousActive?.length ?? 0;
-      const changePercentage = previousActiveCount === 0 
+      const activeChangePercentage = previousActiveCount === 0 
         ? currentActiveCount > 0 ? 100 : 0
         : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
 
       return {
         totalClients: totalClientCount,
         activeClients: currentActiveCount,
-        activeClientsChange: changePercentage.toFixed(1),
+        activeClientsChange: activeChangePercentage.toFixed(1),
         avgInteractions,
+        avgInteractionsChange: avgInteractionsChange.toFixed(1),
         totalInteractions,
       };
     },
@@ -223,6 +242,7 @@ const Index = () => {
           <MetricCard 
             title="Avg. Interactions" 
             value={stats?.avgInteractions || 0}
+            change={stats?.avgInteractionsChange}
           />
           <MetricCard 
             title="Total Interactions" 

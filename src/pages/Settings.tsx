@@ -32,7 +32,15 @@ const Settings = () => {
     try {
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) throw error;
+      // Only consider MFA enabled if there's a verified TOTP factor
       setMfaEnabled(data.totp.length > 0 && data.totp.some(factor => factor.status === 'verified'));
+
+      // If there's an unverified factor, we should clean it up
+      if (data.totp.length > 0 && data.totp.every(factor => factor.status !== 'verified')) {
+        // This will allow the user to start fresh
+        setQrCode(null);
+        setFactorId("");
+      }
     } catch (error: any) {
       console.error('Error checking MFA status:', error);
     }
