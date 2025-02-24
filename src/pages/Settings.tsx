@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +21,8 @@ const Settings = () => {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
+  const [factorId, setFactorId] = useState<string>("");
+  const [challengeId, setChallengeId] = useState<string>("");
 
   useEffect(() => {
     checkMfaStatus();
@@ -27,9 +30,9 @@ const Settings = () => {
 
   const checkMfaStatus = async () => {
     try {
-      const { data: { factors }, error } = await supabase.auth.mfa.listFactors();
+      const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) throw error;
-      setMfaEnabled(factors.some(factor => factor.status === 'verified'));
+      setMfaEnabled(data.totp.length > 0 && data.totp.some(factor => factor.status === 'verified'));
     } catch (error: any) {
       console.error('Error checking MFA status:', error);
     }
@@ -38,13 +41,14 @@ const Settings = () => {
   const handleEnableMFA = async () => {
     try {
       setLoading(true);
-      const { data: { totp }, error } = await supabase.auth.mfa.enroll({
+      const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp'
       });
       
       if (error) throw error;
-      if (totp) {
-        setQrCode(totp.qr_code);
+      if (data.totp) {
+        setQrCode(data.totp.qr_code);
+        setFactorId(data.totp.id);
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -56,14 +60,17 @@ const Settings = () => {
   const handleVerifyMFA = async () => {
     try {
       setLoading(true);
-      const { data: { factorId }, error } = await supabase.auth.mfa.challenge({
-        factorId: 'totp'
+      // First, create a challenge
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: factorId
       });
       
-      if (error) throw error;
-
+      if (challengeError) throw challengeError;
+      
+      // Then verify with the challenge
       const { data, error: verifyError } = await supabase.auth.mfa.verify({
-        factorId,
+        factorId: factorId,
+        challengeId: challengeData.id,
         code: verificationCode
       });
       
@@ -232,23 +239,6 @@ const Settings = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <LogOut className="h-5 w-5" />
-              Sign Out
-            </CardTitle>
-            <CardDescription>
-              Sign out of your account on this device
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="destructive" onClick={handleSignOut}>
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
               Two-Factor Authentication
@@ -299,6 +289,23 @@ const Settings = () => {
                 ) : "Enable 2FA"}
               </Button>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <LogOut className="h-5 w-5" />
+              Sign Out
+            </CardTitle>
+            <CardDescription>
+              Sign out of your account on this device
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="destructive" onClick={handleSignOut}>
+              Sign Out
+            </Button>
           </CardContent>
         </Card>
       </div>
