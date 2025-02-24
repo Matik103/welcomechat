@@ -36,6 +36,10 @@ const Auth = () => {
             data: {
               full_name: fullName,
             },
+            authOptions: {
+              captchaToken: null,
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            }
           },
         });
         if (error) throw error;
