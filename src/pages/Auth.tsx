@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,10 +35,7 @@ const Auth = () => {
             data: {
               full_name: fullName,
             },
-            authOptions: {
-              captchaToken: null,
-              emailRedirectTo: `${window.location.origin}/auth/callback`,
-            }
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
         if (error) throw error;
