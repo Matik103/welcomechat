@@ -48,7 +48,9 @@ const Settings = () => {
       if (error) throw error;
       if (data.totp) {
         setQrCode(data.totp.qr_code);
-        setFactorId(data.totp.id);
+        // Store the totp.secret instead of non-existent id
+        // This will be used for verification
+        setFactorId(data.totp.secret);
       }
     } catch (error: any) {
       toast.error(error.message);
