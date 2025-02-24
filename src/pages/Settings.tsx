@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, KeyRound, LogOut, UserCircle, ArrowLeft } from "lucide-react";
+import { Loader2, KeyRound, LogOut, UserCircle, ArrowLeft, Shield } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 const Settings = () => {
@@ -18,6 +17,68 @@ const Settings = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "");
   const [email, setEmail] = useState(user?.email || "");
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [verificationCode, setVerificationCode] = useState("");
+
+  useEffect(() => {
+    checkMfaStatus();
+  }, []);
+
+  const checkMfaStatus = async () => {
+    try {
+      const { data: { factors }, error } = await supabase.auth.mfa.listFactors();
+      if (error) throw error;
+      setMfaEnabled(factors.some(factor => factor.status === 'verified'));
+    } catch (error: any) {
+      console.error('Error checking MFA status:', error);
+    }
+  };
+
+  const handleEnableMFA = async () => {
+    try {
+      setLoading(true);
+      const { data: { totp }, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp'
+      });
+      
+      if (error) throw error;
+      if (totp) {
+        setQrCode(totp.qr_code);
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyMFA = async () => {
+    try {
+      setLoading(true);
+      const { data: { factorId }, error } = await supabase.auth.mfa.challenge({
+        factorId: 'totp'
+      });
+      
+      if (error) throw error;
+
+      const { data, error: verifyError } = await supabase.auth.mfa.verify({
+        factorId,
+        code: verificationCode
+      });
+      
+      if (verifyError) throw verifyError;
+      
+      setMfaEnabled(true);
+      setQrCode(null);
+      setVerificationCode("");
+      toast.success("2FA has been enabled successfully");
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +244,61 @@ const Settings = () => {
             <Button variant="destructive" onClick={handleSignOut}>
               Sign Out
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Two-Factor Authentication
+            </CardTitle>
+            <CardDescription>
+              Add an extra layer of security to your account with 2FA
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {mfaEnabled ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Two-factor authentication is currently enabled.
+                </p>
+              </div>
+            ) : qrCode ? (
+              <div className="space-y-4">
+                <div className="flex justify-center">
+                  <img src={qrCode} alt="QR Code for 2FA" className="w-48 h-48" />
+                </div>
+                <p className="text-sm text-center text-muted-foreground">
+                  Scan this QR code with your authenticator app
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="verificationCode">Verification Code</Label>
+                  <Input
+                    id="verificationCode"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    placeholder="Enter the 6-digit code"
+                    maxLength={6}
+                  />
+                </div>
+                <Button 
+                  onClick={handleVerifyMFA} 
+                  disabled={loading || verificationCode.length !== 6}
+                  className="w-full"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : "Verify and Enable 2FA"}
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={handleEnableMFA} disabled={loading}>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : "Enable 2FA"}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

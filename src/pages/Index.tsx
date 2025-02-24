@@ -99,21 +99,13 @@ const Index = () => {
           startDate = new Date(0);
       }
 
-      // Get total clients
+      // Get total clients (not affected by time range)
       const { data: totalClients } = await supabase
         .from("clients")
         .select("*", { count: "exact" })
         .is("deletion_scheduled_at", null);
 
-      // Get chat interactions for the selected period
-      const { data: interactions } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", startDate.toISOString())
-        .order("created_at", { ascending: false });
-
-      // Get active clients (with chat in last 48 hours)
+      // Get active clients (based on last 48 hours only, not affected by time range)
       const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
       const { data: activeClientsData } = await supabase
         .from("client_activities")
@@ -121,26 +113,35 @@ const Index = () => {
         .eq('activity_type', 'chat_interaction')
         .gte("created_at", fortyEightHoursAgo.toISOString());
 
-      // Calculate previous period active clients for comparison
-      const previousPeriodStart = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()));
+      // Get chat interactions for the selected time period
+      const { data: interactions } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: false });
+
+      const totalClientCount = totalClients?.length ?? 0;
+      const currentActiveCount = activeClientsData?.length ?? 0;
+      const totalInteractions = interactions?.length ?? 0;
+      const avgInteractions = totalClientCount ? Math.round(totalInteractions / totalClientCount) : 0;
+      
+      // Calculate percentage change in active clients compared to previous 48 hours
+      const previousFortyEightHours = new Date(fortyEightHoursAgo.getTime() - (48 * 60 * 60 * 1000));
       const { data: previousActive } = await supabase
         .from("client_activities")
         .select("DISTINCT client_id")
         .eq('activity_type', 'chat_interaction')
-        .gte("created_at", previousPeriodStart.toISOString())
-        .lt("created_at", startDate.toISOString());
+        .gte("created_at", previousFortyEightHours.toISOString())
+        .lt("created_at", fortyEightHoursAgo.toISOString());
 
-      const currentActiveCount = activeClientsData?.length ?? 0;
       const previousActiveCount = previousActive?.length ?? 0;
-      const totalInteractions = interactions?.length ?? 0;
-      const avgInteractions = totalClients?.length ? Math.round(totalInteractions / totalClients.length) : 0;
-      
       const changePercentage = previousActiveCount === 0 
         ? currentActiveCount > 0 ? 100 : 0
         : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
 
       return {
-        totalClients: totalClients?.length ?? 0,
+        totalClients: totalClientCount,
         activeClients: currentActiveCount,
         activeClientsChange: changePercentage.toFixed(1),
         avgInteractions,
