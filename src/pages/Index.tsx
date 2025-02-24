@@ -105,7 +105,7 @@ const Index = () => {
         .select("*", { count: "exact" })
         .is("deletion_scheduled_at", null);
 
-      // Get chat interactions for the period
+      // Get chat interactions for the selected period
       const { data: interactions } = await supabase
         .from("client_activities")
         .select("*")

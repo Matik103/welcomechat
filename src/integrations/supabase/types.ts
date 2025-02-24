@@ -53,7 +53,7 @@ export type Database = {
       }
       client_activities: {
         Row: {
-          activity_type: string
+          activity_type: Database["public"]["Enums"]["activity_type_enum"]
           client_id: string | null
           created_at: string | null
           description: string
@@ -61,7 +61,7 @@ export type Database = {
           metadata: Json | null
         }
         Insert: {
-          activity_type: string
+          activity_type: Database["public"]["Enums"]["activity_type_enum"]
           client_id?: string | null
           created_at?: string | null
           description: string
@@ -69,7 +69,7 @@ export type Database = {
           metadata?: Json | null
         }
         Update: {
-          activity_type?: string
+          activity_type?: Database["public"]["Enums"]["activity_type_enum"]
           client_id?: string | null
           created_at?: string | null
           description?: string
@@ -612,6 +612,13 @@ export type Database = {
         }
         Returns: unknown
       }
+      is_client_active: {
+        Args: {
+          client_id: string
+          check_time: string
+        }
+        Returns: boolean
+      }
       ivfflat_bit_support: {
         Args: {
           "": unknown
@@ -873,6 +880,25 @@ export type Database = {
       }
     }
     Enums: {
+      activity_type_enum:
+        | "chat_interaction"
+        | "client_created"
+        | "client_updated"
+        | "client_deleted"
+        | "client_recovered"
+        | "widget_settings_updated"
+        | "website_url_added"
+        | "drive_link_added"
+        | "url_deleted"
+        | "source_added"
+        | "source_deleted"
+        | "agent_name_updated"
+        | "drive_link_deleted"
+        | "error_logged"
+        | "interaction_milestone"
+        | "common_query_milestone"
+        | "growth_milestone"
+        | "ai_agent_table_created"
       client_status: "active" | "inactive"
       source_type: "google_drive" | "website"
       user_role: "admin" | "manager" | "user"
