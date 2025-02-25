@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -99,8 +98,6 @@ export const SecuritySection = ({
                 <Button 
                   onClick={onVerifyMFA}
                   disabled={!verificationCode || verificationCode.length !== 6}
-                  className="w-full"
-                  size="default"
                 >
                   Verify and Enable 2FA
                 </Button>
@@ -113,8 +110,6 @@ export const SecuritySection = ({
               </p>
               <Button 
                 onClick={onEnableMFA} 
-                className="w-full"
-                size="default"
                 variant="default"
               >
                 Set up 2FA
@@ -156,7 +151,7 @@ export const SecuritySection = ({
                 required
               />
             </div>
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Update Password
             </Button>
