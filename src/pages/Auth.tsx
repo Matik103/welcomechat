@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -15,7 +16,12 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const { isLoading } = useAuth();
+  const { session, isLoading } = useAuth();
+
+  // If already authenticated, redirect to /clients
+  if (session) {
+    return <Navigate to="/clients" replace />;
+  }
 
   // Show loading spinner while checking auth state
   if (isLoading) {
@@ -28,6 +34,8 @@ const Auth = () => {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isAuthLoading) return; // Prevent multiple submissions
     setIsAuthLoading(true);
 
     try {

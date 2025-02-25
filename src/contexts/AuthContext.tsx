@@ -26,10 +26,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         setUser(session?.user ?? null);
-
-        if (session) {
-          navigate('/clients', { replace: true });
-        }
       } catch (error) {
         console.error("Error checking auth state:", error);
       } finally {
@@ -41,6 +37,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
+        
         setSession(session);
         setUser(session?.user ?? null);
 
