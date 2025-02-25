@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Users } from "lucide-react";
 import { useInvitations } from "@/hooks/useInvitations";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const InvitationsSection = () => {
   const [inviteEmail, setInviteEmail] = useState("");
@@ -21,10 +22,24 @@ export const InvitationsSection = () => {
 
     try {
       setInviteLoading(true);
-      await createInvitation.mutateAsync({
+      
+      // First create the invitation
+      const invitation = await createInvitation.mutateAsync({
         email: inviteEmail,
         role_type: role
       });
+
+      // Then send the invitation email
+      const { error: emailError } = await supabase.functions.invoke('send-invitation', {
+        body: {
+          email: inviteEmail,
+          role_type: role,
+          url: `${window.location.origin}/auth?invitation=${invitation.token}`
+        }
+      });
+
+      if (emailError) throw new Error(emailError.message);
+
       setInviteEmail("");
       toast.success("Invitation sent successfully");
     } catch (error: any) {
