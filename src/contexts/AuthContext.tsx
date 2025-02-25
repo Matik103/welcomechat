@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 type AuthContextType = {
   session: Session | null;
@@ -19,43 +19,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    let mounted = true;
-
-    const initializeSession = async () => {
+    const checkAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setIsLoading(false);
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        // If we have a session and we're on the auth page, redirect to home
+        if (session && location.pathname === '/auth') {
+          // Use window.location for a full page navigation instead of react-router
+          window.location.href = '/clients';
         }
       } catch (error) {
-        console.error("Error getting session:", error);
-        if (mounted) {
-          setIsLoading(false);
-        }
+        console.error("Error checking auth state:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    initializeSession();
+    checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setIsLoading(false);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+
+        // Handle navigation on auth state change
+        if (session && location.pathname === '/auth') {
+          // Use window.location for a full page navigation
+          window.location.href = '/clients';
         }
       }
     );
 
     return () => {
-      mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [location.pathname]);
 
   const signOut = async () => {
     try {
@@ -67,10 +71,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       toast.success("Successfully signed out");
       
-      // Use setTimeout to ensure state updates have processed
-      setTimeout(() => {
-        navigate('/auth', { replace: true });
-      }, 0);
+      // Use window.location for sign out navigation
+      window.location.href = '/auth';
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error("Failed to sign out");
