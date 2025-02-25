@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -14,7 +17,23 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const { isLoading } = useAuth();
+  const { session, isLoading } = useAuth();
+
+  // Check user role if session exists
+  const { data: invitation } = useQuery({
+    queryKey: ["userRole", session?.user.email],
+    queryFn: async () => {
+      if (!session?.user.email) return null;
+      const { data } = await supabase
+        .from("client_invitations")
+        .select("role_type")
+        .eq("email", session.user.email)
+        .eq("status", "accepted")
+        .single();
+      return data;
+    },
+    enabled: !!session?.user.email
+  });
 
   // Show loading spinner while checking auth state
   if (isLoading) {
@@ -23,6 +42,16 @@ const Auth = () => {
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  // Redirect if authenticated
+  if (session) {
+    if (invitation?.role_type === "client") {
+      return <Navigate to="/client-dashboard" replace />;
+    }
+    if (invitation?.role_type === "admin") {
+      return <Navigate to="/clients" replace />;
+    }
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {

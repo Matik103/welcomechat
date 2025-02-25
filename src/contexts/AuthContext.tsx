@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Navigate, useNavigate } from "react-router-dom";
 
 type AuthContextType = {
   session: Session | null;
@@ -17,41 +18,75 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
+    let mounted = true;
 
-      if (session) {
-        const currentPath = window.location.pathname;
-        if (currentPath === '/auth') {
-          window.location.href = '/clients';
+    const setupAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (mounted) {
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          setIsLoading(false);
+        }
+
+        // Set up auth state listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+          console.log("Auth state changed:", event, currentSession?.user?.email);
+          
+          if (!mounted) return;
+
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+
+          if (event === 'SIGNED_IN') {
+            // Get the user's role
+            if (currentSession?.user?.email) {
+              const { data: invitation } = await supabase
+                .from("client_invitations")
+                .select("role_type")
+                .eq("email", currentSession.user.email)
+                .eq("status", "accepted")
+                .single();
+
+              if (invitation?.role_type === "client") {
+                navigate("/client-dashboard");
+              } else if (invitation?.role_type === "admin") {
+                navigate("/clients");
+              }
+            }
+          } else if (event === 'SIGNED_OUT') {
+            const currentPath = window.location.pathname;
+            if (currentPath.startsWith('/client-')) {
+              navigate("/client-auth");
+            } else {
+              navigate("/auth");
+            }
+          }
+        });
+
+        return () => {
+          subscription.unsubscribe();
+          mounted = false;
+        };
+      } catch (error) {
+        console.error("Auth setup error:", error);
+        if (mounted) {
+          setIsLoading(false);
         }
       }
-    });
+    };
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event, session?.user?.email);
-      
-      if (event === 'SIGNED_IN') {
-        setSession(session);
-        setUser(session?.user ?? null);
-        window.location.href = '/clients';
-      } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        window.location.href = '/auth';
-      }
-    });
+    setupAuth();
 
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
     };
-  }, []);
+  }, [navigate]);
 
   const signOut = async () => {
     try {
