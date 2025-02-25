@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 const Auth = () => {
@@ -18,12 +18,13 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const { session, isLoading } = useAuth();
+  const navigate = useNavigate();
 
   // Check user role if session exists
-  const { data: invitation } = useQuery({
-    queryKey: ["userRole", session?.user.email],
+  const { data: invitation, isLoading: isLoadingRole } = useQuery({
+    queryKey: ["userRole", session?.user?.email],
     queryFn: async () => {
-      if (!session?.user.email) return null;
+      if (!session?.user?.email) return null;
       const { data } = await supabase
         .from("client_invitations")
         .select("role_type")
@@ -32,26 +33,28 @@ const Auth = () => {
         .single();
       return data;
     },
-    enabled: !!session?.user.email
+    enabled: !!session?.user?.email,
+    retry: false
   });
 
+  // Handle redirection based on role
+  useEffect(() => {
+    if (session && invitation && !isLoadingRole) {
+      if (invitation.role_type === "client") {
+        navigate("/client-dashboard", { replace: true });
+      } else if (invitation.role_type === "admin") {
+        navigate("/clients", { replace: true });
+      }
+    }
+  }, [session, invitation, isLoadingRole, navigate]);
+
   // Show loading spinner while checking auth state
-  if (isLoading) {
+  if (isLoading || isLoadingRole) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
-  }
-
-  // Redirect if authenticated
-  if (session) {
-    if (invitation?.role_type === "client") {
-      return <Navigate to="/client-dashboard" replace />;
-    }
-    if (invitation?.role_type === "admin") {
-      return <Navigate to="/clients" replace />;
-    }
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -82,6 +85,7 @@ const Auth = () => {
         toast.success("Successfully signed in!");
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       toast.error(error.message);
     } finally {
       setIsAuthLoading(false);
@@ -101,6 +105,7 @@ const Auth = () => {
       });
       if (error) throw error;
     } catch (error: any) {
+      console.error('Google sign in error:', error);
       toast.error(error.message);
     }
   };
