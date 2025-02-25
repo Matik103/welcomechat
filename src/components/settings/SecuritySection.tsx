@@ -128,18 +128,23 @@ export const SecuritySection = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            Two-Factor Authentication
+            Two-Factor Authentication (2FA)
           </CardTitle>
           <CardDescription>
-            Add an extra layer of security to your account with 2FA
+            {mfaEnabled 
+              ? "Your account is protected with an additional layer of security" 
+              : "Protect your account with an additional layer of security"}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {mfaEnabled ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Two-factor authentication is currently enabled. You will be prompted for a code on your next login.
-              </p>
+              <div className="flex items-center gap-2 text-sm">
+                <Shield className="h-4 w-4 text-green-500" />
+                <p className="text-muted-foreground">
+                  Two-factor authentication is enabled. You'll need to enter a verification code when signing in.
+                </p>
+              </div>
             </div>
           ) : qrCode ? (
             <div className="space-y-4">
@@ -147,7 +152,7 @@ export const SecuritySection = ({
                 <img src={qrCode} alt="QR Code for 2FA" className="w-48 h-48" />
               </div>
               <p className="text-sm text-center text-muted-foreground">
-                Scan this QR code with your authenticator app
+                Scan this QR code with your authenticator app (such as Google Authenticator or Authy)
               </p>
               <div className="space-y-2">
                 <Label htmlFor="verificationCode">Verification Code</Label>
@@ -176,16 +181,21 @@ export const SecuritySection = ({
               </Button>
             </div>
           ) : (
-            <Button onClick={handleMfaEnable} disabled={mfaLoading}>
-              {mfaLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Setting up 2FA...
-                </>
-              ) : (
-                "Enable 2FA"
-              )}
-            </Button>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Enable two-factor authentication for an extra layer of security. You'll need an authenticator app on your phone.
+              </p>
+              <Button onClick={handleMfaEnable} disabled={mfaLoading} className="w-full">
+                {mfaLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Setting up 2FA...
+                  </>
+                ) : (
+                  "Enable 2FA"
+                )}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
