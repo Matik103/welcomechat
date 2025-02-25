@@ -12,7 +12,9 @@ interface Invitation {
   expires_at: string;
   created_at: string;
   token: string;
-  role_type: 'client' | 'admin';
+  role_type?: 'client' | 'admin'; // Made optional since it might not exist in older records
+  accepted_at?: string;
+  created_by?: string;
 }
 
 interface CreateInvitationData {
