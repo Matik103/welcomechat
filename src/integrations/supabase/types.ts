@@ -400,7 +400,7 @@ export type Database = {
           factor_type: string
           id?: string
           secret?: string | null
-          status: string
+          status?: string
           updated_at?: string
           user_id: string
         }

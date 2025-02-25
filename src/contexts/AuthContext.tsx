@@ -32,8 +32,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .select('role')
         .eq('user_id', userId)
         .single();
+      
+      if (error) {
+        console.error("Error checking user role:", error);
+        setUserRole(null);
+        return;
+      }
 
-      if (error) throw error;
       setUserRole(data.role as UserRole);
     } catch (error) {
       console.error("Error checking user role:", error);
@@ -42,42 +47,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // Initial session check
-    const initializeAuth = async () => {
+    // Get the initial session
+    const getInitialSession = async () => {
       try {
-        setIsLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("Initial session check:", session?.user?.email);
-        
-        if (session) {
-          setSession(session);
-          setUser(session.user);
-          await checkUserRole(session.user.id);
-          
-          // Only redirect if on auth page
-          if (location.pathname === '/auth') {
-            navigate('/', { replace: true });
-          }
-        } else {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          
-          // Only redirect to auth if not already there
-          if (location.pathname !== '/auth') {
-            navigate('/auth', { replace: true });
-          }
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        if (initialSession) {
+          console.log("Initial session found:", initialSession.user.email);
+          setSession(initialSession);
+          setUser(initialSession.user);
+          await checkUserRole(initialSession.user.id);
         }
       } catch (error) {
-        console.error("Error during auth initialization:", error);
+        console.error("Error getting initial session:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeAuth();
+    // Call getInitialSession immediately
+    getInitialSession();
 
-    // Listen for auth changes
+    // Set up the auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log("Auth state changed:", event, currentSession?.user?.email);
       
@@ -86,15 +78,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (currentSession?.user) {
         await checkUserRole(currentSession.user.id);
+        
+        if (location.pathname === '/auth') {
+          navigate('/', { replace: true });
+        }
       } else {
         setUserRole(null);
-      }
-      
-      // Only redirect on sign in/out events
-      if (event === 'SIGNED_IN' && location.pathname === '/auth') {
-        navigate('/', { replace: true });
-      } else if (event === 'SIGNED_OUT') {
-        navigate('/auth', { replace: true });
+        if (!location.pathname.startsWith('/auth')) {
+          navigate('/auth', { replace: true });
+        }
       }
     });
 
@@ -105,20 +97,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
       setUserRole(null);
       setSession(null);
       setUser(null);
+      
+      navigate('/auth', { replace: true });
       toast.success("Successfully signed out");
     } catch (error: any) {
       console.error("Sign out error:", error);
-      toast.error("Failed to sign out");
-    } finally {
-      setIsLoading(false);
+      toast.error(error.message || "Failed to sign out");
     }
   };
+
+  // Provide the loading state and auth context
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={{ session, user, signOut, isLoading, userRole }}>
