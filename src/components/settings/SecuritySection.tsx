@@ -13,6 +13,7 @@ interface SecuritySectionProps {
   qrCode: string | null;
   verificationCode: string;
   currentFactorId: string | null;
+  isVerifying: boolean;
   onVerificationCodeChange: (code: string) => void;
   onEnableMFA: () => Promise<void>;
   onVerifyMFA: () => Promise<void>;
@@ -24,6 +25,7 @@ export const SecuritySection = ({
   qrCode,
   verificationCode,
   currentFactorId,
+  isVerifying,
   onVerificationCodeChange,
   onEnableMFA,
   onVerifyMFA,
@@ -32,7 +34,6 @@ export const SecuritySection = ({
   const [loading, setLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,15 +62,6 @@ export const SecuritySection = ({
     // Only allow numbers and limit to 6 digits
     const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
     onVerificationCodeChange(value);
-  };
-
-  const handleVerifyMFA = async () => {
-    setIsVerifying(true);
-    try {
-      await onVerifyMFA();
-    } finally {
-      setIsVerifying(false);
-    }
   };
 
   return (
@@ -127,7 +119,7 @@ export const SecuritySection = ({
                   pattern="[0-9]*"
                 />
                 <Button 
-                  onClick={handleVerifyMFA}
+                  onClick={onVerifyMFA}
                   disabled={!verificationCode || verificationCode.length !== 6 || isVerifying}
                   className="w-full"
                 >
