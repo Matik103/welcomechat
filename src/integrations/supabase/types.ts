@@ -624,6 +624,12 @@ export type Database = {
             }
             Returns: unknown
           }
+      check_user_role: {
+        Args: {
+          allowed_roles: string[]
+        }
+        Returns: boolean
+      }
       create_ai_agent_table: {
         Args: {
           agent_name: string
