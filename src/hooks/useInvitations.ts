@@ -12,7 +12,7 @@ interface Invitation {
   expires_at: string;
   created_at: string;
   token: string;
-  role_type?: 'client' | 'admin'; // Made optional since it might not exist in older records
+  role_type: 'client' | 'admin';
   accepted_at?: string;
   created_by?: string;
 }
@@ -54,7 +54,7 @@ export function useInvitations(clientId?: string) {
           token,
           expires_at,
           role_type,
-          status: 'pending' as const
+          status: 'pending'
         });
 
       if (error) throw error;
@@ -73,7 +73,7 @@ export function useInvitations(clientId?: string) {
     mutationFn: async (invitationId: string) => {
       const { error } = await supabase
         .from("client_invitations")
-        .update({ status: "expired" as const })
+        .update({ status: "expired" })
         .eq("id", invitationId);
 
       if (error) throw error;

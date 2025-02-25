@@ -8,8 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Loader2, KeyRound, LogOut, UserCircle, ArrowLeft, Shield, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { v4 as uuidv4 } from "uuid";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useInvitations } from "@/hooks/useInvitations";
 
 const Settings = () => {
   const { user, signOut } = useAuth();
@@ -25,6 +24,7 @@ const Settings = () => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [currentFactorId, setCurrentFactorId] = useState<string | null>(null);
+  const { createInvitation } = useInvitations();
 
   useEffect(() => {
     checkMfaStatus();
@@ -246,15 +246,6 @@ const Settings = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate("/auth");
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
   const handleInvite = async (role: 'client' | 'admin') => {
     if (!inviteEmail) {
       toast.error("Please enter an email address");
@@ -263,28 +254,25 @@ const Settings = () => {
 
     try {
       setInviteLoading(true);
-      const token = uuidv4();
-      const expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-
-      const { error } = await supabase
-        .from("client_invitations")
-        .insert({
-          email: inviteEmail,
-          token,
-          expires_at,
-          role_type: role,
-          status: 'pending'
-        });
-
-      if (error) throw error;
-
-      toast.success(`Invitation sent to ${inviteEmail} as ${role}`);
+      await createInvitation.mutateAsync({
+        email: inviteEmail,
+        role_type: role
+      });
       setInviteEmail("");
     } catch (error: any) {
       console.error('Error sending invitation:', error);
       toast.error(error.message);
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate("/auth");
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
