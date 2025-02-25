@@ -1,112 +1,87 @@
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Invitation {
   id: string;
   email: string;
-  client_id: string | null;
-  status: 'pending' | 'accepted' | 'expired';
-  expires_at: string;
-  created_at: string;
   token: string;
-  role_type: 'client' | 'admin';
+  role_type: 'admin' | 'client';
+  status: 'pending' | 'accepted' | 'expired';
+  created_by: string;
+  created_at: string;
+  expires_at: string;
   accepted_at?: string;
-  created_by?: string;
 }
 
 interface CreateInvitationData {
   email: string;
-  client_id?: string;
-  role_type: 'client' | 'admin';
+  role_type: 'admin' | 'client';
 }
 
-export function useInvitations(clientId?: string) {
+export function useInvitations() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  // Check if the current user has permission to manage invitations
-  const { data: hasPermission, isLoading: isCheckingPermission } = useQuery({
+  // Check if user is admin
+  const { data: isAdmin, isLoading: isCheckingPermission } = useQuery({
     queryKey: ["userPermissions"],
     queryFn: async () => {
-      // First, get the current user's ID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log("No authenticated user found");
-        return false;
-      }
-
-      // Check if user has admin or manager role using RPC
+      if (!user) return false;
+      
       const { data, error } = await supabase
         .rpc('check_user_role', {
-          allowed_roles: ['admin', 'manager']
+          allowed_roles: ['admin']
         });
-
+      
       if (error) {
         console.error("Error checking user role:", error);
         return false;
       }
 
-      console.log("User has permission:", data);
       return data;
-    },
+    }
   });
 
   const { data: invitations, isLoading: isLoadingInvitations } = useQuery({
-    queryKey: ["invitations", clientId],
+    queryKey: ["invitations"],
     queryFn: async () => {
-      if (!hasPermission) {
-        console.log("User doesn't have permission to view invitations");
-        return [];
-      }
+      if (!isAdmin) return [];
 
       const { data, error } = await supabase
-        .from("client_invitations")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .from('invitations')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error("Error fetching invitations:", error);
-        throw error;
-      }
-
+      if (error) throw error;
       return data as Invitation[];
     },
-    enabled: !isCheckingPermission && hasPermission === true,
+    enabled: !isCheckingPermission && isAdmin === true
   });
 
   const createInvitation = useMutation({
-    mutationFn: async ({ email, client_id, role_type }: CreateInvitationData) => {
-      if (!hasPermission) {
-        throw new Error('You do not have permission to send invitations');
-      }
+    mutationFn: async ({ email, role_type }: CreateInvitationData) => {
+      if (!user) throw new Error('Not authenticated');
 
       const token = uuidv4();
-      const expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-
-      const { data: currentUser } = await supabase.auth.getUser();
-      if (!currentUser.user) throw new Error('Not authenticated');
+      const expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); // 48 hours
 
       const { data, error } = await supabase
-        .from("client_invitations")
+        .from('invitations')
         .insert({
           email,
-          client_id,
           token,
-          expires_at,
           role_type,
-          status: 'pending',
-          created_by: currentUser.user.id
+          created_by: user.id,
+          expires_at
         })
         .select()
         .single();
 
-      if (error) {
-        console.error('Invitation creation error:', error);
-        throw new Error(error.message);
-      }
-
+      if (error) throw error;
       return data;
     },
     onSuccess: () => {
@@ -114,46 +89,35 @@ export function useInvitations(clientId?: string) {
       toast.success("Invitation sent successfully");
     },
     onError: (error: any) => {
-      console.error('Create invitation error:', error);
-      toast.error(error.message || 'Failed to send invitation');
-    },
+      console.error('Error creating invitation:', error);
+      toast.error(error.message || "Failed to send invitation");
+    }
   });
 
   const cancelInvitation = useMutation({
     mutationFn: async (invitationId: string) => {
-      if (!hasPermission) {
-        throw new Error('You do not have permission to cancel invitations');
-      }
-
       const { error } = await supabase
-        .from("client_invitations")
-        .update({ status: "expired" })
-        .eq("id", invitationId)
-        .select()
-        .single();
+        .from('invitations')
+        .update({ status: 'expired' })
+        .eq('id', invitationId);
 
-      if (error) {
-        console.error('Cancel invitation error:', error);
-        throw new Error(error.message);
-      }
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
-      toast.success("Invitation cancelled");
+      toast.success("Invitation cancelled successfully");
     },
     onError: (error: any) => {
-      console.error('Cancel invitation error:', error);
-      toast.error(error.message || 'Failed to cancel invitation');
-    },
+      console.error('Error cancelling invitation:', error);
+      toast.error(error.message || "Failed to cancel invitation");
+    }
   });
-
-  const isLoading = isCheckingPermission || isLoadingInvitations;
 
   return {
     invitations,
-    isLoading,
+    isLoading: isCheckingPermission || isLoadingInvitations,
     createInvitation,
     cancelInvitation,
-    isAdmin: hasPermission
+    isAdmin
   };
 }

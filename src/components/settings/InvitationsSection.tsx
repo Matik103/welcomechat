@@ -48,7 +48,7 @@ export const InvitationsSection = () => {
           Invite Users
         </CardTitle>
         <CardDescription>
-          Administrators and managers can send invitations to new clients or administrators
+          Administrators can send invitations to new clients or administrators
         </CardDescription>
       </CardHeader>
       <CardContent>
