@@ -40,10 +40,22 @@ export const useClientStats = () => {
         ? currentActiveCount > 0 ? 100 : 0
         : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
 
+      // Calculate response rate (last 24 hours)
+      const { data: interactions } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", fortyEightHoursAgo.toISOString());
+
+      const totalInteractions = interactions?.length ?? 0;
+      const successfulInteractions = interactions?.filter(i => i.metadata?.success)?.length ?? 0;
+      const responseRate = totalInteractions === 0 ? 0 : Math.round((successfulInteractions / totalInteractions) * 100);
+
       return {
         totalClients: totalClientCount ?? 0,
         activeClients: currentActiveCount,
         activeClientsChange: activeChangePercentage.toFixed(1),
+        responseRate,
       };
     },
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
