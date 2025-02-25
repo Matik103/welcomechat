@@ -23,7 +23,11 @@ export function WidgetPreview({ settings, showPreview, onTogglePreview }: Widget
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     if (!input.trim()) return;
 
     const userMessage = input.trim();
