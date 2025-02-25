@@ -7,15 +7,18 @@ import { v4 as uuidv4 } from "uuid";
 interface Invitation {
   id: string;
   email: string;
-  client_id: string;
+  client_id: string | null;
   status: 'pending' | 'accepted' | 'expired';
   expires_at: string;
   created_at: string;
+  token: string;
+  role_type: 'client' | 'admin';
 }
 
 interface CreateInvitationData {
   email: string;
-  client_id: string;
+  client_id?: string;
+  role_type: 'client' | 'admin';
 }
 
 export function useInvitations(clientId?: string) {
@@ -37,10 +40,9 @@ export function useInvitations(clientId?: string) {
   });
 
   const createInvitation = useMutation({
-    mutationFn: async ({ email, client_id }: CreateInvitationData) => {
+    mutationFn: async ({ email, client_id, role_type }: CreateInvitationData) => {
       const token = uuidv4();
-      const expires_at = new Date();
-      expires_at.setHours(expires_at.getHours() + 48); // Token expires in 48 hours
+      const expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
       const { error } = await supabase
         .from("client_invitations")
@@ -49,6 +51,8 @@ export function useInvitations(clientId?: string) {
           client_id,
           token,
           expires_at,
+          role_type,
+          status: 'pending' as const
         });
 
       if (error) throw error;
@@ -67,7 +71,7 @@ export function useInvitations(clientId?: string) {
     mutationFn: async (invitationId: string) => {
       const { error } = await supabase
         .from("client_invitations")
-        .update({ status: "expired" })
+        .update({ status: "expired" as const })
         .eq("id", invitationId);
 
       if (error) throw error;
