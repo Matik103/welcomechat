@@ -1,6 +1,6 @@
 
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +17,11 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const { session } = useAuth();
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (session) {
-      navigate("/clients", { replace: true });
-    }
-  }, [session, navigate]);
+  // If user is authenticated, redirect to clients page
+  if (session) {
+    return <Navigate to="/clients" replace />;
+  }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,11 +72,6 @@ const Auth = () => {
       toast.error(error.message);
     }
   };
-
-  // Prevent render if being redirected
-  if (session) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
