@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -17,6 +18,19 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const { session, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (session) {
+      const from = location.state?.from?.pathname || "/clients";
+      // Use a timeout to ensure state updates have processed
+      const timeoutId = setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [session, navigate, location]);
 
   // Show loading spinner while checking auth state
   if (isLoading) {
@@ -25,11 +39,6 @@ const Auth = () => {
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
-  }
-
-  // Use Navigate component for redirection if authenticated
-  if (session) {
-    return <Navigate to="/clients" replace />;
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
