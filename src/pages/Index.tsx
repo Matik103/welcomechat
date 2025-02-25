@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 const Index = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
-  const { user, userRole, isLoading: authLoading } = useAuth();
+  const { user, userRole } = useAuth();
   
   const { 
     data: clientStats,
@@ -33,20 +33,11 @@ const Index = () => {
     isLoading: isActivitiesLoading 
   } = useRecentActivities();
 
-  const isLoading = authLoading || isClientStatsLoading || isInteractionStatsLoading || isActivitiesLoading;
+  const isLoading = isClientStatsLoading || isInteractionStatsLoading || isActivitiesLoading;
 
   // Show error toasts
   if (isClientStatsError || isInteractionStatsError || isActivitiesError) {
     toast.error("Error loading dashboard data");
-  }
-
-  // If authentication is still loading, show loading spinner
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
   }
 
   // If not authenticated, redirect to auth page
@@ -57,6 +48,15 @@ const Index = () => {
   // If user is a client, redirect to client dashboard
   if (userRole === 'client') {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Show loading spinner only when data is loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
@@ -85,37 +85,29 @@ const Index = () => {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center min-h-[200px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard 
-                title="Total Clients" 
-                value={clientStats?.totalClients || 0}
-              />
-              <MetricCard 
-                title="Active Clients" 
-                value={clientStats?.activeClients || 0}
-                change={clientStats?.activeClientsChange}
-              />
-              <MetricCard 
-                title="Avg. Interactions" 
-                value={interactionStats?.avgInteractions || 0}
-                change={interactionStats?.avgInteractionsChange}
-              />
-              <MetricCard 
-                title="Total Interactions" 
-                value={interactionStats?.totalInteractions || 0}
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard 
+            title="Total Clients" 
+            value={clientStats?.totalClients || 0}
+          />
+          <MetricCard 
+            title="Active Clients" 
+            value={clientStats?.activeClients || 0}
+            change={clientStats?.activeClientsChange}
+          />
+          <MetricCard 
+            title="Avg. Interactions" 
+            value={interactionStats?.avgInteractions || 0}
+            change={interactionStats?.avgInteractionsChange}
+          />
+          <MetricCard 
+            title="Total Interactions" 
+            value={interactionStats?.totalInteractions || 0}
+          />
+        </div>
 
-            <ActivityList activities={recentActivities || []} />
-            <ActionButtons />
-          </>
-        )}
+        <ActivityList activities={recentActivities || []} />
+        <ActionButtons />
       </div>
     </div>
   );

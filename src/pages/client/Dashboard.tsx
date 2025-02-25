@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
-  const { user, userRole, isLoading: authLoading } = useAuth();
+  const { user, userRole } = useAuth();
   
   const { 
     data: clientStats,
@@ -32,20 +32,11 @@ const Dashboard = () => {
     isError: activitiesError
   } = useRecentActivities();
 
-  const isLoading = authLoading || clientStatsLoading || interactionStatsLoading || activitiesLoading;
+  const isLoading = clientStatsLoading || interactionStatsLoading || activitiesLoading;
   
   // Show error toasts
   if (clientStatsError || interactionStatsError || activitiesError) {
     toast.error("Error loading dashboard data");
-  }
-
-  // If authentication is still loading, show loading spinner
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
   }
 
   // If not authenticated, redirect to auth page
@@ -56,6 +47,15 @@ const Dashboard = () => {
   // If user is not a client, redirect to appropriate dashboard
   if (userRole === 'admin') {
     return <Navigate to="/admin" replace />;
+  }
+
+  // Show loading spinner only when data is loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
