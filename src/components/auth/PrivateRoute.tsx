@@ -9,18 +9,19 @@ export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
 
   const { data: userRole, isLoading: isLoadingRole } = useQuery({
-    queryKey: ["userRole", session?.user.id],
+    queryKey: ["userRole", session?.user.email],
     queryFn: async () => {
-      if (!session?.user.id) return null;
+      if (!session?.user.email) return null;
       const { data, error } = await supabase
         .from("client_invitations")
         .select("role_type")
         .eq("email", session.user.email)
+        .eq("status", "accepted")
         .single();
-      if (error) throw error;
+      if (error) return null; // Handle error gracefully
       return data?.role_type;
     },
-    enabled: !!session?.user.id,
+    enabled: !!session?.user.email,
   });
 
   if (isLoading || isLoadingRole) {
