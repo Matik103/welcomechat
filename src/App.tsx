@@ -73,29 +73,17 @@ const App = () => {
             {/* Public route */}
             <Route path="/auth" element={<Auth />} />
             
-            {/* Default route that checks role */}
-            <Route
-              path="/"
-              element={
-                <PrivateRoute>
-                  {userRole === 'admin' ? <Index /> : <ClientDashboard />}
-                </PrivateRoute>
-              }
-            />
-            
-            {/* Protected routes for both admin and client */}
-            <Route
-              path="/settings"
-              element={
-                <PrivateRoute>
-                  <Settings />
-                </PrivateRoute>
-              }
-            />
-            
-            {/* Admin-only routes */}
-            {userRole === 'admin' && (
+            {/* Admin routes */}
+            {userRole === 'admin' ? (
               <>
+                <Route
+                  path="/"
+                  element={
+                    <PrivateRoute>
+                      <Index />
+                    </PrivateRoute>
+                  }
+                />
                 <Route
                   path="/clients"
                   element={
@@ -137,7 +125,27 @@ const App = () => {
                   }
                 />
               </>
+            ) : (
+              // Client route - default to client dashboard if not admin
+              <Route
+                path="/"
+                element={
+                  <PrivateRoute>
+                    <ClientDashboard />
+                  </PrivateRoute>
+                }
+              />
             )}
+            
+            {/* Protected routes for both admin and client */}
+            <Route
+              path="/settings"
+              element={
+                <PrivateRoute>
+                  <Settings />
+                </PrivateRoute>
+              }
+            />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
