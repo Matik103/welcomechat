@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,16 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const { session } = useAuth();
+
+  useEffect(() => {
+    // Set a flag to prevent immediate redirect during initial render
+    const timer = setTimeout(() => {
+      if (session) {
+        window.location.replace('/clients');
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [session]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +52,6 @@ const Auth = () => {
         });
         if (error) throw error;
         toast.success("Successfully signed in!");
-        window.location.href = "/clients";
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -68,10 +77,13 @@ const Auth = () => {
     }
   };
 
-  // If already authenticated, redirect using window.location
-  if (session) {
-    window.location.href = "/clients";
-    return null;
+  // Show loading state during initial session check
+  if (loading && !session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
