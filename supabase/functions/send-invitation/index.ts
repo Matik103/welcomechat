@@ -1,8 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +14,8 @@ interface InvitationEmailRequest {
   url: string;
 }
 
+const client = new SmtpClient();
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -27,9 +27,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending invitation email to ${email} for role ${role_type}`);
 
-    const emailResponse = await resend.emails.send({
-      from: "Lovable <onboarding@resend.dev>",
-      to: [email],
+    await client.connectTLS({
+      hostname: "smtp.gmail.com",
+      port: 465,
+      username: Deno.env.get("GMAIL_USER"), // your Gmail address
+      password: Deno.env.get("GMAIL_APP_PASSWORD"), // your Gmail app password
+    });
+
+    await client.send({
+      from: Deno.env.get("GMAIL_USER")!,
+      to: email,
       subject: `You've been invited as ${role_type}`,
       html: `
         <h1>You've Been Invited!</h1>
@@ -40,15 +47,17 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    await client.close();
 
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
+    console.log("Email sent successfully to:", email);
+
+    return new Response(
+      JSON.stringify({ message: "Invitation sent successfully" }), 
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
   } catch (error: any) {
     console.error("Error in send-invitation function:", error);
     return new Response(
