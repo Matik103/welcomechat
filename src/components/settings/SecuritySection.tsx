@@ -145,6 +145,10 @@ export const SecuritySection = ({
                   Two-factor authentication is enabled. You'll need to enter a verification code when signing in.
                 </p>
               </div>
+              <Button onClick={() => {}} disabled className="w-full bg-muted hover:bg-muted">
+                <Shield className="h-4 w-4 mr-2" />
+                Two-Factor Authentication Enabled
+              </Button>
             </div>
           ) : qrCode ? (
             <div className="space-y-4">
@@ -192,7 +196,10 @@ export const SecuritySection = ({
                     Setting up 2FA...
                   </>
                 ) : (
-                  "Enable 2FA"
+                  <>
+                    <Shield className="h-4 w-4 mr-2" />
+                    Enable 2FA
+                  </>
                 )}
               </Button>
             </div>
