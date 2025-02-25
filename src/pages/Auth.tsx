@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -29,7 +29,7 @@ const Auth = () => {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsAuthLoading(true);
 
     try {
       if (isSignUp) {
@@ -56,7 +56,7 @@ const Auth = () => {
     } catch (error: any) {
       toast.error(error.message);
     } finally {
-      setLoading(false);
+      setIsAuthLoading(false);
     }
   };
 
@@ -76,15 +76,6 @@ const Auth = () => {
       toast.error(error.message);
     }
   };
-
-  // Show loading state during initial session check
-  if (loading && !session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
@@ -142,8 +133,8 @@ const Auth = () => {
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full" disabled={isAuthLoading}>
+              {isAuthLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : isSignUp ? (
                 "Sign Up"
