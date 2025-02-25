@@ -41,21 +41,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         setSession(session);
         setUser(session?.user ?? null);
-
-        if (event === 'SIGNED_IN' && session) {
-          navigate('/clients', { replace: true });
-        } else if (event === 'SIGNED_OUT') {
-          navigate('/auth', { replace: true });
-        }
-
         setIsLoading(false);
+
+        // Use setTimeout to ensure state updates have completed
+        setTimeout(() => {
+          if (event === 'SIGNED_IN' && session) {
+            window.location.href = '/clients';
+          } else if (event === 'SIGNED_OUT') {
+            window.location.href = '/auth';
+          }
+        }, 0);
       }
     );
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, []);
 
   const signOut = async () => {
     try {
@@ -66,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       setUser(null);
       toast.success("Successfully signed out");
-      navigate('/auth', { replace: true });
+      window.location.href = '/auth';
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error("Failed to sign out");
