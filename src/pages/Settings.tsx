@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,17 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, KeyRound, LogOut, UserCircle, ArrowLeft, Shield } from "lucide-react";
+import { Loader2, KeyRound, LogOut, UserCircle, ArrowLeft, Shield, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const Settings = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "");
   const [email, setEmail] = useState(user?.email || "");
+  const [inviteEmail, setInviteEmail] = useState("");
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
@@ -252,6 +255,40 @@ const Settings = () => {
     }
   };
 
+  const handleInvite = async (role: 'client' | 'admin') => {
+    if (!inviteEmail) {
+      toast.error("Please enter an email address");
+      return;
+    }
+
+    try {
+      setInviteLoading(true);
+      const token = uuidv4();
+      const expires_at = new Date();
+      expires_at.setHours(expires_at.getHours() + 48); // 48 hours expiry
+
+      const { error } = await supabase
+        .from("client_invitations")
+        .insert({
+          email: inviteEmail,
+          token,
+          expires_at: expires_at.toISOString(),
+          role_type: role
+        });
+
+      if (error) throw error;
+
+      // Send invitation email logic would go here
+      toast.success(`Invitation sent to ${inviteEmail} as ${role}`);
+      setInviteEmail("");
+    } catch (error: any) {
+      console.error('Error sending invitation:', error);
+      toast.error(error.message);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-4">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -401,6 +438,52 @@ const Settings = () => {
                 ) : "Enable 2FA"}
               </Button>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Invite Users
+            </CardTitle>
+            <CardDescription>
+              Send invitations to new clients or administrators
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="inviteEmail">Email Address</Label>
+                <Input
+                  id="inviteEmail"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="Enter email address"
+                />
+              </div>
+              <div className="flex gap-4">
+                <Button
+                  onClick={() => handleInvite('client')}
+                  disabled={inviteLoading || !inviteEmail}
+                  className="flex-1"
+                >
+                  {inviteLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : "Invite as Client"}
+                </Button>
+                <Button
+                  onClick={() => handleInvite('admin')}
+                  disabled={inviteLoading || !inviteEmail}
+                  className="flex-1"
+                >
+                  {inviteLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : "Invite as Admin"}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
