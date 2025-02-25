@@ -26,7 +26,7 @@ interface CreateInvitationData {
 export function useInvitations(clientId?: string) {
   const queryClient = useQueryClient();
 
-  // First verify if the current user is an admin
+  // Check if the current user has permission to manage invitations
   const { data: userRole } = useQuery({
     queryKey: ["userRole"],
     queryFn: async () => {
@@ -36,13 +36,12 @@ export function useInvitations(clientId?: string) {
         return null;
       }
 
-      // Query the user_roles table for the admin role
+      // Query the user_roles table for admin or manager roles
       const { data: roles, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", 'admin')
-        .maybeSingle();
+        .in("role", ['admin', 'manager']);
 
       if (error) {
         console.error("Error fetching user role:", error);
@@ -50,7 +49,7 @@ export function useInvitations(clientId?: string) {
       }
 
       console.log("Roles found:", roles);
-      return roles?.role || null;
+      return roles?.[0]?.role || null;
     },
   });
 
@@ -73,8 +72,8 @@ export function useInvitations(clientId?: string) {
 
   const createInvitation = useMutation({
     mutationFn: async ({ email, client_id, role_type }: CreateInvitationData) => {
-      if (userRole !== 'admin') {
-        throw new Error('Only administrators can send invitations');
+      if (!userRole || !['admin', 'manager'].includes(userRole)) {
+        throw new Error('Only administrators and managers can send invitations');
       }
 
       const token = uuidv4();
@@ -114,8 +113,8 @@ export function useInvitations(clientId?: string) {
 
   const cancelInvitation = useMutation({
     mutationFn: async (invitationId: string) => {
-      if (userRole !== 'admin') {
-        throw new Error('Only administrators can cancel invitations');
+      if (!userRole || !['admin', 'manager'].includes(userRole)) {
+        throw new Error('Only administrators and managers can cancel invitations');
       }
 
       const { error } = await supabase
@@ -138,15 +137,15 @@ export function useInvitations(clientId?: string) {
     },
   });
 
-  // Return true if userRole is 'admin', false otherwise
-  const isAdmin = userRole === 'admin';
-  console.log("Current user role:", userRole, "Is admin:", isAdmin);
+  // Return true if user has permission to manage invitations
+  const canManageInvitations = userRole && ['admin', 'manager'].includes(userRole);
+  console.log("Current user role:", userRole, "Can manage invitations:", canManageInvitations);
 
   return {
     invitations,
     isLoading,
     createInvitation,
     cancelInvitation,
-    isAdmin
+    isAdmin: canManageInvitations // Keep the same prop name for backward compatibility
   };
 }

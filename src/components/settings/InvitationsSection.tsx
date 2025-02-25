@@ -36,7 +36,7 @@ export const InvitationsSection = () => {
   };
 
   if (!isAdmin) {
-    console.log("User is not an admin, hiding invitations section");
+    console.log("User cannot manage invitations, hiding invitations section");
     return null;
   }
 
@@ -48,7 +48,7 @@ export const InvitationsSection = () => {
           Invite Users
         </CardTitle>
         <CardDescription>
-          Send invitations to new clients or administrators
+          Administrators and managers can send invitations to new clients or administrators
         </CardDescription>
       </CardHeader>
       <CardContent>
