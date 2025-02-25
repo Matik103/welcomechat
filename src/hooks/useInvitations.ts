@@ -30,11 +30,13 @@ export function useInvitations(clientId?: string) {
   const { data: userRole } = useQuery({
     queryKey: ["userRole"],
     queryFn: async () => {
+      console.log("Fetching user role...");
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.log("No user found");
         return null;
       }
+      console.log("Found user:", user.id);
 
       // Query the user_roles table for admin or manager roles
       const { data: roles, error } = await supabase
@@ -49,7 +51,9 @@ export function useInvitations(clientId?: string) {
       }
 
       console.log("Roles found:", roles);
-      return roles?.[0]?.role || null;
+      const role = roles?.[0]?.role || null;
+      console.log("Selected role:", role);
+      return role;
     },
   });
 
