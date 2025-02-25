@@ -16,6 +16,7 @@ interface SecuritySectionProps {
   onVerificationCodeChange: (code: string) => void;
   onEnableMFA: () => Promise<void>;
   onVerifyMFA: () => Promise<void>;
+  onDisableMFA: () => Promise<void>;
 }
 
 export const SecuritySection = ({
@@ -25,7 +26,8 @@ export const SecuritySection = ({
   currentFactorId,
   onVerificationCodeChange,
   onEnableMFA,
-  onVerifyMFA
+  onVerifyMFA,
+  onDisableMFA
 }: SecuritySectionProps) => {
   const [loading, setLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -68,11 +70,20 @@ export const SecuritySection = ({
         </CardHeader>
         <CardContent className="space-y-4">
           {mfaEnabled ? (
-            <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
-              <Shield className="h-5 w-5 text-green-500" />
-              <p className="text-green-700">
-                Two-factor authentication is enabled and active
-              </p>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
+                <Shield className="h-5 w-5 text-green-500" />
+                <p className="text-green-700">
+                  Two-factor authentication is enabled and active
+                </p>
+              </div>
+              <Button 
+                onClick={onDisableMFA}
+                variant="destructive"
+                type="button"
+              >
+                Disable 2FA
+              </Button>
             </div>
           ) : qrCode ? (
             <div className="space-y-6">

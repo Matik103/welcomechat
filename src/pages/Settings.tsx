@@ -55,6 +55,7 @@ const Settings = () => {
           onVerificationCodeChange={mfaHandlers.setVerificationCode}
           onEnableMFA={mfaHandlers.handleEnableMFA}
           onVerifyMFA={mfaHandlers.handleVerifyMFA}
+          onDisableMFA={mfaHandlers.handleDisableMFA}
         />
 
         <InvitationsSection />
