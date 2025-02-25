@@ -5,8 +5,8 @@ import { Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-interface InvitationData {
-  role_type: string;
+interface UserRole {
+  role: 'admin' | 'client';
 }
 
 interface ClientRouteProps {
@@ -16,20 +16,19 @@ interface ClientRouteProps {
 export const ClientRoute = ({ children }: ClientRouteProps) => {
   const { session, isLoading } = useAuth();
 
-  const { data: invitation, isLoading: isLoadingRole } = useQuery({
-    queryKey: ["userRole", session?.user.email],
+  const { data: userRole, isLoading: isLoadingRole } = useQuery({
+    queryKey: ["userRole", session?.user.id],
     queryFn: async () => {
-      if (!session?.user.email) return null;
+      if (!session?.user.id) return null;
       const { data } = await supabase
-        .from("invitations")
-        .select("role_type")
-        .eq("email", session.user.email)
-        .eq("status", "accepted")
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
         .maybeSingle();
       
-      return (data as InvitationData | null);
+      return (data as UserRole | null);
     },
-    enabled: !!session?.user.email,
+    enabled: !!session?.user.id,
     staleTime: 30000,
     retry: false
   });
@@ -46,11 +45,11 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
     return <Navigate to="/client-auth" replace />;
   }
 
-  if (!invitation) {
+  if (!userRole) {
     return <Navigate to="/auth" replace />;
   }
 
-  if (invitation.role_type === "admin") {
+  if (userRole.role === "admin") {
     return <Navigate to="/" replace />;
   }
 
