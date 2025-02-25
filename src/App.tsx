@@ -6,9 +6,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PrivateRoute } from "@/components/auth/PrivateRoute";
+import { ClientRoute } from "@/components/auth/ClientRoute";
 import { Header } from "@/components/layout/Header";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ClientAuth from "./pages/client/Auth";
+import ClientDashboard from "./pages/client/Dashboard";
+import ClientSettings from "./pages/client/Settings";
 import ClientList from "./pages/ClientList";
 import AddEditClient from "./pages/AddEditClient";
 import ClientView from "./pages/ClientView";
@@ -25,7 +29,7 @@ const App = () => (
         <BrowserRouter>
           <Header />
           <Routes>
-            {/* Protected Index route */}
+            {/* Admin routes */}
             <Route
               path="/"
               element={
@@ -83,6 +87,26 @@ const App = () => (
                 </PrivateRoute>
               }
             />
+
+            {/* Client routes */}
+            <Route path="/client-auth" element={<ClientAuth />} />
+            <Route
+              path="/client-dashboard"
+              element={
+                <ClientRoute>
+                  <ClientDashboard />
+                </ClientRoute>
+              }
+            />
+            <Route
+              path="/client-settings"
+              element={
+                <ClientRoute>
+                  <ClientSettings />
+                </ClientRoute>
+              }
+            />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
