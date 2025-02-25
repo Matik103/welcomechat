@@ -2,7 +2,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PrivateRoute } from "@/components/auth/PrivateRoute";
 import { Header } from "@/components/layout/Header";
@@ -22,19 +22,24 @@ const App = () => {
   const { data: userRole } = useQuery({
     queryKey: ["user-role"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      
-      // Query the user_roles table
-      const { data: roleData, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error || !roleData) return null;
-      return roleData.role;
-    }
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+        
+        const { data: roleData, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (error || !roleData) return null;
+        return roleData.role as 'admin' | 'client' | null;
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        return null;
+      }
+    },
+    retry: false
   });
 
   return (
