@@ -1,20 +1,9 @@
 
-export type DriveLink = {
-  id: number;
-  link: string;
-  refresh_rate: number;
-  client_id: string;
-};
+import { WidgetSettings } from "./widget-settings";
 
-export type WebsiteUrl = {
-  id: number;
-  url: string;
-  refresh_rate: number;
-  client_id: string;
-};
-
-export type ClientFormData = {
+export interface ClientFormData {
   client_name: string;
   email: string;
   agent_name: string;
-};
+  widget_settings?: WidgetSettings;
+}

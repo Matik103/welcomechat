@@ -16,7 +16,6 @@ const ClientAuth = () => {
   const [password, setPassword] = useState("");
   const { session } = useAuth();
 
-  // If already logged in, redirect to client dashboard
   if (session) {
     return <Navigate to="/client-dashboard" replace />;
   }
