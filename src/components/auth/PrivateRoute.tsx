@@ -18,8 +18,8 @@ export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
         .eq("email", session.user.email)
         .eq("status", "accepted")
         .single();
-      if (error) return null; // Handle error gracefully
-      return data?.role_type;
+      if (error) return null;
+      return data?.role_type ?? null;
     },
     enabled: !!session?.user.email,
   });
