@@ -44,8 +44,22 @@ const Settings = () => {
   const handleEnableMFA = async () => {
     try {
       setLoading(true);
+      
+      // First, check for any existing factors
+      const { data: existingFactors } = await supabase.auth.mfa.listFactors();
+      
+      // If there's an unverified factor, we need to clean it up
+      const unverifiedFactor = existingFactors.totp.find(f => f.status === 'unverified');
+      if (unverifiedFactor) {
+        // Unenroll the existing unverified factor
+        await supabase.auth.mfa.unenroll({ factorId: unverifiedFactor.id });
+      }
+
+      // Now enroll a new factor
       const { data, error } = await supabase.auth.mfa.enroll({
-        factorType: 'totp'
+        factorType: 'totp',
+        issuer: 'AI Chatbot Admin System',
+        friendlyName: `TOTP-${Date.now()}` // Add a unique friendly name
       });
       
       if (error) throw error;
@@ -53,6 +67,7 @@ const Settings = () => {
         setQrCode(data.totp.qr_code);
       }
     } catch (error: any) {
+      console.error('MFA Error:', error);
       toast.error(error.message);
     } finally {
       setLoading(false);
