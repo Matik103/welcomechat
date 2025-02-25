@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Users } from "lucide-react";
 import { useInvitations } from "@/hooks/useInvitations";
+import { toast } from "sonner";
 
 export const InvitationsSection = () => {
   const [inviteEmail, setInviteEmail] = useState("");
@@ -14,6 +15,7 @@ export const InvitationsSection = () => {
 
   const handleInvite = async (role: 'client' | 'admin') => {
     if (!inviteEmail) {
+      toast.error("Please enter an email address");
       return;
     }
 
@@ -24,14 +26,19 @@ export const InvitationsSection = () => {
         role_type: role
       });
       setInviteEmail("");
+      toast.success("Invitation sent successfully");
     } catch (error: any) {
       console.error('Error sending invitation:', error);
+      toast.error(error.message || "Failed to send invitation");
     } finally {
       setInviteLoading(false);
     }
   };
 
-  if (!isAdmin) return null;
+  if (!isAdmin) {
+    console.log("User is not an admin, hiding invitations section");
+    return null;
+  }
 
   return (
     <Card>

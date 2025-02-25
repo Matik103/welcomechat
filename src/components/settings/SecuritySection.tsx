@@ -28,6 +28,7 @@ export const SecuritySection = ({
   onVerifyMFA
 }: SecuritySectionProps) => {
   const [loading, setLoading] = useState(false);
+  const [mfaLoading, setMfaLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -51,6 +52,24 @@ export const SecuritySection = ({
       toast.error(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMfaEnable = async () => {
+    setMfaLoading(true);
+    try {
+      await onEnableMFA();
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleMfaVerify = async () => {
+    setMfaLoading(true);
+    try {
+      await onVerifyMFA();
+    } finally {
+      setMfaLoading(false);
     }
   };
 
@@ -132,18 +151,18 @@ export const SecuritySection = ({
                 />
               </div>
               <Button 
-                onClick={onVerifyMFA} 
-                disabled={loading || verificationCode.length !== 6}
+                onClick={handleMfaVerify} 
+                disabled={mfaLoading || verificationCode.length !== 6}
                 className="w-full"
               >
-                {loading ? (
+                {mfaLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : "Verify and Enable 2FA"}
               </Button>
             </div>
           ) : (
-            <Button onClick={onEnableMFA} disabled={loading}>
-              {loading ? (
+            <Button onClick={handleMfaEnable} disabled={mfaLoading}>
+              {mfaLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : "Enable 2FA"}
             </Button>

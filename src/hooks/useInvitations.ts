@@ -127,11 +127,15 @@ export function useInvitations(clientId?: string) {
     },
   });
 
+  // Return true if userRole is 'admin', false otherwise
+  const isAdmin = userRole === 'admin';
+  console.log("Current user role:", userRole, "Is admin:", isAdmin);
+
   return {
     invitations,
     isLoading,
     createInvitation,
     cancelInvitation,
-    isAdmin: userRole === 'admin'
+    isAdmin
   };
 }
