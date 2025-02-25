@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +21,7 @@ const Settings = () => {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
+  const [currentFactorId, setCurrentFactorId] = useState<string | null>(null);
 
   useEffect(() => {
     checkMfaStatus();
@@ -35,6 +37,7 @@ const Settings = () => {
       // Reset QR code if no verification is in progress
       if (totp.length === 0 || totp.every(factor => factor.status === 'verified')) {
         setQrCode(null);
+        setCurrentFactorId(null);
       }
     } catch (error: any) {
       console.error('Error checking MFA status:', error);
@@ -44,6 +47,10 @@ const Settings = () => {
   const handleEnableMFA = async () => {
     try {
       setLoading(true);
+      
+      // Clear any existing state
+      setCurrentFactorId(null);
+      setQrCode(null);
       
       // First, check for any existing factors
       const { data: existingFactors, error: listError } = await supabase.auth.mfa.listFactors();
@@ -66,10 +73,18 @@ const Settings = () => {
       if (error) throw error;
       if (data.totp) {
         setQrCode(data.totp.qr_code);
+        // Store the new factor ID
+        const { data: { totp } } = await supabase.auth.mfa.listFactors();
+        const newFactor = totp.find(f => f.status === 'unverified');
+        if (newFactor) {
+          setCurrentFactorId(newFactor.id);
+        }
       }
     } catch (error: any) {
       console.error('MFA Error:', error);
       toast.error(error.message);
+      setQrCode(null);
+      setCurrentFactorId(null);
     } finally {
       setLoading(false);
     }
@@ -81,26 +96,23 @@ const Settings = () => {
       return;
     }
 
+    if (!currentFactorId) {
+      toast.error("No pending 2FA setup found. Please start the process again.");
+      setQrCode(null);
+      return;
+    }
+
     try {
       setLoading(true);
-      
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const unverifiedFactor = factors.totp.find(f => f.status === 'unverified');
-      
-      if (!unverifiedFactor) {
-        toast.error("No pending 2FA setup found. Please try again.");
-        setQrCode(null);
-        return;
-      }
 
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: unverifiedFactor.id
+        factorId: currentFactorId
       });
       
       if (challengeError) throw challengeError;
 
       const { data, error: verifyError } = await supabase.auth.mfa.verify({
-        factorId: unverifiedFactor.id,
+        factorId: currentFactorId,
         challengeId: challenge.id,
         code: verificationCode
       });
@@ -110,13 +122,15 @@ const Settings = () => {
       setMfaEnabled(true);
       setQrCode(null);
       setVerificationCode("");
+      setCurrentFactorId(null);
       toast.success("2FA has been enabled successfully");
       await checkMfaStatus();
     } catch (error: any) {
       toast.error(error.message);
-      // If we get a verification error, don't clear the QR code so user can try again
+      // Only clear states if it's not a verification code error
       if (!error.message.includes('Invalid one-time password')) {
         setQrCode(null);
+        setCurrentFactorId(null);
       }
     } finally {
       setLoading(false);
