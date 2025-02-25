@@ -48,14 +48,6 @@ export const useMFAHandlers = () => {
       
       console.log("Starting MFA enrollment process...");
       
-      // First, ensure we have a valid session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      
-      if (!session) {
-        throw new Error("No active session found");
-      }
-      
       const { data: existingFactors, error: listError } = await supabase.auth.mfa.listFactors();
       if (listError) {
         console.error("Error listing factors:", listError);
@@ -138,14 +130,6 @@ export const useMFAHandlers = () => {
     }
 
     try {
-      // First, ensure we have a valid session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      
-      if (!session) {
-        throw new Error("No active session found");
-      }
-
       const { data: { totp } } = await supabase.auth.mfa.listFactors();
       const factorToVerify = totp.find(f => f.id === currentFactorId);
       
