@@ -3,6 +3,7 @@ import { Toaster } from "sonner";
 import { Header } from "@/components/layout/Header";
 import { Routes, Route } from "react-router-dom";
 import Auth from "@/pages/Auth";
+import Index from "@/pages/Index";
 
 function App() {
   return (
@@ -10,7 +11,7 @@ function App() {
       <Header />
       <Routes>
         <Route path="/auth" element={<Auth />} />
-        <Route path="/" element={<div>Admin Dashboard</div>} />
+        <Route path="/" element={<Index />} />
       </Routes>
       <Toaster />
     </div>
