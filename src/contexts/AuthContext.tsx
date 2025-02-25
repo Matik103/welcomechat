@@ -62,8 +62,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(null);
           setUserRole(null);
           
-          // Only redirect to auth if not already there
-          if (location.pathname !== '/auth') {
+          // Only redirect to auth if not already there and not on public routes
+          if (location.pathname !== '/auth' && !location.pathname.startsWith('/public')) {
             navigate('/auth', { replace: true });
           }
         }
@@ -95,8 +95,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
         setUserRole(null);
         
-        // Redirect to auth on sign out
-        if (event === 'SIGNED_OUT') {
+        // Redirect to auth on sign out if not on public routes
+        if (event === 'SIGNED_OUT' && !location.pathname.startsWith('/public')) {
           navigate('/auth', { replace: true });
         }
       }
@@ -113,15 +113,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
+      // Clear all auth state
       setUserRole(null);
       setSession(null);
       setUser(null);
       
-      toast.success("Successfully signed out");
+      // Store the success message
+      const message = "Successfully signed out";
+      
+      // Navigate first
       navigate('/auth', { replace: true });
+      
+      // Show toast after navigation
+      setTimeout(() => {
+        toast.success(message);
+      }, 100);
+      
     } catch (error: any) {
       console.error("Sign out error:", error);
-      toast.error(error.message || "Failed to sign out");
+      // If session is missing, just clear state and redirect
+      if (error.message === "Auth session missing!") {
+        setUserRole(null);
+        setSession(null);
+        setUser(null);
+        navigate('/auth', { replace: true });
+        setTimeout(() => {
+          toast.success("Successfully signed out");
+        }, 100);
+      } else {
+        toast.error(error.message || "Failed to sign out");
+      }
     } finally {
       setIsLoading(false);
     }

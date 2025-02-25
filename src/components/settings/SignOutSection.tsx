@@ -13,9 +13,9 @@ export const SignOutSection = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate("/auth");
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Sign out error:", error);
+      // Error is handled in the AuthContext
     }
   };
 
