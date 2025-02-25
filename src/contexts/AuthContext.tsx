@@ -43,33 +43,49 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Initial session check:", session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        checkUserRole(session.user.id);
+    const initializeAuth = async () => {
+      try {
+        setIsLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log("Initial session check:", session?.user?.email);
+        
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+          await checkUserRole(session.user.id);
+          
+          // Only redirect if on auth page
+          if (location.pathname === '/auth') {
+            navigate('/', { replace: true });
+          }
+        } else {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          
+          // Only redirect to auth if not already there
+          if (location.pathname !== '/auth') {
+            navigate('/auth', { replace: true });
+          }
+        }
+      } catch (error) {
+        console.error("Error during auth initialization:", error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      // Only redirect if on auth page and we have a session
-      if (session && location.pathname === '/auth') {
-        navigate('/', { replace: true });
-      } else if (!session && location.pathname !== '/auth') {
-        navigate('/auth', { replace: true });
-      }
-      
-      setIsLoading(false);
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log("Auth state changed:", event, currentSession?.user?.email);
+      
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
-        checkUserRole(currentSession.user.id);
+        await checkUserRole(currentSession.user.id);
       } else {
         setUserRole(null);
       }
@@ -89,13 +105,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUserRole(null);
+      setSession(null);
+      setUser(null);
       toast.success("Successfully signed out");
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error("Failed to sign out");
+    } finally {
+      setIsLoading(false);
     }
   };
 
