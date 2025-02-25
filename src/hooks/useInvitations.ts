@@ -26,9 +26,28 @@ interface CreateInvitationData {
 export function useInvitations(clientId?: string) {
   const queryClient = useQueryClient();
 
+  // First verify if the current user is an admin
+  const { data: userRole } = useQuery({
+    queryKey: ["userRole"],
+    queryFn: async () => {
+      const { data: roles, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .single();
+
+      if (error) {
+        console.error("Error fetching user role:", error);
+        return null;
+      }
+      return roles?.role;
+    },
+  });
+
   const { data: invitations, isLoading } = useQuery({
     queryKey: ["invitations", clientId],
     queryFn: async () => {
+      if (!userRole) return [];
+
       const { data, error } = await supabase
         .from("client_invitations")
         .select("*")
@@ -38,13 +57,20 @@ export function useInvitations(clientId?: string) {
       if (error) throw error;
       return data as Invitation[];
     },
-    enabled: !!clientId,
+    enabled: !!clientId && !!userRole,
   });
 
   const createInvitation = useMutation({
     mutationFn: async ({ email, client_id, role_type }: CreateInvitationData) => {
+      if (userRole !== 'admin') {
+        throw new Error('Only administrators can send invitations');
+      }
+
       const token = uuidv4();
       const expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) throw new Error('Not authenticated');
 
       const { error } = await supabase
         .from("client_invitations")
@@ -54,10 +80,15 @@ export function useInvitations(clientId?: string) {
           token,
           expires_at,
           role_type,
-          status: 'pending'
+          status: 'pending',
+          created_by: currentUser.user.id
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Invitation creation error:', error);
+        throw new Error(error.message);
+      }
+      
       return token;
     },
     onSuccess: () => {
@@ -65,25 +96,34 @@ export function useInvitations(clientId?: string) {
       toast.success("Invitation sent successfully");
     },
     onError: (error: any) => {
-      toast.error(`Failed to send invitation: ${error.message}`);
+      console.error('Create invitation error:', error);
+      toast.error(error.message || 'Failed to send invitation');
     },
   });
 
   const cancelInvitation = useMutation({
     mutationFn: async (invitationId: string) => {
+      if (userRole !== 'admin') {
+        throw new Error('Only administrators can cancel invitations');
+      }
+
       const { error } = await supabase
         .from("client_invitations")
         .update({ status: "expired" })
         .eq("id", invitationId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Cancel invitation error:', error);
+        throw new Error(error.message);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
       toast.success("Invitation cancelled");
     },
     onError: (error: any) => {
-      toast.error(`Failed to cancel invitation: ${error.message}`);
+      console.error('Cancel invitation error:', error);
+      toast.error(error.message || 'Failed to cancel invitation');
     },
   });
 
@@ -92,5 +132,6 @@ export function useInvitations(clientId?: string) {
     isLoading,
     createInvitation,
     cancelInvitation,
+    isAdmin: userRole === 'admin'
   };
 }
