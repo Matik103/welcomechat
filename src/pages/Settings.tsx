@@ -17,7 +17,6 @@ const Settings = () => {
 
   useEffect(() => {
     checkAdminStatus();
-    mfaHandlers.checkMfaStatus();
   }, []);
 
   const checkAdminStatus = async () => {
@@ -34,14 +33,6 @@ const Settings = () => {
       setIsAdmin(false);
     }
   };
-
-  if (mfaHandlers.isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] p-4 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-4">

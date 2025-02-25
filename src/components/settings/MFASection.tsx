@@ -17,9 +17,11 @@ export const useMFAHandlers = () => {
   const [verificationCode, setVerificationCode] = useState("");
   const [currentFactorId, setCurrentFactorId] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const checkMfaStatus = async () => {
+    if (isLoading) return;
+    
     try {
       setIsLoading(true);
       const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
@@ -105,9 +107,7 @@ export const useMFAHandlers = () => {
         factorId: currentFactorId
       });
       
-      if (challengeError) {
-        throw challengeError;
-      }
+      if (challengeError) throw challengeError;
 
       if (!challenge) {
         throw new Error('No challenge created');
@@ -120,9 +120,7 @@ export const useMFAHandlers = () => {
         code: verificationCode
       });
 
-      if (verifyError) {
-        throw verifyError;
-      }
+      if (verifyError) throw verifyError;
 
       if (!data) {
         throw new Error('Verification failed');
@@ -177,6 +175,7 @@ export const useMFAHandlers = () => {
     }
   };
 
+  // Initial MFA status check
   useEffect(() => {
     checkMfaStatus();
   }, []);
