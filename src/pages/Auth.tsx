@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 const Auth = () => {
@@ -18,7 +17,6 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const { session, isLoading } = useAuth();
-  const navigate = useNavigate();
 
   // Check user role if session exists
   const { data: invitation, isLoading: isLoadingRole } = useQuery({
@@ -37,17 +35,6 @@ const Auth = () => {
     retry: false
   });
 
-  // Handle redirection based on role
-  useEffect(() => {
-    if (session && invitation && !isLoadingRole) {
-      if (invitation.role_type === "client") {
-        navigate("/client-dashboard", { replace: true });
-      } else if (invitation.role_type === "admin") {
-        navigate("/clients", { replace: true });
-      }
-    }
-  }, [session, invitation, isLoadingRole, navigate]);
-
   // Show loading spinner while checking auth state
   if (isLoading || isLoadingRole) {
     return (
@@ -55,6 +42,16 @@ const Auth = () => {
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  // Redirect if authenticated
+  if (session && invitation) {
+    if (invitation.role_type === "client") {
+      return <Navigate to="/client-dashboard" replace />;
+    }
+    if (invitation.role_type === "admin") {
+      return <Navigate to="/clients" replace />;
+    }
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {

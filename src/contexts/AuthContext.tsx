@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 type AuthContextType = {
   session: Session | null;
@@ -21,87 +21,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
 
-    const setupAuth = async () => {
-      try {
-        // Get initial session
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
-        if (mounted) {
-          setSession(initialSession);
-          setUser(initialSession?.user ?? null);
-          setIsLoading(false);
-        }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log("Auth state changed:", event, currentSession?.user?.email);
+      
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
 
-        // Set up auth state listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-          console.log("Auth state changed:", event, currentSession?.user?.email);
-          
-          if (!mounted) return;
+      if (event === 'SIGNED_IN') {
+        if (currentSession?.user?.email) {
+          const { data: invitation } = await supabase
+            .from("client_invitations")
+            .select("role_type")
+            .eq("email", currentSession.user.email)
+            .eq("status", "accepted")
+            .single();
 
-          setSession(currentSession);
-          setUser(currentSession?.user ?? null);
-
-          if (event === 'SIGNED_IN') {
-            // Get the user's role
-            if (currentSession?.user?.email) {
-              const { data: invitation } = await supabase
-                .from("client_invitations")
-                .select("role_type")
-                .eq("email", currentSession.user.email)
-                .eq("status", "accepted")
-                .single();
-
-              if (invitation?.role_type === "client") {
-                navigate("/client-dashboard");
-              } else if (invitation?.role_type === "admin") {
-                navigate("/clients");
-              }
-            }
-          } else if (event === 'SIGNED_OUT') {
-            const currentPath = window.location.pathname;
-            if (currentPath.startsWith('/client-')) {
-              navigate("/client-auth");
-            } else {
-              navigate("/auth");
-            }
+          if (invitation?.role_type === "client") {
+            navigate("/client-dashboard", { replace: true });
+          } else if (invitation?.role_type === "admin") {
+            navigate("/clients", { replace: true });
           }
-        });
-
-        return () => {
-          subscription.unsubscribe();
-          mounted = false;
-        };
-      } catch (error) {
-        console.error("Auth setup error:", error);
-        if (mounted) {
-          setIsLoading(false);
         }
+      } else if (event === 'SIGNED_OUT') {
+        navigate("/auth", { replace: true });
       }
-    };
-
-    setupAuth();
+    });
 
     return () => {
-      mounted = false;
+      subscription.unsubscribe();
     };
   }, [navigate]);
 
   const signOut = async () => {
     try {
-      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
-      setSession(null);
-      setUser(null);
       toast.success("Successfully signed out");
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error("Failed to sign out");
-    } finally {
-      setIsLoading(false);
     }
   };
 
