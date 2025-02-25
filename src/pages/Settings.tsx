@@ -58,7 +58,7 @@ const Settings = () => {
       
       console.log("Starting MFA enrollment process...");
       
-      // First, check for any existing factors and clean up
+      // First, check for any existing factors
       const { data: existingFactors, error: listError } = await supabase.auth.mfa.listFactors();
       if (listError) {
         console.error("Error listing factors:", listError);
@@ -98,7 +98,13 @@ const Settings = () => {
         throw new Error('Failed to generate QR code - no TOTP data received');
       }
 
-      console.log("Enrollment successful, getting new factor...");
+      // Store the QR code first
+      setQrCode(enrollData.totp.qr_code);
+
+      console.log("Enrollment successful, waiting briefly before getting new factor...");
+      
+      // Add a small delay to allow the factor to be properly created
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Get the newly created factor ID
       const { data: factorsData, error: getFactorsError } = await supabase.auth.mfa.listFactors();
@@ -111,13 +117,22 @@ const Settings = () => {
       
       const newFactor = factorsData.totp.find(f => f.status === 'unverified');
       if (!newFactor) {
-        console.error("No unverified factor found after enrollment");
-        throw new Error('Failed to find newly created factor');
+        // Try one more time after a longer delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const { data: retryFactors } = await supabase.auth.mfa.listFactors();
+        const retryFactor = retryFactors.totp.find(f => f.status === 'unverified');
+        
+        if (!retryFactor) {
+          console.error("No unverified factor found after retry");
+          throw new Error('Failed to find newly created factor');
+        }
+        
+        console.log("Found factor on retry:", retryFactor);
+        setCurrentFactorId(retryFactor.id);
+      } else {
+        console.log("Setting up new factor with ID:", newFactor.id);
+        setCurrentFactorId(newFactor.id);
       }
-
-      console.log("Setting up new factor with ID:", newFactor.id);
-      setCurrentFactorId(newFactor.id);
-      setQrCode(enrollData.totp.qr_code);
       
     } catch (error: any) {
       console.error('MFA Enrollment Error:', error);
