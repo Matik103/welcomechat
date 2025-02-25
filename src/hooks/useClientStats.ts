@@ -9,12 +9,12 @@ export const useClientStats = () => {
       const now = new Date();
       
       // Get total clients (independent of time range)
-      const { data: allClients } = await supabase
+      const { count: totalClientCount, error: countError } = await supabase
         .from("clients")
-        .select("*", { count: "exact" })
+        .select("*", { count: "exact", head: true })
         .is("deletion_scheduled_at", null);
       
-      const totalClientCount = allClients?.length ?? 0;
+      if (countError) throw countError;
 
       // Get active clients (always last 48 hours)
       const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
@@ -41,12 +41,12 @@ export const useClientStats = () => {
         : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
 
       return {
-        totalClients: totalClientCount,
+        totalClients: totalClientCount ?? 0,
         activeClients: currentActiveCount,
         activeClientsChange: activeChangePercentage.toFixed(1),
       };
     },
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000,
   });
