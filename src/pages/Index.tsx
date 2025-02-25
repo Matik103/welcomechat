@@ -98,7 +98,7 @@ const Index = () => {
           startDate = new Date(0);
       }
 
-      // Get total clients - independent of time range
+      // Get total clients (independent of time range)
       const { data: allClients } = await supabase
         .from("clients")
         .select("*", { count: "exact" })
@@ -106,7 +106,7 @@ const Index = () => {
       
       const totalClientCount = allClients?.length ?? 0;
 
-      // Get active clients (always last 48 hours) - independent of time range
+      // Get active clients (always last 48 hours)
       const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
       const { data: activeClients } = await supabase
         .from("client_activities")
@@ -138,6 +138,8 @@ const Index = () => {
         .gte("created_at", startDate.toISOString());
 
       const totalInteractions = currentPeriodInteractions?.length ?? 0;
+
+      // Calculate average interactions based on total clients
       const avgInteractions = totalClientCount ? Math.round(totalInteractions / totalClientCount) : 0;
 
       // Get previous period interactions for comparison
