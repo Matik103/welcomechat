@@ -37,6 +37,7 @@ export const useMFAHandlers = () => {
       }
     } catch (error: any) {
       console.error('Error checking MFA status:', error);
+      toast.error("Failed to check MFA status");
     }
   };
 
@@ -72,7 +73,6 @@ export const useMFAHandlers = () => {
         throw new Error('Failed to generate QR code - no TOTP data received');
       }
 
-      // Set QR code and factor ID
       setQrCode(enrollData.totp.qr_code);
       if (enrollData.id) {
         setCurrentFactorId(enrollData.id);
@@ -111,6 +111,7 @@ export const useMFAHandlers = () => {
 
       if (verifyError) throw verifyError;
 
+      console.log("MFA verification successful");
       setMfaEnabled(true);
       setQrCode(null);
       setVerificationCode("");

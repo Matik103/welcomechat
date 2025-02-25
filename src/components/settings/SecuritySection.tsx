@@ -68,7 +68,9 @@ export const SecuritySection = ({
   };
 
   const handleMfaVerify = async () => {
-    if (!verificationCode || verificationCode.length !== 6 || !currentFactorId) return;
+    if (!verificationCode || verificationCode.length !== 6 || !currentFactorId || verifying) {
+      return;
+    }
     
     setVerifying(true);
     try {
@@ -136,7 +138,7 @@ export const SecuritySection = ({
           {mfaEnabled ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Two-factor authentication is currently enabled.
+                Two-factor authentication is currently enabled. You will be prompted for a code on your next login.
               </p>
             </div>
           ) : qrCode ? (
@@ -155,6 +157,7 @@ export const SecuritySection = ({
                   onChange={(e) => onVerificationCodeChange(e.target.value)}
                   placeholder="Enter the 6-digit code"
                   maxLength={6}
+                  disabled={verifying}
                 />
               </div>
               <Button 
