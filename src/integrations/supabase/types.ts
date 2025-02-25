@@ -86,6 +86,50 @@ export type Database = {
           },
         ]
       }
+      client_invitations: {
+        Row: {
+          accepted_at: string | null
+          client_id: string | null
+          created_at: string | null
+          created_by: string | null
+          email: string
+          expires_at: string
+          id: string
+          status: Database["public"]["Enums"]["invitation_status"] | null
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          status?: Database["public"]["Enums"]["invitation_status"] | null
+          token: string
+        }
+        Update: {
+          accepted_at?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["invitation_status"] | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_invitations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_recovery_tokens: {
         Row: {
           client_id: string | null
@@ -124,6 +168,7 @@ export type Database = {
       clients: {
         Row: {
           agent_name: string
+          backup_codes: string[] | null
           client_name: string
           company: string | null
           created_at: string | null
@@ -138,6 +183,8 @@ export type Database = {
           id: string
           last_active: string | null
           status: Database["public"]["Enums"]["client_status"] | null
+          two_factor_enabled: boolean | null
+          two_factor_secret: string | null
           updated_at: string | null
           website: string | null
           website_url: string | null
@@ -148,6 +195,7 @@ export type Database = {
         }
         Insert: {
           agent_name: string
+          backup_codes?: string[] | null
           client_name: string
           company?: string | null
           created_at?: string | null
@@ -162,6 +210,8 @@ export type Database = {
           id?: string
           last_active?: string | null
           status?: Database["public"]["Enums"]["client_status"] | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
           updated_at?: string | null
           website?: string | null
           website_url?: string | null
@@ -172,6 +222,7 @@ export type Database = {
         }
         Update: {
           agent_name?: string
+          backup_codes?: string[] | null
           client_name?: string
           company?: string | null
           created_at?: string | null
@@ -186,6 +237,8 @@ export type Database = {
           id?: string
           last_active?: string | null
           status?: Database["public"]["Enums"]["client_status"] | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
           updated_at?: string | null
           website?: string | null
           website_url?: string | null
@@ -548,6 +601,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invitation: {
+        Args: {
+          token: string
+          user_id: string
+        }
+        Returns: string
+      }
       binary_quantize:
         | {
             Args: {
@@ -637,6 +697,12 @@ export type Database = {
         Args: {
           client_id: string
           check_time: string
+        }
+        Returns: boolean
+      }
+      is_invitation_valid: {
+        Args: {
+          token: string
         }
         Returns: boolean
       }
@@ -921,6 +987,7 @@ export type Database = {
         | "growth_milestone"
         | "ai_agent_table_created"
       client_status: "active" | "inactive"
+      invitation_status: "pending" | "accepted" | "expired"
       source_type: "google_drive" | "website"
       user_role: "admin" | "manager" | "user"
     }
