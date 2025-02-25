@@ -154,6 +154,6 @@ export function useInvitations(clientId?: string) {
     isLoading,
     createInvitation,
     cancelInvitation,
-    isAdmin: hasPermission // Keep the same prop name for backward compatibility
+    isAdmin: hasPermission
   };
 }

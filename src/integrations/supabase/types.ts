@@ -550,19 +550,19 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          role: Database["public"]["Enums"]["user_role"]
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          role: Database["public"]["Enums"]["user_role"]
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["user_role"]
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -995,6 +995,7 @@ export type Database = {
         | "common_query_milestone"
         | "growth_milestone"
         | "ai_agent_table_created"
+      app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"
       role_type: "admin" | "client"
