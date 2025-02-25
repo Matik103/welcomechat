@@ -6,21 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, KeyRound, Shield, QrCode } from "lucide-react";
+import { Loader2, KeyRound, Shield } from "lucide-react";
 
 interface SecuritySectionProps {
   mfaEnabled: boolean;
   qrCode: string | null;
   verificationCode: string;
   currentFactorId: string | null;
-  isVerifying: boolean;
-  isDisabling?: boolean;
-  disableVerificationCode?: string;
   onVerificationCodeChange: (code: string) => void;
-  onDisableVerificationCodeChange?: (code: string) => void;
   onEnableMFA: () => Promise<void>;
   onVerifyMFA: () => Promise<void>;
-  onDisableMFA: () => Promise<void>;
 }
 
 export const SecuritySection = ({
@@ -28,14 +23,9 @@ export const SecuritySection = ({
   qrCode,
   verificationCode,
   currentFactorId,
-  isVerifying,
-  isDisabling,
-  disableVerificationCode = "",
   onVerificationCodeChange,
-  onDisableVerificationCodeChange,
   onEnableMFA,
-  onVerifyMFA,
-  onDisableMFA
+  onVerifyMFA
 }: SecuritySectionProps) => {
   const [loading, setLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -64,128 +54,8 @@ export const SecuritySection = ({
     }
   };
 
-  const handleVerificationCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-    onVerificationCodeChange(value);
-  };
-
-  const handleDisableVerificationCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (onDisableVerificationCodeChange) {
-      const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-      onDisableVerificationCodeChange(value);
-    }
-  };
-
   return (
     <>
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Two-Factor Authentication (2FA)
-          </CardTitle>
-          <CardDescription>
-            Add an additional layer of security to your account by enabling two-factor authentication
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {mfaEnabled ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
-                <Shield className="h-5 w-5 text-green-500" />
-                <p className="text-green-700">
-                  Two-factor authentication is enabled and active
-                </p>
-              </div>
-              <div className="space-y-3">
-                <Label htmlFor="disableVerificationCode">Enter verification code to disable 2FA</Label>
-                <Input
-                  id="disableVerificationCode"
-                  value={disableVerificationCode}
-                  onChange={handleDisableVerificationCodeChange}
-                  placeholder="Enter the 6-digit code"
-                  maxLength={6}
-                  className="text-center text-lg tracking-widest"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                />
-                <Button 
-                  onClick={onDisableMFA}
-                  variant="destructive"
-                  disabled={!disableVerificationCode || disableVerificationCode.length !== 6 || isDisabling}
-                  className="w-full"
-                >
-                  {isDisabling ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Disabling...
-                    </>
-                  ) : (
-                    'Verify and Disable 2FA'
-                  )}
-                </Button>
-              </div>
-            </div>
-          ) : qrCode ? (
-            <div className="space-y-6">
-              <div className="bg-muted p-6 rounded-lg flex flex-col items-center gap-4">
-                <QrCode className="h-6 w-6 text-primary" />
-                <img src={qrCode} alt="QR Code for 2FA" className="w-48 h-48" />
-                <div className="text-sm text-center space-y-2">
-                  <p className="font-medium">Scan this QR code with your authenticator app</p>
-                  <p className="text-muted-foreground">
-                    We recommend using Google Authenticator or Authy
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <Label htmlFor="verificationCode">Enter verification code</Label>
-                <Input
-                  id="verificationCode"
-                  value={verificationCode}
-                  onChange={handleVerificationCodeChange}
-                  placeholder="Enter the 6-digit code"
-                  maxLength={6}
-                  className="text-center text-lg tracking-widest"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                />
-                <Button 
-                  onClick={onVerifyMFA}
-                  disabled={!verificationCode || verificationCode.length !== 6 || isVerifying}
-                  className="w-full"
-                >
-                  {isVerifying ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Verifying...
-                    </>
-                  ) : (
-                    'Verify and Enable 2FA'
-                  )}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Protect your account with two-factor authentication. Once enabled, you'll need to enter a code from your authenticator app when signing in.
-              </p>
-              <Button 
-                onClick={onEnableMFA} 
-                variant="default"
-                type="button"
-                className="bg-primary hover:bg-primary/90"
-              >
-                Set up 2FA
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -223,6 +93,58 @@ export const SecuritySection = ({
               Update Password
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Two-Factor Authentication (2FA)
+          </CardTitle>
+          <CardDescription>
+            Add an additional layer of security to your account by enabling two-factor authentication
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mfaEnabled ? (
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-green-500" />
+              <p className="text-muted-foreground">
+                Two-factor authentication is enabled
+              </p>
+            </div>
+          ) : qrCode ? (
+            <div className="space-y-4">
+              <div className="bg-muted p-4 rounded-lg flex justify-center">
+                <img src={qrCode} alt="QR Code for 2FA" className="w-48 h-48" />
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Scan this QR code with your authenticator app
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="verificationCode">Verification Code</Label>
+                <Input
+                  id="verificationCode"
+                  value={verificationCode}
+                  onChange={(e) => onVerificationCodeChange(e.target.value)}
+                  placeholder="Enter 6-digit code"
+                  maxLength={6}
+                />
+              </div>
+              <Button 
+                onClick={onVerifyMFA}
+                disabled={!verificationCode || verificationCode.length !== 6}
+                className="w-full"
+              >
+                Verify and Enable 2FA
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={onEnableMFA} className="w-full">
+              Enable 2FA
+            </Button>
+          )}
         </CardContent>
       </Card>
     </>

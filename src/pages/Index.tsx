@@ -6,14 +6,11 @@ import { ActionButtons } from "@/components/dashboard/ActionButtons";
 import { useClientStats } from "@/hooks/useClientStats";
 import { useInteractionStats } from "@/hooks/useInteractionStats";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
-import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
-import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const Index = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
-  const { user, userRole } = useAuth();
   
   const { 
     data: clientStats,
@@ -33,31 +30,12 @@ const Index = () => {
     isLoading: isActivitiesLoading 
   } = useRecentActivities();
 
-  const isLoading = isClientStatsLoading || isInteractionStatsLoading || isActivitiesLoading;
-
-  // Show error toasts
+  // Show error toasts only once when errors occur
   if (isClientStatsError || isInteractionStatsError || isActivitiesError) {
-    toast.error("Error loading dashboard data");
+    toast.error("Error loading dashboard data. Please try again later.");
   }
 
-  // If not authenticated, redirect to auth page
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // If user is a client, redirect to client dashboard
-  if (userRole === 'client') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // Show loading spinner only when data is loading
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const isLoading = isClientStatsLoading || isInteractionStatsLoading || isActivitiesLoading;
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
@@ -85,29 +63,37 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard 
-            title="Total Clients" 
-            value={clientStats?.totalClients || 0}
-          />
-          <MetricCard 
-            title="Active Clients" 
-            value={clientStats?.activeClients || 0}
-            change={clientStats?.activeClientsChange}
-          />
-          <MetricCard 
-            title="Avg. Interactions" 
-            value={interactionStats?.avgInteractions || 0}
-            change={interactionStats?.avgInteractionsChange}
-          />
-          <MetricCard 
-            title="Total Interactions" 
-            value={interactionStats?.totalInteractions || 0}
-          />
-        </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center min-h-[200px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <MetricCard 
+                title="Total Clients" 
+                value={clientStats?.totalClients || 0}
+              />
+              <MetricCard 
+                title="Active Clients" 
+                value={clientStats?.activeClients || 0}
+                change={clientStats?.activeClientsChange}
+              />
+              <MetricCard 
+                title="Avg. Interactions" 
+                value={interactionStats?.avgInteractions || 0}
+                change={interactionStats?.avgInteractionsChange}
+              />
+              <MetricCard 
+                title="Total Interactions" 
+                value={interactionStats?.totalInteractions || 0}
+              />
+            </div>
 
-        <ActivityList activities={recentActivities || []} />
-        <ActionButtons />
+            <ActivityList activities={recentActivities || []} />
+            <ActionButtons />
+          </>
+        )}
       </div>
     </div>
   );

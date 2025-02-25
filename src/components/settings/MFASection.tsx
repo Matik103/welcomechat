@@ -1,219 +1,91 @@
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
-interface MFAFactor {
-  id: string;
-  status: 'verified' | 'unverified';
-  totp?: {
-    qr_code: string;
-  };
-}
 
 export const useMFAHandlers = () => {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [currentFactorId, setCurrentFactorId] = useState<string | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDisabling, setIsDisabling] = useState(false);
-  const [disableVerificationCode, setDisableVerificationCode] = useState("");
 
   const checkMfaStatus = async () => {
-    if (isLoading) return;
-    
     try {
-      setIsLoading(true);
-      const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
-      if (factorsError) throw factorsError;
-
-      const hasVerifiedFactor = factorsData.totp.some(factor => factor.status === 'verified');
-      setMfaEnabled(hasVerifiedFactor);
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error) throw error;
       
-      if (hasVerifiedFactor) {
-        setQrCode(null);
-        setCurrentFactorId(null);
-        setVerificationCode("");
-      }
+      setMfaEnabled(data.currentLevel === 'aal2');
+      
+      // Clear any existing setup state
+      setQrCode(null);
+      setCurrentFactorId(null);
+      setVerificationCode("");
     } catch (error) {
       console.error('Error checking MFA status:', error);
-      toast.error("Failed to check 2FA status");
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleEnableMFA = async () => {
-    if (isVerifying || isLoading) return;
-
     try {
-      setIsLoading(true);
-      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
-      if (factorsError) throw factorsError;
-
-      // Reset previous state
-      setQrCode(null);
-      setCurrentFactorId(null);
-      setVerificationCode("");
-
-      let factorToVerify: MFAFactor | null = null;
-      const existingTotpFactor = factors.totp.find(factor => factor.status === 'unverified');
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp'
+      });
       
-      if (existingTotpFactor) {
-        factorToVerify = existingTotpFactor as MFAFactor;
-      } else {
-        const { data, error } = await supabase.auth.mfa.enroll({
-          factorType: 'totp'
-        });
-        
-        if (error) throw error;
-        if (!data) throw new Error('No data returned from enrollment');
-        
-        factorToVerify = data as unknown as MFAFactor;
-      }
-
-      if (factorToVerify) {
-        setQrCode(factorToVerify.totp?.qr_code || null);
-        setCurrentFactorId(factorToVerify.id);
+      if (error) throw error;
+      
+      if (data?.totp) {
+        setQrCode(data.totp.qr_code);
+        setCurrentFactorId(data.id);
       }
     } catch (error: any) {
-      console.error('MFA Error:', error);
-      toast.error(error.message || "Failed to setup 2FA");
-      // Reset state on error
+      toast.error(error.message || "Failed to enable 2FA");
       setQrCode(null);
       setCurrentFactorId(null);
-      setVerificationCode("");
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleVerifyMFA = async () => {
-    if (!verificationCode || !currentFactorId) {
-      toast.error("Please enter a verification code");
-      return;
-    }
-
-    if (isVerifying || isLoading) {
-      return;
-    }
+    if (!verificationCode || !currentFactorId) return;
 
     try {
-      setIsVerifying(true);
-      setIsLoading(true);
-
-      // Create a challenge
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+      const { data, error } = await supabase.auth.mfa.challenge({
         factorId: currentFactorId
       });
       
-      if (challengeError) throw challengeError;
+      if (error) throw error;
 
-      if (!challenge) {
-        throw new Error('No challenge created');
-      }
-
-      // Verify the challenge with the code
-      const { data, error: verifyError } = await supabase.auth.mfa.verify({
+      const { error: verifyError } = await supabase.auth.mfa.verify({
         factorId: currentFactorId,
-        challengeId: challenge.id,
+        challengeId: data.id,
         code: verificationCode
       });
 
       if (verifyError) throw verifyError;
 
-      if (!data) {
-        throw new Error('Verification failed');
-      }
-
-      await checkMfaStatus();
-      toast.success("2FA has been successfully enabled!");
+      setMfaEnabled(true);
+      toast.success("2FA enabled successfully");
       
-      // Reset states after successful verification
+      // Reset the state
       setQrCode(null);
       setCurrentFactorId(null);
       setVerificationCode("");
-    } catch (error: any) {
-      console.error('Verify Error:', error);
-      toast.error(error.message || "Failed to verify 2FA code. Please try again.");
-      setVerificationCode("");
-    } finally {
-      setIsVerifying(false);
-      setIsLoading(false);
-    }
-  };
-
-  const handleDisableMFA = async () => {
-    if (!currentFactorId || isVerifying || isLoading) return;
-
-    try {
-      setIsDisabling(true);
-      setIsLoading(true);
-
-      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
-      if (factorsError) throw factorsError;
-
-      const totpFactor = factors.totp.find(factor => factor.status === 'verified');
-      if (!totpFactor?.id) {
-        throw new Error('No active 2FA factor found');
-      }
-
-      // Create a challenge first
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: totpFactor.id
-      });
       
-      if (challengeError) throw challengeError;
-      if (!challenge) throw new Error('No challenge created');
-
-      // Now verify the challenge with the code
-      const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
-        factorId: totpFactor.id,
-        challengeId: challenge.id,
-        code: disableVerificationCode
-      });
-
-      if (verifyError) throw verifyError;
-      if (!verifyData) throw new Error('Verification failed');
-
-      // After successful verification, we can unenroll
-      const { error: unenrollError } = await supabase.auth.mfa.unenroll({
-        factorId: totpFactor.id
-      });
-      
-      if (unenrollError) throw unenrollError;
-
+      // Refresh MFA status
       await checkMfaStatus();
-      setDisableVerificationCode("");
-      toast.success("2FA has been successfully disabled");
     } catch (error: any) {
-      console.error('Disable 2FA Error:', error);
-      toast.error(error.message || "Failed to disable 2FA");
-    } finally {
-      setIsDisabling(false);
-      setIsLoading(false);
+      toast.error(error.message || "Failed to verify 2FA code");
+      setVerificationCode("");
     }
   };
-
-  useEffect(() => {
-    checkMfaStatus();
-  }, []);
 
   return {
     mfaEnabled,
     qrCode,
     verificationCode,
     currentFactorId,
-    isVerifying,
-    isLoading,
-    isDisabling,
-    disableVerificationCode,
     setVerificationCode,
-    setDisableVerificationCode,
     checkMfaStatus,
     handleEnableMFA,
-    handleVerifyMFA,
-    handleDisableMFA
+    handleVerifyMFA
   };
 };
