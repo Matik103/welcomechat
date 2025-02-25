@@ -27,7 +27,7 @@ const Auth = () => {
     );
   }
 
-  // Redirect if already authenticated
+  // Use Navigate component for redirection if authenticated
   if (session) {
     return <Navigate to="/clients" replace />;
   }
@@ -45,7 +45,6 @@ const Auth = () => {
             data: {
               full_name: fullName,
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
         if (error) throw error;

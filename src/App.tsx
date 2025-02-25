@@ -25,87 +25,94 @@ const queryClient = new QueryClient();
 const AppRoutes = () => {
   return (
     <>
-      <Header />
       <Routes>
-        {/* Admin routes */}
-        <Route
-          path="/"
-          element={
-            <PrivateRoute>
-              <Index />
-            </PrivateRoute>
-          }
-        />
         <Route path="/auth" element={<Auth />} />
-        <Route
-          path="/settings"
-          element={
-            <PrivateRoute>
-              <Settings />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/clients"
-          element={
-            <PrivateRoute>
-              <ClientList />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/clients/new"
-          element={
-            <PrivateRoute>
-              <AddEditClient />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/clients/:id"
-          element={
-            <PrivateRoute>
-              <ClientView />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/clients/:id/edit"
-          element={
-            <PrivateRoute>
-              <AddEditClient />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/clients/:id/widget-settings"
-          element={
-            <PrivateRoute>
-              <WidgetSettings />
-            </PrivateRoute>
-          }
-        />
-
-        {/* Client routes */}
         <Route path="/client-auth" element={<ClientAuth />} />
-        <Route
-          path="/client-dashboard"
-          element={
-            <ClientRoute>
-              <ClientDashboard />
-            </ClientRoute>
-          }
-        />
-        <Route
-          path="/client-settings"
-          element={
-            <ClientRoute>
-              <ClientSettings />
-            </ClientRoute>
-          }
-        />
         
-        <Route path="*" element={<NotFound />} />
+        {/* Protected routes with Header */}
+        <Route
+          path="/*"
+          element={
+            <>
+              <Header />
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <PrivateRoute>
+                      <Index />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <PrivateRoute>
+                      <Settings />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/clients"
+                  element={
+                    <PrivateRoute>
+                      <ClientList />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/clients/new"
+                  element={
+                    <PrivateRoute>
+                      <AddEditClient />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/clients/:id"
+                  element={
+                    <PrivateRoute>
+                      <ClientView />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/clients/:id/edit"
+                  element={
+                    <PrivateRoute>
+                      <AddEditClient />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/clients/:id/widget-settings"
+                  element={
+                    <PrivateRoute>
+                      <WidgetSettings />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/client-dashboard"
+                  element={
+                    <ClientRoute>
+                      <ClientDashboard />
+                    </ClientRoute>
+                  }
+                />
+                <Route
+                  path="/client-settings"
+                  element={
+                    <ClientRoute>
+                      <ClientSettings />
+                    </ClientRoute>
+                  }
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </>
+          }
+        />
       </Routes>
       <Toaster />
       <Sonner />
