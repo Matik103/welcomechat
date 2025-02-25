@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useClientData } from "@/hooks/useClientData";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileSection } from "@/components/client/settings/ProfileSection";
 import { WidgetSection } from "@/components/client/settings/WidgetSection";
 import { defaultSettings } from "@/types/widget-settings";
+import { ClientFormData } from "@/types/client";
 
 const ClientSettings = () => {
   const { user } = useAuth();
@@ -13,13 +15,16 @@ const ClientSettings = () => {
 
   const handleSettingsChange = (newSettings: any) => {
     if (!client) return;
-    clientMutation.mutate({
-      ...client,
+    const updatedData: ClientFormData = {
+      client_name: client.client_name,
+      email: client.email,
+      agent_name: client.agent_name,
       widget_settings: {
-        ...client.widget_settings ?? defaultSettings,
+        ...(client.widget_settings as any ?? defaultSettings),
         ...newSettings,
       },
-    });
+    };
+    clientMutation.mutate(updatedData);
   };
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,6 +47,12 @@ const ClientSettings = () => {
     return <div>No client data found</div>;
   }
 
+  const widgetSettings = client.widget_settings ? 
+    (typeof client.widget_settings === 'string' ? 
+      JSON.parse(client.widget_settings) : 
+      client.widget_settings) : 
+    defaultSettings;
+
   return (
     <div className="space-y-6">
       <div>
@@ -61,7 +72,7 @@ const ClientSettings = () => {
 
         <TabsContent value="widget" className="space-y-6">
           <WidgetSection
-            settings={client.widget_settings ?? defaultSettings}
+            settings={widgetSettings}
             isUploading={isUploading}
             onSettingsChange={handleSettingsChange}
             onLogoUpload={handleLogoUpload}

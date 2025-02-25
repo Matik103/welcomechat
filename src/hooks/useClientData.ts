@@ -1,7 +1,7 @@
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ClientFormData } from "@/types/client";
+import { ClientFormData, Client } from "@/types/client";
 import { toast } from "sonner";
 
 export const useClientData = (id: string | undefined) => {
@@ -15,7 +15,7 @@ export const useClientData = (id: string | undefined) => {
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data;
+      return data as Client;
     },
     enabled: !!id,
   });
@@ -26,19 +26,28 @@ export const useClientData = (id: string | undefined) => {
         if (id) {
           const { error } = await supabase
             .from("clients")
-            .update(data)
+            .update({
+              client_name: data.client_name,
+              email: data.email,
+              agent_name: data.agent_name,
+              widget_settings: data.widget_settings,
+            })
             .eq("id", id);
           if (error) throw error;
           return id;
         } else {
           const { data: newClient, error } = await supabase
             .from("clients")
-            .insert(data)
+            .insert({
+              client_name: data.client_name,
+              email: data.email,
+              agent_name: data.agent_name,
+              widget_settings: data.widget_settings,
+            })
             .select()
             .single();
           if (error) throw error;
           
-          // Check for the creation activity in client_activities
           const { data: activity, error: activityError } = await supabase
             .from("client_activities")
             .select("*")
