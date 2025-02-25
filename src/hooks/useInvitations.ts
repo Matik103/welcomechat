@@ -27,56 +27,59 @@ export function useInvitations(clientId?: string) {
   const queryClient = useQueryClient();
 
   // Check if the current user has permission to manage invitations
-  const { data: userRole } = useQuery({
-    queryKey: ["userRole"],
+  const { data: hasPermission, isLoading: isCheckingPermission } = useQuery({
+    queryKey: ["userPermissions"],
     queryFn: async () => {
-      console.log("Fetching user role...");
+      // First, get the current user's ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log("No user found");
-        return null;
+        console.log("No authenticated user found");
+        return false;
       }
-      console.log("Found user:", user.id);
 
-      // Query the user_roles table for admin or manager roles
-      const { data: roles, error } = await supabase
-        .from("user_roles")
-        .select("*")
-        .eq("user_id", user.id)
-        .in("role", ['admin', 'manager'])
-        .single();
+      // Check if user has admin or manager role using RPC
+      const { data, error } = await supabase
+        .rpc('check_user_role', {
+          allowed_roles: ['admin', 'manager']
+        });
 
       if (error) {
-        console.error("Error fetching user role:", error);
-        return null;
+        console.error("Error checking user role:", error);
+        return false;
       }
 
-      console.log("Role found:", roles?.role);
-      return roles?.role || null;
+      console.log("User has permission:", data);
+      return data;
     },
   });
 
-  const { data: invitations, isLoading } = useQuery({
+  const { data: invitations, isLoading: isLoadingInvitations } = useQuery({
     queryKey: ["invitations", clientId],
     queryFn: async () => {
-      if (!userRole) return [];
+      if (!hasPermission) {
+        console.log("User doesn't have permission to view invitations");
+        return [];
+      }
 
       const { data, error } = await supabase
         .from("client_invitations")
         .select("*")
-        .eq("client_id", clientId)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching invitations:", error);
+        throw error;
+      }
+
       return data as Invitation[];
     },
-    enabled: !!clientId && !!userRole,
+    enabled: !isCheckingPermission && hasPermission === true,
   });
 
   const createInvitation = useMutation({
     mutationFn: async ({ email, client_id, role_type }: CreateInvitationData) => {
-      if (!userRole || !['admin', 'manager'].includes(userRole)) {
-        throw new Error('Only administrators and managers can send invitations');
+      if (!hasPermission) {
+        throw new Error('You do not have permission to send invitations');
       }
 
       const token = uuidv4();
@@ -85,7 +88,7 @@ export function useInvitations(clientId?: string) {
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("client_invitations")
         .insert({
           email,
@@ -95,14 +98,16 @@ export function useInvitations(clientId?: string) {
           role_type,
           status: 'pending',
           created_by: currentUser.user.id
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         console.error('Invitation creation error:', error);
         throw new Error(error.message);
       }
-      
-      return token;
+
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
@@ -116,14 +121,16 @@ export function useInvitations(clientId?: string) {
 
   const cancelInvitation = useMutation({
     mutationFn: async (invitationId: string) => {
-      if (!userRole || !['admin', 'manager'].includes(userRole)) {
-        throw new Error('Only administrators and managers can cancel invitations');
+      if (!hasPermission) {
+        throw new Error('You do not have permission to cancel invitations');
       }
 
       const { error } = await supabase
         .from("client_invitations")
         .update({ status: "expired" })
-        .eq("id", invitationId);
+        .eq("id", invitationId)
+        .select()
+        .single();
 
       if (error) {
         console.error('Cancel invitation error:', error);
@@ -140,15 +147,13 @@ export function useInvitations(clientId?: string) {
     },
   });
 
-  // Return true if user has permission to manage invitations
-  const canManageInvitations = userRole && ['admin', 'manager'].includes(userRole);
-  console.log("Current user role:", userRole, "Can manage invitations:", canManageInvitations);
+  const isLoading = isCheckingPermission || isLoadingInvitations;
 
   return {
     invitations,
     isLoading,
     createInvitation,
     cancelInvitation,
-    isAdmin: canManageInvitations // Keep the same prop name for backward compatibility
+    isAdmin: hasPermission // Keep the same prop name for backward compatibility
   };
 }
