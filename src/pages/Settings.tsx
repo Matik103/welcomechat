@@ -56,43 +56,72 @@ const Settings = () => {
       setCurrentFactorId(null);
       setVerificationCode("");
       
+      console.log("Starting MFA enrollment process...");
+      
       // First, check for any existing factors and clean up
       const { data: existingFactors, error: listError } = await supabase.auth.mfa.listFactors();
-      if (listError) throw listError;
+      if (listError) {
+        console.error("Error listing factors:", listError);
+        throw listError;
+      }
+      
+      console.log("Existing factors:", existingFactors);
       
       // Clean up any existing unverified factors
       const unverifiedFactor = existingFactors.totp.find(f => f.status === 'unverified');
       if (unverifiedFactor) {
-        await supabase.auth.mfa.unenroll({ factorId: unverifiedFactor.id });
+        console.log("Cleaning up unverified factor:", unverifiedFactor.id);
+        const { error: unenrollError } = await supabase.auth.mfa.unenroll({ 
+          factorId: unverifiedFactor.id 
+        });
+        if (unenrollError) {
+          console.error("Error unenrolling factor:", unenrollError);
+          throw unenrollError;
+        }
       }
 
+      console.log("Enrolling new factor...");
       // Enroll new factor
-      const { data, error } = await supabase.auth.mfa.enroll({
+      const { data: enrollData, error: enrollError } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         issuer: 'AI Chatbot Admin System',
         friendlyName: `TOTP-${Date.now()}`
       });
       
-      if (error) throw error;
+      if (enrollError) {
+        console.error("Error enrolling factor:", enrollError);
+        throw enrollError;
+      }
       
-      if (!data.totp) {
-        throw new Error('Failed to generate QR code');
+      if (!enrollData?.totp) {
+        console.error("No TOTP data in enrollment response");
+        throw new Error('Failed to generate QR code - no TOTP data received');
       }
 
+      console.log("Enrollment successful, getting new factor...");
+      
       // Get the newly created factor ID
-      const { data: { totp } } = await supabase.auth.mfa.listFactors();
-      const newFactor = totp.find(f => f.status === 'unverified');
-      
-      if (!newFactor) {
-        throw new Error('Failed to create new factor');
+      const { data: factorsData, error: getFactorsError } = await supabase.auth.mfa.listFactors();
+      if (getFactorsError) {
+        console.error("Error getting factors after enrollment:", getFactorsError);
+        throw getFactorsError;
       }
 
+      console.log("Available factors after enrollment:", factorsData);
+      
+      const newFactor = factorsData.totp.find(f => f.status === 'unverified');
+      if (!newFactor) {
+        console.error("No unverified factor found after enrollment");
+        throw new Error('Failed to find newly created factor');
+      }
+
+      console.log("Setting up new factor with ID:", newFactor.id);
       setCurrentFactorId(newFactor.id);
-      setQrCode(data.totp.qr_code);
+      setQrCode(enrollData.totp.qr_code);
       
     } catch (error: any) {
-      console.error('MFA Error:', error);
-      toast.error(error.message);
+      console.error('MFA Enrollment Error:', error);
+      toast.error(error.message || 'Failed to set up 2FA. Please try again.');
       setQrCode(null);
       setCurrentFactorId(null);
       setVerificationCode("");
