@@ -59,17 +59,20 @@ export const SecuritySection = ({
     setMfaLoading(true);
     try {
       await onEnableMFA();
+    } catch (error) {
+      console.error('Error enabling MFA:', error);
     } finally {
       setMfaLoading(false);
     }
   };
 
   const handleMfaVerify = async () => {
-    setMfaLoading(true);
+    if (!verificationCode || verificationCode.length !== 6) return;
+    
     try {
       await onVerifyMFA();
-    } finally {
-      setMfaLoading(false);
+    } catch (error) {
+      console.error('Error verifying MFA:', error);
     }
   };
 
@@ -152,12 +155,10 @@ export const SecuritySection = ({
               </div>
               <Button 
                 onClick={handleMfaVerify} 
-                disabled={mfaLoading || verificationCode.length !== 6}
+                disabled={!verificationCode || verificationCode.length !== 6}
                 className="w-full"
               >
-                {mfaLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : "Verify and Enable 2FA"}
+                Verify and Enable 2FA
               </Button>
             </div>
           ) : (
