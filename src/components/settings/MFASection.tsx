@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -62,21 +62,23 @@ export const useMFAHandlers = () => {
 
       if (verifyError) throw verifyError;
 
-      setMfaEnabled(true);
       toast.success("2FA enabled successfully");
+      await checkMfaStatus(); // Refresh MFA status after successful verification
       
       // Reset the state
       setQrCode(null);
       setCurrentFactorId(null);
       setVerificationCode("");
-      
-      // Refresh MFA status
-      await checkMfaStatus();
     } catch (error: any) {
       toast.error(error.message || "Failed to verify 2FA code");
       setVerificationCode("");
     }
   };
+
+  // Initial check of MFA status
+  useEffect(() => {
+    checkMfaStatus();
+  }, []);
 
   return {
     mfaEnabled,
