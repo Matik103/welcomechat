@@ -23,6 +23,11 @@ function App() {
             <Index />
           </RoleRoute>
         } />
+        <Route path="/admin" element={
+          <RoleRoute allowedRoles={['admin']}>
+            <Index />
+          </RoleRoute>
+        } />
         <Route path="/dashboard" element={
           <RoleRoute allowedRoles={['client']}>
             <Dashboard />
