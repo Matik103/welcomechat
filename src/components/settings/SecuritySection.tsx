@@ -116,8 +116,9 @@ export const SecuritySection = ({
                 required
               />
             </div>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="w-full">
               {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              <KeyRound className="h-4 w-4 mr-2" />
               Update Password
             </Button>
           </form>
@@ -136,7 +137,7 @@ export const SecuritySection = ({
               : "Protect your account with an additional layer of security"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {mfaEnabled ? (
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm">
@@ -152,7 +153,7 @@ export const SecuritySection = ({
             </div>
           ) : qrCode ? (
             <div className="space-y-4">
-              <div className="flex justify-center">
+              <div className="flex justify-center p-4 bg-muted rounded-lg">
                 <img src={qrCode} alt="QR Code for 2FA" className="w-48 h-48" />
               </div>
               <p className="text-sm text-center text-muted-foreground">
@@ -180,7 +181,10 @@ export const SecuritySection = ({
                     Verifying...
                   </>
                 ) : (
-                  "Verify and Enable 2FA"
+                  <>
+                    <Shield className="h-4 w-4 mr-2" />
+                    Verify and Enable 2FA
+                  </>
                 )}
               </Button>
             </div>
