@@ -31,27 +31,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log("Auth state changed:", _event, session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
-
-      if (_event === 'SIGNED_OUT') {
-        navigate('/auth');
-      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, []);
 
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      navigate('/auth');
+      toast.success("Successfully signed out");
+      setSession(null);
+      setUser(null);
+      navigate('/auth', { replace: true });
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error("Failed to sign out");

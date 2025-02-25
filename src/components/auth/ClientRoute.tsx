@@ -30,8 +30,8 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
       return (data as InvitationData | null);
     },
     enabled: !!session?.user.email,
-    staleTime: 30000, // Cache for 30 seconds to prevent rapid refetching
-    retry: false // Don't retry on failure
+    staleTime: 30000,
+    retry: false
   });
 
   if (isLoading || isLoadingRole) {
@@ -46,12 +46,10 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
     return <Navigate to="/client-auth" replace />;
   }
 
-  // If no invitation exists, redirect to auth
   if (!invitation) {
     return <Navigate to="/auth" replace />;
   }
 
-  // If user is an admin, redirect them to admin dashboard
   if (invitation.role_type === "admin") {
     return <Navigate to="/" replace />;
   }
