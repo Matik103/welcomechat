@@ -22,7 +22,7 @@ import type { Database } from "@/types/database.types";
 type UserRole = Database['public']['Tables']['user_roles']['Row']['role'];
 
 const App = () => {
-  const { data: userRole } = useQuery({
+  const { data: userRole, isLoading } = useQuery({
     queryKey: ["user-role"],
     queryFn: async () => {
       try {
@@ -35,8 +35,11 @@ const App = () => {
           .eq('user_id', user.id)
           .maybeSingle();
         
-        if (error || !roleData) return null;
-        return roleData.role as UserRole;
+        if (error) {
+          console.error('Error fetching user role:', error);
+          return null;
+        }
+        return roleData?.role as UserRole | null;
       } catch (error) {
         console.error('Error fetching user role:', error);
         return null;
@@ -45,37 +48,40 @@ const App = () => {
     retry: false
   });
 
+  // If we're still loading the role, show a default route
+  if (isLoading) {
+    return (
+      <AuthProvider>
+        <TooltipProvider>
+          <BrowserRouter>
+            <Header />
+            <div>Loading...</div>
+            <Toaster />
+            <Sonner />
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    );
+  }
+
   return (
     <AuthProvider>
       <TooltipProvider>
         <BrowserRouter>
           <Header />
           <Routes>
-            {/* Admin routes */}
-            {userRole === 'admin' && (
-              <Route
-                path="/"
-                element={
-                  <PrivateRoute>
-                    <Index />
-                  </PrivateRoute>
-                }
-              />
-            )}
-            
-            {/* Client routes - redirect to client dashboard if not admin */}
-            {userRole === 'client' && (
-              <Route
-                path="/"
-                element={
-                  <PrivateRoute>
-                    <ClientDashboard />
-                  </PrivateRoute>
-                }
-              />
-            )}
-            
+            {/* Public route */}
             <Route path="/auth" element={<Auth />} />
+            
+            {/* Default route that checks role */}
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  {userRole === 'admin' ? <Index /> : <ClientDashboard />}
+                </PrivateRoute>
+              }
+            />
             
             {/* Protected routes for both admin and client */}
             <Route
