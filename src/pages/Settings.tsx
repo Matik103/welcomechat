@@ -20,8 +20,6 @@ const Settings = () => {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
-  const [factorId, setFactorId] = useState<string>("");
-  const [challengeId, setChallengeId] = useState<string>("");
 
   useEffect(() => {
     checkMfaStatus();
@@ -29,16 +27,14 @@ const Settings = () => {
 
   const checkMfaStatus = async () => {
     try {
-      const { data, error } = await supabase.auth.mfa.listFactors();
+      const { data: { totp }, error } = await supabase.auth.mfa.listFactors();
       if (error) throw error;
-      // Only consider MFA enabled if there's a verified TOTP factor
-      setMfaEnabled(data.totp.length > 0 && data.totp.some(factor => factor.status === 'verified'));
-
-      // If there's an unverified factor, we should clean it up
-      if (data.totp.length > 0 && data.totp.every(factor => factor.status !== 'verified')) {
-        // This will allow the user to start fresh
+      
+      setMfaEnabled(totp.length > 0 && totp.some(factor => factor.status === 'verified'));
+      
+      // Reset QR code if no verification is in progress
+      if (totp.length === 0 || totp.every(factor => factor.status === 'verified')) {
         setQrCode(null);
-        setFactorId("");
       }
     } catch (error: any) {
       console.error('Error checking MFA status:', error);
@@ -55,7 +51,6 @@ const Settings = () => {
       if (error) throw error;
       if (data.totp) {
         setQrCode(data.totp.qr_code);
-        // Factor ID is not needed at this stage
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -65,37 +60,42 @@ const Settings = () => {
   };
 
   const handleVerifyMFA = async () => {
+    if (!verificationCode) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+
     try {
       setLoading(true);
       
-      // Get the current factors
-      const { data: factorData, error: factorError } = await supabase.auth.mfa.listFactors();
-      if (factorError) throw factorError;
-
-      // Get the unverified TOTP factor
-      const totpFactor = factorData.totp.find(factor => factor.status === 'unverified');
-      if (!totpFactor) {
-        throw new Error('No unverified TOTP factor found');
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const unverifiedFactor = factors.totp.find(f => f.status === 'unverified');
+      
+      if (!unverifiedFactor) {
+        toast.error("No pending 2FA setup found. Please try again.");
+        setQrCode(null);
+        return;
       }
 
-      // Create challenge
-      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: totpFactor.id
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: unverifiedFactor.id
       });
+      
       if (challengeError) throw challengeError;
 
-      // Verify the challenge
       const { data, error: verifyError } = await supabase.auth.mfa.verify({
-        factorId: totpFactor.id,
-        challengeId: challengeData.id,
+        factorId: unverifiedFactor.id,
+        challengeId: challenge.id,
         code: verificationCode
       });
+
       if (verifyError) throw verifyError;
 
       setMfaEnabled(true);
       setQrCode(null);
       setVerificationCode("");
       toast.success("2FA has been enabled successfully");
+      await checkMfaStatus();
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -202,9 +202,7 @@ const Settings = () => {
                 />
               </div>
               <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
+                {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Update Profile
               </Button>
             </form>
@@ -244,9 +242,7 @@ const Settings = () => {
                 />
               </div>
               <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
+                {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Update Password
               </Button>
             </form>
