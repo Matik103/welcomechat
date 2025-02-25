@@ -1,9 +1,13 @@
 
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+
+type InvitationType = {
+  role_type: 'admin' | 'client';
+};
 
 interface ClientRouteProps {
   children: React.ReactNode;
@@ -11,8 +15,9 @@ interface ClientRouteProps {
 
 export const ClientRoute = ({ children }: ClientRouteProps) => {
   const { session, isLoading } = useAuth();
+  const location = useLocation();
 
-  const { data: userRole, isLoading: isLoadingRole } = useQuery({
+  const { data: invitation, isLoading: isLoadingRole } = useQuery({
     queryKey: ["userRole", session?.user.email],
     queryFn: async () => {
       if (!session?.user.email) return null;
@@ -21,9 +26,13 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
         .select("role_type")
         .eq("email", session.user.email)
         .eq("status", "accepted")
-        .single();
-      if (error) return null;
-      return data?.role_type ?? null;
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Error fetching role:", error);
+        return null;
+      }
+      return data as InvitationType | null;
     },
     enabled: !!session?.user.email,
   });
@@ -37,16 +46,16 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
   }
 
   if (!session) {
-    return <Navigate to="/client-auth" replace />;
+    return <Navigate to="/client-auth" state={{ from: location }} replace />;
   }
 
   // If user is an admin, redirect them to admin dashboard
-  if (userRole === "admin") {
+  if (invitation?.role_type === "admin") {
     return <Navigate to="/" replace />;
   }
 
   // For clients, continue to client routes
-  if (userRole === "client") {
+  if (invitation?.role_type === "client") {
     return <>{children}</>;
   }
 
