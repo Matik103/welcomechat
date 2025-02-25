@@ -35,14 +35,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error("Error checking user role:", error);
-        setUserRole(null);
-        return;
+        return null;
       }
 
-      setUserRole(data?.role as UserRole || null);
+      return data?.role as UserRole || null;
     } catch (error) {
       console.error("Error checking user role:", error);
-      setUserRole(null);
+      return null;
     }
   };
 
@@ -51,21 +50,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
-        // Get initial session
         const { data: { session: initialSession } } = await supabase.auth.getSession();
-
-        // Only update state if component is still mounted
+        
         if (!mounted) return;
 
         if (initialSession) {
           console.log("Initial session found:", initialSession.user.email);
           setSession(initialSession);
           setUser(initialSession.user);
-          await checkUserRole(initialSession.user.id);
-        } else {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
+          
+          const role = await checkUserRole(initialSession.user.id);
+          setUserRole(role);
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
@@ -78,28 +73,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initializeAuth();
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        if (!mounted) return;
         console.log("Auth state changed:", event, currentSession?.user?.email);
 
-        if (!mounted) return;
+        // Only update session if it's actually different
+        const sessionChanged = 
+          (currentSession?.user?.id !== session?.user?.id) ||
+          (currentSession === null && session !== null);
 
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        if (sessionChanged) {
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
 
-        if (currentSession?.user) {
-          await checkUserRole(currentSession.user.id);
-
-          if (location.pathname === '/auth') {
-            navigate('/', { replace: true });
-          }
-        } else {
-          setUserRole(null);
-          
-          // Only redirect to auth if not already there
-          if (!location.pathname.startsWith('/auth')) {
-            navigate('/auth', { replace: true });
+          if (currentSession?.user) {
+            const role = await checkUserRole(currentSession.user.id);
+            setUserRole(role);
+          } else {
+            setUserRole(null);
+            // Only navigate to auth if we're not already there and not loading
+            if (!location.pathname.startsWith('/auth') && !isLoading) {
+              navigate('/auth', { replace: true });
+            }
           }
         }
       }
@@ -119,7 +115,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUserRole(null);
       setSession(null);
       setUser(null);
-
+      
       navigate('/auth', { replace: true });
       toast.success("Successfully signed out");
     } catch (error: any) {
