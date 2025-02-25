@@ -264,21 +264,20 @@ const Settings = () => {
     try {
       setInviteLoading(true);
       const token = uuidv4();
-      const expires_at = new Date();
-      expires_at.setHours(expires_at.getHours() + 48); // 48 hours expiry
+      const expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
       const { error } = await supabase
         .from("client_invitations")
         .insert({
           email: inviteEmail,
           token,
-          expires_at: expires_at.toISOString(),
-          role_type: role
+          expires_at,
+          role_type: role,
+          status: 'pending'
         });
 
       if (error) throw error;
 
-      // Send invitation email logic would go here
       toast.success(`Invitation sent to ${inviteEmail} as ${role}`);
       setInviteEmail("");
     } catch (error: any) {
