@@ -32,10 +32,13 @@ const Settings = () => {
       const { data: { totp }, error } = await supabase.auth.mfa.listFactors();
       if (error) throw error;
       
-      setMfaEnabled(totp.length > 0 && totp.some(factor => factor.status === 'verified'));
+      const verifiedFactor = totp.find(factor => factor.status === 'verified');
+      setMfaEnabled(!!verifiedFactor);
       
-      // Reset QR code if no verification is in progress
-      if (totp.length === 0 || totp.every(factor => factor.status === 'verified')) {
+      const unverifiedFactor = totp.find(factor => factor.status === 'unverified');
+      if (unverifiedFactor) {
+        setCurrentFactorId(unverifiedFactor.id);
+      } else {
         setQrCode(null);
         setCurrentFactorId(null);
       }
@@ -48,43 +51,51 @@ const Settings = () => {
     try {
       setLoading(true);
       
-      // Clear any existing state
-      setCurrentFactorId(null);
+      // Clear existing states
       setQrCode(null);
+      setCurrentFactorId(null);
+      setVerificationCode("");
       
-      // First, check for any existing factors
+      // First, check for any existing factors and clean up
       const { data: existingFactors, error: listError } = await supabase.auth.mfa.listFactors();
       if (listError) throw listError;
       
-      // If there's an unverified factor, we need to clean it up
+      // Clean up any existing unverified factors
       const unverifiedFactor = existingFactors.totp.find(f => f.status === 'unverified');
       if (unverifiedFactor) {
-        // Unenroll the existing unverified factor
         await supabase.auth.mfa.unenroll({ factorId: unverifiedFactor.id });
       }
 
-      // Now enroll a new factor
+      // Enroll new factor
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         issuer: 'AI Chatbot Admin System',
-        friendlyName: `TOTP-${Date.now()}` // Add a unique friendly name
+        friendlyName: `TOTP-${Date.now()}`
       });
       
       if (error) throw error;
-      if (data.totp) {
-        setQrCode(data.totp.qr_code);
-        // Store the new factor ID
-        const { data: { totp } } = await supabase.auth.mfa.listFactors();
-        const newFactor = totp.find(f => f.status === 'unverified');
-        if (newFactor) {
-          setCurrentFactorId(newFactor.id);
-        }
+      
+      if (!data.totp) {
+        throw new Error('Failed to generate QR code');
       }
+
+      // Get the newly created factor ID
+      const { data: { totp } } = await supabase.auth.mfa.listFactors();
+      const newFactor = totp.find(f => f.status === 'unverified');
+      
+      if (!newFactor) {
+        throw new Error('Failed to create new factor');
+      }
+
+      setCurrentFactorId(newFactor.id);
+      setQrCode(data.totp.qr_code);
+      
     } catch (error: any) {
       console.error('MFA Error:', error);
       toast.error(error.message);
       setQrCode(null);
       setCurrentFactorId(null);
+      setVerificationCode("");
     } finally {
       setLoading(false);
     }
@@ -104,6 +115,14 @@ const Settings = () => {
 
     try {
       setLoading(true);
+
+      // Double check that the factor still exists
+      const { data: { totp } } = await supabase.auth.mfa.listFactors();
+      const factorToVerify = totp.find(f => f.id === currentFactorId);
+      
+      if (!factorToVerify) {
+        throw new Error("Setup session expired. Please start again.");
+      }
 
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId: currentFactorId
@@ -126,11 +145,14 @@ const Settings = () => {
       toast.success("2FA has been enabled successfully");
       await checkMfaStatus();
     } catch (error: any) {
-      toast.error(error.message);
-      // Only clear states if it's not a verification code error
-      if (!error.message.includes('Invalid one-time password')) {
+      console.error('Verification Error:', error);
+      if (error.message.includes('Invalid one-time password')) {
+        toast.error("Invalid verification code. Please try again.");
+      } else {
+        toast.error(error.message);
         setQrCode(null);
         setCurrentFactorId(null);
+        setVerificationCode("");
       }
     } finally {
       setLoading(false);
