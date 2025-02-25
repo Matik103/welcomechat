@@ -1,5 +1,6 @@
+
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +17,11 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const { session } = useAuth();
+  const navigate = useNavigate();
 
-  // If already logged in, redirect to clients page
   if (session) {
-    return <Navigate to="/clients" replace />;
+    navigate("/clients", { replace: true });
+    return null;
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -60,7 +62,7 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             prompt: 'select_account'
           }

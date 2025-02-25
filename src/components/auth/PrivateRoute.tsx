@@ -1,5 +1,5 @@
 
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +11,6 @@ interface InvitationData {
 
 export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useAuth();
-  const location = useLocation();
 
   const { data: invitation, isLoading: isLoadingRole } = useQuery({
     queryKey: ["userRole", session?.user.email],
@@ -27,8 +26,8 @@ export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
       return (data as InvitationData | null);
     },
     enabled: !!session?.user.email,
-    staleTime: 30000, // Cache for 30 seconds to prevent rapid refetching
-    retry: false // Don't retry on failure
+    staleTime: 30000,
+    retry: false
   });
 
   if (isLoading || isLoadingRole) {
@@ -40,17 +39,13 @@ export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!session) {
-    // Use state to preserve the return URL
-    const returnTo = location.pathname + location.search;
-    return <Navigate to="/auth" state={{ returnTo }} replace />;
+    return <Navigate to="/auth" replace />;
   }
 
-  // If no invitation exists, redirect to auth
   if (!invitation) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Only allow admin users to access admin routes
   if (invitation.role_type !== "admin") {
     return <Navigate to="/client-dashboard" replace />;
   }
