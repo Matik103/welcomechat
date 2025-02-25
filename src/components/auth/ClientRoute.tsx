@@ -5,9 +5,9 @@ import { Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-type InvitationType = {
+interface InvitationData {
   role_type: 'admin' | 'client';
-};
+}
 
 interface ClientRouteProps {
   children: React.ReactNode;
@@ -21,18 +21,14 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
     queryKey: ["userRole", session?.user.email],
     queryFn: async () => {
       if (!session?.user.email) return null;
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("client_invitations")
         .select("role_type")
         .eq("email", session.user.email)
         .eq("status", "accepted")
         .maybeSingle();
       
-      if (error) {
-        console.error("Error fetching role:", error);
-        return null;
-      }
-      return data as InvitationType | null;
+      return (data as InvitationData | null);
     },
     enabled: !!session?.user.email,
   });

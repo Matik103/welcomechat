@@ -95,6 +95,7 @@ export type Database = {
           email: string
           expires_at: string
           id: string
+          role_type: Database["public"]["Enums"]["role_type"]
           status: Database["public"]["Enums"]["invitation_status"] | null
           token: string
         }
@@ -106,6 +107,7 @@ export type Database = {
           email: string
           expires_at: string
           id?: string
+          role_type?: Database["public"]["Enums"]["role_type"]
           status?: Database["public"]["Enums"]["invitation_status"] | null
           token: string
         }
@@ -117,6 +119,7 @@ export type Database = {
           email?: string
           expires_at?: string
           id?: string
+          role_type?: Database["public"]["Enums"]["role_type"]
           status?: Database["public"]["Enums"]["invitation_status"] | null
           token?: string
         }
@@ -988,6 +991,7 @@ export type Database = {
         | "ai_agent_table_created"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"
+      role_type: "admin" | "client"
       source_type: "google_drive" | "website"
       user_role: "admin" | "manager" | "user"
     }
