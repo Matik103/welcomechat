@@ -40,40 +40,6 @@ export const useMFAHandlers = () => {
     }
   };
 
-  const waitForFactor = async (factorId: string, maxAttempts = 30): Promise<boolean> => {
-    for (let i = 0; i < maxAttempts; i++) {
-      console.log(`Attempt ${i + 1} of ${maxAttempts} to verify factor ${factorId}...`);
-      
-      try {
-        // Add initial delay before first check
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        const { data: factorsData, error } = await supabase.auth.mfa.listFactors();
-        if (error) {
-          console.error('Error listing factors:', error);
-          continue;
-        }
-        
-        if (!factorsData?.totp) {
-          console.log('No TOTP factors found yet, waiting...');
-          continue;
-        }
-        
-        const factor = factorsData.totp.find(f => f.id === factorId);
-        if (factor) {
-          console.log('Factor found:', factor);
-          return true;
-        }
-      } catch (error) {
-        console.error('Error in waitForFactor:', error);
-      }
-      
-      // Increase wait time between attempts
-      await new Promise(resolve => setTimeout(resolve, 3000));
-    }
-    return false;
-  };
-
   const handleEnableMFA = async () => {
     try {
       setQrCode(null);
@@ -81,9 +47,6 @@ export const useMFAHandlers = () => {
       setVerificationCode("");
       
       console.log("Starting MFA enrollment process...");
-      
-      // Initial delay before starting
-      await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Clean up any existing unverified factors
       const { data: factorsData } = await supabase.auth.mfa.listFactors();
@@ -93,13 +56,8 @@ export const useMFAHandlers = () => {
         if (factor.status === 'unverified') {
           console.log("Cleaning up unverified factor:", factor.id);
           await supabase.auth.mfa.unenroll({ factorId: factor.id });
-          // Wait after unenrolling each factor
-          await new Promise(resolve => setTimeout(resolve, 3000));
         }
       }
-      
-      // Wait after cleanup before enrolling
-      await new Promise(resolve => setTimeout(resolve, 3000));
 
       console.log("Enrolling new factor...");
       const { data: enrollData, error: enrollError } = await supabase.auth.mfa.enroll({
@@ -114,22 +72,10 @@ export const useMFAHandlers = () => {
         throw new Error('Failed to generate QR code - no TOTP data received');
       }
 
-      // Set QR code immediately
+      // Set QR code and factor ID
       setQrCode(enrollData.totp.qr_code);
-      
-      // Wait before checking for the factor
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Wait for the factor to be available and store its ID
       if (enrollData.id) {
-        console.log("Waiting for factor to be created:", enrollData.id);
-        const factorFound = await waitForFactor(enrollData.id);
-        if (factorFound) {
-          console.log("Factor created successfully:", enrollData.id);
-          setCurrentFactorId(enrollData.id);
-        } else {
-          throw new Error('Failed to verify factor creation');
-        }
+        setCurrentFactorId(enrollData.id);
       }
       
     } catch (error: any) {
@@ -149,9 +95,6 @@ export const useMFAHandlers = () => {
     try {
       console.log("Starting verification for factor:", currentFactorId);
       
-      // Add a delay before creating the challenge
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId: currentFactorId
       });
@@ -159,9 +102,6 @@ export const useMFAHandlers = () => {
       if (challengeError) throw challengeError;
 
       console.log("Challenge created:", challenge.id);
-
-      // Add a delay before verifying
-      await new Promise(resolve => setTimeout(resolve, 3000));
 
       const { error: verifyError } = await supabase.auth.mfa.verify({
         factorId: currentFactorId,
