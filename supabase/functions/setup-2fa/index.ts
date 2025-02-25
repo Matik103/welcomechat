@@ -1,12 +1,35 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { base32 } from "https://deno.land/x/base32@v0.2.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Simple base32 encoding implementation
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function base32Encode(buffer: Uint8Array): string {
+  let bits = 0;
+  let value = 0;
+  let output = '';
+
+  for (let i = 0; i < buffer.length; i++) {
+    value = (value << 8) | buffer[i];
+    bits += 8;
+
+    while (bits >= 5) {
+      output += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+
+  if (bits > 0) {
+    output += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+  }
+
+  return output;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -34,10 +57,10 @@ serve(async (req) => {
 
     if (clientError) throw clientError;
 
-    // Generate TOTP secret (32 bytes of random data)
+    // Generate TOTP secret (20 bytes = 160 bits, standard for TOTP)
     const secretBytes = new Uint8Array(20);
     crypto.getRandomValues(secretBytes);
-    const secret = base32.encode(secretBytes).replace(/=/g, '');
+    const secret = base32Encode(secretBytes);
 
     // Create OTP URL
     const issuer = encodeURIComponent("AI Agent Dashboard");
