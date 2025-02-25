@@ -29,6 +29,7 @@ export const SecuritySection = ({
 }: SecuritySectionProps) => {
   const [loading, setLoading] = useState(false);
   const [mfaLoading, setMfaLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -67,12 +68,15 @@ export const SecuritySection = ({
   };
 
   const handleMfaVerify = async () => {
-    if (!verificationCode || verificationCode.length !== 6) return;
+    if (!verificationCode || verificationCode.length !== 6 || !currentFactorId) return;
     
+    setVerifying(true);
     try {
       await onVerifyMFA();
     } catch (error) {
       console.error('Error verifying MFA:', error);
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -155,17 +159,29 @@ export const SecuritySection = ({
               </div>
               <Button 
                 onClick={handleMfaVerify} 
-                disabled={!verificationCode || verificationCode.length !== 6}
+                disabled={!verificationCode || verificationCode.length !== 6 || verifying}
                 className="w-full"
               >
-                Verify and Enable 2FA
+                {verifying ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify and Enable 2FA"
+                )}
               </Button>
             </div>
           ) : (
             <Button onClick={handleMfaEnable} disabled={mfaLoading}>
               {mfaLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : "Enable 2FA"}
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Setting up 2FA...
+                </>
+              ) : (
+                "Enable 2FA"
+              )}
             </Button>
           )}
         </CardContent>
