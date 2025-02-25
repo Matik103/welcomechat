@@ -86,53 +86,6 @@ export type Database = {
           },
         ]
       }
-      client_invitations: {
-        Row: {
-          accepted_at: string | null
-          client_id: string | null
-          created_at: string | null
-          created_by: string | null
-          email: string
-          expires_at: string
-          id: string
-          role_type: Database["public"]["Enums"]["role_type"]
-          status: Database["public"]["Enums"]["invitation_status"] | null
-          token: string
-        }
-        Insert: {
-          accepted_at?: string | null
-          client_id?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          email: string
-          expires_at: string
-          id?: string
-          role_type?: Database["public"]["Enums"]["role_type"]
-          status?: Database["public"]["Enums"]["invitation_status"] | null
-          token: string
-        }
-        Update: {
-          accepted_at?: string | null
-          client_id?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          email?: string
-          expires_at?: string
-          id?: string
-          role_type?: Database["public"]["Enums"]["role_type"]
-          status?: Database["public"]["Enums"]["invitation_status"] | null
-          token?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_invitations_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       client_recovery_tokens: {
         Row: {
           client_id: string | null
@@ -396,6 +349,42 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string | null
+          created_by: string
+          email: string
+          expires_at: string
+          id: string
+          role_type: string
+          status: Database["public"]["Enums"]["invitation_status"] | null
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string | null
+          created_by: string
+          email: string
+          expires_at: string
+          id?: string
+          role_type: string
+          status?: Database["public"]["Enums"]["invitation_status"] | null
+          token: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string | null
+          created_by?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          role_type?: string
+          status?: Database["public"]["Enums"]["invitation_status"] | null
+          token?: string
+        }
+        Relationships: []
+      }
       n8n: {
         Row: {
           content: string | null
@@ -606,8 +595,8 @@ export type Database = {
     Functions: {
       accept_invitation: {
         Args: {
-          token: string
-          user_id: string
+          token_param: string
+          accepting_user_id: string
         }
         Returns: string
       }
@@ -624,6 +613,12 @@ export type Database = {
             }
             Returns: unknown
           }
+      check_invitation_token: {
+        Args: {
+          token_param: string
+        }
+        Returns: boolean
+      }
       check_user_role: {
         Args: {
           allowed_roles: string[]
