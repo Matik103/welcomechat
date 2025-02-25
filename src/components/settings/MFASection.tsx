@@ -27,17 +27,32 @@ export const useMFAHandlers = () => {
 
   const handleEnableMFA = async () => {
     try {
-      const { data, error } = await supabase.auth.mfa.enroll({
-        factorType: 'totp'
-      });
-      
-      if (error) throw error;
-      
-      if (data?.totp) {
-        setQrCode(data.totp.qr_code);
-        setCurrentFactorId(data.id);
+      // First check for existing factors
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) throw factorsError;
+
+      // If there are no existing TOTP factors, enroll a new one
+      const totpFactor = factors.totp?.[0];
+      if (!totpFactor) {
+        const { data, error } = await supabase.auth.mfa.enroll({
+          factorType: 'totp'
+        });
+        
+        if (error) throw error;
+        
+        if (data?.totp) {
+          setQrCode(data.totp.qr_code);
+          setCurrentFactorId(data.id);
+        }
+      } else {
+        // If a factor exists but isn't verified, show the QR code again
+        if (totpFactor.status === 'unverified') {
+          setQrCode(totpFactor.totp?.qr_code || null);
+          setCurrentFactorId(totpFactor.id);
+        }
       }
     } catch (error: any) {
+      console.error('MFA Error:', error);
       toast.error(error.message || "Failed to enable 2FA");
       setQrCode(null);
       setCurrentFactorId(null);
@@ -48,15 +63,15 @@ export const useMFAHandlers = () => {
     if (!verificationCode || !currentFactorId) return;
 
     try {
-      const { data, error } = await supabase.auth.mfa.challenge({
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId: currentFactorId
       });
       
-      if (error) throw error;
+      if (challengeError) throw challengeError;
 
-      const { error: verifyError } = await supabase.auth.mfa.verify({
+      const { data, error: verifyError } = await supabase.auth.mfa.verify({
         factorId: currentFactorId,
-        challengeId: data.id,
+        challengeId: challenge.id,
         code: verificationCode
       });
 
@@ -70,6 +85,7 @@ export const useMFAHandlers = () => {
       setCurrentFactorId(null);
       setVerificationCode("");
     } catch (error: any) {
+      console.error('Verify Error:', error);
       toast.error(error.message || "Failed to verify 2FA code");
       setVerificationCode("");
     }
