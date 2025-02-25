@@ -25,6 +25,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+
+      // If session exists, redirect to the main admin dashboard
+      if (session?.user) {
+        navigate("/", { replace: true });
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
@@ -33,21 +38,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
-      if (event === 'SIGNED_IN') {
-        if (currentSession?.user?.email) {
-          const { data: invitation } = await supabase
-            .from("client_invitations")
-            .select("role_type")
-            .eq("email", currentSession.user.email)
-            .eq("status", "accepted")
-            .single();
-
-          if (invitation?.role_type === "client") {
-            navigate("/client-dashboard", { replace: true });
-          } else if (invitation?.role_type === "admin") {
-            navigate("/clients", { replace: true });
-          }
-        }
+      if (event === 'SIGNED_IN' && currentSession?.user) {
+        navigate("/", { replace: true }); // Always redirect to main admin dashboard
       } else if (event === 'SIGNED_OUT') {
         navigate("/auth", { replace: true });
       }

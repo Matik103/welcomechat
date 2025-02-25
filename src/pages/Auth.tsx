@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -18,25 +18,8 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const { session, isLoading } = useAuth();
 
-  // Check user role if session exists
-  const { data: invitation, isLoading: isLoadingRole } = useQuery({
-    queryKey: ["userRole", session?.user?.email],
-    queryFn: async () => {
-      if (!session?.user?.email) return null;
-      const { data } = await supabase
-        .from("client_invitations")
-        .select("role_type")
-        .eq("email", session.user.email)
-        .eq("status", "accepted")
-        .single();
-      return data;
-    },
-    enabled: !!session?.user?.email,
-    retry: false
-  });
-
   // Show loading spinner while checking auth state
-  if (isLoading || isLoadingRole) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -44,20 +27,15 @@ const Auth = () => {
     );
   }
 
-  // Redirect if authenticated
-  if (session && invitation) {
-    if (invitation.role_type === "client") {
-      return <Navigate to="/client-dashboard" replace />;
-    }
-    if (invitation.role_type === "admin") {
-      return <Navigate to="/clients" replace />;
-    }
+  // Redirect authenticated users to the main dashboard
+  if (session) {
+    return <Navigate to="/" replace />;
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isAuthLoading) return; // Prevent multiple submissions
+    if (isAuthLoading) return;
     setIsAuthLoading(true);
 
     try {
