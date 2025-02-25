@@ -56,7 +56,7 @@ export const SecuritySection = ({
 
   return (
     <>
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
@@ -100,7 +100,7 @@ export const SecuritySection = ({
                   onClick={onVerifyMFA}
                   disabled={!verificationCode || verificationCode.length !== 6}
                   className="w-full"
-                  size="lg"
+                  size="default"
                 >
                   Verify and Enable 2FA
                 </Button>
@@ -113,8 +113,8 @@ export const SecuritySection = ({
               </p>
               <Button 
                 onClick={onEnableMFA} 
-                className="w-full" 
-                size="lg"
+                className="w-full"
+                size="default"
                 variant="default"
               >
                 Set up 2FA
@@ -156,7 +156,7 @@ export const SecuritySection = ({
                 required
               />
             </div>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="w-full">
               {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Update Password
             </Button>
