@@ -119,16 +119,18 @@ const Index = () => {
         .eq('activity_type', 'chat_interaction')
         .gte("created_at", startDate.toISOString());
 
-      // Calculate total and average interactions for the time period
+      // Total clients count (not affected by time range)
       const totalClientCount = totalClients?.length ?? 0;
+      
+      // Active clients count (last 48 hours only)
       const currentActiveCount = activeClientsData?.length ?? 0;
+      
+      // Calculate interactions metrics (affected by time range)
       const totalInteractions = interactions?.length ?? 0;
-      
-      // Calculate average interactions and its change percentage
       const avgInteractions = totalClientCount ? Math.round(totalInteractions / totalClientCount) : 0;
-      const previousStartDate = new Date(startDate.getTime() - (startDate.getTime() - now.getTime()));
-      
+
       // Get previous period interactions for comparison
+      const previousStartDate = new Date(startDate.getTime() - (startDate.getTime() - now.getTime()));
       const { data: previousInteractions } = await supabase
         .from("client_activities")
         .select("*")

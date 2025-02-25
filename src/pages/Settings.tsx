@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -70,16 +69,25 @@ const Settings = () => {
   const handleVerifyMFA = async () => {
     try {
       setLoading(true);
-      // First, create a challenge
+      
+      // First, get the factors list to get the correct UUID
+      const { data: factorData } = await supabase.auth.mfa.listFactors();
+      const totpFactor = factorData?.totp?.[0];
+      
+      if (!totpFactor?.id) {
+        throw new Error("No TOTP factor found");
+      }
+
+      // Create challenge with the correct UUID
       const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: factorId
+        factorId: totpFactor.id // Using the correct UUID
       });
       
       if (challengeError) throw challengeError;
       
-      // Then verify with the challenge
+      // Verify with the challenge
       const { data, error: verifyError } = await supabase.auth.mfa.verify({
-        factorId: factorId,
+        factorId: totpFactor.id, // Using the correct UUID
         challengeId: challengeData.id,
         code: verificationCode
       });
