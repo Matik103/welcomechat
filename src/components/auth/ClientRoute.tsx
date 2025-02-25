@@ -1,5 +1,5 @@
 
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -15,7 +15,6 @@ interface ClientRouteProps {
 
 export const ClientRoute = ({ children }: ClientRouteProps) => {
   const { session, isLoading } = useAuth();
-  const location = useLocation();
 
   const { data: invitation, isLoading: isLoadingRole } = useQuery({
     queryKey: ["userRole", session?.user.email],
@@ -44,9 +43,7 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
   }
 
   if (!session) {
-    // Use state to preserve the return URL
-    const returnTo = location.pathname + location.search;
-    return <Navigate to="/client-auth" state={{ returnTo }} replace />;
+    return <Navigate to="/client-auth" replace />;
   }
 
   // If no invitation exists, redirect to auth
@@ -59,6 +56,5 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
     return <Navigate to="/" replace />;
   }
 
-  // For clients, continue to client routes
   return <>{children}</>;
 };
