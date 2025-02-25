@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,9 +55,9 @@ const Settings = () => {
       if (error) throw error;
       if (data.totp) {
         setQrCode(data.totp.qr_code);
-        // Store the totp.secret instead of non-existent id
-        // This will be used for verification
-        setFactorId(data.totp.secret);
+        // Generate a UUID for the factor ID
+        const newFactorId = crypto.randomUUID();
+        setFactorId(newFactorId);
       }
     } catch (error: any) {
       toast.error(error.message);
