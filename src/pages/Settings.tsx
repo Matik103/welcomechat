@@ -1,8 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { SecuritySection } from "@/components/settings/SecuritySection";
 import { InvitationsSection } from "@/components/settings/InvitationsSection";
@@ -126,6 +128,7 @@ const Settings = () => {
       
     } catch (error: any) {
       console.error('MFA Enrollment Error:', error);
+      toast.error(error.message || "Failed to enable 2FA");
       setQrCode(null);
       setCurrentFactorId(null);
       setVerificationCode("");
@@ -168,6 +171,7 @@ const Settings = () => {
       await checkMfaStatus();
     } catch (error: any) {
       console.error('Verification Error:', error);
+      toast.error(error.message || "Failed to verify 2FA code");
       if (error.message.includes('Invalid one-time password')) {
         setVerificationCode("");
       } else {
