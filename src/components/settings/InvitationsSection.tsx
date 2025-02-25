@@ -50,8 +50,8 @@ export const InvitationsSection = () => {
     }
   };
 
+  // Only render for admins
   if (!isAdmin) {
-    console.log("User cannot manage invitations, hiding invitations section");
     return null;
   }
 
