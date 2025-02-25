@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface InvitationData {
-  role_type: 'admin' | 'client';
+  role_type: string;
 }
 
 interface ClientRouteProps {
@@ -21,7 +21,7 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
     queryFn: async () => {
       if (!session?.user.email) return null;
       const { data } = await supabase
-        .from("client_invitations")
+        .from("invitations")
         .select("role_type")
         .eq("email", session.user.email)
         .eq("status", "accepted")
