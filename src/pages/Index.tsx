@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ArrowRight, Plus, Users, Settings, Link, UserPlus, Edit, Mail, Trash2, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -123,7 +122,9 @@ const Index = () => {
         activeClientsChange: activeChangePercentage.toFixed(1),
       };
     },
-    refetchInterval: 30000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Separate query for time-based metrics
@@ -187,7 +188,9 @@ const Index = () => {
         totalInteractions,
       };
     },
-    refetchInterval: 30000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: recentActivities } = useQuery({
@@ -220,7 +223,9 @@ const Index = () => {
         client_name: activity.clients?.client_name || "Unknown Client"
       }));
     },
-    refetchInterval: 30000,
+    refetchInterval: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
   });
 
   return (
