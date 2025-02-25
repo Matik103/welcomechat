@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ArrowRight, Plus, Users, Settings, Link, UserPlus, Edit, Mail, Trash2, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -78,26 +79,12 @@ const Index = () => {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
 
-  const { data: stats } = useQuery({
-    queryKey: ["dashboard-stats", timeRange],
+  // Separate query for total and active clients
+  const { data: clientStats } = useQuery({
+    queryKey: ["client-stats"],
     queryFn: async () => {
       const now = new Date();
-      let startDate = new Date();
-
-      switch (timeRange) {
-        case "1d":
-          startDate.setDate(now.getDate() - 1);
-          break;
-        case "1m":
-          startDate.setMonth(now.getMonth() - 1);
-          break;
-        case "1y":
-          startDate.setFullYear(now.getFullYear() - 1);
-          break;
-        default:
-          startDate = new Date(0);
-      }
-
+      
       // Get total clients (independent of time range)
       const { data: allClients } = await supabase
         .from("clients")
@@ -130,6 +117,36 @@ const Index = () => {
         ? currentActiveCount > 0 ? 100 : 0
         : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
 
+      return {
+        totalClients: totalClientCount,
+        activeClients: currentActiveCount,
+        activeClientsChange: activeChangePercentage.toFixed(1),
+      };
+    },
+    refetchInterval: 30000,
+  });
+
+  // Separate query for time-based metrics
+  const { data: interactionStats } = useQuery({
+    queryKey: ["interaction-stats", timeRange],
+    queryFn: async () => {
+      const now = new Date();
+      let startDate = new Date();
+
+      switch (timeRange) {
+        case "1d":
+          startDate.setDate(now.getDate() - 1);
+          break;
+        case "1m":
+          startDate.setMonth(now.getMonth() - 1);
+          break;
+        case "1y":
+          startDate.setFullYear(now.getFullYear() - 1);
+          break;
+        default:
+          startDate = new Date(0);
+      }
+
       // Get interactions for the selected time period
       const { data: currentPeriodInteractions } = await supabase
         .from("client_activities")
@@ -139,7 +156,13 @@ const Index = () => {
 
       const totalInteractions = currentPeriodInteractions?.length ?? 0;
 
-      // Calculate average interactions based on total clients
+      // Get total clients for average calculation
+      const { data: allClients } = await supabase
+        .from("clients")
+        .select("*", { count: "exact" })
+        .is("deletion_scheduled_at", null);
+      
+      const totalClientCount = allClients?.length ?? 0;
       const avgInteractions = totalClientCount ? Math.round(totalInteractions / totalClientCount) : 0;
 
       // Get previous period interactions for comparison
@@ -159,9 +182,6 @@ const Index = () => {
         : ((avgInteractions - prevAvgInteractions) / prevAvgInteractions * 100);
 
       return {
-        totalClients: totalClientCount,
-        activeClients: currentActiveCount,
-        activeClientsChange: activeChangePercentage.toFixed(1),
         avgInteractions,
         avgInteractionsChange: avgInteractionsChange.toFixed(1),
         totalInteractions,
@@ -232,21 +252,21 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard 
             title="Total Clients" 
-            value={stats?.totalClients || 0}
+            value={clientStats?.totalClients || 0}
           />
           <MetricCard 
             title="Active Clients" 
-            value={stats?.activeClients || 0}
-            change={stats?.activeClientsChange}
+            value={clientStats?.activeClients || 0}
+            change={clientStats?.activeClientsChange}
           />
           <MetricCard 
             title="Avg. Interactions" 
-            value={stats?.avgInteractions || 0}
-            change={stats?.avgInteractionsChange}
+            value={interactionStats?.avgInteractions || 0}
+            change={interactionStats?.avgInteractionsChange}
           />
           <MetricCard 
             title="Total Interactions" 
-            value={stats?.totalInteractions || 0}
+            value={interactionStats?.totalInteractions || 0}
           />
         </div>
 
