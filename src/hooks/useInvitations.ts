@@ -30,15 +30,21 @@ export function useInvitations(clientId?: string) {
   const { data: userRole } = useQuery({
     queryKey: ["userRole"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
       const { data: roles, error } = await supabase
         .from("user_roles")
         .select("role")
-        .single();
+        .eq("user_id", user.id)
+        .eq("role", 'admin')
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching user role:", error);
         return null;
       }
+
       return roles?.role;
     },
   });
