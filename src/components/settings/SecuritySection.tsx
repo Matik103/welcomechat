@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,8 @@ export const SecuritySection = ({
               <Button 
                 onClick={onEnableMFA} 
                 variant="default"
+                type="button"
+                className="bg-primary hover:bg-primary/90"
               >
                 Set up 2FA
               </Button>
