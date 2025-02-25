@@ -52,6 +52,7 @@ const Settings = () => {
           qrCode={mfaHandlers.qrCode}
           verificationCode={mfaHandlers.verificationCode}
           currentFactorId={mfaHandlers.currentFactorId}
+          isVerifying={mfaHandlers.isVerifying}
           onVerificationCodeChange={mfaHandlers.setVerificationCode}
           onEnableMFA={mfaHandlers.handleEnableMFA}
           onVerifyMFA={mfaHandlers.handleVerifyMFA}
