@@ -24,7 +24,7 @@ const Settings = () => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [currentFactorId, setCurrentFactorId] = useState<string | null>(null);
-  const { createInvitation } = useInvitations();
+  const { createInvitation, isAdmin } = useInvitations();
 
   useEffect(() => {
     checkMfaStatus();
@@ -428,51 +428,53 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Invite Users
-            </CardTitle>
-            <CardDescription>
-              Send invitations to new clients or administrators
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="inviteEmail">Email Address</Label>
-                <Input
-                  id="inviteEmail"
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="Enter email address"
-                />
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Invite Users
+              </CardTitle>
+              <CardDescription>
+                Send invitations to new clients or administrators
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="inviteEmail">Email Address</Label>
+                  <Input
+                    id="inviteEmail"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="Enter email address"
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <Button
+                    onClick={() => handleInvite('client')}
+                    disabled={inviteLoading || !inviteEmail}
+                    className="flex-1"
+                  >
+                    {inviteLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : "Invite as Client"}
+                  </Button>
+                  <Button
+                    onClick={() => handleInvite('admin')}
+                    disabled={inviteLoading || !inviteEmail}
+                    className="flex-1"
+                  >
+                    {inviteLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : "Invite as Admin"}
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-4">
-                <Button
-                  onClick={() => handleInvite('client')}
-                  disabled={inviteLoading || !inviteEmail}
-                  className="flex-1"
-                >
-                  {inviteLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : "Invite as Client"}
-                </Button>
-                <Button
-                  onClick={() => handleInvite('admin')}
-                  disabled={inviteLoading || !inviteEmail}
-                  className="flex-1"
-                >
-                  {inviteLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : "Invite as Admin"}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
