@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, KeyRound, Shield } from "lucide-react";
+import { Loader2, KeyRound, Shield, QrCode } from "lucide-react";
 
 interface SecuritySectionProps {
   mfaEnabled: boolean;
@@ -68,42 +68,58 @@ export const SecuritySection = ({
         </CardHeader>
         <CardContent className="space-y-4">
           {mfaEnabled ? (
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-green-500" />
-              <p className="text-muted-foreground">
-                Two-factor authentication is enabled
+            <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
+              <Shield className="h-5 w-5 text-green-500" />
+              <p className="text-green-700">
+                Two-factor authentication is enabled and active
               </p>
             </div>
           ) : qrCode ? (
-            <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg flex justify-center">
+            <div className="space-y-6">
+              <div className="bg-muted p-6 rounded-lg flex flex-col items-center gap-4">
+                <QrCode className="h-6 w-6 text-primary" />
                 <img src={qrCode} alt="QR Code for 2FA" className="w-48 h-48" />
+                <div className="text-sm text-center space-y-2">
+                  <p className="font-medium">Scan this QR code with your authenticator app</p>
+                  <p className="text-muted-foreground">
+                    We recommend using Google Authenticator or Authy
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground text-center">
-                Scan this QR code with your authenticator app
-              </p>
-              <div className="space-y-2">
-                <Label htmlFor="verificationCode">Verification Code</Label>
+              <div className="space-y-3">
+                <Label htmlFor="verificationCode">Enter verification code</Label>
                 <Input
                   id="verificationCode"
                   value={verificationCode}
                   onChange={(e) => onVerificationCodeChange(e.target.value)}
-                  placeholder="Enter 6-digit code"
+                  placeholder="Enter the 6-digit code"
                   maxLength={6}
+                  className="text-center text-lg tracking-widest"
                 />
+                <Button 
+                  onClick={onVerifyMFA}
+                  disabled={!verificationCode || verificationCode.length !== 6}
+                  className="w-full"
+                  size="lg"
+                >
+                  Verify and Enable 2FA
+                </Button>
               </div>
-              <Button 
-                onClick={onVerifyMFA}
-                disabled={!verificationCode || verificationCode.length !== 6}
-                className="w-full"
-              >
-                Verify and Enable 2FA
-              </Button>
             </div>
           ) : (
-            <Button onClick={onEnableMFA} className="w-full" variant="default">
-              Enable 2FA
-            </Button>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Protect your account with two-factor authentication. Once enabled, you'll need to enter a code from your authenticator app when signing in.
+              </p>
+              <Button 
+                onClick={onEnableMFA} 
+                className="w-full" 
+                size="lg"
+                variant="default"
+              >
+                Set up 2FA
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
