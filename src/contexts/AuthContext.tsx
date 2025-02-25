@@ -27,25 +27,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("Initial session check:", session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Only redirect if on auth page and we have a session
+      if (session && location.pathname === '/auth') {
+        navigate('/', { replace: true });
+      } else if (!session && location.pathname !== '/auth') {
+        navigate('/auth', { replace: true });
+      }
+      
       setIsLoading(false);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log("Auth state changed:", event, currentSession?.user?.email);
-      
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
-      setIsLoading(false);
-
-      // Only handle navigation on specific auth events
+      
       if (event === 'SIGNED_IN') {
-        // Don't redirect if already on a protected route
-        if (location.pathname === '/auth') {
-          navigate("/", { replace: true });
-        }
+        navigate('/', { replace: true });
       } else if (event === 'SIGNED_OUT') {
-        navigate("/auth", { replace: true });
+        navigate('/auth', { replace: true });
       }
     });
 
