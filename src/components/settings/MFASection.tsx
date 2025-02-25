@@ -40,17 +40,26 @@ export const useMFAHandlers = () => {
     }
   };
 
-  const waitForFactor = async (maxAttempts = 5): Promise<string> => {
+  const waitForFactor = async (maxAttempts = 10): Promise<string> => {
     for (let i = 0; i < maxAttempts; i++) {
-      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      console.log(`Attempt ${i + 1} of ${maxAttempts} to find factor...`);
+      
+      // First wait before checking to give time for factor creation
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      
+      const { data: factorsData, error } = await supabase.auth.mfa.listFactors();
+      if (error) {
+        console.error('Error listing factors:', error);
+        continue;
+      }
+      
+      console.log('Current factors:', factorsData);
       const newFactor = factorsData.totp.find(f => f.status === 'unverified');
       
       if (newFactor) {
+        console.log('Found new factor:', newFactor.id);
         return newFactor.id;
       }
-      
-      // Increase wait time between attempts
-      await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
     }
     throw new Error('Failed to find newly created factor after multiple attempts');
   };
@@ -70,6 +79,9 @@ export const useMFAHandlers = () => {
       if (unverifiedFactor) {
         console.log("Cleaning up unverified factor:", unverifiedFactor.id);
         await supabase.auth.mfa.unenroll({ factorId: unverifiedFactor.id });
+        
+        // Wait a bit after cleanup
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       console.log("Enrolling new factor...");
@@ -87,7 +99,7 @@ export const useMFAHandlers = () => {
 
       setQrCode(enrollData.totp.qr_code);
       
-      // Wait for the factor to be available
+      // Wait for the factor to be available with increased attempts
       console.log("Waiting for factor to be created...");
       const factorId = await waitForFactor();
       console.log("Factor created successfully:", factorId);
