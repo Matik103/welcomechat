@@ -8,27 +8,36 @@ import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { Navigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
   
   const { 
     data: clientStats,
-    isLoading: clientStatsLoading 
+    isLoading: clientStatsLoading,
+    isError: clientStatsError
   } = useClientStats();
   
   const { 
     data: interactionStats,
-    isLoading: interactionStatsLoading 
+    isLoading: interactionStatsLoading,
+    isError: interactionStatsError
   } = useInteractionStats(timeRange);
   
   const { 
     data: recentActivities,
-    isLoading: activitiesLoading 
+    isLoading: activitiesLoading,
+    isError: activitiesError
   } = useRecentActivities();
 
   const isLoading = authLoading || clientStatsLoading || interactionStatsLoading || activitiesLoading;
+  
+  // Show error toasts
+  if (clientStatsError || interactionStatsError || activitiesError) {
+    toast.error("Error loading dashboard data");
+  }
 
   // If authentication is still loading, show loading spinner
   if (isLoading) {
@@ -39,9 +48,14 @@ const Dashboard = () => {
     );
   }
 
-  // If not authenticated after loading, redirect to auth page
-  if (!user && !authLoading) {
+  // If not authenticated, redirect to auth page
+  if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // If user is not a client, redirect to appropriate dashboard
+  if (userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
   }
 
   return (
@@ -91,7 +105,7 @@ const Dashboard = () => {
           />
         </div>
 
-        <ActivityList activities={recentActivities} />
+        <ActivityList activities={recentActivities || []} />
       </div>
     </div>
   );

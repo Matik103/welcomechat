@@ -6,11 +6,14 @@ import { ActionButtons } from "@/components/dashboard/ActionButtons";
 import { useClientStats } from "@/hooks/useClientStats";
 import { useInteractionStats } from "@/hooks/useInteractionStats";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
+import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const Index = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
+  const { user, userRole, isLoading: authLoading } = useAuth();
   
   const { 
     data: clientStats,
@@ -30,12 +33,31 @@ const Index = () => {
     isLoading: isActivitiesLoading 
   } = useRecentActivities();
 
-  // Show error toasts only once when errors occur
+  const isLoading = authLoading || isClientStatsLoading || isInteractionStatsLoading || isActivitiesLoading;
+
+  // Show error toasts
   if (isClientStatsError || isInteractionStatsError || isActivitiesError) {
-    toast.error("Error loading dashboard data. Please try again later.");
+    toast.error("Error loading dashboard data");
   }
 
-  const isLoading = isClientStatsLoading || isInteractionStatsLoading || isActivitiesLoading;
+  // If authentication is still loading, show loading spinner
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If not authenticated, redirect to auth page
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // If user is a client, redirect to client dashboard
+  if (userRole === 'client') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
