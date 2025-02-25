@@ -38,13 +38,9 @@ export const useMFAHandlers = () => {
   };
 
   const handleEnableMFA = async () => {
-    if (isVerifying) return; // Prevent multiple enable attempts
+    if (isVerifying) return;
 
     try {
-      setQrCode(null);
-      setCurrentFactorId(null);
-      setVerificationCode("");
-
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (factorsError) throw factorsError;
 
@@ -71,37 +67,54 @@ export const useMFAHandlers = () => {
     } catch (error: any) {
       console.error('MFA Error:', error);
       toast.error(error.message || "Failed to setup 2FA");
-      setIsVerifying(false); // Reset verification state on error
     }
   };
 
   const handleVerifyMFA = async () => {
-    if (!verificationCode || !currentFactorId || isVerifying) {
+    if (!verificationCode || !currentFactorId) {
       toast.error("Please enter a verification code");
       return;
+    }
+
+    if (isVerifying) {
+      return; // Prevent multiple verification attempts
     }
 
     try {
       setIsVerifying(true);
 
+      // Create a challenge
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId: currentFactorId
       });
       
-      if (challengeError) throw challengeError;
-      if (!challenge) throw new Error('No challenge created');
+      if (challengeError) {
+        throw challengeError;
+      }
 
+      if (!challenge) {
+        throw new Error('No challenge created');
+      }
+
+      // Verify the challenge with the code
       const { data, error: verifyError } = await supabase.auth.mfa.verify({
         factorId: currentFactorId,
         challengeId: challenge.id,
         code: verificationCode
       });
 
-      if (verifyError) throw verifyError;
+      if (verifyError) {
+        throw verifyError;
+      }
+
+      if (!data) {
+        throw new Error('Verification failed');
+      }
 
       await checkMfaStatus();
       toast.success("2FA has been successfully enabled!");
       
+      // Reset states after successful verification
       setQrCode(null);
       setCurrentFactorId(null);
       setVerificationCode("");
@@ -110,12 +123,12 @@ export const useMFAHandlers = () => {
       toast.error(error.message || "Failed to verify 2FA code. Please try again.");
       setVerificationCode("");
     } finally {
-      setIsVerifying(false); // Always reset verification state
+      setIsVerifying(false);
     }
   };
 
   const handleDisableMFA = async () => {
-    if (isVerifying) return; // Prevent disable during verification
+    if (isVerifying) return;
 
     try {
       setIsVerifying(true);
