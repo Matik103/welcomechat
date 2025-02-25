@@ -39,19 +39,25 @@ export function useInvitations(clientId?: string) {
       console.log("Found user:", user.id);
 
       // Query the user_roles table for admin or manager roles
-      const { data: roles, error } = await supabase
+      const { data: userRoles, error: userRolesError } = await supabase
         .from("user_roles")
-        .select("role")
+        .select(`
+          role,
+          profiles:user_id (
+            email,
+            full_name
+          )
+        `)
         .eq("user_id", user.id)
         .in("role", ['admin', 'manager']);
 
-      if (error) {
-        console.error("Error fetching user role:", error);
+      if (userRolesError) {
+        console.error("Error fetching user role:", userRolesError);
         return null;
       }
 
-      console.log("Roles found:", roles);
-      const role = roles?.[0]?.role || null;
+      console.log("Roles found:", userRoles);
+      const role = userRoles?.[0]?.role || null;
       console.log("Selected role:", role);
       return role;
     },
