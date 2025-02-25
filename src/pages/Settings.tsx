@@ -46,7 +46,8 @@ const Settings = () => {
       setLoading(true);
       
       // First, check for any existing factors
-      const { data: existingFactors } = await supabase.auth.mfa.listFactors();
+      const { data: existingFactors, error: listError } = await supabase.auth.mfa.listFactors();
+      if (listError) throw listError;
       
       // If there's an unverified factor, we need to clean it up
       const unverifiedFactor = existingFactors.totp.find(f => f.status === 'unverified');
@@ -113,6 +114,10 @@ const Settings = () => {
       await checkMfaStatus();
     } catch (error: any) {
       toast.error(error.message);
+      // If we get a verification error, don't clear the QR code so user can try again
+      if (!error.message.includes('Invalid one-time password')) {
+        setQrCode(null);
+      }
     } finally {
       setLoading(false);
     }
