@@ -2,7 +2,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { AuthMFAFactor } from "@supabase/supabase-js";
+
+// Define our own interface for MFA factor
+interface MFAFactor {
+  id: string;
+  status: 'verified' | 'unverified';
+  totp?: {
+    qr_code: string;
+  };
+}
 
 export const useMFAHandlers = () => {
   const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -46,13 +54,13 @@ export const useMFAHandlers = () => {
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (factorsError) throw factorsError;
 
-      let factorToVerify: AuthMFAFactor | null = null;
+      let factorToVerify: MFAFactor | null = null;
 
       // Check for existing unverified TOTP factor
       const existingTotpFactor = factors.totp.find(factor => factor.status === 'unverified');
       
       if (existingTotpFactor) {
-        factorToVerify = existingTotpFactor;
+        factorToVerify = existingTotpFactor as MFAFactor;
       } else {
         // Enroll new factor if none exists
         const { data, error } = await supabase.auth.mfa.enroll({
@@ -62,7 +70,7 @@ export const useMFAHandlers = () => {
         if (error) throw error;
         if (!data) throw new Error('No data returned from enrollment');
         
-        factorToVerify = data;
+        factorToVerify = data as unknown as MFAFactor;
       }
 
       if (factorToVerify) {
