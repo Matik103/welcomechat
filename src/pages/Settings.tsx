@@ -9,6 +9,7 @@ import { ProfileSection } from "@/components/settings/ProfileSection";
 import { SecuritySection } from "@/components/settings/SecuritySection";
 import { InvitationsSection } from "@/components/settings/InvitationsSection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
+import { AdminSetup } from "@/components/settings/AdminSetup";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -16,10 +17,27 @@ const Settings = () => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [currentFactorId, setCurrentFactorId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
     checkMfaStatus();
+    checkAdminStatus();
   }, []);
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data, error } = await supabase
+        .rpc('check_user_role', {
+          allowed_roles: ['admin']
+        });
+      
+      if (error) throw error;
+      setIsAdmin(data);
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+    }
+  };
 
   const checkMfaStatus = async () => {
     try {
@@ -199,6 +217,8 @@ const Settings = () => {
             </p>
           </div>
         </div>
+
+        {isAdmin === false && <AdminSetup />}
 
         <ProfileSection 
           initialFullName={user?.user_metadata?.full_name || ""}
