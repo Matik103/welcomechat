@@ -40,6 +40,21 @@ export const useMFAHandlers = () => {
     }
   };
 
+  const waitForFactor = async (maxAttempts = 5): Promise<string> => {
+    for (let i = 0; i < maxAttempts; i++) {
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      const newFactor = factorsData.totp.find(f => f.status === 'unverified');
+      
+      if (newFactor) {
+        return newFactor.id;
+      }
+      
+      // Increase wait time between attempts
+      await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
+    }
+    throw new Error('Failed to find newly created factor after multiple attempts');
+  };
+
   const handleEnableMFA = async () => {
     try {
       setQrCode(null);
@@ -48,24 +63,13 @@ export const useMFAHandlers = () => {
       
       console.log("Starting MFA enrollment process...");
       
-      const { data: existingFactors, error: listError } = await supabase.auth.mfa.listFactors();
-      if (listError) {
-        console.error("Error listing factors:", listError);
-        throw listError;
-      }
-      
-      console.log("Existing factors:", existingFactors);
-      
+      // Clean up any existing unverified factors
+      const { data: existingFactors } = await supabase.auth.mfa.listFactors();
       const unverifiedFactor = existingFactors.totp.find(f => f.status === 'unverified');
+      
       if (unverifiedFactor) {
         console.log("Cleaning up unverified factor:", unverifiedFactor.id);
-        const { error: unenrollError } = await supabase.auth.mfa.unenroll({ 
-          factorId: unverifiedFactor.id 
-        });
-        if (unenrollError) {
-          console.error("Error unenrolling factor:", unenrollError);
-          throw unenrollError;
-        }
+        await supabase.auth.mfa.unenroll({ factorId: unverifiedFactor.id });
       }
 
       console.log("Enrolling new factor...");
@@ -75,45 +79,19 @@ export const useMFAHandlers = () => {
         friendlyName: `TOTP-${Date.now()}`
       });
       
-      if (enrollError) {
-        console.error("Error enrolling factor:", enrollError);
-        throw enrollError;
-      }
+      if (enrollError) throw enrollError;
       
       if (!enrollData?.totp) {
-        console.error("No TOTP data in enrollment response");
         throw new Error('Failed to generate QR code - no TOTP data received');
       }
 
       setQrCode(enrollData.totp.qr_code);
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const { data: factorsData, error: getFactorsError } = await supabase.auth.mfa.listFactors();
-      if (getFactorsError) {
-        console.error("Error getting factors after enrollment:", getFactorsError);
-        throw getFactorsError;
-      }
-
-      console.log("Available factors after enrollment:", factorsData);
-      
-      const newFactor = factorsData.totp.find(f => f.status === 'unverified');
-      if (!newFactor) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const { data: retryFactors } = await supabase.auth.mfa.listFactors();
-        const retryFactor = retryFactors.totp.find(f => f.status === 'unverified');
-        
-        if (!retryFactor) {
-          console.error("No unverified factor found after retry");
-          throw new Error('Failed to find newly created factor');
-        }
-        
-        console.log("Found factor on retry:", retryFactor);
-        setCurrentFactorId(retryFactor.id);
-      } else {
-        console.log("Setting up new factor with ID:", newFactor.id);
-        setCurrentFactorId(newFactor.id);
-      }
+      // Wait for the factor to be available
+      console.log("Waiting for factor to be created...");
+      const factorId = await waitForFactor();
+      console.log("Factor created successfully:", factorId);
+      setCurrentFactorId(factorId);
       
     } catch (error: any) {
       console.error('MFA Enrollment Error:', error);
@@ -130,20 +108,17 @@ export const useMFAHandlers = () => {
     }
 
     try {
-      const { data: { totp } } = await supabase.auth.mfa.listFactors();
-      const factorToVerify = totp.find(f => f.id === currentFactorId);
+      console.log("Starting verification for factor:", currentFactorId);
       
-      if (!factorToVerify) {
-        throw new Error("Setup session expired. Please start again.");
-      }
-
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId: currentFactorId
       });
       
       if (challengeError) throw challengeError;
 
-      const { data, error: verifyError } = await supabase.auth.mfa.verify({
+      console.log("Challenge created:", challenge.id);
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
         factorId: currentFactorId,
         challengeId: challenge.id,
         code: verificationCode
