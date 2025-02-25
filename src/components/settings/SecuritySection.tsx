@@ -32,6 +32,7 @@ export const SecuritySection = ({
   const [loading, setLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +54,21 @@ export const SecuritySection = ({
       toast.error(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerificationCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow numbers and limit to 6 digits
+    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+    onVerificationCodeChange(value);
+  };
+
+  const handleVerifyMFA = async () => {
+    setIsVerifying(true);
+    try {
+      await onVerifyMFA();
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -102,16 +118,27 @@ export const SecuritySection = ({
                 <Input
                   id="verificationCode"
                   value={verificationCode}
-                  onChange={(e) => onVerificationCodeChange(e.target.value)}
+                  onChange={handleVerificationCodeChange}
                   placeholder="Enter the 6-digit code"
                   maxLength={6}
                   className="text-center text-lg tracking-widest"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                 />
                 <Button 
-                  onClick={onVerifyMFA}
-                  disabled={!verificationCode || verificationCode.length !== 6}
+                  onClick={handleVerifyMFA}
+                  disabled={!verificationCode || verificationCode.length !== 6 || isVerifying}
+                  className="w-full"
                 >
-                  Verify and Enable 2FA
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify and Enable 2FA'
+                  )}
                 </Button>
               </div>
             </div>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,12 +16,10 @@ export const useMFAHandlers = () => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [currentFactorId, setCurrentFactorId] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const checkMfaStatus = async () => {
     try {
-      const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aalError) throw aalError;
-      
       const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (factorsError) throw factorsError;
 
@@ -81,6 +80,9 @@ export const useMFAHandlers = () => {
     }
 
     try {
+      setIsVerifying(true);
+
+      // First, create a challenge
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId: currentFactorId
       });
@@ -88,6 +90,7 @@ export const useMFAHandlers = () => {
       if (challengeError) throw challengeError;
       if (!challenge) throw new Error('No challenge created');
 
+      // Then verify the challenge with the user's code
       const { data, error: verifyError } = await supabase.auth.mfa.verify({
         factorId: currentFactorId,
         challengeId: challenge.id,
@@ -96,6 +99,7 @@ export const useMFAHandlers = () => {
 
       if (verifyError) throw verifyError;
 
+      // After successful verification, check MFA status
       await checkMfaStatus();
       toast.success("2FA has been successfully enabled!");
       
@@ -106,6 +110,8 @@ export const useMFAHandlers = () => {
       console.error('Verify Error:', error);
       toast.error(error.message || "Failed to verify 2FA code. Please try again.");
       setVerificationCode("");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -142,6 +148,7 @@ export const useMFAHandlers = () => {
     qrCode,
     verificationCode,
     currentFactorId,
+    isVerifying,
     setVerificationCode,
     checkMfaStatus,
     handleEnableMFA,
