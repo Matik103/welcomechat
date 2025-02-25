@@ -3,7 +3,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
 type AuthContextType = {
   session: Session | null;
@@ -18,41 +17,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+
+      if (session) {
+        const currentPath = window.location.pathname;
+        if (currentPath === '/auth') {
+          window.location.href = '/clients';
+        }
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session?.user?.email);
+      
+      if (event === 'SIGNED_IN') {
         setSession(session);
         setUser(session?.user ?? null);
-      } catch (error) {
-        console.error("Error checking auth state:", error);
-      } finally {
-        setIsLoading(false);
+        window.location.href = '/clients';
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        window.location.href = '/auth';
       }
-    };
-
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.email);
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsLoading(false);
-
-        // Use setTimeout to ensure state updates have completed
-        setTimeout(() => {
-          if (event === 'SIGNED_IN' && session) {
-            window.location.href = '/clients';
-          } else if (event === 'SIGNED_OUT') {
-            window.location.href = '/auth';
-          }
-        }, 0);
-      }
-    );
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -68,7 +62,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       setUser(null);
       toast.success("Successfully signed out");
-      window.location.href = '/auth';
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error("Failed to sign out");

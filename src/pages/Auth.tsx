@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,14 +14,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const { session, isLoading } = useAuth();
-
-  // Handle session redirect
-  useEffect(() => {
-    if (session) {
-      window.location.href = '/clients';
-    }
-  }, [session]);
+  const { isLoading } = useAuth();
 
   // Show loading spinner while checking auth state
   if (isLoading) {
