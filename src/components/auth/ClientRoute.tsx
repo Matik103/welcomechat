@@ -12,17 +12,17 @@ interface ClientRouteProps {
 export const ClientRoute = ({ children }: ClientRouteProps) => {
   const { session, isLoading } = useAuth();
 
-  const { data: clientRole, isLoading: isLoadingRole } = useQuery({
-    queryKey: ["clientRole", session?.user.id],
+  const { data: userRole, isLoading: isLoadingRole } = useQuery({
+    queryKey: ["userRole", session?.user.id],
     queryFn: async () => {
       if (!session?.user.id) return null;
       const { data, error } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("id", session.user.id)
+        .from("client_invitations")
+        .select("role_type")
+        .eq("email", session.user.email)
         .single();
       if (error) throw error;
-      return data;
+      return data?.role_type;
     },
     enabled: !!session?.user.id,
   });
@@ -39,9 +39,16 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
     return <Navigate to="/client-auth" replace />;
   }
 
-  if (!clientRole) {
-    return <Navigate to="/auth" replace />;
+  // If user is an admin, redirect them to admin dashboard
+  if (userRole === "admin") {
+    return <Navigate to="/" replace />;
   }
 
-  return <>{children}</>;
+  // For clients, continue to client routes
+  if (userRole === "client") {
+    return <>{children}</>;
+  }
+
+  // If no valid role is found, redirect to auth
+  return <Navigate to="/auth" replace />;
 };
