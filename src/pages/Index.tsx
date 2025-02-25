@@ -98,55 +98,25 @@ const Index = () => {
           startDate = new Date(0);
       }
 
-      // Get total clients (not affected by time range)
-      const { data: totalClients } = await supabase
+      // Get total clients - independent of time range
+      const { data: allClients } = await supabase
         .from("clients")
         .select("*", { count: "exact" })
         .is("deletion_scheduled_at", null);
+      
+      const totalClientCount = allClients?.length ?? 0;
 
-      // Get active clients (based on last 48 hours only)
+      // Get active clients (always last 48 hours) - independent of time range
       const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
-      const { data: activeClientsData } = await supabase
+      const { data: activeClients } = await supabase
         .from("client_activities")
         .select("DISTINCT client_id")
         .eq('activity_type', 'chat_interaction')
         .gte("created_at", fortyEightHoursAgo.toISOString());
 
-      // Get chat interactions for the selected time period
-      const { data: interactions } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", startDate.toISOString());
+      const currentActiveCount = activeClients?.length ?? 0;
 
-      // Total clients count (not affected by time range)
-      const totalClientCount = totalClients?.length ?? 0;
-      
-      // Active clients count (last 48 hours only)
-      const currentActiveCount = activeClientsData?.length ?? 0;
-      
-      // Calculate interactions metrics (affected by time range)
-      const totalInteractions = interactions?.length ?? 0;
-      const avgInteractions = totalClientCount ? Math.round(totalInteractions / totalClientCount) : 0;
-
-      // Get previous period interactions for comparison
-      const previousStartDate = new Date(startDate.getTime() - (startDate.getTime() - now.getTime()));
-      const { data: previousInteractions } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", previousStartDate.toISOString())
-        .lt("created_at", startDate.toISOString());
-
-      const prevAvgInteractions = totalClientCount && previousInteractions 
-        ? Math.round(previousInteractions.length / totalClientCount)
-        : 0;
-
-      const avgInteractionsChange = prevAvgInteractions === 0
-        ? avgInteractions > 0 ? 100 : 0
-        : ((avgInteractions - prevAvgInteractions) / prevAvgInteractions * 100);
-
-      // Calculate active clients change (based on 48-hour windows only)
+      // Previous 48-hour window for active clients change calculation
       const previousFortyEightHours = new Date(fortyEightHoursAgo.getTime() - (48 * 60 * 60 * 1000));
       const { data: previousActive } = await supabase
         .from("client_activities")
@@ -159,6 +129,32 @@ const Index = () => {
       const activeChangePercentage = previousActiveCount === 0 
         ? currentActiveCount > 0 ? 100 : 0
         : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
+
+      // Get interactions for the selected time period
+      const { data: currentPeriodInteractions } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", startDate.toISOString());
+
+      const totalInteractions = currentPeriodInteractions?.length ?? 0;
+      const avgInteractions = totalClientCount ? Math.round(totalInteractions / totalClientCount) : 0;
+
+      // Get previous period interactions for comparison
+      const previousStartDate = new Date(startDate.getTime() - (startDate.getTime() - now.getTime()));
+      const { data: previousInteractions } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", previousStartDate.toISOString())
+        .lt("created_at", startDate.toISOString());
+
+      const prevTotalInteractions = previousInteractions?.length ?? 0;
+      const prevAvgInteractions = totalClientCount ? Math.round(prevTotalInteractions / totalClientCount) : 0;
+
+      const avgInteractionsChange = prevAvgInteractions === 0
+        ? avgInteractions > 0 ? 100 : 0
+        : ((avgInteractions - prevAvgInteractions) / prevAvgInteractions * 100);
 
       return {
         totalClients: totalClientCount,

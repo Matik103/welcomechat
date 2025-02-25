@@ -55,9 +55,7 @@ const Settings = () => {
       if (error) throw error;
       if (data.totp) {
         setQrCode(data.totp.qr_code);
-        // Store the totp.secret instead of non-existent id
-        // This will be used for verification
-        setFactorId(data.totp.secret);
+        // Factor ID is not needed at this stage
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -70,30 +68,30 @@ const Settings = () => {
     try {
       setLoading(true);
       
-      // First, get the factors list to get the correct UUID
-      const { data: factorData } = await supabase.auth.mfa.listFactors();
-      const totpFactor = factorData?.totp?.[0];
-      
-      if (!totpFactor?.id) {
-        throw new Error("No TOTP factor found");
+      // Get the current factors
+      const { data: factorData, error: factorError } = await supabase.auth.mfa.listFactors();
+      if (factorError) throw factorError;
+
+      // Get the unverified TOTP factor
+      const totpFactor = factorData.totp.find(factor => factor.status === 'unverified');
+      if (!totpFactor) {
+        throw new Error('No unverified TOTP factor found');
       }
 
-      // Create challenge with the correct UUID
+      // Create challenge
       const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: totpFactor.id // Using the correct UUID
+        factorId: totpFactor.id
       });
-      
       if (challengeError) throw challengeError;
-      
-      // Verify with the challenge
+
+      // Verify the challenge
       const { data, error: verifyError } = await supabase.auth.mfa.verify({
-        factorId: totpFactor.id, // Using the correct UUID
+        factorId: totpFactor.id,
         challengeId: challengeData.id,
         code: verificationCode
       });
-      
       if (verifyError) throw verifyError;
-      
+
       setMfaEnabled(true);
       setQrCode(null);
       setVerificationCode("");
