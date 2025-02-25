@@ -27,14 +27,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkUserRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();  // Use maybeSingle instead of single to prevent error
 
-      if (error) throw error;
-      setUserRole(data.role as UserRole);
+      setUserRole((roleData?.role as UserRole) || null);
     } catch (error) {
       console.error("Error checking user role:", error);
       setUserRole(null);
@@ -70,6 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } catch (error) {
         console.error("Error during auth initialization:", error);
+        toast.error("Error initializing authentication");
       } finally {
         setIsLoading(false);
       }
@@ -81,20 +81,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log("Auth state changed:", event, currentSession?.user?.email);
       
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
+      if (currentSession) {
+        setSession(currentSession);
+        setUser(currentSession.user);
         await checkUserRole(currentSession.user.id);
+        
+        // Only redirect on sign in if on auth page
+        if (event === 'SIGNED_IN' && location.pathname === '/auth') {
+          navigate('/', { replace: true });
+        }
       } else {
+        setSession(null);
+        setUser(null);
         setUserRole(null);
-      }
-      
-      // Only redirect on sign in/out events
-      if (event === 'SIGNED_IN' && location.pathname === '/auth') {
-        navigate('/', { replace: true });
-      } else if (event === 'SIGNED_OUT') {
-        navigate('/auth', { replace: true });
+        
+        // Redirect to auth on sign out
+        if (event === 'SIGNED_OUT') {
+          navigate('/auth', { replace: true });
+        }
       }
     });
 
@@ -108,13 +112,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
       setUserRole(null);
       setSession(null);
       setUser(null);
+      
       toast.success("Successfully signed out");
+      navigate('/auth', { replace: true });
     } catch (error: any) {
       console.error("Sign out error:", error);
-      toast.error("Failed to sign out");
+      toast.error(error.message || "Failed to sign out");
     } finally {
       setIsLoading(false);
     }
