@@ -5,12 +5,44 @@ import { ActivityList } from "@/components/dashboard/ActivityList";
 import { useClientStats } from "@/hooks/useClientStats";
 import { useInteractionStats } from "@/hooks/useInteractionStats";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
+import { Navigate } from "react-router-dom";
 
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
-  const { data: clientStats } = useClientStats();
-  const { data: interactionStats } = useInteractionStats(timeRange);
-  const { data: recentActivities } = useRecentActivities();
+  const { user, isLoading: authLoading } = useAuth();
+  
+  const { 
+    data: clientStats,
+    isLoading: clientStatsLoading 
+  } = useClientStats();
+  
+  const { 
+    data: interactionStats,
+    isLoading: interactionStatsLoading 
+  } = useInteractionStats(timeRange);
+  
+  const { 
+    data: recentActivities,
+    isLoading: activitiesLoading 
+  } = useRecentActivities();
+
+  const isLoading = authLoading || clientStatsLoading || interactionStatsLoading || activitiesLoading;
+
+  // If authentication is still loading, show loading spinner
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If not authenticated after loading, redirect to auth page
+  if (!user && !authLoading) {
+    return <Navigate to="/auth" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
