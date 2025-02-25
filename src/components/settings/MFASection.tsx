@@ -17,9 +17,11 @@ export const useMFAHandlers = () => {
   const [verificationCode, setVerificationCode] = useState("");
   const [currentFactorId, setCurrentFactorId] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const checkMfaStatus = async () => {
     try {
+      setIsLoading(true);
       const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (factorsError) throw factorsError;
 
@@ -34,15 +36,23 @@ export const useMFAHandlers = () => {
     } catch (error) {
       console.error('Error checking MFA status:', error);
       toast.error("Failed to check 2FA status");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleEnableMFA = async () => {
-    if (isVerifying) return;
+    if (isVerifying || isLoading) return;
 
     try {
+      setIsLoading(true);
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (factorsError) throw factorsError;
+
+      // Reset previous state
+      setQrCode(null);
+      setCurrentFactorId(null);
+      setVerificationCode("");
 
       let factorToVerify: MFAFactor | null = null;
       const existingTotpFactor = factors.totp.find(factor => factor.status === 'unverified');
@@ -67,6 +77,12 @@ export const useMFAHandlers = () => {
     } catch (error: any) {
       console.error('MFA Error:', error);
       toast.error(error.message || "Failed to setup 2FA");
+      // Reset state on error
+      setQrCode(null);
+      setCurrentFactorId(null);
+      setVerificationCode("");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -76,12 +92,13 @@ export const useMFAHandlers = () => {
       return;
     }
 
-    if (isVerifying) {
-      return; // Prevent multiple verification attempts
+    if (isVerifying || isLoading) {
+      return;
     }
 
     try {
       setIsVerifying(true);
+      setIsLoading(true);
 
       // Create a challenge
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
@@ -124,14 +141,17 @@ export const useMFAHandlers = () => {
       setVerificationCode("");
     } finally {
       setIsVerifying(false);
+      setIsLoading(false);
     }
   };
 
   const handleDisableMFA = async () => {
-    if (isVerifying) return;
+    if (isVerifying || isLoading) return;
 
     try {
       setIsVerifying(true);
+      setIsLoading(true);
+
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (factorsError) throw factorsError;
 
@@ -153,6 +173,7 @@ export const useMFAHandlers = () => {
       toast.error(error.message || "Failed to disable 2FA");
     } finally {
       setIsVerifying(false);
+      setIsLoading(false);
     }
   };
 
@@ -166,6 +187,7 @@ export const useMFAHandlers = () => {
     verificationCode,
     currentFactorId,
     isVerifying,
+    isLoading,
     setVerificationCode,
     checkMfaStatus,
     handleEnableMFA,
