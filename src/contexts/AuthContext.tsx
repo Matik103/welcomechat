@@ -31,15 +31,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
-      
+        .maybeSingle();
+
       if (error) {
         console.error("Error checking user role:", error);
         setUserRole(null);
         return;
       }
 
-      setUserRole(data.role as UserRole);
+      setUserRole(data?.role as UserRole || null);
     } catch (error) {
       console.error("Error checking user role:", error);
       setUserRole(null);
@@ -47,50 +47,66 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // Get the initial session
-    const getInitialSession = async () => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
       try {
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        // Get initial session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+
+        // Only update state if component is still mounted
+        if (!mounted) return;
 
         if (initialSession) {
           console.log("Initial session found:", initialSession.user.email);
           setSession(initialSession);
           setUser(initialSession.user);
           await checkUserRole(initialSession.user.id);
+        } else {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
         }
       } catch (error) {
-        console.error("Error getting initial session:", error);
+        console.error("Error initializing auth:", error);
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    // Call getInitialSession immediately
-    getInitialSession();
+    initializeAuth();
 
-    // Set up the auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      console.log("Auth state changed:", event, currentSession?.user?.email);
-      
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        await checkUserRole(currentSession.user.id);
-        
-        if (location.pathname === '/auth') {
-          navigate('/', { replace: true });
-        }
-      } else {
-        setUserRole(null);
-        if (!location.pathname.startsWith('/auth')) {
-          navigate('/auth', { replace: true });
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        console.log("Auth state changed:", event, currentSession?.user?.email);
+
+        if (!mounted) return;
+
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        if (currentSession?.user) {
+          await checkUserRole(currentSession.user.id);
+
+          if (location.pathname === '/auth') {
+            navigate('/', { replace: true });
+          }
+        } else {
+          setUserRole(null);
+          
+          // Only redirect to auth if not already there
+          if (!location.pathname.startsWith('/auth')) {
+            navigate('/auth', { replace: true });
+          }
         }
       }
-    });
+    );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [navigate, location.pathname]);
@@ -99,11 +115,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
+
       setUserRole(null);
       setSession(null);
       setUser(null);
-      
+
       navigate('/auth', { replace: true });
       toast.success("Successfully signed out");
     } catch (error: any) {
@@ -111,15 +127,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       toast.error(error.message || "Failed to sign out");
     }
   };
-
-  // Provide the loading state and auth context
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
 
   return (
     <AuthContext.Provider value={{ session, user, signOut, isLoading, userRole }}>

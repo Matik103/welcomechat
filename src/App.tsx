@@ -1,7 +1,7 @@
 
 import { Toaster } from "sonner";
 import { Header } from "@/components/layout/Header";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import ClientList from "@/pages/ClientList";
@@ -11,8 +11,19 @@ import AddEditClient from "@/pages/AddEditClient";
 import WidgetSettings from "@/pages/WidgetSettings";
 import { RoleRoute } from "@/components/auth/RoleRoute";
 import Dashboard from "@/pages/client/Dashboard";
+import { useAuth } from "./contexts/AuthContext";
 
 function App() {
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -63,6 +74,7 @@ function App() {
             <WidgetSettings />
           </RoleRoute>
         } />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster />
     </div>
