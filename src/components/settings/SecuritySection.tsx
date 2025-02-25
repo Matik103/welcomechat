@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, KeyRound, Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface SecuritySectionProps {
   mfaEnabled: boolean;
@@ -31,6 +32,13 @@ export const SecuritySection = ({
   const [mfaLoading, setMfaLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleExpiredSession = async () => {
+    await supabase.auth.signOut();
+    toast.error("Your session has expired. Please sign in again.");
+    navigate("/auth");
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +52,13 @@ export const SecuritySection = ({
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("token is expired")) {
+          await handleExpiredSession();
+          return;
+        }
+        throw error;
+      }
       toast.success("Password updated successfully");
       setNewPassword("");
       setConfirmPassword("");
@@ -58,7 +72,18 @@ export const SecuritySection = ({
   const handleMfaEnable = async () => {
     setMfaLoading(true);
     try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) {
+        await handleExpiredSession();
+        return;
+      }
       await onEnableMFA();
+    } catch (error: any) {
+      if (error.message.includes("token is expired")) {
+        await handleExpiredSession();
+        return;
+      }
+      toast.error("Failed to enable 2FA. Please try again.");
     } finally {
       setMfaLoading(false);
     }
@@ -67,7 +92,18 @@ export const SecuritySection = ({
   const handleMfaVerify = async () => {
     setMfaLoading(true);
     try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) {
+        await handleExpiredSession();
+        return;
+      }
       await onVerifyMFA();
+    } catch (error: any) {
+      if (error.message.includes("token is expired")) {
+        await handleExpiredSession();
+        return;
+      }
+      toast.error("Failed to verify 2FA code. Please try again.");
     } finally {
       setMfaLoading(false);
     }
