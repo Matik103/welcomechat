@@ -52,7 +52,10 @@ const Settings = () => {
           verificationCode={mfaHandlers.verificationCode}
           currentFactorId={mfaHandlers.currentFactorId}
           isVerifying={mfaHandlers.isVerifying}
+          isDisabling={mfaHandlers.isDisabling}
+          disableVerificationCode={mfaHandlers.disableVerificationCode}
           onVerificationCodeChange={mfaHandlers.setVerificationCode}
+          onDisableVerificationCodeChange={mfaHandlers.setDisableVerificationCode}
           onEnableMFA={mfaHandlers.handleEnableMFA}
           onVerifyMFA={mfaHandlers.handleVerifyMFA}
           onDisableMFA={mfaHandlers.handleDisableMFA}

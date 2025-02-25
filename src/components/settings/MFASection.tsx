@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -18,6 +17,8 @@ export const useMFAHandlers = () => {
   const [currentFactorId, setCurrentFactorId] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDisabling, setIsDisabling] = useState(false);
+  const [disableVerificationCode, setDisableVerificationCode] = useState("");
 
   const checkMfaStatus = async () => {
     if (isLoading) return;
@@ -144,10 +145,10 @@ export const useMFAHandlers = () => {
   };
 
   const handleDisableMFA = async () => {
-    if (isVerifying || isLoading) return;
+    if (!currentFactorId || isVerifying || isLoading) return;
 
     try {
-      setIsVerifying(true);
+      setIsDisabling(true);
       setIsLoading(true);
 
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
@@ -158,6 +159,25 @@ export const useMFAHandlers = () => {
         throw new Error('No active 2FA factor found');
       }
 
+      // Create a challenge first
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: totpFactor.id
+      });
+      
+      if (challengeError) throw challengeError;
+      if (!challenge) throw new Error('No challenge created');
+
+      // Now verify the challenge with the code
+      const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: totpFactor.id,
+        challengeId: challenge.id,
+        code: disableVerificationCode
+      });
+
+      if (verifyError) throw verifyError;
+      if (!verifyData) throw new Error('Verification failed');
+
+      // After successful verification, we can unenroll
       const { error: unenrollError } = await supabase.auth.mfa.unenroll({
         factorId: totpFactor.id
       });
@@ -165,17 +185,17 @@ export const useMFAHandlers = () => {
       if (unenrollError) throw unenrollError;
 
       await checkMfaStatus();
+      setDisableVerificationCode("");
       toast.success("2FA has been successfully disabled");
     } catch (error: any) {
       console.error('Disable 2FA Error:', error);
       toast.error(error.message || "Failed to disable 2FA");
     } finally {
-      setIsVerifying(false);
+      setIsDisabling(false);
       setIsLoading(false);
     }
   };
 
-  // Initial MFA status check
   useEffect(() => {
     checkMfaStatus();
   }, []);
@@ -187,7 +207,10 @@ export const useMFAHandlers = () => {
     currentFactorId,
     isVerifying,
     isLoading,
+    isDisabling,
+    disableVerificationCode,
     setVerificationCode,
+    setDisableVerificationCode,
     checkMfaStatus,
     handleEnableMFA,
     handleVerifyMFA,

@@ -14,7 +14,10 @@ interface SecuritySectionProps {
   verificationCode: string;
   currentFactorId: string | null;
   isVerifying: boolean;
+  isDisabling?: boolean;
+  disableVerificationCode?: string;
   onVerificationCodeChange: (code: string) => void;
+  onDisableVerificationCodeChange?: (code: string) => void;
   onEnableMFA: () => Promise<void>;
   onVerifyMFA: () => Promise<void>;
   onDisableMFA: () => Promise<void>;
@@ -26,7 +29,10 @@ export const SecuritySection = ({
   verificationCode,
   currentFactorId,
   isVerifying,
+  isDisabling,
+  disableVerificationCode = "",
   onVerificationCodeChange,
+  onDisableVerificationCodeChange,
   onEnableMFA,
   onVerifyMFA,
   onDisableMFA
@@ -59,9 +65,15 @@ export const SecuritySection = ({
   };
 
   const handleVerificationCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow numbers and limit to 6 digits
     const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
     onVerificationCodeChange(value);
+  };
+
+  const handleDisableVerificationCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onDisableVerificationCodeChange) {
+      const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+      onDisableVerificationCodeChange(value);
+    }
   };
 
   return (
@@ -85,13 +97,35 @@ export const SecuritySection = ({
                   Two-factor authentication is enabled and active
                 </p>
               </div>
-              <Button 
-                onClick={onDisableMFA}
-                variant="destructive"
-                type="button"
-              >
-                Disable 2FA
-              </Button>
+              <div className="space-y-3">
+                <Label htmlFor="disableVerificationCode">Enter verification code to disable 2FA</Label>
+                <Input
+                  id="disableVerificationCode"
+                  value={disableVerificationCode}
+                  onChange={handleDisableVerificationCodeChange}
+                  placeholder="Enter the 6-digit code"
+                  maxLength={6}
+                  className="text-center text-lg tracking-widest"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                />
+                <Button 
+                  onClick={onDisableMFA}
+                  variant="destructive"
+                  disabled={!disableVerificationCode || disableVerificationCode.length !== 6 || isDisabling}
+                  className="w-full"
+                >
+                  {isDisabling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Disabling...
+                    </>
+                  ) : (
+                    'Verify and Disable 2FA'
+                  )}
+                </Button>
+              </div>
             </div>
           ) : qrCode ? (
             <div className="space-y-6">
