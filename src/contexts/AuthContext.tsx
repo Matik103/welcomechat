@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 type AuthContextType = {
   session: Session | null;
@@ -19,27 +19,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
+    // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Initial session check:", session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
-
-      // If session exists, redirect to the main admin dashboard
-      if (session?.user) {
-        navigate("/", { replace: true });
-      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       console.log("Auth state changed:", event, currentSession?.user?.email);
       
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+      setIsLoading(false);
 
-      if (event === 'SIGNED_IN' && currentSession?.user) {
-        navigate("/", { replace: true }); // Always redirect to main admin dashboard
+      // Only handle navigation on specific auth events
+      if (event === 'SIGNED_IN') {
+        // Don't redirect if already on a protected route
+        if (location.pathname === '/auth') {
+          navigate("/", { replace: true });
+        }
       } else if (event === 'SIGNED_OUT') {
         navigate("/auth", { replace: true });
       }
@@ -48,7 +52,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   const signOut = async () => {
     try {
