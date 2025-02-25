@@ -17,6 +17,9 @@ import NotFound from "./pages/NotFound";
 import ClientDashboard from "./pages/ClientDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/types/database.types";
+
+type UserRole = Database['public']['Tables']['user_roles']['Row']['role'];
 
 const App = () => {
   const { data: userRole } = useQuery({
@@ -33,7 +36,7 @@ const App = () => {
           .maybeSingle();
         
         if (error || !roleData) return null;
-        return roleData.role as 'admin' | 'client' | null;
+        return roleData.role as UserRole;
       } catch (error) {
         console.error('Error fetching user role:', error);
         return null;
