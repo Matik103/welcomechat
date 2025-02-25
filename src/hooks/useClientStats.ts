@@ -1,6 +1,16 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
+
+type ActivityMetadata = {
+  success?: boolean;
+  [key: string]: any;
+};
+
+type ClientActivity = Database["public"]["Tables"]["client_activities"]["Row"] & {
+  metadata: ActivityMetadata;
+};
 
 export const useClientStats = () => {
   return useQuery({
@@ -45,7 +55,7 @@ export const useClientStats = () => {
         .from("client_activities")
         .select("*")
         .eq('activity_type', 'chat_interaction')
-        .gte("created_at", fortyEightHoursAgo.toISOString());
+        .gte("created_at", fortyEightHoursAgo.toISOString()) as { data: ClientActivity[] | null };
 
       const totalInteractions = interactions?.length ?? 0;
       const successfulInteractions = interactions?.filter(i => i.metadata?.success)?.length ?? 0;
