@@ -1,7 +1,7 @@
 
-import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { authenticator } from "https://deno.land/x/otpauth@v9.0.1/dist/otpauth.js";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
+import { generateSecret, GenerateSecretOptions } from "npm:@node-oauth/oauth2-server@4.3.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,9 +25,6 @@ serve(async (req) => {
       throw new Error("client_id is required");
     }
 
-    // Generate TOTP secret
-    const secret = authenticator.generateSecret();
-    
     // Get client info for the OTP label
     const { data: client, error: clientError } = await supabase
       .from("clients")
@@ -37,19 +34,20 @@ serve(async (req) => {
 
     if (clientError) throw clientError;
 
-    // Create OTP URL
-    const otp = new authenticator.TOTP({
-      secret,
-      label: client.email,
-      issuer: "AI Agent Dashboard",
-    });
+    // Generate TOTP secret
+    const options: GenerateSecretOptions = {
+      length: 32,
+    };
+    const secret = generateSecret(options);
 
-    // Generate QR code URL
-    const qrCode = otp.toString();
+    // Create OTP URL
+    const issuer = encodeURIComponent("AI Agent Dashboard");
+    const accountName = encodeURIComponent(client.email);
+    const qrCode = `otpauth://totp/${issuer}:${accountName}?secret=${secret}&issuer=${issuer}`;
 
     // Generate backup codes
     const backupCodes = Array.from({ length: 10 }, () =>
-      Math.random().toString(36).substr(2, 9)
+      crypto.randomUUID().slice(0, 8)
     );
 
     // Save secret and backup codes
@@ -74,6 +72,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error("Error in setup-2fa function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
