@@ -9,6 +9,7 @@ import Settings from "@/pages/Settings";
 import ClientView from "@/pages/ClientView";
 import AddEditClient from "@/pages/AddEditClient";
 import WidgetSettings from "@/pages/WidgetSettings";
+import { RoleRoute } from "@/components/auth/RoleRoute";
 
 function App() {
   return (
@@ -16,13 +17,41 @@ function App() {
       <Header />
       <Routes>
         <Route path="/auth" element={<Auth />} />
-        <Route path="/" element={<Index />} />
-        <Route path="/clients" element={<ClientList />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/clients/new" element={<AddEditClient />} />
-        <Route path="/clients/:id" element={<ClientView />} />
-        <Route path="/clients/:id/edit" element={<AddEditClient />} />
-        <Route path="/clients/:id/widget-settings" element={<WidgetSettings />} />
+        <Route path="/" element={
+          <RoleRoute allowedRoles={['admin', 'client']}>
+            <Index />
+          </RoleRoute>
+        } />
+        <Route path="/clients" element={
+          <RoleRoute allowedRoles={['admin']}>
+            <ClientList />
+          </RoleRoute>
+        } />
+        <Route path="/settings" element={
+          <RoleRoute allowedRoles={['admin', 'client']}>
+            <Settings />
+          </RoleRoute>
+        } />
+        <Route path="/clients/new" element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AddEditClient />
+          </RoleRoute>
+        } />
+        <Route path="/clients/:id" element={
+          <RoleRoute allowedRoles={['admin']}>
+            <ClientView />
+          </RoleRoute>
+        } />
+        <Route path="/clients/:id/edit" element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AddEditClient />
+          </RoleRoute>
+        } />
+        <Route path="/clients/:id/widget-settings" element={
+          <RoleRoute allowedRoles={['admin', 'client']}>
+            <WidgetSettings />
+          </RoleRoute>
+        } />
       </Routes>
       <Toaster />
     </div>
