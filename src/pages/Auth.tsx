@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,11 @@ const Auth = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
 
-  if (session) {
-    navigate("/clients", { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (session) {
+      navigate("/clients", { replace: true });
+    }
+  }, [session, navigate]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +74,11 @@ const Auth = () => {
       toast.error(error.message);
     }
   };
+
+  // Prevent render if being redirected
+  if (session) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
