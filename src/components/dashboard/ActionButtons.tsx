@@ -27,7 +27,7 @@ export const ActionButtons = () => {
   
   return (
     <div className="flex flex-wrap gap-4">
-      <ActionButton primary onClick={() => navigate('/clients/new')}>
+      <ActionButton primary onClick={() => navigate('/admin/clients/new')}>
         <Plus className="w-4 h-4" /> Add New Client
       </ActionButton>
       <ActionButton onClick={() => navigate("/admin/clients")}>
