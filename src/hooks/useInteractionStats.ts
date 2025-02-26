@@ -70,7 +70,7 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       };
     },
     staleTime: 30000, // Data stays fresh for 30 seconds
-    cacheTime: 5 * 60 * 1000, // Cache data for 5 minutes
+    gcTime: 5 * 60 * 1000, // Cache data for 5 minutes (formerly cacheTime)
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
   });
 };
