@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { SecuritySection } from "@/components/settings/SecuritySection";
-import { InvitationsSection } from "@/components/settings/InvitationsSection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
 import { AdminSetup } from "@/components/settings/AdminSetup";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
@@ -56,8 +55,6 @@ const Settings = () => {
           onEnableMFA={mfaHandlers.handleEnableMFA}
           onVerifyMFA={mfaHandlers.handleVerifyMFA}
         />
-
-        <InvitationsSection />
 
         <SignOutSection />
       </div>
