@@ -35,7 +35,7 @@ export const Header = () => {
             </Link>
             <Link 
               to="/admin/clients" 
-              className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname.startsWith('/admin/clients') ? 'text-gray-900' : ''}`}
+              className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname === '/admin/clients' ? 'text-gray-900' : ''}`}
             >
               Clients
             </Link>
