@@ -24,6 +24,7 @@ export const useClientData = (id: string | undefined) => {
     mutationFn: async (data: ClientFormData) => {
       try {
         if (id) {
+          // Update existing client
           const { error } = await supabase
             .from("clients")
             .update({
@@ -36,34 +37,45 @@ export const useClientData = (id: string | undefined) => {
           if (error) throw error;
           return id;
         } else {
+          // Create new client with explicit returning clause
           const { data: newClient, error } = await supabase
             .from("clients")
-            .insert({
+            .insert([{
               client_name: data.client_name,
               email: data.email,
               agent_name: data.agent_name,
-              widget_settings: data.widget_settings,
-            })
-            .select()
+              widget_settings: data.widget_settings || {},
+              status: 'active'
+            }])
+            .select('*')
             .single();
-          if (error) throw error;
-          
+
+          if (error) {
+            console.error("Error creating client:", error);
+            throw error;
+          }
+
+          if (!newClient) {
+            throw new Error("Failed to create client - no data returned");
+          }
+
+          // Check for AI agent table creation activity
           const { data: activity, error: activityError } = await supabase
             .from("client_activities")
             .select("*")
             .eq("client_id", newClient.id)
             .eq("activity_type", "ai_agent_table_created")
             .single();
-          
+
           if (!activityError && activity) {
             toast.success(`Successfully created AI Agent table for ${data.agent_name}`);
           }
-          
+
           return newClient.id;
         }
       } catch (error: any) {
         console.error("Error in client mutation:", error);
-        throw error;
+        throw new Error(error.message || "Failed to save client");
       }
     },
     onSuccess: () => {
