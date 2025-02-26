@@ -15,6 +15,7 @@ import { Link, useLocation } from "react-router-dom";
 export const Header = () => {
   const { user, signOut } = useAuth();
   const location = useLocation();
+  const { roles } = user?.user_metadata || { roles: [] };
 
   const handleSignOut = async () => {
     await signOut();
@@ -33,12 +34,14 @@ export const Header = () => {
             >
               Dashboard
             </Link>
-            <Link 
-              to="/admin/clients" 
-              className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname === '/admin/clients' ? 'text-gray-900' : ''}`}
-            >
-              Clients
-            </Link>
+            {roles?.includes('admin') && (
+              <Link 
+                to="/admin/clients" 
+                className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname.includes('/admin/clients') ? 'text-gray-900' : ''}`}
+              >
+                Clients
+              </Link>
+            )}
           </nav>
           
           <DropdownMenu>
