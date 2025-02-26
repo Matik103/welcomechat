@@ -24,9 +24,8 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { email, role_type, url }: InvitationEmailRequest = await req.json();
-    console.log(`Attempting to send invitation email to ${email} for role ${role_type}`);
+    console.log(`Starting invitation email to ${email}`);
 
-    // Configure privateemail.com SMTP connection
     await client.connectTLS({
       hostname: "mail.privateemail.com",
       port: 465,
@@ -34,7 +33,6 @@ const handler = async (req: Request): Promise<Response> => {
       password: Deno.env.get("SMTP_PASS"),
     });
 
-    // Send email
     await client.send({
       from: Deno.env.get("SMTP_SENDER")!,
       to: email,
@@ -55,31 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     await client.close();
-    console.log("Email sent successfully to:", email);
-
-    // Log the successful email sending
-    try {
-      const { error: logError } = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/email_logs`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        },
-        body: JSON.stringify({
-          email_to: email,
-          subject: `Invitation as ${role_type}`,
-          status: "sent",
-          metadata: { role_type, url }
-        }),
-      }).then(res => res.json());
-
-      if (logError) {
-        console.error("Error logging email:", logError);
-      }
-    } catch (logError) {
-      console.error("Error logging email to database:", logError);
-    }
+    console.log("Email sent successfully");
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -91,35 +65,13 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
     );
-  } catch (error: any) {
-    console.error("Error in send-invitation function:", error);
+  } catch (error) {
+    console.error("Failed to send invitation:", error);
 
-    // Make sure to close the SMTP connection in case of error
     try {
       await client.close();
     } catch (closeError) {
       console.error("Error closing SMTP connection:", closeError);
-    }
-
-    // Log the error
-    try {
-      const body = await req.json();
-      await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/email_logs`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        },
-        body: JSON.stringify({
-          email_to: body.email,
-          subject: "Invitation failed",
-          status: "error",
-          error: error.message
-        }),
-      });
-    } catch (logError) {
-      console.error("Error logging email failure:", logError);
     }
 
     return new Response(
