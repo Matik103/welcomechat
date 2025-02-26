@@ -1,21 +1,8 @@
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/contexts/AuthContext";
-
-interface Invitation {
-  id: string;
-  email: string;
-  token: string;
-  role_type: 'admin' | 'client';
-  status: 'pending' | 'accepted' | 'expired';
-  created_by: string;
-  created_at: string;
-  expires_at: string;
-  accepted_at?: string;
-}
 
 interface CreateInvitationData {
   email: string;
@@ -23,7 +10,6 @@ interface CreateInvitationData {
 }
 
 export function useInvitations() {
-  const queryClient = useQueryClient();
   const { user } = useAuth();
 
   // Check if user is admin
@@ -44,22 +30,6 @@ export function useInvitations() {
 
       return data;
     }
-  });
-
-  const { data: invitations, isLoading: isLoadingInvitations } = useQuery({
-    queryKey: ["invitations"],
-    queryFn: async () => {
-      if (!isAdmin) return [];
-
-      const { data, error } = await supabase
-        .from('invitations')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as Invitation[];
-    },
-    enabled: !isCheckingPermission && isAdmin === true
   });
 
   const createInvitation = useMutation({
@@ -83,31 +53,12 @@ export function useInvitations() {
 
       if (error) throw error;
       return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invitations"] });
-    }
-  });
-
-  const cancelInvitation = useMutation({
-    mutationFn: async (invitationId: string) => {
-      const { error } = await supabase
-        .from('invitations')
-        .update({ status: 'expired' })
-        .eq('id', invitationId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invitations"] });
     }
   });
 
   return {
-    invitations,
-    isLoading: isCheckingPermission || isLoadingInvitations,
     createInvitation,
-    cancelInvitation,
+    isLoading: isCheckingPermission,
     isAdmin
   };
 }
