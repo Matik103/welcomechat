@@ -42,19 +42,19 @@ export const useDriveLinks = (clientId: string | undefined) => {
       
       // Check if the URL exists in the AI agent table
       const { data: existingData } = await supabase
-        .from("ai_agent")
-        .select<"*", AIAgentEntry>("*")
-        .eq("metadata->client_id", clientId)
-        .eq("metadata->url", link)
-        .single();
+        .from('ai_agent')
+        .select('*')
+        .eq('metadata->client_id', clientId)
+        .eq('metadata->url', link)
+        .maybeSingle();
 
       if (existingData) {
         // Delete the old content
         await supabase
-          .from("ai_agent")
+          .from('ai_agent')
           .delete()
-          .eq("metadata->client_id", clientId)
-          .eq("metadata->url", link);
+          .eq('metadata->client_id', clientId)
+          .eq('metadata->url', link);
       }
 
       // Attempt to fetch the metadata to check if it's public
