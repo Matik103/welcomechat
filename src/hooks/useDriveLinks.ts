@@ -4,6 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DriveLink } from "@/types/client";
 
+interface AIAgentMetadata {
+  client_id: string;
+  url: string;
+  type?: string;
+}
+
+interface AIAgentEntry {
+  id: number;
+  content: string | null;
+  embedding: string | null;
+  metadata: AIAgentMetadata | null;
+}
+
 export const useDriveLinks = (clientId: string | undefined) => {
   const { data: driveLinks = [], refetch: refetchDriveLinks } = useQuery({
     queryKey: ["driveLinks", clientId],
@@ -30,7 +43,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
       // Check if the URL exists in the AI agent table
       const { data: existingData } = await supabase
         .from("ai_agent")
-        .select("*")
+        .select<"*", AIAgentEntry>("*")
         .eq("metadata->client_id", clientId)
         .eq("metadata->url", link)
         .single();
