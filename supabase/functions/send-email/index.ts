@@ -15,42 +15,82 @@ serve(async (req) => {
 
   try {
     const { to, subject, content } = await req.json();
+    
+    console.log('Received request to send email:', {
+      to,
+      subject,
+      contentLength: content?.length
+    });
 
+    if (!to || !subject || !content) {
+      throw new Error('Missing required email parameters');
+    }
+
+    const smtpUsername = Deno.env.get("SMTP_USER");
+    const smtpPassword = Deno.env.get("SMTP_PASS");
+
+    if (!smtpUsername || !smtpPassword) {
+      throw new Error('SMTP credentials not configured');
+    }
+
+    console.log('Initializing SMTP client...');
     const client = new SmtpClient();
 
-    // Connect to Namecheap Private Email SMTP server
-    await client.connectTLS({
-      hostname: "mail.privateemail.com",
-      port: 465, // Using SSL port
-      username: Deno.env.get("SMTP_USER")!,
-      password: Deno.env.get("SMTP_PASS")!,
-    });
+    try {
+      console.log('Connecting to SMTP server...');
+      await client.connectTLS({
+        hostname: "mail.privateemail.com",
+        port: 465,
+        username: smtpUsername,
+        password: smtpPassword,
+      });
 
-    const sender = Deno.env.get("SMTP_USER")!;
-    console.log('Preparing to send email from:', sender, 'to:', to);
+      console.log('Successfully connected to SMTP server');
 
-    // Send the email
-    const result = await client.send({
-      from: sender,
-      to: to,
-      subject: subject,
-      content: content,
-      html: content,
-    });
+      const emailPayload = {
+        from: smtpUsername,
+        to: to,
+        subject: subject,
+        content: content,
+        html: content,
+      };
 
-    console.log('Email sent successfully:', result);
-    await client.close();
+      console.log('Sending email...');
+      const result = await client.send(emailPayload);
+      console.log('Email sent successfully:', result);
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+      await client.close();
+      console.log('SMTP connection closed');
+
+      return new Response(JSON.stringify({ success: true, result }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+
+    } catch (smtpError) {
+      console.error('SMTP Error:', smtpError);
+      // Make sure to close the client even if there's an error
+      try {
+        await client.close();
+      } catch (closeError) {
+        console.error('Error closing SMTP connection:', closeError);
+      }
+      throw smtpError;
+    }
 
   } catch (error) {
-    console.error('Error sending email:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    console.error('Error in email function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    return new Response(
+      JSON.stringify({ 
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : undefined
+      }), 
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    );
   }
 });

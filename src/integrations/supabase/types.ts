@@ -226,6 +226,27 @@ export type Database = {
         }
         Relationships: []
       }
+      coins: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       common_queries: {
         Row: {
           client_id: string | null
@@ -889,6 +910,19 @@ export type Database = {
         }[]
       }
       match_coca_cola: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_coins: {
         Args: {
           query_embedding: string
           match_count?: number
