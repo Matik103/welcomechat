@@ -13,7 +13,7 @@ export const useClientData = (id: string | undefined) => {
         .from("clients")
         .select("*")
         .eq("id", id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data as Client;
     },
@@ -37,8 +37,8 @@ export const useClientData = (id: string | undefined) => {
           if (error) throw error;
           return id;
         } else {
-          // Create new client with explicit returning clause
-          const { data: newClient, error } = await supabase
+          // Create new client without using single()
+          const { data: newClients, error } = await supabase
             .from("clients")
             .insert([{
               client_name: data.client_name,
@@ -47,25 +47,25 @@ export const useClientData = (id: string | undefined) => {
               widget_settings: data.widget_settings || {},
               status: 'active'
             }])
-            .select('*')
-            .single();
+            .select('*');
 
           if (error) {
             console.error("Error creating client:", error);
             throw error;
           }
 
-          if (!newClient) {
+          if (!newClients || newClients.length === 0) {
             throw new Error("Failed to create client - no data returned");
           }
+
+          const newClient = newClients[0];
 
           // Check for AI agent table creation activity
           const { data: activity, error: activityError } = await supabase
             .from("client_activities")
             .select("*")
             .eq("client_id", newClient.id)
-            .eq("activity_type", "ai_agent_table_created")
-            .single();
+            .maybeSingle();
 
           if (!activityError && activity) {
             toast.success(`Successfully created AI Agent table for ${data.agent_name}`);
