@@ -86,11 +86,6 @@ export function useInvitations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
-      toast.success("Invitation sent successfully");
-    },
-    onError: (error: any) => {
-      console.error('Error creating invitation:', error);
-      toast.error(error.message || "Failed to send invitation");
     }
   });
 
@@ -105,11 +100,6 @@ export function useInvitations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
-      toast.success("Invitation cancelled successfully");
-    },
-    onError: (error: any) => {
-      console.error('Error cancelling invitation:', error);
-      toast.error(error.message || "Failed to cancel invitation");
     }
   });
 

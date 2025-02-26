@@ -13,6 +13,8 @@ import { format } from "date-fns";
 export const InvitationsSection = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const { createInvitation, cancelInvitation, invitations, isLoading, isAdmin } = useInvitations();
 
   const handleInvite = async (role: 'client' | 'admin') => {
@@ -53,17 +55,20 @@ export const InvitationsSection = () => {
 
   const handleCancel = async (invitationId: string) => {
     try {
+      setCancellingId(invitationId);
       await cancelInvitation.mutateAsync(invitationId);
       toast.success("Invitation cancelled successfully");
     } catch (error: any) {
       console.error('Error cancelling invitation:', error);
       toast.error(error.message || "Failed to cancel invitation");
+    } finally {
+      setCancellingId(null);
     }
   };
 
   const handleResend = async (invitation: any) => {
     try {
-      setInviteLoading(true);
+      setResendingId(invitation.id);
       const { error: emailError } = await supabase.functions.invoke('send-invitation', {
         body: {
           email: invitation.email,
@@ -78,7 +83,7 @@ export const InvitationsSection = () => {
       console.error('Error resending invitation:', error);
       toast.error(error.message || "Failed to resend invitation");
     } finally {
-      setInviteLoading(false);
+      setResendingId(null);
     }
   };
 
@@ -114,7 +119,7 @@ export const InvitationsSection = () => {
             <div className="flex gap-4">
               <Button
                 onClick={() => handleInvite('client')}
-                disabled={inviteLoading || !inviteEmail}
+                disabled={inviteLoading}
                 className="flex-1"
               >
                 {inviteLoading ? (
@@ -128,7 +133,7 @@ export const InvitationsSection = () => {
               </Button>
               <Button
                 onClick={() => handleInvite('admin')}
-                disabled={inviteLoading || !inviteEmail}
+                disabled={inviteLoading}
                 className="flex-1"
               >
                 {inviteLoading ? (
@@ -172,15 +177,25 @@ export const InvitationsSection = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleResend(invitation)}
+                            disabled={resendingId === invitation.id}
                           >
-                            <RefreshCw className="h-4 w-4" />
+                            {resendingId === invitation.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleCancel(invitation.id)}
+                            disabled={cancellingId === invitation.id}
                           >
-                            <Ban className="h-4 w-4" />
+                            {cancellingId === invitation.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Ban className="h-4 w-4" />
+                            )}
                           </Button>
                         </>
                       )}
