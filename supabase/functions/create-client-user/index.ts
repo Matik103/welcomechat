@@ -10,47 +10,41 @@ const corsHeaders = {
 
 async function sendEmail(to: string, subject: string, htmlContent: string) {
   console.log('Starting email send process...');
-  const client = new SmtpClient();
-
-  try {
-    const config = {
+  const client = new SmtpClient({
+    connection: {
       hostname: Deno.env.get('SMTP_HOST')!,
       port: Number(Deno.env.get('SMTP_PORT')),
-      username: Deno.env.get('SMTP_USER')!,
-      password: Deno.env.get('SMTP_PASS')!,
-      tls: true, // Explicitly enable TLS
-    };
+      tls: true,
+      auth: {
+        username: Deno.env.get('SMTP_USER')!,
+        password: Deno.env.get('SMTP_PASS')!,
+      }
+    }
+  });
 
+  try {
     // Log configuration (excluding password)
     console.log('SMTP Configuration:', {
-      hostname: config.hostname,
-      port: config.port,
-      username: config.username,
-      tls: config.tls
+      hostname: Deno.env.get('SMTP_HOST'),
+      port: Number(Deno.env.get('SMTP_PORT')),
+      username: Deno.env.get('SMTP_USER'),
+      tls: true
     });
-
-    console.log('Connecting to SMTP server...');
-    await client.connectTLS(config);
-    console.log('Successfully connected to SMTP server');
 
     const sender = Deno.env.get('SMTP_SENDER')!;
     console.log('Preparing to send email from:', sender, 'to:', to);
 
-    const emailData = {
+    await client.send({
       from: sender,
       to: to,
       subject: subject,
       content: htmlContent,
       html: htmlContent,
-    };
+    });
 
-    console.log('Sending email...');
-    await client.send(emailData);
     console.log('Email sent successfully');
-
   } catch (error) {
     console.error('Error in sendEmail:', error);
-    // Log more details about the error
     if (error instanceof Error) {
       console.error('Error name:', error.name);
       console.error('Error message:', error.message);
@@ -59,8 +53,8 @@ async function sendEmail(to: string, subject: string, htmlContent: string) {
     throw error;
   } finally {
     try {
-      console.log('Closing SMTP connection');
       await client.close();
+      console.log('SMTP connection closed');
     } catch (closeError) {
       console.error('Error closing SMTP connection:', closeError);
     }
