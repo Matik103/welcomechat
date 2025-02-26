@@ -9,26 +9,40 @@ const corsHeaders = {
 }
 
 async function sendEmail(to: string, subject: string, htmlContent: string) {
+  console.log('Starting email send process...');
   const client = new SmtpClient();
 
-  const config = {
-    hostname: Deno.env.get('SMTP_HOST')!,
-    port: Number(Deno.env.get('SMTP_PORT')),
-    username: Deno.env.get('SMTP_USER')!,
-    password: Deno.env.get('SMTP_PASS')!,
-  };
+  try {
+    const config = {
+      hostname: Deno.env.get('SMTP_HOST')!,
+      port: Number(Deno.env.get('SMTP_PORT')),
+      username: Deno.env.get('SMTP_USER')!,
+      password: Deno.env.get('SMTP_PASS')!,
+    };
 
-  await client.connectTLS(config);
+    console.log('Connecting to SMTP server:', config.hostname);
+    await client.connectTLS(config);
+    console.log('Successfully connected to SMTP server');
 
-  await client.send({
-    from: Deno.env.get('SMTP_SENDER')!,
-    to: to,
-    subject: subject,
-    content: htmlContent,
-    html: htmlContent,
-  });
+    const sender = Deno.env.get('SMTP_SENDER')!;
+    console.log('Sending email from:', sender, 'to:', to);
 
-  await client.close();
+    await client.send({
+      from: sender,
+      to: to,
+      subject: subject,
+      content: htmlContent,
+      html: htmlContent,
+    });
+
+    console.log('Email sent successfully');
+  } catch (error) {
+    console.error('Error in sendEmail:', error);
+    throw error;
+  } finally {
+    console.log('Closing SMTP connection');
+    await client.close();
+  }
 }
 
 serve(async (req) => {
@@ -37,6 +51,7 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting create-client-user function');
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -49,8 +64,10 @@ serve(async (req) => {
     )
 
     const { email, clientName, aiAgentName } = await req.json()
+    console.log('Received request for:', email);
 
     // Create the user
+    console.log('Creating user account...');
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       email_confirm: true,
@@ -60,9 +77,14 @@ serve(async (req) => {
       }
     })
 
-    if (userError) throw userError
+    if (userError) {
+      console.error('Error creating user:', userError);
+      throw userError;
+    }
+    console.log('User account created successfully');
 
     // Generate password reset link
+    console.log('Generating password reset link...');
     const { data: linkData, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email,
@@ -74,10 +96,18 @@ serve(async (req) => {
       }
     })
 
-    if (resetError) throw resetError
+    if (resetError) {
+      console.error('Error generating reset link:', resetError);
+      throw resetError;
+    }
+    console.log('Reset link generated successfully');
 
     // Send welcome email with setup instructions using SMTP
     try {
+      console.log('Sending welcome email...');
+      const resetLink = linkData?.properties?.action_link;
+      console.log('Reset link:', resetLink);
+
       await sendEmail(
         email,
         'Welcome to Interact Metrics - Setup Instructions',
@@ -87,7 +117,7 @@ serve(async (req) => {
         <p>Your account has been created successfully. To get started:</p>
         <ol>
           <li>Click the link below to set up your password:</li>
-          <li><a href="${linkData?.properties?.action_link}">Set Up Your Password</a></li>
+          <li><a href="${resetLink}">Set Up Your Password</a></li>
           <li>After setting your password, you'll be able to access your dashboard</li>
           <li>Your AI agent "${aiAgentName}" has been created and is ready for configuration</li>
         </ol>
@@ -95,9 +125,9 @@ serve(async (req) => {
         <p>Best regards,<br>The Interact Metrics Team</p>
       `
       );
-      console.log('Successfully sent welcome email');
+      console.log('Welcome email sent successfully');
     } catch (emailError) {
-      console.error('Error sending email:', emailError);
+      console.error('Error sending welcome email:', emailError);
       throw emailError;
     }
 
