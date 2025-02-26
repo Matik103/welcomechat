@@ -11,25 +11,24 @@ interface DriveLink {
   created_at?: string;
 }
 
-async function fetchDriveLinks(clientId: string | undefined) {
-  if (!clientId) return [];
-  const { data, error } = await supabase
-    .from("google_drive_links")
-    .select("*")
-    .eq("client_id", clientId);
-  if (error) throw error;
-  return (data || []) as DriveLink[];
-}
+type QueryFnType = () => Promise<DriveLink[]>;
 
 export const useDriveLinks = (clientId: string | undefined) => {
-  const queryResult = useQuery({
+  const queryFn: QueryFnType = async () => {
+    if (!clientId) return [];
+    const { data, error } = await supabase
+      .from("google_drive_links")
+      .select("*")
+      .eq("client_id", clientId);
+    if (error) throw error;
+    return (data || []) as DriveLink[];
+  };
+
+  const { data = [], refetch } = useQuery({
     queryKey: ["driveLinks", clientId],
-    queryFn: () => fetchDriveLinks(clientId),
+    queryFn,
     enabled: !!clientId
   });
-
-  const driveLinks = queryResult.data || [];
-  const refetchDriveLinks = queryResult.refetch;
 
   const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
     try {
@@ -104,7 +103,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
       return data as DriveLink;
     },
     onSuccess: () => {
-      refetchDriveLinks();
+      refetch();
       toast.success("Drive link added successfully");
     },
     onError: (error: Error) => {
@@ -121,7 +120,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      refetchDriveLinks();
+      refetch();
       toast.success("Drive link removed successfully");
     },
     onError: (error: Error) => {
@@ -130,8 +129,8 @@ export const useDriveLinks = (clientId: string | undefined) => {
   });
 
   return {
-    driveLinks,
-    refetchDriveLinks,
+    driveLinks: data,
+    refetchDriveLinks: refetch,
     addDriveLinkMutation,
     deleteDriveLinkMutation,
   };
