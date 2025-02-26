@@ -6,18 +6,19 @@ import { ActionButtons } from "@/components/dashboard/ActionButtons";
 import { useClientStats } from "@/hooks/useClientStats";
 import { useInteractionStats } from "@/hooks/useInteractionStats";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
   
+  // Static stats that don't depend on time range
   const { 
     data: clientStats,
     isError: isClientStatsError,
     isLoading: isClientStatsLoading 
   } = useClientStats();
   
+  // Dynamic stats that depend on time range
   const { 
     data: interactionStats,
     isError: isInteractionStatsError,
@@ -34,8 +35,6 @@ const Index = () => {
   if (isClientStatsError || isInteractionStatsError || isActivitiesError) {
     toast.error("Error loading dashboard data. Please try again later.");
   }
-
-  const isLoading = isClientStatsLoading || isInteractionStatsLoading || isActivitiesLoading;
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
@@ -56,6 +55,7 @@ const Index = () => {
                     ? "bg-primary text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 } transition-colors duration-200`}
+                disabled={isInteractionStatsLoading}
               >
                 {range.toUpperCase()}
               </button>
@@ -63,37 +63,38 @@ const Index = () => {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center min-h-[200px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard 
-                title="Total Clients" 
-                value={clientStats?.totalClients || 0}
-              />
-              <MetricCard 
-                title="Active Clients" 
-                value={clientStats?.activeClients || 0}
-                change={clientStats?.activeClientsChange}
-              />
-              <MetricCard 
-                title="Avg. Interactions" 
-                value={interactionStats?.avgInteractions || 0}
-                change={interactionStats?.avgInteractionsChange}
-              />
-              <MetricCard 
-                title="Total Interactions" 
-                value={interactionStats?.totalInteractions || 0}
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Static metrics that don't depend on time range */}
+          <MetricCard 
+            title="Total Clients" 
+            value={clientStats?.totalClients || 0}
+            isLoading={isClientStatsLoading}
+          />
+          <MetricCard 
+            title="Active Clients" 
+            value={clientStats?.activeClients || 0}
+            change={clientStats?.activeClientsChange}
+            isLoading={isClientStatsLoading}
+          />
+          {/* Dynamic metrics that update with time range */}
+          <MetricCard 
+            title="Avg. Interactions" 
+            value={interactionStats?.avgInteractions || 0}
+            change={interactionStats?.avgInteractionsChange}
+            isLoading={isInteractionStatsLoading}
+          />
+          <MetricCard 
+            title="Total Interactions" 
+            value={interactionStats?.totalInteractions || 0}
+            isLoading={isInteractionStatsLoading}
+          />
+        </div>
 
-            <ActivityList activities={recentActivities || []} />
-            <ActionButtons />
-          </>
-        )}
+        <ActivityList 
+          activities={recentActivities || []} 
+          isLoading={isActivitiesLoading}
+        />
+        <ActionButtons />
       </div>
     </div>
   );
