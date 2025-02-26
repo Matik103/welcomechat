@@ -532,6 +532,27 @@ export type Database = {
         }
         Relationships: []
       }
+      proton: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       sadhana_forest: {
         Row: {
           content: string | null
@@ -920,6 +941,19 @@ export type Database = {
         }[]
       }
       match_pet__pets: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_proton: {
         Args: {
           query_embedding: string
           match_count?: number

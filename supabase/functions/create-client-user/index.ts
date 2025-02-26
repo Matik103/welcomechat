@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,26 +10,22 @@ const corsHeaders = {
 
 async function sendEmail(to: string, subject: string, htmlContent: string) {
   console.log('Starting email send process...');
+  const client = new SmtpClient();
   
   try {
-    const client = new SMTPClient({
-      connection: {
-        hostname: Deno.env.get('SMTP_HOST')!,
-        port: Number(Deno.env.get('SMTP_PORT')),
-        tls: true,
-        auth: {
-          username: Deno.env.get('SMTP_USER')!,
-          password: Deno.env.get('SMTP_PASS')!,
-        },
-      },
-    });
-
     // Log configuration (excluding password)
     console.log('SMTP Configuration:', {
       hostname: Deno.env.get('SMTP_HOST'),
       port: Number(Deno.env.get('SMTP_PORT')),
       username: Deno.env.get('SMTP_USER'),
-      tls: true
+    });
+
+    // Connect using TLS
+    await client.connectTLS({
+      hostname: Deno.env.get('SMTP_HOST')!,
+      port: Number(Deno.env.get('SMTP_PORT')),
+      username: Deno.env.get('SMTP_USER')!,
+      password: Deno.env.get('SMTP_PASS')!,
     });
 
     const sender = Deno.env.get('SMTP_SENDER')!;
@@ -37,9 +33,9 @@ async function sendEmail(to: string, subject: string, htmlContent: string) {
 
     await client.send({
       from: sender,
-      to: [to],
+      to: to,
       subject: subject,
-      html: htmlContent,
+      content: htmlContent,
     });
 
     console.log('Email sent successfully');
@@ -51,6 +47,7 @@ async function sendEmail(to: string, subject: string, htmlContent: string) {
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
     }
+    await client.close().catch(console.error);
     throw error;
   }
 }
