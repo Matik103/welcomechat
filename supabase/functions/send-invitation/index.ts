@@ -14,28 +14,33 @@ interface InvitationEmailRequest {
   url: string;
 }
 
-const client = new SmtpClient();
-
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const client = new SmtpClient();
+
   try {
     const { email, role_type, url }: InvitationEmailRequest = await req.json();
 
-    console.log(`Sending invitation email to ${email} for role ${role_type}`);
+    console.log(`Attempting to send invitation email to ${email} for role ${role_type}`);
 
-    await client.connectTLS({
+    // Configure SMTP connection
+    const config = {
       hostname: Deno.env.get("SMTP_HOST")!,
       port: Number(Deno.env.get("SMTP_PORT")),
       username: Deno.env.get("SMTP_USER")!,
       password: Deno.env.get("SMTP_PASS")!,
-    });
+    };
+
+    console.log("Connecting to SMTP server...");
+    await client.connectTLS(config);
 
     const senderEmail = Deno.env.get("SMTP_SENDER")!;
     
+    console.log("Sending email...");
     await client.send({
       from: senderEmail,
       to: email,
@@ -54,37 +59,58 @@ const handler = async (req: Request): Promise<Response> => {
       html: true,
     });
 
-    await client.close();
-
-    // Log the email sending
-    const { error: logError } = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/email_logs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      },
-      body: JSON.stringify({
-        email_to: email,
-        subject: `Invitation as ${role_type}`,
-        status: "sent",
-        metadata: { role_type, url }
-      }),
-    }).then(res => res.json());
-
-    if (logError) console.error("Error logging email:", logError);
-
     console.log("Email sent successfully");
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    // Close the connection
+    await client.close();
+
+    // Log the successful email sending
+    try {
+      const { error: logError } = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/email_logs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        },
+        body: JSON.stringify({
+          email_to: email,
+          subject: `Invitation as ${role_type}`,
+          status: "sent",
+          metadata: { role_type, url }
+        }),
+      }).then(res => res.json());
+
+      if (logError) {
+        console.error("Error logging email:", logError);
+      }
+    } catch (logError) {
+      console.error("Error logging email to database:", logError);
+    }
+
+    return new Response(
+      JSON.stringify({ success: true }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      }
+    );
   } catch (error: any) {
     console.error("Error in send-invitation function:", error);
 
+    // Make sure to close the SMTP connection in case of error
+    try {
+      await client.close();
+    } catch (closeError) {
+      console.error("Error closing SMTP connection:", closeError);
+    }
+
     // Log the error
     try {
+      const body = await req.json();
       await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/email_logs`, {
         method: "POST",
         headers: {
@@ -93,7 +119,7 @@ const handler = async (req: Request): Promise<Response> => {
           "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         },
         body: JSON.stringify({
-          email_to: (await req.json()).email,
+          email_to: body.email,
           subject: "Invitation failed",
           status: "error",
           error: error.message
@@ -104,10 +130,16 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: "Failed to send invitation email",
+        details: error.message
+      }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
       }
     );
   }
