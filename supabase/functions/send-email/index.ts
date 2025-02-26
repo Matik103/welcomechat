@@ -23,9 +23,9 @@ serve(async (req) => {
 
     const smtp = new SMTPClient({
       connection: {
-        hostname: "mail.privateemail.com",
-        port: 465,  // Changed back to 465 to match Namecheap's settings
-        tls: true,
+        hostname: "localhost",  // Changed to localhost
+        port: 25,  // Changed to port 25 to match your SMTP settings
+        tls: false,  // Disabled TLS since we're using standard SMTP port
         auth: {
           username: Deno.env.get("SMTP_USER")!,
           password: Deno.env.get("SMTP_PASS")!,
