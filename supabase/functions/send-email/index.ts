@@ -24,7 +24,7 @@ serve(async (req) => {
     const smtp = new SMTPClient({
       connection: {
         hostname: "mail.privateemail.com",
-        port: 465,
+        port: 587,  // Changed to 587 for TLS
         tls: true,
         auth: {
           username: Deno.env.get("SMTP_USER")!,
