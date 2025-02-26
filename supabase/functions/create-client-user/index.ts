@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,19 +10,20 @@ const corsHeaders = {
 
 async function sendEmail(to: string, subject: string, htmlContent: string) {
   console.log('Starting email send process...');
-  const client = new SmtpClient({
-    connection: {
-      hostname: Deno.env.get('SMTP_HOST')!,
-      port: Number(Deno.env.get('SMTP_PORT')),
-      tls: true,
-      auth: {
-        username: Deno.env.get('SMTP_USER')!,
-        password: Deno.env.get('SMTP_PASS')!,
-      }
-    }
-  });
-
+  
   try {
+    const client = new SMTPClient({
+      connection: {
+        hostname: Deno.env.get('SMTP_HOST')!,
+        port: Number(Deno.env.get('SMTP_PORT')),
+        tls: true,
+        auth: {
+          username: Deno.env.get('SMTP_USER')!,
+          password: Deno.env.get('SMTP_PASS')!,
+        },
+      },
+    });
+
     // Log configuration (excluding password)
     console.log('SMTP Configuration:', {
       hostname: Deno.env.get('SMTP_HOST'),
@@ -36,13 +37,13 @@ async function sendEmail(to: string, subject: string, htmlContent: string) {
 
     await client.send({
       from: sender,
-      to: to,
+      to: [to],
       subject: subject,
-      content: htmlContent,
       html: htmlContent,
     });
 
     console.log('Email sent successfully');
+    await client.close();
   } catch (error) {
     console.error('Error in sendEmail:', error);
     if (error instanceof Error) {
@@ -51,13 +52,6 @@ async function sendEmail(to: string, subject: string, htmlContent: string) {
       console.error('Error stack:', error.stack);
     }
     throw error;
-  } finally {
-    try {
-      await client.close();
-      console.log('SMTP connection closed');
-    } catch (closeError) {
-      console.error('Error closing SMTP connection:', closeError);
-    }
   }
 }
 
