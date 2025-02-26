@@ -19,14 +19,74 @@ export const useDriveLinks = (clientId: string | undefined) => {
     enabled: !!clientId,
   });
 
+  const checkDriveLinkAccess = async (link: string) => {
+    try {
+      // Extract file/folder ID from Google Drive link
+      const matches = link.match(/[-\w]{25,}/);
+      if (!matches) {
+        throw new Error("Invalid Google Drive link format");
+      }
+      
+      // Check if the URL exists in the AI agent table
+      const { data: existingData } = await supabase
+        .from(`${clientId}_agent`)
+        .select("*")
+        .eq("metadata->url", link)
+        .single();
+
+      if (existingData) {
+        // Delete the old content
+        await supabase
+          .from(`${clientId}_agent`)
+          .delete()
+          .eq("metadata->url", link);
+      }
+
+      // Attempt to fetch the metadata to check if it's public
+      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${matches[0]}?fields=capabilities&key=${process.env.GOOGLE_API_KEY}`);
+      
+      if (!response.ok) {
+        throw new Error("Drive file is not publicly accessible");
+      }
+
+      // Trigger n8n webhook for processing
+      await fetch(process.env.N8N_WEBHOOK_URL || "", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          url: link,
+          type: "google_drive"
+        })
+      });
+
+      return true;
+    } catch (error) {
+      // Log error to error_logs table
+      await supabase.from("error_logs").insert({
+        client_id: clientId,
+        error_type: "drive_link_access",
+        message: error.message,
+        status: "error"
+      });
+      
+      throw error;
+    }
+  };
+
   const addDriveLinkMutation = useMutation({
     mutationFn: async ({ link, refresh_rate }: { link: string; refresh_rate: number }) => {
       if (!clientId) throw new Error("Client ID is required");
+      
+      // Validate drive link accessibility
+      await checkDriveLinkAccess(link);
+      
       const { data, error } = await supabase
         .from("google_drive_links")
         .insert([{ client_id: clientId, link, refresh_rate }])
         .select()
         .single();
+        
       if (error) throw error;
       return data;
     },

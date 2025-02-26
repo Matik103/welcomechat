@@ -19,9 +19,66 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
     enabled: !!clientId,
   });
 
+  const checkWebsiteAccess = async (url: string) => {
+    try {
+      // Check if the URL exists in the AI agent table
+      const { data: existingData } = await supabase
+        .from(`${clientId}_agent`)
+        .select("*")
+        .eq("metadata->url", url)
+        .single();
+
+      if (existingData) {
+        // Delete the old content
+        await supabase
+          .from(`${clientId}_agent`)
+          .delete()
+          .eq("metadata->url", url);
+      }
+
+      // Attempt to fetch the website
+      const response = await fetch(url, {
+        method: "HEAD",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; Lovable/1.0; +https://lovable.dev)"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Website is not publicly accessible");
+      }
+
+      // Trigger n8n webhook for processing
+      await fetch(process.env.N8N_WEBHOOK_URL || "", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          url,
+          type: "website"
+        })
+      });
+
+      return true;
+    } catch (error) {
+      // Log error to error_logs table
+      await supabase.from("error_logs").insert({
+        client_id: clientId,
+        error_type: "website_access",
+        message: error.message,
+        status: "error"
+      });
+      
+      throw error;
+    }
+  };
+
   const addWebsiteUrlMutation = useMutation({
     mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
       if (!clientId) throw new Error("Client ID is required");
+      
+      // Validate website accessibility
+      await checkWebsiteAccess(url);
       
       const { data, error } = await supabase
         .from("website_urls")
