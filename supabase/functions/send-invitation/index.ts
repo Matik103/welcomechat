@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,32 +20,17 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const client = new SmtpClient();
-
   try {
     const { email, role_type, url }: InvitationEmailRequest = await req.json();
-
     console.log(`Attempting to send invitation email to ${email} for role ${role_type}`);
 
-    // Configure SMTP connection
-    const config = {
-      hostname: Deno.env.get("SMTP_HOST")!,
-      port: Number(Deno.env.get("SMTP_PORT")),
-      username: Deno.env.get("SMTP_USER")!,
-      password: Deno.env.get("SMTP_PASS")!,
-    };
+    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-    console.log("Connecting to SMTP server...");
-    await client.connectTLS(config);
-
-    const senderEmail = Deno.env.get("SMTP_SENDER")!;
-    
-    console.log("Sending email...");
-    await client.send({
-      from: senderEmail,
+    const emailResponse = await resend.emails.send({
+      from: "no-reply@yourdomain.com", // Replace with your verified domain
       to: email,
       subject: `You've been invited as ${role_type}`,
-      content: `
+      html: `
         <html>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h1>You've Been Invited!</h1>
@@ -55,14 +40,10 @@ const handler = async (req: Request): Promise<Response> => {
             <p>If you did not expect this invitation, please ignore this email.</p>
           </body>
         </html>
-      `,
-      html: true,
+      `
     });
 
-    console.log("Email sent successfully");
-
-    // Close the connection
-    await client.close();
+    console.log("Email sent successfully:", emailResponse);
 
     // Log the successful email sending
     try {
@@ -89,7 +70,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, data: emailResponse }),
       {
         status: 200,
         headers: {
@@ -100,13 +81,6 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in send-invitation function:", error);
-
-    // Make sure to close the SMTP connection in case of error
-    try {
-      await client.close();
-    } catch (closeError) {
-      console.error("Error closing SMTP connection:", closeError);
-    }
 
     // Log the error
     try {
