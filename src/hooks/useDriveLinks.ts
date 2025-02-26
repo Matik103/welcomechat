@@ -1,5 +1,5 @@
 
-import { useQuery, useMutation, QueryFunction } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -11,24 +11,18 @@ interface DriveLink {
   created_at?: string;
 }
 
-const getDriveLinks: QueryFunction<DriveLink[], [string, string | undefined]> = 
-async ({ queryKey }) => {
-  const [_, clientId] = queryKey;
-  if (!clientId) return [];
-  
-  const { data, error } = await supabase
-    .from("google_drive_links")
-    .select("*")
-    .eq("client_id", clientId);
-    
-  if (error) throw error;
-  return data || [];
-};
-
 export const useDriveLinks = (clientId: string | undefined) => {
   const { data: driveLinks = [], refetch: refetchDriveLinks } = useQuery({
-    queryKey: ["driveLinks", clientId],
-    queryFn: getDriveLinks,
+    queryKey: ["driveLinks", clientId] as const,
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from("google_drive_links")
+        .select("*")
+        .eq("client_id", clientId);
+      if (error) throw error;
+      return (data || []) as DriveLink[];
+    },
     enabled: !!clientId,
   });
 
@@ -85,11 +79,12 @@ export const useDriveLinks = (clientId: string | undefined) => {
     }
   };
 
-  const addDriveLinkMutation = useMutation<
-    DriveLink,
-    Error,
-    { link: string; refresh_rate: number }
-  >({
+  type AddDriveLinkInput = {
+    link: string;
+    refresh_rate: number;
+  };
+
+  const addDriveLinkMutation = useMutation<DriveLink, Error, AddDriveLinkInput>({
     mutationFn: async ({ link, refresh_rate }) => {
       if (!clientId) throw new Error("Client ID is required");
       await checkDriveLinkAccess(link);
@@ -117,11 +112,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
     },
   });
 
-  const deleteDriveLinkMutation = useMutation<
-    void,
-    Error,
-    number
-  >({
+  const deleteDriveLinkMutation = useMutation<void, Error, number>({
     mutationFn: async (linkId) => {
       const { error } = await supabase
         .from("google_drive_links")
