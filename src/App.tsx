@@ -13,14 +13,20 @@ import { RoleRoute } from "@/components/auth/RoleRoute";
 import { useAuth } from "./contexts/AuthContext";
 
 function App() {
-  const { isLoading } = useAuth();
+  const { isLoading, user } = useAuth();
 
+  // Show loading spinner only for a brief moment while checking auth
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
+  }
+
+  // If not loading and no user, show auth page
+  if (!user && window.location.pathname !== '/auth') {
+    return <Navigate to="/auth" replace />;
   }
 
   return (
