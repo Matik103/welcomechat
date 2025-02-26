@@ -2,20 +2,14 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DriveLink } from "@/types/client";
 
-interface AIAgentMetadata {
-  client_id: string;
-  url: string;
-  type?: string;
-}
-
-interface AIAgentEntry {
+type DriveLink = {
   id: number;
-  content: string | null;
-  embedding: string | null;
-  metadata: AIAgentMetadata | null;
-}
+  client_id: string;
+  link: string;
+  refresh_rate: number;
+  created_at?: string;
+};
 
 export const useDriveLinks = (clientId: string | undefined) => {
   const { data: driveLinks = [], refetch: refetchDriveLinks } = useQuery({
@@ -27,7 +21,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
         .select("*")
         .eq("client_id", clientId);
       if (error) throw error;
-      return data || [];
+      return (data || []) as DriveLink[];
     },
     enabled: !!clientId,
   });
