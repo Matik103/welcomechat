@@ -51,6 +51,27 @@ export type Database = {
         }
         Relationships: []
       }
+      cc: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       client_activities: {
         Row: {
           activity_type: Database["public"]["Enums"]["activity_type_enum"]
@@ -897,6 +918,19 @@ export type Database = {
         }[]
       }
       match_byclicks: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_cc: {
         Args: {
           query_embedding: string
           match_count?: number
