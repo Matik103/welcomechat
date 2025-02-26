@@ -11,23 +11,25 @@ interface DriveLink {
   created_at?: string;
 }
 
+async function fetchDriveLinks(clientId: string | undefined) {
+  if (!clientId) return [];
+  const { data, error } = await supabase
+    .from("google_drive_links")
+    .select("*")
+    .eq("client_id", clientId);
+  if (error) throw error;
+  return (data || []) as DriveLink[];
+}
+
 export const useDriveLinks = (clientId: string | undefined) => {
-  const query = useQuery({
+  const queryResult = useQuery({
     queryKey: ["driveLinks", clientId],
-    queryFn: async () => {
-      if (!clientId) return [];
-      const { data, error } = await supabase
-        .from("google_drive_links")
-        .select("*")
-        .eq("client_id", clientId);
-      if (error) throw error;
-      return (data || []) as DriveLink[];
-    },
+    queryFn: () => fetchDriveLinks(clientId),
     enabled: !!clientId
   });
 
-  const driveLinks = query.data || [];
-  const refetchDriveLinks = query.refetch;
+  const driveLinks = queryResult.data || [];
+  const refetchDriveLinks = queryResult.refetch;
 
   const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
     try {
