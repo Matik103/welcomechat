@@ -30,7 +30,7 @@ export const ActionButtons = () => {
       <ActionButton primary onClick={() => navigate('/clients/new')}>
         <Plus className="w-4 h-4" /> Add New Client
       </ActionButton>
-      <ActionButton onClick={() => navigate("/clients")}>
+      <ActionButton onClick={() => navigate("/admin/clients")}>
         View Client List <ArrowRight className="w-4 h-4" />
       </ActionButton>
     </div>
