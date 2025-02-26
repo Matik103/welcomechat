@@ -34,46 +34,13 @@ function App() {
       <Header />
       <Routes>
         <Route path="/auth" element={<Auth />} />
-        <Route path="/" element={
-          <RoleRoute allowedRoles={['admin', 'client']}>
-            <Index />
-          </RoleRoute>
-        } />
-        <Route path="/admin" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <Index />
-          </RoleRoute>
-        } />
-        <Route path="/admin/clients" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <ClientList />
-          </RoleRoute>
-        } />
-        <Route path="/settings" element={
-          <RoleRoute allowedRoles={['admin', 'client']}>
-            <Settings />
-          </RoleRoute>
-        } />
-        <Route path="/clients/new" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <AddEditClient />
-          </RoleRoute>
-        } />
-        <Route path="/clients/:id" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <ClientView />
-          </RoleRoute>
-        } />
-        <Route path="/clients/:id/edit" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <AddEditClient />
-          </RoleRoute>
-        } />
-        <Route path="/clients/:id/widget-settings" element={
-          <RoleRoute allowedRoles={['admin', 'client']}>
-            <WidgetSettings />
-          </RoleRoute>
-        } />
+        <Route path="/" element={<Index />} />
+        <Route path="/admin/clients" element={<ClientList />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/admin/clients/new" element={<AddEditClient />} />
+        <Route path="/admin/clients/:id" element={<ClientView />} />
+        <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
+        <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster />
