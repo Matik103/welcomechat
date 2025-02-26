@@ -42,8 +42,6 @@ const Dashboard = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const isLoading = clientStatsLoading || interactionStatsLoading || activitiesLoading;
-
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -70,36 +68,35 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center min-h-[200px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard 
-                title="Total Interactions" 
-                value={interactionStats?.totalInteractions || 0}
-              />
-              <MetricCard 
-                title="Avg. Interactions" 
-                value={interactionStats?.avgInteractions || 0}
-                change={interactionStats?.avgInteractionsChange}
-              />
-              <MetricCard 
-                title="Active Sessions" 
-                value={clientStats?.activeClients || 0}
-                change={clientStats?.activeClientsChange}
-              />
-              <MetricCard 
-                title="Response Rate" 
-                value={`${clientStats?.responseRate || 0}%`}
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard 
+            title="Total Interactions" 
+            value={interactionStats?.totalInteractions || 0}
+            isLoading={interactionStatsLoading}
+          />
+          <MetricCard 
+            title="Avg. Interactions" 
+            value={interactionStats?.avgInteractions || 0}
+            change={interactionStats?.avgInteractionsChange}
+            isLoading={interactionStatsLoading}
+          />
+          <MetricCard 
+            title="Active Sessions" 
+            value={clientStats?.activeClients || 0}
+            change={clientStats?.activeClientsChange}
+            isLoading={clientStatsLoading}
+          />
+          <MetricCard 
+            title="Response Rate" 
+            value={`${clientStats?.responseRate || 0}%`}
+            isLoading={clientStatsLoading}
+          />
+        </div>
 
-            <ActivityList activities={recentActivities} />
-          </>
-        )}
+        <ActivityList 
+          activities={recentActivities} 
+          isLoading={activitiesLoading}
+        />
       </div>
     </div>
   );
