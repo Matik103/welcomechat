@@ -38,41 +38,33 @@ export const ClientForm = ({ initialData, onSubmit, isLoading }: ClientFormProps
 
     try {
       if (!initialData) {
-        // Only create user account for new clients
-        const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-          email: email,
-          email_confirm: true,
-          password: crypto.randomUUID(), // Generate a random password
-          user_metadata: {
-            client_name: clientName
+        // Submit the form data first to create the client
+        await onSubmit({
+          client_name: clientName,
+          email,
+          agent_name: aiAgentName,
+        });
+
+        // Create user account through Supabase function
+        const { data, error } = await supabase.functions.invoke('create-client-user', {
+          body: {
+            email,
+            clientName,
+            aiAgentName
           }
         });
 
-        if (userError) throw userError;
-
-        // Send password reset email with custom template
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-          email,
-          { 
-            redirectTo: `${window.location.origin}/auth/reset-password`,
-            data: {
-              client_name: clientName,
-              agent_name: aiAgentName
-            }
-          }
-        );
-
-        if (resetError) throw resetError;
+        if (error) throw error;
 
         toast.success("Account created and setup instructions sent to " + email);
+      } else {
+        // Just update the client data
+        await onSubmit({
+          client_name: clientName,
+          email,
+          agent_name: aiAgentName,
+        });
       }
-
-      // Submit the form data
-      await onSubmit({
-        client_name: clientName,
-        email,
-        agent_name: aiAgentName,
-      });
 
     } catch (error: any) {
       console.error("Error creating client:", error);
