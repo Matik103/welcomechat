@@ -1,14 +1,35 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
-import { Resend } from "npm:resend@2.0.0"
+import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+async function sendEmail(to: string, subject: string, htmlContent: string) {
+  const client = new SmtpClient();
+
+  const config = {
+    hostname: Deno.env.get('SMTP_HOST')!,
+    port: Number(Deno.env.get('SMTP_PORT')),
+    username: Deno.env.get('SMTP_USER')!,
+    password: Deno.env.get('SMTP_PASS')!,
+  };
+
+  await client.connectTLS(config);
+
+  await client.send({
+    from: Deno.env.get('SMTP_SENDER')!,
+    to: to,
+    subject: subject,
+    content: htmlContent,
+    html: htmlContent,
+  });
+
+  await client.close();
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -55,12 +76,12 @@ serve(async (req) => {
 
     if (resetError) throw resetError
 
-    // Send welcome email with setup instructions using Resend
-    const { error: emailError } = await resend.emails.send({
-      from: 'Interact Metrics <onboarding@resend.dev>',
-      to: email,
-      subject: 'Welcome to Interact Metrics - Setup Instructions',
-      html: `
+    // Send welcome email with setup instructions using SMTP
+    try {
+      await sendEmail(
+        email,
+        'Welcome to Interact Metrics - Setup Instructions',
+        `
         <h1>Welcome to Interact Metrics!</h1>
         <p>Hello ${clientName},</p>
         <p>Your account has been created successfully. To get started:</p>
@@ -73,11 +94,12 @@ serve(async (req) => {
         <p>If you have any questions, please don't hesitate to reach out to our support team.</p>
         <p>Best regards,<br>The Interact Metrics Team</p>
       `
-    });
-
-    if (emailError) throw emailError
-
-    console.log('Successfully created user and sent welcome email');
+      );
+      console.log('Successfully sent welcome email');
+    } catch (emailError) {
+      console.error('Error sending email:', emailError);
+      throw emailError;
+    }
 
     return new Response(
       JSON.stringify({ message: 'User created successfully' }),
