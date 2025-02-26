@@ -4,15 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, Users, Mail, Ban, RefreshCw } from "lucide-react";
 import { useInvitations } from "@/hooks/useInvitations";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 export const InvitationsSection = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
-  const { createInvitation, isAdmin } = useInvitations();
+  const { createInvitation, cancelInvitation, invitations, isLoading, isAdmin } = useInvitations();
 
   const handleInvite = async (role: 'client' | 'admin') => {
     if (!inviteEmail) {
@@ -50,6 +51,37 @@ export const InvitationsSection = () => {
     }
   };
 
+  const handleCancel = async (invitationId: string) => {
+    try {
+      await cancelInvitation.mutateAsync(invitationId);
+      toast.success("Invitation cancelled successfully");
+    } catch (error: any) {
+      console.error('Error cancelling invitation:', error);
+      toast.error(error.message || "Failed to cancel invitation");
+    }
+  };
+
+  const handleResend = async (invitation: any) => {
+    try {
+      setInviteLoading(true);
+      const { error: emailError } = await supabase.functions.invoke('send-invitation', {
+        body: {
+          email: invitation.email,
+          role_type: invitation.role_type,
+          url: `${window.location.origin}/auth?invitation=${invitation.token}`
+        }
+      });
+
+      if (emailError) throw new Error(emailError.message);
+      toast.success("Invitation resent successfully");
+    } catch (error: any) {
+      console.error('Error resending invitation:', error);
+      toast.error(error.message || "Failed to resend invitation");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   // Only render for admins
   if (!isAdmin) {
     return null;
@@ -67,37 +99,99 @@ export const InvitationsSection = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="inviteEmail">Email Address</Label>
-            <Input
-              id="inviteEmail"
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="Enter email address"
-            />
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="inviteEmail">Email Address</Label>
+              <Input
+                id="inviteEmail"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="flex gap-4">
+              <Button
+                onClick={() => handleInvite('client')}
+                disabled={inviteLoading || !inviteEmail}
+                className="flex-1"
+              >
+                {inviteLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Invite as Client
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => handleInvite('admin')}
+                disabled={inviteLoading || !inviteEmail}
+                className="flex-1"
+              >
+                {inviteLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Invite as Admin
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-4">
-            <Button
-              onClick={() => handleInvite('client')}
-              disabled={inviteLoading || !inviteEmail}
-              className="flex-1"
-            >
-              {inviteLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : "Invite as Client"}
-            </Button>
-            <Button
-              onClick={() => handleInvite('admin')}
-              disabled={inviteLoading || !inviteEmail}
-              className="flex-1"
-            >
-              {inviteLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : "Invite as Admin"}
-            </Button>
-          </div>
+
+          {isLoading ? (
+            <div className="flex justify-center">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : invitations && invitations.length > 0 ? (
+            <div className="space-y-4">
+              <h3 className="font-medium">Sent Invitations</h3>
+              <div className="space-y-4">
+                {invitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
+                    <div className="space-y-1">
+                      <p className="font-medium">{invitation.email}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {invitation.role_type} · Sent {format(new Date(invitation.created_at), 'PPp')}
+                      </p>
+                      <p className="text-sm font-medium capitalize text-muted-foreground">
+                        Status: {invitation.status}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {invitation.status === 'pending' && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResend(invitation)}
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCancel(invitation.id)}
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground">No invitations sent yet</p>
+          )}
         </div>
       </CardContent>
     </Card>
