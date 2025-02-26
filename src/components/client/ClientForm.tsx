@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { ClientFormData } from "@/types/client";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ClientFormProps {
   initialData?: {
@@ -20,6 +22,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading }: ClientFormProps
   const [clientName, setClientName] = useState("");
   const [email, setEmail] = useState("");
   const [aiAgentName, setAiAgentName] = useState("");
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -29,13 +32,48 @@ export const ClientForm = ({ initialData, onSubmit, isLoading }: ClientFormProps
     }
   }, [initialData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      client_name: clientName,
-      email,
-      agent_name: aiAgentName,
-    });
+    setIsCreatingUser(true);
+
+    try {
+      if (!initialData) {
+        // Only create user account for new clients
+        const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+          email: email,
+          email_confirm: true,
+          password: crypto.randomUUID(), // Generate a random password
+          user_metadata: {
+            client_name: clientName
+          }
+        });
+
+        if (userError) throw userError;
+
+        // Send password reset email
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+          email,
+          { redirectTo: `${window.location.origin}/auth/reset-password` }
+        );
+
+        if (resetError) throw resetError;
+
+        toast.success("Account created and password reset email sent to " + email);
+      }
+
+      // Submit the form data
+      await onSubmit({
+        client_name: clientName,
+        email,
+        agent_name: aiAgentName,
+      });
+
+    } catch (error: any) {
+      console.error("Error creating client:", error);
+      toast.error(error.message || "Failed to create client");
+    } finally {
+      setIsCreatingUser(false);
+    }
   };
 
   return (
@@ -62,6 +100,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading }: ClientFormProps
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          disabled={!!initialData} // Disable email field when editing
         />
       </div>
       <div>
@@ -85,9 +124,9 @@ export const ClientForm = ({ initialData, onSubmit, isLoading }: ClientFormProps
         </Link>
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || isCreatingUser}
         >
-          {isLoading ? (
+          {(isLoading || isCreatingUser) ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             "Save Client"
