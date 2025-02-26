@@ -282,6 +282,36 @@ export type Database = {
         }
         Relationships: []
       }
+      email_logs: {
+        Row: {
+          email_to: string
+          error: string | null
+          id: string
+          metadata: Json | null
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          email_to: string
+          error?: string | null
+          id?: string
+          metadata?: Json | null
+          sent_at?: string | null
+          status: string
+          subject: string
+        }
+        Update: {
+          email_to?: string
+          error?: string | null
+          id?: string
+          metadata?: Json | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       error_logs: {
         Row: {
           client_id: string | null
