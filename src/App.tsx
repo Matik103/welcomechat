@@ -10,7 +10,6 @@ import ClientView from "@/pages/ClientView";
 import AddEditClient from "@/pages/AddEditClient";
 import WidgetSettings from "@/pages/WidgetSettings";
 import { RoleRoute } from "@/components/auth/RoleRoute";
-import Dashboard from "@/pages/client/Dashboard";
 import { useAuth } from "./contexts/AuthContext";
 
 function App() {
@@ -37,11 +36,6 @@ function App() {
         <Route path="/admin" element={
           <RoleRoute allowedRoles={['admin']}>
             <Index />
-          </RoleRoute>
-        } />
-        <Route path="/dashboard" element={
-          <RoleRoute allowedRoles={['client']}>
-            <Dashboard />
           </RoleRoute>
         } />
         <Route path="/admin/clients" element={
