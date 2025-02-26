@@ -29,16 +29,18 @@ export const useDriveLinks = (clientId: string | undefined) => {
       
       // Check if the URL exists in the AI agent table
       const { data: existingData } = await supabase
-        .from(`${clientId}_agent`)
+        .from("ai_agent")
         .select("*")
+        .eq("metadata->client_id", clientId)
         .eq("metadata->url", link)
         .single();
 
       if (existingData) {
         // Delete the old content
         await supabase
-          .from(`${clientId}_agent`)
+          .from("ai_agent")
           .delete()
+          .eq("metadata->client_id", clientId)
           .eq("metadata->url", link);
       }
 
