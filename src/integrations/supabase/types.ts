@@ -553,6 +553,27 @@ export type Database = {
         }
         Relationships: []
       }
+      skynet: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       tea_team: {
         Row: {
           content: string | null
@@ -933,6 +954,19 @@ export type Database = {
         }[]
       }
       match_sadhana_forest: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_skynet: {
         Args: {
           query_embedding: string
           match_count?: number

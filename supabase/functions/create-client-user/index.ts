@@ -18,30 +18,52 @@ async function sendEmail(to: string, subject: string, htmlContent: string) {
       port: Number(Deno.env.get('SMTP_PORT')),
       username: Deno.env.get('SMTP_USER')!,
       password: Deno.env.get('SMTP_PASS')!,
+      tls: true, // Explicitly enable TLS
     };
 
-    console.log('Connecting to SMTP server:', config.hostname);
+    // Log configuration (excluding password)
+    console.log('SMTP Configuration:', {
+      hostname: config.hostname,
+      port: config.port,
+      username: config.username,
+      tls: config.tls
+    });
+
+    console.log('Connecting to SMTP server...');
     await client.connectTLS(config);
     console.log('Successfully connected to SMTP server');
 
     const sender = Deno.env.get('SMTP_SENDER')!;
-    console.log('Sending email from:', sender, 'to:', to);
+    console.log('Preparing to send email from:', sender, 'to:', to);
 
-    await client.send({
+    const emailData = {
       from: sender,
       to: to,
       subject: subject,
       content: htmlContent,
       html: htmlContent,
-    });
+    };
 
+    console.log('Sending email...');
+    await client.send(emailData);
     console.log('Email sent successfully');
+
   } catch (error) {
     console.error('Error in sendEmail:', error);
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw error;
   } finally {
-    console.log('Closing SMTP connection');
-    await client.close();
+    try {
+      console.log('Closing SMTP connection');
+      await client.close();
+    } catch (closeError) {
+      console.error('Error closing SMTP connection:', closeError);
+    }
   }
 }
 
