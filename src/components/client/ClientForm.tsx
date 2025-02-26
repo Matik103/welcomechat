@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { ClientFormData } from "@/types/client";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ClientFormProps {
   initialData?: {
@@ -23,6 +24,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading }: ClientFormProps
   const [email, setEmail] = useState("");
   const [aiAgentName, setAiAgentName] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (initialData) {
@@ -55,6 +57,9 @@ export const ClientForm = ({ initialData, onSubmit, isLoading }: ClientFormProps
         });
 
         if (error) throw error;
+
+        // Invalidate the clients query to refresh the list
+        queryClient.invalidateQueries({ queryKey: ["clients"] });
 
         toast.success("Account created and setup instructions sent to " + email);
       } else {
