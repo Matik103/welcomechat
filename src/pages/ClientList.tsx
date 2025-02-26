@@ -87,7 +87,7 @@ const ClientList = () => {
             onSort={handleSort}
           />
           <Link
-            to="/clients/new"
+            to="/admin/clients/new"
             className="bg-primary text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" /> Add New Client
