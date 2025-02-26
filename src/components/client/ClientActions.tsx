@@ -11,21 +11,21 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
   return (
     <div className="flex items-center justify-end gap-2">
       <Link
-        to={`/clients/${clientId}`}
+        to={`/admin/clients/${clientId}`}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
         title="View"
       >
         <Eye className="w-4 h-4" />
       </Link>
       <Link
-        to={`/clients/${clientId}/widget-settings`}
+        to={`/admin/clients/${clientId}/widget-settings`}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
         title="Widget Settings"
       >
         <MessageSquare className="w-4 h-4" />
       </Link>
       <Link
-        to={`/clients/${clientId}/edit`}
+        to={`/admin/clients/${clientId}/edit`}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
         title="Edit"
       >
