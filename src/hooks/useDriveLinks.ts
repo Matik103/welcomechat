@@ -12,8 +12,8 @@ interface DriveLink {
 }
 
 export const useDriveLinks = (clientId: string | undefined) => {
-  const { data: driveLinks = [], refetch: refetchDriveLinks } = useQuery({
-    queryKey: ["driveLinks", clientId] as const,
+  const query = useQuery({
+    queryKey: ["driveLinks", clientId],
     queryFn: async () => {
       if (!clientId) return [];
       const { data, error } = await supabase
@@ -23,8 +23,11 @@ export const useDriveLinks = (clientId: string | undefined) => {
       if (error) throw error;
       return (data || []) as DriveLink[];
     },
-    enabled: !!clientId,
+    enabled: !!clientId
   });
+
+  const driveLinks = query.data || [];
+  const refetchDriveLinks = query.refetch;
 
   const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
     try {
@@ -79,41 +82,36 @@ export const useDriveLinks = (clientId: string | undefined) => {
     }
   };
 
-  type AddDriveLinkInput = {
-    link: string;
-    refresh_rate: number;
-  };
-
-  const addDriveLinkMutation = useMutation<DriveLink, Error, AddDriveLinkInput>({
-    mutationFn: async ({ link, refresh_rate }) => {
+  const addDriveLinkMutation = useMutation({
+    mutationFn: async (input: { link: string; refresh_rate: number }) => {
       if (!clientId) throw new Error("Client ID is required");
-      await checkDriveLinkAccess(link);
+      await checkDriveLinkAccess(input.link);
       
       const { data, error } = await supabase
         .from("google_drive_links")
         .insert([{ 
           client_id: clientId, 
-          link, 
-          refresh_rate 
+          link: input.link, 
+          refresh_rate: input.refresh_rate 
         }])
         .select()
         .single();
         
       if (error) throw error;
       if (!data) throw new Error("Failed to create drive link");
-      return data;
+      return data as DriveLink;
     },
     onSuccess: () => {
       refetchDriveLinks();
       toast.success("Drive link added successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Error adding drive link: ${error.message}`);
-    },
+    }
   });
 
-  const deleteDriveLinkMutation = useMutation<void, Error, number>({
-    mutationFn: async (linkId) => {
+  const deleteDriveLinkMutation = useMutation({
+    mutationFn: async (linkId: number) => {
       const { error } = await supabase
         .from("google_drive_links")
         .delete()
@@ -124,9 +122,9 @@ export const useDriveLinks = (clientId: string | undefined) => {
       refetchDriveLinks();
       toast.success("Drive link removed successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Error removing drive link: ${error.message}`);
-    },
+    }
   });
 
   return {
