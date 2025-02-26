@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const InvitationsSection = () => {
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteLoading, setInviteLoading] = useState(false);
+  const [loadingRole, setLoadingRole] = useState<'client' | 'admin' | null>(null);
   const { createInvitation, isAdmin } = useInvitations();
 
   const handleInvite = async (role: 'client' | 'admin') => {
@@ -21,7 +21,7 @@ export const InvitationsSection = () => {
     }
 
     try {
-      setInviteLoading(true);
+      setLoadingRole(role);
       
       // First create the invitation
       const invitation = await createInvitation.mutateAsync({
@@ -38,7 +38,7 @@ export const InvitationsSection = () => {
         }
       });
 
-      if (emailError) throw new Error(emailError.message);
+      if (emailError) throw emailError;
 
       setInviteEmail("");
       toast.success("Invitation sent successfully");
@@ -46,7 +46,7 @@ export const InvitationsSection = () => {
       console.error('Error sending invitation:', error);
       toast.error(error.message || "Failed to send invitation");
     } finally {
-      setInviteLoading(false);
+      setLoadingRole(null);
     }
   };
 
@@ -81,10 +81,10 @@ export const InvitationsSection = () => {
           <div className="flex gap-4">
             <Button
               onClick={() => handleInvite('client')}
-              disabled={inviteLoading}
+              disabled={loadingRole !== null}
               className="flex-1"
             >
-              {inviteLoading ? (
+              {loadingRole === 'client' ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <>
@@ -95,10 +95,10 @@ export const InvitationsSection = () => {
             </Button>
             <Button
               onClick={() => handleInvite('admin')}
-              disabled={inviteLoading}
+              disabled={loadingRole !== null}
               className="flex-1"
             >
-              {inviteLoading ? (
+              {loadingRole === 'admin' ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <>
