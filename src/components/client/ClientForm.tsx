@@ -50,15 +50,21 @@ export const ClientForm = ({ initialData, onSubmit, isLoading }: ClientFormProps
 
         if (userError) throw userError;
 
-        // Send password reset email
+        // Send password reset email with custom template
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(
           email,
-          { redirectTo: `${window.location.origin}/auth/reset-password` }
+          { 
+            redirectTo: `${window.location.origin}/auth/reset-password`,
+            data: {
+              client_name: clientName,
+              agent_name: aiAgentName
+            }
+          }
         );
 
         if (resetError) throw resetError;
 
-        toast.success("Account created and password reset email sent to " + email);
+        toast.success("Account created and setup instructions sent to " + email);
       }
 
       // Submit the form data
