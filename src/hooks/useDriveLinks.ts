@@ -11,30 +11,36 @@ type DriveLink = {
   created_at?: string;
 };
 
+type AIAgentMetadata = {
+  client_id: string;
+  url: string;
+  type?: string;
+};
+
 export const useDriveLinks = (clientId: string | undefined) => {
+  const getDriveLinks = async () => {
+    if (!clientId) return [];
+    const { data, error } = await supabase
+      .from("google_drive_links")
+      .select("*")
+      .eq("client_id", clientId);
+    if (error) throw error;
+    return (data || []) as DriveLink[];
+  };
+
   const { data: driveLinks = [], refetch: refetchDriveLinks } = useQuery({
     queryKey: ["driveLinks", clientId],
-    queryFn: async () => {
-      if (!clientId) return [];
-      const { data, error } = await supabase
-        .from("google_drive_links")
-        .select("*")
-        .eq("client_id", clientId);
-      if (error) throw error;
-      return (data || []) as DriveLink[];
-    },
+    queryFn: getDriveLinks,
     enabled: !!clientId,
   });
 
   const checkDriveLinkAccess = async (link: string) => {
     try {
-      // Extract file/folder ID from Google Drive link
       const matches = link.match(/[-\w]{25,}/);
       if (!matches) {
         throw new Error("Invalid Google Drive link format");
       }
       
-      // Check if the URL exists in the AI agent table
       const { data: existingData } = await supabase
         .from('ai_agent')
         .select('*')
@@ -43,7 +49,6 @@ export const useDriveLinks = (clientId: string | undefined) => {
         .maybeSingle();
 
       if (existingData) {
-        // Delete the old content
         await supabase
           .from('ai_agent')
           .delete()
@@ -51,14 +56,14 @@ export const useDriveLinks = (clientId: string | undefined) => {
           .eq('metadata->url', link);
       }
 
-      // Attempt to fetch the metadata to check if it's public
-      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${matches[0]}?fields=capabilities&key=${process.env.GOOGLE_API_KEY}`);
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${matches[0]}?fields=capabilities&key=${process.env.GOOGLE_API_KEY}`
+      );
       
       if (!response.ok) {
         throw new Error("Drive file is not publicly accessible");
       }
 
-      // Trigger n8n webhook for processing
       await fetch(process.env.N8N_WEBHOOK_URL || "", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -70,8 +75,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
       });
 
       return true;
-    } catch (error) {
-      // Log error to error_logs table
+    } catch (error: any) {
       await supabase.from("error_logs").insert({
         client_id: clientId,
         error_type: "drive_link_access",
@@ -84,26 +88,28 @@ export const useDriveLinks = (clientId: string | undefined) => {
   };
 
   const addDriveLinkMutation = useMutation({
-    mutationFn: async ({ link, refresh_rate }: { link: string; refresh_rate: number }) => {
+    mutationFn: async (data: { link: string; refresh_rate: number }) => {
       if (!clientId) throw new Error("Client ID is required");
+      await checkDriveLinkAccess(data.link);
       
-      // Validate drive link accessibility
-      await checkDriveLinkAccess(link);
-      
-      const { data, error } = await supabase
+      const { data: newLink, error } = await supabase
         .from("google_drive_links")
-        .insert([{ client_id: clientId, link, refresh_rate }])
+        .insert([{ 
+          client_id: clientId, 
+          link: data.link, 
+          refresh_rate: data.refresh_rate 
+        }])
         .select()
         .single();
         
       if (error) throw error;
-      return data;
+      return newLink as DriveLink;
     },
     onSuccess: () => {
       refetchDriveLinks();
       toast.success("Drive link added successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Error adding drive link: ${error.message}`);
     },
   });
@@ -120,7 +126,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
       refetchDriveLinks();
       toast.success("Drive link removed successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Error removing drive link: ${error.message}`);
     },
   });
