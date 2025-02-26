@@ -44,7 +44,7 @@ function App() {
             <Dashboard />
           </RoleRoute>
         } />
-        <Route path="/clients" element={
+        <Route path="/admin/clients" element={
           <RoleRoute allowedRoles={['admin']}>
             <ClientList />
           </RoleRoute>
