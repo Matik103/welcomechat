@@ -2,7 +2,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { PostgrestError } from "@supabase/supabase-js";
 
 interface DriveLink {
   id: number;
@@ -18,21 +17,21 @@ interface AddDriveLinkInput {
 }
 
 export const useDriveLinks = (clientId: string | undefined) => {
-  const fetchDriveLinks = async (): Promise<DriveLink[]> => {
-    if (!clientId) return [];
-    const { data, error } = await supabase
-      .from("google_drive_links")
-      .select("*")
-      .eq("client_id", clientId);
-    if (error) throw error;
-    return data || [];
-  };
-
-  const { data: driveLinks = [], refetch } = useQuery({
-    queryKey: ["driveLinks", clientId],
-    queryFn: fetchDriveLinks,
+  const query = useQuery({
+    queryKey: ["driveLinks", clientId || ""],
+    queryFn: async () => {
+      if (!clientId) return [] as DriveLink[];
+      const { data, error } = await supabase
+        .from("google_drive_links")
+        .select("*")
+        .eq("client_id", clientId);
+      if (error) throw error;
+      return (data || []) as DriveLink[];
+    },
     enabled: !!clientId
   });
+
+  const driveLinks = query.data || [];
 
   const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
     try {
@@ -117,7 +116,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
   const addDriveLinkMutation = useMutation({
     mutationFn: addDriveLink,
     onSuccess: () => {
-      refetch();
+      query.refetch();
       toast.success("Drive link added successfully");
     },
     onError: (error: Error) => {
@@ -128,7 +127,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
   const deleteDriveLinkMutation = useMutation({
     mutationFn: deleteDriveLink,
     onSuccess: () => {
-      refetch();
+      query.refetch();
       toast.success("Drive link removed successfully");
     },
     onError: (error: Error) => {
@@ -138,7 +137,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
 
   return {
     driveLinks,
-    refetchDriveLinks: refetch,
+    refetchDriveLinks: query.refetch,
     addDriveLinkMutation,
     deleteDriveLinkMutation,
   };
