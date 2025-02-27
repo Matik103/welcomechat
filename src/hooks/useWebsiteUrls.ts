@@ -4,17 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { WebsiteUrl } from "@/types/client";
 
-type WebsiteUrlResponse = {
-  data: WebsiteUrl[] | null;
-  error: any;
-};
-
 export const useWebsiteUrls = (clientId: string | undefined) => {
-  const query = useQuery({
+  const { data: websiteUrls = [], refetch: refetchWebsiteUrls } = useQuery({
     queryKey: ["websiteUrls", clientId],
-    queryFn: async (): Promise<WebsiteUrl[]> => {
+    queryFn: async () => {
       if (!clientId) return [];
-      const { data, error }: WebsiteUrlResponse = await supabase
+      const { data, error } = await supabase
         .from("website_urls")
         .select("*")
         .eq("client_id", clientId);
@@ -26,6 +21,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
 
   const checkWebsiteAccess = async (url: string) => {
     try {
+      // Check if the URL exists in the AI agent table
       const { data: existingData } = await supabase
         .from("ai_agent")
         .select("*")
@@ -34,6 +30,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
         .single();
 
       if (existingData) {
+        // Delete the old content
         await supabase
           .from("ai_agent")
           .delete()
@@ -41,6 +38,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
           .eq("metadata->url", url);
       }
 
+      // Attempt to fetch the website
       const response = await fetch(url, {
         method: "HEAD",
         headers: {
@@ -52,6 +50,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
         throw new Error("Website is not publicly accessible");
       }
 
+      // Trigger n8n webhook for processing
       await fetch(process.env.N8N_WEBHOOK_URL || "", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,7 +62,8 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
       });
 
       return true;
-    } catch (error: any) {
+    } catch (error) {
+      // Log error to error_logs table
       await supabase.from("error_logs").insert({
         client_id: clientId,
         error_type: "website_access",
@@ -76,9 +76,10 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
   };
 
   const addWebsiteUrlMutation = useMutation({
-    mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }): Promise<WebsiteUrl> => {
+    mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
       if (!clientId) throw new Error("Client ID is required");
       
+      // Validate website accessibility
       await checkWebsiteAccess(url);
       
       const { data, error } = await supabase
@@ -88,14 +89,14 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
           url,
           refresh_rate
         })
-        .select()
+        .select('id, url, refresh_rate')
         .single();
       
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      query.refetch();
+      refetchWebsiteUrls();
       toast.success("Website URL added successfully");
     },
     onError: (error: Error) => {
@@ -113,7 +114,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      query.refetch();
+      refetchWebsiteUrls();
       toast.success("Website URL removed successfully");
     },
     onError: (error: Error) => {
@@ -123,8 +124,8 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
   });
 
   return {
-    websiteUrls: query.data || [],
-    refetchWebsiteUrls: query.refetch,
+    websiteUrls,
+    refetchWebsiteUrls,
     addWebsiteUrlMutation,
     deleteWebsiteUrlMutation,
   };

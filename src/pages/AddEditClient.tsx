@@ -2,8 +2,10 @@
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useClientData } from "@/hooks/useClientData";
+import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { ClientForm } from "@/components/client/ClientForm";
+import { DriveLinks } from "@/components/client/DriveLinks";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 
 const AddEditClient = () => {
@@ -11,11 +13,16 @@ const AddEditClient = () => {
   const navigate = useNavigate();
   
   const { client, isLoadingClient, clientMutation } = useClientData(id);
+  const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation } = useDriveLinks(id);
   const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(id);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     await clientMutation.mutateAsync(data);
     navigate("/clients");
+  };
+
+  const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
+    await addDriveLinkMutation.mutateAsync(data);
   };
 
   const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
@@ -60,16 +67,29 @@ const AddEditClient = () => {
           </div>
 
           {id && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
-              <WebsiteUrls
-                urls={websiteUrls}
-                onAdd={handleAddWebsiteUrl}
-                onDelete={deleteWebsiteUrlMutation.mutate}
-                isAddLoading={addWebsiteUrlMutation.isPending}
-                isDeleteLoading={deleteWebsiteUrlMutation.isPending}
-              />
-            </div>
+            <>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Share Links</h2>
+                <DriveLinks
+                  driveLinks={driveLinks}
+                  onAdd={handleAddDriveLink}
+                  onDelete={deleteDriveLinkMutation.mutate}
+                  isAddLoading={addDriveLinkMutation.isPending}
+                  isDeleteLoading={deleteDriveLinkMutation.isPending}
+                />
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
+                <WebsiteUrls
+                  urls={websiteUrls}
+                  onAdd={handleAddWebsiteUrl}
+                  onDelete={deleteWebsiteUrlMutation.mutate}
+                  isAddLoading={addWebsiteUrlMutation.isPending}
+                  isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+                />
+              </div>
+            </>
           )}
         </div>
       </div>
