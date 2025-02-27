@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,6 +22,8 @@ type QueryResult = {
   error: PostgrestError | null;
 }
 
+type QueryKey = readonly ["driveLinks", string | undefined];
+
 export const useDriveLinks = (clientId: string | undefined) => {
   const fetchDriveLinks = async () => {
     if (!clientId) return [];
@@ -35,8 +38,8 @@ export const useDriveLinks = (clientId: string | undefined) => {
   const {
     data: driveLinks = [],
     refetch
-  } = useQuery({
-    queryKey: ["driveLinks", clientId] as const,
+  } = useQuery<DriveLink[], Error, DriveLink[], QueryKey>({
+    queryKey: ["driveLinks", clientId],
     queryFn: fetchDriveLinks,
     enabled: !!clientId
   });
@@ -94,7 +97,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
     }
   };
 
-  const addDriveLink = async (input: AddDriveLinkInput) => {
+  const addDriveLink = async (input: AddDriveLinkInput): Promise<DriveLink> => {
     if (!clientId) throw new Error("Client ID is required");
     await checkDriveLinkAccess(input.link);
     
@@ -113,7 +116,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
     return data;
   };
 
-  const deleteDriveLink = async (linkId: number) => {
+  const deleteDriveLink = async (linkId: number): Promise<void> => {
     const { error } = await supabase
       .from("google_drive_links")
       .delete()
