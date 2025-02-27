@@ -1,15 +1,20 @@
 
-import { useQuery, useMutation, UseQueryResult } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { WebsiteUrl } from "@/types/client";
 
+type WebsiteUrlResponse = {
+  data: WebsiteUrl[] | null;
+  error: any;
+};
+
 export const useWebsiteUrls = (clientId: string | undefined) => {
-  const query: UseQueryResult<WebsiteUrl[], Error> = useQuery({
+  const query = useQuery({
     queryKey: ["websiteUrls", clientId],
-    queryFn: async () => {
+    queryFn: async (): Promise<WebsiteUrl[]> => {
       if (!clientId) return [];
-      const { data, error } = await supabase
+      const { data, error }: WebsiteUrlResponse = await supabase
         .from("website_urls")
         .select("*")
         .eq("client_id", clientId);
@@ -71,7 +76,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
   };
 
   const addWebsiteUrlMutation = useMutation({
-    mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
+    mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }): Promise<WebsiteUrl> => {
       if (!clientId) throw new Error("Client ID is required");
       
       await checkWebsiteAccess(url);
