@@ -1,5 +1,5 @@
 
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, QueryKey } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -16,6 +16,8 @@ interface AddDriveLinkInput {
   refresh_rate: number;
 }
 
+type DriveLinkQueryKey = readonly ["driveLinks", string | undefined];
+
 async function fetchDriveLinks(clientId: string | undefined) {
   if (!clientId) return [];
   const { data, error } = await supabase
@@ -23,12 +25,14 @@ async function fetchDriveLinks(clientId: string | undefined) {
     .select("*")
     .eq("client_id", clientId);
   if (error) throw error;
-  return data || [];
+  return (data || []) as DriveLink[];
 }
 
 export const useDriveLinks = (clientId: string | undefined) => {
-  const query = useQuery<DriveLink[]>({
-    queryKey: ["driveLinks", clientId],
+  const queryKey: DriveLinkQueryKey = ["driveLinks", clientId];
+  
+  const { data, refetch } = useQuery({
+    queryKey,
     queryFn: () => fetchDriveLinks(clientId),
     enabled: !!clientId,
   });
@@ -102,7 +106,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
       
     if (error) throw error;
     if (!data) throw new Error("Failed to create drive link");
-    return data;
+    return data as DriveLink;
   };
 
   const deleteDriveLink = async (linkId: number): Promise<void> => {
@@ -116,7 +120,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
   const addDriveLinkMutation = useMutation({
     mutationFn: addDriveLink,
     onSuccess: () => {
-      query.refetch();
+      refetch();
       toast.success("Drive link added successfully");
     },
     onError: (error: Error) => {
@@ -127,7 +131,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
   const deleteDriveLinkMutation = useMutation({
     mutationFn: deleteDriveLink,
     onSuccess: () => {
-      query.refetch();
+      refetch();
       toast.success("Drive link removed successfully");
     },
     onError: (error: Error) => {
@@ -136,8 +140,8 @@ export const useDriveLinks = (clientId: string | undefined) => {
   });
 
   return {
-    driveLinks: query.data ?? [],
-    refetchDriveLinks: query.refetch,
+    driveLinks: data ?? [] as DriveLink[],
+    refetchDriveLinks: refetch,
     addDriveLinkMutation,
     deleteDriveLinkMutation,
   };
