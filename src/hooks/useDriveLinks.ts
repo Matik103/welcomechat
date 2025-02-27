@@ -1,5 +1,5 @@
 
-import { useQuery, useMutation, QueryFunction } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -16,22 +16,18 @@ interface AddDriveLinkInput {
   refresh_rate: number;
 }
 
-type QueryKey = readonly ["driveLinks"];
-
 export const useDriveLinks = (clientId: string | undefined) => {
-  const fetchDriveLinks: QueryFunction<DriveLink[], QueryKey> = async () => {
-    if (!clientId) return [];
-    const { data, error } = await supabase
-      .from("google_drive_links")
-      .select("*")
-      .eq("client_id", clientId);
-    if (error) throw error;
-    return data || [];
-  };
-
-  const { data = [], refetch } = useQuery<DriveLink[], Error, DriveLink[], QueryKey>({
-    queryKey: ["driveLinks"],
-    queryFn: fetchDriveLinks,
+  const { data, refetch } = useQuery({
+    queryKey: ["driveLinks", clientId] as const,
+    queryFn: async () => {
+      if (!clientId) return [] as DriveLink[];
+      const { data, error } = await supabase
+        .from("google_drive_links")
+        .select("*")
+        .eq("client_id", clientId);
+      if (error) throw error;
+      return (data || []) as DriveLink[];
+    },
     enabled: !!clientId,
   });
 
@@ -138,7 +134,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
   });
 
   return {
-    driveLinks: data,
+    driveLinks: data || [],
     refetchDriveLinks: refetch,
     addDriveLinkMutation,
     deleteDriveLinkMutation,
