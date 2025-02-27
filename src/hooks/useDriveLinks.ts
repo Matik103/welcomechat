@@ -19,7 +19,7 @@ export function useDriveLinks(clientId: string | undefined) {
         .select("*")
         .eq("client_id", clientId);
       if (error) throw error;
-      return (data || []) as DriveLink[];
+      return data as DriveLink[];
     },
     enabled: !!clientId,
   });
@@ -93,7 +93,7 @@ export function useDriveLinks(clientId: string | undefined) {
       
     if (error) throw error;
     if (!data) throw new Error("Failed to create drive link");
-    return data;
+    return data as DriveLink;
   };
 
   const deleteDriveLink = async (linkId: number): Promise<void> => {
