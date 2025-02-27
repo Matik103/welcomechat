@@ -16,19 +16,19 @@ interface AddDriveLinkInput {
   refresh_rate: number;
 }
 
-async function fetchDriveLinks(clientId: string | undefined) {
+async function fetchDriveLinks(clientId: string | undefined): Promise<DriveLink[]> {
   if (!clientId) return [];
   const { data, error } = await supabase
     .from("google_drive_links")
     .select("*")
     .eq("client_id", clientId);
   if (error) throw error;
-  return (data || []) as DriveLink[];
+  return data || [];
 }
 
-export const useDriveLinks = (clientId: string | undefined) => {
-  const { data = [], refetch } = useQuery({
-    queryKey: ["driveLinks", clientId] as const,
+export function useDriveLinks(clientId: string | undefined) {
+  const { data, refetch } = useQuery({
+    queryKey: ["driveLinks", { id: clientId }],
     queryFn: () => fetchDriveLinks(clientId),
     enabled: !!clientId,
   });
@@ -102,7 +102,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
       
     if (error) throw error;
     if (!data) throw new Error("Failed to create drive link");
-    return data as DriveLink;
+    return data;
   };
 
   const deleteDriveLink = async (linkId: number): Promise<void> => {
@@ -136,9 +136,9 @@ export const useDriveLinks = (clientId: string | undefined) => {
   });
 
   return {
-    driveLinks: data as DriveLink[],
+    driveLinks: (data || []) as DriveLink[],
     refetchDriveLinks: refetch,
     addDriveLinkMutation,
     deleteDriveLinkMutation,
   };
-};
+}
