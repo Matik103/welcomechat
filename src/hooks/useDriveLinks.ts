@@ -17,17 +17,10 @@ interface AddDriveLinkInput {
   refresh_rate: number;
 }
 
-type QueryResult = {
-  data: DriveLink[] | null;
-  error: PostgrestError | null;
-}
-
-type QueryKey = readonly ["driveLinks", string | undefined];
-
 export const useDriveLinks = (clientId: string | undefined) => {
-  const fetchDriveLinks = async () => {
+  const fetchDriveLinks = async (): Promise<DriveLink[]> => {
     if (!clientId) return [];
-    const { data, error }: QueryResult = await supabase
+    const { data, error } = await supabase
       .from("google_drive_links")
       .select("*")
       .eq("client_id", clientId);
@@ -35,10 +28,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
     return data || [];
   };
 
-  const {
-    data: driveLinks = [],
-    refetch
-  } = useQuery<DriveLink[], Error, DriveLink[], QueryKey>({
+  const { data: driveLinks = [], refetch } = useQuery({
     queryKey: ["driveLinks", clientId],
     queryFn: fetchDriveLinks,
     enabled: !!clientId
