@@ -1,5 +1,5 @@
 
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, QueryFunction } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -16,26 +16,24 @@ interface AddDriveLinkInput {
   refresh_rate: number;
 }
 
-type DriveLinkQueryFn = () => Promise<DriveLink[]>;
+type QueryKey = readonly ["driveLinks"];
 
 export const useDriveLinks = (clientId: string | undefined) => {
-  const queryFn: DriveLinkQueryFn = async () => {
+  const fetchDriveLinks: QueryFunction<DriveLink[], QueryKey> = async () => {
     if (!clientId) return [];
     const { data, error } = await supabase
       .from("google_drive_links")
       .select("*")
       .eq("client_id", clientId);
     if (error) throw error;
-    return data as DriveLink[];
+    return data || [];
   };
 
-  const query = useQuery({
-    queryKey: ["driveLinks"] as const,
-    queryFn,
+  const { data = [], refetch } = useQuery<DriveLink[], Error, DriveLink[], QueryKey>({
+    queryKey: ["driveLinks"],
+    queryFn: fetchDriveLinks,
     enabled: !!clientId,
   });
-
-  const driveLinks = (query.data || []) as DriveLink[];
 
   const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
     try {
@@ -120,7 +118,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
   const addDriveLinkMutation = useMutation({
     mutationFn: addDriveLink,
     onSuccess: () => {
-      query.refetch();
+      refetch();
       toast.success("Drive link added successfully");
     },
     onError: (error: Error) => {
@@ -131,7 +129,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
   const deleteDriveLinkMutation = useMutation({
     mutationFn: deleteDriveLink,
     onSuccess: () => {
-      query.refetch();
+      refetch();
       toast.success("Drive link removed successfully");
     },
     onError: (error: Error) => {
@@ -140,8 +138,8 @@ export const useDriveLinks = (clientId: string | undefined) => {
   });
 
   return {
-    driveLinks,
-    refetchDriveLinks: query.refetch,
+    driveLinks: data,
+    refetchDriveLinks: refetch,
     addDriveLinkMutation,
     deleteDriveLinkMutation,
   };
