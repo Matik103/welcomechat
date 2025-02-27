@@ -11,22 +11,23 @@ interface DriveLink {
   created_at?: string;
 }
 
-type QueryFnType = () => Promise<DriveLink[]>;
+interface AddDriveLinkInput {
+  link: string;
+  refresh_rate: number;
+}
 
 export const useDriveLinks = (clientId: string | undefined) => {
-  const queryFn: QueryFnType = async () => {
-    if (!clientId) return [];
-    const { data, error } = await supabase
-      .from("google_drive_links")
-      .select("*")
-      .eq("client_id", clientId);
-    if (error) throw error;
-    return (data || []) as DriveLink[];
-  };
-
   const { data = [], refetch } = useQuery({
     queryKey: ["driveLinks", clientId],
-    queryFn,
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from("google_drive_links")
+        .select("*")
+        .eq("client_id", clientId);
+      if (error) throw error;
+      return (data || []) as DriveLink[];
+    },
     enabled: !!clientId
   });
 
@@ -83,8 +84,8 @@ export const useDriveLinks = (clientId: string | undefined) => {
     }
   };
 
-  const addDriveLinkMutation = useMutation({
-    mutationFn: async (input: { link: string; refresh_rate: number }) => {
+  const addDriveLinkMutation = useMutation<DriveLink, Error, AddDriveLinkInput>({
+    mutationFn: async (input) => {
       if (!clientId) throw new Error("Client ID is required");
       await checkDriveLinkAccess(input.link);
       
@@ -106,13 +107,13 @@ export const useDriveLinks = (clientId: string | undefined) => {
       refetch();
       toast.success("Drive link added successfully");
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(`Error adding drive link: ${error.message}`);
     }
   });
 
-  const deleteDriveLinkMutation = useMutation({
-    mutationFn: async (linkId: number) => {
+  const deleteDriveLinkMutation = useMutation<void, Error, number>({
+    mutationFn: async (linkId) => {
       const { error } = await supabase
         .from("google_drive_links")
         .delete()
@@ -123,7 +124,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
       refetch();
       toast.success("Drive link removed successfully");
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(`Error removing drive link: ${error.message}`);
     }
   });
