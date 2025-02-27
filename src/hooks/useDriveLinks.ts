@@ -16,22 +16,26 @@ interface AddDriveLinkInput {
   refresh_rate: number;
 }
 
+type DriveLinkQueryFn = () => Promise<DriveLink[]>;
+
 export const useDriveLinks = (clientId: string | undefined) => {
+  const queryFn: DriveLinkQueryFn = async () => {
+    if (!clientId) return [];
+    const { data, error } = await supabase
+      .from("google_drive_links")
+      .select("*")
+      .eq("client_id", clientId);
+    if (error) throw error;
+    return data as DriveLink[];
+  };
+
   const query = useQuery({
-    queryKey: ["driveLinks", clientId || ""],
-    queryFn: async () => {
-      if (!clientId) return [] as DriveLink[];
-      const { data, error } = await supabase
-        .from("google_drive_links")
-        .select("*")
-        .eq("client_id", clientId);
-      if (error) throw error;
-      return (data || []) as DriveLink[];
-    },
-    enabled: !!clientId
+    queryKey: ["driveLinks"] as const,
+    queryFn,
+    enabled: !!clientId,
   });
 
-  const driveLinks = query.data || [];
+  const driveLinks = (query.data || []) as DriveLink[];
 
   const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
     try {
