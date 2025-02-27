@@ -2,23 +2,21 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
-interface DriveLink {
-  id: number;
-  client_id: string;
-  link: string;
-  refresh_rate: number;
-  created_at?: string;
-}
+import { DriveLink } from "@/types/client";
 
 interface AddDriveLinkInput {
   link: string;
   refresh_rate: number;
 }
 
+interface DriveLinkResponse {
+  data: DriveLink[] | null;
+  error: any;
+}
+
 async function fetchDriveLinks(clientId: string | undefined): Promise<DriveLink[]> {
   if (!clientId) return [];
-  const { data, error } = await supabase
+  const { data, error }: DriveLinkResponse = await supabase
     .from("google_drive_links")
     .select("*")
     .eq("client_id", clientId);
