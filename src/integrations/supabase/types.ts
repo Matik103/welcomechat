@@ -145,7 +145,6 @@ export type Database = {
       clients: {
         Row: {
           agent_name: string
-          backup_codes: string[] | null
           client_name: string
           company: string | null
           created_at: string | null
@@ -160,8 +159,6 @@ export type Database = {
           id: string
           last_active: string | null
           status: Database["public"]["Enums"]["client_status"] | null
-          two_factor_enabled: boolean | null
-          two_factor_secret: string | null
           updated_at: string | null
           website: string | null
           website_url: string | null
@@ -172,7 +169,6 @@ export type Database = {
         }
         Insert: {
           agent_name: string
-          backup_codes?: string[] | null
           client_name: string
           company?: string | null
           created_at?: string | null
@@ -187,8 +183,6 @@ export type Database = {
           id?: string
           last_active?: string | null
           status?: Database["public"]["Enums"]["client_status"] | null
-          two_factor_enabled?: boolean | null
-          two_factor_secret?: string | null
           updated_at?: string | null
           website?: string | null
           website_url?: string | null
@@ -199,7 +193,6 @@ export type Database = {
         }
         Update: {
           agent_name?: string
-          backup_codes?: string[] | null
           client_name?: string
           company?: string | null
           created_at?: string | null
@@ -214,8 +207,6 @@ export type Database = {
           id?: string
           last_active?: string | null
           status?: Database["public"]["Enums"]["client_status"] | null
-          two_factor_enabled?: boolean | null
-          two_factor_secret?: string | null
           updated_at?: string | null
           website?: string | null
           website_url?: string | null
@@ -454,36 +445,6 @@ export type Database = {
           role_type?: string
           status?: Database["public"]["Enums"]["invitation_status"] | null
           token?: string
-        }
-        Relationships: []
-      }
-      mfa_factors: {
-        Row: {
-          created_at: string
-          factor_type: string
-          id: string
-          secret: string | null
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          factor_type: string
-          id?: string
-          secret?: string | null
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          factor_type?: string
-          id?: string
-          secret?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string
         }
         Relationships: []
       }
