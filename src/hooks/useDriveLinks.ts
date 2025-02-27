@@ -1,5 +1,5 @@
 
-import { useQuery, useMutation, QueryKey } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -16,8 +16,6 @@ interface AddDriveLinkInput {
   refresh_rate: number;
 }
 
-type DriveLinkQueryKey = readonly ["driveLinks", string | undefined];
-
 async function fetchDriveLinks(clientId: string | undefined) {
   if (!clientId) return [];
   const { data, error } = await supabase
@@ -29,10 +27,8 @@ async function fetchDriveLinks(clientId: string | undefined) {
 }
 
 export const useDriveLinks = (clientId: string | undefined) => {
-  const queryKey: DriveLinkQueryKey = ["driveLinks", clientId];
-  
-  const { data, refetch } = useQuery({
-    queryKey,
+  const { data = [], refetch } = useQuery({
+    queryKey: ["driveLinks", clientId] as const,
     queryFn: () => fetchDriveLinks(clientId),
     enabled: !!clientId,
   });
@@ -140,7 +136,7 @@ export const useDriveLinks = (clientId: string | undefined) => {
   });
 
   return {
-    driveLinks: data ?? [] as DriveLink[],
+    driveLinks: data as DriveLink[],
     refetchDriveLinks: refetch,
     addDriveLinkMutation,
     deleteDriveLinkMutation,
