@@ -31,19 +31,20 @@ export function useDriveLinks(clientId: string | undefined) {
         throw new Error("Invalid Google Drive link format");
       }
       
-      const { data: existingData } = await supabase
+      // Simplified query to avoid deep type instantiation
+      const { data: existingData, error } = await supabase
         .from('ai_agent')
-        .select('*')
-        .eq('metadata->client_id', clientId)
-        .eq('metadata->url', link)
+        .select('id')
+        .filter('metadata->client_id', 'eq', clientId)
+        .filter('metadata->url', 'eq', link)
         .maybeSingle();
-
+      
       if (existingData) {
         await supabase
           .from('ai_agent')
           .delete()
-          .eq('metadata->client_id', clientId)
-          .eq('metadata->url', link);
+          .filter('metadata->client_id', 'eq', clientId)
+          .filter('metadata->url', 'eq', link);
       }
 
       const response = await fetch(

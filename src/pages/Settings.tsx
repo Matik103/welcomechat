@@ -7,16 +7,13 @@ import { SecuritySection } from "@/components/settings/SecuritySection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
 import { AdminSetup } from "@/components/settings/AdminSetup";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
-import { useMFAHandlers } from "@/components/settings/MFASection";
 
 const Settings = () => {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const mfaHandlers = useMFAHandlers();
 
   useEffect(() => {
     checkAdminStatus();
-    mfaHandlers.checkMfaStatus();
   }, []);
 
   const checkAdminStatus = async () => {
@@ -46,15 +43,7 @@ const Settings = () => {
           initialEmail={user?.email || ""}
         />
 
-        <SecuritySection
-          mfaEnabled={mfaHandlers.mfaEnabled}
-          qrCode={mfaHandlers.qrCode}
-          verificationCode={mfaHandlers.verificationCode}
-          currentFactorId={mfaHandlers.currentFactorId}
-          onVerificationCodeChange={mfaHandlers.setVerificationCode}
-          onEnableMFA={mfaHandlers.handleEnableMFA}
-          onVerifyMFA={mfaHandlers.handleVerifyMFA}
-        />
+        <SecuritySection />
 
         <SignOutSection />
       </div>

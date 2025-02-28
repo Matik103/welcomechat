@@ -1,84 +1,109 @@
 
-import { useState } from "react";
-import { useClientData } from "@/hooks/useClientData";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProfileSection } from "@/components/client/settings/ProfileSection";
-import { WidgetSection } from "@/components/client/settings/WidgetSection";
-import { defaultSettings } from "@/types/widget-settings";
-import { ClientFormData } from "@/types/client";
+import { ProfileSection } from "@/components/settings/ProfileSection";
+import { SignOutSection } from "@/components/settings/SignOutSection";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, InfoIcon } from "lucide-react";
 
 const ClientSettings = () => {
   const { user } = useAuth();
-  const [isUploading, setIsUploading] = useState(false);
-  const { client, isLoadingClient, clientMutation } = useClientData(user?.id);
+  const [clientInfo, setClientInfo] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleSettingsChange = (newSettings: any) => {
-    if (!client) return;
-    const updatedData: ClientFormData = {
-      client_name: client.client_name,
-      email: client.email,
-      agent_name: client.agent_name,
-      widget_settings: {
-        ...(client.widget_settings as any ?? defaultSettings),
-        ...newSettings,
-      },
+  useEffect(() => {
+    const fetchClientInfo = async () => {
+      if (!user?.email) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("*")
+          .eq("email", user.email)
+          .maybeSingle();
+          
+        if (error) throw error;
+        setClientInfo(data);
+      } catch (error) {
+        console.error("Error fetching client info:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    clientMutation.mutate(updatedData);
-  };
+    
+    fetchClientInfo();
+  }, [user]);
 
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files?.[0]) return;
-    setIsUploading(true);
-    try {
-      // Logo upload logic will be implemented here
-      setIsUploading(false);
-    } catch (error) {
-      console.error('Error uploading logo:', error);
-      setIsUploading(false);
-    }
-  };
-
-  if (isLoadingClient) {
-    return <div>Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
   }
-
-  if (!client) {
-    return <div>No client data found</div>;
-  }
-
-  const widgetSettings = client.widget_settings ? 
-    (typeof client.widget_settings === 'string' ? 
-      JSON.parse(client.widget_settings) : 
-      client.widget_settings) : 
-    defaultSettings;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-gray-500">Manage your account and widget settings</p>
+    <div className="min-h-screen bg-[#F8F9FA] p-4">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
+          <p className="text-gray-500">Manage your account preferences</p>
+        </div>
+
+        <ProfileSection 
+          initialFullName={user?.user_metadata?.full_name || ""}
+          initialEmail={user?.email || ""}
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <InfoIcon className="h-5 w-5" />
+              Client Information
+            </CardTitle>
+            <CardDescription>
+              Information about your AI assistant
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {clientInfo ? (
+              <>
+                <div>
+                  <p className="text-sm text-gray-500">Company Name</p>
+                  <p className="font-medium">{clientInfo.client_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">AI Assistant Name</p>
+                  <p className="font-medium">{clientInfo.agent_name}</p>
+                </div>
+                {clientInfo.description && (
+                  <div>
+                    <p className="text-sm text-gray-500">Description</p>
+                    <p className="font-medium">{clientInfo.description}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      clientInfo.status === "active"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {clientInfo.status || "active"}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500">No client information available</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <SignOutSection />
       </div>
-
-      <Tabs defaultValue="profile">
-        <TabsList>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="widget">Widget</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile" className="space-y-6">
-          <ProfileSection client={client} clientMutation={clientMutation} />
-        </TabsContent>
-
-        <TabsContent value="widget" className="space-y-6">
-          <WidgetSection
-            settings={widgetSettings}
-            isUploading={isUploading}
-            onSettingsChange={handleSettingsChange}
-            onLogoUpload={handleLogoUpload}
-          />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 };
