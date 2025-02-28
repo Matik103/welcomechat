@@ -50,65 +50,65 @@ export function useClientDashboard() {
       
       if (!clientData?.agent_name) return null;
       
-      // Try to get the agent-specific table name
-      const agentName = clientData.agent_name.toLowerCase().replace(/\s+/g, '_');
-      
-      // Check if the table exists using a different approach
-      // First, try the specific table
-      let tableName = 'ai_agent'; // Default fallback table
-      
       try {
-        // Try to query from the agent-specific table with limit 1 to check if it exists
-        const { data: testData, error: testError } = await supabase
-          .from(agentName as any)
-          .select('id')
-          .limit(1);
-          
-        // If no error, the table exists
-        if (!testError) {
-          tableName = agentName;
+        // Try to get the agent-specific table name
+        const agentName = clientData.agent_name.toLowerCase().replace(/\s+/g, '_');
+        
+        // Check if the table exists using a safe approach
+        let tableName = 'ai_agent'; // Default fallback table
+        
+        try {
+          // Try to query from the agent-specific table with limit 1 to check if it exists
+          const testQuery = await supabase
+            .from(agentName)
+            .select('id')
+            .limit(1);
+            
+          // If no error, the table exists
+          if (!testQuery.error) {
+            tableName = agentName;
+          }
+        } catch (error) {
+          console.log(`Table ${agentName} doesn't exist, using default ai_agent table`);
+          // Using default ai_agent table
         }
-      } catch (error) {
-        console.log(`Table ${agentName} doesn't exist, using default ai_agent table`);
-        // Using default ai_agent table
-      }
-      
-      // Query for interactions in the past 30 days
-      const { data: interactions, error } = await supabase
-        .from(tableName as any)
-        .select('*')
-        .or(`metadata->type.eq.chat_interaction,metadata->type.is.null`)
-        .gte('created_at', thirtyDaysAgo)
-        .filter('metadata->client_id', 'eq', clientId);
+        
+        // Query for interactions in the past 30 days
+        const { data: interactions, error } = await supabase
+          .from(tableName)
+          .select('*')
+          .eq('metadata->>client_id', clientId)
+          .gte('created_at', thirtyDaysAgo);
 
-      if (error) {
-        console.error("Error fetching interactions:", error);
+        if (error) throw error;
+        
+        // Calculate success rate
+        const totalCount = interactions?.length || 0;
+        let successCount = 0;
+        
+        if (interactions) {
+          for (const interaction of interactions) {
+            if (interaction.metadata && interaction.metadata.success) {
+              successCount++;
+            }
+          }
+        }
+        
+        const successRate = totalCount ? Math.round((successCount / totalCount) * 100) : 0;
+        
+        return {
+          total: totalCount,
+          successRate: successRate,
+          averagePerDay: totalCount > 0 ? Math.round(totalCount / 30) : 0
+        };
+      } catch (error) {
+        console.error("Error in interaction stats query:", error);
         return {
           total: 0,
           successRate: 0,
           averagePerDay: 0
         };
       }
-      
-      // Calculate success rate
-      const totalCount = interactions?.length || 0;
-      let successCount = 0;
-      
-      if (interactions) {
-        for (const interaction of interactions) {
-          if (interaction.metadata && interaction.metadata.success) {
-            successCount++;
-          }
-        }
-      }
-      
-      const successRate = totalCount ? Math.round((successCount / totalCount) * 100) : 0;
-      
-      return {
-        total: totalCount,
-        successRate: successRate,
-        averagePerDay: totalCount > 0 ? Math.round(totalCount / 30) : 0
-      };
     },
     enabled: !!clientId,
     refetchInterval: 30000 // Refetch every 30 seconds

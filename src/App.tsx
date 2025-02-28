@@ -80,8 +80,8 @@ function App() {
         {/* Client Routes */}
         <Route path="/client/view" element={<ClientDashboard />} />
         <Route path="/client/settings" element={<ClientSettings />} />
-        <Route path="/client/edit" element={<AddEditClient isClientView={true} />} />
-        <Route path="/client/widget-settings" element={<WidgetSettings isClientView={true} />} />
+        <Route path="/client/edit" element={<AddEditClient />} />
+        <Route path="/client/widget-settings" element={<WidgetSettings />} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

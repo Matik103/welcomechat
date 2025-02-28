@@ -24,18 +24,17 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
       // Check if the URL exists in the AI agent table
       const { data: existingData } = await supabase
         .from("ai_agent")
-        .select("*")
-        .eq("metadata->client_id", clientId)
-        .eq("metadata->url", url)
-        .single();
+        .select("id")
+        .eq("metadata->>client_id", clientId)
+        .eq("metadata->>url", url)
+        .maybeSingle();
 
       if (existingData) {
         // Delete the old content
         await supabase
           .from("ai_agent")
           .delete()
-          .eq("metadata->client_id", clientId)
-          .eq("metadata->url", url);
+          .eq("id", existingData.id);
       }
 
       // Attempt to fetch the website
@@ -62,7 +61,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       // Log error to error_logs table
       await supabase.from("error_logs").insert({
         client_id: clientId,

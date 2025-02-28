@@ -43,26 +43,13 @@ export function DeleteClientDialog({
 
     setIsDeleting(true);
     try {
-      // First, attempt to send the deletion email
-      const { error: emailError, data } = await supabase.functions.invoke(
-        "send-deletion-email",
-        {
-          body: {
-            clientId,
-            clientName,
-            email: clientEmail,
-          },
-        }
-      );
-
-      if (emailError || (data && data.error)) {
-        throw new Error(emailError?.message || data?.error || "Failed to send deletion email");
-      }
-
-      // If email was sent successfully, update the client's deletion status
+      console.log("Scheduling deletion for client:", clientId);
+      
+      // Set deletion date for 30 days from now
       const deletionDate = new Date();
       deletionDate.setDate(deletionDate.getDate() + 30);
 
+      // Update client's deletion_scheduled_at in database
       const { error: updateError } = await supabase
         .from("clients")
         .update({
@@ -71,8 +58,35 @@ export function DeleteClientDialog({
         .eq("id", clientId);
 
       if (updateError) throw updateError;
+      
+      // Send the deletion email
+      console.log("Sending deletion email to:", clientEmail);
+      const { error: emailError } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: clientEmail,
+          subject: "Account Deletion Notice",
+          html: `
+            <html>
+              <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <h1>Account Deletion Notice</h1>
+                <p>Dear ${clientName},</p>
+                <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
+                <p>If this was done in error, you can contact support to cancel the deletion process.</p>
+                <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
+                <p>Best regards,<br>AI Assistant Team</p>
+              </body>
+            </html>
+          `
+        },
+      });
 
-      toast.success("Client scheduled for deletion and notification email sent");
+      if (emailError) {
+        console.error("Error sending deletion email:", emailError);
+        toast.error("Client scheduled for deletion but notification email failed to send");
+      } else {
+        toast.success("Client scheduled for deletion and notification email sent");
+      }
+      
       onDeleted();
       onClose();
     } catch (error: any) {

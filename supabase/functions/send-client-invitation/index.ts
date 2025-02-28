@@ -25,15 +25,18 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
-  const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL") as string;
   
-  // If no PUBLIC_SITE_URL is set, default to a localhost URL
-  const baseUrl = publicSiteUrl || "http://localhost:5173";
+  // If no PUBLIC_SITE_URL is set, default to the current URL's origin
+  const baseUrl = req.headers.get("origin") || "https://interact-metrics-oasis.lovable.app";
   
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const { clientId, email, clientName }: InvitationRequest = await req.json();
+    console.log("Function invoked with method:", req.method);
+    const body: InvitationRequest = await req.json();
+    console.log("Received request body:", body);
+    
+    const { clientId, email, clientName } = body;
     
     if (!clientId || !email || !clientName) {
       throw new Error("Missing required parameters: clientId, email, or clientName");
@@ -57,18 +60,19 @@ serve(async (req) => {
     
     // If there's an existing invitation, update it
     if (existingInvitation) {
+      console.log("Updating existing invitation");
       const { error: updateError } = await supabase
         .from("client_invitations")
         .update({
           token: token,
-          expires_at: expiresAt.toISOString(),
-          updated_at: new Date().toISOString()
+          expires_at: expiresAt.toISOString()
         })
         .eq("id", existingInvitation.id);
       
       if (updateError) throw updateError;
     } else {
       // Otherwise, create a new invitation
+      console.log("Creating new invitation");
       const { error: insertError } = await supabase
         .from("client_invitations")
         .insert({
@@ -84,9 +88,10 @@ serve(async (req) => {
     
     // Generate setup URL
     const setupUrl = `${baseUrl}/client/setup?token=${token}`;
+    console.log("Setup URL:", setupUrl);
     
     // Send the invitation email
-    console.log("Sending invitation email with setup URL:", setupUrl);
+    console.log("Sending invitation email");
     const { error: emailError } = await supabase.functions.invoke("send-email", {
       body: {
         to: email,
@@ -116,9 +121,11 @@ serve(async (req) => {
     });
 
     if (emailError) {
-      throw new Error(`Error sending invitation email: ${emailError.message}`);
+      console.error("Error sending invitation email:", emailError);
+      throw new Error(`Failed to send invitation email: ${JSON.stringify(emailError)}`);
     }
 
+    console.log("Invitation sent successfully");
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -134,7 +141,8 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "Failed to send invitation"
+        error: error.message || "Failed to send invitation",
+        stack: error.stack
       }), 
       {
         status: 500,
