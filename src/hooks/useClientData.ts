@@ -73,6 +73,37 @@ export const useClientData = (id: string | undefined) => {
 
           // Send client invitation
           try {
+            console.log("Sending invitation to new client:", newClient.email);
+            
+            // Generate setup URL for the email body
+            const baseUrl = window.location.origin;
+            const emailContent = `
+              <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+                  <h1>Welcome to Your AI Assistant Dashboard!</h1>
+                  <p>Hello,</p>
+                  <p>Your account has been created for ${newClient.client_name}.</p>
+                  <p>You will receive a separate email shortly with instructions to set up your dashboard.</p>
+                  <p>Best regards,<br>AI Assistant Team</p>
+                </body>
+              </html>
+            `;
+            
+            // First, send a welcome email directly
+            const { data: emailData, error: emailError } = await supabase.functions.invoke("send-email", {
+              body: {
+                to: newClient.email,
+                subject: `Welcome to ${newClient.client_name} AI Assistant!`,
+                html: emailContent
+              }
+            });
+            
+            if (emailError) {
+              console.error("Error sending direct welcome email:", emailError);
+              toast.warning("Client created but welcome email could not be sent");
+            }
+            
+            // Then trigger the full invitation process
             const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
               body: {
                 clientId: newClient.id,
@@ -83,13 +114,13 @@ export const useClientData = (id: string | undefined) => {
             
             if (inviteError) {
               console.error("Error sending invitation:", inviteError);
-              toast.error("Client created but failed to send invitation email");
+              toast.warning("Client created but invitation email failed to send");
             } else {
               toast.success("Invitation email sent to client");
             }
           } catch (inviteError: any) {
-            console.error("Error sending invitation:", inviteError);
-            toast.error("Client created but failed to send invitation email");
+            console.error("Exception in invitation process:", inviteError);
+            toast.warning("Client created but invitation process failed");
           }
 
           return newClient.id;

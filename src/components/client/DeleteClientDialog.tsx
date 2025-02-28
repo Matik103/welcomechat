@@ -42,6 +42,7 @@ export function DeleteClientDialog({
     }
 
     setIsDeleting(true);
+    
     try {
       console.log("Scheduling deletion for client:", clientId);
       
@@ -49,7 +50,7 @@ export function DeleteClientDialog({
       const deletionDate = new Date();
       deletionDate.setDate(deletionDate.getDate() + 30);
 
-      // Update client's deletion_scheduled_at in database
+      // First update the client's deletion_scheduled_at in database
       const { error: updateError } = await supabase
         .from("clients")
         .update({
@@ -59,34 +60,44 @@ export function DeleteClientDialog({
 
       if (updateError) throw updateError;
       
-      // Send the deletion email
-      console.log("Sending deletion email to:", clientEmail);
-      const { error: emailError } = await supabase.functions.invoke("send-email", {
-        body: {
-          to: clientEmail,
-          subject: "Account Deletion Notice",
-          html: `
-            <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-                <h1>Account Deletion Notice</h1>
-                <p>Dear ${clientName},</p>
-                <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
-                <p>If this was done in error, you can contact support to cancel the deletion process.</p>
-                <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
-                <p>Best regards,<br>AI Assistant Team</p>
-              </body>
-            </html>
-          `
-        },
-      });
+      // Set up the email content
+      const emailContent = `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <h1>Account Deletion Notice</h1>
+            <p>Dear ${clientName},</p>
+            <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
+            <p>If this was done in error, you can contact support to cancel the deletion process.</p>
+            <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
+            <p>Best regards,<br>AI Assistant Team</p>
+          </body>
+        </html>
+      `;
+      
+      // Now attempt to send the deletion email
+      try {
+        console.log("Sending deletion email to:", clientEmail);
+        const { data, error: emailError } = await supabase.functions.invoke("send-email", {
+          body: {
+            to: clientEmail,
+            subject: "Account Deletion Notice",
+            html: emailContent
+          },
+        });
 
-      if (emailError) {
-        console.error("Error sending deletion email:", emailError);
-        toast.error("Client scheduled for deletion but notification email failed to send");
-      } else {
-        toast.success("Client scheduled for deletion and notification email sent");
+        if (emailError || (data && data.error)) {
+          console.error("Email error details:", emailError || data?.error);
+          // Log the email error but don't throw - we've already updated the database
+          toast.warning("Client scheduled for deletion but email notification failed to send");
+        } else {
+          toast.success("Client scheduled for deletion and notification email sent");
+        }
+      } catch (emailError) {
+        console.error("Exception sending email:", emailError);
+        toast.warning("Client scheduled for deletion but email notification failed to send");
       }
       
+      // Even if email fails, we still successfully scheduled deletion
       onDeleted();
       onClose();
     } catch (error: any) {
