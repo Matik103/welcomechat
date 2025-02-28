@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,7 +23,10 @@ serve(async (req) => {
     });
   }
 
-  const client = new SmtpClient();
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
+  
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
     console.log("Function invoked with method:", req.method);
@@ -38,38 +41,36 @@ serve(async (req) => {
       throw new Error("Missing required parameters");
     }
 
-    console.log("Connecting to SMTP server...");
+    // Use Resend for email
+    try {
+      const { error: emailError } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: email,
+          subject: "Account Deletion Notice",
+          html: `
+            <html>
+              <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <h1>Account Deletion Notice</h1>
+                <p>Dear ${clientName},</p>
+                <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
+                <p>If this was done in error, you can contact support to cancel the deletion process.</p>
+                <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
+                <p>Best regards,<br>AI Assistant Team</p>
+              </body>
+            </html>
+          `
+        },
+      });
 
-    await client.connectTLS({
-      hostname: "mail.privateemail.com",
-      port: 465,
-      username: Deno.env.get("SMTP_USER"),
-      password: Deno.env.get("SMTP_PASS"),
-    });
+      if (emailError) {
+        throw new Error(`Error sending email: ${emailError.message}`);
+      }
 
-    console.log("Sending deletion email to:", email);
-    
-    await client.send({
-      from: Deno.env.get("SMTP_SENDER")!,
-      to: email,
-      subject: "Account Deletion Notice",
-      content: `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h1>Account Deletion Notice</h1>
-            <p>Dear ${clientName},</p>
-            <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
-            <p>If this was done in error, you can contact support to cancel the deletion process.</p>
-            <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
-            <p>Best regards,<br>AI Assistant Team</p>
-          </body>
-        </html>
-      `,
-      html: true,
-    });
-
-    console.log("Email sent successfully");
-    await client.close();
+      console.log("Email sent successfully");
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
 
     return new Response(
       JSON.stringify({ 
@@ -82,14 +83,8 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in send-deletion-email function:", error);
-    
-    try {
-      await client.close();
-    } catch (closeError) {
-      console.error("Error closing SMTP connection:", closeError);
-    }
     
     return new Response(
       JSON.stringify({ 

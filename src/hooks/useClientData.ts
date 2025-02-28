@@ -71,6 +71,27 @@ export const useClientData = (id: string | undefined) => {
             toast.success(`Successfully created AI Agent table for ${data.agent_name}`);
           }
 
+          // Send client invitation
+          try {
+            const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
+              body: {
+                clientId: newClient.id,
+                email: newClient.email,
+                clientName: newClient.client_name
+              }
+            });
+            
+            if (inviteError) {
+              console.error("Error sending invitation:", inviteError);
+              toast.error("Client created but failed to send invitation email");
+            } else {
+              toast.success("Invitation email sent to client");
+            }
+          } catch (inviteError: any) {
+            console.error("Error sending invitation:", inviteError);
+            toast.error("Client created but failed to send invitation email");
+          }
+
           return newClient.id;
         }
       } catch (error: any) {

@@ -11,10 +11,12 @@ import {
 import { Loader2, AlertCircle } from "lucide-react";
 
 interface ErrorLog {
-  id: number;
+  id: string;  // Changed from number to string
   error_type: string;
   message: string;
   created_at: string;
+  client_id: string;
+  status: string;
 }
 
 interface ErrorLogListProps {

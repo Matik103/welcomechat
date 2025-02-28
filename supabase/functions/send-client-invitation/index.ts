@@ -1,17 +1,11 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { Resend } from "npm:resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+import { v4 as uuidv4 } from "https://deno.land/std@0.190.0/uuid/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
 interface InvitationRequest {
@@ -20,78 +14,132 @@ interface InvitationRequest {
   clientName: string;
 }
 
-const handler = async (req: Request): Promise<Response> => {
+serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
+  const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL") as string;
+  
+  // If no PUBLIC_SITE_URL is set, default to a localhost URL
+  const baseUrl = publicSiteUrl || "http://localhost:5173";
+  
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
     const { clientId, email, clientName }: InvitationRequest = await req.json();
-
-    // Generate a unique token
-    const token = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 48); // Token expires in 48 hours
-
-    // Create invitation record
-    const { error: invitationError } = await supabase
-      .from("client_invitations")
-      .insert({
-        client_id: clientId,
-        email,
-        token,
-        expires_at: expiresAt.toISOString(),
-        status: "pending"
-      });
-
-    if (invitationError) {
-      throw new Error(`Failed to create invitation: ${invitationError.message}`);
+    
+    if (!clientId || !email || !clientName) {
+      throw new Error("Missing required parameters: clientId, email, or clientName");
     }
 
-    // Send invitation email
-    const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "http://localhost:3000";
+    console.log(`Creating invitation for client ${clientName} (${clientId}) with email: ${email}`);
+    
+    // Check if there's an existing invitation
+    const { data: existingInvitation } = await supabase
+      .from("client_invitations")
+      .select("*")
+      .eq("client_id", clientId)
+      .eq("email", email)
+      .eq("status", "pending")
+      .maybeSingle();
+    
+    // Generate a new token
+    const token = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // Expire in 7 days
+    
+    // If there's an existing invitation, update it
+    if (existingInvitation) {
+      const { error: updateError } = await supabase
+        .from("client_invitations")
+        .update({
+          token: token,
+          expires_at: expiresAt.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", existingInvitation.id);
+      
+      if (updateError) throw updateError;
+    } else {
+      // Otherwise, create a new invitation
+      const { error: insertError } = await supabase
+        .from("client_invitations")
+        .insert({
+          client_id: clientId,
+          email: email,
+          token: token,
+          status: "pending",
+          expires_at: expiresAt.toISOString()
+        });
+      
+      if (insertError) throw insertError;
+    }
+    
+    // Generate setup URL
     const setupUrl = `${baseUrl}/client/setup?token=${token}`;
-
-    const { error: emailError } = await resend.emails.send({
-      from: "Lovable <onboarding@resend.dev>",
-      to: [email],
-      subject: `Welcome to ${clientName}'s AI Assistant Dashboard`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #1a1a1a;">Welcome to Your AI Assistant Dashboard</h1>
-          <p>You've been invited to manage the AI assistant for ${clientName}.</p>
-          <p>To get started, click the button below to set up your account:</p>
-          <a href="${setupUrl}" style="display: inline-block; background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 16px 0;">Set Up Your Account</a>
-          <p style="color: #666;">This invitation link will expire in 48 hours.</p>
-          <p style="color: #666;">If you didn't expect this invitation, you can safely ignore this email.</p>
-        </div>
-      `,
+    
+    // Send the invitation email
+    console.log("Sending invitation email with setup URL:", setupUrl);
+    const { error: emailError } = await supabase.functions.invoke("send-email", {
+      body: {
+        to: email,
+        subject: `Setup Your ${clientName} AI Assistant Account`,
+        html: `
+          <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+              <h1>Welcome to Your AI Assistant Dashboard!</h1>
+              <p>Hello,</p>
+              <p>You have been invited to set up your ${clientName} AI Assistant dashboard account.</p>
+              <p>Click the button below to complete your account setup:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${setupUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                  Complete Account Setup
+                </a>
+              </div>
+              <p>This link will expire in 7 days. If you have any questions, please contact your administrator.</p>
+              <p>Best regards,<br>AI Assistant Team</p>
+              <p style="font-size: 0.8rem; color: #718096; margin-top: 40px;">
+                If the button above doesn't work, copy and paste this URL into your browser:<br>
+                ${setupUrl}
+              </p>
+            </body>
+          </html>
+        `
+      },
     });
 
     if (emailError) {
-      throw new Error(`Failed to send email: ${emailError}`);
+      throw new Error(`Error sending invitation email: ${emailError.message}`);
     }
 
     return new Response(
-      JSON.stringify({ message: "Invitation sent successfully" }),
+      JSON.stringify({ 
+        success: true, 
+        message: "Invitation sent successfully"
+      }), 
       {
         status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in send-client-invitation function:", error);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || "Failed to send invitation"
+      }), 
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
   }
-};
-
-serve(handler);
+});

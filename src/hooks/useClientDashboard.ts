@@ -51,28 +51,57 @@ export function useClientDashboard() {
       if (!clientData?.agent_name) return null;
       
       // Try to get the agent-specific table name
-      let agentName = clientData.agent_name.toLowerCase().replace(/\s+/g, '_');
+      const agentName = clientData.agent_name.toLowerCase().replace(/\s+/g, '_');
       
-      // Fallback to ai_agent table if no specific agent table
-      let tableName = 'ai_agent';
-      const { data: hasTable } = await supabase.rpc('check_table_exists', { table_name: agentName });
+      // Check if the table exists using a different approach
+      // First, try the specific table
+      let tableName = 'ai_agent'; // Default fallback table
       
-      if (hasTable) {
-        tableName = agentName;
+      try {
+        // Try to query from the agent-specific table with limit 1 to check if it exists
+        const { data: testData, error: testError } = await supabase
+          .from(agentName as any)
+          .select('id')
+          .limit(1);
+          
+        // If no error, the table exists
+        if (!testError) {
+          tableName = agentName;
+        }
+      } catch (error) {
+        console.log(`Table ${agentName} doesn't exist, using default ai_agent table`);
+        // Using default ai_agent table
       }
       
       // Query for interactions in the past 30 days
-      const { data: interactions, error } = await supabase.from(tableName)
+      const { data: interactions, error } = await supabase
+        .from(tableName as any)
         .select('*')
-        .filter('metadata->type', 'eq', 'chat_interaction')
-        .filter('metadata->timestamp', 'gte', thirtyDaysAgo)
+        .or(`metadata->type.eq.chat_interaction,metadata->type.is.null`)
+        .gte('created_at', thirtyDaysAgo)
         .filter('metadata->client_id', 'eq', clientId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching interactions:", error);
+        return {
+          total: 0,
+          successRate: 0,
+          averagePerDay: 0
+        };
+      }
       
       // Calculate success rate
       const totalCount = interactions?.length || 0;
-      const successCount = interactions?.filter(i => i.metadata?.success)?.length || 0;
+      let successCount = 0;
+      
+      if (interactions) {
+        for (const interaction of interactions) {
+          if (interaction.metadata && interaction.metadata.success) {
+            successCount++;
+          }
+        }
+      }
+      
       const successRate = totalCount ? Math.round((successCount / totalCount) * 100) : 0;
       
       return {

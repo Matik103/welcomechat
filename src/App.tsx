@@ -2,7 +2,7 @@
 import { Toaster } from "sonner";
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import ClientList from "@/pages/ClientList";
@@ -15,26 +15,50 @@ import { useAuth } from "./contexts/AuthContext";
 import ClientSettings from "@/pages/client/Settings";
 import ClientDashboard from "@/pages/client/Dashboard";
 import ClientSetup from "@/pages/client/Setup";
+import { useEffect, useState } from "react";
 
 function App() {
   const { isLoading, user } = useAuth();
+  const location = useLocation();
+  const [showLoader, setShowLoader] = useState(true);
+  
+  // Set a timeout to prevent infinite loading
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setShowLoader(false);
+      }, 5000); // Show loader for max 5 seconds
+      
+      return () => clearTimeout(timer);
+    } else {
+      setShowLoader(false);
+    }
+  }, [isLoading]);
 
+  // Check if this is a public route
+  const isPublicRoute = 
+    location.pathname === '/auth' || 
+    location.pathname.startsWith('/client/setup');
+  
   // Show loading spinner only for a brief moment while checking auth
-  if (isLoading) {
+  if (isLoading && showLoader) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
+          <p className="text-sm text-gray-500">Loading your application...</p>
+        </div>
       </div>
     );
   }
 
-  // If not loading and no user, show auth page
-  if (!user && window.location.pathname !== '/auth' && !window.location.pathname.startsWith('/client/setup')) {
+  // If loading timed out or finished, and no user, and not on a public route, redirect to auth
+  if ((!isLoading || !showLoader) && !user && !isPublicRoute) {
     return <Navigate to="/auth" replace />;
   }
 
   // Client routes use ClientHeader, admin routes use Header
-  const isClientRoute = window.location.pathname.startsWith('/client');
+  const isClientRoute = location.pathname.startsWith('/client');
 
   return (
     <div className="min-h-screen bg-background">
@@ -56,8 +80,8 @@ function App() {
         {/* Client Routes */}
         <Route path="/client/view" element={<ClientDashboard />} />
         <Route path="/client/settings" element={<ClientSettings />} />
-        <Route path="/client/edit" element={<AddEditClient />} />
-        <Route path="/client/widget-settings" element={<WidgetSettings />} />
+        <Route path="/client/edit" element={<AddEditClient isClientView={true} />} />
+        <Route path="/client/widget-settings" element={<WidgetSettings isClientView={true} />} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
