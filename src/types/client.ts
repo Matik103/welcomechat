@@ -23,14 +23,14 @@ export interface ClientFormData {
   email: string;
   agent_name: string;
   widget_settings?: Json;
+  company?: string;
+  description?: string;
 }
 
 export interface Client extends ClientFormData {
   id: string;
   created_at?: string;
   updated_at?: string;
-  company?: string;
-  description?: string;
   deletion_scheduled_at?: string;
   deleted_at?: string;
   last_active?: string;

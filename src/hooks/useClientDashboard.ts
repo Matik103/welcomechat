@@ -57,28 +57,46 @@ export function useClientDashboard() {
         // Check if the table exists using a safe approach
         let tableName = 'ai_agent'; // Default fallback table
         
+        // Query for interactions in the past 30 days
+        // Instead of dynamic table names, we'll try different options
+        let interactions;
+        let error;
+        
+        // First try with the specific agent table if it appears to exist
         try {
-          // Try to query from the agent-specific table with limit 1 to check if it exists
-          const testQuery = await supabase
-            .from(agentName)
-            .select('id')
-            .limit(1);
-            
-          // If no error, the table exists
-          if (!testQuery.error) {
-            tableName = agentName;
+          // Check if the agent table exists by running a simple query
+          const { data: tableCheck } = await supabase.rpc('check_table_exists', { 
+            table_name: agentName 
+          });
+          
+          // If the table exists, query it
+          if (tableCheck) {
+            // Use explicit as any casting only for the dynamic table name
+            const result = await supabase
+              .from(agentName as any)
+              .select('*')
+              .eq('metadata->>client_id', clientId)
+              .gte('created_at', thirtyDaysAgo);
+              
+            if (!result.error) {
+              interactions = result.data;
+            }
           }
-        } catch (error) {
-          console.log(`Table ${agentName} doesn't exist, using default ai_agent table`);
-          // Using default ai_agent table
+        } catch (e) {
+          console.log("Agent-specific table not found, falling back to ai_agent");
         }
         
-        // Query for interactions in the past 30 days
-        const { data: interactions, error } = await supabase
-          .from(tableName)
-          .select('*')
-          .eq('metadata->>client_id', clientId)
-          .gte('created_at', thirtyDaysAgo);
+        // If we couldn't get data from the agent-specific table, try the default ai_agent table
+        if (!interactions) {
+          const result = await supabase
+            .from('ai_agent')
+            .select('*')
+            .eq('metadata->>client_id', clientId)
+            .gte('created_at', thirtyDaysAgo);
+            
+          interactions = result.data;
+          error = result.error;
+        }
 
         if (error) throw error;
         
@@ -88,7 +106,13 @@ export function useClientDashboard() {
         
         if (interactions) {
           for (const interaction of interactions) {
-            if (interaction.metadata && interaction.metadata.success) {
+            // Safe access with type checking
+            if (interaction && 
+                typeof interaction === 'object' && 
+                'metadata' in interaction && 
+                interaction.metadata && 
+                typeof interaction.metadata === 'object' && 
+                'success' in interaction.metadata) {
               successCount++;
             }
           }
