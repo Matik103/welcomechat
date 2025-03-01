@@ -1,197 +1,175 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
-import { v4 as uuidv4 } from "https://deno.land/std@0.190.0/uuid/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { v4 as uuidv4 } from "https://esm.sh/uuid@9.0.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
-interface InvitationRequest {
-  clientId: string;
-  email: string;
-  clientName: string;
-}
+const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    console.log("Handling CORS preflight request");
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    console.log("Processing client invitation request");
     
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Missing required environment variables for Supabase");
-    }
+    // Parse request
+    const requestData = await req.json();
+    console.log("Received request data:", JSON.stringify(requestData, null, 2));
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Parse the request body
-    let body: InvitationRequest;
-    try {
-      body = await req.json();
-      console.log("Received request body:", body);
-    } catch (error) {
-      console.error("Error parsing request JSON:", error);
-      throw new Error("Invalid JSON in request body");
-    }
+    const { clientId, email, clientName } = requestData;
     
-    const { clientId, email, clientName } = body;
-    
-    if (!clientId || !email || !clientName) {
-      throw new Error("Missing required parameters: clientId, email, or clientName");
+    if (!clientId || !email) {
+      console.error("Missing required fields");
+      return new Response(
+        JSON.stringify({ error: "clientId and email are required" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    console.log(`Creating invitation for client ${clientName} (${clientId}) with email: ${email}`);
-    
-    // Generate a new token
+    console.log(`Processing invitation for client: ${clientId}, email: ${email}`);
+
+    // Generate unique token and expiration date (30 days from now)
     const token = uuidv4();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Expire in 7 days
-    
-    // Check if there's an existing invitation
-    const { data: existingInvitation, error: lookupError } = await supabase
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+
+    // Step 1: Create invitation record in database first
+    console.log("Creating invitation record in database");
+    const { data: invitationData, error: invitationError } = await supabase
       .from("client_invitations")
-      .select("*")
-      .eq("client_id", clientId)
-      .eq("email", email)
-      .eq("status", "pending")
-      .maybeSingle();
-    
-    if (lookupError) {
-      console.error("Error looking up existing invitations:", lookupError);
-    }
-    
-    // Store the invitation in the database
-    try {
-      if (existingInvitation) {
-        console.log("Updating existing invitation");
-        const { error: updateError } = await supabase
-          .from("client_invitations")
-          .update({
-            token: token,
-            expires_at: expiresAt.toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", existingInvitation.id);
-        
-        if (updateError) {
-          console.error("Error updating invitation:", updateError);
-          throw updateError;
+      .insert({
+        client_id: clientId,
+        email: email,
+        token: token,
+        expires_at: expiryDate.toISOString(),
+        status: "pending",
+      })
+      .select('*')
+      .single();
+
+    if (invitationError) {
+      console.error("Error creating invitation record:", invitationError);
+      return new Response(
+        JSON.stringify({ error: `Database error: ${invitationError.message}` }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
-      } else {
-        console.log("Creating new invitation");
-        const { error: insertError } = await supabase
-          .from("client_invitations")
-          .insert({
-            client_id: clientId,
-            email: email,
-            token: token,
-            status: "pending",
-            expires_at: expiresAt.toISOString()
-          });
-        
-        if (insertError) {
-          console.error("Error inserting invitation:", insertError);
-          throw insertError;
-        }
-      }
-    } catch (dbError) {
-      console.error("Database error:", dbError);
-      throw new Error(`Database error: ${dbError.message}`);
+      );
     }
-    
-    // Generate setup URL
-    // Try to get the base URL from different sources
-    const origin = req.headers.get("origin");
-    const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL");
-    const baseUrl = publicSiteUrl || origin || "https://interact-metrics-oasis.lovable.app";
-    
+
+    console.log("Invitation created in database:", invitationData);
+
+    // Step 2: Generate setup URL for the email
+    const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || supabaseUrl.replace("https://", "https://app.");
     const setupUrl = `${baseUrl}/client/setup?token=${token}`;
+    
     console.log("Generated setup URL:", setupUrl);
     
-    // Send the invitation email
+    // Step 3: Send the invitation email
+    console.log("Preparing to send invitation email");
+    
     try {
-      console.log("Preparing to send invitation email");
-      const emailHtml = `
+      const emailContent = `
         <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h1>Welcome to Your AI Assistant Dashboard!</h1>
-            <p>Hello,</p>
-            <p>You have been invited to set up your ${clientName} AI Assistant dashboard account.</p>
-            <p>Click the button below to complete your account setup:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${setupUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-                Complete Account Setup
-              </a>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; border: 1px solid #dee2e6;">
+              <h1 style="color: #333;">Welcome to Your AI Assistant Dashboard!</h1>
+              <p>Hello,</p>
+              <p>You've been invited to join the ${clientName} AI Assistant dashboard.</p>
+              <p>Click the button below to set up your account:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${setupUrl}" style="background-color: #854fff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Set Up Your Account</a>
+              </div>
+              <p>Or copy and paste this URL into your browser:</p>
+              <p style="background-color: #eee; padding: 10px; border-radius: 4px; word-break: break-all;">${setupUrl}</p>
+              <p>This link will expire in 30 days.</p>
+              <p>Best regards,<br>AI Assistant Team</p>
             </div>
-            <p>This link will expire in 7 days. If you have any questions, please contact your administrator.</p>
-            <p>Best regards,<br>AI Assistant Team</p>
-            <p style="font-size: 0.8rem; color: #718096; margin-top: 40px;">
-              If the button above doesn't work, copy and paste this URL into your browser:<br>
-              ${setupUrl}
-            </p>
           </body>
         </html>
       `;
+
+      console.log("Sending email via send-email function");
       
-      console.log("Invoking send-email function");
-      const { data: emailResponse, error: emailError } = await supabase.functions.invoke(
-        "send-email", 
-        { 
-          body: {
-            to: email,
-            subject: `Setup Your ${clientName} AI Assistant Account`,
-            html: emailHtml
-          } 
+      const emailResponse = await supabase.functions.invoke("send-email", {
+        body: {
+          to: email,
+          subject: `Welcome to ${clientName} AI Assistant - Account Setup`,
+          html: emailContent,
+        },
+      });
+
+      if (emailResponse.error) {
+        console.error("Error from send-email function:", emailResponse.error);
+        
+        // We don't return error here since the invitation was created successfully
+        // Just log the error and return a partial success
+        return new Response(
+          JSON.stringify({
+            success: true,
+            invitation_created: true,
+            email_sent: false,
+            message: "Invitation created but email failed to send",
+            error: emailResponse.error
+          }),
+          {
+            status: 207, // Partial success
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      console.log("Email sent successfully");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Invitation sent successfully",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
-
-      if (emailError) {
-        console.error("Error from send-email function:", emailError);
-        throw new Error(`Failed to send invitation email: ${JSON.stringify(emailError)}`);
-      }
-      
-      if (emailResponse && emailResponse.error) {
-        console.error("Error in email response:", emailResponse.error);
-        throw new Error(`Email service error: ${emailResponse.error}`);
-      }
-
-      console.log("Invitation email sent successfully");
     } catch (emailError) {
-      console.error("Exception sending invitation email:", emailError);
-      throw new Error(`Email sending failed: ${emailError.message}`);
+      console.error("Exception sending email:", emailError);
+      
+      // Return partial success since invitation was created
+      return new Response(
+        JSON.stringify({
+          success: true,
+          invitation_created: true,
+          email_sent: false,
+          message: "Invitation created but email failed to send",
+          error: emailError.message
+        }),
+        {
+          status: 207, // Partial success
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Invitation sent successfully" 
-      }), 
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error in send-client-invitation function:", error);
-    
     return new Response(
-      JSON.stringify({ 
-        error: error.message || "Failed to send invitation",
-        stack: error.stack
-      }), 
+      JSON.stringify({ error: error.message }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }

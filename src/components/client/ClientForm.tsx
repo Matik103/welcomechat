@@ -63,7 +63,8 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       });
 
       if (response.error) {
-        throw new Error(response.error.message);
+        console.error("Error details:", response.error);
+        throw new Error(response.error.message || "Failed to send invitation");
       }
       
       toast.success("Invitation sent successfully");
@@ -85,6 +86,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
           id="client_name"
           {...register("client_name")}
           className={errors.client_name ? "border-red-500" : ""}
+          disabled={isClientView}
         />
         {errors.client_name && (
           <p className="text-sm text-red-500">{errors.client_name.message}</p>
@@ -100,6 +102,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
           type="email"
           {...register("email")}
           className={errors.email ? "border-red-500" : ""}
+          disabled={isClientView}
         />
         {errors.email && (
           <p className="text-sm text-red-500">{errors.email.message}</p>
@@ -114,6 +117,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
           id="agent_name"
           {...register("agent_name")}
           className={errors.agent_name ? "border-red-500" : ""}
+          disabled={isClientView}
         />
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
@@ -126,7 +130,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
           {initialData ? "Update Client" : "Create Client"}
         </Button>
         
-        {initialData?.id && (
+        {initialData?.id && !isClientView && (
           <Button
             type="button"
             variant="outline"
