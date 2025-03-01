@@ -61,6 +61,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           const role = await checkUserRole(initialSession.user.id);
           setUserRole(role);
+          
+          // Don't redirect during initial load to prevent unwanted navigation
+          // This will be handled by the routes themselves
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
@@ -90,10 +93,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (currentSession?.user) {
             const role = await checkUserRole(currentSession.user.id);
             setUserRole(role);
+            
+            // Only redirect after auth change if we're on the auth page
+            if (location.pathname === '/auth') {
+              if (role === 'admin') {
+                navigate('/', { replace: true });
+              } else if (role === 'client') {
+                navigate('/client/view', { replace: true });
+              }
+            }
           } else {
             setUserRole(null);
             // Only navigate to auth if we're not already there and not loading
-            if (!location.pathname.startsWith('/auth') && !isLoading) {
+            if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup') && !isLoading) {
               navigate('/auth', { replace: true });
             }
           }

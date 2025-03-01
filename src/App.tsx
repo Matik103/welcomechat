@@ -22,6 +22,9 @@ function App() {
   const location = useLocation();
   const [showLoader, setShowLoader] = useState(true);
   
+  console.log("Current user role:", userRole);
+  console.log("Current location:", location.pathname);
+  
   // Set a timeout to prevent infinite loading
   useEffect(() => {
     if (isLoading) {
@@ -58,9 +61,7 @@ function App() {
   }
 
   // Client routes use ClientHeader, admin routes use Header
-  const isClientRoute = 
-    location.pathname.startsWith('/client') || 
-    (userRole === 'client' && !location.pathname.startsWith('/admin'));
+  const isClientRoute = userRole === 'client' || location.pathname.startsWith('/client');
 
   return (
     <div className="min-h-screen bg-background">
@@ -131,7 +132,9 @@ function App() {
         
         {/* Fallback route - redirect to appropriate homepage based on role */}
         <Route path="*" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <Navigate to="/client/view" replace />
+          userRole === 'admin' ? <Navigate to="/" replace /> : 
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : 
+          <Navigate to="/auth" replace />
         } />
       </Routes>
       <Toaster />
