@@ -1,162 +1,94 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { Resend } from 'npm:resend@3.1.0';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+interface EmailRequest {
+  to: string | string[];
+  subject: string;
+  html: string;
+  from?: string;
+}
 
 serve(async (req) => {
-  // Handle CORS
-  if (req.method === "OPTIONS") {
-    console.log("Handling CORS preflight request");
-    return new Response(null, {
-      headers: corsHeaders,
-    });
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  // Get Resend API key from environment
+  const resendApiKey = Deno.env.get('RESEND_API_KEY');
+  if (!resendApiKey) {
+    console.error('RESEND_API_KEY is not set');
+    return new Response(
+      JSON.stringify({ error: 'Resend API key not configured' }),
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
   }
 
   try {
-    // Check for the Resend API key
-    if (!RESEND_API_KEY) {
-      console.error("Missing RESEND_API_KEY environment variable");
-      return new Response(
-        JSON.stringify({ error: "Email service not configured correctly. Missing API key." }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    let body;
+    // Parse the request body
+    let payload: EmailRequest;
     try {
-      body = await req.json();
-      console.log("Received email request:", JSON.stringify(body, null, 2));
-    } catch (parseError) {
-      console.error("Error parsing request body:", parseError);
+      payload = await req.json();
+      console.log('Request payload:', JSON.stringify(payload));
+    } catch (e) {
+      console.error('Failed to parse request body:', e);
       return new Response(
-        JSON.stringify({ error: "Invalid JSON in request body" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: 'Invalid request body' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
 
-    const { to, subject, html } = body;
-
-    if (!to || !subject || !html) {
-      console.error("Missing required fields", { to, subject, hasHtml: !!html });
+    // Validate required fields
+    if (!payload.to || !payload.subject || !payload.html) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: to, subject, and html are required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: 'Missing required fields (to, subject, html)' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
 
-    console.log(`Sending email to ${to} with subject: ${subject}`);
+    // Initialize Resend
+    const resend = new Resend(resendApiKey);
 
-    // Create a log entry before sending
-    const { data: logEntry, error: logError } = await supabase
-      .from("email_logs")
-      .insert({
-        email_to: to,
-        subject: subject,
-        status: "pending",
-        metadata: { to, subject }
-      })
-      .select()
-      .single();
+    // Set default from address if not provided
+    const fromAddress = payload.from || 'AI Assistant <admin@welcome.chat>';
 
-    if (logError) {
-      console.error("Error creating email log:", logError);
-      // Continue despite logging error
-    } else {
-      console.log("Created email log entry:", logEntry.id);
-    }
+    // Prepare email data
+    const emailData = {
+      from: fromAddress,
+      to: Array.isArray(payload.to) ? payload.to : [payload.to],
+      subject: payload.subject,
+      html: payload.html,
+    };
 
-    // Send email using Resend
-    try {
-      const resendResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: "AI Assistant <admin@welcome.chat>",
-          to: [to],
-          subject: subject,
-          html: html,
-        }),
-      });
+    console.log('Sending email with data:', JSON.stringify(emailData));
 
-      const resendData = await resendResponse.json();
-      console.log("Resend API response:", JSON.stringify(resendData, null, 2));
+    // Send the email
+    const { data, error } = await resend.emails.send(emailData);
 
-      if (!resendResponse.ok) {
-        throw new Error(`Resend API error: ${resendData.message || resendResponse.statusText}`);
-      }
-
-      // Update log entry on success
-      if (logEntry) {
-        await supabase
-          .from("email_logs")
-          .update({
-            status: "sent",
-            metadata: { ...logEntry.metadata, resend_id: resendData.id }
-          })
-          .eq("id", logEntry.id);
-      }
-
+    if (error) {
+      console.error('Resend API error:', error);
       return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Email sent successfully",
-          id: resendData.id
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: error.message }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
-    } catch (sendError) {
-      console.error("Error sending email via Resend:", sendError);
-      
-      // Update log entry on failure
-      if (logEntry) {
-        await supabase
-          .from("email_logs")
-          .update({
-            status: "failed",
-            error: sendError.message,
-            metadata: { ...logEntry.metadata, error: sendError.message }
-          })
-          .eq("id", logEntry.id);
-      }
-      
-      throw sendError;
     }
-  } catch (error) {
-    console.error("Error in send-email function:", error);
+
+    console.log('Email sent successfully:', data);
     return new Response(
-      JSON.stringify({ 
-        error: error.message || "An unknown error occurred while sending email",
-        stack: error.stack
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ success: true, data }),
+      { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
 });

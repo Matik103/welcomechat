@@ -39,7 +39,10 @@ const ClientDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <InteractionStats stats={interactionStats} />
+          <InteractionStats 
+            stats={interactionStats || { total: 0, successRate: 0, averagePerDay: 0 }}
+            isLoading={isLoadingStats} 
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -51,7 +54,7 @@ const ClientDashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <QueryList queries={commonQueries || []} />
+              <QueryList queries={commonQueries || []} isLoading={isLoadingQueries} />
             </CardContent>
           </Card>
 
@@ -63,7 +66,7 @@ const ClientDashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ErrorLogList errors={errorLogs || []} />
+              <ErrorLogList logs={errorLogs || []} isLoading={isLoadingErrors} />
             </CardContent>
           </Card>
         </div>

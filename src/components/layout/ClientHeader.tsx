@@ -53,6 +53,12 @@ export const ClientHeader = () => {
               Settings
             </Button>
           </Link>
+          <Link to="/client/widget-settings">
+            <Button variant="ghost" size="sm" className="gap-1 items-center">
+              <LifeBuoy className="w-4 h-4" />
+              Widget Settings
+            </Button>
+          </Link>
           <Button
             variant="ghost"
             size="sm"

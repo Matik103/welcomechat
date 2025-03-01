@@ -27,7 +27,7 @@ function App() {
     if (isLoading) {
       const timer = setTimeout(() => {
         setShowLoader(false);
-      }, 5000); // Show loader for max 5 seconds
+      }, 3000); // Show loader for max 3 seconds
       
       return () => clearTimeout(timer);
     } else {
@@ -64,7 +64,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      {isClientRoute ? <ClientHeader /> : <Header />}
+      {user && (isClientRoute ? <ClientHeader /> : <Header />)}
       <Routes>
         {/* Public Routes */}
         <Route path="/auth" element={<Auth />} />

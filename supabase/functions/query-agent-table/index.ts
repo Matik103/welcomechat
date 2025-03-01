@@ -14,8 +14,8 @@ serve(async (req) => {
   }
 
   try {
-    // Get the table name from the request
-    const { tableName } = await req.json();
+    // Get parameters from the request
+    const { tableName, clientId, fromDate } = await req.json();
     
     if (!tableName) {
       return new Response(
@@ -29,13 +29,15 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Query to check if the table exists using pg_catalog
-    const { data, error } = await supabase.rpc('check_table_exists', {
-      table_name: tableName
+    // Create a parameterized SQL query (preventing SQL injection)
+    const { data, error } = await supabase.rpc('query_agent_table', {
+      table_name: tableName,
+      client_id_param: clientId,
+      from_date: fromDate || null
     });
 
     if (error) {
-      console.error('Error checking if table exists:', error);
+      console.error(`Error querying table ${tableName}:`, error);
       return new Response(
         JSON.stringify({ error: error.message }),
         { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
@@ -43,7 +45,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ exists: data }),
+      JSON.stringify({ data: data || [] }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   } catch (error) {

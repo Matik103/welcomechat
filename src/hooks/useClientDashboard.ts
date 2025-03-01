@@ -64,35 +64,42 @@ export function useClientDashboard() {
       const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
       
       try {
-        // First, check if the table exists using the RPC function
-        const { data: tableExists, error: rpcError } = await supabase.rpc(
-          "check_table_exists", 
-          { table_name: agentName.toLowerCase().replace(/\s+/g, '_') }
+        // Check if the table exists using the function
+        const { data: tableExists, error: tableError } = await supabase.functions.invoke(
+          "check-table-exists",
+          {
+            body: { tableName: agentName.toLowerCase().replace(/\s+/g, '_') }
+          }
         );
         
-        if (rpcError) {
-          console.error("Error checking table existence:", rpcError);
-          throw rpcError;
+        if (tableError) {
+          console.error("Error checking table existence:", tableError);
+          throw tableError;
         }
         
         let interactions: any[] = [];
-        let tableName = 'ai_agent'; // Default fallback
         
-        if (tableExists) {
-          // Use the RPC function to safely query the dynamic table
-          const { data: dynamicData, error: dynamicError } = await supabase.rpc(
-            "query_agent_table",
+        if (tableExists && tableExists.exists) {
+          console.log("Table exists, getting data from dynamic table");
+          const tableName = agentName.toLowerCase().replace(/\s+/g, '_');
+          
+          // Use a direct query approach for the dynamic table
+          const { data: dynamicData, error: dynamicError } = await supabase.functions.invoke(
+            "query-agent-table",
             {
-              table_name: agentName.toLowerCase().replace(/\s+/g, '_'),
-              client_id_param: clientId,
-              from_date: thirtyDaysAgo
+              body: {
+                tableName: tableName,
+                clientId: clientId,
+                fromDate: thirtyDaysAgo
+              }
             }
           );
           
-          if (!dynamicError && dynamicData) {
-            interactions = dynamicData;
+          if (!dynamicError && dynamicData && Array.isArray(dynamicData.data)) {
+            interactions = dynamicData.data;
           } else {
             console.log("Error or no data from dynamic table, trying ai_agent table");
+            console.error(dynamicError || "No data returned");
           }
         }
         
