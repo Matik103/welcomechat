@@ -18,19 +18,16 @@ import ClientSetup from "@/pages/client/Setup";
 import { useEffect, useState } from "react";
 
 function App() {
-  const { isLoading, user, userRole } = useAuth();
+  const { isLoading, user } = useAuth();
   const location = useLocation();
   const [showLoader, setShowLoader] = useState(true);
-  
-  console.log("Current user role:", userRole);
-  console.log("Current location:", location.pathname);
   
   // Set a timeout to prevent infinite loading
   useEffect(() => {
     if (isLoading) {
       const timer = setTimeout(() => {
         setShowLoader(false);
-      }, 3000); // Show loader for max 3 seconds
+      }, 5000); // Show loader for max 5 seconds
       
       return () => clearTimeout(timer);
     } else {
@@ -60,82 +57,33 @@ function App() {
     return <Navigate to="/auth" replace />;
   }
 
-  // Determine which header to show based on user role
-  const showClientHeader = userRole === 'client';
+  // Client routes use ClientHeader, admin routes use Header
+  const isClientRoute = location.pathname.startsWith('/client');
 
   return (
     <div className="min-h-screen bg-background">
-      {user && (showClientHeader ? <ClientHeader /> : <Header />)}
+      {isClientRoute ? <ClientHeader /> : <Header />}
       <Routes>
         {/* Public Routes */}
         <Route path="/auth" element={<Auth />} />
         <Route path="/client/setup" element={<ClientSetup />} />
         
         {/* Admin Routes */}
-        <Route path="/" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <Index />
-          </RoleRoute>
-        } />
-        <Route path="/admin/clients" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <ClientList />
-          </RoleRoute>
-        } />
-        <Route path="/settings" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <Settings />
-          </RoleRoute>
-        } />
-        <Route path="/admin/clients/new" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <AddEditClient />
-          </RoleRoute>
-        } />
-        <Route path="/admin/clients/:id" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <ClientView />
-          </RoleRoute>
-        } />
-        <Route path="/admin/clients/:id/edit" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <AddEditClient />
-          </RoleRoute>
-        } />
-        <Route path="/admin/clients/:id/widget-settings" element={
-          <RoleRoute allowedRoles={['admin']}>
-            <WidgetSettings />
-          </RoleRoute>
-        } />
+        <Route path="/" element={<Index />} />
+        <Route path="/admin/clients" element={<ClientList />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/admin/clients/new" element={<AddEditClient />} />
+        <Route path="/admin/clients/:id" element={<ClientView />} />
+        <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
+        <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
         
         {/* Client Routes */}
-        <Route path="/client/view" element={
-          <RoleRoute allowedRoles={['client']}>
-            <ClientDashboard />
-          </RoleRoute>
-        } />
-        <Route path="/client/settings" element={
-          <RoleRoute allowedRoles={['client']}>
-            <ClientSettings />
-          </RoleRoute>
-        } />
-        <Route path="/client/edit" element={
-          <RoleRoute allowedRoles={['client']}>
-            <AddEditClient />
-          </RoleRoute>
-        } />
-        <Route path="/client/widget-settings" element={
-          <RoleRoute allowedRoles={['client']}>
-            <WidgetSettings />
-          </RoleRoute>
-        } />
+        <Route path="/client/view" element={<ClientDashboard />} />
+        <Route path="/client/settings" element={<ClientSettings />} />
+        <Route path="/client/edit" element={<AddEditClient />} />
+        <Route path="/client/widget-settings" element={<WidgetSettings />} />
         
-        {/* Fallback route - redirect to appropriate homepage based on role */}
-        <Route path="*" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : 
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : 
-          <Navigate to="/auth" replace />
-        } />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster />
     </div>

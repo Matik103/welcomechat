@@ -1,41 +1,32 @@
 
 project_id = "mgjodiqecnnltsgorife"
 
-[api]
-enabled = true
-port = 54321
-schemas = ["public", "storage", "graphql_public"]
+[functions.chat]
+verify_jwt = false
 
-[db]
-port = 54322
-shadow_port = 54320
-major_version = 15
+[functions.create-client-user]
+verify_jwt = false
 
-[realtime]
-enabled = true
-
-[studio]
-enabled = true
-port = 54323
-api_url = "http://localhost"
-
-[inbucket]
-enabled = true
-port = 54324
-
-[auth]
-enabled = true
-site_url = "http://localhost:5173"
-
-[storage]
-enabled = true
-
-[functions]
-[functions.send-client-invitation]
-verify_jwt = true
-[functions.check-table-exists]
-verify_jwt = true
 [functions.send-email]
-verify_jwt = true
-[functions.query-agent-table]
-verify_jwt = true
+verify_jwt = false
+
+[functions.send-client-invitation]
+verify_jwt = false
+
+[functions.send-deletion-email]
+verify_jwt = false
+
+[functions.send-invitation]
+verify_jwt = false
+
+[functions.send-recovery-confirmation]
+verify_jwt = false
+
+[functions.setup-2fa]
+verify_jwt = false
+
+[functions.verify-recovery-token]
+verify_jwt = false
+
+[functions.check-table-exists]
+verify_jwt = false

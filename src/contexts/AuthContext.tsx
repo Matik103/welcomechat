@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error checking user role:", error);
@@ -61,9 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           const role = await checkUserRole(initialSession.user.id);
           setUserRole(role);
-
-          // Don't redirect during initial load to prevent unwanted navigation
-          // This will be handled by the routes themselves
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
@@ -93,19 +90,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (currentSession?.user) {
             const role = await checkUserRole(currentSession.user.id);
             setUserRole(role);
-            
-            // Handle redirects for authentication events
-            if (location.pathname === '/auth') {
-              if (role === 'admin') {
-                navigate('/', { replace: true });
-              } else if (role === 'client') {
-                navigate('/client/view', { replace: true });
-              }
-            }
           } else {
             setUserRole(null);
             // Only navigate to auth if we're not already there and not loading
-            if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup') && !isLoading) {
+            if (!location.pathname.startsWith('/auth') && !isLoading) {
               navigate('/auth', { replace: true });
             }
           }
@@ -133,7 +121,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error(error.message || "Failed to sign out");
-      throw error; // Propagate the error for handling in components
     }
   };
 

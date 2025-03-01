@@ -1,29 +1,32 @@
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import React from "react";
+import { useClientDashboard } from "@/hooks/useClientDashboard";
+import { ActivityList } from "@/components/dashboard/ActivityList";
 import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
 import { QueryList } from "@/components/client-dashboard/QueryList";
 import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
-import { useClientDashboard } from "@/hooks/useClientDashboard";
+import { Loader2 } from "lucide-react";
 
 const ClientDashboard = () => {
-  const {
-    clientName,
-    agentName,
+  const { 
+    clientId,
     interactionStats,
     isLoadingStats,
     commonQueries,
     isLoadingQueries,
     errorLogs,
-    isLoadingErrors
+    isLoadingErrors,
+    activities,
+    isLoadingActivities
   } = useClientDashboard();
 
-  if (isLoadingStats || isLoadingQueries || isLoadingErrors) {
+  if (!clientId) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary mb-4" />
+          <p className="text-gray-600">Loading client information...</p>
+        </div>
       </div>
     );
   }
@@ -31,44 +34,31 @@ const ClientDashboard = () => {
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">AI Agent Dashboard</h1>
-          <p className="text-gray-500">
-            {clientName ? `Welcome back, ${clientName}` : 'Monitor your AI Assistant performance'}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <InteractionStats 
-            stats={interactionStats || { total: 0, successRate: 0, averagePerDay: 0 }}
-            isLoading={isLoadingStats} 
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">AI Assistant Dashboard</h1>
+        <p className="text-gray-500 mb-8">Monitor your AI assistant's performance and user interactions</p>
+        
+        <InteractionStats 
+          interactionStats={interactionStats}
+          isLoading={isLoadingStats}
+        />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <QueryList 
+            queries={commonQueries} 
+            isLoading={isLoadingQueries} 
+          />
+          
+          <ErrorLogList 
+            logs={errorLogs} 
+            isLoading={isLoadingErrors} 
           />
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Common User Questions</CardTitle>
-              <CardDescription>
-                Frequently asked questions by users
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <QueryList queries={commonQueries || []} isLoading={isLoadingQueries} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Recent Issues</CardTitle>
-              <CardDescription>
-                Recent errors or issues detected
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ErrorLogList logs={errorLogs || []} isLoading={isLoadingErrors} />
-            </CardContent>
-          </Card>
+        
+        <div className="grid grid-cols-1 gap-6">
+          <ActivityList 
+            activities={activities} 
+            isLoading={isLoadingActivities} 
+          />
         </div>
       </div>
     </div>

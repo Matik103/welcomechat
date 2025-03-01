@@ -81,8 +81,7 @@ export function DeleteClientDialog({
           body: {
             to: clientEmail,
             subject: "Account Deletion Notice",
-            html: emailContent,
-            from: "AI Assistant <admin@welcome.chat>"
+            html: emailContent
           },
         });
 

@@ -10,20 +10,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { Settings, User, LogOut } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
 
   const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/auth', { replace: true });
-    } catch (error) {
-      console.error("Sign out error:", error);
-    }
+    await signOut();
   };
 
   if (!user) return null;
@@ -56,7 +50,7 @@ export const Header = () => {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                {user.user_metadata?.full_name || user.email}
+                {user.user_metadata.full_name || user.email}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
@@ -66,7 +60,7 @@ export const Header = () => {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="text-red-600 cursor-pointer">
+              <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
               </DropdownMenuItem>

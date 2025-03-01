@@ -133,14 +133,6 @@ const ClientSetup = () => {
 
       toast.success("Account created successfully! Redirecting to dashboard...");
       
-      // Login with the new credentials
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: tokenData.email,
-        password: password
-      });
-      
-      if (loginError) throw loginError;
-      
       // Allow time for toast to be seen
       setTimeout(() => {
         navigate("/client/view");

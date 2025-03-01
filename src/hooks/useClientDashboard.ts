@@ -4,25 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { subDays } from "date-fns";
-import { toast } from "sonner";
-
-interface ChatInteraction {
-  id: number;
-  content: string;
-  metadata: {
-    timestamp: string;
-    user_message: string;
-    type: string;
-    client_id?: string;
-    success?: boolean;
-  };
-}
 
 export function useClientDashboard() {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | null>(null);
-  const [clientName, setClientName] = useState<string | null>(null);
-  const [agentName, setAgentName] = useState<string | null>(null);
 
   // Get client ID associated with current user
   useEffect(() => {
@@ -36,15 +21,8 @@ export function useClientDashboard() {
           .eq("email", user.email)
           .maybeSingle();
 
-        if (error) {
-          console.error("Error fetching client info:", error);
-          return;
-        }
-
         if (clientInfo) {
           setClientId(clientInfo.id);
-          setClientName(clientInfo.client_name);
-          setAgentName(clientInfo.agent_name);
         }
       } catch (error) {
         console.error("Error fetching client info:", error);
@@ -56,76 +34,85 @@ export function useClientDashboard() {
 
   // Fetch interaction statistics for the chatbot
   const interactionStatsQuery = useQuery({
-    queryKey: ["client-interactions", clientId, agentName],
+    queryKey: ["client-interactions", clientId],
     queryFn: async () => {
-      if (!clientId || !agentName) return null;
+      if (!clientId) return null;
 
       // Get last 30 days interactions
       const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
       
+      // Get interactions based on agent type
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("agent_name")
+        .eq("id", clientId)
+        .single();
+      
+      if (!clientData?.agent_name) return null;
+      
       try {
-        // Check if the table exists using the function
-        const { data: tableExists, error: tableError } = await supabase.functions.invoke(
-          "check-table-exists",
-          {
-            body: { tableName: agentName.toLowerCase().replace(/\s+/g, '_') }
-          }
-        );
+        // Try to get the agent-specific table name
+        const agentName = clientData.agent_name.toLowerCase().replace(/\s+/g, '_');
         
-        if (tableError) {
-          console.error("Error checking table existence:", tableError);
-          throw tableError;
-        }
+        // Check if the table exists using a safe approach
+        let tableName = 'ai_agent'; // Default fallback table
         
-        let interactions: any[] = [];
+        // Query for interactions in the past 30 days
+        // Instead of dynamic table names, we'll try different options
+        let interactions;
+        let error;
         
-        if (tableExists && tableExists.exists) {
-          console.log("Table exists, getting data from dynamic table");
-          const tableName = agentName.toLowerCase().replace(/\s+/g, '_');
+        // First try with the specific agent table if it appears to exist
+        try {
+          // Check if the agent table exists by running a simple query
+          const { data: tableCheck } = await supabase.rpc('check_table_exists', { 
+            table_name: agentName 
+          });
           
-          // Use a direct query approach for the dynamic table
-          const { data: dynamicData, error: dynamicError } = await supabase.functions.invoke(
-            "query-agent-table",
-            {
-              body: {
-                tableName: tableName,
-                clientId: clientId,
-                fromDate: thirtyDaysAgo
-              }
+          // If the table exists, query it
+          if (tableCheck) {
+            // Use explicit as any casting only for the dynamic table name
+            const result = await supabase
+              .from(agentName as any)
+              .select('*')
+              .eq('metadata->>client_id', clientId)
+              .gte('created_at', thirtyDaysAgo);
+              
+            if (!result.error) {
+              interactions = result.data;
             }
-          );
-          
-          if (!dynamicError && dynamicData && Array.isArray(dynamicData.data)) {
-            interactions = dynamicData.data;
-          } else {
-            console.log("Error or no data from dynamic table, trying ai_agent table");
-            console.error(dynamicError || "No data returned");
           }
+        } catch (e) {
+          console.log("Agent-specific table not found, falling back to ai_agent");
         }
         
         // If we couldn't get data from the agent-specific table, try the default ai_agent table
-        if (interactions.length === 0) {
-          const { data: fallbackData, error: fallbackError } = await supabase
+        if (!interactions) {
+          const result = await supabase
             .from('ai_agent')
             .select('*')
-            .filter('metadata->client_id', 'eq', clientId)
-            .gte('metadata->timestamp', thirtyDaysAgo);
+            .eq('metadata->>client_id', clientId)
+            .gte('created_at', thirtyDaysAgo);
             
-          if (fallbackError) throw fallbackError;
-          interactions = fallbackData || [];
+          interactions = result.data;
+          error = result.error;
         }
+
+        if (error) throw error;
         
         // Calculate success rate
-        const totalCount = interactions.length || 0;
+        const totalCount = interactions?.length || 0;
         let successCount = 0;
         
-        if (interactions && interactions.length > 0) {
+        if (interactions) {
           for (const interaction of interactions) {
+            // Safe access with type checking
             if (interaction && 
                 typeof interaction === 'object' && 
+                'metadata' in interaction && 
                 interaction.metadata && 
                 typeof interaction.metadata === 'object' && 
-                interaction.metadata.success) {
+                'success' in interaction.metadata) {
               successCount++;
             }
           }
@@ -147,7 +134,7 @@ export function useClientDashboard() {
         };
       }
     },
-    enabled: !!clientId && !!agentName,
+    enabled: !!clientId,
     refetchInterval: 30000 // Refetch every 30 seconds
   });
 
@@ -189,15 +176,34 @@ export function useClientDashboard() {
     enabled: !!clientId
   });
 
+  // Fetch recent activities
+  const activitiesQuery = useQuery({
+    queryKey: ["recent-activities", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      
+      const { data, error } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+        
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId
+  });
+
   return {
     clientId,
-    clientName,
-    agentName,
     interactionStats: interactionStatsQuery.data,
     isLoadingStats: interactionStatsQuery.isLoading,
     commonQueries: commonQueriesQuery.data,
     isLoadingQueries: commonQueriesQuery.isLoading,
     errorLogs: errorLogsQuery.data,
-    isLoadingErrors: errorLogsQuery.isLoading
+    isLoadingErrors: errorLogsQuery.isLoading,
+    activities: activitiesQuery.data,
+    isLoadingActivities: activitiesQuery.isLoading
   };
 }
