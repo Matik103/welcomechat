@@ -60,12 +60,12 @@ function App() {
     return <Navigate to="/auth" replace />;
   }
 
-  // Client routes use ClientHeader, admin routes use Header
-  const isClientRoute = userRole === 'client' || location.pathname.startsWith('/client');
+  // Determine which header to show based on user role
+  const showClientHeader = userRole === 'client';
 
   return (
     <div className="min-h-screen bg-background">
-      {user && (isClientRoute ? <ClientHeader /> : <Header />)}
+      {user && (showClientHeader ? <ClientHeader /> : <Header />)}
       <Routes>
         {/* Public Routes */}
         <Route path="/auth" element={<Auth />} />

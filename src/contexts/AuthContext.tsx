@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const role = await checkUserRole(currentSession.user.id);
             setUserRole(role);
             
-            // Only redirect after auth change if we're on the auth page
+            // Handle redirects for authentication events
             if (location.pathname === '/auth') {
               if (role === 'admin') {
                 navigate('/', { replace: true });
