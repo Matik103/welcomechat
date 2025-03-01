@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error("Error checking user role:", error);
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           const role = await checkUserRole(initialSession.user.id);
           setUserRole(role);
-          
+
           // Don't redirect during initial load to prevent unwanted navigation
           // This will be handled by the routes themselves
         }
@@ -133,6 +133,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error(error.message || "Failed to sign out");
+      throw error; // Propagate the error for handling in components
     }
   };
 

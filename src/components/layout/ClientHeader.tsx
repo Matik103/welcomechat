@@ -16,14 +16,18 @@ export const ClientHeader = () => {
     const fetchClientName = async () => {
       if (!user?.email) return;
       
-      const { data, error } = await supabase
-        .from("clients")
-        .select("client_name")
-        .eq("email", user.email)
-        .maybeSingle();
-        
-      if (!error && data) {
-        setClientName(data.client_name);
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("client_name")
+          .eq("email", user.email)
+          .maybeSingle();
+          
+        if (!error && data) {
+          setClientName(data.client_name);
+        }
+      } catch (error) {
+        console.error("Error fetching client name:", error);
       }
     };
     
