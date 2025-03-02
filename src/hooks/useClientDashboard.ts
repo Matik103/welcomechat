@@ -23,7 +23,7 @@ type DashboardData = {
 export const useClientDashboard = () => {
   const { user } = useAuth();
 
-  // Remove the generic type parameters from useQuery to avoid excessive type instantiation
+  // Use useQuery without explicit generic type parameters
   return useQuery({
     queryKey: ["client-dashboard", user?.id],
     queryFn: async () => {
@@ -132,7 +132,7 @@ export const useClientDashboard = () => {
         // Continue without throwing
       }
 
-      return {
+      const result: DashboardData = {
         clientId: clientData.id,
         agentName: clientData.agent_name,
         tableExists: tableStatusData?.table_exists || false,
@@ -140,7 +140,9 @@ export const useClientDashboard = () => {
         commonQueries: queriesData || [],
         errorLogs: errorsData || [],
         activities: activitiesData || []
-      } as DashboardData;
+      };
+
+      return result;
     },
     enabled: !!user,
   });
