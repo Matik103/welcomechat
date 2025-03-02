@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,10 +23,10 @@ type DashboardData = {
 export const useClientDashboard = () => {
   const { user } = useAuth();
 
-  // Use useQuery without explicit generic parameters, and with a simpler type structure
+  // Use an explicit return type for useQuery to avoid excessive type instantiation
   return useQuery({
     queryKey: ["client-dashboard", user?.id],
-    queryFn: async (): Promise<DashboardData> => {
+    queryFn: async () => {
       if (!user) {
         throw new Error("User not authenticated");
       }
@@ -131,6 +132,7 @@ export const useClientDashboard = () => {
         // Continue without throwing
       }
 
+      // Explicitly type the result to avoid deep type instantiation issues
       const result: DashboardData = {
         clientId: clientData.id,
         agentName: clientData.agent_name,
@@ -141,7 +143,7 @@ export const useClientDashboard = () => {
         activities: activitiesData || []
       };
 
-      return result;
+      return result as DashboardData;
     },
     enabled: !!user,
   });
