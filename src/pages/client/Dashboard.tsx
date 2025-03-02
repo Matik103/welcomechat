@@ -17,8 +17,20 @@ const ClientDashboard = () => {
     errorLogs,
     isLoadingErrors,
     activities,
-    isLoadingActivities
+    isLoadingActivities,
+    error
   } = useClientDashboard();
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-2">Error loading dashboard</p>
+          <p className="text-gray-600">{error.message}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!clientId) {
     return (
