@@ -59,8 +59,7 @@ function App() {
 
   // Client routes use ClientHeader, admin routes use Header
   const isClientRoute = 
-    location.pathname.startsWith('/client') || 
-    (userRole === 'client' && !isPublicRoute);
+    location.pathname.startsWith('/client') && !isPublicRoute;
 
   return (
     <div className="min-h-screen bg-background">
