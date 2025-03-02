@@ -23,9 +23,10 @@ type DashboardData = {
 export const useClientDashboard = () => {
   const { user } = useAuth();
 
+  // Remove the generic type parameters from useQuery to avoid excessive type instantiation
   return useQuery({
     queryKey: ["client-dashboard", user?.id],
-    queryFn: async (): Promise<DashboardData> => {
+    queryFn: async () => {
       if (!user) {
         throw new Error("User not authenticated");
       }
@@ -139,7 +140,7 @@ export const useClientDashboard = () => {
         commonQueries: queriesData || [],
         errorLogs: errorsData || [],
         activities: activitiesData || []
-      };
+      } as DashboardData;
     },
     enabled: !!user,
   });
