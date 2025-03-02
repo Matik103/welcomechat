@@ -73,7 +73,7 @@ function App() {
         <Route 
           path="/" 
           element={
-            <RoleRoute allowedRoles={['admin']}>
+            <RoleRoute allowedRoles={['admin', 'client']}>
               <Index />
             </RoleRoute>
           } 
@@ -170,18 +170,10 @@ function App() {
           } 
         />
         
-        {/* Fallback route - redirect based on user role */}
+        {/* Fallback route - always redirect to the index page */}
         <Route 
           path="*" 
-          element={
-            user ? (
-              userRole === 'admin' ? 
-                <Navigate to="/" replace /> : 
-                <Navigate to="/client/view" replace />
-            ) : (
-              <Navigate to="/auth" replace />
-            )
-          } 
+          element={<Navigate to="/" replace />}
         />
       </Routes>
       <Toaster />

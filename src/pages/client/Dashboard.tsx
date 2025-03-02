@@ -9,17 +9,19 @@ import { Loader2 } from "lucide-react";
 
 const ClientDashboard = () => {
   const { 
-    clientId,
-    interactionStats,
-    isLoadingStats,
-    commonQueries,
-    isLoadingQueries,
-    errorLogs,
-    isLoadingErrors,
-    activities,
-    isLoadingActivities,
+    data,
+    isLoading,
     error
   } = useClientDashboard();
+  
+  // Destructure data with defaults to prevent TypeScript errors
+  const {
+    clientId = "",
+    interactionStats = { total: 0, successRate: 0, averagePerDay: 0 },
+    commonQueries = [],
+    errorLogs = [],
+    activities = []
+  } = data || {};
 
   if (error) {
     return (
@@ -32,7 +34,7 @@ const ClientDashboard = () => {
     );
   }
 
-  if (!clientId) {
+  if (isLoading || !clientId) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
         <div className="text-center">
@@ -51,25 +53,25 @@ const ClientDashboard = () => {
         
         <InteractionStats 
           interactionStats={interactionStats}
-          isLoading={isLoadingStats}
+          isLoading={isLoading}
         />
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <QueryList 
             queries={commonQueries} 
-            isLoading={isLoadingQueries} 
+            isLoading={isLoading} 
           />
           
           <ErrorLogList 
             logs={errorLogs} 
-            isLoading={isLoadingErrors} 
+            isLoading={isLoading} 
           />
         </div>
         
         <div className="grid grid-cols-1 gap-6">
           <ActivityList 
             activities={activities} 
-            isLoading={isLoadingActivities} 
+            isLoading={isLoading} 
           />
         </div>
       </div>

@@ -96,13 +96,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const role = await checkUserRole(currentSession.user.id);
             setUserRole(role);
             
-            // Redirect based on role after login
+            // Always redirect to main index page after login, regardless of role
             if (event === 'SIGNED_IN') {
-              if (role === 'admin') {
-                navigate('/', { replace: true });
-              } else if (role === 'client') {
-                navigate('/client/view', { replace: true });
-              }
+              navigate('/', { replace: true });
             }
           } else {
             setUserRole(null);
