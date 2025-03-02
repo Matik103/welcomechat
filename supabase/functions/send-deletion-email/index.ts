@@ -1,63 +1,66 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { Resend } from "npm:resend@1.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 interface EmailRequest {
   to: string;
   subject: string;
   html: string;
+  from?: string;
 }
 
-const handler = async (req: Request): Promise<Response> => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log("Starting send-deletion-email function");
-    const { to, subject, html }: EmailRequest = await req.json();
+    const { to, subject, html, from = "admin@welcome.chat" } = await req.json() as EmailRequest;
 
     if (!to || !subject || !html) {
-      throw new Error("Missing required fields: to, subject, or html");
+      return new Response(
+        JSON.stringify({ error: "Missing required fields: to, subject, html" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log(`Sending email to: ${to}, subject: ${subject}`);
+    console.log(`Sending deletion email to: ${to}`);
+
+    // Send email with Resend
+    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
     
-    const emailResponse = await resend.emails.send({
-      from: "AI Assistant <admin@welcome.chat>", // Using the specified from email
-      to: [to],
+    const { data, error } = await resend.emails.send({
+      from: from,
+      to: to,
       subject: subject,
       html: html,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    if (error) {
+      console.error("Error sending email:", error);
+      return new Response(
+        JSON.stringify({ error: "Failed to send email", details: error }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
-  } catch (error: any) {
-    console.error("Error in send-deletion-email function:", error);
+    console.log("Email sent successfully:", data);
+
     return new Response(
-      JSON.stringify({ error: error.message || "Unknown error" }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      JSON.stringify({ success: true, message: "Email sent" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    console.error("Error processing request:", error);
+    return new Response(
+      JSON.stringify({ error: "Internal server error", details: error.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-};
-
-serve(handler);
+});

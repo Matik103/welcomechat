@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +24,6 @@ const ClientSetup = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
 
-  // Extract token from URL
   const query = new URLSearchParams(location.search);
   const token = query.get("token");
 
@@ -40,7 +38,6 @@ const ClientSetup = () => {
       try {
         setIsLoading(true);
         
-        // Check if token exists and is valid
         const { data: invitation, error } = await supabase
           .from("client_invitations")
           .select("client_id, email, expires_at, status")
@@ -53,14 +50,12 @@ const ClientSetup = () => {
           return;
         }
 
-        // Check if token is expired
         if (new Date(invitation.expires_at) < new Date() || invitation.status !== "pending") {
           toast.error("This invitation has expired or already been used");
           navigate("/auth");
           return;
         }
 
-        // Get client information
         const { data: client } = await supabase
           .from("clients")
           .select("client_name")
@@ -106,7 +101,6 @@ const ClientSetup = () => {
     try {
       setIsSubmitting(true);
 
-      // Create user account
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: tokenData.email,
         password: password,
@@ -114,7 +108,6 @@ const ClientSetup = () => {
 
       if (signUpError) throw signUpError;
 
-      // Update invitation status
       const { error: updateError } = await supabase
         .from("client_invitations")
         .update({ 
@@ -125,15 +118,20 @@ const ClientSetup = () => {
 
       if (updateError) throw updateError;
 
-      // Create user role for the client
       await supabase.from("user_roles").insert({
         user_id: signUpData.user!.id,
         role: "client"
       });
 
+      await supabase
+        .from("clients")
+        .update({
+          user_id: signUpData.user!.id
+        })
+        .eq("id", tokenData.clientId);
+
       toast.success("Account created successfully! Redirecting to dashboard...");
       
-      // Allow time for toast to be seen
       setTimeout(() => {
         navigate("/client/view");
       }, 2000);

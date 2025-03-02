@@ -4,15 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Define types for the dashboard data
+type InteractionStats = {
+  total: number;
+  successRate: number;
+  averagePerDay: number;
+};
+
 type DashboardData = {
   clientId: string;
   agentName: string;
   tableExists: boolean;
-  interactionStats: {
-    total: number;
-    successRate: number;
-    averagePerDay: number;
-  };
+  interactionStats: InteractionStats;
   commonQueries: any[];
   errorLogs: any[];
   activities: any[];
@@ -21,7 +23,7 @@ type DashboardData = {
 export const useClientDashboard = () => {
   const { user } = useAuth();
 
-  return useQuery({
+  return useQuery<DashboardData, Error>({
     queryKey: ["client-dashboard", user?.id],
     queryFn: async (): Promise<DashboardData> => {
       if (!user) {
@@ -54,15 +56,8 @@ export const useClientDashboard = () => {
         // Continue without throwing, as this isn't critical
       }
 
-      // Get interaction stats from a real table that we know exists
-      const { data: statsData, error: statsError } = await supabase
-        .from("interaction_stats")
-        .select("*")
-        .eq("client_id", clientData.id)
-        .maybeSingle();
-
-      // Default stats if table doesn't exist or no data found
-      const defaultStats = {
+      // Default stats
+      const defaultStats: InteractionStats = {
         total: 0,
         successRate: 0,
         averagePerDay: 0
@@ -70,11 +65,22 @@ export const useClientDashboard = () => {
 
       let interactionStats = defaultStats;
 
-      if (statsError) {
+      try {
+        // Try to get interaction stats
+        const { data: statsData } = await supabase.rpc('get_client_stats', {
+          client_id_param: clientData.id
+        });
+        
+        if (statsData) {
+          interactionStats = {
+            total: statsData.total_interactions || 0,
+            successRate: statsData.success_rate || 0,
+            averagePerDay: statsData.daily_average || 0
+          };
+        }
+      } catch (statsError) {
         console.error("Error fetching interaction stats:", statsError);
         // Continue with default stats
-      } else if (statsData) {
-        interactionStats = statsData;
       }
 
       // Get common queries
