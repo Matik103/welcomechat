@@ -43,9 +43,10 @@ export const useClientDashboard = () => {
         throw new Error("No agent name found for client");
       }
 
-      // Check if the table exists for this agent using edge function
+      // Check if the table exists for this agent using edge function instead of directly querying
+      const tableName = clientData.agent_name.toLowerCase().replace(/\s+/g, '_');
       const { data: tableStatusData, error: tableStatusError } = await supabase.functions.invoke("check-table-exists", {
-        body: { agent_name: clientData.agent_name.toLowerCase().replace(/\s+/g, '_') }
+        body: { table_name: tableName }
       });
 
       if (tableStatusError) {
@@ -53,16 +54,27 @@ export const useClientDashboard = () => {
         // Continue without throwing, as this isn't critical
       }
 
-      // Get interaction stats
+      // Get interaction stats from a real table that we know exists
       const { data: statsData, error: statsError } = await supabase
         .from("interaction_stats")
         .select("*")
         .eq("client_id", clientData.id)
-        .single();
+        .maybeSingle();
+
+      // Default stats if table doesn't exist or no data found
+      const defaultStats = {
+        total: 0,
+        successRate: 0,
+        averagePerDay: 0
+      };
+
+      let interactionStats = defaultStats;
 
       if (statsError) {
         console.error("Error fetching interaction stats:", statsError);
-        // Continue without throwing
+        // Continue with default stats
+      } else if (statsData) {
+        interactionStats = statsData;
       }
 
       // Get common queries
@@ -108,11 +120,7 @@ export const useClientDashboard = () => {
         clientId: clientData.id,
         agentName: clientData.agent_name,
         tableExists: tableStatusData?.table_exists || false,
-        interactionStats: statsData || {
-          total: 0,
-          successRate: 0,
-          averagePerDay: 0
-        },
+        interactionStats,
         commonQueries: queriesData || [],
         errorLogs: errorsData || [],
         activities: activitiesData || []
