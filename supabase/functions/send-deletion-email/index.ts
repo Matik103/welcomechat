@@ -1,100 +1,63 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+import { Resend } from "npm:resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS"
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-interface DeletionEmailRequest {
-  clientId: string;
-  clientName: string;
-  email: string;
+interface EmailRequest {
+  to: string;
+  subject: string;
+  html: string;
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
-  
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    console.log("Function invoked with method:", req.method);
+    console.log("Starting send-deletion-email function");
+    const { to, subject, html }: EmailRequest = await req.json();
+
+    if (!to || !subject || !html) {
+      throw new Error("Missing required fields: to, subject, or html");
+    }
+
+    console.log(`Sending email to: ${to}, subject: ${subject}`);
     
-    const body: DeletionEmailRequest = await req.json();
-    console.log("Received request body:", body);
+    const emailResponse = await resend.emails.send({
+      from: "AI Assistant <admin@welcome.chat>", // Using the specified from email
+      to: [to],
+      subject: subject,
+      html: html,
+    });
 
-    const { clientId, clientName, email } = body;
+    console.log("Email sent successfully:", emailResponse);
 
-    if (!clientId || !clientName || !email) {
-      console.error("Missing required parameters:", { clientId, clientName, email });
-      throw new Error("Missing required parameters");
-    }
-
-    // Use Resend for email
-    try {
-      const { error: emailError } = await supabase.functions.invoke("send-email", {
-        body: {
-          to: email,
-          subject: "Account Deletion Notice",
-          html: `
-            <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-                <h1>Account Deletion Notice</h1>
-                <p>Dear ${clientName},</p>
-                <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
-                <p>If this was done in error, you can contact support to cancel the deletion process.</p>
-                <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
-                <p>Best regards,<br>AI Assistant Team</p>
-              </body>
-            </html>
-          `
-        },
-      });
-
-      if (emailError) {
-        throw new Error(`Error sending email: ${emailError.message}`);
-      }
-
-      console.log("Email sent successfully");
-    } catch (error: any) {
-      console.error("Error sending email:", error);
-      throw new Error(`Failed to send email: ${error.message}`);
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Deletion email sent successfully"
-      }), 
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
-
+    return new Response(JSON.stringify(emailResponse), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
   } catch (error: any) {
     console.error("Error in send-deletion-email function:", error);
-    
     return new Response(
-      JSON.stringify({ 
-        error: error.message || "Failed to send deletion email",
-        details: error.stack
-      }), 
+      JSON.stringify({ error: error.message || "Unknown error" }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
   }
-});
+};
+
+serve(handler);

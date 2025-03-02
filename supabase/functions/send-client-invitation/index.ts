@@ -1,12 +1,18 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
-import { v4 as uuidv4 } from "https://deno.land/std@0.190.0/uuid/mod.ts";
+import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "npm:@supabase/supabase-js@2.38.4";
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS"
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 interface InvitationRequest {
@@ -15,184 +21,90 @@ interface InvitationRequest {
   clientName: string;
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Missing required environment variables for Supabase");
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Parse the request body
-    let body: InvitationRequest;
-    try {
-      body = await req.json();
-      console.log("Received request body:", body);
-    } catch (error) {
-      console.error("Error parsing request JSON:", error);
-      throw new Error("Invalid JSON in request body");
-    }
-    
-    const { clientId, email, clientName } = body;
+    const { clientId, email, clientName }: InvitationRequest = await req.json();
     
     if (!clientId || !email || !clientName) {
-      throw new Error("Missing required parameters: clientId, email, or clientName");
-    }
-
-    console.log(`Creating invitation for client ${clientName} (${clientId}) with email: ${email}`);
-    
-    // Generate a new token
-    const token = uuidv4();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Expire in 7 days
-    
-    // Check if there's an existing invitation
-    const { data: existingInvitation, error: lookupError } = await supabase
-      .from("client_invitations")
-      .select("*")
-      .eq("client_id", clientId)
-      .eq("email", email)
-      .eq("status", "pending")
-      .maybeSingle();
-    
-    if (lookupError) {
-      console.error("Error looking up existing invitations:", lookupError);
+      throw new Error("Missing required data: clientId, email, or clientName");
     }
     
-    // Store the invitation in the database
-    try {
-      if (existingInvitation) {
-        console.log("Updating existing invitation");
-        const { error: updateError } = await supabase
-          .from("client_invitations")
-          .update({
-            token: token,
-            expires_at: expiresAt.toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", existingInvitation.id);
-        
-        if (updateError) {
-          console.error("Error updating invitation:", updateError);
-          throw updateError;
-        }
-      } else {
-        console.log("Creating new invitation");
-        const { error: insertError } = await supabase
-          .from("client_invitations")
-          .insert({
-            client_id: clientId,
-            email: email,
-            token: token,
-            status: "pending",
-            expires_at: expiresAt.toISOString()
-          });
-        
-        if (insertError) {
-          console.error("Error inserting invitation:", insertError);
-          throw insertError;
-        }
-      }
-    } catch (dbError) {
-      console.error("Database error:", dbError);
-      throw new Error(`Database error: ${dbError.message}`);
+    console.log(`Sending client invitation to ${email} for client: ${clientName}`);
+    
+    // Generate a unique setup token - just using a timestamp+random for simplicity
+    const setupToken = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    
+    // Store the token in the database
+    const { error: updateError } = await supabase
+      .from('clients')
+      .update({ 
+        setup_token: setupToken,
+        setup_token_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+      })
+      .eq('id', clientId);
+      
+    if (updateError) {
+      throw new Error(`Failed to store setup token: ${updateError.message}`);
     }
     
-    // Generate setup URL
-    // Try to get the base URL from different sources
-    const origin = req.headers.get("origin");
-    const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL");
-    const baseUrl = publicSiteUrl || origin || "https://interact-metrics-oasis.lovable.app";
+    // Generate the setup URL
+    const setupUrl = `${req.headers.get('origin')}/client/setup?token=${setupToken}`;
     
-    const setupUrl = `${baseUrl}/client/setup?token=${token}`;
-    console.log("Generated setup URL:", setupUrl);
+    // Prepare the invitation email
+    const emailHtml = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+          <h1>Welcome to AI Assistant!</h1>
+          <p>Dear ${clientName},</p>
+          <p>You've been invited to set up your AI Assistant account.</p>
+          <p>Click the button below to get started:</p>
+          <div style="margin: 30px 0;">
+            <a href="${setupUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+              Set Up Your Account
+            </a>
+          </div>
+          <p>Or copy and paste this URL into your browser:</p>
+          <p style="font-size: 14px; color: #666;">
+            <a href="${setupUrl}">${setupUrl}</a>
+          </p>
+          <p>This link will expire in 7 days.</p>
+          <p>Best regards,<br>The AI Assistant Team</p>
+        </body>
+      </html>
+    `;
     
     // Send the invitation email
-    try {
-      console.log("Preparing to send invitation email");
-      const emailHtml = `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h1>Welcome to Your AI Assistant Dashboard!</h1>
-            <p>Hello,</p>
-            <p>You have been invited to set up your ${clientName} AI Assistant dashboard account.</p>
-            <p>Click the button below to complete your account setup:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${setupUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-                Complete Account Setup
-              </a>
-            </div>
-            <p>This link will expire in 7 days. If you have any questions, please contact your administrator.</p>
-            <p>Best regards,<br>AI Assistant Team</p>
-            <p style="font-size: 0.8rem; color: #718096; margin-top: 40px;">
-              If the button above doesn't work, copy and paste this URL into your browser:<br>
-              ${setupUrl}
-            </p>
-          </body>
-        </html>
-      `;
-      
-      console.log("Invoking send-email function");
-      const { data: emailResponse, error: emailError } = await supabase.functions.invoke(
-        "send-email", 
-        { 
-          body: {
-            to: email,
-            subject: `Setup Your ${clientName} AI Assistant Account`,
-            html: emailHtml
-          } 
-        }
-      );
-
-      if (emailError) {
-        console.error("Error from send-email function:", emailError);
-        throw new Error(`Failed to send invitation email: ${JSON.stringify(emailError)}`);
-      }
-      
-      if (emailResponse && emailResponse.error) {
-        console.error("Error in email response:", emailResponse.error);
-        throw new Error(`Email service error: ${emailResponse.error}`);
-      }
-
-      console.log("Invitation email sent successfully");
-    } catch (emailError) {
-      console.error("Exception sending invitation email:", emailError);
-      throw new Error(`Email sending failed: ${emailError.message}`);
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Invitation sent successfully" 
-      }), 
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+    const emailResponse = await resend.emails.send({
+      from: "AI Assistant <admin@welcome.chat>", // Using the specified from email
+      to: [email],
+      subject: "Your AI Assistant Invitation",
+      html: emailHtml,
+    });
+    
+    console.log("Invitation email sent successfully:", emailResponse);
+    
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
   } catch (error: any) {
     console.error("Error in send-client-invitation function:", error);
-    
     return new Response(
-      JSON.stringify({ 
-        error: error.message || "Failed to send invitation",
-        stack: error.stack
-      }), 
+      JSON.stringify({ error: error.message || "Unknown error", success: false }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
   }
-});
+};
+
+serve(handler);

@@ -77,7 +77,7 @@ export function DeleteClientDialog({
       // Now attempt to send the deletion email
       try {
         console.log("Sending deletion email to:", clientEmail);
-        const { data, error: emailError } = await supabase.functions.invoke("send-email", {
+        const { data, error: emailError } = await supabase.functions.invoke("send-deletion-email", {
           body: {
             to: clientEmail,
             subject: "Account Deletion Notice",

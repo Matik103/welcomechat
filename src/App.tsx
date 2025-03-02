@@ -18,7 +18,7 @@ import ClientSetup from "@/pages/client/Setup";
 import { useEffect, useState } from "react";
 
 function App() {
-  const { isLoading, user } = useAuth();
+  const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
   const [showLoader, setShowLoader] = useState(true);
   
@@ -58,32 +58,132 @@ function App() {
   }
 
   // Client routes use ClientHeader, admin routes use Header
-  const isClientRoute = location.pathname.startsWith('/client');
+  const isClientRoute = 
+    location.pathname.startsWith('/client') || 
+    (userRole === 'client' && !isPublicRoute);
 
   return (
     <div className="min-h-screen bg-background">
-      {isClientRoute ? <ClientHeader /> : <Header />}
+      {user && (isClientRoute ? <ClientHeader /> : <Header />)}
       <Routes>
         {/* Public Routes */}
         <Route path="/auth" element={<Auth />} />
         <Route path="/client/setup" element={<ClientSetup />} />
         
         {/* Admin Routes */}
-        <Route path="/" element={<Index />} />
-        <Route path="/admin/clients" element={<ClientList />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/admin/clients/new" element={<AddEditClient />} />
-        <Route path="/admin/clients/:id" element={<ClientView />} />
-        <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
-        <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
+        <Route 
+          path="/" 
+          element={
+            <RoleRoute allowedRoles={['admin']}>
+              <Index />
+            </RoleRoute>
+          } 
+        />
+
+        <Route 
+          path="/admin/clients" 
+          element={
+            <RoleRoute allowedRoles={['admin']}>
+              <ClientList />
+            </RoleRoute>
+          } 
+        />
+
+        <Route 
+          path="/settings" 
+          element={
+            <RoleRoute allowedRoles={['admin']}>
+              <Settings />
+            </RoleRoute>
+          } 
+        />
+
+        <Route 
+          path="/admin/clients/new" 
+          element={
+            <RoleRoute allowedRoles={['admin']}>
+              <AddEditClient />
+            </RoleRoute>
+          } 
+        />
+
+        <Route 
+          path="/admin/clients/:id" 
+          element={
+            <RoleRoute allowedRoles={['admin']}>
+              <ClientView />
+            </RoleRoute>
+          } 
+        />
+
+        <Route 
+          path="/admin/clients/:id/edit" 
+          element={
+            <RoleRoute allowedRoles={['admin']}>
+              <AddEditClient />
+            </RoleRoute>
+          } 
+        />
+
+        <Route 
+          path="/admin/clients/:id/widget-settings" 
+          element={
+            <RoleRoute allowedRoles={['admin']}>
+              <WidgetSettings />
+            </RoleRoute>
+          } 
+        />
         
         {/* Client Routes */}
-        <Route path="/client/view" element={<ClientDashboard />} />
-        <Route path="/client/settings" element={<ClientSettings />} />
-        <Route path="/client/edit" element={<AddEditClient />} />
-        <Route path="/client/widget-settings" element={<WidgetSettings />} />
+        <Route 
+          path="/client/view" 
+          element={
+            <RoleRoute allowedRoles={['client']}>
+              <ClientDashboard />
+            </RoleRoute>
+          } 
+        />
+
+        <Route 
+          path="/client/settings" 
+          element={
+            <RoleRoute allowedRoles={['client']}>
+              <ClientSettings />
+            </RoleRoute>
+          } 
+        />
+
+        <Route 
+          path="/client/edit" 
+          element={
+            <RoleRoute allowedRoles={['client']}>
+              <AddEditClient />
+            </RoleRoute>
+          } 
+        />
+
+        <Route 
+          path="/client/widget-settings" 
+          element={
+            <RoleRoute allowedRoles={['client']}>
+              <WidgetSettings />
+            </RoleRoute>
+          } 
+        />
         
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Fallback route - redirect based on user role */}
+        <Route 
+          path="*" 
+          element={
+            user ? (
+              userRole === 'admin' ? 
+                <Navigate to="/" replace /> : 
+                <Navigate to="/client/view" replace />
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          } 
+        />
       </Routes>
       <Toaster />
     </div>

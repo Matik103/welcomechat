@@ -2,94 +2,62 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS"
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 interface EmailRequest {
   to: string;
   subject: string;
   html: string;
-  from?: string;
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    
-    if (!resendApiKey) {
-      console.error("RESEND_API_KEY is not set in environment variables");
-      throw new Error("RESEND_API_KEY environment variable is not set");
-    }
+    console.log("Starting send-email function");
+    const { to, subject, html }: EmailRequest = await req.json();
 
-    console.log("Initializing Resend with API key");
-    const resend = new Resend(resendApiKey);
-    
-    let payload;
-    try {
-      payload = await req.json();
-    } catch (error) {
-      console.error("Error parsing request JSON:", error);
-      throw new Error("Invalid JSON in request body");
-    }
-    
-    const { to, subject, html, from } = payload as EmailRequest;
-    
     if (!to || !subject || !html) {
-      console.error("Missing required parameters:", { to, subject, htmlProvided: !!html });
-      throw new Error("Missing required parameters: to, subject, or html");
+      throw new Error("Missing required fields: to, subject, or html");
     }
 
-    console.log(`Sending email to ${to} with subject: ${subject}`);
+    console.log(`Sending email to: ${to}, subject: ${subject}`);
     
-    try {
-      const { data, error } = await resend.emails.send({
-        from: from || "AI Assistant <onboarding@resend.dev>",
-        to: [to],
-        subject: subject,
-        html: html,
-      });
+    const emailResponse = await resend.emails.send({
+      from: "AI Assistant <admin@welcome.chat>", // Using the specified from email
+      to: [to],
+      subject: subject,
+      html: html,
+    });
 
-      if (error) {
-        console.error("Resend API error:", error);
-        throw new Error(`Resend API error: ${error.message}`);
-      }
+    console.log("Email sent successfully:", emailResponse);
 
-      console.log("Email sent successfully, response:", data);
-
-      return new Response(
-        JSON.stringify({ success: true, message: "Email sent successfully", data }), 
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    } catch (sendError: any) {
-      console.error("Error during Resend API call:", sendError);
-      throw new Error(`Resend API call failed: ${sendError.message}`);
-    }
+    return new Response(JSON.stringify(emailResponse), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
   } catch (error: any) {
     console.error("Error in send-email function:", error);
-    
     return new Response(
-      JSON.stringify({ 
-        error: error.message || "Failed to send email",
-        stack: error.stack
-      }), 
+      JSON.stringify({ error: error.message || "Unknown error" }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
   }
-});
+};
+
+serve(handler);

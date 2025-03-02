@@ -1,6 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { Resend } from "npm:resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,10 +10,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface InvitationEmailRequest {
+interface InvitationRequest {
   email: string;
-  role_type: 'admin' | 'client';
-  url: string;
+  inviteUrl: string;
+  name?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -20,71 +22,60 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const client = new SmtpClient();
-
   try {
-    const { email, role_type, url }: InvitationEmailRequest = await req.json();
-    console.log(`Starting invitation email to ${email}`);
+    console.log("Starting send-invitation function");
+    const { email, inviteUrl, name }: InvitationRequest = await req.json();
 
-    await client.connectTLS({
-      hostname: "mail.privateemail.com",
-      port: 465,
-      username: Deno.env.get("SMTP_USER"),
-      password: Deno.env.get("SMTP_PASS"),
-    });
-
-    await client.send({
-      from: Deno.env.get("SMTP_SENDER")!,
-      to: email,
-      subject: `You've been invited as ${role_type}`,
-      content: `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <h1>You've Been Invited!</h1>
-            <p>You have been invited to join as a ${role_type}.</p>
-            <p>Click the link below to accept your invitation:</p>
-            <a href="${url}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; margin: 16px 0;">Accept Invitation</a>
-            <p>If you did not expect this invitation, please ignore this email.</p>
-            <p>This invitation will expire in 48 hours.</p>
-          </body>
-        </html>
-      `,
-      html: true,
-    });
-
-    await client.close();
-    console.log("Email sent successfully");
-
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders
-        }
-      }
-    );
-  } catch (error) {
-    console.error("Failed to send invitation:", error);
-
-    try {
-      await client.close();
-    } catch (closeError) {
-      console.error("Error closing SMTP connection:", closeError);
+    if (!email || !inviteUrl) {
+      throw new Error("Missing required fields: email or inviteUrl");
     }
 
+    console.log(`Sending invitation to: ${email}, inviteUrl: ${inviteUrl}`);
+    
+    const emailHtml = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+          <h1>Invitation to AI Assistant</h1>
+          <p>Hello${name ? ` ${name}` : ''},</p>
+          <p>You've been invited to join the AI Assistant platform as an admin.</p>
+          <p>Click the button below to set up your account:</p>
+          <div style="margin: 30px 0;">
+            <a href="${inviteUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+              Accept Invitation
+            </a>
+          </div>
+          <p>Or copy and paste this URL into your browser:</p>
+          <p style="font-size: 14px; color: #666;">
+            <a href="${inviteUrl}">${inviteUrl}</a>
+          </p>
+          <p>Best regards,<br>The AI Assistant Team</p>
+        </body>
+      </html>
+    `;
+    
+    const emailResponse = await resend.emails.send({
+      from: "AI Assistant <admin@welcome.chat>", // Using the specified from email
+      to: [email],
+      subject: "Invitation to AI Assistant Platform",
+      html: emailHtml,
+    });
+
+    console.log("Invitation email sent successfully:", emailResponse);
+
+    return new Response(JSON.stringify(emailResponse), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error in send-invitation function:", error);
     return new Response(
-      JSON.stringify({
-        error: "Failed to send invitation email",
-        details: error.message
-      }),
+      JSON.stringify({ error: error.message || "Unknown error" }),
       {
         status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders
-        }
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
   }
