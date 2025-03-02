@@ -1,172 +1,220 @@
 
-import React, { useState } from "react";
-import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ClientFormData } from "@/types/client";
+import { Loader2 } from "lucide-react";
+
+interface TokenData {
+  clientId: string;
+  email: string;
+  clientName: string;
+  isValid: boolean;
+}
 
 const ClientSetup = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const { register, handleSubmit, formState: { errors } } = useForm<ClientFormData>({
-    defaultValues: {
-      client_name: "",
-      email: user?.email || "",
-      agent_name: "",
-      company: "",
-      description: ""
-    }
-  });
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [tokenData, setTokenData] = useState<TokenData | null>(null);
 
-  const onSubmit = async (data: ClientFormData) => {
-    if (!user) {
-      toast.error("You must be logged in to complete setup");
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // First, check if a client record already exists for this user
-      const { data: existingClient, error: checkError } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      
-      if (checkError) {
-        throw new Error(checkError.message);
-      }
-      
-      if (existingClient) {
-        toast.info("Your client account is already set up");
-        navigate("/client/view");
+  // Extract token from URL
+  const query = new URLSearchParams(location.search);
+  const token = query.get("token");
+
+  useEffect(() => {
+    const verifyToken = async () => {
+      if (!token) {
+        toast.error("Invalid or missing invitation token");
+        navigate("/auth");
         return;
       }
-      
-      // Create a new client
-      // Note: We link user_id through an RLS policy
-      const { data: clientData, error: insertError } = await supabase
-        .from("clients")
-        .insert({
-          client_name: data.client_name,
-          email: data.email,
-          agent_name: data.agent_name,
-          company: data.company || null,
-          description: data.description || null,
-          status: "active"
-        })
-        .select("id")
-        .single();
-      
-      if (insertError) {
-        throw new Error(insertError.message);
-      }
 
-      // Create activity for the new client
-      await supabase.from("client_activities").insert({
-        client_id: clientData.id,
-        activity_type: "client_created",
-        description: `Client account set up with agent name: ${data.agent_name}`
+      try {
+        setIsLoading(true);
+        
+        // Check if token exists and is valid
+        const { data: invitation, error } = await supabase
+          .from("client_invitations")
+          .select("client_id, email, expires_at, status")
+          .eq("token", token)
+          .single();
+
+        if (error || !invitation) {
+          toast.error("Invalid or expired invitation token");
+          navigate("/auth");
+          return;
+        }
+
+        // Check if token is expired
+        if (new Date(invitation.expires_at) < new Date() || invitation.status !== "pending") {
+          toast.error("This invitation has expired or already been used");
+          navigate("/auth");
+          return;
+        }
+
+        // Get client information
+        const { data: client } = await supabase
+          .from("clients")
+          .select("client_name")
+          .eq("id", invitation.client_id)
+          .single();
+
+        setTokenData({
+          clientId: invitation.client_id,
+          email: invitation.email,
+          clientName: client?.client_name || "Your Company",
+          isValid: true
+        });
+      } catch (error) {
+        console.error("Error verifying token:", error);
+        toast.error("There was a problem verifying your invitation");
+        navigate("/auth");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    verifyToken();
+  }, [token, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!tokenData?.isValid) {
+      toast.error("Invalid invitation");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // Create user account
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: tokenData.email,
+        password: password,
       });
+
+      if (signUpError) throw signUpError;
+
+      // Update invitation status
+      const { error: updateError } = await supabase
+        .from("client_invitations")
+        .update({ 
+          status: "accepted", 
+          accepted_at: new Date().toISOString() 
+        })
+        .eq("token", token);
+
+      if (updateError) throw updateError;
+
+      // Create user role for the client
+      await supabase.from("user_roles").insert({
+        user_id: signUpData.user!.id,
+        role: "client"
+      });
+
+      toast.success("Account created successfully! Redirecting to dashboard...");
       
-      toast.success("Setup completed successfully!");
-      
-      // Redirect to client dashboard
-      navigate("/client/view");
+      // Allow time for toast to be seen
+      setTimeout(() => {
+        navigate("/client/view");
+      }, 2000);
     } catch (error: any) {
-      console.error("Setup error:", error);
-      toast.error(`Error: ${error.message}`);
+      console.error("Error setting up account:", error);
+      toast.error(error.message || "Failed to set up your account");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-gray-600">Verifying your invitation...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!tokenData?.isValid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-bold text-red-600 mb-2">Invalid Invitation</h1>
+          <p className="text-gray-600 mb-4">This invitation link is invalid or has expired.</p>
+          <Button onClick={() => navigate("/auth")}>Go to Login</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Complete Your Setup</CardTitle>
+      <Card className="max-w-md w-full">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Complete Your Setup</CardTitle>
           <CardDescription>
-            Configure your AI assistant by providing the following information.
+            Create your password to access the {tokenData.clientName} AI Assistant dashboard
           </CardDescription>
         </CardHeader>
-        
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="client_name">Client/Business Name</Label>
-              <Input 
-                id="client_name"
-                {...register("client_name", { required: "Client name is required" })}
-                placeholder="Your business name"
-              />
-              {errors.client_name && (
-                <p className="text-sm text-red-500">{errors.client_name.message}</p>
-              )}
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={tokenData.email} disabled />
             </div>
-            
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input 
-                id="email"
-                type="email"
-                {...register("email", { required: "Email is required" })}
-                placeholder="contact@yourbusiness.com"
-              />
-              {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="agent_name">AI Agent Name</Label>
-              <Input 
-                id="agent_name"
-                {...register("agent_name", { required: "Agent name is required" })}
-                placeholder="e.g. Sales Assistant"
-              />
-              {errors.agent_name && (
-                <p className="text-sm text-red-500">{errors.agent_name.message}</p>
-              )}
-              <p className="text-xs text-gray-500">
-                This will be the name of your AI assistant
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="company">Company/Organization (Optional)</Label>
-              <Input 
-                id="company"
-                {...register("company")}
-                placeholder="Your company or organization"
+              <Label htmlFor="password">Create Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </div>
-            
             <div className="space-y-2">
-              <Label htmlFor="description">Description (Optional)</Label>
-              <Input 
-                id="description"
-                {...register("description")}
-                placeholder="Brief description of your business"
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
               />
             </div>
-          </CardContent>
-          
-          <CardFooter>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Setting up..." : "Complete Setup"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Setting up...
+                </>
+              ) : (
+                "Create Account"
+              )}
             </Button>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
       </Card>
     </div>
   );

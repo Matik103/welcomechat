@@ -24,9 +24,10 @@ export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // If user role doesn't match allowed roles for this route, redirect to index
   if (!userRole || !allowedRoles.includes(userRole)) {
-    return <Navigate to="/" replace />;
+    // Redirect admin to admin dashboard, clients to client dashboard
+    const redirectPath = userRole === 'admin' ? '/admin' : '/dashboard';
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;

@@ -93,7 +93,6 @@ export const useClientData = (id: string | undefined) => {
             const { data: emailData, error: emailError } = await supabase.functions.invoke("send-email", {
               body: {
                 to: newClient.email,
-                from: "admin@welcome.chat",
                 subject: `Welcome to ${newClient.client_name} AI Assistant!`,
                 html: emailContent
               }
@@ -109,8 +108,7 @@ export const useClientData = (id: string | undefined) => {
               body: {
                 clientId: newClient.id,
                 email: newClient.email,
-                clientName: newClient.client_name,
-                from: "admin@welcome.chat"
+                clientName: newClient.client_name
               }
             });
             

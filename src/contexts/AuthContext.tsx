@@ -31,19 +31,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .limit(1);
+        .maybeSingle();
 
       if (error) {
         console.error("Error checking user role:", error);
         return null;
       }
 
-      if (!data || data.length === 0) {
-        console.error("No role found for user:", userId);
-        return null;
-      }
-
-      return data[0]?.role as UserRole || null;
+      return data?.role as UserRole || null;
     } catch (error) {
       console.error("Error checking user role:", error);
       return null;
@@ -95,11 +90,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (currentSession?.user) {
             const role = await checkUserRole(currentSession.user.id);
             setUserRole(role);
-            
-            // Always redirect to main index page after login, regardless of role
-            if (event === 'SIGNED_IN') {
-              navigate('/', { replace: true });
-            }
           } else {
             setUserRole(null);
             // Only navigate to auth if we're not already there and not loading
