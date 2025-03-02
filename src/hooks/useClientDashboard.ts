@@ -20,17 +20,10 @@ type DashboardData = {
   activities: any[];
 };
 
-// Define stats response type
-type ClientStatsResponse = {
-  total_interactions?: number;
-  success_rate?: number;
-  daily_average?: number;
-};
-
 export const useClientDashboard = () => {
   const { user } = useAuth();
 
-  return useQuery<DashboardData, Error>({
+  return useQuery({
     queryKey: ["client-dashboard", user?.id],
     queryFn: async (): Promise<DashboardData> => {
       if (!user) {
@@ -73,18 +66,18 @@ export const useClientDashboard = () => {
       let interactionStats = defaultStats;
 
       try {
-        // Use a direct SQL query instead of RPC call
-        const { data: statsData, error: statsError } = await supabase
+        // Use a direct SQL count query instead of selecting all records
+        const { count, error: statsError } = await supabase
           .from('client_activities')
-          .select('count(*)', { count: 'exact' })
+          .select('*', { count: 'exact', head: true })
           .eq('client_id', clientData.id)
           .eq('activity_type', 'chat_interaction');
           
         if (statsError) {
           console.error("Error fetching interaction stats:", statsError);
-        } else if (statsData) {
+        } else if (count !== null) {
           // Calculate simple stats from the count data
-          const totalInteractions = statsData.length > 0 ? parseInt(statsData[0].count) : 0;
+          const totalInteractions = count;
           
           // For success rate and daily average, we'll use placeholder calculations
           // In a real app, these would be based on more detailed data
