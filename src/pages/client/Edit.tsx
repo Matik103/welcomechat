@@ -1,231 +1,264 @@
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import { DriveLinks } from "@/components/client/DriveLinks";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
-import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
+import { DriveLinks } from "@/components/client/DriveLinks";
 import { useDriveLinks } from "@/hooks/useDriveLinks";
+import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
+import { WebsiteUrl, DriveLink } from "@/types/client";
 
 const ClientEdit = () => {
   const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [clientData, setClientData] = useState<any>(null);
-  const [clientName, setClientName] = useState("");
-  const [agentName, setAgentName] = useState("");
-  const [email, setEmail] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [clientData, setClientData] = useState<{
+    id: string;
+    client_name: string;
+    email: string;
+    agent_name: string;
+  } | null>(null);
 
-  // Fetch client ID first
+  const {
+    websiteUrls,
+    isLoading: isLoadingUrls,
+    addWebsiteUrl,
+    deleteWebsiteUrl,
+    isAddingUrl,
+    isDeletingUrl,
+  } = useWebsiteUrls(clientData?.id);
+
+  const {
+    driveLinks,
+    isLoading: isLoadingDriveLinks,
+    addDriveLink,
+    deleteDriveLink,
+    isAddingLink,
+    isDeletingLink,
+  } = useDriveLinks(clientData?.id);
+
+  const [formData, setFormData] = useState({
+    client_name: "",
+    email: "",
+    agent_name: "",
+  });
+
   useEffect(() => {
-    const fetchClientId = async () => {
-      if (!user?.email) return;
-      
+    const fetchClientData = async () => {
+      if (!user) return;
+
       try {
+        setIsLoading(true);
         const { data, error } = await supabase
           .from("clients")
-          .select("*")
-          .eq("email", user.email)
+          .select("id, client_name, email, agent_name")
+          .eq("user_id", user.id)
           .single();
-          
-        if (error) throw error;
-        
-        setClientData(data);
-        setClientName(data.client_name || "");
-        setAgentName(data.agent_name || "");
-        setEmail(data.email || "");
-      } catch (error) {
-        console.error("Error fetching client info:", error);
-        toast.error("Failed to load client information");
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setClientData(data);
+          setFormData({
+            client_name: data.client_name || "",
+            email: data.email || "",
+            agent_name: data.agent_name || "",
+          });
+        }
+      } catch (error: any) {
+        toast.error("Error fetching client data");
+        console.error("Error fetching client data:", error.message);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchClientId();
+
+    fetchClientData();
   }, [user]);
 
-  const { 
-    websiteUrls, 
-    addWebsiteUrlMutation, 
-    deleteWebsiteUrlMutation 
-  } = useWebsiteUrls(clientData?.id);
-
-  const { 
-    driveLinks, 
-    addDriveLinkMutation, 
-    deleteDriveLinkMutation 
-  } = useDriveLinks(clientData?.id);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!clientData?.id) {
-      toast.error("Client ID not found");
-      return;
-    }
-    
-    setIsSaving(true);
-    
+    if (!clientData?.id) return;
+
     try {
+      setIsLoading(true);
       const { error } = await supabase
         .from("clients")
         .update({
-          client_name: clientName,
-          agent_name: agentName,
-          email: email
+          client_name: formData.client_name,
+          email: formData.email,
+          agent_name: formData.agent_name,
         })
         .eq("id", clientData.id);
-        
+
       if (error) throw error;
-      
-      toast.success("Client information updated successfully");
+
+      toast.success("Profile updated successfully");
     } catch (error: any) {
-      console.error("Error updating client:", error);
-      toast.error("Failed to update client information");
+      toast.error("Error updating profile");
+      console.error("Error updating profile:", error.message);
     } finally {
-      setIsSaving(false);
+      setIsLoading(false);
     }
   };
 
+  // Wrapper functions to fix the type issues
   const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
-    return addWebsiteUrlMutation.mutateAsync(data);
-  };
-
-  const handleDeleteWebsiteUrl = async (id: number) => {
-    return deleteWebsiteUrlMutation.mutateAsync(id);
+    if (!clientData?.id) return;
+    await addWebsiteUrl(data);
   };
 
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
-    return addDriveLinkMutation.mutateAsync(data);
+    if (!clientData?.id) return;
+    await addDriveLink(data);
   };
 
-  const handleDeleteDriveLink = async (id: number) => {
-    return deleteDriveLinkMutation.mutateAsync(id);
-  };
-
-  if (isLoading) {
+  if (isLoading && !clientData) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
+      <div className="flex justify-center items-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!clientData) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl font-semibold text-gray-900 mb-2">Client Not Found</p>
-          <p className="text-gray-600">Unable to load your client information</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Edit Profile</h1>
-          <p className="text-gray-500">Update your client information and knowledge sources</p>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold mb-2">Edit Profile</h1>
+        <p className="text-gray-500">Update your account information and AI assistant settings</p>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Client Information</CardTitle>
-            <CardDescription>Update your basic information</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="clientName" className="block text-sm font-medium text-gray-700">
-                  Company/Client Name
+      <Card>
+        <CardHeader>
+          <CardTitle>Account Information</CardTitle>
+          <CardDescription>Update your basic account details</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  Full Name
                 </label>
                 <Input
-                  id="clientName"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
+                  type="text"
+                  name="client_name"
+                  value={formData.client_name}
+                  onChange={handleChange}
+                  placeholder="Your Name"
                   required
                 />
               </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="agentName" className="block text-sm font-medium text-gray-700">
-                  AI Agent Name
-                </label>
-                <Input
-                  id="agentName"
-                  value={agentName}
-                  onChange={(e) => setAgentName(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
                   Email Address
                 </label>
                 <Input
-                  id="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="you@example.com"
                   required
                 />
               </div>
-              
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save Changes"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Website URLs</CardTitle>
-            <CardDescription>Add websites for your AI to learn from</CardDescription>
-          </CardHeader>
-          <CardContent>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  AI Assistant Name
+                </label>
+                <Input
+                  type="text"
+                  name="agent_name"
+                  value={formData.agent_name}
+                  onChange={handleChange}
+                  placeholder="My Assistant"
+                  required
+                />
+              </div>
+            </div>
+
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Website URLs</CardTitle>
+          <CardDescription>
+            Add websites for your AI assistant to crawl and learn from
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingUrls ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : (
             <WebsiteUrls
               urls={websiteUrls}
               onAdd={handleAddWebsiteUrl}
-              onDelete={handleDeleteWebsiteUrl}
-              isAddLoading={addWebsiteUrlMutation.isPending}
-              isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+              onDelete={deleteWebsiteUrl}
+              isAddLoading={isAddingUrl}
+              isDeleteLoading={isDeletingUrl}
             />
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Google Drive Links</CardTitle>
-            <CardDescription>Add Google Drive documents for your AI to learn from</CardDescription>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Google Drive Links</CardTitle>
+          <CardDescription>
+            Connect Google Drive documents to your AI assistant
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingDriveLinks ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : (
             <DriveLinks
               driveLinks={driveLinks}
               onAdd={handleAddDriveLink}
-              onDelete={handleDeleteDriveLink}
-              isAddLoading={addDriveLinkMutation.isPending}
-              isDeleteLoading={deleteDriveLinkMutation.isPending}
+              onDelete={deleteDriveLink}
+              isAddLoading={isAddingLink}
+              isDeleteLoading={isDeletingLink}
             />
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

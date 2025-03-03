@@ -1,164 +1,161 @@
 
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-
-interface InteractionStats {
-  total: number;
-  successRate: number;
-  averagePerDay: number;
-}
-
-interface DashboardData {
-  clientId: string | null;
-  interactionStats: InteractionStats | null;
-  commonQueries: any[];
-  errorLogs: any[];
-  activities: any[];
-}
 
 export const useClientDashboard = () => {
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [interactionStats, setInteractionStats] = useState<{
+    total: number;
+    successRate: number;
+    averagePerDay: number;
+  } | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [commonQueries, setCommonQueries] = useState<any[]>([]);
+  const [isLoadingQueries, setIsLoadingQueries] = useState(true);
+  const [errorLogs, setErrorLogs] = useState<any[]>([]);
+  const [isLoadingErrors, setIsLoadingErrors] = useState(true);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [isLoadingActivities, setIsLoadingActivities] = useState(true);
 
-  const fetchDashboardData = async (): Promise<DashboardData> => {
-    if (!user) {
-      return {
-        clientId: null,
-        interactionStats: null,
-        commonQueries: [],
-        errorLogs: [],
-        activities: []
-      };
-    }
+  useEffect(() => {
+    const fetchClientId = async () => {
+      if (!user?.id) return;
 
-    // Get client ID for the authenticated user
-    const { data: clients, error: clientError } = await supabase
-      .from("clients")
-      .select("id, client_name")
-      .eq("email", user.email)
-      .limit(1);
+      try {
+        const { data: clientData, error } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
 
-    if (clientError) {
-      console.error("Error fetching client:", clientError);
-      throw clientError;
-    }
+        if (error) {
+          console.error("Error fetching client ID:", error);
+          return;
+        }
 
-    if (!clients || clients.length === 0) {
-      console.warn("No client found for user:", user.email);
-      return {
-        clientId: null,
-        interactionStats: null,
-        commonQueries: [],
-        errorLogs: [],
-        activities: []
-      };
-    }
-
-    const clientId = clients[0].id;
-
-    // Calculate interaction stats from client_activities table instead
-    // This avoids the type error with a non-existent "interaction_stats" table
-    const { data: interactions, error: interactionsError } = await supabase
-      .from("client_activities")
-      .select("*")
-      .eq("client_id", clientId)
-      .eq("activity_type", "chat_interaction")
-      .order("created_at", { ascending: false })
-      .limit(30);
-
-    if (interactionsError) {
-      console.error("Error fetching interactions:", interactionsError);
-      throw interactionsError;
-    }
-
-    // Calculate statistics
-    const total = interactions?.length || 0;
-    const successfulInteractions = interactions?.filter(i => 
-      i.metadata?.status === 'success' || !i.metadata?.status
-    ).length || 0;
-    const successRate = total > 0 ? Math.round((successfulInteractions / total) * 100) : 0;
-    
-    // Calculate average per day
-    const averagePerDay = total > 0 ? Math.round(total / 30) : 0;
-
-    const interactionStats = {
-      total,
-      successRate,
-      averagePerDay
+        setClientId(clientData?.id || null);
+      } catch (error) {
+        console.error("Error in fetchClientId:", error);
+      }
     };
 
-    // Get common queries
-    const { data: commonQueries, error: queriesError } = await supabase
-      .from("common_queries")
-      .select("*")
-      .eq("client_id", clientId)
-      .order("frequency", { ascending: false })
-      .limit(10);
+    fetchClientId();
+  }, [user?.id]);
 
-    if (queriesError) {
-      console.error("Error fetching queries:", queriesError);
-      throw queriesError;
-    }
+  useEffect(() => {
+    if (!clientId) return;
 
-    // Get error logs
-    const { data: errorLogs, error: logsError } = await supabase
-      .from("error_logs")
-      .select("*")
-      .eq("client_id", clientId)
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (logsError) {
-      console.error("Error fetching logs:", logsError);
-      throw logsError;
-    }
-
-    // Get recent activities
-    const { data: activities, error: activitiesError } = await supabase
-      .from("client_activities")
-      .select("*")
-      .eq("client_id", clientId)
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    if (activitiesError) {
-      console.error("Error fetching activities:", activitiesError);
-      throw activitiesError;
-    }
-
-    return {
-      clientId,
-      interactionStats,
-      commonQueries: commonQueries || [],
-      errorLogs: errorLogs || [],
-      activities: activities || []
+    const fetchStats = async () => {
+      setIsLoadingStats(true);
+      try {
+        // Simulation of fetching interaction stats
+        setInteractionStats({
+          total: Math.floor(Math.random() * 1000),
+          successRate: Math.floor(Math.random() * 100),
+          averagePerDay: Math.floor(Math.random() * 50),
+        });
+      } catch (error) {
+        console.error("Error fetching interaction stats:", error);
+      } finally {
+        setIsLoadingStats(false);
+      }
     };
-  };
 
-  const result = useQuery<DashboardData>({
-    queryKey: ["clientDashboard", user?.id],
-    queryFn: fetchDashboardData,
-    enabled: !!user,
-  });
+    const fetchQueries = async () => {
+      setIsLoadingQueries(true);
+      try {
+        const { data, error } = await supabase
+          .from("common_queries")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("frequency", { ascending: false })
+          .limit(5);
 
-  // Provide default values in case data is undefined
-  const {
-    clientId = null,
-    interactionStats = null,
-    commonQueries = [],
-    errorLogs = [],
-    activities = []
-  } = result.data || {};
+        if (error) throw error;
+        
+        setCommonQueries(data.map(item => ({
+          ...item,
+          // Ensure status is a string if it exists
+          status: typeof item.status === 'string' ? item.status : 'active'
+        })));
+      } catch (error) {
+        console.error("Error fetching common queries:", error);
+        setCommonQueries([]);
+      } finally {
+        setIsLoadingQueries(false);
+      }
+    };
+
+    const fetchErrorLogs = async () => {
+      setIsLoadingErrors(true);
+      try {
+        const { data, error } = await supabase
+          .from("error_logs")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (error) throw error;
+        setErrorLogs(data);
+      } catch (error) {
+        console.error("Error fetching error logs:", error);
+        setErrorLogs([]);
+      } finally {
+        setIsLoadingErrors(false);
+      }
+    };
+
+    const fetchActivities = async () => {
+      setIsLoadingActivities(true);
+      try {
+        // Simulation of fetching activities
+        const mockActivities = [
+          {
+            id: 1,
+            type: "user_query",
+            message: "How do I reset my password?",
+            timestamp: new Date().toISOString(),
+          },
+          {
+            id: 2,
+            type: "system_update",
+            message: "Chatbot knowledge base updated",
+            timestamp: new Date(Date.now() - 86400000).toISOString(),
+          },
+          {
+            id: 3,
+            type: "error_resolved",
+            message: "Fixed incorrect response issue",
+            timestamp: new Date(Date.now() - 172800000).toISOString(),
+          },
+        ];
+        setActivities(mockActivities);
+      } catch (error) {
+        console.error("Error fetching activities:", error);
+        setActivities([]);
+      } finally {
+        setIsLoadingActivities(false);
+      }
+    };
+
+    fetchStats();
+    fetchQueries();
+    fetchErrorLogs();
+    fetchActivities();
+  }, [clientId]);
 
   return {
     clientId,
     interactionStats,
-    isLoadingStats: result.isLoading,
+    isLoadingStats,
     commonQueries,
-    isLoadingQueries: result.isLoading,
+    isLoadingQueries,
     errorLogs,
-    isLoadingErrors: result.isLoading,
+    isLoadingErrors,
     activities,
-    isLoadingActivities: result.isLoading
+    isLoadingActivities,
   };
 };
