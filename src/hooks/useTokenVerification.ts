@@ -35,15 +35,17 @@ export const useTokenVerification = (token: string | null) => {
           .single();
 
         if (error || !invitation) {
+          console.error("Invalid token error:", error);
           toast.error("Invalid or expired invitation token");
-          navigate("/auth");
+          setTokenData({ clientId: "", email: "", clientName: "", isValid: false });
           return;
         }
 
         // Check if token is expired
         if (new Date(invitation.expires_at) < new Date() || invitation.status !== "pending") {
+          console.error("Token expired or already used");
           toast.error("This invitation has expired or already been used");
-          navigate("/auth");
+          setTokenData({ clientId: "", email: "", clientName: "", isValid: false });
           return;
         }
 
@@ -60,10 +62,10 @@ export const useTokenVerification = (token: string | null) => {
           clientName: client?.client_name || "Your Company",
           isValid: true
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error verifying token:", error);
         toast.error("There was a problem verifying your invitation");
-        navigate("/auth");
+        setTokenData({ clientId: "", email: "", clientName: "", isValid: false });
       } finally {
         setIsLoading(false);
       }

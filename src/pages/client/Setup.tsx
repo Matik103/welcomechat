@@ -39,10 +39,41 @@ const ClientSetup = () => {
     try {
       setIsSubmitting(true);
 
-      // Create user account
+      // Check if user already exists
+      const { data: existingUser, error: existingUserError } = await supabase.auth.signInWithPassword({
+        email: tokenData.email,
+        password: password, // Try sign in to check if user exists
+      });
+
+      // If user exists, sign them in directly
+      if (!existingUserError && existingUser?.user) {
+        // Update invitation status regardless
+        await supabase
+          .from("client_invitations")
+          .update({ 
+            status: "accepted", 
+            accepted_at: new Date().toISOString() 
+          })
+          .eq("token", token);
+
+        toast.success("Signed in successfully! Redirecting to dashboard...");
+        
+        setTimeout(() => {
+          navigate("/client/view");
+        }, 1500);
+        return;
+      }
+
+      // Create user account if they don't exist
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: tokenData.email,
         password: password,
+        options: {
+          data: {
+            full_name: tokenData.clientName || "",
+            client_id: tokenData.clientId
+          }
+        }
       });
 
       if (signUpError) throw signUpError;
@@ -69,7 +100,7 @@ const ClientSetup = () => {
       // Allow time for toast to be seen
       setTimeout(() => {
         navigate("/client/view");
-      }, 2000);
+      }, 1500);
     } catch (error: any) {
       console.error("Error setting up account:", error);
       toast.error(error.message || "Failed to set up your account");

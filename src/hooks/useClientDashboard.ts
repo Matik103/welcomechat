@@ -3,10 +3,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
-// Define a clear interface for our returned dashboard data
+interface InteractionStats {
+  total: number;
+  successRate: number;
+  averagePerDay: number;
+}
+
 interface DashboardData {
   clientId: string | null;
-  interactionStats: any[];
+  interactionStats: InteractionStats | null;
   commonQueries: any[];
   errorLogs: any[];
   activities: any[];
@@ -19,7 +24,7 @@ export const useClientDashboard = () => {
     if (!user) {
       return {
         clientId: null,
-        interactionStats: [],
+        interactionStats: null,
         commonQueries: [],
         errorLogs: [],
         activities: []
@@ -42,7 +47,7 @@ export const useClientDashboard = () => {
       console.warn("No client found for user:", user.email);
       return {
         clientId: null,
-        interactionStats: [],
+        interactionStats: null,
         commonQueries: [],
         errorLogs: [],
         activities: []
@@ -51,18 +56,36 @@ export const useClientDashboard = () => {
 
     const clientId = clients[0].id;
 
-    // Get interaction stats
-    const { data: interactionStats, error: statsError } = await supabase
-      .from("interaction_stats")
+    // Calculate interaction stats from client_activities table instead
+    // This avoids the type error with a non-existent "interaction_stats" table
+    const { data: interactions, error: interactionsError } = await supabase
+      .from("client_activities")
       .select("*")
       .eq("client_id", clientId)
-      .order("date", { ascending: false })
+      .eq("activity_type", "chat_interaction")
+      .order("created_at", { ascending: false })
       .limit(30);
 
-    if (statsError) {
-      console.error("Error fetching stats:", statsError);
-      throw statsError;
+    if (interactionsError) {
+      console.error("Error fetching interactions:", interactionsError);
+      throw interactionsError;
     }
+
+    // Calculate statistics
+    const total = interactions?.length || 0;
+    const successfulInteractions = interactions?.filter(i => 
+      i.metadata?.status === 'success' || !i.metadata?.status
+    ).length || 0;
+    const successRate = total > 0 ? Math.round((successfulInteractions / total) * 100) : 0;
+    
+    // Calculate average per day
+    const averagePerDay = total > 0 ? Math.round(total / 30) : 0;
+
+    const interactionStats = {
+      total,
+      successRate,
+      averagePerDay
+    };
 
     // Get common queries
     const { data: commonQueries, error: queriesError } = await supabase
@@ -105,7 +128,7 @@ export const useClientDashboard = () => {
 
     return {
       clientId,
-      interactionStats: interactionStats || [],
+      interactionStats,
       commonQueries: commonQueries || [],
       errorLogs: errorLogs || [],
       activities: activities || []
@@ -121,7 +144,7 @@ export const useClientDashboard = () => {
   // Provide default values in case data is undefined
   const {
     clientId = null,
-    interactionStats = [],
+    interactionStats = null,
     commonQueries = [],
     errorLogs = [],
     activities = []

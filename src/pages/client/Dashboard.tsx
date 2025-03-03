@@ -38,7 +38,7 @@ const ClientDashboard = () => {
         <p className="text-gray-500 mb-8">Monitor your AI assistant's performance and user interactions</p>
         
         <InteractionStats 
-          interactionStats={interactionStats}
+          interactionStats={interactionStats || { total: 0, successRate: 0, averagePerDay: 0 }}
           isLoading={isLoadingStats}
         />
         
