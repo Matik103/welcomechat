@@ -112,10 +112,7 @@ export const useClientDashboard = () => {
     };
   };
 
-  const {
-    data,
-    isLoading: isLoadingAll
-  } = useQuery({
+  const result = useQuery<DashboardData>({
     queryKey: ["clientDashboard", user?.id],
     queryFn: fetchDashboardData,
     enabled: !!user,
@@ -128,17 +125,17 @@ export const useClientDashboard = () => {
     commonQueries = [],
     errorLogs = [],
     activities = []
-  } = data || {};
+  } = result.data || {};
 
   return {
     clientId,
     interactionStats,
-    isLoadingStats: isLoadingAll,
+    isLoadingStats: result.isLoading,
     commonQueries,
-    isLoadingQueries: isLoadingAll,
+    isLoadingQueries: result.isLoading,
     errorLogs,
-    isLoadingErrors: isLoadingAll,
+    isLoadingErrors: result.isLoading,
     activities,
-    isLoadingActivities: isLoadingAll
+    isLoadingActivities: result.isLoading
   };
 };
