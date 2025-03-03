@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 
 interface Query {
-  id: number;
+  id: string;
   query_text: string;
   frequency: number;
 }

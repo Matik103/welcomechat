@@ -3,6 +3,34 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
+// Define proper query type
+interface CommonQuery {
+  id: string;
+  client_id: string;
+  query_text: string;
+  frequency: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Define error log type
+interface ErrorLog {
+  id: string;
+  client_id: string;
+  error_type: string;
+  message: string;
+  created_at: string;
+  status?: string;
+}
+
+// Define activity type
+interface Activity {
+  id: number;
+  type: string;
+  message: string;
+  timestamp: string;
+}
+
 export const useClientDashboard = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | null>(null);
@@ -12,11 +40,11 @@ export const useClientDashboard = () => {
     averagePerDay: number;
   } | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [commonQueries, setCommonQueries] = useState<any[]>([]);
+  const [commonQueries, setCommonQueries] = useState<CommonQuery[]>([]);
   const [isLoadingQueries, setIsLoadingQueries] = useState(true);
-  const [errorLogs, setErrorLogs] = useState<any[]>([]);
+  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
   const [isLoadingErrors, setIsLoadingErrors] = useState(true);
-  const [activities, setActivities] = useState<any[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
 
   useEffect(() => {
@@ -75,11 +103,7 @@ export const useClientDashboard = () => {
 
         if (error) throw error;
         
-        setCommonQueries(data.map(item => ({
-          ...item,
-          // Ensure status is a string if it exists
-          status: typeof item.status === 'string' ? item.status : 'active'
-        })));
+        setCommonQueries(data || []);
       } catch (error) {
         console.error("Error fetching common queries:", error);
         setCommonQueries([]);
@@ -99,7 +123,7 @@ export const useClientDashboard = () => {
           .limit(5);
 
         if (error) throw error;
-        setErrorLogs(data);
+        setErrorLogs(data || []);
       } catch (error) {
         console.error("Error fetching error logs:", error);
         setErrorLogs([]);

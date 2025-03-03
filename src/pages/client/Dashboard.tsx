@@ -1,11 +1,11 @@
 
 import React from "react";
 import { useClientDashboard } from "@/hooks/useClientDashboard";
-import { ActivityList } from "@/components/dashboard/ActivityList";
-import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
-import { QueryList } from "@/components/client-dashboard/QueryList";
-import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
 import { Loader2 } from "lucide-react";
+import { DashboardHeader } from "@/components/client-dashboard/DashboardHeader";
+import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
+import { InsightsSection } from "@/components/client-dashboard/InsightsSection";
+import { ActivitySection } from "@/components/client-dashboard/ActivitySection";
 
 const ClientDashboard = () => {
   const { 
@@ -34,32 +34,27 @@ const ClientDashboard = () => {
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">AI Assistant Dashboard</h1>
-        <p className="text-gray-500 mb-8">Monitor your AI assistant's performance and user interactions</p>
+        <DashboardHeader 
+          title="AI Assistant Dashboard" 
+          subtitle="Monitor your AI assistant's performance and user interactions"
+        />
         
         <InteractionStats 
           interactionStats={interactionStats || { total: 0, successRate: 0, averagePerDay: 0 }}
           isLoading={isLoadingStats}
         />
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <QueryList 
-            queries={commonQueries} 
-            isLoading={isLoadingQueries} 
-          />
-          
-          <ErrorLogList 
-            logs={errorLogs} 
-            isLoading={isLoadingErrors} 
-          />
-        </div>
+        <InsightsSection 
+          queries={commonQueries} 
+          isLoadingQueries={isLoadingQueries}
+          errorLogs={errorLogs}
+          isLoadingErrors={isLoadingErrors}
+        />
         
-        <div className="grid grid-cols-1 gap-6">
-          <ActivityList 
-            activities={activities} 
-            isLoading={isLoadingActivities} 
-          />
-        </div>
+        <ActivitySection 
+          activities={activities}
+          isLoading={isLoadingActivities}
+        />
       </div>
     </div>
   );
