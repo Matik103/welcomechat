@@ -1,89 +1,92 @@
 
-import React from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
-import { AuthProvider } from "./contexts/AuthContext";
-import Auth from "./pages/Auth";
-import { RoleRoute } from "./components/auth/RoleRoute";
-import { ClientLayout } from "./components/layout/ClientLayout";
-import ClientSetup from "./pages/client/Setup";
-import ClientDashboard from "./pages/client/Dashboard";
-import ClientEdit from "./pages/client/Edit";
-import ClientWidgetSettings from "./pages/client/WidgetSettings";
-import ClientView from "./pages/ClientView";
-import ClientSettings from "./pages/client/Settings";
-
-const queryClient = new QueryClient();
+import { Header } from "@/components/layout/Header";
+import { ClientHeader } from "@/components/layout/ClientHeader";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import Auth from "@/pages/Auth";
+import Index from "@/pages/Index";
+import ClientList from "@/pages/ClientList";
+import Settings from "@/pages/Settings";
+import ClientView from "@/pages/ClientView";
+import AddEditClient from "@/pages/AddEditClient";
+import WidgetSettings from "@/pages/WidgetSettings";
+import { RoleRoute } from "@/components/auth/RoleRoute";
+import { useAuth } from "./contexts/AuthContext";
+import ClientSettings from "@/pages/client/Settings";
+import ClientDashboard from "@/pages/client/Dashboard";
+import ClientSetup from "@/pages/client/Setup";
+import { useEffect, useState } from "react";
 
 function App() {
+  const { isLoading, user } = useAuth();
+  const location = useLocation();
+  const [showLoader, setShowLoader] = useState(true);
+  
+  // Set a timeout to prevent infinite loading
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setShowLoader(false);
+      }, 5000); // Show loader for max 5 seconds
+      
+      return () => clearTimeout(timer);
+    } else {
+      setShowLoader(false);
+    }
+  }, [isLoading]);
+
+  // Check if this is a public route
+  const isPublicRoute = 
+    location.pathname === '/auth' || 
+    location.pathname.startsWith('/client/setup');
+  
+  // Show loading spinner only for a brief moment while checking auth
+  if (isLoading && showLoader) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
+          <p className="text-sm text-gray-500">Loading your application...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If loading timed out or finished, and no user, and not on a public route, redirect to auth
+  if ((!isLoading || !showLoader) && !user && !isPublicRoute) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Client routes use ClientHeader, admin routes use Header
+  const isClientRoute = location.pathname.startsWith('/client');
+
   return (
-    <Router>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            
-            <Route
-              path="/clients/:id"
-              element={
-                <RoleRoute allowedRoles={["admin"]}>
-                  <ClientView />
-                </RoleRoute>
-              }
-            />
-            
-            <Route path="/client/setup" element={<ClientSetup />} />
-            
-            <Route
-              path="/client/view"
-              element={
-                <RoleRoute allowedRoles={["client"]}>
-                  <ClientLayout>
-                    <ClientDashboard />
-                  </ClientLayout>
-                </RoleRoute>
-              }
-            />
-            
-            <Route
-              path="/client/settings"
-              element={
-                <RoleRoute allowedRoles={["client"]}>
-                  <ClientLayout>
-                    <ClientSettings />
-                  </ClientLayout>
-                </RoleRoute>
-              }
-            />
-            
-            <Route
-              path="/client/edit"
-              element={
-                <RoleRoute allowedRoles={["client"]}>
-                  <ClientLayout>
-                    <ClientEdit />
-                  </ClientLayout>
-                </RoleRoute>
-              }
-            />
-            
-            <Route
-              path="/client/widget/settings"
-              element={
-                <RoleRoute allowedRoles={["client"]}>
-                  <ClientLayout>
-                    <ClientWidgetSettings />
-                  </ClientLayout>
-                </RoleRoute>
-              }
-            />
-            
-          </Routes>
-          <Toaster position="top-right" />
-        </AuthProvider>
-      </QueryClientProvider>
-    </Router>
+    <div className="min-h-screen bg-background">
+      {isClientRoute ? <ClientHeader /> : <Header />}
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/client/setup" element={<ClientSetup />} />
+        
+        {/* Admin Routes */}
+        <Route path="/" element={<Index />} />
+        <Route path="/admin/clients" element={<ClientList />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/admin/clients/new" element={<AddEditClient />} />
+        <Route path="/admin/clients/:id" element={<ClientView />} />
+        <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
+        <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
+        
+        {/* Client Routes */}
+        <Route path="/client/view" element={<ClientDashboard />} />
+        <Route path="/client/settings" element={<ClientSettings />} />
+        <Route path="/client/edit" element={<AddEditClient />} />
+        <Route path="/client/widget-settings" element={<WidgetSettings />} />
+        
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Toaster />
+    </div>
   );
 }
 

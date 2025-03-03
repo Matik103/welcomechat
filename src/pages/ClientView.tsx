@@ -1,21 +1,136 @@
 
-import React from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useClientView } from "@/hooks/useClientView";
-import { ClientInfo } from "@/components/client-view/ClientInfo";
-import { CommonQueriesTable } from "@/components/client-view/CommonQueriesTable";
-import { ChatHistoryTable } from "@/components/client-view/ChatHistoryTable";
-import { ErrorLogsTable } from "@/components/client-view/ErrorLogsTable";
+import { Link, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ChatInteraction } from "@/types/agent";
+
+interface ChatRecord {
+  id: number;
+  content: string;
+  metadata: {
+    timestamp: string;
+    user_message: string;
+    type: string;
+  };
+}
 
 const ClientView = () => {
-  const { 
-    client, 
-    isLoadingClient, 
-    chatHistory, 
-    commonQueries, 
-    errorLogs 
-  } = useClientView();
+  const { id } = useParams();
+
+  const { data: client, isLoading: isLoadingClient } = useQuery({
+    queryKey: ["client", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Query the AI agent's vector table for chat history
+  const { data: chatHistory } = useQuery<ChatInteraction[]>({
+    queryKey: ["chat-history", client?.agent_name],
+    queryFn: async (): Promise<ChatInteraction[]> => {
+      if (!client?.agent_name) return [];
+      
+      try {
+        // Use table select based on agent name
+        let query;
+        switch (client.agent_name.toLowerCase()) {
+          case 'coca cola':
+            query = supabase.from('coca_cola');
+            break;
+          case 'the agent':
+            query = supabase.from('the_agent');
+            break;
+          case 'ai agent':
+            query = supabase.from('ai_agent');
+            break;
+          default:
+            console.error('Unknown agent type:', client.agent_name);
+            return [];
+        }
+        
+        const { data: chatData, error } = await query
+          .select('id, content, metadata')
+          .eq('metadata->>type', 'chat_interaction')
+          .order('id', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error("Error fetching chat history:", error);
+          return [];
+        }
+
+        // Transform and validate the data
+        return (chatData || []).map(row => ({
+          id: Number(row.id),
+          content: row.content || '',
+          metadata: {
+            timestamp: row.metadata?.timestamp || new Date().toISOString(),
+            user_message: row.metadata?.user_message || '',
+            type: row.metadata?.type || 'chat_interaction'
+          }
+        }));
+      } catch (error) {
+        console.error("Error in chat history query:", error);
+        return [];
+      }
+    },
+    enabled: !!client?.agent_name,
+  });
+
+  // Query common end-user questions
+  const { data: commonQueries } = useQuery({
+    queryKey: ["common-queries", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("common_queries")
+        .select("*")
+        .eq("client_id", id)
+        .order("frequency", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  // Query error logs for chatbot issues
+  const { data: errorLogs } = useQuery({
+    queryKey: ["error-logs", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("error_logs")
+        .select("*")
+        .eq("client_id", id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
 
   if (isLoadingClient) {
     return (
@@ -41,6 +156,12 @@ const ClientView = () => {
     );
   }
 
+  const getLastInteractionTime = () => {
+    if (!chatHistory?.length) return 'No interactions yet';
+    const lastChat = chatHistory[0];
+    return format(new Date(lastChat.metadata.timestamp), 'PPP');
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -58,10 +179,147 @@ const ClientView = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ClientInfo client={client} chatHistory={chatHistory} />
-          <CommonQueriesTable commonQueries={commonQueries} />
-          <ChatHistoryTable chatHistory={chatHistory} />
-          <ErrorLogsTable errorLogs={errorLogs} />
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Agent Configuration</CardTitle>
+              <CardDescription>Settings and basic information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">AI Agent Name</p>
+                <p className="font-medium">{client.agent_name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Client Email</p>
+                <p className="font-medium">{client.email}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">AI Agent Status</p>
+                <span
+                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                    client.status === "active"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {client.status || "active"}
+                </span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Last Chat Interaction</p>
+                <p className="font-medium">{getLastInteractionTime()}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>End-User Questions</CardTitle>
+              <CardDescription>Most frequently asked questions by end-users</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {commonQueries?.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>End-User Question</TableHead>
+                      <TableHead className="text-right">Times Asked</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {commonQueries.map((query) => (
+                      <TableRow key={query.id}>
+                        <TableCell>{query.query_text}</TableCell>
+                        <TableCell className="text-right">{query.frequency}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No end-user questions recorded yet</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Chat History</CardTitle>
+              <CardDescription>Recent conversations between end-users and the AI chatbot</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chatHistory?.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>User Message</TableHead>
+                      <TableHead>AI Response</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {chatHistory.map((chat) => (
+                      <TableRow key={chat.id}>
+                        <TableCell>
+                          {format(new Date(chat.metadata.timestamp), 'PP')}
+                        </TableCell>
+                        <TableCell>{chat.metadata.user_message}</TableCell>
+                        <TableCell>{chat.content}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No chat history available yet</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Chatbot Issues</CardTitle>
+              <CardDescription>Errors encountered during end-user conversations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {errorLogs?.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Error Type</TableHead>
+                      <TableHead>Error Details</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {errorLogs.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell>
+                          {format(new Date(log.created_at!), 'PP')}
+                        </TableCell>
+                        <TableCell>
+                          <span className="capitalize">{log.error_type}</span>
+                        </TableCell>
+                        <TableCell>{log.message}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              log.status === "resolved"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {log.status || "pending"}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No chatbot issues reported</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
