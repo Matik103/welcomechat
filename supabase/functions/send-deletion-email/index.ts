@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,7 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
   
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
   try {
     console.log("Function invoked with method:", req.method);
@@ -43,30 +45,29 @@ serve(async (req) => {
 
     // Use Resend for email
     try {
-      const { error: emailError } = await supabase.functions.invoke("send-email", {
-        body: {
-          to: email,
-          subject: "Account Deletion Notice",
-          html: `
-            <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-                <h1>Account Deletion Notice</h1>
-                <p>Dear ${clientName},</p>
-                <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
-                <p>If this was done in error, you can contact support to cancel the deletion process.</p>
-                <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
-                <p>Best regards,<br>AI Assistant Team</p>
-              </body>
-            </html>
-          `
-        },
+      const { data, error: emailError } = await resend.emails.send({
+        from: "AI Assistant <admin@welcome.chat>", // Updated from address
+        to: email,
+        subject: "Account Deletion Notice",
+        html: `
+          <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+              <h1>Account Deletion Notice</h1>
+              <p>Dear ${clientName},</p>
+              <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
+              <p>If this was done in error, you can contact support to cancel the deletion process.</p>
+              <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
+              <p>Best regards,<br>AI Assistant Team</p>
+            </body>
+          </html>
+        `
       });
 
       if (emailError) {
         throw new Error(`Error sending email: ${emailError.message}`);
       }
 
-      console.log("Email sent successfully");
+      console.log("Email sent successfully", data);
     } catch (error: any) {
       console.error("Error sending email:", error);
       throw new Error(`Failed to send email: ${error.message}`);

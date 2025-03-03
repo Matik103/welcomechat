@@ -94,7 +94,8 @@ export const useClientData = (id: string | undefined) => {
               body: {
                 to: newClient.email,
                 subject: `Welcome to ${newClient.client_name} AI Assistant!`,
-                html: emailContent
+                html: emailContent,
+                from: "AI Assistant <admin@welcome.chat>" // Updated from address
               }
             });
             
