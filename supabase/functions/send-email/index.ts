@@ -41,7 +41,7 @@ serve(async (req) => {
     
     // Send the email
     const { data, error } = await resend.emails.send({
-      from: from || "AI Assistant <admin@welcome.chat>", // Updated default from address
+      from: from || "Welcome.Chat <admin@welcome.chat>",
       to: to,
       subject: subject,
       html: html

@@ -80,7 +80,7 @@ serve(async (req) => {
     // Send the invitation email with Welcome.Chat sender
     try {
       const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "AI Assistant <admin@welcome.chat>",
+        from: "Welcome.Chat <admin@welcome.chat>",
         to: email,
         subject: `${clientName} AI Assistant - Account Setup`,
         html: `

@@ -30,6 +30,27 @@ export type Database = {
         }
         Relationships: []
       }
+      airtable: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       asd: {
         Row: {
           content: string | null
@@ -991,6 +1012,19 @@ export type Database = {
             Returns: unknown
           }
       match_ai_agent: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_airtable: {
         Args: {
           query_embedding: string
           match_count?: number

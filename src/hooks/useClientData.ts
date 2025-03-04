@@ -76,7 +76,6 @@ export const useClientData = (id: string | undefined) => {
             console.log("Sending invitation to new client:", newClient.email);
             
             // Generate setup URL for the email body
-            const baseUrl = window.location.origin;
             const emailContent = `
               <html>
                 <body style="font-family: Arial, sans-serif; line-height: 1.6;">
@@ -84,7 +83,7 @@ export const useClientData = (id: string | undefined) => {
                   <p>Hello,</p>
                   <p>Your account has been created for ${newClient.client_name}.</p>
                   <p>You will receive a separate email shortly with instructions to set up your dashboard.</p>
-                  <p>Best regards,<br>AI Assistant Team</p>
+                  <p>Best regards,<br>Welcome.Chat Team</p>
                 </body>
               </html>
             `;
@@ -95,7 +94,7 @@ export const useClientData = (id: string | undefined) => {
                 to: newClient.email,
                 subject: `Welcome to ${newClient.client_name} AI Assistant!`,
                 html: emailContent,
-                from: "AI Assistant <admin@welcome.chat>" // Updated from address
+                from: "Welcome.Chat <admin@welcome.chat>"
               }
             });
             
