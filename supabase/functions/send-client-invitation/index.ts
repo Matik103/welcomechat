@@ -27,19 +27,25 @@ serve(async (req) => {
   try {
     console.log("Send client invitation function started");
     
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    if (!resend) {
+    // Initialize Resend for email sending
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
       throw new Error("Resend API key not configured");
     }
     
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
+    const resend = new Resend(resendApiKey);
+    
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Supabase credentials are not properly configured");
     }
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Parse request body
     const body: InvitationRequest = await req.json();
     
     const { clientId, email, clientName } = body;
@@ -48,32 +54,83 @@ serve(async (req) => {
       throw new Error("Missing required parameters");
     }
     
-    // Generate a secure random token
-    const token = crypto.randomUUID();
+    console.log(`Processing invitation for client: ${clientName}, email: ${email}`);
     
-    // Set expiration date (24 hours from now)
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
-    
-    // Save the invitation in the database
-    const { error: insertError } = await supabase
+    // Check if there's an existing pending invitation
+    const { data: existingInvitation, error: checkError } = await supabase
       .from("client_invitations")
-      .insert({
-        client_id: clientId,
-        email: email,
-        token: token,
-        status: "pending",
-        expires_at: expiresAt.toISOString()
-      });
-    
-    if (insertError) {
-      console.error("Error inserting invitation:", insertError);
-      throw new Error("Failed to create invitation record");
+      .select("*")
+      .eq("client_id", clientId)
+      .eq("email", email)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Error checking existing invitation:", checkError);
+    }
+
+    let token;
+    let invitationUrl;
+    let expiresAt;
+
+    if (existingInvitation) {
+      // Use existing invitation if it hasn't expired
+      const currentTime = new Date();
+      const expirationTime = new Date(existingInvitation.expires_at);
+      
+      if (expirationTime > currentTime) {
+        console.log("Using existing invitation that hasn't expired yet");
+        token = existingInvitation.token;
+        expiresAt = existingInvitation.expires_at;
+      } else {
+        // Generate a new token if the existing one is expired
+        token = crypto.randomUUID();
+        expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
+
+        // Update the existing invitation
+        const { error: updateError } = await supabase
+          .from("client_invitations")
+          .update({
+            token: token,
+            status: "pending",
+            expires_at: expiresAt.toISOString()
+          })
+          .eq("id", existingInvitation.id);
+
+        if (updateError) {
+          console.error("Error updating invitation:", updateError);
+          throw new Error("Failed to update invitation record");
+        }
+      }
+    } else {
+      // Generate a secure random token
+      token = crypto.randomUUID();
+      
+      // Set expiration date (24 hours from now)
+      expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+      
+      // Save the invitation in the database
+      const { error: insertError } = await supabase
+        .from("client_invitations")
+        .insert({
+          client_id: clientId,
+          email: email,
+          token: token,
+          status: "pending",
+          expires_at: expiresAt.toISOString()
+        });
+      
+      if (insertError) {
+        console.error("Error inserting invitation:", insertError);
+        throw new Error("Failed to create invitation record");
+      }
     }
     
     // Generate the invitation URL with the token
     const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "http://localhost:5173";
-    const invitationUrl = `${baseUrl}/client/setup?token=${token}`;
+    invitationUrl = `${baseUrl}/client/setup?token=${token}`;
     
     console.log("Generated invitation URL:", invitationUrl);
     
