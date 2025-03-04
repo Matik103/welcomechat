@@ -77,10 +77,10 @@ serve(async (req) => {
     
     console.log("Generated invitation URL:", invitationUrl);
     
-    // Send the invitation email
+    // Send the invitation email with Welcome.Chat sender
     try {
       const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "AI Assistant <admin@welcome.chat>", // Updated from address
+        from: "AI Assistant <admin@welcome.chat>",
         to: email,
         subject: `${clientName} AI Assistant - Account Setup`,
         html: `
@@ -94,7 +94,7 @@ serve(async (req) => {
               </p>
               <p>This link will expire in 24 hours.</p>
               <p>If you didn't request this invitation, please ignore this email.</p>
-              <p>Best regards,<br>AI Assistant Team</p>
+              <p>Best regards,<br>Welcome.Chat Team</p>
             </body>
           </html>
         `

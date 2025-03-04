@@ -126,14 +126,16 @@ const ClientSetup = () => {
       if (updateError) throw updateError;
 
       // Create user role for the client
-      await supabase.from("user_roles").insert({
+      const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: signUpData.user!.id,
         role: "client"
       });
 
+      if (roleError) throw roleError;
+
       toast.success("Account created successfully! Redirecting to dashboard...");
       
-      // Allow time for toast to be seen
+      // Allow time for toast to be seen then redirect to client dashboard
       setTimeout(() => {
         navigate("/client/view");
       }, 2000);
