@@ -3,9 +3,9 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useClientDashboard, InteractionStats } from "@/hooks/useClientDashboard";
-import InteractionStatsComponent from "@/components/client-dashboard/InteractionStats";
-import QueryList from "@/components/client-dashboard/QueryList";
-import ErrorLogList from "@/components/client-dashboard/ErrorLogList";
+import { InteractionStats as InteractionStatsComponent } from "@/components/client-dashboard/InteractionStats";
+import { QueryList } from "@/components/client-dashboard/QueryList";
+import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface DashboardSectionProps {
@@ -53,21 +53,30 @@ const ClientDashboard = () => {
           title="Interaction Statistics"
           description="Overview of your AI Assistant usage"
         >
-          <InteractionStatsComponent stats={interactionStats} />
+          <InteractionStatsComponent 
+            interactionStats={interactionStats} 
+            isLoading={isLoading} 
+          />
         </DashboardSection>
 
         <DashboardSection
           title="Common Queries"
           description="Most frequently asked questions"
         >
-          <QueryList queries={commonQueries || []} />
+          <QueryList 
+            queries={commonQueries || []} 
+            isLoading={isLoading} 
+          />
         </DashboardSection>
 
         <DashboardSection
           title="Recent Errors"
           description="Issues that occurred with your AI Assistant"
         >
-          <ErrorLogList errors={errorLogs || []} />
+          <ErrorLogList 
+            logs={errorLogs || []} 
+            isLoading={isLoading} 
+          />
         </DashboardSection>
       </div>
     </div>

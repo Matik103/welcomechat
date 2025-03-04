@@ -1,7 +1,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ClientStats } from "@/types/client";
+
+export interface ClientStats {
+  totalClients: number;
+  activeClients: number;
+  totalInteractions: number;
+  recentActivity: { id: string; name: string; lastActive: string }[];
+}
 
 export interface InteractionStats {
   total: number;
@@ -13,7 +19,7 @@ export interface CommonQuery {
   id: string;
   query_text: string;
   frequency: number;
-  last_asked: string;
+  last_asked?: string; // Making this optional
 }
 
 export interface ErrorLog {
@@ -45,7 +51,7 @@ export const useClientDashboard = () => {
         totalClients: (data || []).length,
         activeClients: (data || []).filter(c => c.last_active).length,
         totalInteractions: (data || []).reduce((sum, client) => {
-          const usage = client.monthly_usage || [];
+          const usage = Array.isArray(client.monthly_usage) ? client.monthly_usage : [];
           return sum + usage.reduce((s, m) => s + (m.total_interactions || 0), 0);
         }, 0),
         recentActivity: (data || []).map(client => ({
@@ -60,17 +66,23 @@ export const useClientDashboard = () => {
   const { data: interactionStats, isLoading: isLoadingInteractionStats } = useQuery({
     queryKey: ["interaction-stats"],
     queryFn: async (): Promise<InteractionStats> => {
-      // Using a direct SQL query via RPC since we don't have an interaction_stats table
+      // Using a direct SQL function call
       const { data, error } = await supabase
-        .rpc('get_interaction_stats');
+        .rpc('get_interaction_stats_for_client');
 
       if (error) throw error;
 
       // Ensure data has the correct structure
+      const result = data as { total: number; success_rate: number; average_per_day: number } || {
+        total: 0,
+        success_rate: 0,
+        average_per_day: 0
+      };
+      
       return {
-        total: data?.total || 0,
-        successRate: data?.success_rate || 0,
-        averagePerDay: data?.average_per_day || 0
+        total: result.total || 0,
+        successRate: result.success_rate || 0,
+        averagePerDay: result.average_per_day || 0
       };
     }
   });
@@ -85,7 +97,14 @@ export const useClientDashboard = () => {
         .limit(5);
 
       if (error) throw error;
-      return data || [];
+      
+      // Transform to match CommonQuery interface
+      return (data || []).map(item => ({
+        id: item.id,
+        query_text: item.query_text,
+        frequency: item.frequency,
+        last_asked: item.updated_at // Use updated_at as last_asked
+      }));
     }
   });
 
