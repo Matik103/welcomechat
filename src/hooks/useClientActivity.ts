@@ -22,10 +22,15 @@ export const useClientActivity = (clientId: string | undefined) => {
           dbActivityType = "client_updated";
           
           // Store the original activity type in metadata for reference
+          // Make sure metadata is an object before spreading
+          const metadataObj = typeof metadata === 'object' && metadata !== null 
+            ? metadata 
+            : {};
+            
           metadata = {
-            ...metadata,
+            ...metadataObj,
             original_activity_type: activity_type
-          };
+          } as Json;
           break;
         default:
           // For all other cases, use the activity type directly

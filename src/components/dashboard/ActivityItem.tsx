@@ -18,8 +18,12 @@ interface ActivityItemProps {
 }
 
 const getActivityIcon = (type: string, metadata: Json) => {
-  // Check if there's an original activity type in metadata
-  const originalType = metadata?.original_activity_type as string | undefined;
+  // Safely check if there's an original activity type in metadata
+  const originalType = metadata && 
+    typeof metadata === 'object' && 
+    'original_activity_type' in metadata ? 
+    metadata.original_activity_type as string : 
+    undefined;
   
   // Use the original type if it exists, otherwise use the provided type
   const activityType = originalType || type;
