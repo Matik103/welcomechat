@@ -27,17 +27,23 @@ serve(async (req) => {
   try {
     console.log("Send email function started");
     
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    if (!resend) {
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      console.error("Resend API key not configured");
       throw new Error("Resend API key not configured");
     }
+    
+    const resend = new Resend(resendApiKey);
     
     const body: EmailRequest = await req.json();
     const { to, subject, html, from } = body;
     
     if (!to || !subject || !html) {
+      console.error("Missing required parameters:", { to, subject, htmlProvided: !!html });
       throw new Error("Missing required parameters: to, subject, or html");
     }
+    
+    console.log(`Attempting to send email to: ${to}`);
     
     // Send the email
     const { data, error } = await resend.emails.send({
@@ -68,7 +74,8 @@ serve(async (req) => {
     console.error("Error in send-email function:", error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || "Failed to send email" 
+        error: error.message || "Failed to send email",
+        details: typeof error === 'object' ? JSON.stringify(error) : 'Unknown error'
       }), 
       {
         status: 500,
