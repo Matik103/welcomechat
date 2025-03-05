@@ -23,25 +23,29 @@ export const ClientDetails = ({
   const { clientMutation } = useClientData(clientId);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
-    await clientMutation.mutateAsync(data);
-    
-    // Log client information update activity
-    if (isClientView) {
-      await logClientActivity(
-        "client_updated", 
-        "updated their client information",
-        { 
-          updated_fields: Object.keys(data).filter(key => 
-            client && data[key as keyof typeof data] !== client[key as keyof typeof client]
-          )
-        }
-      );
-    }
-    
-    if (isClientView) {
-      navigate("/client/view");
-    } else {
-      navigate("/admin/clients");
+    try {
+      await clientMutation.mutateAsync(data);
+      
+      // Log client information update activity
+      if (clientId && isClientView) {
+        await logClientActivity(
+          "client_updated", 
+          "updated their client information",
+          { 
+            updated_fields: Object.keys(data).filter(key => 
+              client && data[key as keyof typeof data] !== client[key as keyof typeof client]
+            )
+          }
+        );
+      }
+      
+      if (isClientView) {
+        navigate("/client/view");
+      } else {
+        navigate("/admin/clients");
+      }
+    } catch (error) {
+      console.error("Error submitting client form:", error);
     }
   };
 

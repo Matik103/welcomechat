@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
 import { useClientData } from "@/hooks/useClientData";
+import { Label } from "@/components/ui/label";
 
 interface ClientFormProps {
   initialData?: Client | null;
@@ -61,9 +62,9 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-2">
-        <label htmlFor="client_name" className="text-sm font-medium text-gray-900">
+        <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name
-        </label>
+        </Label>
         <Input
           id="client_name"
           {...register("client_name")}
@@ -75,9 +76,9 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium text-gray-900">
+        <Label htmlFor="email" className="text-sm font-medium text-gray-900">
           Email Address
-        </label>
+        </Label>
         <Input
           id="email"
           type="email"
@@ -90,9 +91,9 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="agent_name" className="text-sm font-medium text-gray-900">
+        <Label htmlFor="agent_name" className="text-sm font-medium text-gray-900">
           AI Agent Name
-        </label>
+        </Label>
         <Input
           id="agent_name"
           {...register("agent_name")}
