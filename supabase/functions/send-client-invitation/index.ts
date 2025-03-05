@@ -65,6 +65,8 @@ serve(async (req) => {
     console.log(`Generated password: ${password.substring(0, 3)}***`); // Log partially obscured password for security
     
     // Important: Create or update user BEFORE sending email
+    let authSuccess = false;
+    
     try {
       // First check if user exists
       const { data: existingUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
@@ -90,6 +92,7 @@ serve(async (req) => {
           throw updateError;
         }
         console.log("Password updated successfully for existing user");
+        authSuccess = true;
       } else {
         console.log("User doesn't exist, creating new user...");
         // Create new user with the generated password
@@ -112,10 +115,15 @@ serve(async (req) => {
         }
         
         console.log("New user created successfully with password");
+        authSuccess = true;
       }
     } catch (authError) {
       console.error("Error in authentication process:", authError);
       throw authError;
+    }
+    
+    if (!authSuccess) {
+      throw new Error("Failed to create or update user authentication");
     }
     
     // Updated email content with dashboard link and login credentials

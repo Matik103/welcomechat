@@ -128,6 +128,8 @@ export const useClientData = (id: string | undefined) => {
     clientName: string
   ) => {
     try {
+      console.log("Sending client invitation for:", id, email, clientName);
+      
       const { data, error } = await supabase.functions.invoke(
         "send-client-invitation",
         {
@@ -139,14 +141,27 @@ export const useClientData = (id: string | undefined) => {
         }
       );
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error from edge function:", error);
+        throw error;
+      }
+
+      if (!data || !data.success) {
+        console.error("Invitation failed but no error returned:", data);
+        throw new Error("Failed to send invitation - no success response");
+      }
 
       if (data.password) {
-        console.log("Marking client as having received credentials...");
-        await supabase
+        console.log("Invitation sent successfully, updating client record");
+        const { error: updateError } = await supabase
           .from("clients")
           .update({ last_active: new Date().toISOString() })
           .eq("id", id);
+          
+        if (updateError) {
+          console.error("Error updating client record:", updateError);
+          // Not throwing here as the invitation was sent successfully
+        }
       }
 
       toast.success("Invitation sent successfully!");
