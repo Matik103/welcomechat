@@ -87,28 +87,9 @@ export const useClientData = (id: string | undefined) => {
           try {
             toast.info("Sending setup email...");
             
-            let password;
             try {
-              const { data: passwordData, error: passwordError } = await supabase.functions.invoke("generate-client-password", {
-                body: {
-                  clientId: newClient.id,
-                  email: newClient.email
-                }
-              });
-              
-              if (passwordError) {
-                console.error("Error generating password:", passwordError);
-                throw new Error(`Password generation failed: ${passwordError.message}`);
-              }
-              
-              console.log("Password generation response:", passwordData);
-            } catch (passwordGenError) {
-              console.error("Exception in password generation:", passwordGenError);
-              // Continue with the process even if password generation fails
-            }
-            
-            try {
-              // Send our custom invitation email which also handles the Supabase invitation
+              // Send our custom invitation email with login credentials
+              console.log("Calling send-client-invitation edge function");
               const { data: inviteData, error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
                 body: {
                   clientId: newClient.id,
@@ -124,20 +105,46 @@ export const useClientData = (id: string | undefined) => {
                 console.error("Invite function returned error:", inviteData.error);
                 toast.error(`Failed to send setup email: ${inviteData.error}`);
               } else {
+                console.log("Invitation response:", inviteData);
                 toast.success("Setup email sent to client");
               }
-            } catch (inviteError: any) {
+            } catch (inviteError) {
               console.error("Exception in invitation process:", inviteError);
               toast.error(`Failed to send setup email: ${inviteError.message || "Unknown error"}`);
+              
+              // Fallback to using general send-email function if send-client-invitation fails
+              try {
+                const { data: emailData, error: emailError } = await supabase.functions.invoke("send-email", {
+                  body: {
+                    to: newClient.email,
+                    subject: "Welcome to Welcome.Chat",
+                    html: `
+                      <h1>Welcome to Welcome.Chat!</h1>
+                      <p>Your account has been created. You'll receive a separate email with login instructions.</p>
+                      <p>You can access your dashboard at: ${window.location.origin}/client/view</p>
+                      <p>Thank you,<br>The Welcome.Chat Team</p>
+                    `
+                  }
+                });
+                
+                if (emailError) {
+                  console.error("Error sending fallback email:", emailError);
+                } else {
+                  console.log("Fallback email sent successfully:", emailData);
+                  toast.success("Setup email sent to client (basic version)");
+                }
+              } catch (fallbackError) {
+                console.error("Failed to send fallback email:", fallbackError);
+              }
             }
-          } catch (setupError: any) {
+          } catch (setupError) {
             console.error("Error in client setup process:", setupError);
             toast.error(`Error during client setup: ${setupError.message || "Unknown error"}`);
           }
 
           return newClient.id;
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error in client mutation:", error);
         throw new Error(error.message || "Failed to save client");
       }
@@ -149,7 +156,7 @@ export const useClientData = (id: string | undefined) => {
         toast.success("Client created successfully");
       }
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error(`Error: ${error.message}`);
     },
   });
@@ -158,31 +165,61 @@ export const useClientData = (id: string | undefined) => {
     try {
       toast.info("Sending setup email...");
       
-      // Send our custom invitation which also handles the Supabase invitation on the server side
-      const { data, error } = await supabase.functions.invoke("send-client-invitation", {
-        body: {
-          clientId,
-          email,
-          clientName
+      console.log("Sending invitation for client:", clientId, email, clientName);
+      
+      // Try with the specific client invitation edge function
+      try {
+        const { data, error } = await supabase.functions.invoke("send-client-invitation", {
+          body: {
+            clientId,
+            email,
+            clientName
+          }
+        });
+        
+        if (error) {
+          console.error("Error sending invitation:", error);
+          throw error;
         }
-      });
-      
-      if (error) {
-        console.error("Error sending invitation:", error);
-        toast.error(`Failed to send setup email: ${error.message}`);
-        throw error;
+        
+        if (data?.error) {
+          console.error("Function returned error:", data.error);
+          throw new Error(data.error);
+        }
+        
+        console.log("Invitation response:", data);
+        toast.success("Setup email sent to client");
+        return true;
+      } catch (primaryError) {
+        console.error("Primary invitation method failed:", primaryError);
+        
+        // Fallback to generic email function
+        toast.info("Trying alternative method...");
+        
+        const { data: emailData, error: emailError } = await supabase.functions.invoke("send-email", {
+          body: {
+            to: email,
+            subject: "Welcome to Welcome.Chat",
+            html: `
+              <h1>Welcome to Welcome.Chat!</h1>
+              <p>Your account has been created.</p>
+              <p>You can access your dashboard at: ${window.location.origin}/client/view</p>
+              <p>Thank you,<br>The Welcome.Chat Team</p>
+            `
+          }
+        });
+        
+        if (emailError) {
+          console.error("Error sending fallback email:", emailError);
+          throw emailError;
+        }
+        
+        console.log("Fallback email sent successfully:", emailData);
+        toast.success("Basic setup email sent to client");
+        return true;
       }
-      
-      if (data?.error) {
-        console.error("Function returned error:", data.error);
-        toast.error(`Failed to send setup email: ${data.error}`);
-        throw new Error(data.error);
-      }
-      
-      toast.success("Setup email sent to client");
-      return true;
-    } catch (error: any) {
-      console.error("Exception in invitation process:", error);
+    } catch (error) {
+      console.error("All invitation methods failed:", error);
       toast.error(`Error: ${error.message || "Failed to send setup email"}`);
       throw error;
     }

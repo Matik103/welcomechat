@@ -39,13 +39,23 @@ serve(async (req) => {
     const resend = new Resend(resendApiKey);
     
     // Parse request body
-    const { clientId, email, clientName }: InvitationRequest = await req.json();
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log("Request body received:", JSON.stringify(requestBody));
+    } catch (parseError) {
+      console.error("Failed to parse request body:", parseError);
+      throw new Error("Invalid request format");
+    }
+    
+    const { clientId, email, clientName } = requestBody as InvitationRequest;
     
     if (!clientId || !email) {
+      console.error("Missing required parameters:", { clientId, email });
       throw new Error("Missing required parameters: clientId and email are required");
     }
     
-    console.log(`Sending invitation to client: ${clientName || 'Unknown'} (${email})`);
+    console.log(`Sending invitation to client: ${clientName || 'Unknown'} (${email}), ID: ${clientId}`);
     
     // Generate the dashboard URL - where clients will access their dashboard
     const origin = req.headers.get("origin") || "https://welcome.chat";
@@ -64,6 +74,11 @@ serve(async (req) => {
         }
       }
     );
+    
+    if (!supabaseAdmin) {
+      console.error("Failed to initialize Supabase admin client");
+      throw new Error("Failed to initialize Supabase client");
+    }
     
     // Try to send Supabase built-in invitation
     let supabaseInviteSuccessful = false;
@@ -185,7 +200,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error in send-client-invitation function:", error);
     
     // Always return 200 status to avoid frontend throwing non-2xx errors
