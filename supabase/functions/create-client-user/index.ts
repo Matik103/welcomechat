@@ -70,7 +70,7 @@ serve(async (req) => {
       }
     )
 
-    const { email, clientName, aiAgentName, password: providedPassword } = await req.json()
+    const { email, clientName, aiAgentName } = await req.json()
     console.log('Received request for:', email);
 
     // Check if user already exists
@@ -101,13 +101,12 @@ serve(async (req) => {
         );
       }
     } else {
-      // Create the user with provided password or generated one
-      const generatedPassword = providedPassword || crypto.randomUUID();
+      // Create the user
       console.log('Creating new user account...');
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         email_confirm: true,
-        password: generatedPassword, // Use generated or provided password
+        password: crypto.randomUUID(), // Generate a random password
         user_metadata: {
           client_name: clientName
         }

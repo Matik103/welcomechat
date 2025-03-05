@@ -15,14 +15,14 @@ const Settings = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If user is a client, redirect them to client settings
+    // If not admin, redirect to client settings
     if (userRole === 'client') {
       navigate('/client/settings');
       return;
     }
     
     checkAdminStatus();
-  }, [userRole]);
+  }, [userRole, navigate]);
 
   const checkAdminStatus = async () => {
     try {
