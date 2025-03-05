@@ -18,7 +18,7 @@ import ClientSetup from "@/pages/client/Setup";
 import { useEffect, useState } from "react";
 
 function App() {
-  const { isLoading, user } = useAuth();
+  const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
   const [showLoader, setShowLoader] = useState(true);
   
@@ -55,6 +55,21 @@ function App() {
   // If loading timed out or finished, and no user, and not on a public route, redirect to auth
   if ((!isLoading || !showLoader) && !user && !isPublicRoute) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Redirect based on user role
+  if (user && !isLoading && !isPublicRoute) {
+    // If client tries to access admin route or admin tries to access client route
+    const isClientRoute = location.pathname.startsWith('/client') && !location.pathname.startsWith('/client/setup');
+    const isAdminRoute = !location.pathname.startsWith('/client') && location.pathname !== '/auth';
+    
+    if (userRole === 'client' && isAdminRoute) {
+      return <Navigate to="/client/view" replace />;
+    }
+    
+    if (userRole === 'admin' && isClientRoute) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   // Client routes use ClientHeader, admin routes use Header

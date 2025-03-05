@@ -29,13 +29,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('user_roles')
-        .select('role')
+        .select('role, client_id')
         .eq('user_id', userId)
         .maybeSingle();
 
       if (error) {
         console.error("Error checking user role:", error);
         return null;
+      }
+
+      // If user has client_id in user_roles, update user metadata
+      if (data?.client_id && data.role === 'client') {
+        await supabase.auth.updateUser({
+          data: { client_id: data.client_id }
+        });
       }
 
       return data?.role as UserRole || null;
@@ -90,10 +97,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (currentSession?.user) {
             const role = await checkUserRole(currentSession.user.id);
             setUserRole(role);
+            
+            // Redirect based on role after sign in
+            if (event === 'SIGNED_IN') {
+              if (role === 'client') {
+                navigate('/client/view', { replace: true });
+              } else if (role === 'admin') {
+                navigate('/', { replace: true });
+              }
+            }
           } else {
             setUserRole(null);
             // Only navigate to auth if we're not already there and not loading
-            if (!location.pathname.startsWith('/auth') && !isLoading) {
+            if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup') && !isLoading) {
               navigate('/auth', { replace: true });
             }
           }

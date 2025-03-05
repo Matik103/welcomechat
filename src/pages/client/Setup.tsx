@@ -29,15 +29,14 @@ const ClientSetup = () => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        // If user is already logged in and setup is complete, redirect to dashboard
-        if (setupComplete) {
-          navigate("/client/view", { replace: true });
-        }
+        console.log("User already logged in, redirecting to client dashboard");
+        // If user is already logged in, redirect to client dashboard
+        navigate("/client/view", { replace: true });
       }
     };
     
     checkSession();
-  }, [navigate, setupComplete]);
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,8 +98,8 @@ const ClientSetup = () => {
         if (metadataError) throw metadataError;
       }
 
-      toast.success("Account setup successful! Redirecting to dashboard...");
       setSetupComplete(true);
+      toast.success("Account setup successful! Signing you in...");
       
       // Sign in with the new credentials
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -110,7 +109,8 @@ const ClientSetup = () => {
       
       if (signInError) throw signInError;
       
-      // Redirect to client dashboard after successful setup and sign in
+      console.log("Setup complete, redirecting to client dashboard");
+      // Explicitly redirect to client dashboard after successful setup and sign in
       navigate("/client/view", { replace: true });
       
     } catch (error: any) {

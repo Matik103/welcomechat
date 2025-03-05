@@ -45,6 +45,8 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://welcome.chat";
     const setupUrl = `${origin}/client/setup?id=${clientId}`;
     
+    console.log(`Setup URL: ${setupUrl}`);
+    
     // Email content with setup link
     const htmlContent = `
       <h1>Welcome to Welcome.Chat, ${clientName}!</h1>
