@@ -7,14 +7,22 @@ import { SecuritySection } from "@/components/settings/SecuritySection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
 import { AdminSetup } from "@/components/settings/AdminSetup";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
+import { useNavigate } from "react-router-dom";
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // If user is a client, redirect them to client settings
+    if (userRole === 'client') {
+      navigate('/client/settings');
+      return;
+    }
+    
     checkAdminStatus();
-  }, []);
+  }, [userRole]);
 
   const checkAdminStatus = async () => {
     try {
