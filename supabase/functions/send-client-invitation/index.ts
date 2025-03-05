@@ -158,7 +158,7 @@ async function logActivity(supabase: any, clientId: string, email: string, expir
       .from("client_activities")
       .insert({
         client_id: clientId,
-        activity_type: "client_updated", // Using a valid existing activity type
+        activity_type: "client_updated", // Changed from "invitation_sent" to a valid activity type
         description: "Invitation sent to client",
         metadata: {
           email: email,
