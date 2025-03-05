@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
@@ -23,25 +22,31 @@ export const useClientData = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       try {
+        const sanitizedAgentName = data.agent_name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '_');
+        const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+        const updatedData = {
+          ...data,
+          agent_name: finalAgentName,
+        };
+
         if (id) {
-          // Update existing client
           const { error } = await supabase
             .from("clients")
             .update({
-              client_name: data.client_name,
-              email: data.email,
-              agent_name: data.agent_name,
-              widget_settings: data.widget_settings,
+              client_name: updatedData.client_name,
+              email: updatedData.email,
+              agent_name: updatedData.agent_name,
+              widget_settings: updatedData.widget_settings,
             })
             .eq("id", id);
           if (error) throw error;
-          
-          // Log activity for client updates
+
           try {
             const user = await supabase.auth.getUser();
-            // Check if this is a client user updating their own profile
             const isClientUser = user.data.user?.user_metadata?.client_id === id;
-            
             if (isClientUser) {
               await supabase.from("client_activities").insert({
                 client_id: id,
@@ -56,16 +61,15 @@ export const useClientData = (id: string | undefined) => {
           
           return id;
         } else {
-          // Create new client - using proper parameterized query to avoid SQL injection
           const { data: newClients, error } = await supabase
             .from("clients")
-            .insert({
-              client_name: data.client_name,
-              email: data.email,
-              agent_name: data.agent_name,
-              widget_settings: data.widget_settings || {},
+            .insert([{
+              client_name: updatedData.client_name,
+              email: updatedData.email,
+              agent_name: updatedData.agent_name,
+              widget_settings: updatedData.widget_settings || {},
               status: 'active'
-            })
+            }])
             .select('*');
 
           if (error) {
@@ -79,10 +83,8 @@ export const useClientData = (id: string | undefined) => {
 
           const newClient = newClients[0];
 
-          // Send client invitation email
           try {
             toast.info("Sending setup email...");
-            
             const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
               body: {
                 clientId: newClient.id,
@@ -90,7 +92,6 @@ export const useClientData = (id: string | undefined) => {
                 clientName: newClient.client_name
               }
             });
-            
             if (inviteError) {
               console.error("Error sending invitation:", inviteError);
               toast.error(`Failed to send setup email: ${inviteError.message}`);
@@ -124,7 +125,6 @@ export const useClientData = (id: string | undefined) => {
   const sendInvitation = async (clientId: string, email: string, clientName: string) => {
     try {
       toast.info("Sending setup email...");
-      
       const { error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId,
@@ -132,13 +132,11 @@ export const useClientData = (id: string | undefined) => {
           clientName
         }
       });
-      
       if (error) {
         console.error("Error sending invitation:", error);
         toast.error(`Failed to send setup email: ${error.message}`);
         throw error;
       }
-      
       toast.success("Setup email sent to client");
       return true;
     } catch (error: any) {

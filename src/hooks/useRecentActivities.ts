@@ -1,9 +1,12 @@
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 
 export const useRecentActivities = () => {
-  return useQuery({
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
     queryKey: ["recent-activities"],
     queryFn: async () => {
       const { data: activities, error } = await supabase
@@ -37,4 +40,32 @@ export const useRecentActivities = () => {
     refetchOnWindowFocus: false,
     staleTime: 60 * 1000,
   });
+
+  // Set up real-time subscription for new activities
+  useEffect(() => {
+    // Create a subscription to the client_activities table
+    const channel = supabase
+      .channel('real-time-activities')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'client_activities'
+        },
+        (payload) => {
+          console.log('New activity received:', payload);
+          // When a new activity is inserted, invalidate the query to refetch
+          queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+        }
+      )
+      .subscribe();
+
+    // Clean up the subscription when the component unmounts
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  return query;
 };

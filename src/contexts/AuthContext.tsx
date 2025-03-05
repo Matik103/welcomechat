@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -57,6 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
+        console.log("Initializing auth...");
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -74,6 +76,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } finally {
         if (mounted) {
           setIsLoading(false);
+          setAuthCheckCompleted(true);
+          console.log("Auth check completed");
         }
       }
     };
@@ -84,6 +88,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       async (event, currentSession) => {
         if (!mounted) return;
         console.log("Auth state changed:", event, currentSession?.user?.email);
+
+        // Set loading to true for auth state changes
+        if (!authCheckCompleted || event !== 'INITIAL_SESSION') {
+          setIsLoading(true);
+        }
 
         // Only update session if it's actually different
         const sessionChanged = 
@@ -109,11 +118,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           } else {
             setUserRole(null);
             // Only navigate to auth if we're not already there and not loading
-            if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup') && !isLoading) {
+            if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup') && authCheckCompleted) {
               navigate('/auth', { replace: true });
             }
           }
         }
+        
+        // Always set loading to false when done processing
+        setIsLoading(false);
+        setAuthCheckCompleted(true);
       }
     );
 
@@ -121,7 +134,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, authCheckCompleted]);
 
   const signOut = async () => {
     try {

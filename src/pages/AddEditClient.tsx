@@ -1,15 +1,11 @@
 
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useClientData } from "@/hooks/useClientData";
-import { useDriveLinks } from "@/hooks/useDriveLinks";
-import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
-import { ClientForm } from "@/components/client/ClientForm";
-import { DriveLinks } from "@/components/client/DriveLinks";
-import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
-import { toast } from "sonner";
+import { ClientDetails } from "@/components/client/ClientDetails";
+import { ClientResourceSections } from "@/components/client/ClientResourceSections";
+import { useClientActivity } from "@/hooks/useClientActivity";
 
 interface AddEditClientProps {
   isClientView?: boolean;
@@ -23,31 +19,8 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   // If in client view, use the client ID from user metadata
   const clientId = isClientView ? user?.user_metadata?.client_id : id;
   
-  const { client, isLoadingClient, clientMutation } = useClientData(clientId);
-  const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation } = useDriveLinks(clientId);
-  const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(clientId);
-
-  const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
-    try {
-      await clientMutation.mutateAsync(data);
-      if (isClientView) {
-        navigate("/client/view");
-      } else {
-        navigate("/admin/clients");
-      }
-    } catch (error) {
-      console.error("Form submission error:", error);
-      // Error is already handled in the mutation's onError callback
-    }
-  };
-
-  const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
-    await addDriveLinkMutation.mutateAsync(data);
-  };
-
-  const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
-    await addWebsiteUrlMutation.mutateAsync(data);
-  };
+  const { client, isLoadingClient } = useClientData(clientId);
+  const { logClientActivity } = useClientActivity(clientId);
 
   const handleBack = () => {
     if (isClientView) {
@@ -78,14 +51,14 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
               {isClientView 
-                ? "Account Settings" 
+                ? "Edit Client Information" 
                 : id 
                   ? `Edit Client - ${client?.client_name}` 
                   : "Add New Client"}
             </h1>
             <p className="text-gray-500">
               {isClientView 
-                ? "Manage your account information" 
+                ? "Update your client information" 
                 : id 
                   ? "Update client information" 
                   : "Create a new client"}
@@ -94,39 +67,19 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
         </div>
 
         <div className="space-y-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <ClientForm
-              initialData={client}
-              onSubmit={handleSubmit}
-              isLoading={clientMutation.isPending}
-              isClientView={isClientView}
-            />
-          </div>
+          <ClientDetails 
+            client={client}
+            clientId={clientId}
+            isClientView={isClientView}
+            logClientActivity={logClientActivity}
+          />
 
           {(clientId || isClientView) && (
-            <>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Share Links</h2>
-                <DriveLinks
-                  driveLinks={driveLinks}
-                  onAdd={handleAddDriveLink}
-                  onDelete={deleteDriveLinkMutation.mutate}
-                  isAddLoading={addDriveLinkMutation.isPending}
-                  isDeleteLoading={deleteDriveLinkMutation.isPending}
-                />
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
-                <WebsiteUrls
-                  urls={websiteUrls}
-                  onAdd={handleAddWebsiteUrl}
-                  onDelete={deleteWebsiteUrlMutation.mutate}
-                  isAddLoading={addWebsiteUrlMutation.isPending}
-                  isDeleteLoading={deleteWebsiteUrlMutation.isPending}
-                />
-              </div>
-            </>
+            <ClientResourceSections 
+              clientId={clientId} 
+              isClientView={isClientView}
+              logClientActivity={logClientActivity}
+            />
           )}
         </div>
       </div>
