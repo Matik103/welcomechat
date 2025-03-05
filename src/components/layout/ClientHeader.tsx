@@ -20,7 +20,7 @@ export const ClientHeader = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <Link to="/client/view" className="text-xl font-semibold text-gray-900">
-              AI Agent Dashboard
+              AI Agent
             </Link>
           </div>
           <div className="flex items-center gap-4">

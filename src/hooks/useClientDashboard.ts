@@ -35,6 +35,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     top_queries: []
   });
 
+  // Query error logs for this client
   const { data: errorLogs = [], isLoading: isLoadingErrorLogs } = useQuery({
     queryKey: ["errorLogs", clientId],
     queryFn: async () => {
@@ -53,8 +54,10 @@ export const useClientDashboard = (clientId: string | undefined) => {
       return data as ErrorLog[];
     },
     enabled: !!clientId,
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
+  // Query common queries for this client
   const { data: queries = [], isLoading: isLoadingQueries } = useQuery({
     queryKey: ["queries", clientId],
     queryFn: async () => {
@@ -72,7 +75,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
       }
       
       // Transform the data to match the QueryItem interface
-      return data.map((item: any) => ({
+      return (data || []).map((item: any) => ({
         id: item.id,
         query_text: item.query_text,
         frequency: item.frequency,
@@ -80,28 +83,63 @@ export const useClientDashboard = (clientId: string | undefined) => {
       })) as QueryItem[];
     },
     enabled: !!clientId,
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Fetch interaction stats from the database or API
+  // Query client activities for interaction stats
   useEffect(() => {
     const fetchStats = async () => {
       if (!clientId) return;
 
       try {
-        // Mock data for now
+        // Get total interactions count
+        const { count: totalInteractions, error: countError } = await supabase
+          .from("client_activities")
+          .select("*", { count: "exact", head: true })
+          .eq("client_id", clientId)
+          .eq("activity_type", "chat_interaction");
+        
+        if (countError) throw countError;
+
+        // Get active days (count of unique days with chat interactions)
+        const { data: activeDaysData, error: activeDaysError } = await supabase
+          .rpc("get_active_days_count", { client_id_param: clientId });
+        
+        const activeDays = activeDaysData || 0;
+        
+        if (activeDaysError) throw activeDaysError;
+
+        // Get average response time (mock data for now, would need a specific column)
+        // In a real implementation, you would calculate this from actual response times
+        const avgResponseTime = 2.3;
+
+        // Get top query topics
+        const { data: topQueries, error: topQueriesError } = await supabase
+          .from("common_queries")
+          .select("query_text")
+          .eq("client_id", clientId)
+          .order("frequency", { ascending: false })
+          .limit(5);
+        
+        if (topQueriesError) throw topQueriesError;
+
         setStats({
-          total_interactions: 456,
-          active_days: 18,
-          average_response_time: 2.3,
-          top_queries: ["How to use the service?", "Pricing options?", "Support contact?"]
+          total_interactions: totalInteractions || 0,
+          active_days: activeDays || 0,
+          average_response_time: avgResponseTime,
+          top_queries: (topQueries || []).map(q => q.query_text)
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching stats:", err);
         toast.error("Failed to fetch interaction statistics");
       }
     };
 
     fetchStats();
+    // Set up an interval to periodically refresh the data
+    const intervalId = setInterval(fetchStats, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(intervalId);
   }, [clientId]);
 
   return {

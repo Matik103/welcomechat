@@ -45,7 +45,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6 bg-[#F8F9FA] min-h-screen">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
       </div>
@@ -58,30 +58,16 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
       {/* Recent data section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Error logs card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Recent Error Logs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ErrorLogList 
-              logs={errorLogs as ErrorLog[]} 
-              isLoading={isLoadingErrorLogs} 
-            />
-          </CardContent>
-        </Card>
+        <ErrorLogList 
+          logs={errorLogs as ErrorLog[]} 
+          isLoading={isLoadingErrorLogs} 
+        />
 
         {/* Common queries card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Common Queries</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <QueryList 
-              queries={queries as QueryItem[]} 
-              isLoading={isLoadingQueries} 
-            />
-          </CardContent>
-        </Card>
+        <QueryList 
+          queries={queries as QueryItem[]} 
+          isLoading={isLoadingQueries} 
+        />
       </div>
     </div>
   );
