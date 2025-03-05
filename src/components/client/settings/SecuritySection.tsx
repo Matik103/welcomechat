@@ -22,23 +22,13 @@ export const SecuritySection = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+      const { error } = await supabase.functions.invoke("change-client-password", {
+        body: {
+          newPassword
+        }
       });
+      
       if (error) throw error;
-      
-      // Get the current user data
-      const { data: userData } = await supabase.auth.getUser();
-      const clientId = userData.user?.user_metadata?.client_id;
-      
-      // Log activity to the client_activities table
-      // Using "client_updated" as the activity type since "password_updated" is not in the allowed enum
-      await supabase.from("client_activities").insert({
-        activity_type: "client_updated",
-        client_id: clientId,
-        description: "updated their password",
-        metadata: { field: "password", action: "updated" }
-      });
       
       toast.success("Password updated successfully");
       setNewPassword("");
