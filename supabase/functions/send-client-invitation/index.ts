@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +35,18 @@ serve(async (req) => {
       throw new Error("Resend API key not configured");
     }
     
+    // Create Supabase client for admin operations
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? '',
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+    
     console.log("Initializing Resend client");
     const resend = new Resend(resendApiKey);
     
@@ -49,6 +62,27 @@ serve(async (req) => {
     
     // Generate a default password if one wasn't provided
     const password = defaultPassword || `welcome${Math.floor(1000 + Math.random() * 9000)}`;
+    console.log(`Generated password: ${password.substring(0, 3)}***`); // Log partially obscured password for security
+    
+    // Check if user already exists and update password
+    console.log("Checking if user exists and updating password...");
+    try {
+      const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+      
+      if (existingUser) {
+        console.log("User exists, updating password...");
+        await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+          password: password,
+          email_confirm: true
+        });
+        console.log("Password updated successfully");
+      } else {
+        console.log("User doesn't exist yet, password will be set during creation");
+      }
+    } catch (error) {
+      console.error("Error updating user password:", error);
+      // Continue with sending the email even if password update fails
+    }
     
     // Updated email content with dashboard link and login credentials
     const htmlContent = `

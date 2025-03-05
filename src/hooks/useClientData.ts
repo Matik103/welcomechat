@@ -122,26 +122,42 @@ export const useClientData = (id: string | undefined) => {
     },
   });
 
-  const sendInvitation = async (clientId: string, email: string, clientName: string) => {
+  const sendInvitation = async (
+    id: string,
+    email: string,
+    clientName: string
+  ) => {
     try {
-      toast.info("Sending setup email...");
-      const { error } = await supabase.functions.invoke("send-client-invitation", {
-        body: {
-          clientId,
-          email,
-          clientName
+      const { data, error } = await supabase.functions.invoke(
+        "send-client-invitation",
+        {
+          body: {
+            clientId: id,
+            email,
+            clientName,
+          },
         }
-      });
-      if (error) {
-        console.error("Error sending invitation:", error);
-        toast.error(`Failed to send setup email: ${error.message}`);
-        throw error;
+      );
+
+      if (error) throw error;
+
+      // If a password was returned, store it in the database
+      if (data.password) {
+        console.log("Storing generated password hash in database...");
+        // Note: We're not storing the actual password, just the fact that one was created
+        await supabase
+          .from("clients")
+          .update({ password_created_at: new Date().toISOString() })
+          .eq("id", id);
       }
-      toast.success("Setup email sent to client");
-      return true;
+
+      toast.success("Invitation sent successfully!");
+      return data;
     } catch (error: any) {
-      console.error("Exception in invitation process:", error);
-      toast.error(`Error: ${error.message || "Failed to send setup email"}`);
+      console.error("Error sending invitation:", error);
+      toast.error(
+        error.message || "Failed to send invitation. Please try again."
+      );
       throw error;
     }
   };
