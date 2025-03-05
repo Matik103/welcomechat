@@ -1,87 +1,83 @@
 
 import { useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/contexts/AuthContext";
-import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
-import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
-import { QueryList } from "@/components/client-dashboard/QueryList";
-import { useClientDashboard } from "@/hooks/useClientDashboard";
+import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { ErrorLog, QueryItem } from "@/hooks/useClientDashboard";
+import { useClientDashboard, InteractionStats } from "@/hooks/useClientDashboard";
+import { InteractionStats as InteractionStatsComponent } from "@/components/client-dashboard/InteractionStats";
+import { QueryList } from "@/components/client-dashboard/QueryList";
+import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export interface ClientDashboardProps {
-  clientId?: string;
+interface DashboardSectionProps {
+  title: string;
+  description: string;
+  children: React.ReactNode;
 }
 
-const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!user) {
-      navigate("/auth");
-    }
-  }, [user, navigate]);
+// Component for consistent section styling
+const DashboardSection = ({ title, description, children }: DashboardSectionProps) => (
+  <Card>
+    <CardHeader className="pb-2">
+      <CardTitle className="text-lg font-medium">{title}</CardTitle>
+      <CardDescription>{description}</CardDescription>
+    </CardHeader>
+    <CardContent>{children}</CardContent>
+  </Card>
+);
 
-  // Get client ID from user metadata if not provided
-  const effectiveClientId = clientId || user?.user_metadata?.client_id;
-  
-  const {
-    stats,
-    errorLogs,
-    queries,
-    isLoadingErrorLogs,
-    isLoadingQueries,
-  } = useClientDashboard(effectiveClientId);
+const ClientDashboard = () => {
+  const { stats, interactionStats, commonQueries, errorLogs, isLoading } = useClientDashboard();
 
-  if (!user) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+    <div className="container mx-auto p-4 md:p-6 space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Your Dashboard</h1>
+          <p className="text-gray-600">Monitor your AI Assistant performance</p>
+        </div>
+        <Link to="/client/settings" className="text-primary hover:underline">
+          Settings
+        </Link>
       </div>
 
-      {/* Stats section */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <InteractionStats stats={stats} />
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <DashboardSection
+          title="Interaction Statistics"
+          description="Overview of your AI Assistant usage"
+        >
+          <InteractionStatsComponent 
+            interactionStats={interactionStats} 
+            isLoading={isLoading} 
+          />
+        </DashboardSection>
 
-      {/* Recent data section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Error logs card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Recent Error Logs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ErrorLogList 
-              logs={errorLogs as ErrorLog[]} 
-              isLoading={isLoadingErrorLogs} 
-            />
-          </CardContent>
-        </Card>
+        <DashboardSection
+          title="Common Queries"
+          description="Most frequently asked questions"
+        >
+          <QueryList 
+            queries={commonQueries || []} 
+            isLoading={isLoading} 
+          />
+        </DashboardSection>
 
-        {/* Common queries card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Common Queries</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <QueryList 
-              queries={queries as QueryItem[]} 
-              isLoading={isLoadingQueries} 
-            />
-          </CardContent>
-        </Card>
+        <DashboardSection
+          title="Recent Errors"
+          description="Issues that occurred with your AI Assistant"
+        >
+          <ErrorLogList 
+            logs={errorLogs || []} 
+            isLoading={isLoading} 
+          />
+        </DashboardSection>
       </div>
     </div>
   );
