@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +33,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     average_response_time: 0,
     top_queries: []
   });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   // Query error logs for this client
   const { 
@@ -82,12 +82,11 @@ export const useClientDashboard = (clientId: string | undefined) => {
         return [];
       }
       
-      // Transform the data to match the QueryItem interface
       return (data || []).map((item: any) => ({
         id: item.id,
         query_text: item.query_text,
         frequency: item.frequency,
-        last_asked: item.updated_at // Use updated_at as last_asked
+        last_asked: item.updated_at
       })) as QueryItem[];
     },
     enabled: !!clientId,
@@ -98,7 +97,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
   useEffect(() => {
     if (!clientId) return;
     
-    // Subscribe to realtime updates for error_logs
     const errorLogsChannel = supabase
       .channel('error-logs-changes')
       .on(
@@ -116,7 +114,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
       )
       .subscribe();
       
-    // Subscribe to realtime updates for common_queries
     const queriesChannel = supabase
       .channel('queries-changes')
       .on(
@@ -134,7 +131,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
       )
       .subscribe();
 
-    // Subscribe to realtime updates for client_activities
     const activitiesChannel = supabase
       .channel('activities-changes')
       .on(
@@ -160,10 +156,13 @@ export const useClientDashboard = (clientId: string | undefined) => {
 
   // Query client activities for interaction stats
   const fetchStats = async () => {
-    if (!clientId) return;
+    if (!clientId) {
+      setIsLoadingStats(false);
+      return;
+    }
 
+    setIsLoadingStats(true);
     try {
-      // Get total interactions count
       const { count: totalInteractions, error: countError } = await supabase
         .from("client_activities")
         .select("*", { count: "exact", head: true })
@@ -172,7 +171,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
       
       if (countError) throw countError;
 
-      // Get active days using a direct query instead of RPC
       const { data: activeDaysData, error: activeDaysError } = await supabase
         .from("client_activities")
         .select("created_at")
@@ -181,7 +179,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
       
       if (activeDaysError) throw activeDaysError;
       
-      // Calculate active days by counting distinct dates
       const uniqueDates = new Set();
       activeDaysData?.forEach(activity => {
         const activityDate = new Date(activity.created_at).toDateString();
@@ -189,7 +186,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
       });
       const activeDays = uniqueDates.size;
 
-      // Get response time data from the last 30 interactions
       const { data: recentInteractions, error: recentError } = await supabase
         .from("client_activities")
         .select("metadata")
@@ -200,7 +196,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
       
       if (recentError) throw recentError;
       
-      // Calculate actual average response time from metadata
       let totalResponseTime = 0;
       let countWithResponseTime = 0;
       
@@ -215,7 +210,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
         ? (totalResponseTime / countWithResponseTime / 1000).toFixed(2) 
         : 0;
 
-      // Get top query topics
       const { data: topQueries, error: topQueriesError } = await supabase
         .from("common_queries")
         .select("query_text")
@@ -234,6 +228,8 @@ export const useClientDashboard = (clientId: string | undefined) => {
     } catch (err: any) {
       console.error("Error fetching stats:", err);
       toast.error("Failed to fetch interaction statistics");
+    } finally {
+      setIsLoadingStats(false);
     }
   };
 
@@ -241,7 +237,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
   useEffect(() => {
     fetchStats();
     
-    // Set up an interval to periodically refresh the data
     const intervalId = setInterval(fetchStats, 15000); // Refresh every 15 seconds
     
     return () => clearInterval(intervalId);
@@ -253,5 +248,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
     queries,
     isLoadingErrorLogs,
     isLoadingQueries,
+    isLoadingStats,
   };
 };
