@@ -1,107 +1,77 @@
-
 import { useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/contexts/AuthContext";
-import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
-import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
-import { QueryList } from "@/components/client-dashboard/QueryList";
-import { useClientDashboard } from "@/hooks/useClientDashboard";
-import { Loader2, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { ErrorLog, QueryItem } from "@/hooks/useClientDashboard";
-import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRecentActivities } from "@/hooks/useRecentActivities";
+import { supabase } from "@/integrations/supabase/client";
+import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
+import { QueryList } from "@/components/client-dashboard/QueryList";
+import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
-export interface ClientDashboardProps {
-  clientId?: string;
-}
-
-const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
-  const { user, signOut } = useAuth();
+const ClientDashboard = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const { activities, isLoading } = useRecentActivities();
   
-  // Redirect if not authenticated
+  // Check if password change is required
   useEffect(() => {
-    if (!user) {
-      navigate("/auth");
+    if (user && user.user_metadata?.password_change_required) {
+      toast(
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <span className="font-medium">For security reasons, please set up a new password</span>
+          </div>
+          <Button size="sm" onClick={() => navigate("/client/settings")}>
+            Change Password
+          </Button>
+        </div>
+      , {
+        duration: 10000,
+        position: "top-center",
+      });
     }
   }, [user, navigate]);
 
-  // Get client ID from user metadata if not provided
-  const effectiveClientId = clientId || user?.user_metadata?.client_id;
-  
-  const {
-    stats,
-    errorLogs,
-    queries,
-    isLoadingErrorLogs,
-    isLoadingQueries,
-    isLoadingStats,
-    authError
-  } = useClientDashboard(effectiveClientId);
-
-  // Handle auth error
-  useEffect(() => {
-    if (authError) {
-      toast.error("Your session has expired. Please sign in again.");
-      // Give the toast time to display before signing out
-      const timer = setTimeout(() => {
-        signOut?.();
-      }, 2000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [authError, signOut]);
-
-  if (!user) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  const handleRefresh = () => {
-    window.location.reload();
-  };
-
   return (
-    <div className="bg-[#F8F9FA] min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
-        {/* Refresh button */}
-        <div className="flex justify-end">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh}
-            className="flex items-center gap-1 text-gray-600"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            <span>Refresh</span>
-          </Button>
-        </div>
-        
-        {/* Stats section - with increased top spacing */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <InteractionStats 
-            stats={stats} 
-            isLoading={isLoadingStats} 
-          />
+    <div className="min-h-screen bg-[#F8F9FA] p-4">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500">Overview of your AI assistant</p>
         </div>
 
-        {/* Recent data section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Error logs card */}
-          <ErrorLogList 
-            logs={errorLogs as ErrorLog[]} 
-            isLoading={isLoadingErrorLogs} 
-          />
+        <InteractionStats />
 
-          {/* Common queries card */}
-          <QueryList 
-            queries={queries as QueryItem[]} 
-            isLoading={isLoadingQueries} 
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Queries</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <QueryList queries={activities} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Error Logs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ErrorLogList errors={activities} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

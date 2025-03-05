@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
@@ -84,23 +85,24 @@ export const useClientData = (id: string | undefined) => {
           const newClient = newClients[0];
 
           try {
-            toast.info("Sending setup email...");
-            const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
+            toast.info("Setting up client account...");
+            // We'll now invoke our edge function to set up the client account
+            const { error: setupError } = await supabase.functions.invoke("send-client-invitation", {
               body: {
                 clientId: newClient.id,
                 email: newClient.email,
                 clientName: newClient.client_name
               }
             });
-            if (inviteError) {
-              console.error("Error sending invitation:", inviteError);
-              toast.error(`Failed to send setup email: ${inviteError.message}`);
+            if (setupError) {
+              console.error("Error setting up client account:", setupError);
+              toast.error(`Failed to set up client account: ${setupError.message}`);
             } else {
-              toast.success("Setup email sent to client");
+              toast.success("Client account created successfully");
             }
-          } catch (inviteError: any) {
-            console.error("Exception in invitation process:", inviteError);
-            toast.error(`Failed to send setup email: ${inviteError.message || "Unknown error"}`);
+          } catch (setupError: any) {
+            console.error("Exception in client setup process:", setupError);
+            toast.error(`Failed to set up client account: ${setupError.message || "Unknown error"}`);
           }
 
           return newClient.id;
@@ -124,7 +126,7 @@ export const useClientData = (id: string | undefined) => {
 
   const sendInvitation = async (clientId: string, email: string, clientName: string) => {
     try {
-      toast.info("Sending setup email...");
+      toast.info("Setting up client account...");
       const { error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId,
@@ -133,15 +135,15 @@ export const useClientData = (id: string | undefined) => {
         }
       });
       if (error) {
-        console.error("Error sending invitation:", error);
-        toast.error(`Failed to send setup email: ${error.message}`);
+        console.error("Error setting up client account:", error);
+        toast.error(`Failed to set up client account: ${error.message}`);
         throw error;
       }
-      toast.success("Setup email sent to client");
+      toast.success("Client account setup completed");
       return true;
     } catch (error: any) {
-      console.error("Exception in invitation process:", error);
-      toast.error(`Error: ${error.message || "Failed to send setup email"}`);
+      console.error("Exception in client setup process:", error);
+      toast.error(`Error: ${error.message || "Failed to set up client account"}`);
       throw error;
     }
   };

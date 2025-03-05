@@ -5,24 +5,22 @@ import { ExtendedActivityType } from "@/types/activity";
 import { ensureUserRole } from "@/services/clientActivityService";
 import { createAiAgentTable } from "@/services/aiAgentTableService";
 
+// Function to generate a random password
+const generateTemporaryPassword = () => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+  let password = "";
+  for (let i = 0; i < 10; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
+
 export const createClientAccount = async (
   clientId: string | null, 
-  password: string, 
-  confirmPassword: string,
   logActivity: (activity_type: ExtendedActivityType, description: string, metadata?: any) => Promise<void>
 ) => {
   if (!clientId) {
     toast.error("Invalid setup link");
-    return null;
-  }
-
-  if (password !== confirmPassword) {
-    toast.error("Passwords do not match");
-    return null;
-  }
-
-  if (password.length < 6) {
-    toast.error("Password must be at least 6 characters");
     return null;
   }
 
@@ -43,10 +41,13 @@ export const createClientAccount = async (
     
     console.log("Found client:", clientData.email);
     
-    // Create user account with client's email
+    // Generate a temporary password
+    const temporaryPassword = generateTemporaryPassword();
+    
+    // Create user account with client's email and the temporary password
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: clientData.email,
-      password: password,
+      password: temporaryPassword,
     });
 
     if (signUpError) {
@@ -68,7 +69,10 @@ export const createClientAccount = async (
       // Set client ID in user metadata
       console.log("Setting client metadata");
       const { error: metadataError } = await supabase.auth.updateUser({
-        data: { client_id: clientId }
+        data: { 
+          client_id: clientId,
+          password_change_required: true // Flag to show password change reminder
+        }
       });
       
       if (metadataError) {
@@ -76,13 +80,14 @@ export const createClientAccount = async (
         throw metadataError;
       }
 
-      // Send confirmation email
+      // Send confirmation email with temporary password
       try {
         console.log("Sending confirmation email to client");
         await supabase.functions.invoke("send-setup-confirmation", {
           body: { 
             email: clientData.email,
-            clientName: clientData.client_name
+            clientName: clientData.client_name,
+            temporaryPassword: temporaryPassword
           }
         });
         console.log("Confirmation email sent successfully");
@@ -92,33 +97,19 @@ export const createClientAccount = async (
       }
     }
 
-    toast.success("Account setup successful! Signing you in...");
+    toast.success("Account setup successful! Confirmation email sent.");
     
     // Log this activity
     await logActivity(
-      "ai_agent_created", // Using our enum value
-      "completed account setup",
+      "ai_agent_created",
+      "Set up client account and sent confirmation email",
       { setup_method: "invitation" }
     );
-    
-    // Sign in with the new credentials
-    console.log("Signing in with new credentials");
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: clientData.email,
-      password: password,
-    });
-    
-    if (signInError) {
-      console.error("Sign in error:", signInError);
-      throw signInError;
-    }
-    
-    console.log("Setup complete and signed in, redirecting to client dashboard");
     
     return signUpData;
   } catch (error: any) {
     console.error("Error setting up account:", error);
-    toast.error(error.message || "Failed to set up your account");
+    toast.error(error.message || "Failed to set up client account");
     throw error;
   }
 };

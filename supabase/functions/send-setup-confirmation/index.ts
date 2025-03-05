@@ -11,6 +11,7 @@ const corsHeaders = {
 interface SetupConfirmationRequest {
   email: string;
   clientName: string;
+  temporaryPassword: string;
 }
 
 serve(async (req) => {
@@ -36,18 +37,21 @@ serve(async (req) => {
     const resend = new Resend(resendApiKey);
     
     // Parse request body
-    const { email, clientName }: SetupConfirmationRequest = await req.json();
+    const { email, clientName, temporaryPassword }: SetupConfirmationRequest = await req.json();
     console.log(`Sending setup confirmation to: ${email}`);
     
     // Generate the login URL
     const origin = req.headers.get("origin") || "https://welcome.chat";
-    const loginUrl = `${origin}/client/view`;
+    const loginUrl = `${origin}/client/auth`;
     
-    // Email content with login link
+    // Email content with login link and temporary password
     const htmlContent = `
       <h1>Welcome to Welcome.Chat, ${clientName}!</h1>
       <p>Your account has been successfully set up.</p>
-      <p>You can now access your AI assistant dashboard at any time using your email and the password you just created.</p>
+      <p>You can now access your AI assistant dashboard using the following credentials:</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Temporary Password:</strong> ${temporaryPassword}</p>
+      <p><strong>Important:</strong> For security reasons, please change your password when you first log in.</p>
       <p><a href="${loginUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px;">Login to Dashboard</a></p>
       <p>Or copy and paste this URL into your browser:</p>
       <p>${loginUrl}</p>
@@ -58,7 +62,7 @@ serve(async (req) => {
     const { data, error } = await resend.emails.send({
       from: "Welcome.Chat <noreply@welcome.chat>",
       to: email,
-      subject: "Welcome.Chat - Account Setup Complete",
+      subject: "Welcome.Chat - Your Account is Ready",
       html: htmlContent
     });
     
