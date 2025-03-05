@@ -1,75 +1,159 @@
 
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
-type ActivityMetadata = {
-  success?: boolean;
-  [key: string]: any;
-};
+export interface InteractionStats {
+  total_interactions: number;
+  active_days: number;
+  average_response_time: number;
+  top_queries: string[];
+}
 
-type ClientActivity = Database["public"]["Tables"]["client_activities"]["Row"] & {
-  metadata: ActivityMetadata;
-};
-
-export const useClientStats = () => {
-  return useQuery({
-    queryKey: ["client-stats"],
-    queryFn: async () => {
-      const now = new Date();
-      
-      // Get total clients (independent of time range)
-      const { count: totalClientCount, error: countError } = await supabase
-        .from("clients")
-        .select("*", { count: "exact", head: true })
-        .is("deletion_scheduled_at", null);
-      
-      if (countError) throw countError;
-
-      // Get active clients (always last 48 hours)
-      const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
-      const { data: activeClients } = await supabase
-        .from("client_activities")
-        .select("DISTINCT client_id")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", fortyEightHoursAgo.toISOString());
-
-      const currentActiveCount = activeClients?.length ?? 0;
-
-      // Previous 48-hour window for active clients change calculation
-      const previousFortyEightHours = new Date(fortyEightHoursAgo.getTime() - (48 * 60 * 60 * 1000));
-      const { data: previousActive } = await supabase
-        .from("client_activities")
-        .select("DISTINCT client_id")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", previousFortyEightHours.toISOString())
-        .lt("created_at", fortyEightHoursAgo.toISOString());
-
-      const previousActiveCount = previousActive?.length ?? 0;
-      const activeChangePercentage = previousActiveCount === 0 
-        ? currentActiveCount > 0 ? 100 : 0
-        : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
-
-      // Calculate response rate (last 24 hours)
-      const { data: interactions } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", fortyEightHoursAgo.toISOString()) as { data: ClientActivity[] | null };
-
-      const totalInteractions = interactions?.length ?? 0;
-      const successfulInteractions = interactions?.filter(i => i.metadata?.success)?.length ?? 0;
-      const responseRate = totalInteractions === 0 ? 0 : Math.round((successfulInteractions / totalInteractions) * 100);
-
-      return {
-        totalClients: totalClientCount ?? 0,
-        activeClients: currentActiveCount,
-        activeClientsChange: activeChangePercentage.toFixed(1),
-        responseRate,
-      };
-    },
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
+export const useClientStats = (clientId: string | undefined) => {
+  const [stats, setStats] = useState<InteractionStats>({
+    total_interactions: 0,
+    active_days: 0,
+    average_response_time: 0,
+    top_queries: []
   });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Query client activities for interaction stats
+  const fetchStats = async () => {
+    if (!clientId) return;
+
+    setIsLoading(true);
+    try {
+      console.log("Fetching stats for client:", clientId);
+      
+      // Get total interactions count
+      const { count: totalInteractions, error: countError } = await supabase
+        .from("client_activities")
+        .select("*", { count: "exact", head: true })
+        .eq("client_id", clientId)
+        .eq("activity_type", "chat_interaction");
+      
+      if (countError) {
+        console.error("Error getting total interactions:", countError);
+        throw countError;
+      }
+
+      // Get active days using a direct query instead of RPC
+      const { data: activeDaysData, error: activeDaysError } = await supabase
+        .from("client_activities")
+        .select("created_at")
+        .eq("client_id", clientId)
+        .eq("activity_type", "chat_interaction");
+      
+      if (activeDaysError) {
+        console.error("Error getting active days:", activeDaysError);
+        throw activeDaysError;
+      }
+      
+      // Calculate active days by counting distinct dates
+      const uniqueDates = new Set();
+      activeDaysData?.forEach(activity => {
+        const activityDate = new Date(activity.created_at).toDateString();
+        uniqueDates.add(activityDate);
+      });
+      const activeDays = uniqueDates.size;
+
+      // Get response time data from the last 30 interactions
+      const { data: recentInteractions, error: recentError } = await supabase
+        .from("client_activities")
+        .select("metadata")
+        .eq("client_id", clientId)
+        .eq("activity_type", "chat_interaction")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      
+      if (recentError) {
+        console.error("Error getting recent interactions:", recentError);
+        throw recentError;
+      }
+      
+      // Calculate actual average response time from metadata
+      let totalResponseTime = 0;
+      let countWithResponseTime = 0;
+      
+      recentInteractions?.forEach(interaction => {
+        if (interaction.metadata && typeof interaction.metadata === 'object' && 'response_time_ms' in interaction.metadata) {
+          totalResponseTime += Number(interaction.metadata.response_time_ms);
+          countWithResponseTime++;
+        }
+      });
+      
+      const avgResponseTime = countWithResponseTime > 0 
+        ? (totalResponseTime / countWithResponseTime / 1000).toFixed(2) 
+        : 0;
+
+      // Get top query topics
+      const { data: topQueries, error: topQueriesError } = await supabase
+        .from("common_queries")
+        .select("query_text")
+        .eq("client_id", clientId)
+        .order("frequency", { ascending: false })
+        .limit(5);
+      
+      if (topQueriesError) {
+        console.error("Error getting top queries:", topQueriesError);
+        throw topQueriesError;
+      }
+
+      const newStats = {
+        total_interactions: totalInteractions || 0,
+        active_days: activeDays || 0,
+        average_response_time: Number(avgResponseTime),
+        top_queries: (topQueries || []).map(q => q.query_text)
+      };
+      
+      console.log("Stats fetched successfully:", newStats);
+      setStats(newStats);
+    } catch (err: any) {
+      console.error("Error fetching stats:", err);
+      toast.error("Failed to fetch interaction statistics");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial fetch and periodic refresh
+  useEffect(() => {
+    if (clientId) {
+      fetchStats();
+      
+      // Set up an interval to periodically refresh the data
+      const intervalId = setInterval(fetchStats, 15000); // Refresh every 15 seconds
+      
+      // Subscribe to realtime updates for client_activities
+      const activitiesChannel = supabase
+        .channel('activities-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'client_activities',
+            filter: `client_id=eq.${clientId}`
+          },
+          () => {
+            fetchStats();
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        clearInterval(intervalId);
+        supabase.removeChannel(activitiesChannel);
+      };
+    } else {
+      setIsLoading(false); // No client ID, so we're not loading
+    }
+  }, [clientId]);
+
+  return {
+    stats,
+    isLoading,
+  };
 };
