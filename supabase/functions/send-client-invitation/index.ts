@@ -30,6 +30,7 @@ serve(async (req) => {
     // Initialize Resend for email sending
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
+      console.error("Missing Resend API key");
       throw new Error("Resend API key not configured");
     }
     
@@ -40,6 +41,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   
     if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing Supabase credentials");
       throw new Error("Supabase credentials are not properly configured");
     }
     
@@ -49,6 +51,7 @@ serve(async (req) => {
     let body: InvitationRequest;
     try {
       body = await req.json();
+      console.log("Request body:", JSON.stringify(body));
     } catch (e) {
       console.error("Error parsing JSON:", e);
       return new Response(
@@ -63,10 +66,11 @@ serve(async (req) => {
     const { clientId, email, clientName } = body;
     
     if (!clientId || !email || !clientName) {
+      console.error("Missing required parameters", { clientId, email, clientName });
       throw new Error("Missing required parameters");
     }
     
-    console.log(`Processing invitation for client: ${clientName}, email: ${email}`);
+    console.log(`Processing invitation for client: ${clientName}, email: ${email}, id: ${clientId}`);
     
     // Generate a secure random token
     const token = crypto.randomUUID();
@@ -89,6 +93,7 @@ serve(async (req) => {
     
     // Either update existing or create new invitation
     if (existingInvitation) {
+      console.log("Updating existing invitation for:", email);
       const { error: updateError } = await supabase
         .from("client_invitations")
         .update({
@@ -99,10 +104,12 @@ serve(async (req) => {
         .eq("id", existingInvitation.id);
         
       if (updateError) {
+        console.error("Failed to update invitation:", updateError);
         throw new Error(`Failed to update invitation: ${updateError.message}`);
       }
     } else {
       // Create a new invitation
+      console.log("Creating new invitation for:", email);
       const { error: insertError } = await supabase
         .from("client_invitations")
         .insert({
@@ -114,6 +121,7 @@ serve(async (req) => {
         });
         
       if (insertError) {
+        console.error("Failed to create invitation:", insertError);
         throw new Error(`Failed to create invitation: ${insertError.message}`);
       }
     }
@@ -126,6 +134,7 @@ serve(async (req) => {
     
     // Send the direct setup email
     try {
+      console.log("Attempting to send email to:", email);
       const { data: emailData, error: emailError } = await resend.emails.send({
         from: "Welcome.Chat <admin@welcome.chat>",
         to: email,
