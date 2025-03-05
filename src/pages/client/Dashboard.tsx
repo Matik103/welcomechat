@@ -45,25 +45,27 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-[#F8F9FA] min-h-screen">
-      {/* Stats section - Removed duplicate title */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <InteractionStats stats={stats} />
-      </div>
+    <div className="bg-[#F8F9FA] min-h-screen">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-12 pb-6 space-y-8">
+        {/* Stats section - with increased top spacing */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <InteractionStats stats={stats} />
+        </div>
 
-      {/* Recent data section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Error logs card */}
-        <ErrorLogList 
-          logs={errorLogs as ErrorLog[]} 
-          isLoading={isLoadingErrorLogs} 
-        />
+        {/* Recent data section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Error logs card */}
+          <ErrorLogList 
+            logs={errorLogs as ErrorLog[]} 
+            isLoading={isLoadingErrorLogs} 
+          />
 
-        {/* Common queries card */}
-        <QueryList 
-          queries={queries as QueryItem[]} 
-          isLoading={isLoadingQueries} 
-        />
+          {/* Common queries card */}
+          <QueryList 
+            queries={queries as QueryItem[]} 
+            isLoading={isLoadingQueries} 
+          />
+        </div>
       </div>
     </div>
   );
