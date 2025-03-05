@@ -2,6 +2,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
+import { Json } from "@/integrations/supabase/types";
+
+export interface Activity {
+  activity_type: string;
+  description: string;
+  created_at: string;
+  metadata: Json;
+  client_name?: string;
+}
 
 export const useRecentActivities = () => {
   const queryClient = useQueryClient();
@@ -67,5 +76,10 @@ export const useRecentActivities = () => {
     };
   }, [queryClient]);
 
-  return query;
+  return {
+    activities: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error
+  };
 };

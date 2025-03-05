@@ -11,20 +11,20 @@ import {
 import { Loader2, AlertCircle } from "lucide-react";
 
 interface ErrorLog {
-  id: string;
+  id?: string;
   error_type: string;
   message: string;
   created_at: string;
-  client_id: string;
-  status: string;
+  client_id?: string;
+  status?: string;
 }
 
-interface ErrorLogListProps {
-  logs: ErrorLog[] | undefined;
-  isLoading: boolean;
+export interface ErrorLogListProps {
+  errors?: ErrorLog[];
+  isLoading?: boolean;
 }
 
-export const ErrorLogList: React.FC<ErrorLogListProps> = ({ logs, isLoading }) => {
+export const ErrorLogList: React.FC<ErrorLogListProps> = ({ errors = [], isLoading = false }) => {
   return (
     <Card className="h-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2 bg-gray-50 rounded-t-lg">
@@ -41,10 +41,10 @@ export const ErrorLogList: React.FC<ErrorLogListProps> = ({ logs, isLoading }) =
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : logs?.length ? (
+        ) : errors?.length ? (
           <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
-            {logs.map((log) => (
-              <div key={log.id} className="border-l-4 border-red-500 pl-4 py-2 bg-red-50 rounded-r-md shadow-sm">
+            {errors.map((log, index) => (
+              <div key={log.id || index} className="border-l-4 border-red-500 pl-4 py-2 bg-red-50 rounded-r-md shadow-sm">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-medium text-gray-900">{log.error_type}</p>

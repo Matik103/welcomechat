@@ -1,8 +1,9 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
-import { supabase } from "@/integrations/supabase/client";
+import { useClientDashboard } from "@/hooks/useClientDashboard";
 import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
 import { QueryList } from "@/components/client-dashboard/QueryList";
 import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
@@ -15,6 +16,17 @@ const ClientDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { activities, isLoading } = useRecentActivities();
+  const clientId = user?.id;
+  
+  // Use the useClientDashboard hook to get stats, error logs, and queries
+  const { 
+    stats, 
+    errorLogs, 
+    queries,
+    isLoadingStats,
+    isLoadingErrorLogs,
+    isLoadingQueries
+  } = useClientDashboard(clientId);
   
   // Check if password change is required
   useEffect(() => {
@@ -36,7 +48,7 @@ const ClientDashboard = () => {
     }
   }, [user, navigate]);
 
-  if (isLoading) {
+  if (isLoading && isLoadingStats && isLoadingErrorLogs && isLoadingQueries) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -52,7 +64,7 @@ const ClientDashboard = () => {
           <p className="text-gray-500">Overview of your AI assistant</p>
         </div>
 
-        <InteractionStats />
+        <InteractionStats stats={stats} isLoading={isLoadingStats} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
@@ -60,7 +72,7 @@ const ClientDashboard = () => {
               <CardTitle>Recent Queries</CardTitle>
             </CardHeader>
             <CardContent>
-              <QueryList queries={activities} />
+              <QueryList queries={queries} isLoading={isLoadingQueries} />
             </CardContent>
           </Card>
 
@@ -69,7 +81,7 @@ const ClientDashboard = () => {
               <CardTitle>Error Logs</CardTitle>
             </CardHeader>
             <CardContent>
-              <ErrorLogList errors={activities} />
+              <ErrorLogList errors={errorLogs} isLoading={isLoadingErrorLogs} />
             </CardContent>
           </Card>
         </div>
