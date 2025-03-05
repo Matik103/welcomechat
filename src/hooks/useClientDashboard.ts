@@ -34,6 +34,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     average_response_time: 0,
     top_queries: []
   });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   // Query error logs for this client
   const { 
@@ -52,6 +53,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
         .limit(10);
 
       if (error) {
+        console.error("Error fetching error logs:", error);
         toast.error(`Error fetching error logs: ${error.message}`);
         return [];
       }
@@ -78,6 +80,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
         .limit(10);
 
       if (error) {
+        console.error("Error fetching queries:", error);
         toast.error(`Error fetching queries: ${error.message}`);
         return [];
       }
@@ -162,7 +165,10 @@ export const useClientDashboard = (clientId: string | undefined) => {
   const fetchStats = async () => {
     if (!clientId) return;
 
+    setIsLoadingStats(true);
     try {
+      console.log("Fetching stats for client:", clientId);
+      
       // Get total interactions count
       const { count: totalInteractions, error: countError } = await supabase
         .from("client_activities")
@@ -170,7 +176,10 @@ export const useClientDashboard = (clientId: string | undefined) => {
         .eq("client_id", clientId)
         .eq("activity_type", "chat_interaction");
       
-      if (countError) throw countError;
+      if (countError) {
+        console.error("Error getting total interactions:", countError);
+        throw countError;
+      }
 
       // Get active days using a direct query instead of RPC
       const { data: activeDaysData, error: activeDaysError } = await supabase
@@ -179,7 +188,10 @@ export const useClientDashboard = (clientId: string | undefined) => {
         .eq("client_id", clientId)
         .eq("activity_type", "chat_interaction");
       
-      if (activeDaysError) throw activeDaysError;
+      if (activeDaysError) {
+        console.error("Error getting active days:", activeDaysError);
+        throw activeDaysError;
+      }
       
       // Calculate active days by counting distinct dates
       const uniqueDates = new Set();
@@ -198,7 +210,10 @@ export const useClientDashboard = (clientId: string | undefined) => {
         .order("created_at", { ascending: false })
         .limit(30);
       
-      if (recentError) throw recentError;
+      if (recentError) {
+        console.error("Error getting recent interactions:", recentError);
+        throw recentError;
+      }
       
       // Calculate actual average response time from metadata
       let totalResponseTime = 0;
@@ -223,28 +238,40 @@ export const useClientDashboard = (clientId: string | undefined) => {
         .order("frequency", { ascending: false })
         .limit(5);
       
-      if (topQueriesError) throw topQueriesError;
+      if (topQueriesError) {
+        console.error("Error getting top queries:", topQueriesError);
+        throw topQueriesError;
+      }
 
-      setStats({
+      const newStats = {
         total_interactions: totalInteractions || 0,
         active_days: activeDays || 0,
         average_response_time: Number(avgResponseTime),
         top_queries: (topQueries || []).map(q => q.query_text)
-      });
+      };
+      
+      console.log("Stats fetched successfully:", newStats);
+      setStats(newStats);
     } catch (err: any) {
       console.error("Error fetching stats:", err);
       toast.error("Failed to fetch interaction statistics");
+    } finally {
+      setIsLoadingStats(false);
     }
   };
 
   // Initial fetch and periodic refresh
   useEffect(() => {
-    fetchStats();
-    
-    // Set up an interval to periodically refresh the data
-    const intervalId = setInterval(fetchStats, 15000); // Refresh every 15 seconds
-    
-    return () => clearInterval(intervalId);
+    if (clientId) {
+      fetchStats();
+      
+      // Set up an interval to periodically refresh the data
+      const intervalId = setInterval(fetchStats, 15000); // Refresh every 15 seconds
+      
+      return () => clearInterval(intervalId);
+    } else {
+      setIsLoadingStats(false); // No client ID, so we're not loading
+    }
   }, [clientId]);
 
   return {
@@ -253,5 +280,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
     queries,
     isLoadingErrorLogs,
     isLoadingQueries,
+    isLoadingStats,
   };
 };

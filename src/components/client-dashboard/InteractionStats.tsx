@@ -9,7 +9,12 @@ export interface InteractionStatsProps {
 }
 
 export const InteractionStats: React.FC<InteractionStatsProps> = ({ stats }) => {
-  const { total_interactions, active_days, average_response_time, top_queries } = stats;
+  const { total_interactions, active_days, average_response_time, top_queries } = stats || {
+    total_interactions: 0,
+    active_days: 0,
+    average_response_time: 0,
+    top_queries: []
+  };
 
   return (
     <>
@@ -52,7 +57,7 @@ export const InteractionStats: React.FC<InteractionStatsProps> = ({ stats }) => 
           <BarChart3 className="h-4 w-4 text-purple-500" />
         </CardHeader>
         <CardContent className="pt-2">
-          <div className="text-3xl font-bold text-gray-900">{top_queries.length}</div>
+          <div className="text-3xl font-bold text-gray-900">{top_queries?.length || 0}</div>
           <p className="text-xs text-gray-500 mt-1">Distinct query categories</p>
         </CardContent>
       </Card>

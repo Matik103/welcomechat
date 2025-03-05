@@ -7,14 +7,15 @@ import { QueryList } from "@/components/client-dashboard/QueryList";
 import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
 const ClientDashboard = () => {
   const { user } = useAuth();
   const clientId = user?.user_metadata?.client_id;
-  const { stats, errorLogs, queries, isLoadingErrorLogs, isLoadingQueries } = useClientDashboard(clientId);
+  const { stats, errorLogs, queries, isLoadingErrorLogs, isLoadingQueries, isLoadingStats } = useClientDashboard(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   const [aiAgentName, setAiAgentName] = useState<string>("");
+  const [isLoadingClient, setIsLoadingClient] = useState(true);
   
   // Log dashboard visit activity when component mounts
   useEffect(() => {
@@ -32,19 +33,28 @@ const ClientDashboard = () => {
     const fetchClientData = async () => {
       if (!clientId) return;
       
-      const { data, error } = await supabase
-        .from("clients")
-        .select("agent_name, widget_settings")
-        .eq("id", clientId)
-        .single();
+      setIsLoadingClient(true);
       
-      if (error) {
-        console.error("Error fetching client data:", error);
-        return;
-      }
-      
-      if (data) {
-        setAiAgentName(data.agent_name);
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("agent_name, widget_settings")
+          .eq("id", clientId)
+          .single();
+        
+        if (error) {
+          console.error("Error fetching client data:", error);
+          return;
+        }
+        
+        if (data) {
+          console.log("Client data fetched:", data);
+          setAiAgentName(data.agent_name || "");
+        }
+      } catch (err) {
+        console.error("Error in fetchClientData:", err);
+      } finally {
+        setIsLoadingClient(false);
       }
     };
     
@@ -72,10 +82,24 @@ const ClientDashboard = () => {
     };
   }, [clientId]);
 
-  if ((isLoadingErrorLogs && isLoadingQueries) || !clientId) {
+  const isLoading = isLoadingClient || isLoadingStats || (isLoadingErrorLogs && isLoadingQueries) || !clientId;
+  
+  console.log("Dashboard loading state:", { 
+    isLoadingClient, 
+    isLoadingStats, 
+    isLoadingErrorLogs, 
+    isLoadingQueries, 
+    clientId,
+    stats
+  });
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+          <p className="text-sm text-gray-500">Loading dashboard data...</p>
+        </div>
       </div>
     );
   }
