@@ -64,9 +64,18 @@ serve(async (req) => {
     const password = defaultPassword || `welcome${Math.floor(1000 + Math.random() * 9000)}`;
     console.log(`Generated password: ${password.substring(0, 3)}***`); // Log partially obscured password for security
     
+    // Important: Create or update user BEFORE sending email
     try {
       // First check if user exists
-      const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+      const { data: existingUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+      
+      if (getUserError) {
+        console.error("Error checking if user exists:", getUserError);
+        // If it's not a "User not found" error, throw it
+        if (!getUserError.message.includes("User not found")) {
+          throw getUserError;
+        }
+      }
       
       if (existingUser) {
         console.log("User exists, updating password...");
@@ -84,7 +93,7 @@ serve(async (req) => {
       } else {
         console.log("User doesn't exist, creating new user...");
         // Create new user with the generated password
-        const { error: createError } = await supabaseAdmin.auth.admin.createUser({
+        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
           email: email,
           password: password,
           email_confirm: true, // Skip email confirmation
@@ -97,6 +106,11 @@ serve(async (req) => {
           console.error("Error creating user:", createError);
           throw createError;
         }
+        
+        if (!newUser) {
+          throw new Error("User creation succeeded but no user data returned");
+        }
+        
         console.log("New user created successfully with password");
       }
     } catch (authError) {
