@@ -30,3 +30,6 @@ verify_jwt = false
 
 [functions.check-table-exists]
 verify_jwt = false
+
+[functions.check-email-exists]
+verify_jwt = false
