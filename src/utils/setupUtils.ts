@@ -56,7 +56,7 @@ export const createClientAccount = async (
     console.log("Account created successfully");
     
     if (signUpData.user) {
-      // Use the ensureUserRole utility to handle role assignment
+      // Use the ensureUserRole utility to handle role assignment with proper type
       await ensureUserRole(signUpData.user.id, "client", clientId);
       
       // Set client ID in user metadata

@@ -2,6 +2,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
+import { Database } from "@/integrations/supabase/types";
+
+// Define the proper role type based on the database schema
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 /**
  * Creates a client activity record in the database
@@ -36,7 +40,7 @@ export const createClientActivity = async (
  */
 export const ensureUserRole = async (
   userId: string,
-  role: string,
+  role: AppRole,
   clientId?: string
 ): Promise<void> => {
   try {
