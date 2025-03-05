@@ -15,7 +15,7 @@ const Settings = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If not admin, redirect to client settings
+    // If client, redirect to client settings
     if (userRole === 'client') {
       navigate('/client/settings');
       return;

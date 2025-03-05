@@ -23,10 +23,10 @@ const ClientSettings = () => {
       return;
     }
 
-    // Check if user has client role
+    // Check if user has client role, if not a client redirect to admin settings
     if (userRole !== 'client') {
-      console.error("User is not a client, redirecting...");
-      navigate('/');
+      console.error("User is not a client, redirecting to admin settings...");
+      navigate('/settings');
       return;
     }
 
