@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
@@ -82,6 +83,8 @@ export const useClientData = (id: string | undefined) => {
           }
 
           const newClient = newClients[0];
+          // Generate a default password for the new client
+          const defaultPassword = `welcome${Math.floor(1000 + Math.random() * 9000)}`;
 
           try {
             toast.info("Sending setup email...");
@@ -89,7 +92,8 @@ export const useClientData = (id: string | undefined) => {
               body: {
                 clientId: newClient.id,
                 email: newClient.email,
-                clientName: newClient.client_name
+                clientName: newClient.client_name,
+                defaultPassword: defaultPassword
               }
             });
             if (inviteError) {
@@ -124,12 +128,16 @@ export const useClientData = (id: string | undefined) => {
 
   const sendInvitation = async (clientId: string, email: string, clientName: string) => {
     try {
+      // Generate a password for the invitation
+      const defaultPassword = `welcome${Math.floor(1000 + Math.random() * 9000)}`;
+      
       toast.info("Sending setup email...");
       const { error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId,
           email,
-          clientName
+          clientName,
+          defaultPassword
         }
       });
       if (error) {
