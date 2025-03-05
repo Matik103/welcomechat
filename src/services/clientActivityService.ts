@@ -44,40 +44,25 @@ export const ensureUserRole = async (
   clientId?: string
 ): Promise<void> => {
   try {
-    // Check if the role already exists
-    const { data: existingRole } = await supabase
+    // Use upsert instead of insert to handle the unique constraint
+    // This will update if the role exists or insert if it doesn't
+    const { error } = await supabase
       .from("user_roles")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("role", role)
-      .maybeSingle();
-    
-    if (!existingRole) {
-      // Role doesn't exist, create it
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
+      .upsert(
+        {
           user_id: userId,
           role: role,
           client_id: clientId
-        });
-      
-      if (roleError) {
-        console.error("Role creation error:", roleError);
-        throw roleError;
-      }
-    } else if (clientId) {
-      // Role exists but we want to make sure client_id is set correctly
-      const { error: updateError } = await supabase
-        .from("user_roles")
-        .update({ client_id: clientId })
-        .eq("user_id", userId)
-        .eq("role", role);
-      
-      if (updateError) {
-        console.error("Role update error:", updateError);
-        throw updateError;
-      }
+        },
+        { 
+          onConflict: 'user_id,role', 
+          ignoreDuplicates: false // Update if exists
+        }
+      );
+    
+    if (error) {
+      console.error("Role creation/update error:", error);
+      throw error;
     }
   } catch (error) {
     console.error("Error ensuring user role:", error);
