@@ -3,12 +3,12 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
+import { useClientData } from "@/hooks/useClientData";
 
 interface ClientFormProps {
   initialData?: Client | null;
@@ -25,6 +25,7 @@ const clientFormSchema = z.object({
 
 export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientView = false }: ClientFormProps) => {
   const [isSendingInvitation, setIsSendingInvitation] = useState(false);
+  const { sendInvitation } = useClientData(initialData?.id);
   
   const { register, handleSubmit, formState: { errors }, setValue } = useForm({
     resolver: zodResolver(clientFormSchema),
@@ -51,25 +52,10 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
 
     try {
       setIsSendingInvitation(true);
-      
-      // Call the edge function to send an invitation
-      const { data, error } = await supabase.functions.invoke("send-client-invitation", {
-        body: {
-          clientId: initialData.id,
-          email: initialData.email,
-          clientName: initialData.client_name
-        }
-      });
-
-      if (error) {
-        console.error("Invitation error:", error);
-        throw new Error(error.message || "Failed to send invitation");
-      }
-      
-      toast.success("Setup link sent to client's email");
-    } catch (error: any) {
-      console.error("Error sending invitation:", error);
-      toast.error(`Failed to send invitation: ${error.message}`);
+      await sendInvitation(initialData.id, initialData.email, initialData.client_name);
+    } catch (error) {
+      // Error is already handled in the sendInvitation function
+      console.error("Failed to send invitation:", error);
     } finally {
       setIsSendingInvitation(false);
     }

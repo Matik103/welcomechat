@@ -98,9 +98,35 @@ export const useClientData = (id: string | undefined) => {
     },
   });
 
+  const sendInvitation = async (clientId: string, email: string, clientName: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-client-invitation", {
+        body: {
+          clientId,
+          email,
+          clientName
+        }
+      });
+      
+      if (error) {
+        console.error("Error sending invitation:", error);
+        toast.error(`Failed to send invitation: ${error.message}`);
+        throw error;
+      }
+      
+      toast.success("Setup link sent to client's email");
+      return data;
+    } catch (error: any) {
+      console.error("Exception in invitation process:", error);
+      toast.error(`Error: ${error.message || "Failed to send invitation"}`);
+      throw error;
+    }
+  };
+
   return {
     client,
     isLoadingClient,
     clientMutation,
+    sendInvitation
   };
 };
