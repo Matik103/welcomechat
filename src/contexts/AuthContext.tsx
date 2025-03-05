@@ -13,6 +13,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   isLoading: boolean;
   userRole: UserRole | null;
+  refreshSession: () => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,6 +57,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Function to refresh the session
+  const refreshSession = async (): Promise<boolean> => {
+    try {
+      console.log("Manually refreshing session token...");
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error("Failed to refresh session:", error);
+        
+        // If refresh token is expired, redirect to auth
+        if (error.message.includes("expired") || error.message.includes("JWT")) {
+          console.log("Token expired, redirecting to login");
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          
+          // Only redirect if not already on auth page
+          if (!location.pathname.startsWith('/auth')) {
+            toast.error("Your session has expired. Please sign in again.");
+            navigate('/auth', { replace: true });
+          }
+        }
+        return false;
+      }
+      
+      if (data.session) {
+        console.log("Session refreshed successfully");
+        setSession(data.session);
+        setUser(data.session.user);
+        
+        if (data.session.user) {
+          const role = await checkUserRole(data.session.user.id);
+          setUserRole(role);
+        }
+        
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Error refreshing session:", error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -93,6 +139,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     initializeAuth();
+
+    // Set up interval to refresh token every 50 minutes (tokens last 60 minutes by default)
+    const refreshInterval = setInterval(() => {
+      console.log("Running scheduled token refresh");
+      refreshSession();
+    }, 50 * 60 * 1000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
@@ -152,6 +204,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      clearInterval(refreshInterval);
     };
   }, [navigate, location.pathname, location.search, authCheckCompleted, session]);
 
@@ -173,7 +226,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signOut, isLoading, userRole }}>
+    <AuthContext.Provider value={{ session, user, signOut, isLoading, userRole, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );

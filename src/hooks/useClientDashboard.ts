@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface InteractionStats {
   total_interactions: number;
@@ -36,6 +37,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
   });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [authError, setAuthError] = useState<boolean>(false);
+  const { refreshSession } = useAuth();
 
   // Check if auth is valid and refresh session if needed
   const checkAndRefreshAuth = async () => {
@@ -44,9 +46,9 @@ export const useClientDashboard = (clientId: string | undefined) => {
       if (error || !data.session) {
         console.log("Auth session error or missing:", error);
         // Session is invalid, try refreshing
-        const { error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError) {
-          console.error("Failed to refresh auth session:", refreshError);
+        const refreshed = await refreshSession();
+        if (!refreshed) {
+          console.error("Failed to refresh auth session");
           setAuthError(true);
           return false;
         }
@@ -87,6 +89,8 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.error("Error fetching error logs:", error);
         // Check if it's an auth error
         if (error.code === "PGRST301" || error.message?.includes("JWT")) {
+          console.log("JWT error detected, attempting to refresh session");
+          await refreshSession();
           setAuthError(true);
         }
         return [];
@@ -125,6 +129,8 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.error("Error fetching queries:", error);
         // Check if it's an auth error
         if (error.code === "PGRST301" || error.message?.includes("JWT")) {
+          console.log("JWT error detected, attempting to refresh session");
+          await refreshSession();
           setAuthError(true);
         }
         return [];
@@ -241,6 +247,8 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.error("Error counting interactions:", countError);
         // Check if it's an auth error
         if (countError.code === "PGRST301" || countError.message?.includes("JWT")) {
+          console.log("JWT error detected, attempting to refresh session");
+          await refreshSession();
           setAuthError(true);
         }
         throw countError;
@@ -256,6 +264,8 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.error("Error fetching active days:", activeDaysError);
         // Check if it's an auth error
         if (activeDaysError.code === "PGRST301" || activeDaysError.message?.includes("JWT")) {
+          console.log("JWT error detected, attempting to refresh session");
+          await refreshSession();
           setAuthError(true);
         }
         throw activeDaysError;
@@ -280,6 +290,8 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.error("Error fetching recent interactions:", recentError);
         // Check if it's an auth error
         if (recentError.code === "PGRST301" || recentError.message?.includes("JWT")) {
+          console.log("JWT error detected, attempting to refresh session");
+          await refreshSession();
           setAuthError(true);
         }
         throw recentError;
@@ -310,6 +322,8 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.error("Error fetching top queries:", topQueriesError);
         // Check if it's an auth error
         if (topQueriesError.code === "PGRST301" || topQueriesError.message?.includes("JWT")) {
+          console.log("JWT error detected, attempting to refresh session");
+          await refreshSession();
           setAuthError(true);
         }
         throw topQueriesError;
@@ -345,6 +359,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     isLoadingErrorLogs,
     isLoadingQueries,
     isLoadingStats,
-    authError
+    authError,
+    refreshAuth: checkAndRefreshAuth // Expose function to manually refresh auth
   };
 };
