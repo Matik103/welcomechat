@@ -1,4 +1,3 @@
-
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useClientData } from "@/hooks/useClientData";
@@ -98,7 +97,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
     // Log drive link deletion activity
     if (isClientView && linkToDelete) {
       await logClientActivity(
-        "drive_link_removed", 
+        "drive_link_deleted", 
         "removed a Google Drive link", 
         { link: linkToDelete.link }
       );
@@ -112,7 +111,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
     // Log website URL deletion activity
     if (isClientView && urlToDelete) {
       await logClientActivity(
-        "website_url_removed", 
+        "url_deleted", 
         "removed a website URL", 
         { url: urlToDelete.url }
       );
