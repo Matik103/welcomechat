@@ -70,6 +70,7 @@ const Auth = () => {
     try {
       if (isForgotPassword) {
         console.log("Sending password reset email to:", email);
+        // Use Supabase's built-in password reset functionality
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth/reset-password`,
         });
