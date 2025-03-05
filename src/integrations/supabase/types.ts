@@ -505,6 +505,27 @@ export type Database = {
         }
         Relationships: []
       }
+      glouglu: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       google_drive_links: {
         Row: {
           client_id: string | null
@@ -1291,6 +1312,19 @@ export type Database = {
         }[]
       }
       match_gaiivo: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_glouglu: {
         Args: {
           query_embedding: string
           match_count?: number

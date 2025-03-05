@@ -40,10 +40,11 @@ serve(async (req) => {
     const { clientId, email, clientName }: InvitationRequest = await req.json();
     console.log(`Sending invitation to client: ${clientName} (${email})`);
     
-    // Generate the setup URL
+    // Generate the setup URL - using /client/setup endpoint
+    // This URL will be accessible by clients to set up their password
     const setupUrl = `${req.headers.get("origin")}/client/setup?id=${clientId}`;
     
-    // Email content
+    // Email content with setup link
     const htmlContent = `
       <h1>Welcome to Welcome.Chat, ${clientName}!</h1>
       <p>Your account has been created. Click the link below to complete your setup:</p>
