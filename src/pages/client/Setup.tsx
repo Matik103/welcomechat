@@ -32,15 +32,15 @@ const ClientSetup = () => {
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
-      if (data.session) {
+      if (data.session && !clientId) {
         console.log("User already logged in, redirecting to client dashboard");
-        // If user is already logged in, redirect to client dashboard
+        // If user is already logged in and not in the setup process, redirect to client dashboard
         navigate("/client/view", { replace: true });
       }
     };
     
     checkSession();
-  }, [navigate]);
+  }, [navigate, clientId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,7 +124,7 @@ const ClientSetup = () => {
       
       // Log this activity
       await logClientActivity(
-        "client_updated", 
+        "ai_agent_created", // Using our new enum value
         "completed account setup",
         { setup_method: "invitation" }
       );
@@ -143,11 +143,11 @@ const ClientSetup = () => {
       
       console.log("Setup complete and signed in, redirecting to client dashboard");
       
-      // Force a short delay to ensure auth state updates
+      // Force a longer delay to ensure auth state updates completely
       setTimeout(() => {
         // Explicitly redirect to client dashboard after successful setup and sign in
         navigate("/client/view", { replace: true });
-      }, 1000);
+      }, 1500);
       
     } catch (error: any) {
       console.error("Error setting up account:", error);
@@ -175,7 +175,7 @@ const ClientSetup = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isLoading || setupComplete}
               />
             </div>
             <div className="space-y-2">
@@ -186,14 +186,19 @@ const ClientSetup = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isLoading || setupComplete}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading || setupComplete}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Setting up...
+                </>
+              ) : setupComplete ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Redirecting...
                 </>
               ) : (
                 "Create Account"

@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,7 +75,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUserRole(role);
           
           // If on the setup page with a session, redirect to dashboard
-          if (location.pathname.startsWith('/client/setup')) {
+          // But ONLY if not in the middle of setup process (URL has id parameter)
+          if (location.pathname.startsWith('/client/setup') && !location.search.includes('id=')) {
             console.log("Already logged in on setup page, redirecting to dashboard");
             navigate('/client/view', { replace: true });
           }
@@ -124,7 +126,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setTimeout(() => {
                   console.log("Redirecting client to dashboard");
                   navigate('/client/view', { replace: true });
-                }, 500);
+                }, 800); // Increased delay slightly for more reliable auth state propagation
               } else if (role === 'admin') {
                 navigate('/', { replace: true });
               }
@@ -132,6 +134,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           } else {
             setUserRole(null);
             // Only navigate to auth if we're not already there and not loading
+            // Also don't redirect if we're on the setup page
             if (!location.pathname.startsWith('/auth') && 
                 !location.pathname.startsWith('/client/setup') && 
                 authCheckCompleted) {
@@ -150,7 +153,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, authCheckCompleted, session]);
+  }, [navigate, location.pathname, location.search, authCheckCompleted, session]);
 
   const signOut = async () => {
     try {

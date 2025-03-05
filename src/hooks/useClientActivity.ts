@@ -13,8 +13,12 @@ export const useClientActivity = (clientId: string | undefined) => {
       
       // Handle special cases that aren't in the database enum
       switch (activity_type) {
-        // Use 'ai_agent_table_created' since that's what exists in the enum
+        // New enum value now exists in the database
         case "ai_agent_created":
+          dbActivityType = "ai_agent_created";
+          break;
+          
+        // These still need to be mapped
         case "ai_agent_updated":
         case "logo_uploaded":
         case "embed_code_copied":
