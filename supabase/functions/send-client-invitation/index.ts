@@ -64,24 +64,44 @@ serve(async (req) => {
     const password = defaultPassword || `welcome${Math.floor(1000 + Math.random() * 9000)}`;
     console.log(`Generated password: ${password.substring(0, 3)}***`); // Log partially obscured password for security
     
-    // Check if user already exists and update password
-    console.log("Checking if user exists and updating password...");
     try {
+      // First check if user exists
       const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
       
       if (existingUser) {
         console.log("User exists, updating password...");
-        await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+        // Update existing user's password
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
           password: password,
           email_confirm: true
         });
-        console.log("Password updated successfully");
+        
+        if (updateError) {
+          console.error("Error updating user password:", updateError);
+          throw updateError;
+        }
+        console.log("Password updated successfully for existing user");
       } else {
-        console.log("User doesn't exist yet, password will be set during creation");
+        console.log("User doesn't exist, creating new user...");
+        // Create new user with the generated password
+        const { error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email: email,
+          password: password,
+          email_confirm: true, // Skip email confirmation
+          user_metadata: {
+            client_id: clientId
+          }
+        });
+        
+        if (createError) {
+          console.error("Error creating user:", createError);
+          throw createError;
+        }
+        console.log("New user created successfully with password");
       }
-    } catch (error) {
-      console.error("Error updating user password:", error);
-      // Continue with sending the email even if password update fails
+    } catch (authError) {
+      console.error("Error in authentication process:", authError);
+      throw authError;
     }
     
     // Updated email content with dashboard link and login credentials

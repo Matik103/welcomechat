@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
@@ -142,8 +141,6 @@ export const useClientData = (id: string | undefined) => {
 
       if (error) throw error;
 
-      // If a password was returned, store this information in last_active field
-      // which is an existing field in the clients table
       if (data.password) {
         console.log("Marking client as having received credentials...");
         await supabase
