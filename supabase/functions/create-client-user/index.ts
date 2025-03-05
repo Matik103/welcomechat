@@ -70,7 +70,7 @@ serve(async (req) => {
       }
     )
 
-    const { email, clientName, aiAgentName, password } = await req.json()
+    const { email, clientName, aiAgentName } = await req.json()
     console.log('Received request for:', email);
 
     // Check if user already exists
@@ -101,9 +101,35 @@ serve(async (req) => {
         );
       }
     } else {
-      // Create the user with provided password or a random one
+      // Get the stored temporary password for this user
+      const { data: passwordData, error: passwordError } = await supabaseAdmin
+        .from('client_temp_passwords')
+        .select('temp_password')
+        .eq('email', email)
+        .eq('used', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      let userPassword;
+        
+      if (passwordError || !passwordData) {
+        console.log('No stored password found, generating a random one');
+        userPassword = crypto.randomUUID(); // Fallback to random UUID if no password found
+      } else {
+        console.log('Using stored temporary password');
+        userPassword = passwordData.temp_password;
+        
+        // Mark password as used
+        await supabaseAdmin
+          .from('client_temp_passwords')
+          .update({ used: true })
+          .eq('email', email)
+          .eq('temp_password', userPassword);
+      }
+      
+      // Create the user with the temporary password
       console.log('Creating new user account...');
-      const userPassword = password || crypto.randomUUID(); // Use provided password or generate random one
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         email_confirm: true,

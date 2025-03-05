@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,7 @@ serve(async (req) => {
     const resend = new Resend(resendApiKey);
     
     // Parse request body
-    const { clientId, email, clientName, defaultPassword }: InvitationRequest = await req.json();
+    const { clientId, email, clientName }: InvitationRequest = await req.json();
     console.log(`Sending invitation to client: ${clientName} (${email})`);
     
     // Generate the dashboard URL - where clients will access their dashboard
@@ -46,9 +47,65 @@ serve(async (req) => {
     const dashboardUrl = `${origin}/client/view`;
     
     console.log(`Dashboard URL: ${dashboardUrl}`);
+
+    // Initialize Supabase admin client
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
     
-    // Generate a default password if one wasn't provided
-    const password = defaultPassword || `welcome${Math.floor(1000 + Math.random() * 9000)}`;
+    // Check if we have a stored temporary password for this client
+    const { data: passwordData, error: passwordError } = await supabaseAdmin
+      .from('client_temp_passwords')
+      .select('temp_password')
+      .eq('client_id', clientId)
+      .eq('email', email)
+      .eq('used', false)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+      
+    let password;
+    
+    if (passwordError || !passwordData) {
+      console.log('No stored password found, generating a new one');
+      // If no stored password, generate a new one using our function
+      const passwordResponse = await fetch(
+        `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-client-password`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({ email, clientId })
+        }
+      );
+      
+      if (!passwordResponse.ok) {
+        console.error('Failed to generate password');
+        throw new Error('Failed to generate password');
+      }
+      
+      const passwordResult = await passwordResponse.json();
+      password = passwordResult.password;
+    } else {
+      password = passwordData.temp_password;
+      
+      // Mark the password as used
+      await supabaseAdmin
+        .from('client_temp_passwords')
+        .update({ used: true })
+        .eq('client_id', clientId)
+        .eq('email', email)
+        .eq('temp_password', password);
+    }
     
     // Updated email content with dashboard link and login credentials
     const htmlContent = `
@@ -79,7 +136,7 @@ serve(async (req) => {
     
     console.log("Invitation email sent successfully:", data);
     
-    // Return the password in the response so it can be saved in the database if needed
+    // Return the password in the response
     return new Response(
       JSON.stringify({ 
         success: true,
