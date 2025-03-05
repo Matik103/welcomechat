@@ -1,6 +1,6 @@
 
 import { useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,10 +18,26 @@ const ClientSetup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [setupComplete, setSetupComplete] = useState(false);
   
   // Extract client ID from URL
   const query = new URLSearchParams(location.search);
   const clientId = query.get("id");
+
+  // Check if the user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        // If user is already logged in and setup is complete, redirect to dashboard
+        if (setupComplete) {
+          navigate("/client/view", { replace: true });
+        }
+      }
+    };
+    
+    checkSession();
+  }, [navigate, setupComplete]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,19 +90,32 @@ const ClientSetup = () => {
           });
           
         if (roleError) throw roleError;
+        
+        // Set client ID in user metadata
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: { client_id: clientId }
+        });
+        
+        if (metadataError) throw metadataError;
       }
 
       toast.success("Account setup successful! Redirecting to dashboard...");
+      setSetupComplete(true);
       
-      // Redirect to client dashboard after successful setup
-      setTimeout(() => {
-        navigate("/client/view");
-      }, 2000);
+      // Sign in with the new credentials
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: clientData.email,
+        password: password,
+      });
+      
+      if (signInError) throw signInError;
+      
+      // Redirect to client dashboard after successful setup and sign in
+      navigate("/client/view", { replace: true });
       
     } catch (error: any) {
       console.error("Error setting up account:", error);
       toast.error(error.message || "Failed to set up your account");
-    } finally {
       setIsLoading(false);
     }
   };
