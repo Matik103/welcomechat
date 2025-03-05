@@ -27,10 +27,14 @@ export const SecuritySection = () => {
       });
       if (error) throw error;
       
+      // Get the current user data
+      const { data: userData } = await supabase.auth.getUser();
+      const clientId = userData.user?.user_metadata?.client_id;
+      
       // Log activity to the client_activities table
       await supabase.from("client_activities").insert({
-        client_id: supabase.auth.getUser().then(({ data }) => data.user?.user_metadata?.client_id),
         activity_type: "password_updated",
+        client_id: clientId,
         description: "updated their password",
         metadata: {}
       });
