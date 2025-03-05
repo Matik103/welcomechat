@@ -1,8 +1,8 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ExtendedActivityType } from "@/types/activity";
 import { ensureUserRole } from "@/services/clientActivityService";
+import { createAiAgentTable } from "@/services/aiAgentTableService";
 
 export const createClientAccount = async (
   clientId: string | null, 
@@ -31,7 +31,7 @@ export const createClientAccount = async (
     // Fetch client email from client ID
     const { data: clientData, error: clientError } = await supabase
       .from("clients")
-      .select("email, client_name")
+      .select("email, client_name, agent_name")
       .eq("id", clientId)
       .single();
       
@@ -58,6 +58,11 @@ export const createClientAccount = async (
     if (signUpData.user) {
       // Use the ensureUserRole utility to handle role assignment with proper type
       await ensureUserRole(signUpData.user.id, "client", clientId);
+      
+      // Setup the AI agent table with the correct permissions
+      if (clientData.agent_name) {
+        await createAiAgentTable(clientData.agent_name);
+      }
       
       // Set client ID in user metadata
       console.log("Setting client metadata");
