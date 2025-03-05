@@ -115,12 +115,12 @@ async function manageInvitationRecord(supabase: any, clientId: string, email: st
 // Log activity in the database
 async function logActivity(supabase: any, clientId: string, email: string, expiresAt: Date) {
   try {
-    // Changed from "invitation_sent" to "client_updated" which is a valid enum value
+    // Using "client_updated" which is a valid enum value
     const { error: activityError } = await supabase
       .from("client_activities")
       .insert({
         client_id: clientId,
-        activity_type: "client_updated", // Fixed: Using a valid enum value
+        activity_type: "client_updated", 
         description: "Invitation sent to client",
         metadata: {
           email: email,
@@ -143,7 +143,7 @@ async function sendSetupEmail(resend: any, email: string, clientName: string, se
   
   try {
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: "Welcome.Chat <admin@welcome.chat>",
+      from: "AI Assistant <admin@welcome.chat>",
       to: email,
       subject: `${clientName} AI Assistant - Complete Your Setup`,
       html: `
