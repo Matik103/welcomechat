@@ -13,6 +13,7 @@ import { Navigate } from "react-router-dom";
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -32,15 +33,46 @@ const Auth = () => {
     return <Navigate to="/" replace />;
   }
 
+  // Check if email already exists in Supabase
+  const checkEmailExists = async (email: string) => {
+    setIsCheckingEmail(true);
+    try {
+      // Call the auth.admin.getUserByEmail() through a secure edge function
+      const { data, error } = await supabase.functions.invoke("check-email-exists", {
+        body: { email }
+      });
+      
+      if (error) throw error;
+      
+      return data.exists;
+    } catch (error: any) {
+      console.error("Error checking email:", error);
+      return false;
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isAuthLoading) return;
+    if (isAuthLoading || isCheckingEmail) return;
     setIsAuthLoading(true);
 
     try {
       if (isSignUp) {
         console.log("Starting sign up process for:", email);
+        
+        // Check if email already exists
+        const emailExists = await checkEmailExists(email);
+        if (emailExists) {
+          console.log("Email already exists:", email);
+          toast.error("An account with this email already exists. Please sign in instead.");
+          setIsSignUp(false); // Switch to sign in mode
+          setIsAuthLoading(false);
+          return;
+        }
+        
         const { error, data } = await supabase.auth.signUp({
           email,
           password,
@@ -69,7 +101,14 @@ const Auth = () => {
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      toast.error(error.message);
+      
+      // Check for specific error messages related to existing accounts
+      if (error.message?.includes("already registered")) {
+        toast.error("An account with this email already exists. Please sign in instead.");
+        setIsSignUp(false); // Switch to sign in mode
+      } else {
+        toast.error(error.message || "Authentication failed");
+      }
     } finally {
       setIsAuthLoading(false);
     }
@@ -149,8 +188,8 @@ const Auth = () => {
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isAuthLoading}>
-              {isAuthLoading ? (
+            <Button type="submit" className="w-full" disabled={isAuthLoading || isCheckingEmail}>
+              {isAuthLoading || isCheckingEmail ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : isSignUp ? (
                 "Sign Up"
