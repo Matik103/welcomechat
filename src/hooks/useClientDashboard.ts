@@ -89,13 +89,13 @@ export const useClientDashboard = (clientId: string | undefined) => {
         if (error.code === "PGRST301" || error.message?.includes("JWT")) {
           setAuthError(true);
         }
-        return [];
+        throw error;
       }
       return data as ErrorLog[];
     },
     enabled: !!clientId,
     refetchInterval: 15000, // Refetch every 15 seconds
-    retry: 1, // Only retry once on failure
+    retry: 3, // Increase retries
   });
 
   // Query common queries for this client
@@ -127,7 +127,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
         if (error.code === "PGRST301" || error.message?.includes("JWT")) {
           setAuthError(true);
         }
-        return [];
+        throw error;
       }
       
       return (data || []).map((item: any) => ({
@@ -139,7 +139,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     },
     enabled: !!clientId,
     refetchInterval: 15000, // Refetch every 15 seconds
-    retry: 1, // Only retry once on failure
+    retry: 3, // Increase retries
   });
 
   // Set up real-time subscriptions
@@ -231,99 +231,99 @@ export const useClientDashboard = (clientId: string | undefined) => {
         return;
       }
       
-      const { count: totalInteractions, error: countError } = await supabase
-        .from("client_activities")
-        .select("*", { count: "exact", head: true })
-        .eq("client_id", clientId)
-        .eq("activity_type", "chat_interaction");
+      // Default to 0 values if requests fail
+      let totalInteractions = 0;
+      let activeDays = 0;
+      let avgResponseTime = 0;
+      let topQueriesList: string[] = [];
       
-      if (countError) {
-        console.error("Error counting interactions:", countError);
-        // Check if it's an auth error
-        if (countError.code === "PGRST301" || countError.message?.includes("JWT")) {
-          setAuthError(true);
+      try {
+        const { count, error: countError } = await supabase
+          .from("client_activities")
+          .select("*", { count: "exact", head: true })
+          .eq("client_id", clientId)
+          .eq("activity_type", "chat_interaction");
+        
+        if (!countError) {
+          totalInteractions = count || 0;
         }
-        throw countError;
+      } catch (err) {
+        console.error("Error counting interactions:", err);
       }
 
-      const { data: activeDaysData, error: activeDaysError } = await supabase
-        .from("client_activities")
-        .select("created_at")
-        .eq("client_id", clientId)
-        .eq("activity_type", "chat_interaction");
-      
-      if (activeDaysError) {
-        console.error("Error fetching active days:", activeDaysError);
-        // Check if it's an auth error
-        if (activeDaysError.code === "PGRST301" || activeDaysError.message?.includes("JWT")) {
-          setAuthError(true);
+      try {
+        const { data: activeDaysData, error: activeDaysError } = await supabase
+          .from("client_activities")
+          .select("created_at")
+          .eq("client_id", clientId)
+          .eq("activity_type", "chat_interaction");
+        
+        if (!activeDaysError && activeDaysData) {
+          const uniqueDates = new Set();
+          activeDaysData.forEach(activity => {
+            const activityDate = new Date(activity.created_at).toDateString();
+            uniqueDates.add(activityDate);
+          });
+          activeDays = uniqueDates.size;
         }
-        throw activeDaysError;
-      }
-      
-      const uniqueDates = new Set();
-      activeDaysData?.forEach(activity => {
-        const activityDate = new Date(activity.created_at).toDateString();
-        uniqueDates.add(activityDate);
-      });
-      const activeDays = uniqueDates.size;
-
-      const { data: recentInteractions, error: recentError } = await supabase
-        .from("client_activities")
-        .select("metadata")
-        .eq("client_id", clientId)
-        .eq("activity_type", "chat_interaction")
-        .order("created_at", { ascending: false })
-        .limit(30);
-      
-      if (recentError) {
-        console.error("Error fetching recent interactions:", recentError);
-        // Check if it's an auth error
-        if (recentError.code === "PGRST301" || recentError.message?.includes("JWT")) {
-          setAuthError(true);
-        }
-        throw recentError;
-      }
-      
-      let totalResponseTime = 0;
-      let countWithResponseTime = 0;
-      
-      recentInteractions?.forEach(interaction => {
-        if (interaction.metadata && typeof interaction.metadata === 'object' && 'response_time_ms' in interaction.metadata) {
-          totalResponseTime += Number(interaction.metadata.response_time_ms);
-          countWithResponseTime++;
-        }
-      });
-      
-      const avgResponseTime = countWithResponseTime > 0 
-        ? (totalResponseTime / countWithResponseTime / 1000).toFixed(2) 
-        : 0;
-
-      const { data: topQueries, error: topQueriesError } = await supabase
-        .from("common_queries")
-        .select("query_text")
-        .eq("client_id", clientId)
-        .order("frequency", { ascending: false })
-        .limit(5);
-      
-      if (topQueriesError) {
-        console.error("Error fetching top queries:", topQueriesError);
-        // Check if it's an auth error
-        if (topQueriesError.code === "PGRST301" || topQueriesError.message?.includes("JWT")) {
-          setAuthError(true);
-        }
-        throw topQueriesError;
+      } catch (err) {
+        console.error("Error fetching active days:", err);
       }
 
+      try {
+        const { data: recentInteractions, error: recentError } = await supabase
+          .from("client_activities")
+          .select("metadata")
+          .eq("client_id", clientId)
+          .eq("activity_type", "chat_interaction")
+          .order("created_at", { ascending: false })
+          .limit(30);
+        
+        if (!recentError && recentInteractions) {
+          let totalResponseTime = 0;
+          let countWithResponseTime = 0;
+          
+          recentInteractions.forEach(interaction => {
+            if (interaction.metadata && typeof interaction.metadata === 'object' && 'response_time_ms' in interaction.metadata) {
+              totalResponseTime += Number(interaction.metadata.response_time_ms);
+              countWithResponseTime++;
+            }
+          });
+          
+          avgResponseTime = countWithResponseTime > 0 
+            ? Number((totalResponseTime / countWithResponseTime / 1000).toFixed(2))
+            : 0;
+        }
+      } catch (err) {
+        console.error("Error fetching recent interactions:", err);
+      }
+
+      try {
+        const { data: topQueries, error: topQueriesError } = await supabase
+          .from("common_queries")
+          .select("query_text")
+          .eq("client_id", clientId)
+          .order("frequency", { ascending: false })
+          .limit(5);
+        
+        if (!topQueriesError && topQueries) {
+          topQueriesList = topQueries.map(q => q.query_text);
+        }
+      } catch (err) {
+        console.error("Error fetching top queries:", err);
+      }
+
+      // Set the stats even if some requests failed
       setStats({
-        total_interactions: totalInteractions || 0,
-        active_days: activeDays || 0,
-        average_response_time: Number(avgResponseTime),
-        top_queries: (topQueries || []).map(q => q.query_text)
+        total_interactions: totalInteractions,
+        active_days: activeDays,
+        average_response_time: avgResponseTime,
+        top_queries: topQueriesList
       });
       
     } catch (err: any) {
       console.error("Error fetching stats:", err);
+      // Don't set authError here, allow partial data display
     } finally {
       setIsLoadingStats(false);
     }

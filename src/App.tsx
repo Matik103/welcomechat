@@ -58,23 +58,11 @@ function App() {
     return <Navigate to="/auth" replace />;
   }
 
-  // Redirect based on user role if we have both user and userRole information
-  if (user && userRole && !isLoading) {
-    // If client tries to access admin route or admin tries to access client route
-    const isClientRoute = location.pathname.startsWith('/client') && !location.pathname.startsWith('/client/setup');
-    const isAdminRoute = !location.pathname.startsWith('/client') && location.pathname !== '/auth';
-    
-    if (userRole === 'client' && isAdminRoute) {
-      return <Navigate to="/client/view" replace />;
-    }
-    
-    if (userRole === 'admin' && isClientRoute) {
-      return <Navigate to="/" replace />;
-    }
-  }
-
-  // Client routes use ClientHeader, admin routes use Header
-  const isClientRoute = location.pathname.startsWith('/client');
+  // Determine if we need to show the client header or admin header
+  // This is independent of role checks to avoid UI flickering
+  const isClientRoute = 
+    location.pathname.startsWith('/client') && 
+    !location.pathname.startsWith('/client/setup');
 
   return (
     <div className="min-h-screen bg-background">
@@ -85,19 +73,41 @@ function App() {
         <Route path="/client/setup" element={<ClientSetup />} />
         
         {/* Admin Routes */}
-        <Route path="/" element={<Index />} />
-        <Route path="/admin/clients" element={<ClientList />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/admin/clients/new" element={<AddEditClient />} />
-        <Route path="/admin/clients/:id" element={<ClientView />} />
-        <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
-        <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
+        <Route path="/" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <Index />
+        } />
+        <Route path="/admin/clients" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientList />
+        } />
+        <Route path="/settings" element={
+          userRole === 'client' ? <Navigate to="/client/settings" replace /> : <Settings />
+        } />
+        <Route path="/admin/clients/new" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <AddEditClient />
+        } />
+        <Route path="/admin/clients/:id" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientView />
+        } />
+        <Route path="/admin/clients/:id/edit" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <AddEditClient />
+        } />
+        <Route path="/admin/clients/:id/widget-settings" element={
+          userRole === 'client' ? <Navigate to="/client/widget-settings" replace /> : <WidgetSettings />
+        } />
         
         {/* Client Routes */}
-        <Route path="/client/view" element={<ClientDashboard />} />
-        <Route path="/client/settings" element={<ClientSettings />} />
-        <Route path="/client/edit" element={<AddEditClient isClientView={true} />} />
-        <Route path="/client/widget-settings" element={<WidgetSettings />} />
+        <Route path="/client/view" element={
+          userRole === 'admin' ? <Navigate to="/" replace /> : <ClientDashboard />
+        } />
+        <Route path="/client/settings" element={
+          userRole === 'admin' ? <Navigate to="/settings" replace /> : <ClientSettings />
+        } />
+        <Route path="/client/edit" element={
+          userRole === 'admin' ? <Navigate to="/" replace /> : <AddEditClient isClientView={true} />
+        } />
+        <Route path="/client/widget-settings" element={
+          userRole === 'admin' ? <Navigate to="/" replace /> : <WidgetSettings />
+        } />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -44,20 +44,43 @@ export const createClientAccount = async (
     console.log("Found client:", clientData.email);
     
     // At this point the user should be following an invitation link from Supabase
-    // They'll set their password and then continue
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email: clientData.email,
-      password: password,
-    });
+    // Check if the user already has an account
+    const { data: userExists, error: userCheckError } = await supabase.auth.getUser();
+    
+    let signUpData: any;
+    
+    if (userExists?.user) {
+      console.log("User already exists, updating password");
+      // Update existing user's password
+      const { data, error: updateError } = await supabase.auth.updateUser({
+        password: password
+      });
+      
+      if (updateError) {
+        console.error("Password update error:", updateError);
+        throw updateError;
+      }
+      
+      signUpData = data;
+    } else {
+      // Create a new account
+      console.log("Creating new account");
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: clientData.email,
+        password: password,
+      });
 
-    if (signUpError) {
-      console.error("Sign up error:", signUpError);
-      throw signUpError;
+      if (signUpError) {
+        console.error("Sign up error:", signUpError);
+        throw signUpError;
+      }
+      
+      signUpData = data;
     }
     
-    console.log("Account created successfully");
+    console.log("Account created or updated successfully");
     
-    if (signUpData.user) {
+    if (signUpData?.user) {
       // Use the ensureUserRole utility to handle role assignment with proper type
       await ensureUserRole(signUpData.user.id, "client", clientId);
       

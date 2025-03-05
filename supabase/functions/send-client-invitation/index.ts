@@ -92,8 +92,6 @@ serve(async (req) => {
   <li>After setting your password, you'll be automatically signed in to your dashboard</li>
 </ol>
 
-<p>If you have any questions or need assistance, please contact your administrator.</p>
-
 <p>Thank you,<br>The Welcome.Chat Team</p>
         `
       }
