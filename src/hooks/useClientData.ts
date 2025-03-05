@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
@@ -129,6 +130,7 @@ export const useClientData = (id: string | undefined) => {
   ) => {
     try {
       console.log("Sending client invitation for:", id, email, clientName);
+      toast.info("Sending invitation email...");
       
       const { data, error } = await supabase.functions.invoke(
         "send-client-invitation",
@@ -143,16 +145,19 @@ export const useClientData = (id: string | undefined) => {
 
       if (error) {
         console.error("Error from edge function:", error);
+        toast.error(`Failed to send invitation: ${error.message || "Unknown error"}`);
         throw error;
       }
 
       if (!data || !data.success) {
         console.error("Invitation failed but no error returned:", data);
+        toast.error("Failed to send invitation - please try again");
         throw new Error("Failed to send invitation - no success response");
       }
 
-      if (data.password) {
-        console.log("Invitation sent successfully, updating client record");
+      // Update client record to indicate invitation was sent
+      console.log("Invitation sent successfully, updating client record");
+      try {
         const { error: updateError } = await supabase
           .from("clients")
           .update({ last_active: new Date().toISOString() })
@@ -162,6 +167,9 @@ export const useClientData = (id: string | undefined) => {
           console.error("Error updating client record:", updateError);
           // Not throwing here as the invitation was sent successfully
         }
+      } catch (updateError) {
+        console.error("Exception updating client record:", updateError);
+        // We don't throw here either since the invite was sent successfully
       }
 
       toast.success("Invitation sent successfully!");
