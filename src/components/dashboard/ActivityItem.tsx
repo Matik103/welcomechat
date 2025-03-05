@@ -21,8 +21,9 @@ const getActivityIcon = (type: string, metadata: Json) => {
   // Safely check if there's an original activity type in metadata
   const originalType = metadata && 
     typeof metadata === 'object' && 
+    metadata !== null && 
     'original_activity_type' in metadata ? 
-    metadata.original_activity_type as string : 
+    (metadata.original_activity_type as string) : 
     undefined;
   
   // Use the original type if it exists, otherwise use the provided type
