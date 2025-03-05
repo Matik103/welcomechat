@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileSection } from "@/components/settings/ProfileSection";
+import { SecuritySection } from "@/components/client/settings/SecuritySection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, InfoIcon } from "lucide-react";
@@ -55,6 +56,8 @@ const ClientSettings = () => {
           initialFullName={user?.user_metadata?.full_name || ""}
           initialEmail={user?.email || ""}
         />
+
+        <SecuritySection />
 
         <Card>
           <CardHeader>

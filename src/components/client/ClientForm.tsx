@@ -106,10 +106,14 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       <div className="flex flex-col md:flex-row gap-4 pt-4">
         <Button type="submit" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {initialData ? "Update Client" : "Create Client"}
+          {isClientView 
+            ? "Save Changes"
+            : initialData 
+              ? "Update Client" 
+              : "Create Client"}
         </Button>
         
-        {initialData?.id && (
+        {initialData?.id && !isClientView && (
           <Button
             type="button"
             variant="outline"

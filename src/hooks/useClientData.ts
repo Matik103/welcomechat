@@ -35,6 +35,25 @@ export const useClientData = (id: string | undefined) => {
             })
             .eq("id", id);
           if (error) throw error;
+          
+          // Log activity for client updates
+          try {
+            const user = await supabase.auth.getUser();
+            // Check if this is a client user updating their own profile
+            const isClientUser = user.data.user?.user_metadata?.client_id === id;
+            
+            if (isClientUser) {
+              await supabase.from("client_activities").insert({
+                client_id: id,
+                activity_type: "client_updated",
+                description: "updated their account information",
+                metadata: {}
+              });
+            }
+          } catch (activityError) {
+            console.error("Error logging activity:", activityError);
+          }
+          
           return id;
         } else {
           // Create new client
