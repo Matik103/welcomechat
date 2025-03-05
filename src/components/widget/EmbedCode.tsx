@@ -12,9 +12,10 @@ interface EmbedCodeProps {
 export function EmbedCode({ settings }: EmbedCodeProps) {
   const { toast } = useToast();
   
-  // Extract the Supabase project reference from the URL
-  const supabaseUrl = supabase.supabaseUrl;
-  const projectRef = supabaseUrl.split("https://")[1]?.split(".supabase.co")[0];
+  // Get the Supabase project reference from the client's internal URL constant
+  // This is using the URL from the integrations/supabase/client.ts file
+  const SUPABASE_URL = supabase.getUrl();
+  const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
 
   const handleCopyCode = () => {
     const embedCode = `<!-- Widget Configuration -->
