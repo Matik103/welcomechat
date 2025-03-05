@@ -85,12 +85,16 @@ export const useClientData = (id: string | undefined) => {
           const newClient = newClients[0];
 
           try {
+            // Generate a random password for the client
+            const generatedPassword = `welcome${Math.floor(1000 + Math.random() * 9000)}`;
+            
             toast.info("Sending setup email...");
             const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
               body: {
                 clientId: newClient.id,
                 email: newClient.email,
-                clientName: newClient.client_name
+                clientName: newClient.client_name,
+                defaultPassword: generatedPassword // Send the generated password
               }
             });
             if (inviteError) {
@@ -132,6 +136,9 @@ export const useClientData = (id: string | undefined) => {
       console.log("Sending client invitation for:", id, email, clientName);
       toast.info("Sending invitation email...");
       
+      // Generate a random password for the client
+      const generatedPassword = `welcome${Math.floor(1000 + Math.random() * 9000)}`;
+      
       const { data, error } = await supabase.functions.invoke(
         "send-client-invitation",
         {
@@ -139,6 +146,7 @@ export const useClientData = (id: string | undefined) => {
             clientId: id,
             email,
             clientName,
+            defaultPassword: generatedPassword // Send the generated password
           },
         }
       );

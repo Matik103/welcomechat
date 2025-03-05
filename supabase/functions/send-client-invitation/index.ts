@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -17,7 +16,6 @@ interface InvitationRequest {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
@@ -28,7 +26,6 @@ serve(async (req) => {
   try {
     console.log("Send client invitation function started");
     
-    // Parse request body early to catch JSON parsing errors
     let requestData: InvitationRequest;
     try {
       requestData = await req.json();
@@ -46,7 +43,6 @@ serve(async (req) => {
     
     const { clientId, email, clientName, defaultPassword } = requestData;
     
-    // Validate required fields
     if (!clientId || !email || !clientName) {
       const missingFields = [];
       if (!clientId) missingFields.push("clientId");
@@ -63,7 +59,6 @@ serve(async (req) => {
       );
     }
     
-    // Validate Resend API key
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
@@ -76,7 +71,6 @@ serve(async (req) => {
       );
     }
     
-    // Validate Supabase connection details
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
@@ -91,7 +85,6 @@ serve(async (req) => {
       );
     }
     
-    // Create Supabase client for admin operations
     console.log("Creating Supabase admin client");
     const supabaseAdmin = createClient(
       supabaseUrl,
@@ -109,30 +102,23 @@ serve(async (req) => {
     
     console.log(`Sending invitation to client: ${clientName} (${email})`);
     
-    // Generate the dashboard URL - where clients will access their dashboard
     const origin = req.headers.get("origin") || "https://welcome.chat";
     const dashboardUrl = `${origin}/client/view`;
     
     console.log(`Dashboard URL: ${dashboardUrl}`);
     
-    // Generate a default password if one wasn't provided
     const password = defaultPassword || `welcome${Math.floor(1000 + Math.random() * 9000)}`;
-    console.log(`Generated password: ${password.substring(0, 3)}***`); // Log partially obscured password for security
+    console.log(`Generated password: ${password.substring(0, 3)}***`);
     
-    // Important: Create or update user BEFORE sending email
     let authSuccess = false;
     let userId = null;
     
     try {
-      // First check if user exists
       console.log("Checking if user exists:", email);
       const { data: existingUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
       
       if (getUserError) {
-        // Only log the error, but continue with the flow if it's a "User not found" error
         console.error("Error checking if user exists:", getUserError);
-        
-        // If it's not a "User not found" error, handle accordingly
         if (!getUserError.message.includes("User not found")) {
           return new Response(
             JSON.stringify({ error: `Authentication error: ${getUserError.message}` }), 
@@ -148,7 +134,6 @@ serve(async (req) => {
         console.log("User exists, updating password...");
         userId = existingUser.id;
         
-        // Update existing user's password
         const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
           password: password,
           email_confirm: true,
@@ -171,11 +156,10 @@ serve(async (req) => {
         authSuccess = true;
       } else {
         console.log("User doesn't exist, creating new user...");
-        // Create new user with the generated password
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
           email: email,
           password: password,
-          email_confirm: true, // Skip email confirmation
+          email_confirm: true,
           user_metadata: {
             client_id: clientId
           }
@@ -231,7 +215,6 @@ serve(async (req) => {
     
     console.log("User authentication successful, preparing email");
     
-    // Updated email content with dashboard link and login credentials
     const htmlContent = `
       <h1>Welcome to Welcome.Chat, Your Agent!</h1>
       <p>Your account has been created. Here are your login credentials:</p>
@@ -245,7 +228,6 @@ serve(async (req) => {
       <p>Thank you,<br>The Welcome.Chat Team</p>
     `;
     
-    // Send the email
     console.log("Sending email via Resend...");
     try {
       const { data, error } = await resend.emails.send({
@@ -278,7 +260,6 @@ serve(async (req) => {
       );
     }
     
-    // Return the password in the response so it can be saved in the database if needed
     return new Response(
       JSON.stringify({ 
         success: true,
