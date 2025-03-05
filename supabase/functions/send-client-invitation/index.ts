@@ -68,62 +68,41 @@ serve(async (req) => {
     
     console.log(`Processing invitation for client: ${clientName}, email: ${email}`);
     
-    // Check if there's an existing pending invitation
+    // Generate a secure random token
+    const token = crypto.randomUUID();
+    
+    // Set expiration date (24 hours from now)
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+    
+    // Check for existing invitations
     const { data: existingInvitation, error: checkError } = await supabase
       .from("client_invitations")
       .select("*")
       .eq("client_id", clientId)
       .eq("email", email)
-      .eq("status", "pending")
       .maybeSingle();
-
-    if (checkError) {
-      console.error("Error checking existing invitation:", checkError);
-    }
-
-    let token;
-    let invitationUrl;
-    let expiresAt;
-
-    if (existingInvitation) {
-      // Use existing invitation if it hasn't expired
-      const currentTime = new Date();
-      const expirationTime = new Date(existingInvitation.expires_at);
       
-      if (expirationTime > currentTime) {
-        console.log("Using existing invitation that hasn't expired yet");
-        token = existingInvitation.token;
-        expiresAt = existingInvitation.expires_at;
-      } else {
-        // Generate a new token if the existing one is expired
-        token = crypto.randomUUID();
-        expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 24);
-
-        // Update the existing invitation
-        const { error: updateError } = await supabase
-          .from("client_invitations")
-          .update({
-            token: token,
-            status: "pending",
-            expires_at: expiresAt.toISOString()
-          })
-          .eq("id", existingInvitation.id);
-
-        if (updateError) {
-          console.error("Error updating invitation:", updateError);
-          throw new Error("Failed to update invitation record");
-        }
+    if (checkError) {
+      console.error("Error checking existing invitations:", checkError);
+    }
+    
+    // Either update existing or create new invitation
+    if (existingInvitation) {
+      const { error: updateError } = await supabase
+        .from("client_invitations")
+        .update({
+          token: token,
+          status: "pending",
+          expires_at: expiresAt.toISOString()
+        })
+        .eq("id", existingInvitation.id);
+        
+      if (updateError) {
+        throw new Error(`Failed to update invitation: ${updateError.message}`);
       }
     } else {
-      // Generate a secure random token
-      token = crypto.randomUUID();
-      
-      // Set expiration date (24 hours from now)
-      expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 24);
-      
-      // Save the invitation in the database
+      // Create a new invitation
       const { error: insertError } = await supabase
         .from("client_invitations")
         .insert({
@@ -133,37 +112,42 @@ serve(async (req) => {
           status: "pending",
           expires_at: expiresAt.toISOString()
         });
-      
+        
       if (insertError) {
-        console.error("Error inserting invitation:", insertError);
-        throw new Error("Failed to create invitation record");
+        throw new Error(`Failed to create invitation: ${insertError.message}`);
       }
     }
     
-    // Generate the invitation URL with the token
+    // Generate the setup URL with the token
     const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "http://localhost:5173";
-    invitationUrl = `${baseUrl}/client/setup?token=${token}`;
+    const setupUrl = `${baseUrl}/client/setup?token=${token}`;
     
-    console.log("Generated invitation URL:", invitationUrl);
+    console.log("Generated setup URL:", setupUrl);
     
-    // Send the invitation email with Welcome.Chat sender
+    // Send the direct setup email
     try {
       const { data: emailData, error: emailError } = await resend.emails.send({
         from: "Welcome.Chat <admin@welcome.chat>",
         to: email,
-        subject: `${clientName} AI Assistant - Account Setup`,
+        subject: `${clientName} AI Assistant - Complete Your Setup`,
         html: `
           <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-              <h1>Welcome to ${clientName} AI Assistant!</h1>
-              <p>You've been invited to set up your AI Assistant dashboard.</p>
-              <p>Please click the link below to create your account:</p>
-              <p>
-                <a href="${invitationUrl}" style="display: inline-block; background-color: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Set Up Your Account</a>
-              </p>
-              <p>This link will expire in 24 hours.</p>
-              <p>If you didn't request this invitation, please ignore this email.</p>
-              <p>Best regards,<br>Welcome.Chat Team</p>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #4f46e5;">Welcome to Your AI Assistant!</h1>
+              </div>
+              <p>Hello,</p>
+              <p>Your AI Assistant account for <strong>${clientName}</strong> has been created. To complete your setup:</p>
+              <div style="background-color: #f9fafb; border-radius: 5px; padding: 20px; margin: 20px 0;">
+                <p style="font-weight: bold; margin-bottom: 15px;">Please click the button below to set up your password and access your dashboard:</p>
+                <a href="${setupUrl}" style="display: inline-block; background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Complete Setup</a>
+                <p style="margin-top: 15px; font-size: 14px; color: #6b7280;">This link will expire in 24 hours.</p>
+              </div>
+              <p>After setting your password, you'll be able to access your AI Assistant dashboard where you can manage your settings and chat history.</p>
+              <p>If you didn't request this account, please ignore this email.</p>
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280;">
+                <p>Best regards,<br>The ${clientName} Team</p>
+              </div>
             </body>
           </html>
         `
