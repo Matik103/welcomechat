@@ -13,7 +13,7 @@ import { AppearanceSettings } from "@/components/widget/AppearanceSettings";
 import { WidgetPreview } from "@/components/widget/WidgetPreview";
 import { EmbedCode } from "@/components/widget/EmbedCode";
 import { useAuth } from "@/contexts/AuthContext";
-import { ActivityType } from "@/types/activity";
+import { ActivityType, ActivityRecord } from "@/types/activity";
 
 function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
   return {
@@ -77,12 +77,14 @@ const WidgetSettings = () => {
     if (!clientId) return;
     
     try {
-      await supabase.from("client_activities").insert({
-        client_id: clientId,
+      const activityRecord: ActivityRecord = {
         activity_type,
         description,
+        client_id: clientId,
         metadata
-      });
+      };
+      
+      await supabase.from("client_activities").insert(activityRecord);
     } catch (error) {
       console.error("Failed to log activity:", error);
     }

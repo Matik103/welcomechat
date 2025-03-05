@@ -1,3 +1,4 @@
+
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useClientData } from "@/hooks/useClientData";
@@ -8,7 +9,7 @@ import { DriveLinks } from "@/components/client/DriveLinks";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ActivityType } from "@/types/activity";
+import { ActivityType, ActivityRecord } from "@/types/activity";
 
 interface AddEditClientProps {
   isClientView?: boolean;
@@ -30,12 +31,15 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
     if (!clientId) return;
     
     try {
-      await supabase.from("client_activities").insert({
-        client_id: clientId,
+      // Create an activity record that matches the expected Supabase schema
+      const activityRecord: ActivityRecord = {
         activity_type,
         description,
+        client_id: clientId,
         metadata
-      });
+      };
+      
+      await supabase.from("client_activities").insert(activityRecord);
     } catch (error) {
       console.error("Failed to log activity:", error);
     }
