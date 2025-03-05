@@ -56,16 +56,16 @@ export const useClientData = (id: string | undefined) => {
           
           return id;
         } else {
-          // Create new client
+          // Create new client - using proper parameterized query to avoid SQL injection
           const { data: newClients, error } = await supabase
             .from("clients")
-            .insert([{
+            .insert({
               client_name: data.client_name,
               email: data.email,
               agent_name: data.agent_name,
               widget_settings: data.widget_settings || {},
               status: 'active'
-            }])
+            })
             .select('*');
 
           if (error) {

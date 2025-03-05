@@ -8,6 +8,8 @@ import { ClientForm } from "@/components/client/ClientForm";
 import { DriveLinks } from "@/components/client/DriveLinks";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 interface AddEditClientProps {
   isClientView?: boolean;
@@ -26,11 +28,16 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(clientId);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
-    await clientMutation.mutateAsync(data);
-    if (isClientView) {
-      navigate("/client/view");
-    } else {
-      navigate("/admin/clients");
+    try {
+      await clientMutation.mutateAsync(data);
+      if (isClientView) {
+        navigate("/client/view");
+      } else {
+        navigate("/admin/clients");
+      }
+    } catch (error) {
+      console.error("Form submission error:", error);
+      // Error is already handled in the mutation's onError callback
     }
   };
 

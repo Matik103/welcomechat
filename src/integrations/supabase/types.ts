@@ -1015,7 +1015,7 @@ export type Database = {
       }
       create_ai_agent_table: {
         Args: {
-          agent_name: string
+          chatbot_name: string
         }
         Returns: undefined
       }
