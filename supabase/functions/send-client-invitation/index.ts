@@ -82,6 +82,8 @@ serve(async (req) => {
     
     // Try to send Supabase built-in invitation
     let supabaseInviteSuccessful = false;
+    let confirmationUrl = '';
+    
     try {
       console.log("Attempting to send Supabase built-in invitation");
       const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
@@ -97,6 +99,10 @@ serve(async (req) => {
       } else {
         console.log("Supabase invitation sent successfully:", inviteData);
         supabaseInviteSuccessful = true;
+        
+        // The actual confirmation URL will be in the email sent by Supabase directly
+        // This is just a placeholder for our custom email
+        confirmationUrl = `${origin}/client/setup?id=${clientId}`;
       }
     } catch (supabaseInviteError) {
       console.error("Exception during Supabase invitation:", supabaseInviteError);
@@ -153,17 +159,20 @@ serve(async (req) => {
     
     console.log('Password retrieved or generated successfully');
     
-    // Updated email content with dashboard link and login credentials
+    // Use the new HTML format with the "You have been invited" message
+    const setupUrl = `${origin}/client/setup?id=${clientId}`;
     const htmlContent = `
-      <h1>Welcome to Welcome.Chat, Your Agent!</h1>
-      <p>Your account has been created. Here are your login credentials:</p>
+      <h2>You have been invited</h2>
+      <p>You have been invited to create a user on ${origin}. Follow this link to accept the invite:</p>
+      <p><a href="${setupUrl}">Accept the invite</a></p>
+      
+      <h3>Additional Information</h3>
+      <p>Once you accept the invitation, you'll need the following information:</p>
       <p><strong>Email:</strong> ${email}</p>
       <p><strong>Password:</strong> ${password}</p>
-      <p>Click the button below to access your dashboard:</p>
-      <p><a href="${dashboardUrl}" style="display: inline-block; background-color: #6366F1; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif;">Access Your Dashboard</a></p>
-      <p>Or copy and paste this URL into your browser:</p>
-      <p>${dashboardUrl}</p>
-      <p><strong>Important:</strong> For security reasons, please change your password after logging in. You can do this in your account settings.</p>
+      
+      <p>After setting up your account, you can access your dashboard at: ${dashboardUrl}</p>
+      <p><strong>Important:</strong> For security reasons, please change your password after logging in.</p>
       <p>Thank you,<br>The Welcome.Chat Team</p>
     `;
     
@@ -172,7 +181,7 @@ serve(async (req) => {
       const { data, error } = await resend.emails.send({
         from: "Welcome.Chat <noreply@welcome.chat>",
         to: email,
-        subject: "Welcome to Welcome.Chat - Your Login Credentials",
+        subject: "You've been invited to Welcome.Chat",
         html: htmlContent
       });
       
