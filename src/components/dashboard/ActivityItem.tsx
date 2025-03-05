@@ -3,7 +3,7 @@ import React from "react";
 import { format } from "date-fns";
 import { 
   Users, Settings, Link, UserPlus, Edit, Trash2, 
-  RotateCcw, Upload, Eye, Code, Image 
+  RotateCcw, Upload, Eye, Code, Image, Bot 
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -17,8 +17,14 @@ interface ActivityItemProps {
   };
 }
 
-const getActivityIcon = (type: string) => {
-  switch (type) {
+const getActivityIcon = (type: string, metadata: Json) => {
+  // Check if there's an original activity type in metadata
+  const originalType = metadata?.original_activity_type as string | undefined;
+  
+  // Use the original type if it exists, otherwise use the provided type
+  const activityType = originalType || type;
+  
+  switch (activityType) {
     case 'client_created':
       return <UserPlus className="w-4 h-4 text-primary" />;
     case 'client_updated':
@@ -34,6 +40,8 @@ const getActivityIcon = (type: string) => {
       return <Link className="w-4 h-4 text-primary" />;
     case 'website_url_removed':
     case 'drive_link_removed':
+    case 'url_deleted':
+    case 'drive_link_deleted':
       return <Trash2 className="w-4 h-4 text-primary" />;
     case 'logo_uploaded':
       return <Image className="w-4 h-4 text-primary" />;
@@ -41,6 +49,9 @@ const getActivityIcon = (type: string) => {
       return <Code className="w-4 h-4 text-primary" />;
     case 'widget_previewed':
       return <Eye className="w-4 h-4 text-primary" />;
+    case 'ai_agent_created':
+    case 'ai_agent_updated':
+      return <Bot className="w-4 h-4 text-primary" />;
     default:
       return <Users className="w-4 h-4 text-primary" />;
   }
@@ -49,7 +60,7 @@ const getActivityIcon = (type: string) => {
 export const ActivityItem = ({ item }: ActivityItemProps) => (
   <div className="flex items-center gap-4 py-3 animate-slide-in">
     <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-      {getActivityIcon(item.activity_type)}
+      {getActivityIcon(item.activity_type, item.metadata)}
     </div>
     <div className="flex-1">
       <p className="text-sm text-gray-900">

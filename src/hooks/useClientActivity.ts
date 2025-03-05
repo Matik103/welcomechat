@@ -20,6 +20,12 @@ export const useClientActivity = (clientId: string | undefined) => {
         case "widget_previewed":
           // Map to a valid enum type that's closest in meaning
           dbActivityType = "client_updated";
+          
+          // Store the original activity type in metadata for reference
+          metadata = {
+            ...metadata,
+            original_activity_type: activity_type
+          };
           break;
         default:
           // For all other cases, use the activity type directly
@@ -27,12 +33,17 @@ export const useClientActivity = (clientId: string | undefined) => {
       }
       
       // Create the activity record in the database
-      await supabase.from("client_activities").insert({
+      const { error } = await supabase.from("client_activities").insert({
         client_id: clientId,
         activity_type: dbActivityType,
         description,
         metadata
       });
+      
+      if (error) {
+        console.error("Failed to log activity:", error);
+        throw error;
+      }
     } catch (error) {
       console.error("Failed to log activity:", error);
     }

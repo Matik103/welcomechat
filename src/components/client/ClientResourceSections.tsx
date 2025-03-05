@@ -3,13 +3,13 @@ import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { DriveLinks } from "@/components/client/DriveLinks";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
-import { ActivityType } from "@/types/activity";
+import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
   isClientView: boolean;
-  logClientActivity: (activity_type: ActivityType, description: string, metadata?: Json) => Promise<void>;
+  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
 export const ClientResourceSections = ({ 

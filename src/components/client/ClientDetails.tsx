@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
 import { useClientData } from "@/hooks/useClientData";
-import { ActivityType } from "@/types/activity";
+import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
 interface ClientDetailsProps {
   client: Client | null;
   clientId: string | undefined;
   isClientView: boolean;
-  logClientActivity: (activity_type: ActivityType, description: string, metadata?: Json) => Promise<void>;
+  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
 export const ClientDetails = ({ 
