@@ -1039,27 +1039,6 @@ export type Database = {
           },
         ]
       }
-      your_agent: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
@@ -1681,19 +1660,6 @@ export type Database = {
         }[]
       }
       match_vidgu: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
-      match_your_agent: {
         Args: {
           query_embedding: string
           match_count?: number

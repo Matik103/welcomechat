@@ -45,7 +45,6 @@ const SetupForm = ({
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading || setupComplete}
-                placeholder="Minimum 6 characters"
               />
             </div>
             <div className="space-y-2">
@@ -57,11 +56,7 @@ const SetupForm = ({
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 disabled={isLoading || setupComplete}
-                placeholder="Re-enter your password"
               />
-            </div>
-            <div className="rounded-md bg-blue-50 p-4 text-sm text-blue-600 mb-4">
-              After setting up your password, you'll receive a confirmation email with login instructions.
             </div>
             <Button type="submit" className="w-full" disabled={isLoading || setupComplete}>
               {isLoading ? (

@@ -40,7 +40,7 @@ const Index = () => {
   } = useInteractionStats(timeRange);
   
   const { 
-    activities: recentActivities,
+    data: recentActivities,
     isError: isActivitiesError,
     isLoading: isActivitiesLoading 
   } = useRecentActivities();

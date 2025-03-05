@@ -18,19 +18,12 @@ import {
 } from "@/components/ui/table";
 import { Loader2, MessageSquare } from "lucide-react";
 
-export interface QueryItem {
-  id?: string;
-  query_text: string;
-  frequency: number;
-  last_asked: string;
+interface QueryListProps {
+  queries: any[] | undefined;
+  isLoading: boolean;
 }
 
-export interface QueryListProps {
-  queries?: QueryItem[];
-  isLoading?: boolean;
-}
-
-export const QueryList: React.FC<QueryListProps> = ({ queries = [], isLoading = false }) => {
+export const QueryList: React.FC<QueryListProps> = ({ queries, isLoading }) => {
   return (
     <Card className="h-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2 bg-gray-50 rounded-t-lg">
@@ -58,8 +51,8 @@ export const QueryList: React.FC<QueryListProps> = ({ queries = [], isLoading = 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {queries.map((query, index) => (
-                  <TableRow key={query.id || index} className="hover:bg-gray-50">
+                {queries.map((query) => (
+                  <TableRow key={query.id} className="hover:bg-gray-50">
                     <TableCell className="font-medium">{query.query_text}</TableCell>
                     <TableCell className="text-right">
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">

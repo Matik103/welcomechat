@@ -52,10 +52,8 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
     try {
       setIsSendingInvitation(true);
       await sendInvitation(initialData.id, initialData.email, initialData.client_name);
-      // Success toast is handled in the hook
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to send invitation:", error);
-      // Error toast is handled in the hook
     } finally {
       setIsSendingInvitation(false);
     }

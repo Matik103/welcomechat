@@ -1,30 +1,17 @@
 
 import { Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { InteractionStats as InteractionStatsType } from "@/hooks/useClientDashboard";
 
-export interface InteractionStatsType {
-  total_interactions: number;
-  active_days: number;
-  average_response_time: number;
-  top_queries: string[];
-}
-
-export interface InteractionStatsProps {
-  stats?: InteractionStatsType;
+interface InteractionStatsProps {
+  stats: InteractionStatsType;
   isLoading?: boolean;
 }
 
-const defaultStats: InteractionStatsType = {
-  total_interactions: 0,
-  active_days: 0,
-  average_response_time: 0,
-  top_queries: []
-};
-
-export const InteractionStats = ({ stats = defaultStats, isLoading = false }: InteractionStatsProps) => {
+export const InteractionStats = ({ stats, isLoading = false }: InteractionStatsProps) => {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <>
         {[1, 2, 3, 4].map(index => (
           <StatCard
             key={index}
@@ -33,12 +20,12 @@ export const InteractionStats = ({ stats = defaultStats, isLoading = false }: In
             isLoading={true}
           />
         ))}
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <>
       <StatCard
         title="Total Interactions"
         value={stats.total_interactions.toLocaleString()}
@@ -59,7 +46,7 @@ export const InteractionStats = ({ stats = defaultStats, isLoading = false }: In
         value={stats.top_queries.length > 0 ? stats.top_queries.length.toString() : "0"}
         className="border-purple-100 bg-purple-50"
       />
-    </div>
+    </>
   );
 };
 

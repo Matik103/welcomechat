@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,24 +8,11 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
 interface InvitationRequest {
   clientId: string;
   email: string;
   clientName: string;
 }
-
-// Function to generate a random password
-const generateTemporaryPassword = () => {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
-  let password = "";
-  for (let i = 0; i < 10; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -37,96 +24,58 @@ serve(async (req) => {
   }
   
   try {
-    console.log("Client invitation function started");
+    console.log("Send client invitation function started");
+    
+    // Validate Resend API key
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      console.error("ERROR: Missing RESEND_API_KEY environment variable");
+      throw new Error("Resend API key not configured");
+    }
+    
+    console.log("Initializing Resend client");
+    const resend = new Resend(resendApiKey);
     
     // Parse request body
-    let requestBody;
-    try {
-      requestBody = await req.json();
-      console.log("Request body parsed:", JSON.stringify(requestBody, null, 2));
-    } catch (error) {
-      console.error("Failed to parse request body:", error);
-      throw new Error("Invalid JSON in request body");
-    }
+    const { clientId, email, clientName }: InvitationRequest = await req.json();
+    console.log(`Sending invitation to client: ${clientName} (${email})`);
     
-    const { clientId, email, clientName } = requestBody as InvitationRequest;
+    // Generate the setup URL - make sure this is the actual production URL, not preview
+    // This URL will be accessible by clients to set up their password
+    const origin = req.headers.get("origin") || "https://welcome.chat";
+    const setupUrl = `${origin}/client/setup?id=${clientId}`;
     
-    if (!clientId || !email || !clientName) {
-      const missingFields = [];
-      if (!clientId) missingFields.push("clientId");
-      if (!email) missingFields.push("email");
-      if (!clientName) missingFields.push("clientName");
-      
-      console.error(`Missing required fields: ${missingFields.join(", ")}`);
-      throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
-    }
+    console.log(`Setup URL: ${setupUrl}`);
     
-    console.log(`Setting up account for client: ${clientName} (${email})`);
+    // Email content with setup link
+    const htmlContent = `
+      <h1>Welcome to Welcome.Chat, ${clientName}!</h1>
+      <p>Your account has been created. Click the link below to complete your setup:</p>
+      <p><a href="${setupUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px;">Complete Setup</a></p>
+      <p>Or copy and paste this URL into your browser:</p>
+      <p>${setupUrl}</p>
+      <p>Thank you,<br>The Welcome.Chat Team</p>
+    `;
     
-    // Create Supabase client with service role
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Generate a temporary password
-    const temporaryPassword = generateTemporaryPassword();
-    
-    // Create user account with service role
-    const { data: user, error: signUpError } = await supabase.auth.admin.createUser({
-      email: email,
-      password: temporaryPassword,
-      email_confirm: true,
-      user_metadata: {
-        client_id: clientId,
-        password_change_required: true,
-      }
+    // Send the email
+    const { data, error } = await resend.emails.send({
+      from: "Welcome.Chat <noreply@welcome.chat>",
+      to: email,
+      subject: "Welcome to Welcome.Chat - Complete Your Setup",
+      html: htmlContent
     });
-
-    if (signUpError || !user) {
-      console.error("Error creating user:", signUpError);
-      throw signUpError || new Error("Failed to create user");
+    
+    if (error) {
+      console.error("Error from Resend API:", error);
+      throw error;
     }
     
-    console.log("User account created with ID:", user.user.id);
-    
-    // Set up user role
-    const { error: roleError } = await supabase
-      .from("user_roles")
-      .insert({
-        user_id: user.user.id,
-        role: "client",
-        client_id: clientId
-      });
-      
-    if (roleError) {
-      console.error("Error setting user role:", roleError);
-      throw roleError;
-    }
-    
-    // Send confirmation email with temporary password
-    console.log("Sending confirmation email");
-    try {
-      const { data: emailData, error: emailError } = await supabase.functions.invoke("send-setup-confirmation", {
-        body: { 
-          email: email,
-          clientName: clientName,
-          temporaryPassword: temporaryPassword
-        }
-      });
-      
-      if (emailError) {
-        console.error("Error sending confirmation email:", emailError);
-        throw emailError;
-      }
-      
-      console.log("Email sent successfully:", emailData);
-    } catch (emailError) {
-      console.error("Exception sending confirmation email:", emailError);
-      throw new Error(`Failed to send confirmation email: ${emailError.message || emailError}`);
-    }
+    console.log("Invitation email sent successfully:", data);
     
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: "Client account created and confirmation email sent"
+        message: "Invitation email sent successfully"
       }), 
       {
         status: 200,
@@ -138,8 +87,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "Failed to set up client account",
-        details: typeof error === 'object' ? JSON.stringify(error) : 'Unknown error'
+        error: error.message || "Failed to send invitation"
       }), 
       {
         status: 500,
