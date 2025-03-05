@@ -4,16 +4,10 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
-
-type UserRole = 'admin' | 'client';
-
-type AuthContextType = {
-  session: Session | null;
-  user: User | null;
-  signOut: () => Promise<void>;
-  isLoading: boolean;
-  userRole: UserRole | null;
-};
+import { AuthContextType, UserRole } from "@/types/auth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useClientActivityLogger } from "@/hooks/useClientActivityLogger";
+import { handleAuthRedirect } from "@/utils/authRedirects";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -25,49 +19,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
-  const checkUserRole = async (userId: string) => {
-    try {
-      console.log("Checking user role for user ID:", userId);
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role, client_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error checking user role:", error);
-        return null;
-      }
-
-      // If user has client_id in user_roles, update user metadata
-      if (data?.client_id && data.role === 'client') {
-        console.log("Found client role with client_id:", data.client_id);
-        await supabase.auth.updateUser({
-          data: { client_id: data.client_id }
-        });
-      }
-
-      console.log("User role determined:", data?.role || "no role found");
-      return data?.role as UserRole || null;
-    } catch (error) {
-      console.error("Error checking user role:", error);
-      return null;
-    }
-  };
-
-  const logClientLoginActivity = async (clientId: string) => {
-    try {
-      await supabase.from("client_activities").insert({
-        client_id: clientId,
-        activity_type: "client_login" as any,
-        description: "logged into their account",
-        metadata: { timestamp: new Date().toISOString() }
-      });
-    } catch (error) {
-      console.error("Failed to log login activity:", error);
-    }
-  };
+  const { checkUserRole } = useUserRole();
+  const { logClientLoginActivity } = useClientActivityLogger();
 
   useEffect(() => {
     let mounted = true;
@@ -142,24 +95,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log("User role after auth change:", role);
             setUserRole(role);
             
-            // Redirect based on role after sign in
+            // Log client login activity if it's a client
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-              // Log client login activity if it's a client
               if (role === 'client' && currentSession.user.user_metadata?.client_id) {
                 await logClientLoginActivity(currentSession.user.user_metadata.client_id);
               }
               
               // Handle redirects after auth changes
-              if (role === 'client') {
-                if (location.pathname === '/' || location.pathname.startsWith('/admin/')) {
-                  console.log("Redirecting client user to client dashboard");
-                  navigate('/client/view', { replace: true });
-                }
-              } else if (role === 'admin') {
-                if (location.pathname.startsWith('/client/') && !location.pathname.startsWith('/client/setup')) {
-                  navigate('/', { replace: true });
-                }
-              }
+              handleAuthRedirect(role, event, location, navigate);
             }
           } else {
             setUserRole(null);
