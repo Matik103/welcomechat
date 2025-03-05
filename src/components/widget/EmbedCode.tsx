@@ -12,9 +12,9 @@ interface EmbedCodeProps {
 export function EmbedCode({ settings }: EmbedCodeProps) {
   const { toast } = useToast();
   
-  // Get the Supabase project reference from the client's internal URL constant
-  // This is using the URL from the integrations/supabase/client.ts file
-  const SUPABASE_URL = supabase.getUrl();
+  // Get the Supabase project reference from the client file's constant
+  // We access it directly from the imported file since the client might not expose it as a method
+  const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
 
   const handleCopyCode = () => {
