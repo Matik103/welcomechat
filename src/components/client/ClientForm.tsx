@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
@@ -54,7 +53,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       setIsSendingInvitation(true);
       
       // Call the edge function to send an invitation
-      const response = await supabase.functions.invoke("send-client-invitation", {
+      const { data, error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId: initialData.id,
           email: initialData.email,
@@ -62,11 +61,12 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
         }
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (error) {
+        console.error("Invitation error:", error);
+        throw new Error(error.message || "Failed to send invitation");
       }
       
-      toast.success("Invitation sent successfully");
+      toast.success("Setup link sent to client's email");
     } catch (error: any) {
       console.error("Error sending invitation:", error);
       toast.error(`Failed to send invitation: ${error.message}`);
@@ -134,7 +134,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
             disabled={isSendingInvitation}
           >
             {isSendingInvitation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Invitation
+            Send Setup Link
           </Button>
         )}
       </div>

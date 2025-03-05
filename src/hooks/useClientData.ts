@@ -60,51 +60,11 @@ export const useClientData = (id: string | undefined) => {
 
           const newClient = newClients[0];
 
-          // Check for AI agent table creation activity
-          const { data: activity, error: activityError } = await supabase
-            .from("client_activities")
-            .select("*")
-            .eq("client_id", newClient.id)
-            .maybeSingle();
-
-          if (!activityError && activity) {
-            toast.success(`Successfully created AI Agent table for ${data.agent_name}`);
-          }
-
-          // Send client invitation
+          // Send client invitation directly
           try {
             console.log("Sending invitation to new client:", newClient.email);
             
-            // Generate setup URL for the email body
-            const emailContent = `
-              <html>
-                <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-                  <h1>Welcome to Your AI Assistant Dashboard!</h1>
-                  <p>Hello,</p>
-                  <p>Your account has been created for ${newClient.client_name}.</p>
-                  <p>You will receive a separate email shortly with instructions to set up your dashboard.</p>
-                  <p>Best regards,<br>Welcome.Chat Team</p>
-                </body>
-              </html>
-            `;
-            
-            // First, send a welcome email directly
-            const { data: emailData, error: emailError } = await supabase.functions.invoke("send-email", {
-              body: {
-                to: newClient.email,
-                subject: `Welcome to ${newClient.client_name} AI Assistant!`,
-                html: emailContent,
-                from: "Welcome.Chat <admin@welcome.chat>"
-              }
-            });
-            
-            if (emailError) {
-              console.error("Error sending direct welcome email:", emailError);
-              toast.warning("Client created but welcome email could not be sent");
-            }
-            
-            // Then trigger the full invitation process
-            const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
+            const { data: inviteData, error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
               body: {
                 clientId: newClient.id,
                 email: newClient.email,
@@ -116,7 +76,7 @@ export const useClientData = (id: string | undefined) => {
               console.error("Error sending invitation:", inviteError);
               toast.warning("Client created but invitation email failed to send");
             } else {
-              toast.success("Invitation email sent to client");
+              toast.success("Setup link sent to client's email");
             }
           } catch (inviteError: any) {
             console.error("Exception in invitation process:", inviteError);
