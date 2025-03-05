@@ -10,7 +10,6 @@ import Settings from "@/pages/Settings";
 import ClientView from "@/pages/ClientView";
 import AddEditClient from "@/pages/AddEditClient";
 import WidgetSettings from "@/pages/WidgetSettings";
-import { RoleRoute } from "@/components/auth/RoleRoute";
 import { useAuth } from "./contexts/AuthContext";
 import ClientSettings from "@/pages/client/Settings";
 import ClientDashboard from "@/pages/client/Dashboard";

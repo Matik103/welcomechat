@@ -13,11 +13,16 @@ const ClientSettings = () => {
   const { user } = useAuth();
   const [clientInfo, setClientInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchClientInfo = async () => {
       if (!user?.email) {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
         return;
       }
       
@@ -35,22 +40,47 @@ const ClientSettings = () => {
         }
         
         console.log("Client info fetched:", data);
-        setClientInfo(data);
+        if (isMounted) {
+          setClientInfo(data);
+        }
       } catch (error: any) {
         console.error("Error in fetchClientInfo:", error);
-        toast.error("Failed to load client information");
+        if (isMounted) {
+          setError(error.message || "Failed to load client information");
+          toast.error("Failed to load client information");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     
     fetchClientInfo();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center flex-col">
+        <div className="text-red-500 mb-4">Error loading settings: {error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-primary text-white rounded-md"
+        >
+          Retry
+        </button>
       </div>
     );
   }
