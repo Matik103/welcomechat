@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
@@ -106,6 +107,24 @@ export const useClientData = (id: string | undefined) => {
             }
             
             try {
+              // First use Supabase's built-in invitation system
+              const { data: inviteAuthData, error: inviteAuthError } = await supabase.auth.admin.inviteUserByEmail(newClient.email, {
+                data: {
+                  client_id: newClient.id,
+                  client_name: newClient.client_name,
+                  agent_name: newClient.agent_name
+                },
+                redirectTo: `${window.location.origin}/client/setup?id=${newClient.id}`
+              });
+              
+              if (inviteAuthError) {
+                console.error("Supabase invitation error:", inviteAuthError);
+                toast.error(`Supabase invitation failed: ${inviteAuthError.message}`);
+              } else {
+                console.log("Supabase invitation sent successfully", inviteAuthData);
+              }
+              
+              // Also send our custom invitation as a backup
               const { data: inviteData, error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
                 body: {
                   clientId: newClient.id,
@@ -155,6 +174,24 @@ export const useClientData = (id: string | undefined) => {
     try {
       toast.info("Sending setup email...");
       
+      // First use Supabase's built-in invitation system
+      const { data: supabaseInviteData, error: supabaseInviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
+        data: {
+          client_id: clientId,
+          client_name: clientName
+        },
+        redirectTo: `${window.location.origin}/client/setup?id=${clientId}`
+      });
+      
+      if (supabaseInviteError) {
+        console.error("Supabase invitation error:", supabaseInviteError);
+        toast.error(`Supabase invitation failed: ${supabaseInviteError.message}`);
+        // Fall back to custom invitation if Supabase's fails
+      } else {
+        console.log("Supabase invitation sent successfully", supabaseInviteData);
+      }
+      
+      // Also send our custom invitation as a backup
       const { data, error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId,
