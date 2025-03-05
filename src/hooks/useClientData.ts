@@ -104,6 +104,8 @@ export const useClientData = (id: string | undefined) => {
 
   const sendInvitation = async (clientId: string, email: string, clientName: string) => {
     try {
+      toast.info("Sending invitation...");
+      
       const { data, error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId,

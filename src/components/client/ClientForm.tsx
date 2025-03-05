@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -52,6 +51,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
 
     try {
       setIsSendingInvitation(true);
+      toast.info("Sending setup invitation...");
       await sendInvitation(initialData.id, initialData.email, initialData.client_name);
     } catch (error) {
       // Error is already handled in the sendInvitation function
