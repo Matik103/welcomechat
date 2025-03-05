@@ -66,6 +66,7 @@ serve(async (req) => {
     );
     
     // Try to send Supabase built-in invitation
+    let supabaseInviteSuccessful = false;
     try {
       console.log("Attempting to send Supabase built-in invitation");
       const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
@@ -80,6 +81,7 @@ serve(async (req) => {
         console.error("Supabase invitation failed:", inviteError.message);
       } else {
         console.log("Supabase invitation sent successfully:", inviteData);
+        supabaseInviteSuccessful = true;
       }
     } catch (supabaseInviteError) {
       console.error("Exception during Supabase invitation:", supabaseInviteError);
@@ -175,7 +177,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         message: "Invitation email sent successfully",
-        password: password
+        password: password,
+        supabaseInviteSuccessful
       }), 
       {
         status: 200,

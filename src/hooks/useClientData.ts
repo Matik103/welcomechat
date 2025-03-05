@@ -104,6 +104,7 @@ export const useClientData = (id: string | undefined) => {
               console.log("Password generation response:", passwordData);
             } catch (passwordGenError) {
               console.error("Exception in password generation:", passwordGenError);
+              // Continue with the process even if password generation fails
             }
             
             try {
