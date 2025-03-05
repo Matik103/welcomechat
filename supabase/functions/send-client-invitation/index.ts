@@ -65,6 +65,27 @@ serve(async (req) => {
       }
     );
     
+    // Try to send Supabase built-in invitation
+    try {
+      console.log("Attempting to send Supabase built-in invitation");
+      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        data: {
+          client_id: clientId,
+          client_name: clientName
+        },
+        redirectTo: `${origin}/client/setup?id=${clientId}`
+      });
+      
+      if (inviteError) {
+        console.error("Supabase invitation failed:", inviteError.message);
+      } else {
+        console.log("Supabase invitation sent successfully:", inviteData);
+      }
+    } catch (supabaseInviteError) {
+      console.error("Exception during Supabase invitation:", supabaseInviteError);
+      // Continue with custom invitation as fallback
+    }
+    
     // Check if we have a stored temporary password for this client
     let password;
     
