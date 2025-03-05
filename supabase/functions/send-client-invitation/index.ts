@@ -64,58 +64,56 @@ async function parseRequestBody(req: Request): Promise<InvitationRequest> {
 
 // Manage invitation record in database
 async function manageInvitationRecord(supabase: any, clientId: string, email: string, token: string, expiresAt: Date) {
-  // Check for existing invitations
-  const { data: existingInvitation, error: checkError } = await supabase
-    .from("client_invitations")
-    .select("*")
-    .eq("client_id", clientId)
-    .eq("email", email)
-    .maybeSingle();
-    
-  if (checkError) {
-    console.error("Error checking existing invitations:", checkError);
-  }
-  
-  // Either update existing or create new invitation
-  if (existingInvitation) {
-    console.log("Updating existing invitation for:", email);
-    const { error: updateError } = await supabase
-      .from("client_invitations")
-      .update({
-        token: token,
-        status: "pending",
-        expires_at: expiresAt.toISOString()
-      })
-      .eq("id", existingInvitation.id);
-      
-    if (updateError) {
-      console.error("Failed to update invitation:", updateError);
-      throw new Error(`Failed to update invitation: ${updateError.message}`);
-    }
-  } else {
-    // Create a new invitation
-    console.log("Creating new invitation for:", email);
-    const { error: insertError } = await supabase
-      .from("client_invitations")
-      .insert({
-        client_id: clientId,
-        email: email,
-        token: token,
-        status: "pending",
-        expires_at: expiresAt.toISOString()
-      });
-      
-    if (insertError) {
-      console.error("Failed to create invitation:", insertError);
-      throw new Error(`Failed to create invitation: ${insertError.message}`);
-    }
-  }
-}
-
-// Log activity in the database
-async function logActivity(supabase: any, clientId: string, email: string, expiresAt: Date) {
   try {
-    // Using "client_updated" which is a valid enum value
+    // Check for existing invitations
+    const { data: existingInvitation, error: checkError } = await supabase
+      .from("client_invitations")
+      .select("*")
+      .eq("client_id", clientId)
+      .eq("email", email)
+      .maybeSingle();
+      
+    if (checkError) {
+      console.error("Error checking existing invitations:", checkError);
+      throw checkError;
+    }
+    
+    // Either update existing or create new invitation
+    if (existingInvitation) {
+      console.log("Updating existing invitation for:", email);
+      const { error: updateError } = await supabase
+        .from("client_invitations")
+        .update({
+          token: token,
+          status: "pending",
+          expires_at: expiresAt.toISOString()
+        })
+        .eq("id", existingInvitation.id);
+        
+      if (updateError) {
+        console.error("Failed to update invitation:", updateError);
+        throw updateError;
+      }
+    } else {
+      // Create a new invitation
+      console.log("Creating new invitation for:", email);
+      const { error: insertError } = await supabase
+        .from("client_invitations")
+        .insert({
+          client_id: clientId,
+          email: email,
+          token: token,
+          status: "pending",
+          expires_at: expiresAt.toISOString()
+        });
+        
+      if (insertError) {
+        console.error("Failed to create invitation:", insertError);
+        throw insertError;
+      }
+    }
+    
+    // Log activity - using a valid activity_type "client_updated"
     const { error: activityError } = await supabase
       .from("client_activities")
       .insert({
@@ -130,10 +128,12 @@ async function logActivity(supabase: any, clientId: string, email: string, expir
       });
       
     if (activityError) {
-      console.error("Error logging invitation activity:", activityError);
+      console.error("Error logging activity:", activityError);
+      // Don't throw here to allow the invitation process to continue
     }
-  } catch (activityError) {
-    console.error("Exception in activity logging:", activityError);
+  } catch (error) {
+    console.error("Error in manageInvitationRecord:", error);
+    throw error;
   }
 }
 
@@ -171,14 +171,14 @@ async function sendSetupEmail(resend: any, email: string, clientName: string, se
     
     if (emailError) {
       console.error("Error sending email:", emailError);
-      throw new Error(`Failed to send invitation email: ${emailError.message}`);
+      throw emailError;
     }
     
     console.log("Email sent successfully:", emailData);
     return emailData;
   } catch (error) {
     console.error("Error in sendSetupEmail:", error);
-    throw error; // Re-throw to be handled by the caller
+    throw error;
   }
 }
 
@@ -229,9 +229,6 @@ serve(async (req) => {
       console.error("Exception sending email:", emailError);
       throw new Error(`Email sending failed: ${emailError.message}`);
     }
-    
-    // Log the activity
-    await logActivity(supabase, clientId, email, expiresAt);
     
     return new Response(
       JSON.stringify({ 

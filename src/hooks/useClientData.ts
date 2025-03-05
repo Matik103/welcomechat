@@ -90,8 +90,12 @@ export const useClientData = (id: string | undefined) => {
         throw new Error(error.message || "Failed to save client");
       }
     },
-    onSuccess: () => {
-      toast.success(id ? "Client updated successfully" : "Client created successfully");
+    onSuccess: (clientId) => {
+      if (id) {
+        toast.success("Client updated successfully");
+      } else {
+        toast.success("Client created successfully");
+      }
     },
     onError: (error: any) => {
       toast.error(`Error: ${error.message}`);
