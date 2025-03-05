@@ -1,7 +1,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { Settings, LogOut, User, Palette, KeyRound } from "lucide-react";
+import { Settings, User, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -43,7 +43,7 @@ export const ClientHeader = () => {
                   <Settings className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 z-50" sideOffset={16}>
+              <DropdownMenuContent align="end" className="w-56 z-50" sideOffset={24}>
                 <DropdownMenuItem asChild>
                   <Link to="/client/edit" className="flex items-center">
                     <User className="mr-2 h-4 w-4" />
@@ -55,17 +55,6 @@ export const ClientHeader = () => {
                     <Palette className="mr-2 h-4 w-4" />
                     <span>Widget Settings</span>
                   </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/client/settings" className="flex items-center">
-                    <KeyRound className="mr-2 h-4 w-4" />
-                    <span>Change Password</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-red-600 cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
