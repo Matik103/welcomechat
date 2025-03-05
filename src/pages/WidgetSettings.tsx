@@ -1,19 +1,15 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Loader2, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { WidgetSettings as IWidgetSettings, defaultSettings, isWidgetSettings } from "@/types/widget-settings";
-import { BrandingSettings } from "@/components/widget/BrandingSettings";
-import { AppearanceSettings } from "@/components/widget/AppearanceSettings";
-import { WidgetPreview } from "@/components/widget/WidgetPreview";
-import { EmbedCode } from "@/components/widget/EmbedCode";
 import { useAuth } from "@/contexts/AuthContext";
-import { ActivityType, ActivityRecord } from "@/types/activity";
+import { useClientActivity } from "@/hooks/useClientActivity";
+import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 
 function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
   return {
@@ -37,11 +33,10 @@ const WidgetSettings = () => {
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [settings, setSettings] = useState<IWidgetSettings>(defaultSettings);
-  const [showPreview, setShowPreview] = useState(true);
 
   const isClientView = !id;
-  
   const clientId = id || user?.user_metadata?.client_id;
+  const { logClientActivity } = useClientActivity(clientId);
 
   const { data: client, isLoading } = useQuery({
     queryKey: ["client", clientId],
@@ -72,23 +67,6 @@ const WidgetSettings = () => {
       }
     }
   }, [client]);
-
-  const logClientActivity = async (activity_type: ActivityType, description: string, metadata = {}) => {
-    if (!clientId) return;
-    
-    try {
-      const activityRecord: ActivityRecord = {
-        activity_type,
-        description,
-        client_id: clientId,
-        metadata
-      };
-      
-      await supabase.from("client_activities").insert(activityRecord);
-    } catch (error) {
-      console.error("Failed to log activity:", error);
-    }
-  };
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: IWidgetSettings) => {
@@ -179,41 +157,11 @@ const WidgetSettings = () => {
     }
   };
 
-  const handleSettingsChange = (newSettings: Partial<IWidgetSettings>) => {
-    setSettings({ ...settings, ...newSettings });
-  };
-
-  const handleSave = async () => {
-    await updateSettingsMutation.mutateAsync(settings);
-  };
-
   const handleBack = () => {
     if (isClientView) {
       navigate('/client/view');
     } else {
       navigate(-1);
-    }
-  };
-
-  const handleCopyEmbedCode = () => {
-    if (isClientView) {
-      logClientActivity(
-        "embed_code_copied", 
-        "copied the widget embed code",
-        {}
-      );
-    }
-  };
-
-  const handleTogglePreview = (isVisible: boolean) => {
-    setShowPreview(isVisible);
-    
-    if (isClientView) {
-      logClientActivity(
-        "widget_previewed", 
-        isVisible ? "previewed their widget" : "closed the widget preview",
-        {}
-      );
     }
   };
 
@@ -226,88 +174,15 @@ const WidgetSettings = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
-      <div className="mb-6">
-        <Button variant="ghost" onClick={handleBack} className="mb-4">
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back
-        </Button>
-        <h1 className="text-2xl font-bold">Widget Settings</h1>
-        <p className="text-gray-500">Customize how your chat widget looks and behaves</p>
-      </div>
-
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Branding</CardTitle>
-            <CardDescription>Configure your widget's appearance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BrandingSettings
-              settings={settings}
-              isUploading={isUploading}
-              onSettingsChange={handleSettingsChange}
-              onLogoUpload={handleLogoUpload}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Appearance</CardTitle>
-            <CardDescription>Customize the look and feel of your widget</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AppearanceSettings
-              settings={settings}
-              onSettingsChange={handleSettingsChange}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Embed Code</CardTitle>
-            <CardDescription>Copy this code to add the widget to your website</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmbedCode 
-              settings={settings} 
-              onCopy={handleCopyEmbedCode}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Widget Preview</CardTitle>
-            <CardDescription>See how your widget will appear</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <WidgetPreview
-              settings={settings}
-              showPreview={showPreview}
-              onTogglePreview={handleTogglePreview}
-            />
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end">
-          <Button 
-            onClick={handleSave} 
-            disabled={updateSettingsMutation.isPending || isUploading}
-          >
-            {updateSettingsMutation.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Changes'
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <WidgetSettingsContainer
+      settings={settings}
+      isClientView={isClientView}
+      isUploading={isUploading}
+      updateSettingsMutation={updateSettingsMutation}
+      handleBack={handleBack}
+      handleLogoUpload={handleLogoUpload}
+      logClientActivity={logClientActivity}
+    />
   );
 };
 
