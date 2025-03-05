@@ -47,11 +47,11 @@ serve(async (req) => {
     
     console.log(`Setup URL: ${setupUrl}`);
     
-    // Email content with setup link
+    // Updated email content with setup link - matching the screenshot
     const htmlContent = `
-      <h1>Welcome to Welcome.Chat, ${clientName}!</h1>
+      <h1>Welcome to Welcome.Chat, Your Agent!</h1>
       <p>Your account has been created. Click the link below to complete your setup:</p>
-      <p><a href="${setupUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px;">Complete Setup</a></p>
+      <p><a href="${setupUrl}" style="display: inline-block; background-color: #6366F1; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif;">Complete Setup</a></p>
       <p>Or copy and paste this URL into your browser:</p>
       <p>${setupUrl}</p>
       <p>Thank you,<br>The Welcome.Chat Team</p>
