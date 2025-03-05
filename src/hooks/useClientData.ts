@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
@@ -123,62 +122,26 @@ export const useClientData = (id: string | undefined) => {
     },
   });
 
-  const sendInvitation = async (
-    id: string,
-    email: string,
-    clientName: string
-  ) => {
+  const sendInvitation = async (clientId: string, email: string, clientName: string) => {
     try {
-      console.log("Sending client invitation for:", id, email, clientName);
-      toast.info("Sending invitation email...");
-      
-      const { data, error } = await supabase.functions.invoke(
-        "send-client-invitation",
-        {
-          body: {
-            clientId: id,
-            email,
-            clientName,
-          },
+      toast.info("Sending setup email...");
+      const { error } = await supabase.functions.invoke("send-client-invitation", {
+        body: {
+          clientId,
+          email,
+          clientName
         }
-      );
-
+      });
       if (error) {
-        console.error("Error from edge function:", error);
-        toast.error(`Failed to send invitation: ${error.message || "Unknown error"}`);
+        console.error("Error sending invitation:", error);
+        toast.error(`Failed to send setup email: ${error.message}`);
         throw error;
       }
-
-      if (!data || !data.success) {
-        console.error("Invitation failed but no error returned:", data);
-        toast.error("Failed to send invitation - please try again");
-        throw new Error("Failed to send invitation - no success response");
-      }
-
-      // Update client record to indicate invitation was sent
-      console.log("Invitation sent successfully, updating client record");
-      try {
-        const { error: updateError } = await supabase
-          .from("clients")
-          .update({ last_active: new Date().toISOString() })
-          .eq("id", id);
-          
-        if (updateError) {
-          console.error("Error updating client record:", updateError);
-          // Not throwing here as the invitation was sent successfully
-        }
-      } catch (updateError) {
-        console.error("Exception updating client record:", updateError);
-        // We don't throw here either since the invite was sent successfully
-      }
-
-      toast.success("Invitation sent successfully!");
-      return data;
+      toast.success("Setup email sent to client");
+      return true;
     } catch (error: any) {
-      console.error("Error sending invitation:", error);
-      toast.error(
-        error.message || "Failed to send invitation. Please try again."
-      );
+      console.error("Exception in invitation process:", error);
+      toast.error(`Error: ${error.message || "Failed to send setup email"}`);
       throw error;
     }
   };
