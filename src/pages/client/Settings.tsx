@@ -1,150 +1,152 @@
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { ProfileSection } from "@/components/client/settings/ProfileSection";
-import { WidgetSection } from "@/components/client/settings/WidgetSection";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { useClientData } from "@/hooks/useClientData";
-import { defaultSettings, WidgetSettings } from "@/types/widget-settings";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { ProfileSection } from "@/components/settings/ProfileSection";
+import { SecuritySection } from "@/components/settings/SecuritySection";
+import { SignOutSection } from "@/components/settings/SignOutSection";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, InfoIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Json } from "@/integrations/supabase/types";
 
 const ClientSettings = () => {
   const { user } = useAuth();
-  const clientId = user?.user_metadata?.client_id;
-  const { logClientActivity } = useClientActivity(clientId);
-  const { client, clientMutation, isLoadingClient } = useClientData(clientId);
-  const [isUploading, setIsUploading] = useState(false);
-  
-  // Log settings page visit
+  const [clientInfo, setClientInfo] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (clientId) {
-      logClientActivity(
-        "settings_viewed", 
-        "viewed their settings page", 
-        { timestamp: new Date().toISOString() }
-      );
-    }
-  }, [clientId, logClientActivity]);
+    let isMounted = true;
 
-  const handleSettingsChange = async (newSettings: Partial<WidgetSettings>) => {
-    if (!client) return;
-
-    try {
-      // First ensure we have proper widget settings object
-      const currentSettings: WidgetSettings = 
-        client.widget_settings && typeof client.widget_settings === 'object' && !Array.isArray(client.widget_settings)
-          ? client.widget_settings as unknown as WidgetSettings 
-          : { ...defaultSettings };
+    const fetchClientInfo = async () => {
+      if (!user?.email) {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
       
-      // Update settings with new values
-      const updatedSettings = { 
-        ...currentSettings, 
-        ...newSettings 
-      };
-      
-      await supabase
-        .from("clients")
-        .update({ widget_settings: updatedSettings })
-        .eq("id", clientId);
+      try {
+        console.log("Fetching client info for email:", user.email);
+        const { data, error } = await supabase
+          .from("clients")
+          .select("*")
+          .eq("email", user.email)
+          .maybeSingle();
+          
+        if (error) {
+          console.error("Error fetching client info:", error);
+          throw error;
+        }
+        
+        console.log("Client info fetched:", data);
+        if (isMounted) {
+          setClientInfo(data);
+        }
+      } catch (error: any) {
+        console.error("Error in fetchClientInfo:", error);
+        if (isMounted) {
+          setError(error.message || "Failed to load client information");
+          toast.error("Failed to load client information");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    fetchClientInfo();
 
-      toast.success("Widget settings updated successfully");
-      
-      // Log the settings update activity
-      logClientActivity(
-        "widget_settings_updated",
-        "updated their widget settings",
-        { settings_changed: Object.keys(newSettings) }
-      );
-    } catch (error: any) {
-      console.error("Error updating settings:", error);
-      toast.error("Failed to update settings");
-    }
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0 || !client) {
-      return;
-    }
-
-    try {
-      setIsUploading(true);
-      const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${clientId}/logo.${fileExt}`;
-
-      // Upload the file to Supabase storage
-      const { error: uploadError } = await supabase.storage
-        .from('widget-assets')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Get the public URL
-      const { data } = supabase.storage
-        .from('widget-assets')
-        .getPublicUrl(filePath);
-
-      // Update widget settings with the new logo URL
-      await handleSettingsChange({ logo_url: data.publicUrl });
-      
-      // Log the logo upload activity
-      logClientActivity(
-        "logo_uploaded",
-        "uploaded a new logo for their chatbot",
-        { logo_url: data.publicUrl }
-      );
-
-      toast.success("Logo uploaded successfully");
-    } catch (error: any) {
-      console.error("Error uploading logo:", error);
-      toast.error("Failed to upload logo");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  if (isLoadingClient) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // Safely extract widget settings, ensuring it's in the correct format
-  const widgetSettings: WidgetSettings = 
-    client?.widget_settings && 
-    typeof client.widget_settings === 'object' && 
-    !Array.isArray(client.widget_settings)
-      ? { ...defaultSettings, ...(client.widget_settings as unknown as Partial<WidgetSettings>) }
-      : { ...defaultSettings };
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center flex-col">
+        <div className="text-red-500 mb-4">Error loading settings: {error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-primary text-white rounded-md"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-8">
-      <div className="max-w-3xl mx-auto space-y-8">
-        <div className="space-y-2">
+    <div className="min-h-screen bg-[#F8F9FA] p-4">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
           <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
-          <p className="text-gray-500">Manage your account and widget settings</p>
+          <p className="text-gray-500">Manage your account preferences</p>
         </div>
 
-        <div className="space-y-6">
-          {client && (
-            <>
-              <ProfileSection 
-                client={client} 
-                clientMutation={clientMutation} 
-              />
-              <WidgetSection 
-                settings={widgetSettings}
-                isUploading={isUploading}
-                onSettingsChange={handleSettingsChange}
-                onLogoUpload={handleLogoUpload}
-              />
-            </>
-          )}
-        </div>
+        <ProfileSection 
+          initialFullName={user?.user_metadata?.full_name || ""}
+          initialEmail={user?.email || ""}
+        />
+
+        <SecuritySection />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <InfoIcon className="h-5 w-5" />
+              Client Information
+            </CardTitle>
+            <CardDescription>
+              Information about your AI assistant
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {clientInfo ? (
+              <>
+                <div>
+                  <p className="text-sm text-gray-500">Company Name</p>
+                  <p className="font-medium">{clientInfo.client_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">AI Assistant Name</p>
+                  <p className="font-medium">{clientInfo.agent_name}</p>
+                </div>
+                {clientInfo.description && (
+                  <div>
+                    <p className="text-sm text-gray-500">Description</p>
+                    <p className="font-medium">{clientInfo.description}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      clientInfo.status === "active"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {clientInfo.status || "active"}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500">No client information available</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <SignOutSection />
       </div>
     </div>
   );

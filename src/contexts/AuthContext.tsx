@@ -4,10 +4,16 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
-import { AuthContextType, UserRole } from "@/types/auth";
-import { useUserRole } from "@/hooks/useUserRole";
-import { useClientActivityLogger } from "@/hooks/useClientActivityLogger";
-import { handleAuthRedirect } from "@/utils/authRedirects";
+
+type UserRole = 'admin' | 'client';
+
+type AuthContextType = {
+  session: Session | null;
+  user: User | null;
+  signOut: () => Promise<void>;
+  isLoading: boolean;
+  userRole: UserRole | null;
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -19,8 +25,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { checkUserRole } = useUserRole();
-  const { logClientLoginActivity } = useClientActivityLogger();
+
+  const checkUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, client_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error checking user role:", error);
+        return null;
+      }
+
+      // If user has client_id in user_roles, update user metadata
+      if (data?.client_id && data.role === 'client') {
+        await supabase.auth.updateUser({
+          data: { client_id: data.client_id }
+        });
+      }
+
+      return data?.role as UserRole || null;
+    } catch (error) {
+      console.error("Error checking user role:", error);
+      return null;
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -38,25 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(initialSession.user);
           
           const role = await checkUserRole(initialSession.user.id);
-          console.log("User role detected:", role);
           setUserRole(role);
-          
-          // If user is a client, make sure they have client_id in metadata
-          if (role === 'client' && !initialSession.user.user_metadata?.client_id) {
-            const { data: userData } = await supabase
-              .from('user_roles')
-              .select('client_id')
-              .eq('user_id', initialSession.user.id)
-              .eq('role', 'client')
-              .single();
-            
-            if (userData?.client_id) {
-              console.log("Updating user metadata with client_id:", userData.client_id);
-              await supabase.auth.updateUser({
-                data: { client_id: userData.client_id }
-              });
-            }
-          }
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
@@ -92,17 +105,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           if (currentSession?.user) {
             const role = await checkUserRole(currentSession.user.id);
-            console.log("User role after auth change:", role);
             setUserRole(role);
             
-            // Log client login activity if it's a client
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-              if (role === 'client' && currentSession.user.user_metadata?.client_id) {
-                await logClientLoginActivity(currentSession.user.user_metadata.client_id);
+            // Redirect based on role after sign in
+            if (event === 'SIGNED_IN') {
+              if (role === 'client') {
+                navigate('/client/view', { replace: true });
+              } else if (role === 'admin') {
+                navigate('/', { replace: true });
               }
-              
-              // Handle redirects after auth changes
-              handleAuthRedirect(role, event, location, navigate);
             }
           } else {
             setUserRole(null);
@@ -123,7 +134,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, authCheckCompleted, session]);
+  }, [navigate, location.pathname, authCheckCompleted]);
 
   const signOut = async () => {
     try {

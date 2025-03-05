@@ -1,128 +1,70 @@
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { useClientDashboard } from "@/hooks/useClientDashboard";
 import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
-import { QueryList } from "@/components/client-dashboard/QueryList";
 import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { supabase } from "@/integrations/supabase/client";
+import { QueryList } from "@/components/client-dashboard/QueryList";
+import { useClientDashboard } from "@/hooks/useClientDashboard";
 import { Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ErrorLog, QueryItem } from "@/hooks/useClientDashboard";
 
-const ClientDashboard = () => {
+export interface ClientDashboardProps {
+  clientId?: string;
+}
+
+const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const { user } = useAuth();
-  const clientId = user?.user_metadata?.client_id;
-  const { stats, errorLogs, queries, isLoadingErrorLogs, isLoadingQueries, isLoadingStats } = useClientDashboard(clientId);
-  const { logClientActivity } = useClientActivity(clientId);
-  const [aiAgentName, setAiAgentName] = useState<string>("");
-  const [isLoadingClient, setIsLoadingClient] = useState(true);
+  const navigate = useNavigate();
   
-  // Log dashboard visit activity when component mounts
+  // Redirect if not authenticated
   useEffect(() => {
-    if (clientId) {
-      logClientActivity(
-        "dashboard_visited", 
-        "visited their dashboard", 
-        { timestamp: new Date().toISOString() }
-      );
+    if (!user) {
+      navigate("/auth");
     }
-  }, [clientId, logClientActivity]);
+  }, [user, navigate]);
 
-  // Fetch AI agent name from client table
-  useEffect(() => {
-    const fetchClientData = async () => {
-      if (!clientId) return;
-      
-      setIsLoadingClient(true);
-      
-      try {
-        const { data, error } = await supabase
-          .from("clients")
-          .select("agent_name, widget_settings")
-          .eq("id", clientId)
-          .single();
-        
-        if (error) {
-          console.error("Error fetching client data:", error);
-          return;
-        }
-        
-        if (data) {
-          console.log("Client data fetched:", data);
-          setAiAgentName(data.agent_name || "");
-        }
-      } catch (err) {
-        console.error("Error in fetchClientData:", err);
-      } finally {
-        setIsLoadingClient(false);
-      }
-    };
-    
-    fetchClientData();
-    
-    // Set up realtime subscription for client data changes
-    const channel = supabase
-      .channel('client-data-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'clients',
-          filter: `id=eq.${clientId}`
-        },
-        () => {
-          fetchClientData();
-        }
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [clientId]);
-
-  const isLoading = isLoadingClient || !clientId;
+  // Get client ID from user metadata if not provided
+  const effectiveClientId = clientId || user?.user_metadata?.client_id;
   
-  console.log("Dashboard loading state:", { 
-    isLoadingClient, 
-    isLoadingStats, 
-    isLoadingErrorLogs, 
-    isLoadingQueries, 
-    clientId,
-    stats
-  });
+  const {
+    stats,
+    errorLogs,
+    queries,
+    isLoadingErrorLogs,
+    isLoadingQueries,
+  } = useClientDashboard(effectiveClientId);
 
-  if (isLoading) {
+  if (!user) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-          <p className="text-sm text-gray-500">Loading dashboard data...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-gray-900">Your Chatbot Dashboard</h1>
-          <p className="text-gray-500">
-            {aiAgentName ? 
-              `Monitor your "${aiAgentName}" AI assistant's performance` : 
-              "Monitor your AI chatbot's performance"}
-          </p>
+    <div className="bg-[#F8F9FA] min-h-screen">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
+        {/* Stats section - with increased top spacing */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <InteractionStats stats={stats} />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <InteractionStats stats={stats} isLoading={isLoadingStats} />
-        </div>
-
+        {/* Recent data section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <QueryList queries={queries} isLoading={isLoadingQueries} />
-          <ErrorLogList logs={errorLogs} isLoading={isLoadingErrorLogs} />
+          {/* Error logs card */}
+          <ErrorLogList 
+            logs={errorLogs as ErrorLog[]} 
+            isLoading={isLoadingErrorLogs} 
+          />
+
+          {/* Common queries card */}
+          <QueryList 
+            queries={queries as QueryItem[]} 
+            isLoading={isLoadingQueries} 
+          />
         </div>
       </div>
     </div>

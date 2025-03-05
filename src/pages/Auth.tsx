@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, useNavigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -17,43 +17,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const { session, isLoading, userRole } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  
-  useEffect(() => {
-    // Check for auth callback in URL (password recovery, etc.)
-    const handleAuthCallback = async () => {
-      if (location.hash && location.hash.includes('access_token')) {
-        try {
-          const { data, error } = await supabase.auth.getSession();
-          if (error) throw error;
-          
-          if (data.session) {
-            // Get user role to determine redirect
-            const { data: roleData } = await supabase
-              .from('user_roles')
-              .select('role')
-              .eq('user_id', data.session.user.id)
-              .single();
-            
-            if (roleData?.role === 'client') {
-              navigate('/client/view', { replace: true });
-            } else {
-              navigate('/', { replace: true });
-            }
-            
-            toast.success('Successfully authenticated');
-          }
-        } catch (error: any) {
-          console.error('Error handling auth callback:', error);
-          toast.error(error.message || 'Authentication failed');
-        }
-      }
-    };
-    
-    handleAuthCallback();
-  }, [location, navigate]);
+  const { session, isLoading } = useAuth();
 
   // Show loading spinner while checking auth state
   if (isLoading) {
@@ -64,11 +28,8 @@ const Auth = () => {
     );
   }
 
-  // Redirect authenticated users based on their role
+  // Redirect authenticated users to the main dashboard
   if (session) {
-    if (userRole === 'client') {
-      return <Navigate to="/client/view" replace />;
-    }
     return <Navigate to="/" replace />;
   }
 

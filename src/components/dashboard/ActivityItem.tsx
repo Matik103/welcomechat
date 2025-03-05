@@ -3,8 +3,7 @@ import React from "react";
 import { format } from "date-fns";
 import { 
   Users, Settings, Link, UserPlus, Edit, Trash2, 
-  RotateCcw, Upload, Eye, Code, Image, LogIn, 
-  LayoutDashboard
+  RotateCcw, Upload, Eye, Code, Image 
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -35,7 +34,6 @@ const getActivityIcon = (type: string) => {
       return <Link className="w-4 h-4 text-primary" />;
     case 'website_url_removed':
     case 'drive_link_removed':
-    case 'url_deleted':
       return <Trash2 className="w-4 h-4 text-primary" />;
     case 'logo_uploaded':
       return <Image className="w-4 h-4 text-primary" />;
@@ -43,12 +41,6 @@ const getActivityIcon = (type: string) => {
       return <Code className="w-4 h-4 text-primary" />;
     case 'widget_previewed':
       return <Eye className="w-4 h-4 text-primary" />;
-    case 'settings_viewed':
-      return <Settings className="w-4 h-4 text-primary" />;
-    case 'dashboard_visited':
-      return <LayoutDashboard className="w-4 h-4 text-primary" />;
-    case 'client_login':
-      return <LogIn className="w-4 h-4 text-primary" />;
     default:
       return <Users className="w-4 h-4 text-primary" />;
   }

@@ -1,40 +1,15 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, MessageSquare, Calendar, BarChart3, Loader2 } from "lucide-react";
+import { Clock, MessageSquare, Calendar, BarChart3 } from "lucide-react";
 import { InteractionStats as InteractionStatsType } from '@/hooks/useClientDashboard';
 
 export interface InteractionStatsProps {
   stats: InteractionStatsType;
-  isLoading?: boolean;
 }
 
-export const InteractionStats: React.FC<InteractionStatsProps> = ({ stats, isLoading = false }) => {
-  const { total_interactions, active_days, average_response_time, top_queries } = stats || {
-    total_interactions: 0,
-    active_days: 0,
-    average_response_time: 0,
-    top_queries: []
-  };
-
-  if (isLoading) {
-    return (
-      <>
-        {[...Array(4)].map((_, i) => (
-          <Card key={i} className="transition-all hover:shadow-md border-l-4 border-gray-300 overflow-hidden bg-gray-50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Loading...</CardTitle>
-              <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="h-8 w-16 bg-gray-200 rounded animate-pulse"></div>
-              <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mt-2"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </>
-    );
-  }
+export const InteractionStats: React.FC<InteractionStatsProps> = ({ stats }) => {
+  const { total_interactions, active_days, average_response_time, top_queries } = stats;
 
   return (
     <>
@@ -77,7 +52,7 @@ export const InteractionStats: React.FC<InteractionStatsProps> = ({ stats, isLoa
           <BarChart3 className="h-4 w-4 text-purple-500" />
         </CardHeader>
         <CardContent className="pt-2">
-          <div className="text-3xl font-bold text-gray-900">{top_queries?.length || 0}</div>
+          <div className="text-3xl font-bold text-gray-900">{top_queries.length}</div>
           <p className="text-xs text-gray-500 mt-1">Distinct query categories</p>
         </CardContent>
       </Card>

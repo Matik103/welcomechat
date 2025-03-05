@@ -1,80 +1,114 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+
+import { useState, useEffect } from "react";
+import { MetricCard } from "@/components/dashboard/MetricCard";
+import { ActivityList } from "@/components/dashboard/ActivityList";
+import { ActionButtons } from "@/components/dashboard/ActionButtons";
+import { useClientStats } from "@/hooks/useClientStats";
 import { useInteractionStats } from "@/hooks/useInteractionStats";
+import { useRecentActivities } from "@/hooks/useRecentActivities";
+import { toast } from "sonner";
+import { setupRealtimeActivities } from "@/utils/setupRealtimeActivities";
 
 const Index = () => {
-  const [currentTime, setCurrentTime] = useState(new Date());
-
+  const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
+  
+  // Set up real-time functionality on component mount
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(intervalId);
+    const setup = async () => {
+      try {
+        await setupRealtimeActivities();
+      } catch (error) {
+        console.error("Failed to set up realtime activities:", error);
+      }
+    };
+    
+    setup();
   }, []);
   
-  const { stats, isLoading: isLoadingStats } = useInteractionStats();
+  // Static stats that don't depend on time range
+  const { 
+    data: clientStats,
+    isError: isClientStatsError,
+    isLoading: isClientStatsLoading 
+  } = useClientStats();
   
-  // Fix the error by properly using the stats object
-  const totalInteractions = stats?.totalInteractions ?? 0;
-  const totalErrorRate = stats?.errorRate ?? 0;
+  // Dynamic stats that depend on time range
+  const { 
+    data: interactionStats,
+    isError: isInteractionStatsError,
+    isLoading: isInteractionStatsLoading 
+  } = useInteractionStats(timeRange);
+  
+  const { 
+    data: recentActivities,
+    isError: isActivitiesError,
+    isLoading: isActivitiesLoading 
+  } = useRecentActivities();
+
+  // Show error toasts only once when errors occur
+  if (isClientStatsError || isInteractionStatsError || isActivitiesError) {
+    toast.error("Error loading dashboard data. Please try again later.");
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-gray-500">
-            Welcome to your dashboard. Here you can manage clients and view
-            overall statistics.
-          </p>
-          <p className="text-gray-500">
-            Current Time: {currentTime.toLocaleTimeString()}
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">AI Chatbot Admin System</h1>
+          <p className="text-gray-500">Monitor and manage your AI chatbot clients</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Total Interactions</CardTitle>
-              <CardDescription>
-                Total number of interactions across all clients
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{totalInteractions}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Error Rate</CardTitle>
-              <CardDescription>
-                Percentage of interactions resulting in errors
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{totalErrorRate.toFixed(2)}%</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Manage Clients</CardTitle>
-              <CardDescription>Add, edit, and manage client accounts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link to="/admin/clients">
-                <Button className="w-full justify-between">
-                  Go to Clients <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+        <div className="flex justify-end mb-4">
+          <div className="flex gap-2">
+            {(["1d", "1m", "1y", "all"] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1 text-sm rounded-md ${
+                  timeRange === range
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                } transition-colors duration-200`}
+                disabled={isInteractionStatsLoading}
+              >
+                {range.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Static metrics that don't depend on time range */}
+          <MetricCard 
+            title="Total Clients" 
+            value={clientStats?.totalClients || 0}
+            isLoading={isClientStatsLoading}
+          />
+          <MetricCard 
+            title="Active Clients" 
+            value={clientStats?.activeClients || 0}
+            change={clientStats?.activeClientsChange}
+            isLoading={isClientStatsLoading}
+          />
+          {/* Dynamic metrics that update with time range */}
+          <MetricCard 
+            title="Avg. Interactions" 
+            value={interactionStats?.avgInteractions || 0}
+            change={interactionStats?.avgInteractionsChange}
+            isLoading={isInteractionStatsLoading}
+          />
+          <MetricCard 
+            title="Total Interactions" 
+            value={interactionStats?.totalInteractions || 0}
+            isLoading={isInteractionStatsLoading}
+          />
+        </div>
+
+        <ActivityList 
+          activities={recentActivities || []} 
+          isLoading={isActivitiesLoading}
+        />
+        <ActionButtons />
       </div>
     </div>
   );
