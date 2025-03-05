@@ -28,7 +28,7 @@ export const ClientHeader = () => {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
@@ -43,7 +43,7 @@ export const ClientHeader = () => {
                   <Settings className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 z-50" sideOffset={16}>
+              <DropdownMenuContent align="end" className="w-56" sideOffset={16} forceMount>
                 <DropdownMenuItem asChild>
                   <Link to="/client/edit" className="flex items-center">
                     <User className="mr-2 h-4 w-4" />
