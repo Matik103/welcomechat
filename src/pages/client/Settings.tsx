@@ -8,28 +8,14 @@ import { SignOutSection } from "@/components/settings/SignOutSection";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, InfoIcon } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
 const ClientSettings = () => {
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
   const [clientInfo, setClientInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if user has client role
-    if (userRole !== 'client') {
-      console.error("User is not a client, redirecting...");
-      navigate('/');
-      return;
-    }
-
     let isMounted = true;
 
     const fetchClientInfo = async () => {
@@ -75,7 +61,7 @@ const ClientSettings = () => {
     return () => {
       isMounted = false;
     };
-  }, [user, userRole, navigate]);
+  }, [user]);
 
   if (isLoading) {
     return (
