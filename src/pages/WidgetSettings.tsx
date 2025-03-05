@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -14,6 +13,7 @@ import { AppearanceSettings } from "@/components/widget/AppearanceSettings";
 import { WidgetPreview } from "@/components/widget/WidgetPreview";
 import { EmbedCode } from "@/components/widget/EmbedCode";
 import { useAuth } from "@/contexts/AuthContext";
+import { ActivityType } from "@/types/activity";
 
 function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
   return {
@@ -73,7 +73,7 @@ const WidgetSettings = () => {
     }
   }, [client]);
 
-  const logClientActivity = async (activity_type: string, description: string, metadata = {}) => {
+  const logClientActivity = async (activity_type: ActivityType, description: string, metadata = {}) => {
     if (!clientId) return;
     
     try {
@@ -99,7 +99,6 @@ const WidgetSettings = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      // Log widget settings update activity
       if (isClientView) {
         logClientActivity(
           "widget_settings_updated", 
@@ -154,7 +153,6 @@ const WidgetSettings = () => {
       setSettings(newSettings);
       await updateSettingsMutation.mutateAsync(newSettings);
 
-      // Log logo upload activity
       if (isClientView) {
         await logClientActivity(
           "logo_uploaded", 

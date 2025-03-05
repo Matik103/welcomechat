@@ -9,6 +9,7 @@ import { DriveLinks } from "@/components/client/DriveLinks";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ActivityType } from "@/types/activity";
 
 interface AddEditClientProps {
   isClientView?: boolean;
@@ -26,7 +27,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation } = useDriveLinks(clientId);
   const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(clientId);
 
-  const logClientActivity = async (activity_type: string, description: string, metadata = {}) => {
+  const logClientActivity = async (activity_type: ActivityType, description: string, metadata = {}) => {
     if (!clientId) return;
     
     try {

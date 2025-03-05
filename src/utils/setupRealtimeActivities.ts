@@ -6,25 +6,21 @@ export const setupRealtimeActivities = async () => {
     console.log("Setting up realtime activities...");
     
     // Enable row-level security for client_activities table
-    // Note: Using raw SQL queries instead of RPC functions due to type constraints
-    const { error: error1 } = await supabase
-      .from('_rpc')
-      .select('*')
-      .rpc('execute_sql', { 
-        sql: 'ALTER TABLE client_activities REPLICA IDENTITY FULL;' 
-      });
+    // Note: Using RPC functions to execute SQL
+    const { error: error1 } = await supabase.rpc(
+      'execute_sql', 
+      { sql: 'ALTER TABLE client_activities REPLICA IDENTITY FULL;' }
+    );
     
     if (error1) {
       console.error("Error enabling replica identity:", error1);
     }
     
     // Add client_activities table to the supabase_realtime publication
-    const { error: error2 } = await supabase
-      .from('_rpc')
-      .select('*')
-      .rpc('execute_sql', { 
-        sql: 'ALTER PUBLICATION supabase_realtime ADD TABLE client_activities;' 
-      });
+    const { error: error2 } = await supabase.rpc(
+      'execute_sql',
+      { sql: 'ALTER PUBLICATION supabase_realtime ADD TABLE client_activities;' }
+    );
     
     if (error2) {
       console.error("Error adding table to publication:", error2);
