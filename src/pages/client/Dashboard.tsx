@@ -50,12 +50,10 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
       <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
         {/* Stats section - with increased top spacing */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <InteractionStats stats={stats || { 
-            total_interactions: 0, 
-            active_days: 0, 
-            average_response_time: 0, 
-            top_queries: [] 
-          }} />
+          <InteractionStats 
+            stats={stats} 
+            isLoading={isLoadingStats} 
+          />
         </div>
 
         {/* Recent data section */}

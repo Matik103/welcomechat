@@ -1,61 +1,65 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, MessageSquare, Calendar, BarChart3 } from "lucide-react";
-import { InteractionStats as InteractionStatsType } from '@/hooks/useClientDashboard';
+import { Loader2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { InteractionStats as InteractionStatsType } from "@/hooks/useClientDashboard";
 
-export interface InteractionStatsProps {
+interface InteractionStatsProps {
   stats: InteractionStatsType;
+  isLoading?: boolean;
 }
 
-export const InteractionStats: React.FC<InteractionStatsProps> = ({ stats }) => {
-  const { total_interactions = 0, active_days = 0, average_response_time = 0, top_queries = [] } = stats || {};
+export const InteractionStats = ({ stats, isLoading = false }: InteractionStatsProps) => {
+  if (isLoading) {
+    return (
+      <>
+        {[1, 2, 3, 4].map(index => (
+          <StatCard
+            key={index}
+            title="Loading..."
+            value={<Loader2 className="h-5 w-5 animate-spin text-primary" />}
+            isLoading={true}
+          />
+        ))}
+      </>
+    );
+  }
 
   return (
     <>
-      <Card className="transition-all hover:shadow-md border-l-4 border-blue-500 overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Interactions</CardTitle>
-          <MessageSquare className="h-4 w-4 text-blue-500" />
-        </CardHeader>
-        <CardContent className="pt-2">
-          <div className="text-3xl font-bold text-gray-900">{total_interactions}</div>
-          <p className="text-xs text-gray-500 mt-1">Total messages processed</p>
-        </CardContent>
-      </Card>
-      
-      <Card className="transition-all hover:shadow-md border-l-4 border-green-500 overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Days</CardTitle>
-          <Calendar className="h-4 w-4 text-green-500" />
-        </CardHeader>
-        <CardContent className="pt-2">
-          <div className="text-3xl font-bold text-gray-900">{active_days}</div>
-          <p className="text-xs text-gray-500 mt-1">Days with AI interactions</p>
-        </CardContent>
-      </Card>
-      
-      <Card className="transition-all hover:shadow-md border-l-4 border-amber-500 overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avg. Response Time</CardTitle>
-          <Clock className="h-4 w-4 text-amber-500" />
-        </CardHeader>
-        <CardContent className="pt-2">
-          <div className="text-3xl font-bold text-gray-900">{average_response_time}s</div>
-          <p className="text-xs text-gray-500 mt-1">Average AI response time</p>
-        </CardContent>
-      </Card>
-      
-      <Card className="transition-all hover:shadow-md border-l-4 border-purple-500 overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Top Query Types</CardTitle>
-          <BarChart3 className="h-4 w-4 text-purple-500" />
-        </CardHeader>
-        <CardContent className="pt-2">
-          <div className="text-3xl font-bold text-gray-900">{top_queries.length}</div>
-          <p className="text-xs text-gray-500 mt-1">Distinct query categories</p>
-        </CardContent>
-      </Card>
+      <StatCard
+        title="Total Interactions"
+        value={stats.total_interactions.toLocaleString()}
+        className="border-blue-100 bg-blue-50"
+      />
+      <StatCard
+        title="Active Days"
+        value={stats.active_days.toLocaleString()}
+        className="border-emerald-100 bg-emerald-50"
+      />
+      <StatCard
+        title="Avg Response Time"
+        value={`${stats.average_response_time}s`}
+        className="border-amber-100 bg-amber-50"
+      />
+      <StatCard
+        title="Common Topics"
+        value={stats.top_queries.length > 0 ? stats.top_queries.length.toString() : "0"}
+        className="border-purple-100 bg-purple-50"
+      />
     </>
   );
 };
+
+interface StatCardProps {
+  title: string;
+  value: React.ReactNode;
+  className?: string;
+  isLoading?: boolean;
+}
+
+const StatCard = ({ title, value, className = "", isLoading = false }: StatCardProps) => (
+  <Card className={`p-6 flex flex-col items-center justify-center text-center ${className} ${isLoading ? 'animate-pulse' : ''}`}>
+    <p className="text-sm font-medium text-gray-500">{title}</p>
+    <p className="text-3xl font-bold mt-2">{value}</p>
+  </Card>
+);
