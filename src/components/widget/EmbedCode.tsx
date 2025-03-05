@@ -8,9 +8,10 @@ import { SUPABASE_URL } from "@/integrations/supabase/client";
 
 interface EmbedCodeProps {
   settings: WidgetSettings;
+  onCopy?: () => void;
 }
 
-export function EmbedCode({ settings }: EmbedCodeProps) {
+export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   const { toast } = useToast();
   
   // Get the Supabase project reference from the client file's constant
@@ -48,6 +49,11 @@ export function EmbedCode({ settings }: EmbedCodeProps) {
       title: "Code copied! 📋",
       description: "The widget code has been copied to your clipboard.",
     });
+    
+    // Call the onCopy callback if provided
+    if (onCopy) {
+      onCopy();
+    }
   };
 
   return (

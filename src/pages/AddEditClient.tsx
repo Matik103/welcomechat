@@ -8,6 +8,7 @@ import { ClientForm } from "@/components/client/ClientForm";
 import { DriveLinks } from "@/components/client/DriveLinks";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddEditClientProps {
   isClientView?: boolean;
@@ -25,8 +26,37 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation } = useDriveLinks(clientId);
   const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(clientId);
 
+  const logClientActivity = async (activity_type: string, description: string, metadata = {}) => {
+    if (!clientId) return;
+    
+    try {
+      await supabase.from("client_activities").insert({
+        client_id: clientId,
+        activity_type,
+        description,
+        metadata
+      });
+    } catch (error) {
+      console.error("Failed to log activity:", error);
+    }
+  };
+
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     await clientMutation.mutateAsync(data);
+    
+    // Log client information update activity
+    if (isClientView) {
+      await logClientActivity(
+        "client_updated", 
+        "updated their client information",
+        { 
+          updated_fields: Object.keys(data).filter(key => 
+            client && data[key as keyof typeof data] !== client[key as keyof typeof client]
+          )
+        }
+      );
+    }
+    
     if (isClientView) {
       navigate("/client/view");
     } else {
@@ -36,10 +66,56 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
 
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     await addDriveLinkMutation.mutateAsync(data);
+    
+    // Log drive link addition activity
+    if (isClientView) {
+      await logClientActivity(
+        "drive_link_added", 
+        "added a Google Drive link", 
+        { link: data.link, refresh_rate: data.refresh_rate }
+      );
+    }
   };
 
   const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
     await addWebsiteUrlMutation.mutateAsync(data);
+    
+    // Log website URL addition activity
+    if (isClientView) {
+      await logClientActivity(
+        "website_url_added", 
+        "added a website URL", 
+        { url: data.url, refresh_rate: data.refresh_rate }
+      );
+    }
+  };
+
+  const handleDeleteDriveLink = async (linkId: number) => {
+    const linkToDelete = driveLinks.find(link => link.id === linkId);
+    await deleteDriveLinkMutation.mutate(linkId);
+    
+    // Log drive link deletion activity
+    if (isClientView && linkToDelete) {
+      await logClientActivity(
+        "drive_link_removed", 
+        "removed a Google Drive link", 
+        { link: linkToDelete.link }
+      );
+    }
+  };
+
+  const handleDeleteWebsiteUrl = async (urlId: number) => {
+    const urlToDelete = websiteUrls.find(url => url.id === urlId);
+    await deleteWebsiteUrlMutation.mutate(urlId);
+    
+    // Log website URL deletion activity
+    if (isClientView && urlToDelete) {
+      await logClientActivity(
+        "website_url_removed", 
+        "removed a website URL", 
+        { url: urlToDelete.url }
+      );
+    }
   };
 
   const handleBack = () => {
@@ -103,7 +179,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
                 <DriveLinks
                   driveLinks={driveLinks}
                   onAdd={handleAddDriveLink}
-                  onDelete={deleteDriveLinkMutation.mutate}
+                  onDelete={handleDeleteDriveLink}
                   isAddLoading={addDriveLinkMutation.isPending}
                   isDeleteLoading={deleteDriveLinkMutation.isPending}
                 />
@@ -114,7 +190,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
                 <WebsiteUrls
                   urls={websiteUrls}
                   onAdd={handleAddWebsiteUrl}
-                  onDelete={deleteWebsiteUrlMutation.mutate}
+                  onDelete={handleDeleteWebsiteUrl}
                   isAddLoading={addWebsiteUrlMutation.isPending}
                   isDeleteLoading={deleteWebsiteUrlMutation.isPending}
                 />

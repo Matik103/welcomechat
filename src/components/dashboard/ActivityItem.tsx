@@ -1,14 +1,17 @@
 
 import React from "react";
 import { format } from "date-fns";
-import { Users, Settings, Link, UserPlus, Edit, Trash2, RotateCcw } from "lucide-react";
+import { 
+  Users, Settings, Link, UserPlus, Edit, Trash2, 
+  RotateCcw, Upload, Eye, Code, Image 
+} from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
 interface ActivityItemProps {
   item: {
     activity_type: string;
     description: string;
-    created_at: string;
+    created_at: string;.
     metadata: Json;
     client_name?: string;
   };
@@ -29,6 +32,15 @@ const getActivityIcon = (type: string) => {
     case 'website_url_added':
     case 'drive_link_added':
       return <Link className="w-4 h-4 text-primary" />;
+    case 'website_url_removed':
+    case 'drive_link_removed':
+      return <Trash2 className="w-4 h-4 text-primary" />;
+    case 'logo_uploaded':
+      return <Image className="w-4 h-4 text-primary" />;
+    case 'embed_code_copied':
+      return <Code className="w-4 h-4 text-primary" />;
+    case 'widget_previewed':
+      return <Eye className="w-4 h-4 text-primary" />;
     default:
       return <Users className="w-4 h-4 text-primary" />;
   }

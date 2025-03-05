@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -72,6 +73,21 @@ const WidgetSettings = () => {
     }
   }, [client]);
 
+  const logClientActivity = async (activity_type: string, description: string, metadata = {}) => {
+    if (!clientId) return;
+    
+    try {
+      await supabase.from("client_activities").insert({
+        client_id: clientId,
+        activity_type,
+        description,
+        metadata
+      });
+    } catch (error) {
+      console.error("Failed to log activity:", error);
+    }
+  };
+
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: IWidgetSettings) => {
       const { error } = await supabase
@@ -83,6 +99,20 @@ const WidgetSettings = () => {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Log widget settings update activity
+      if (isClientView) {
+        logClientActivity(
+          "widget_settings_updated", 
+          "updated widget settings", 
+          { 
+            updated_fields: Object.keys(settings).filter(key => 
+              client?.widget_settings && 
+              settings[key as keyof IWidgetSettings] !== client.widget_settings[key]
+            ) 
+          }
+        );
+      }
+      
       toast({
         title: "Settings saved successfully! 🎉",
         description: "Your widget is ready to be embedded.",
@@ -124,6 +154,15 @@ const WidgetSettings = () => {
       setSettings(newSettings);
       await updateSettingsMutation.mutateAsync(newSettings);
 
+      // Log logo upload activity
+      if (isClientView) {
+        await logClientActivity(
+          "logo_uploaded", 
+          "uploaded a new logo for their widget", 
+          { logo_url: publicUrl }
+        );
+      }
+
       toast({
         title: "Logo uploaded successfully! ✨",
         description: "Your brand is looking great!",
@@ -153,6 +192,28 @@ const WidgetSettings = () => {
       navigate('/client/view');
     } else {
       navigate(-1);
+    }
+  };
+
+  const handleCopyEmbedCode = () => {
+    if (isClientView) {
+      logClientActivity(
+        "embed_code_copied", 
+        "copied the widget embed code",
+        {}
+      );
+    }
+  };
+
+  const handleTogglePreview = (isVisible: boolean) => {
+    setShowPreview(isVisible);
+    
+    if (isClientView) {
+      logClientActivity(
+        "widget_previewed", 
+        isVisible ? "previewed their widget" : "closed the widget preview",
+        {}
+      );
     }
   };
 
@@ -209,7 +270,10 @@ const WidgetSettings = () => {
             <CardDescription>Copy this code to add the widget to your website</CardDescription>
           </CardHeader>
           <CardContent>
-            <EmbedCode settings={settings} />
+            <EmbedCode 
+              settings={settings} 
+              onCopy={handleCopyEmbedCode}
+            />
           </CardContent>
         </Card>
 
@@ -222,7 +286,7 @@ const WidgetSettings = () => {
             <WidgetPreview
               settings={settings}
               showPreview={showPreview}
-              onTogglePreview={() => setShowPreview(!showPreview)}
+              onTogglePreview={handleTogglePreview}
             />
           </CardContent>
         </Card>
