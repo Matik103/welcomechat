@@ -9,7 +9,7 @@ export interface InteractionStatsProps {
 }
 
 export const InteractionStats: React.FC<InteractionStatsProps> = ({ stats }) => {
-  const { total_interactions, active_days, average_response_time, top_queries } = stats;
+  const { total_interactions = 0, active_days = 0, average_response_time = 0, top_queries = [] } = stats || {};
 
   return (
     <>
