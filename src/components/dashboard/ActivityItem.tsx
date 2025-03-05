@@ -11,7 +11,7 @@ interface ActivityItemProps {
   item: {
     activity_type: string;
     description: string;
-    created_at: string;.
+    created_at: string;
     metadata: Json;
     client_name?: string;
   };
