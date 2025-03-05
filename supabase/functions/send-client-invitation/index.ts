@@ -65,15 +65,43 @@ serve(async (req) => {
       throw new Error("Failed to initialize Supabase client");
     }
     
-    // Send Supabase built-in invitation - this is our primary approach
-    console.log("Sending Supabase built-in invitation");
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    // Custom email template options
+    const emailOptions = {
       data: {
         client_id: clientId,
         client_name: clientName
       },
-      redirectTo: `${origin}/client/setup?id=${clientId}`
-    });
+      redirectTo: `${origin}/client/setup?id=${clientId}`,
+      emailRedirectTo: `${origin}/client/setup?id=${clientId}`,
+      // Custom email template content for Supabase's invitation email
+      email_template: {
+        subject: "Welcome to Welcome.Chat - Complete Your Account Setup",
+        content: `
+<h2>You have been invited to Welcome.Chat</h2>
+
+<p>Hello${clientName ? ` ${clientName}` : ''},</p>
+
+<p>You have been invited to create an account on Welcome.Chat. Follow this link to accept the invite:</p>
+
+<p><a href="{{ .ConfirmationURL }}">Accept the invite</a></p>
+
+<p><strong>Important next steps:</strong></p>
+<ol>
+  <li>Click the link above to accept this invitation</li>
+  <li>You'll be asked to create a password for your account</li>
+  <li>After setting your password, you'll be automatically signed in to your dashboard</li>
+</ol>
+
+<p>If you have any questions or need assistance, please contact your administrator.</p>
+
+<p>Thank you,<br>The Welcome.Chat Team</p>
+        `
+      }
+    };
+    
+    // Send Supabase built-in invitation - this is our primary approach
+    console.log("Sending Supabase built-in invitation");
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, emailOptions);
     
     if (inviteError) {
       console.error("Supabase invitation failed:", inviteError.message);
