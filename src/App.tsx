@@ -23,15 +23,17 @@ function App() {
   
   // Set a timeout to prevent infinite loading
   useEffect(() => {
-    if (isLoading) {
-      const timer = setTimeout(() => {
-        setShowLoader(false);
-      }, 5000); // Show loader for max 5 seconds
-      
-      return () => clearTimeout(timer);
-    } else {
+    const timer = setTimeout(() => {
+      setShowLoader(false);
+    }, 3000); // Reduced timeout to 3 seconds
+    
+    // Clear timeout if loading state changes
+    if (!isLoading) {
+      clearTimeout(timer);
       setShowLoader(false);
     }
+    
+    return () => clearTimeout(timer);
   }, [isLoading]);
 
   // Check if this is a public route
@@ -39,7 +41,7 @@ function App() {
     location.pathname === '/auth' || 
     location.pathname.startsWith('/client/setup');
   
-  // Show loading spinner only for a brief moment while checking auth
+  // Show loading spinner only while checking auth and not more than the timeout
   if (isLoading && showLoader) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -56,8 +58,8 @@ function App() {
     return <Navigate to="/auth" replace />;
   }
 
-  // Redirect based on user role
-  if (user && !isLoading && !isPublicRoute) {
+  // Redirect based on user role if we have both user and userRole information
+  if (user && userRole && !isLoading) {
     // If client tries to access admin route or admin tries to access client route
     const isClientRoute = location.pathname.startsWith('/client') && !location.pathname.startsWith('/client/setup');
     const isAdminRoute = !location.pathname.startsWith('/client') && location.pathname !== '/auth';
