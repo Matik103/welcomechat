@@ -73,24 +73,54 @@ serve(async (req) => {
     const { email, clientName, aiAgentName } = await req.json()
     console.log('Received request for:', email);
 
-    // Create the user
-    console.log('Creating user account...');
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
-      email_confirm: true,
-      password: crypto.randomUUID(), // Generate a random password
-      user_metadata: {
-        client_name: clientName
-      }
-    })
-
-    if (userError) {
-      console.error('Error creating user:', userError);
-      throw userError;
+    // Check if user already exists
+    console.log('Checking if user already exists...');
+    const { data: existingUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+    
+    if (getUserError && getUserError.message !== 'User not found') {
+      console.error('Error checking for existing user:', getUserError);
+      throw getUserError;
     }
-    console.log('User account created successfully');
 
-    // Generate password reset link
+    let userId;
+    
+    if (existingUser) {
+      console.log('User already exists, skipping creation step');
+      userId = existingUser.id;
+      
+      // Update metadata if needed
+      if (!existingUser.user_metadata?.client_name) {
+        console.log('Updating user metadata...');
+        await supabaseAdmin.auth.admin.updateUserById(
+          userId,
+          {
+            user_metadata: {
+              client_name: clientName
+            }
+          }
+        );
+      }
+    } else {
+      // Create the user
+      console.log('Creating new user account...');
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
+        email: email,
+        email_confirm: true,
+        password: crypto.randomUUID(), // Generate a random password
+        user_metadata: {
+          client_name: clientName
+        }
+      });
+
+      if (userError) {
+        console.error('Error creating user:', userError);
+        throw userError;
+      }
+      console.log('User account created successfully');
+      userId = userData.user.id;
+    }
+
+    // Generate password reset link (works for both new and existing users)
     console.log('Generating password reset link...');
     const { data: linkData, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
@@ -101,7 +131,7 @@ serve(async (req) => {
           agent_name: aiAgentName
         }
       }
-    })
+    });
 
     if (resetError) {
       console.error('Error generating reset link:', resetError);
@@ -109,37 +139,79 @@ serve(async (req) => {
     }
     console.log('Reset link generated successfully');
 
-    // Send welcome email with setup instructions using SMTP
+    // Send welcome email with setup instructions
     try {
       console.log('Sending welcome email...');
       const resetLink = linkData?.properties?.action_link;
       console.log('Reset link:', resetLink);
 
-      await sendEmail(
-        email,
-        'Welcome to Interact Metrics - Setup Instructions',
-        `
-        <h1>Welcome to Interact Metrics!</h1>
-        <p>Hello ${clientName},</p>
-        <p>Your account has been created successfully. To get started:</p>
-        <ol>
-          <li>Click the link below to set up your password:</li>
-          <li><a href="${resetLink}">Set Up Your Password</a></li>
-          <li>After setting your password, you'll be able to access your dashboard</li>
-          <li>Your AI agent "${aiAgentName}" has been created and is ready for configuration</li>
-        </ol>
-        <p>If you have any questions, please don't hesitate to reach out to our support team.</p>
-        <p>Best regards,<br>The Interact Metrics Team</p>
-      `
-      );
-      console.log('Welcome email sent successfully');
+      // Try the new Resend API first
+      try {
+        const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({
+            to: email,
+            subject: 'Welcome to Interact Metrics - Setup Instructions',
+            html: `
+              <h1>Welcome to Interact Metrics!</h1>
+              <p>Hello ${clientName},</p>
+              <p>Your account has been created successfully. To get started:</p>
+              <ol>
+                <li>Click the link below to set up your password:</li>
+                <li><a href="${resetLink}">Set Up Your Password</a></li>
+                <li>After setting your password, you'll be able to access your dashboard</li>
+                <li>Your AI agent "${aiAgentName}" has been created and is ready for configuration</li>
+              </ol>
+              <p>If you have any questions, please don't hesitate to reach out to our support team.</p>
+              <p>Best regards,<br>The Interact Metrics Team</p>
+            `
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Error response from send-email function:', errorData);
+          throw new Error(`Resend email failed: ${errorData.error || response.statusText}`);
+        }
+        
+        console.log('Welcome email sent successfully using Resend');
+      } catch (resendError) {
+        console.error('Resend email failed, falling back to SMTP:', resendError);
+        
+        // Fallback to SMTP
+        await sendEmail(
+          email,
+          'Welcome to Interact Metrics - Setup Instructions',
+          `
+          <h1>Welcome to Interact Metrics!</h1>
+          <p>Hello ${clientName},</p>
+          <p>Your account has been created successfully. To get started:</p>
+          <ol>
+            <li>Click the link below to set up your password:</li>
+            <li><a href="${resetLink}">Set Up Your Password</a></li>
+            <li>After setting your password, you'll be able to access your dashboard</li>
+            <li>Your AI agent "${aiAgentName}" has been created and is ready for configuration</li>
+          </ol>
+          <p>If you have any questions, please don't hesitate to reach out to our support team.</p>
+          <p>Best regards,<br>The Interact Metrics Team</p>
+          `
+        );
+        console.log('Welcome email sent successfully using SMTP fallback');
+      }
     } catch (emailError) {
       console.error('Error sending welcome email:', emailError);
       throw emailError;
     }
 
     return new Response(
-      JSON.stringify({ message: 'User created successfully' }),
+      JSON.stringify({ 
+        message: 'User created or updated successfully',
+        isNewUser: !existingUser
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
