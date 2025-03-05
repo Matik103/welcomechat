@@ -59,12 +59,14 @@ function App() {
     return <Navigate to="/auth" replace />;
   }
 
-  // Immediate role-based redirects
+  // Immediate role-based redirects - Fix for client routing
   if (!isLoading && user && userRole) {
     // If user is client and trying to access admin routes, redirect to client dashboard
     if (userRole === 'client' && 
         !location.pathname.startsWith('/client/') && 
-        !location.pathname.startsWith('/auth')) {
+        location.pathname !== '/auth' && 
+        !location.pathname.startsWith('/auth/')) {
+      console.log("Client user detected on admin route, redirecting to client dashboard");
       return <Navigate to="/client/view" replace />;
     }
     

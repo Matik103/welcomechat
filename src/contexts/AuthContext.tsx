@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkUserRole = async (userId: string) => {
     try {
+      console.log("Checking user role for user ID:", userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, client_id')
@@ -41,11 +42,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // If user has client_id in user_roles, update user metadata
       if (data?.client_id && data.role === 'client') {
+        console.log("Found client role with client_id:", data.client_id);
         await supabase.auth.updateUser({
           data: { client_id: data.client_id }
         });
       }
 
+      console.log("User role determined:", data?.role || "no role found");
       return data?.role as UserRole || null;
     } catch (error) {
       console.error("Error checking user role:", error);
@@ -148,11 +151,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               
               // Handle redirects after auth changes
               if (role === 'client') {
-                if (!location.pathname.startsWith('/client/')) {
+                if (location.pathname === '/' || location.pathname.startsWith('/admin/')) {
+                  console.log("Redirecting client user to client dashboard");
                   navigate('/client/view', { replace: true });
                 }
               } else if (role === 'admin') {
-                if (location.pathname.startsWith('/client/')) {
+                if (location.pathname.startsWith('/client/') && !location.pathname.startsWith('/client/setup')) {
                   navigate('/', { replace: true });
                 }
               }
