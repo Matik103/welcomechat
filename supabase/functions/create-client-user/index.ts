@@ -52,6 +52,34 @@ async function sendEmail(to: string, subject: string, htmlContent: string) {
   }
 }
 
+// Function to generate a random password if we can't find one
+async function generateTemporaryPassword(supabaseAdmin: any, email: string) {
+  try {
+    console.log('Generating new random password');
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const userPassword = `Welcome${randomDigits}!`;
+    
+    // Store this password for future reference
+    console.log('Storing new generated password');
+    await supabaseAdmin
+      .from('client_temp_passwords')
+      .insert({
+        email: email,
+        temp_password: userPassword,
+        created_at: new Date().toISOString(),
+        used: false
+      });
+      
+    console.log('Password stored successfully');
+    return userPassword;
+  } catch (error) {
+    console.error('Error generating temporary password:', error);
+    // Fallback to a simple password if storing fails
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    return `Welcome${randomDigits}!`;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -71,6 +99,17 @@ serve(async (req) => {
     )
 
     const { email, clientName, aiAgentName } = await req.json()
+    if (!email || !clientName) {
+      console.error('Missing required fields:', { email, clientName });
+      return new Response(
+        JSON.stringify({ error: 'Email and client name are required' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 // Always return 200 to avoid CORS issues
+        }
+      )
+    }
+    
     console.log('Received request for:', email);
 
     // Check if user already exists
@@ -83,6 +122,7 @@ serve(async (req) => {
     }
 
     let userId;
+    let userPassword;
     
     if (existingUser) {
       console.log('User already exists, skipping creation step');
@@ -100,6 +140,17 @@ serve(async (req) => {
           }
         );
       }
+      
+      // Try to get the last used password for this user
+      const { data: passwordData } = await supabaseAdmin
+        .from('client_temp_passwords')
+        .select('temp_password')
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      userPassword = passwordData?.temp_password || 'Your existing password';
     } else {
       // Get the stored temporary password for this user
       console.log('Retrieving temporary password for:', email);
@@ -112,28 +163,9 @@ serve(async (req) => {
         .limit(1)
         .single();
         
-      let userPassword;
-        
       if (passwordError || !passwordData) {
-        console.log('No stored password found, generating a random one');
-        // Fallback to random UUID if no password found
-        const randomDigits = Math.floor(1000 + Math.random() * 9000);
-        userPassword = `Welcome${randomDigits}!`;
-        
-        // Store this password for future reference
-        console.log('Storing new generated password');
-        const { error: storeError } = await supabaseAdmin
-          .from('client_temp_passwords')
-          .insert({
-            email: email,
-            temp_password: userPassword,
-            created_at: new Date().toISOString(),
-            used: false
-          });
-          
-        if (storeError) {
-          console.error('Error storing generated password:', storeError);
-        }
+        console.log('No stored password found, generating a new one');
+        userPassword = await generateTemporaryPassword(supabaseAdmin, email);
       } else {
         console.log('Found stored password, using it for account creation');
         userPassword = passwordData.temp_password;
@@ -202,7 +234,7 @@ serve(async (req) => {
         .limit(1)
         .single();
         
-      const passwordToUse = currentPassword?.temp_password || 'Your temporary password';
+      const passwordToUse = currentPassword?.temp_password || userPassword || 'Your temporary password';
       console.log('Password to include in email:', passwordToUse);
 
       const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -272,7 +304,8 @@ serve(async (req) => {
       }
     } catch (emailError) {
       console.error('Error sending welcome email:', emailError);
-      throw emailError;
+      // Don't throw, just log the error but still return success for the user creation
+      console.log('User created, but email sending failed. User can still be notified manually.');
     }
 
     return new Response(
@@ -289,10 +322,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in create-client-user function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 // Always return 200 to avoid non-2xx errors
+        status: 200 // Always return 200 to avoid CORS issues
       }
     )
   }

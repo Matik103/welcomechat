@@ -38,13 +38,18 @@ const Auth = () => {
   const checkEmailExists = async (email: string) => {
     setIsCheckingEmail(true);
     try {
+      console.log("Checking if email exists:", email);
       // Call the auth.admin.getUserByEmail() through a secure edge function
       const { data, error } = await supabase.functions.invoke("check-email-exists", {
         body: { email }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error from check-email-exists:", error);
+        throw error;
+      }
       
+      console.log("Email check result:", data);
       return data.exists;
     } catch (error: any) {
       console.error("Error checking email:", error);
@@ -75,6 +80,7 @@ const Auth = () => {
           return;
         }
         
+        console.log("Creating new account with email:", email);
         const { error, data } = await supabase.auth.signUp({
           email,
           password,
@@ -86,7 +92,10 @@ const Auth = () => {
           },
         });
         
-        if (error) throw error;
+        if (error) {
+          console.error("Sign up error:", error);
+          throw error;
+        }
         
         console.log("Sign up successful, verification email should be sent");
         toast.success("Check your email for the confirmation link!");
@@ -94,11 +103,18 @@ const Auth = () => {
         // Log to help debug
         console.log("Auth sign up response:", data);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        console.log("Attempting to sign in with email:", email);
+        const { error, data } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) throw error;
+        
+        if (error) {
+          console.error("Sign in error:", error);
+          throw error;
+        }
+        
+        console.log("Sign in successful:", data);
         toast.success("Successfully signed in!");
       }
     } catch (error: any) {
@@ -122,7 +138,8 @@ const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log("Starting Google sign in process");
+      const { error, data } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -131,10 +148,16 @@ const Auth = () => {
           }
         }
       });
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Google sign in error:", error);
+        throw error;
+      }
+      
+      console.log("Google sign in initiated:", data);
     } catch (error: any) {
       console.error('Google sign in error:', error);
-      toast.error(error.message);
+      toast.error(error.message || "Failed to sign in with Google");
     }
   };
 

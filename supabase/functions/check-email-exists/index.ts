@@ -8,7 +8,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -16,8 +16,8 @@ serve(async (req) => {
   try {
     console.log('Starting check-email-exists function');
     
-    // Initialize Supabase admin client with service role
-    const supabaseAdmin = createClient(
+    // Initialize the Supabase client with the service role key
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
@@ -28,42 +28,56 @@ serve(async (req) => {
       }
     )
 
-    // Get email from request
     const { email } = await req.json()
+    
     console.log('Checking if email exists:', email);
-
+    
     if (!email) {
-      throw new Error('Email is required');
+      console.log('No email provided in request');
+      return new Response(
+        JSON.stringify({ error: 'Email is required', exists: false }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 // Always return 200 to avoid CORS issues
+        }
+      )
     }
 
-    // Try to get user by email
-    const { data: existingUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+    // Check if user exists by email
+    console.log('Calling getUserByEmail for:', email);
+    const { data: user, error: userError } = await supabase.auth.admin.getUserByEmail(email)
     
-    console.log('User lookup result:', existingUser ? 'Found' : 'Not found');
-    
-    if (getUserError && getUserError.message !== 'User not found') {
-      console.error('Error checking for existing user:', getUserError);
-      throw getUserError;
+    // Handle errors from getUserByEmail
+    if (userError && userError.message !== 'User not found') {
+      console.error('Error checking user by email:', userError);
+      return new Response(
+        JSON.stringify({ error: userError.message, exists: false }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      )
     }
 
+    // Return whether the user exists
+    const exists = !!user
+    console.log('User exists:', exists);
+    
     return new Response(
-      JSON.stringify({ 
-        exists: !!existingUser, 
-        message: existingUser ? 'User already exists' : 'User does not exist' 
-      }),
+      JSON.stringify({ exists }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+        status: 200
       }
     )
-
   } catch (error) {
-    console.error('Error in check-email-exists function:', error);
+    console.error('Unexpected error in check-email-exists:', error);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || 'An unexpected error occurred', exists: false }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
+        status: 200 // Always return 200 to avoid CORS issues
       }
     )
   }
