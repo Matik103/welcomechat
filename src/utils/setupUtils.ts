@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ExtendedActivityType } from "@/types/activity";
@@ -73,6 +74,21 @@ export const createClientAccount = async (
       if (metadataError) {
         console.error("Metadata update error:", metadataError);
         throw metadataError;
+      }
+
+      // Send confirmation email
+      try {
+        console.log("Sending confirmation email to client");
+        await supabase.functions.invoke("send-setup-confirmation", {
+          body: { 
+            email: clientData.email,
+            clientName: clientData.client_name
+          }
+        });
+        console.log("Confirmation email sent successfully");
+      } catch (emailError) {
+        console.error("Error sending confirmation email:", emailError);
+        // Don't throw error here, just log it - we don't want to stop the process
       }
     }
 
