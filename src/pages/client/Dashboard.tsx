@@ -6,16 +6,18 @@ import { InteractionStats } from "@/components/client-dashboard/InteractionStats
 import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
 import { QueryList } from "@/components/client-dashboard/QueryList";
 import { useClientDashboard } from "@/hooks/useClientDashboard";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ErrorLog, QueryItem } from "@/hooks/useClientDashboard";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 export interface ClientDashboardProps {
   clientId?: string;
 }
 
 const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   
   // Redirect if not authenticated
@@ -34,8 +36,22 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     queries,
     isLoadingErrorLogs,
     isLoadingQueries,
-    isLoadingStats
+    isLoadingStats,
+    authError
   } = useClientDashboard(effectiveClientId);
+
+  // Handle auth error
+  useEffect(() => {
+    if (authError) {
+      toast.error("Your session has expired. Please sign in again.");
+      // Give the toast time to display before signing out
+      const timer = setTimeout(() => {
+        signOut?.();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [authError, signOut]);
 
   if (!user) {
     return (
@@ -45,9 +61,26 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     );
   }
 
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
   return (
     <div className="bg-[#F8F9FA] min-h-screen">
       <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
+        {/* Refresh button */}
+        <div className="flex justify-end">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            className="flex items-center gap-1 text-gray-600"
+          >
+            <RefreshCcw className="h-4 w-4" />
+            <span>Refresh</span>
+          </Button>
+        </div>
+        
         {/* Stats section - with increased top spacing */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <InteractionStats 
