@@ -101,13 +101,22 @@ export const useClientDashboard = (clientId: string | undefined) => {
         
         if (countError) throw countError;
 
-        // Get active days (count of unique days with chat interactions)
+        // Get active days using a direct query instead of RPC
         const { data: activeDaysData, error: activeDaysError } = await supabase
-          .rpc("get_active_days_count", { client_id_param: clientId });
-        
-        const activeDays = activeDaysData || 0;
+          .from("client_activities")
+          .select("created_at")
+          .eq("client_id", clientId)
+          .eq("activity_type", "chat_interaction");
         
         if (activeDaysError) throw activeDaysError;
+        
+        // Calculate active days by counting distinct dates
+        const uniqueDates = new Set();
+        activeDaysData?.forEach(activity => {
+          const activityDate = new Date(activity.created_at).toDateString();
+          uniqueDates.add(activityDate);
+        });
+        const activeDays = uniqueDates.size;
 
         // Get average response time (mock data for now, would need a specific column)
         // In a real implementation, you would calculate this from actual response times

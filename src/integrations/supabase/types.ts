@@ -1037,6 +1037,12 @@ export type Database = {
         }
         Returns: string[]
       }
+      get_active_days_count: {
+        Args: {
+          client_id_param: string
+        }
+        Returns: number
+      }
       halfvec_avg: {
         Args: {
           "": number[]
