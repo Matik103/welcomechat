@@ -1,18 +1,35 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { ActivityType, ActivityRecord } from "@/types/activity";
+import { ActivityType, ExtendedActivityType, ActivityRecord } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
 export const useClientActivity = (clientId: string | undefined) => {
-  const logClientActivity = async (activity_type: ActivityType, description: string, metadata: Json = {}) => {
+  const logClientActivity = async (activity_type: ExtendedActivityType, description: string, metadata: Json = {}) => {
     if (!clientId) return;
     
     try {
-      // Instead of creating an ActivityRecord type object and passing it directly,
-      // create an object that matches what Supabase expects
+      // Map custom activity types to valid enum values if needed
+      let dbActivityType: ActivityType;
+      
+      // Handle special cases that aren't in the database enum
+      switch (activity_type) {
+        case "ai_agent_created":
+        case "ai_agent_updated":
+        case "logo_uploaded":
+        case "embed_code_copied":
+        case "widget_previewed":
+          // Map to a valid enum type that's closest in meaning
+          dbActivityType = "client_updated";
+          break;
+        default:
+          // For all other cases, use the activity type directly
+          dbActivityType = activity_type as ActivityType;
+      }
+      
+      // Create the activity record in the database
       await supabase.from("client_activities").insert({
         client_id: clientId,
-        activity_type: activity_type as any, // Use type assertion to bypass type checking temporarily
+        activity_type: dbActivityType,
         description,
         metadata
       });
