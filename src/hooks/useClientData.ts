@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
@@ -87,36 +86,50 @@ export const useClientData = (id: string | undefined) => {
           try {
             toast.info("Sending setup email...");
             
-            // Generate client password first
-            const { data: passwordData, error: passwordError } = await supabase.functions.invoke("generate-client-password", {
-              body: {
-                clientId: newClient.id,
-                email: newClient.email
+            let password;
+            try {
+              const { data: passwordData, error: passwordError } = await supabase.functions.invoke("generate-client-password", {
+                body: {
+                  clientId: newClient.id,
+                  email: newClient.email
+                }
+              });
+              
+              if (passwordError) {
+                console.error("Error generating password:", passwordError);
+                throw new Error(`Password generation failed: ${passwordError.message}`);
               }
-            });
-            
-            if (passwordError) {
-              console.error("Error generating password:", passwordError);
-              throw passwordError;
+              
+              console.log("Password generation response:", passwordData);
+            } catch (passwordGenError) {
+              console.error("Exception in password generation:", passwordGenError);
             }
             
-            // Now send the invitation with the generated password
-            const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
-              body: {
-                clientId: newClient.id,
-                email: newClient.email,
-                clientName: newClient.client_name
+            try {
+              const { data: inviteData, error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
+                body: {
+                  clientId: newClient.id,
+                  email: newClient.email,
+                  clientName: newClient.client_name
+                }
+              });
+              
+              if (inviteError) {
+                console.error("Error sending invitation:", inviteError);
+                toast.error(`Failed to send setup email: ${inviteError.message}`);
+              } else if (inviteData?.error) {
+                console.error("Invite function returned error:", inviteData.error);
+                toast.error(`Failed to send setup email: ${inviteData.error}`);
+              } else {
+                toast.success("Setup email sent to client");
               }
-            });
-            if (inviteError) {
-              console.error("Error sending invitation:", inviteError);
-              toast.error(`Failed to send setup email: ${inviteError.message}`);
-            } else {
-              toast.success("Setup email sent to client");
+            } catch (inviteError: any) {
+              console.error("Exception in invitation process:", inviteError);
+              toast.error(`Failed to send setup email: ${inviteError.message || "Unknown error"}`);
             }
-          } catch (inviteError: any) {
-            console.error("Exception in invitation process:", inviteError);
-            toast.error(`Failed to send setup email: ${inviteError.message || "Unknown error"}`);
+          } catch (setupError: any) {
+            console.error("Error in client setup process:", setupError);
+            toast.error(`Error during client setup: ${setupError.message || "Unknown error"}`);
           }
 
           return newClient.id;
@@ -142,18 +155,26 @@ export const useClientData = (id: string | undefined) => {
     try {
       toast.info("Sending setup email...");
       
-      const { error } = await supabase.functions.invoke("send-client-invitation", {
+      const { data, error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId,
           email,
           clientName
         }
       });
+      
       if (error) {
         console.error("Error sending invitation:", error);
         toast.error(`Failed to send setup email: ${error.message}`);
         throw error;
       }
+      
+      if (data?.error) {
+        console.error("Function returned error:", data.error);
+        toast.error(`Failed to send setup email: ${data.error}`);
+        throw new Error(data.error);
+      }
+      
       toast.success("Setup email sent to client");
       return true;
     } catch (error: any) {

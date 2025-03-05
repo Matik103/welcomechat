@@ -33,3 +33,6 @@ verify_jwt = false
 
 [functions.check-email-exists]
 verify_jwt = false
+
+[functions.generate-client-password]
+verify_jwt = false

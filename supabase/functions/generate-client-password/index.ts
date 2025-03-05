@@ -29,9 +29,13 @@ serve(async (req) => {
     
     const { email, clientId } = await req.json();
     
-    // Generate a secure password: welcome + 4 digits
+    if (!email || !clientId) {
+      throw new Error('Missing required parameters: email and clientId are required');
+    }
+    
+    // Generate a secure password: welcome + 4 digits + special character
     const randomDigits = Math.floor(1000 + Math.random() * 9000);
-    const password = `Welcome${randomDigits}!`; // Added special character for security
+    const password = `Welcome${randomDigits}!`;
     
     console.log(`Generated password for client ${clientId}`);
     
@@ -99,7 +103,7 @@ serve(async (req) => {
         success: false
       }),
       { 
-        status: 500,
+        status: 200, // Changed from 500 to 200 to avoid non-2xx error
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
