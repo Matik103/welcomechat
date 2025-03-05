@@ -1,70 +1,50 @@
 
 import { useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
-import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
-import { QueryList } from "@/components/client-dashboard/QueryList";
 import { useClientDashboard } from "@/hooks/useClientDashboard";
-import { Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { ErrorLog, QueryItem } from "@/hooks/useClientDashboard";
+import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
+import { QueryList } from "@/components/client-dashboard/QueryList";
+import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
+import { useClientActivity } from "@/hooks/useClientActivity";
 
-export interface ClientDashboardProps {
-  clientId?: string;
-}
-
-const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
+const ClientDashboard = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const clientId = user?.user_metadata?.client_id;
+  const { dashboardData, isLoading } = useClientDashboard(clientId);
+  const { logClientActivity } = useClientActivity(clientId);
   
-  // Redirect if not authenticated
+  // Log dashboard visit activity when component mounts
   useEffect(() => {
-    if (!user) {
-      navigate("/auth");
+    if (clientId) {
+      logClientActivity(
+        "dashboard_visited", 
+        "visited their dashboard", 
+        { timestamp: new Date().toISOString() }
+      );
     }
-  }, [user, navigate]);
+  }, [clientId, logClientActivity]);
 
-  // Get client ID from user metadata if not provided
-  const effectiveClientId = clientId || user?.user_metadata?.client_id;
-  
-  const {
-    stats,
-    errorLogs,
-    queries,
-    isLoadingErrorLogs,
-    isLoadingQueries,
-  } = useClientDashboard(effectiveClientId);
-
-  if (!user) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#F8F9FA] min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
-        {/* Stats section - with increased top spacing */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <InteractionStats stats={stats} />
+    <div className="min-h-screen bg-[#F8F9FA] p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-gray-900">Your Chatbot Dashboard</h1>
+          <p className="text-gray-500">Monitor your AI chatbot's performance</p>
         </div>
 
-        {/* Recent data section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Error logs card */}
-          <ErrorLogList 
-            logs={errorLogs as ErrorLog[]} 
-            isLoading={isLoadingErrorLogs} 
-          />
+        <InteractionStats stats={dashboardData?.interactionStats || {}} />
 
-          {/* Common queries card */}
-          <QueryList 
-            queries={queries as QueryItem[]} 
-            isLoading={isLoadingQueries} 
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <QueryList queries={dashboardData?.recentQueries || []} isLoading={isLoading} />
+          <ErrorLogList errors={dashboardData?.recentErrors || []} isLoading={isLoading} />
         </div>
       </div>
     </div>

@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +49,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error("Error checking user role:", error);
       return null;
+    }
+  };
+
+  const logClientLoginActivity = async (clientId: string) => {
+    try {
+      await supabase.from("client_activities").insert({
+        client_id: clientId,
+        activity_type: "client_login" as any,
+        description: "logged into their account",
+        metadata: { timestamp: new Date().toISOString() }
+      });
+    } catch (error) {
+      console.error("Failed to log login activity:", error);
     }
   };
 
@@ -109,6 +121,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             // Redirect based on role after sign in
             if (event === 'SIGNED_IN') {
+              // Log client login activity if it's a client
+              if (role === 'client' && currentSession.user.user_metadata?.client_id) {
+                await logClientLoginActivity(currentSession.user.user_metadata.client_id);
+              }
+              
               if (role === 'client') {
                 navigate('/client/view', { replace: true });
               } else if (role === 'admin') {

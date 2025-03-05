@@ -1,152 +1,38 @@
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { ProfileSection } from "@/components/settings/ProfileSection";
-import { SecuritySection } from "@/components/settings/SecuritySection";
-import { SignOutSection } from "@/components/settings/SignOutSection";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, InfoIcon } from "lucide-react";
-import { toast } from "sonner";
+import { ProfileSection } from "@/components/client/settings/ProfileSection";
+import { WidgetSection } from "@/components/client/settings/WidgetSection";
+import { useClientActivity } from "@/hooks/useClientActivity";
 
 const ClientSettings = () => {
   const { user } = useAuth();
-  const [clientInfo, setClientInfo] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  const clientId = user?.user_metadata?.client_id;
+  const { logClientActivity } = useClientActivity(clientId);
+  
+  // Log settings page visit
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchClientInfo = async () => {
-      if (!user?.email) {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-        return;
-      }
-      
-      try {
-        console.log("Fetching client info for email:", user.email);
-        const { data, error } = await supabase
-          .from("clients")
-          .select("*")
-          .eq("email", user.email)
-          .maybeSingle();
-          
-        if (error) {
-          console.error("Error fetching client info:", error);
-          throw error;
-        }
-        
-        console.log("Client info fetched:", data);
-        if (isMounted) {
-          setClientInfo(data);
-        }
-      } catch (error: any) {
-        console.error("Error in fetchClientInfo:", error);
-        if (isMounted) {
-          setError(error.message || "Failed to load client information");
-          toast.error("Failed to load client information");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-    
-    fetchClientInfo();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center flex-col">
-        <div className="text-red-500 mb-4">Error loading settings: {error}</div>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="px-4 py-2 bg-primary text-white rounded-md"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+    if (clientId) {
+      logClientActivity(
+        "settings_viewed", 
+        "viewed their settings page", 
+        { timestamp: new Date().toISOString() }
+      );
+    }
+  }, [clientId, logClientActivity]);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-4">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
+    <div className="min-h-screen bg-[#F8F9FA] p-8">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div className="space-y-2">
           <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
-          <p className="text-gray-500">Manage your account preferences</p>
+          <p className="text-gray-500">Manage your account and widget settings</p>
         </div>
 
-        <ProfileSection 
-          initialFullName={user?.user_metadata?.full_name || ""}
-          initialEmail={user?.email || ""}
-        />
-
-        <SecuritySection />
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <InfoIcon className="h-5 w-5" />
-              Client Information
-            </CardTitle>
-            <CardDescription>
-              Information about your AI assistant
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {clientInfo ? (
-              <>
-                <div>
-                  <p className="text-sm text-gray-500">Company Name</p>
-                  <p className="font-medium">{clientInfo.client_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">AI Assistant Name</p>
-                  <p className="font-medium">{clientInfo.agent_name}</p>
-                </div>
-                {clientInfo.description && (
-                  <div>
-                    <p className="text-sm text-gray-500">Description</p>
-                    <p className="font-medium">{clientInfo.description}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      clientInfo.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {clientInfo.status || "active"}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <p className="text-gray-500">No client information available</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <SignOutSection />
+        <div className="space-y-6">
+          <ProfileSection />
+          <WidgetSection />
+        </div>
       </div>
     </div>
   );
