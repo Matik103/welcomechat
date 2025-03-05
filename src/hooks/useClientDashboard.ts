@@ -70,7 +70,14 @@ export const useClientDashboard = (clientId: string | undefined) => {
         toast.error(`Error fetching queries: ${error.message}`);
         return [];
       }
-      return data as QueryItem[];
+      
+      // Transform the data to match the QueryItem interface
+      return data.map((item: any) => ({
+        id: item.id,
+        query_text: item.query_text,
+        frequency: item.frequency,
+        last_asked: item.updated_at // Use updated_at as last_asked
+      })) as QueryItem[];
     },
     enabled: !!clientId,
   });

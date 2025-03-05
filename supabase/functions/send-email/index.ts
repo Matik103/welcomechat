@@ -27,12 +27,27 @@ serve(async (req) => {
   try {
     console.log("Send email function started");
     
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    if (!resend) {
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
       throw new Error("Resend API key not configured");
     }
     
-    const body: EmailRequest = await req.json();
+    const resend = new Resend(resendApiKey);
+    
+    let body: EmailRequest;
+    try {
+      body = await req.json();
+    } catch (e) {
+      console.error("Error parsing JSON:", e);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
     const { to, subject, html, from } = body;
     
     if (!to || !subject || !html) {

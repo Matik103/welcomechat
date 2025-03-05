@@ -46,7 +46,19 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // Parse request body
-    const body: InvitationRequest = await req.json();
+    let body: InvitationRequest;
+    try {
+      body = await req.json();
+    } catch (e) {
+      console.error("Error parsing JSON:", e);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
     const { clientId, email, clientName } = body;
     
