@@ -1670,6 +1670,7 @@ export type Database = {
         | "common_query_milestone"
         | "growth_milestone"
         | "ai_agent_table_created"
+        | "ai_agent_created"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"

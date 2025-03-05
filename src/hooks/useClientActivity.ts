@@ -13,13 +13,14 @@ export const useClientActivity = (clientId: string | undefined) => {
       
       // Handle special cases that aren't in the database enum
       switch (activity_type) {
+        // Use 'ai_agent_table_created' since that's what exists in the enum
         case "ai_agent_created":
         case "ai_agent_updated":
         case "logo_uploaded":
         case "embed_code_copied":
         case "widget_previewed":
           // Map to a valid enum type that's closest in meaning
-          dbActivityType = "client_updated";
+          dbActivityType = "ai_agent_table_created";
           
           // Store the original activity type in metadata for reference
           // Make sure metadata is an object before spreading
