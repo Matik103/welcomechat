@@ -40,20 +40,20 @@ serve(async (req) => {
     const { clientId, email, clientName }: InvitationRequest = await req.json();
     console.log(`Sending invitation to client: ${clientName} (${email})`);
     
-    // Generate the setup URL - make sure this is the actual production URL, not preview
-    // This URL will be accessible by clients to set up their password
+    // Generate the dashboard URL - where clients will set up their password
     const origin = req.headers.get("origin") || "https://welcome.chat";
-    const setupUrl = `${origin}/client/setup?id=${clientId}`;
+    const dashboardUrl = `${origin}/client/dashboard?id=${clientId}`;
     
-    console.log(`Setup URL: ${setupUrl}`);
+    console.log(`Dashboard URL: ${dashboardUrl}`);
     
-    // Updated email content with setup link - matching the screenshot
+    // Updated email content with dashboard link and clear password setup instructions
     const htmlContent = `
       <h1>Welcome to Welcome.Chat, Your Agent!</h1>
-      <p>Your account has been created. Click the link below to complete your setup:</p>
-      <p><a href="${setupUrl}" style="display: inline-block; background-color: #6366F1; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif;">Complete Setup</a></p>
+      <p>Your account has been created. Click the link below to access your dashboard:</p>
+      <p><a href="${dashboardUrl}" style="display: inline-block; background-color: #6366F1; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif;">Access Your Dashboard</a></p>
       <p>Or copy and paste this URL into your browser:</p>
-      <p>${setupUrl}</p>
+      <p>${dashboardUrl}</p>
+      <p><strong>Important:</strong> When you first access your dashboard, you'll need to set up your password. Look for the password setup option in your account settings.</p>
       <p>Thank you,<br>The Welcome.Chat Team</p>
     `;
     
@@ -61,7 +61,7 @@ serve(async (req) => {
     const { data, error } = await resend.emails.send({
       from: "Welcome.Chat <noreply@welcome.chat>",
       to: email,
-      subject: "Welcome to Welcome.Chat - Complete Your Setup",
+      subject: "Welcome to Welcome.Chat - Access Your Dashboard",
       html: htmlContent
     });
     
