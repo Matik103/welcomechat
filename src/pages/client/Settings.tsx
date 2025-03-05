@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { SecuritySection } from "@/components/settings/SecuritySection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
@@ -17,19 +16,29 @@ const ClientSettings = () => {
 
   useEffect(() => {
     const fetchClientInfo = async () => {
-      if (!user?.email) return;
+      if (!user?.email) {
+        setIsLoading(false);
+        return;
+      }
       
       try {
+        console.log("Fetching client info for email:", user.email);
         const { data, error } = await supabase
           .from("clients")
           .select("*")
           .eq("email", user.email)
           .maybeSingle();
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching client info:", error);
+          throw error;
+        }
+        
+        console.log("Client info fetched:", data);
         setClientInfo(data);
-      } catch (error) {
-        console.error("Error fetching client info:", error);
+      } catch (error: any) {
+        console.error("Error in fetchClientInfo:", error);
+        toast.error("Failed to load client information");
       } finally {
         setIsLoading(false);
       }
