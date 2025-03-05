@@ -19,7 +19,10 @@ export type ActivityType =
   | "common_query_milestone"
   | "growth_milestone"
   | "chat_interaction" 
-  | "ai_agent_table_created";
+  | "ai_agent_table_created"
+  | "logo_uploaded"
+  | "embed_code_copied"
+  | "widget_previewed";
 
 export interface ActivityRecord {
   activity_type: ActivityType;
