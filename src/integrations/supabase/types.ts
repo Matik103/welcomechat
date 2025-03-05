@@ -912,6 +912,27 @@ export type Database = {
         }
         Relationships: []
       }
+      tweoo: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       upwork: {
         Row: {
           content: string | null
@@ -1036,7 +1057,7 @@ export type Database = {
       }
       create_ai_agent_table: {
         Args: {
-          chatbot_name: string
+          agent_name: string
         }
         Returns: undefined
       }
@@ -1579,6 +1600,19 @@ export type Database = {
         }[]
       }
       match_the_agent: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_tweoo: {
         Args: {
           query_embedding: string
           match_count?: number

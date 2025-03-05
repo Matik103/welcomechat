@@ -54,20 +54,43 @@ export const createClientAccount = async (
     
     console.log("Account created successfully");
     
-    // Create user role mapping for the new user
     if (signUpData.user) {
-      console.log("Creating user role mapping");
-      const { error: roleError } = await supabase
+      // First check if the user role mapping already exists
+      const { data: existingRole } = await supabase
         .from("user_roles")
-        .insert({
-          user_id: signUpData.user.id,
-          role: "client",
-          client_id: clientId
-        });
-        
-      if (roleError) {
-        console.error("Role mapping error:", roleError);
-        throw roleError;
+        .select("id")
+        .eq("user_id", signUpData.user.id)
+        .eq("role", "client")
+        .maybeSingle();
+      
+      // Only create role mapping if it doesn't exist
+      if (!existingRole) {
+        console.log("Creating user role mapping");
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({
+            user_id: signUpData.user.id,
+            role: "client",
+            client_id: clientId
+          });
+          
+        if (roleError) {
+          console.error("Role mapping error:", roleError);
+          throw roleError;
+        }
+      } else {
+        console.log("User role already exists, updating client_id");
+        // Update the existing role with the client_id if needed
+        const { error: updateRoleError } = await supabase
+          .from("user_roles")
+          .update({ client_id: clientId })
+          .eq("user_id", signUpData.user.id)
+          .eq("role", "client");
+          
+        if (updateRoleError) {
+          console.error("Role update error:", updateRoleError);
+          throw updateRoleError;
+        }
       }
       
       // Set client ID in user metadata
