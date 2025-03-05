@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -13,6 +12,7 @@ import { BrandingSettings } from "@/components/widget/BrandingSettings";
 import { AppearanceSettings } from "@/components/widget/AppearanceSettings";
 import { WidgetPreview } from "@/components/widget/WidgetPreview";
 import { EmbedCode } from "@/components/widget/EmbedCode";
+import { useAuth } from "@/contexts/AuthContext";
 
 function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
   return {
@@ -33,21 +33,29 @@ const WidgetSettings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [settings, setSettings] = useState<IWidgetSettings>(defaultSettings);
   const [showPreview, setShowPreview] = useState(true);
 
+  const isClientView = !id;
+  
+  const clientId = id || user?.user_metadata?.client_id;
+
   const { data: client, isLoading } = useQuery({
-    queryKey: ["client", id],
+    queryKey: ["client", clientId],
     queryFn: async () => {
+      if (!clientId) return null;
+      
       const { data, error } = await supabase
         .from("clients")
         .select("*")
-        .eq("id", id)
+        .eq("id", clientId)
         .single();
       if (error) throw error;
       return data;
     },
+    enabled: !!clientId
   });
 
   useEffect(() => {
@@ -71,7 +79,7 @@ const WidgetSettings = () => {
         .update({
           widget_settings: convertSettingsToJson(newSettings)
         })
-        .eq("id", id);
+        .eq("id", clientId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -97,7 +105,7 @@ const WidgetSettings = () => {
       setIsUploading(true);
       const fileExt = file.name.split('.').pop();
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `${id}/${fileName}`;
+      const filePath = `${clientId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("logos")
@@ -140,6 +148,14 @@ const WidgetSettings = () => {
     await updateSettingsMutation.mutateAsync(settings);
   };
 
+  const handleBack = () => {
+    if (isClientView) {
+      navigate('/client/view');
+    } else {
+      navigate(-1);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -151,7 +167,7 @@ const WidgetSettings = () => {
   return (
     <div className="container mx-auto py-8 max-w-4xl">
       <div className="mb-6">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
+        <Button variant="ghost" onClick={handleBack} className="mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </Button>
         <h1 className="text-2xl font-bold">Widget Settings</h1>
