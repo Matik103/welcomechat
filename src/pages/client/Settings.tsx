@@ -5,7 +5,7 @@ import { ProfileSection } from "@/components/client/settings/ProfileSection";
 import { WidgetSection } from "@/components/client/settings/WidgetSection";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { useClientData } from "@/hooks/useClientData";
-import { defaultSettings } from "@/types/widget-settings";
+import { defaultSettings, WidgetSettings } from "@/types/widget-settings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
@@ -28,12 +28,19 @@ const ClientSettings = () => {
     }
   }, [clientId, logClientActivity]);
 
-  const handleSettingsChange = async (newSettings: Partial<typeof defaultSettings>) => {
+  const handleSettingsChange = async (newSettings: Partial<WidgetSettings>) => {
     if (!client) return;
 
     try {
+      // First ensure we have proper widget settings object
+      const currentSettings: WidgetSettings = 
+        client.widget_settings && typeof client.widget_settings === 'object' && !Array.isArray(client.widget_settings)
+          ? client.widget_settings as unknown as WidgetSettings 
+          : { ...defaultSettings };
+      
+      // Update settings with new values
       const updatedSettings = { 
-        ...(client.widget_settings as Json || {}), 
+        ...currentSettings, 
         ...newSettings 
       };
       
@@ -106,6 +113,14 @@ const ClientSettings = () => {
     );
   }
 
+  // Safely extract widget settings, ensuring it's in the correct format
+  const widgetSettings: WidgetSettings = 
+    client?.widget_settings && 
+    typeof client.widget_settings === 'object' && 
+    !Array.isArray(client.widget_settings)
+      ? { ...defaultSettings, ...(client.widget_settings as unknown as Partial<WidgetSettings>) }
+      : { ...defaultSettings };
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-3xl mx-auto space-y-8">
@@ -122,7 +137,7 @@ const ClientSettings = () => {
                 clientMutation={clientMutation} 
               />
               <WidgetSection 
-                settings={client.widget_settings as typeof defaultSettings || defaultSettings}
+                settings={widgetSettings}
                 isUploading={isUploading}
                 onSettingsChange={handleSettingsChange}
                 onLogoUpload={handleLogoUpload}
