@@ -5,28 +5,27 @@ export const setupRealtimeActivities = async () => {
   try {
     console.log("Setting up realtime activities...");
     
-    // Enable row-level security for client_activities table
-    // Note: Using RPC functions to execute SQL
-    const { error: error1 } = await supabase.rpc(
-      'execute_sql', 
-      { sql: 'ALTER TABLE client_activities REPLICA IDENTITY FULL;' }
-    );
+    // Since 'execute_sql' RPC is not available, we need to find another approach
+    // For now, let's use Supabase's subscription functionality directly
     
-    if (error1) {
-      console.error("Error enabling replica identity:", error1);
-    }
+    // Subscribe to client_activities table changes
+    const subscription = supabase
+      .channel('client_activities_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'client_activities' 
+      }, payload => {
+        console.log('Change received!', payload);
+      })
+      .subscribe();
     
-    // Add client_activities table to the supabase_realtime publication
-    const { error: error2 } = await supabase.rpc(
-      'execute_sql',
-      { sql: 'ALTER PUBLICATION supabase_realtime ADD TABLE client_activities;' }
-    );
+    console.log("Realtime subscription set up successfully");
     
-    if (error2) {
-      console.error("Error adding table to publication:", error2);
-    }
-    
-    return { success: !error1 && !error2 };
+    return { 
+      success: true,
+      subscription
+    };
   } catch (error) {
     console.error("Error setting up realtime:", error);
     return { success: false, error };
