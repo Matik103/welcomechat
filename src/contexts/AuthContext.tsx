@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,7 +82,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(initialSession.user);
           
           const role = await checkUserRole(initialSession.user.id);
+          console.log("User role detected:", role);
           setUserRole(role);
+          
+          // If user is a client, make sure they have client_id in metadata
+          if (role === 'client' && !initialSession.user.user_metadata?.client_id) {
+            const { data: userData } = await supabase
+              .from('user_roles')
+              .select('client_id')
+              .eq('user_id', initialSession.user.id)
+              .eq('role', 'client')
+              .single();
+            
+            if (userData?.client_id) {
+              console.log("Updating user metadata with client_id:", userData.client_id);
+              await supabase.auth.updateUser({
+                data: { client_id: userData.client_id }
+              });
+            }
+          }
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
@@ -117,19 +136,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           if (currentSession?.user) {
             const role = await checkUserRole(currentSession.user.id);
+            console.log("User role after auth change:", role);
             setUserRole(role);
             
             // Redirect based on role after sign in
-            if (event === 'SIGNED_IN') {
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
               // Log client login activity if it's a client
               if (role === 'client' && currentSession.user.user_metadata?.client_id) {
                 await logClientLoginActivity(currentSession.user.user_metadata.client_id);
               }
               
+              // Handle redirects after auth changes
               if (role === 'client') {
-                navigate('/client/view', { replace: true });
+                if (!location.pathname.startsWith('/client/')) {
+                  navigate('/client/view', { replace: true });
+                }
               } else if (role === 'admin') {
-                navigate('/', { replace: true });
+                if (location.pathname.startsWith('/client/')) {
+                  navigate('/', { replace: true });
+                }
               }
             }
           } else {
@@ -151,7 +176,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, authCheckCompleted]);
+  }, [navigate, location.pathname, authCheckCompleted, session]);
 
   const signOut = async () => {
     try {

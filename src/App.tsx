@@ -39,7 +39,8 @@ function App() {
   // Check if this is a public route
   const isPublicRoute = 
     location.pathname === '/auth' || 
-    location.pathname.startsWith('/client/setup');
+    location.pathname.startsWith('/client/setup') ||
+    location.pathname.startsWith('/auth/callback');
   
   // Show loading spinner only while checking auth and not more than the timeout
   if (isLoading && showLoader) {
@@ -58,17 +59,19 @@ function App() {
     return <Navigate to="/auth" replace />;
   }
 
-  // Redirect based on user role if we have both user and userRole information
-  if (user && userRole && !isLoading) {
-    // If client tries to access admin route or admin tries to access client route
-    const isClientRoute = location.pathname.startsWith('/client') && !location.pathname.startsWith('/client/setup');
-    const isAdminRoute = !location.pathname.startsWith('/client') && location.pathname !== '/auth';
-    
-    if (userRole === 'client' && isAdminRoute) {
+  // Immediate role-based redirects
+  if (!isLoading && user && userRole) {
+    // If user is client and trying to access admin routes, redirect to client dashboard
+    if (userRole === 'client' && 
+        !location.pathname.startsWith('/client/') && 
+        !location.pathname.startsWith('/auth')) {
       return <Navigate to="/client/view" replace />;
     }
     
-    if (userRole === 'admin' && isClientRoute) {
+    // If user is admin and trying to access client routes, redirect to admin dashboard
+    if (userRole === 'admin' && 
+        location.pathname.startsWith('/client/') && 
+        !location.pathname.startsWith('/client/setup')) {
       return <Navigate to="/" replace />;
     }
   }
@@ -82,6 +85,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/auth" element={<Auth />} />
+        <Route path="/auth/callback" element={<Auth />} />
         <Route path="/client/setup" element={<ClientSetup />} />
         
         {/* Admin Routes */}

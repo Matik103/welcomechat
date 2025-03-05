@@ -23,6 +23,7 @@ const ClientSetup = () => {
   // Extract client ID from URL
   const query = new URLSearchParams(location.search);
   const clientId = query.get("id");
+  const token = query.get("token");
 
   // Check if the user is already logged in
   useEffect(() => {
@@ -41,7 +42,7 @@ const ClientSetup = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!clientId) {
+    if (!clientId && !token) {
       toast.error("Invalid setup link");
       return;
     }
@@ -59,55 +60,122 @@ const ClientSetup = () => {
     try {
       setIsLoading(true);
       
-      // Fetch client email from client ID
-      const { data: clientData, error: clientError } = await supabase
-        .from("clients")
-        .select("email, client_name")
-        .eq("id", clientId)
-        .single();
+      // Determine if this is a token-based recovery or direct client ID setup
+      if (token) {
+        // Verify the recovery token
+        const { data: tokenData, error: tokenError } = await supabase.functions.invoke(
+          "verify-recovery-token",
+          { body: { token } }
+        );
         
-      if (clientError || !clientData) {
-        throw new Error("Could not find client information");
-      }
-      
-      // Create user account with client's email
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: clientData.email,
-        password: password,
-      });
-
-      if (signUpError) throw signUpError;
-      
-      // Create user role mapping for the new user
-      if (signUpData.user) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: signUpData.user.id,
-            role: "client",
-            client_id: clientId
-          });
-          
-        if (roleError) throw roleError;
+        if (tokenError || !tokenData) {
+          throw new Error(tokenError?.message || "Invalid recovery token");
+        }
         
-        // Set client ID in user metadata
-        const { error: metadataError } = await supabase.auth.updateUser({
-          data: { client_id: clientId }
+        // Use the clientId from token verification
+        const recoveryClientId = tokenData.clientId;
+        
+        // Create user account with client's email
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: tokenData.email,
+          password: password,
         });
         
-        if (metadataError) throw metadataError;
+        if (signUpError) throw signUpError;
+        
+        // Create user role mapping for the new user
+        if (signUpData.user) {
+          const { error: roleError } = await supabase
+            .from("user_roles")
+            .insert({
+              user_id: signUpData.user.id,
+              role: "client",
+              client_id: recoveryClientId
+            });
+            
+          if (roleError) throw roleError;
+          
+          // Set client ID in user metadata
+          const { error: metadataError } = await supabase.auth.updateUser({
+            data: { client_id: recoveryClientId }
+          });
+          
+          if (metadataError) throw metadataError;
+        }
+      } else {
+        // Use the clientId from the URL directly
+        // Fetch client email from client ID
+        const { data: clientData, error: clientError } = await supabase
+          .from("clients")
+          .select("email, client_name")
+          .eq("id", clientId)
+          .single();
+          
+        if (clientError || !clientData) {
+          throw new Error("Could not find client information");
+        }
+        
+        // Create user account with client's email
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: clientData.email,
+          password: password,
+        });
+
+        if (signUpError) throw signUpError;
+        
+        // Create user role mapping for the new user
+        if (signUpData.user) {
+          const { error: roleError } = await supabase
+            .from("user_roles")
+            .insert({
+              user_id: signUpData.user.id,
+              role: "client",
+              client_id: clientId
+            });
+            
+          if (roleError) throw roleError;
+          
+          // Set client ID in user metadata
+          const { error: metadataError } = await supabase.auth.updateUser({
+            data: { client_id: clientId }
+          });
+          
+          if (metadataError) throw metadataError;
+        }
       }
 
       setSetupComplete(true);
       toast.success("Account setup successful! Signing you in...");
       
-      // Sign in with the new credentials
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: clientData.email,
-        password: password,
-      });
-      
-      if (signInError) throw signInError;
+      // Sign in with the new credentials - will redirect to client dashboard after sign in
+      if (token) {
+        // For token-based setup, get the email from token verification first
+        const { data: tokenData } = await supabase.functions.invoke(
+          "verify-recovery-token",
+          { body: { token } }
+        );
+        
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: tokenData.email,
+          password: password,
+        });
+        
+        if (signInError) throw signInError;
+      } else {
+        // Regular setup with client ID
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("email")
+          .eq("id", clientId)
+          .single();
+          
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: clientData.email,
+          password: password,
+        });
+        
+        if (signInError) throw signInError;
+      }
       
       console.log("Setup complete, redirecting to client dashboard");
       // Explicitly redirect to client dashboard after successful setup and sign in
