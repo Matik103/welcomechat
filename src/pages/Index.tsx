@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ActivityList } from "@/components/dashboard/ActivityList";
 import { ActionButtons } from "@/components/dashboard/ActionButtons";
@@ -7,23 +7,9 @@ import { useClientStats } from "@/hooks/useClientStats";
 import { useInteractionStats } from "@/hooks/useInteractionStats";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { toast } from "sonner";
-import { setupRealtimeActivities } from "@/utils/setupRealtimeActivities";
 
 const Index = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
-  
-  // Set up real-time functionality on component mount
-  useEffect(() => {
-    const setup = async () => {
-      try {
-        await setupRealtimeActivities();
-      } catch (error) {
-        console.error("Failed to set up realtime activities:", error);
-      }
-    };
-    
-    setup();
-  }, []);
   
   // Static stats that don't depend on time range
   const { 

@@ -1,15 +1,18 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { WidgetSettings as IWidgetSettings, defaultSettings, isWidgetSettings } from "@/types/widget-settings";
+import { BrandingSettings } from "@/components/widget/BrandingSettings";
+import { AppearanceSettings } from "@/components/widget/AppearanceSettings";
+import { WidgetPreview } from "@/components/widget/WidgetPreview";
+import { EmbedCode } from "@/components/widget/EmbedCode";
 import { useAuth } from "@/contexts/AuthContext";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 
 function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
   return {
@@ -33,10 +36,11 @@ const WidgetSettings = () => {
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [settings, setSettings] = useState<IWidgetSettings>(defaultSettings);
+  const [showPreview, setShowPreview] = useState(true);
 
   const isClientView = !id;
+  
   const clientId = id || user?.user_metadata?.client_id;
-  const { logClientActivity } = useClientActivity(clientId);
 
   const { data: client, isLoading } = useQuery({
     queryKey: ["client", clientId],
@@ -79,19 +83,6 @@ const WidgetSettings = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      if (isClientView) {
-        logClientActivity(
-          "widget_settings_updated", 
-          "updated widget settings", 
-          { 
-            updated_fields: Object.keys(settings).filter(key => 
-              client?.widget_settings && 
-              settings[key as keyof IWidgetSettings] !== client.widget_settings[key]
-            ) 
-          }
-        );
-      }
-      
       toast({
         title: "Settings saved successfully! 🎉",
         description: "Your widget is ready to be embedded.",
@@ -133,14 +124,6 @@ const WidgetSettings = () => {
       setSettings(newSettings);
       await updateSettingsMutation.mutateAsync(newSettings);
 
-      if (isClientView) {
-        await logClientActivity(
-          "logo_uploaded", 
-          "uploaded a new logo for their widget", 
-          { logo_url: publicUrl }
-        );
-      }
-
       toast({
         title: "Logo uploaded successfully! ✨",
         description: "Your brand is looking great!",
@@ -155,6 +138,14 @@ const WidgetSettings = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleSettingsChange = (newSettings: Partial<IWidgetSettings>) => {
+    setSettings({ ...settings, ...newSettings });
+  };
+
+  const handleSave = async () => {
+    await updateSettingsMutation.mutateAsync(settings);
   };
 
   const handleBack = () => {
@@ -174,15 +165,85 @@ const WidgetSettings = () => {
   }
 
   return (
-    <WidgetSettingsContainer
-      settings={settings}
-      isClientView={isClientView}
-      isUploading={isUploading}
-      updateSettingsMutation={updateSettingsMutation}
-      handleBack={handleBack}
-      handleLogoUpload={handleLogoUpload}
-      logClientActivity={logClientActivity}
-    />
+    <div className="container mx-auto py-8 max-w-4xl">
+      <div className="mb-6">
+        <Button variant="ghost" onClick={handleBack} className="mb-4">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back
+        </Button>
+        <h1 className="text-2xl font-bold">Widget Settings</h1>
+        <p className="text-gray-500">Customize how your chat widget looks and behaves</p>
+      </div>
+
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Branding</CardTitle>
+            <CardDescription>Configure your widget's appearance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BrandingSettings
+              settings={settings}
+              isUploading={isUploading}
+              onSettingsChange={handleSettingsChange}
+              onLogoUpload={handleLogoUpload}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription>Customize the look and feel of your widget</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AppearanceSettings
+              settings={settings}
+              onSettingsChange={handleSettingsChange}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Embed Code</CardTitle>
+            <CardDescription>Copy this code to add the widget to your website</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EmbedCode settings={settings} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Widget Preview</CardTitle>
+            <CardDescription>See how your widget will appear</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <WidgetPreview
+              settings={settings}
+              showPreview={showPreview}
+              onTogglePreview={() => setShowPreview(!showPreview)}
+            />
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button 
+            onClick={handleSave} 
+            disabled={updateSettingsMutation.isPending || isUploading}
+          >
+            {updateSettingsMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 
