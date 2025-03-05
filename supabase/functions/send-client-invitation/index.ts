@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
@@ -27,171 +26,64 @@ serve(async (req) => {
   try {
     console.log("Send client invitation function started");
     
-    // Initialize Resend client
+    // Validate Resend API key
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
-      console.error("Missing Resend API key");
+      console.error("ERROR: Missing RESEND_API_KEY environment variable");
       throw new Error("Resend API key not configured");
     }
+    
+    console.log("Initializing Resend client");
     const resend = new Resend(resendApiKey);
     
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase credentials");
-      throw new Error("Supabase credentials are not properly configured");
-    }
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
     // Parse request body
-    const body = await req.json();
-    console.log("Request body:", JSON.stringify(body));
+    const { clientId, email, clientName }: InvitationRequest = await req.json();
+    console.log(`Sending invitation to client: ${clientName} (${email})`);
     
-    const { clientId, email, clientName } = body;
+    // Generate the setup URL
+    const setupUrl = `${req.headers.get("origin")}/client/setup?id=${clientId}`;
     
-    if (!clientId || !email || !clientName) {
-      console.error("Missing required parameters", { clientId, email, clientName });
-      throw new Error("Missing required parameters");
+    // Email content
+    const htmlContent = `
+      <h1>Welcome to Welcome.Chat, ${clientName}!</h1>
+      <p>Your account has been created. Click the link below to complete your setup:</p>
+      <p><a href="${setupUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px;">Complete Setup</a></p>
+      <p>Or copy and paste this URL into your browser:</p>
+      <p>${setupUrl}</p>
+      <p>Thank you,<br>The Welcome.Chat Team</p>
+    `;
+    
+    // Send the email
+    const { data, error } = await resend.emails.send({
+      from: "Welcome.Chat <noreply@welcome.chat>",
+      to: email,
+      subject: "Welcome to Welcome.Chat - Complete Your Setup",
+      html: htmlContent
+    });
+    
+    if (error) {
+      console.error("Error from Resend API:", error);
+      throw error;
     }
     
-    console.log(`Processing invitation for client: ${clientName}, email: ${email}, id: ${clientId}`);
-    
-    // Generate a secure random token
-    const token = crypto.randomUUID();
-    
-    // Set expiration date (24 hours from now)
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
-    
-    // Check for existing invitations
-    const { data: existingInvitation, error: checkError } = await supabase
-      .from("client_invitations")
-      .select("*")
-      .eq("client_id", clientId)
-      .eq("email", email)
-      .maybeSingle();
-      
-    if (checkError) {
-      console.error("Error checking existing invitations:", checkError);
-      throw checkError;
-    }
-    
-    // Either update existing or create new invitation
-    if (existingInvitation) {
-      console.log("Updating existing invitation for:", email);
-      const { error: updateError } = await supabase
-        .from("client_invitations")
-        .update({
-          token: token,
-          status: "pending",
-          expires_at: expiresAt.toISOString()
-        })
-        .eq("id", existingInvitation.id);
-        
-      if (updateError) {
-        console.error("Failed to update invitation:", updateError);
-        throw updateError;
-      }
-    } else {
-      // Create a new invitation
-      console.log("Creating new invitation for:", email);
-      const { error: insertError } = await supabase
-        .from("client_invitations")
-        .insert({
-          client_id: clientId,
-          email: email,
-          token: token,
-          status: "pending",
-          expires_at: expiresAt.toISOString()
-        });
-        
-      if (insertError) {
-        console.error("Failed to create invitation:", insertError);
-        throw insertError;
-      }
-    }
-    
-    // Log activity - using a valid activity_type "client_updated"
-    const { error: activityError } = await supabase
-      .from("client_activities")
-      .insert({
-        client_id: clientId,
-        activity_type: "client_updated", 
-        description: "Invitation sent to client",
-        metadata: {
-          email: email,
-          invitation_sent: true,
-          expiration_date: expiresAt.toISOString()
-        }
-      });
-      
-    if (activityError) {
-      console.error("Error logging activity:", activityError);
-      // Don't throw here to allow the invitation process to continue
-    }
-    
-    // Get the Supabase URL for the site
-    const setupUrl = `${supabaseUrl}/client/setup?token=${token}`;
-    
-    console.log("Generated setup URL:", setupUrl);
-    
-    try {
-      // Send email using Resend
-      const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "AI Assistant <admin@welcome.chat>",
-        to: email,
-        subject: `${clientName} AI Assistant - Complete Your Setup`,
-        html: `
-          <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #4f46e5;">Welcome to Your AI Assistant!</h1>
-              </div>
-              <p>Hello,</p>
-              <p>Your AI Assistant account for <strong>${clientName}</strong> has been created. To complete your setup:</p>
-              <div style="background-color: #f9fafb; border-radius: 5px; padding: 20px; margin: 20px 0;">
-                <p style="font-weight: bold; margin-bottom: 15px;">Please click the button below to set up your password and access your dashboard:</p>
-                <a href="${setupUrl}" style="display: inline-block; background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Complete Setup</a>
-                <p style="margin-top: 15px; font-size: 14px; color: #6b7280;">This link will expire in 24 hours.</p>
-              </div>
-              <p>After setting your password, you'll be able to access your AI Assistant dashboard where you can manage your settings and chat history.</p>
-              <p>If you didn't request this account, please ignore this email.</p>
-              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280;">
-                <p>Best regards,<br>The ${clientName} Team</p>
-              </div>
-            </body>
-          </html>
-        `
-      });
-      
-      if (emailError) {
-        console.error("Error sending email:", emailError);
-        throw emailError;
-      }
-      
-      console.log("Email sent successfully:", emailData);
-    } catch (emailError) {
-      console.error("Exception sending email:", emailError);
-      throw new Error(`Email sending failed: ${emailError.message}`);
-    }
+    console.log("Invitation email sent successfully:", data);
     
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        message: "Invitation sent successfully" 
+        success: true,
+        message: "Invitation email sent successfully"
       }), 
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in send-client-invitation function:", error);
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "Failed to send invitation" 
+        error: error.message || "Failed to send invitation"
       }), 
       {
         status: 500,

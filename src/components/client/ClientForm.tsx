@@ -1,10 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
 import { useClientData } from "@/hooks/useClientData";
@@ -45,16 +45,13 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
 
   const handleSendInvitation = async () => {
     if (!initialData?.id) {
-      toast.error("Client must be saved before sending an invitation");
       return;
     }
 
     try {
       setIsSendingInvitation(true);
-      toast.info("Sending setup invitation...");
       await sendInvitation(initialData.id, initialData.email, initialData.client_name);
     } catch (error) {
-      // Error is already handled in the sendInvitation function
       console.error("Failed to send invitation:", error);
     } finally {
       setIsSendingInvitation(false);
@@ -120,7 +117,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
             disabled={isSendingInvitation}
           >
             {isSendingInvitation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Setup Link
+            Send Setup Email
           </Button>
         )}
       </div>

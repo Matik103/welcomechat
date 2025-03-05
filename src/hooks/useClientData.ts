@@ -37,7 +37,7 @@ export const useClientData = (id: string | undefined) => {
           if (error) throw error;
           return id;
         } else {
-          // Create new client without using single()
+          // Create new client
           const { data: newClients, error } = await supabase
             .from("clients")
             .insert([{
@@ -60,11 +60,11 @@ export const useClientData = (id: string | undefined) => {
 
           const newClient = newClients[0];
 
-          // Send client invitation directly
+          // Send client invitation email
           try {
-            console.log("Sending invitation to new client:", newClient.email);
+            toast.info("Sending setup email...");
             
-            const { data: inviteData, error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
+            const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
               body: {
                 clientId: newClient.id,
                 email: newClient.email,
@@ -74,13 +74,13 @@ export const useClientData = (id: string | undefined) => {
             
             if (inviteError) {
               console.error("Error sending invitation:", inviteError);
-              toast.warning("Client created but invitation email failed to send");
+              toast.error(`Failed to send setup email: ${inviteError.message}`);
             } else {
-              toast.success("Setup link sent to client's email");
+              toast.success("Setup email sent to client");
             }
           } catch (inviteError: any) {
             console.error("Exception in invitation process:", inviteError);
-            toast.warning("Client created but invitation process failed");
+            toast.error(`Failed to send setup email: ${inviteError.message || "Unknown error"}`);
           }
 
           return newClient.id;
@@ -104,9 +104,9 @@ export const useClientData = (id: string | undefined) => {
 
   const sendInvitation = async (clientId: string, email: string, clientName: string) => {
     try {
-      toast.info("Sending invitation...");
+      toast.info("Sending setup email...");
       
-      const { data, error } = await supabase.functions.invoke("send-client-invitation", {
+      const { error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId,
           email,
@@ -116,15 +116,15 @@ export const useClientData = (id: string | undefined) => {
       
       if (error) {
         console.error("Error sending invitation:", error);
-        toast.error(`Failed to send invitation: ${error.message}`);
+        toast.error(`Failed to send setup email: ${error.message}`);
         throw error;
       }
       
-      toast.success("Setup link sent to client's email");
-      return data;
+      toast.success("Setup email sent to client");
+      return true;
     } catch (error: any) {
       console.error("Exception in invitation process:", error);
-      toast.error(`Error: ${error.message || "Failed to send invitation"}`);
+      toast.error(`Error: ${error.message || "Failed to send setup email"}`);
       throw error;
     }
   };
