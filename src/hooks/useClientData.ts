@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
@@ -86,6 +87,20 @@ export const useClientData = (id: string | undefined) => {
           try {
             toast.info("Sending setup email...");
             
+            // Generate client password first
+            const { data: passwordData, error: passwordError } = await supabase.functions.invoke("generate-client-password", {
+              body: {
+                clientId: newClient.id,
+                email: newClient.email
+              }
+            });
+            
+            if (passwordError) {
+              console.error("Error generating password:", passwordError);
+              throw passwordError;
+            }
+            
+            // Now send the invitation with the generated password
             const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
               body: {
                 clientId: newClient.id,

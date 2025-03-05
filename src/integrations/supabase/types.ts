@@ -246,6 +246,41 @@ export type Database = {
           },
         ]
       }
+      client_temp_passwords: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          email: string
+          id: string
+          temp_password: string
+          used: boolean | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          email: string
+          id?: string
+          temp_password: string
+          used?: boolean | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          temp_password?: string
+          used?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_temp_passwords_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           agent_name: string
