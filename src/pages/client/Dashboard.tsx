@@ -6,12 +6,19 @@ import { InteractionStats } from "@/components/client-dashboard/InteractionStats
 import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
 import { QueryList } from "@/components/client-dashboard/QueryList";
 import { useClientDashboard } from "@/hooks/useClientDashboard";
-import { Loader2, LogOut, KeyRound } from "lucide-react";
+import { Loader2, LogOut, KeyRound, UserCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ErrorLog, QueryItem } from "@/hooks/useClientDashboard";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export interface ClientDashboardProps {
   clientId?: string;
@@ -80,18 +87,35 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
         />
       </div>
       
-      {/* Account actions bottom left */}
-      <div className="fixed bottom-8 left-8 flex flex-col gap-2 z-40">
-        <Button variant="outline" asChild className="gap-2 justify-start">
-          <Link to="/client/settings">
-            <KeyRound className="h-4 w-4" />
-            Change Password
-          </Link>
-        </Button>
-        <Button variant="outline" className="gap-2 justify-start text-red-600 hover:bg-red-50" onClick={handleSignOut}>
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </Button>
+      {/* Account actions as dropdown in bottom left */}
+      <div className="fixed bottom-8 left-8 z-50">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="secondary" 
+              size="icon" 
+              className="h-10 w-10 rounded-full shadow-md"
+            >
+              <UserCircle className="h-6 w-6" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" sideOffset={12} className="w-56 z-[100]">
+            <DropdownMenuItem asChild>
+              <Link to="/client/settings" className="flex items-center cursor-pointer">
+                <KeyRound className="mr-2 h-4 w-4" />
+                <span>Change Password</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={handleSignOut} 
+              className="text-red-600 cursor-pointer"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sign out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

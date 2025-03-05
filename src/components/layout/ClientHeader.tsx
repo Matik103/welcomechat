@@ -13,19 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const ClientHeader = () => {
-  const { signOut, user } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate("/auth", { replace: true });
-      toast.success("Successfully signed out");
-    } catch (error: any) {
-      console.error("Sign out error:", error);
-      toast.error(error.message || "Failed to sign out");
-    }
-  };
 
   return (
     <header className="bg-white border-b border-gray-200">
@@ -43,7 +32,7 @@ export const ClientHeader = () => {
                   <Settings className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 z-50" sideOffset={24}>
+              <DropdownMenuContent align="end" className="w-56 z-[100]" sideOffset={32}>
                 <DropdownMenuItem asChild>
                   <Link to="/client/edit" className="flex items-center">
                     <User className="mr-2 h-4 w-4" />
