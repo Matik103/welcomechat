@@ -164,6 +164,30 @@ serve(async (req) => {
       throw new Error(`Email sending failed: ${emailError.message}`);
     }
     
+    // Log the activity with a valid activity type
+    try {
+      const { error: activityError } = await supabase
+        .from("client_activities")
+        .insert({
+          client_id: clientId,
+          activity_type: "client_updated", // Using a valid existing activity type
+          description: "Invitation sent to client",
+          metadata: {
+            email: email,
+            invitation_sent: true,
+            expiration_date: expiresAt.toISOString()
+          }
+        });
+        
+      if (activityError) {
+        console.error("Error logging invitation activity:", activityError);
+        // Don't throw here, we still want to return success even if activity logging fails
+      }
+    } catch (activityError) {
+      console.error("Exception in activity logging:", activityError);
+      // Continue execution, as this is not a critical error
+    }
+    
     return new Response(
       JSON.stringify({ 
         success: true, 

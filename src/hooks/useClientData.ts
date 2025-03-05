@@ -64,7 +64,7 @@ export const useClientData = (id: string | undefined) => {
           try {
             console.log("Sending invitation to new client:", newClient.email);
             
-            const { error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
+            const { data: inviteData, error: inviteError } = await supabase.functions.invoke("send-client-invitation", {
               body: {
                 clientId: newClient.id,
                 email: newClient.email,

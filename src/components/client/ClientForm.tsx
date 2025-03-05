@@ -53,7 +53,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       setIsSendingInvitation(true);
       
       // Call the edge function to send an invitation
-      const { error } = await supabase.functions.invoke("send-client-invitation", {
+      const { data, error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId: initialData.id,
           email: initialData.email,
