@@ -27,16 +27,25 @@ serve(async (req) => {
   try {
     console.log("Send email function started");
     
+    // Validate Resend API key
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
+      console.error("ERROR: Missing RESEND_API_KEY environment variable");
       throw new Error("Resend API key not configured");
     }
     
+    console.log("Initializing Resend client");
     const resend = new Resend(resendApiKey);
     
+    // Parse request body
     let body: EmailRequest;
     try {
       body = await req.json();
+      console.log("Request body parsed:", { 
+        to: body.to, 
+        subject: body.subject,
+        fromProvided: !!body.from 
+      });
     } catch (e) {
       console.error("Error parsing JSON:", e);
       return new Response(
@@ -50,20 +59,30 @@ serve(async (req) => {
     
     const { to, subject, html, from } = body;
     
+    // Validate required parameters
     if (!to || !subject || !html) {
-      throw new Error("Missing required parameters: to, subject, or html");
+      const missingParams = [];
+      if (!to) missingParams.push("to");
+      if (!subject) missingParams.push("subject");
+      if (!html) missingParams.push("html");
+      
+      console.error("Missing required parameters:", missingParams.join(", "));
+      throw new Error(`Missing required parameters: ${missingParams.join(", ")}`);
     }
     
     // Send the email
+    const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
+    console.log(`Sending email to ${to} from ${fromAddress} with subject "${subject}"`);
+    
     const { data, error } = await resend.emails.send({
-      from: from || "Welcome.Chat <admin@welcome.chat>",
+      from: fromAddress,
       to: to,
       subject: subject,
       html: html
     });
     
     if (error) {
-      console.error("Error sending email:", error);
+      console.error("Error from Resend API:", error);
       throw error;
     }
     
@@ -81,9 +100,20 @@ serve(async (req) => {
     );
   } catch (error: any) {
     console.error("Error in send-email function:", error);
+    
+    // Enhanced error details
+    const errorDetails = {
+      message: error.message || "Failed to send email",
+      code: error.code,
+      status: error.status,
+      name: error.name,
+      stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined
+    };
+    
     return new Response(
       JSON.stringify({ 
-        error: error.message || "Failed to send email" 
+        error: errorDetails.message,
+        details: errorDetails
       }), 
       {
         status: 500,

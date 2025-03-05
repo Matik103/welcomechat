@@ -40,17 +40,25 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        console.log("Starting sign up process for:", email);
+        const { error, data } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
               full_name: fullName,
             },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
+        
         if (error) throw error;
+        
+        console.log("Sign up successful, verification email should be sent");
         toast.success("Check your email for the confirmation link!");
+        
+        // Log to help debug
+        console.log("Auth sign up response:", data);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
