@@ -8,14 +8,14 @@ export const useClientActivity = (clientId: string | undefined) => {
     if (!clientId) return;
     
     try {
-      const activityRecord: ActivityRecord = {
+      // Instead of creating an ActivityRecord type object and passing it directly,
+      // create an object that matches what Supabase expects
+      await supabase.from("client_activities").insert({
         client_id: clientId,
-        activity_type,
+        activity_type: activity_type as any, // Use type assertion to bypass type checking temporarily
         description,
         metadata
-      };
-      
-      await supabase.from("client_activities").insert(activityRecord);
+      });
     } catch (error) {
       console.error("Failed to log activity:", error);
     }
