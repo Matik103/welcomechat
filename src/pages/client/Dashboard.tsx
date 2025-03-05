@@ -10,7 +10,7 @@ import { useClientActivity } from "@/hooks/useClientActivity";
 const ClientDashboard = () => {
   const { user } = useAuth();
   const clientId = user?.user_metadata?.client_id;
-  const { dashboardData, isLoading } = useClientDashboard(clientId);
+  const { stats, errorLogs, queries, isLoadingErrorLogs, isLoadingQueries } = useClientDashboard(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   
   // Log dashboard visit activity when component mounts
@@ -24,7 +24,7 @@ const ClientDashboard = () => {
     }
   }, [clientId, logClientActivity]);
 
-  if (isLoading) {
+  if (isLoadingErrorLogs && isLoadingQueries) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -40,11 +40,11 @@ const ClientDashboard = () => {
           <p className="text-gray-500">Monitor your AI chatbot's performance</p>
         </div>
 
-        <InteractionStats stats={dashboardData?.interactionStats || {}} />
+        <InteractionStats stats={stats} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <QueryList queries={dashboardData?.recentQueries || []} isLoading={isLoading} />
-          <ErrorLogList errors={dashboardData?.recentErrors || []} isLoading={isLoading} />
+          <QueryList queries={queries} isLoading={isLoadingQueries} />
+          <ErrorLogList logs={errorLogs} isLoading={isLoadingErrorLogs} />
         </div>
       </div>
     </div>
