@@ -2,7 +2,8 @@
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { mapActivityType } from "@/utils/activityTypeUtils";
-import { createClientActivity } from "@/services/clientActivityService";
+import { createClientActivity, ensureUserRole } from "@/services/clientActivityService";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useClientActivity = (clientId: string | undefined) => {
   /**
@@ -38,5 +39,22 @@ export const useClientActivity = (clientId: string | undefined) => {
     }
   };
 
-  return { logClientActivity };
+  /**
+   * Ensures a user role exists for the given user
+   */
+  const ensureClientRole = async (userId: string): Promise<void> => {
+    if (!clientId) {
+      console.warn("Cannot ensure client role: No client ID provided");
+      return;
+    }
+    
+    try {
+      await ensureUserRole(userId, "client", clientId);
+    } catch (error) {
+      console.error("Failed to ensure client role:", error);
+      // Don't rethrow to prevent UI disruption
+    }
+  };
+
+  return { logClientActivity, ensureClientRole };
 };

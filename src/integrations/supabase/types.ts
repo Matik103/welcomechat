@@ -986,6 +986,27 @@ export type Database = {
           },
         ]
       }
+      vidgu: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       website_urls: {
         Row: {
           client_id: string | null
@@ -1626,6 +1647,19 @@ export type Database = {
         }[]
       }
       match_upwork: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_vidgu: {
         Args: {
           query_embedding: string
           match_count?: number
