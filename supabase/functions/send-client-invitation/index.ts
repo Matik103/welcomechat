@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 import { Resend } from "npm:resend@2.0.0";
@@ -112,6 +111,30 @@ async function manageInvitationRecord(supabase: any, clientId: string, email: st
   }
 }
 
+// Log activity in the database
+async function logActivity(supabase: any, clientId: string, email: string, expiresAt: Date) {
+  try {
+    const { error: activityError } = await supabase
+      .from("client_activities")
+      .insert({
+        client_id: clientId,
+        activity_type: "client_updated",
+        description: "Invitation sent to client",
+        metadata: {
+          email: email,
+          invitation_sent: true,
+          expiration_date: expiresAt.toISOString()
+        }
+      });
+      
+    if (activityError) {
+      console.error("Error logging invitation activity:", activityError);
+    }
+  } catch (activityError) {
+    console.error("Exception in activity logging:", activityError);
+  }
+}
+
 // Send email with setup link
 async function sendSetupEmail(resend: any, email: string, clientName: string, setupUrl: string) {
   console.log("Attempting to send email to:", email);
@@ -151,32 +174,6 @@ async function sendSetupEmail(resend: any, email: string, clientName: string, se
   return emailData;
 }
 
-// Log activity in the database
-async function logActivity(supabase: any, clientId: string, email: string, expiresAt: Date) {
-  try {
-    const { error: activityError } = await supabase
-      .from("client_activities")
-      .insert({
-        client_id: clientId,
-        activity_type: "client_updated", // Changed from "invitation_sent" to a valid activity type
-        description: "Invitation sent to client",
-        metadata: {
-          email: email,
-          invitation_sent: true,
-          expiration_date: expiresAt.toISOString()
-        }
-      });
-      
-    if (activityError) {
-      console.error("Error logging invitation activity:", activityError);
-      // Don't throw here, we still want to return success even if activity logging fails
-    }
-  } catch (activityError) {
-    console.error("Exception in activity logging:", activityError);
-    // Continue execution, as this is not a critical error
-  }
-}
-
 // Main handler function
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -214,8 +211,7 @@ serve(async (req) => {
     const projectRef = supabaseUrl.split("https://")[1]?.split(".supabase.co")[0];
     
     // Use Supabase site URL format for the client setup
-    const siteUrl = `https://${projectRef}.supabase.co`;
-    const setupUrl = `${siteUrl}/client/setup?token=${token}`;
+    const setupUrl = `${supabaseUrl}/client/setup?token=${token}`;
     
     console.log("Generated setup URL:", setupUrl);
     

@@ -145,9 +145,11 @@ serve(async (req) => {
       const resetLink = linkData?.properties?.action_link;
       console.log('Reset link:', resetLink);
 
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+
       // Try the new Resend API first
       try {
-        const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

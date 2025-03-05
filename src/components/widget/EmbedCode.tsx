@@ -4,6 +4,7 @@ import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 
 interface EmbedCodeProps {
   settings: WidgetSettings;
@@ -14,7 +15,6 @@ export function EmbedCode({ settings }: EmbedCodeProps) {
   
   // Get the Supabase project reference from the client file's constant
   // We access it directly from the imported file since the client might not expose it as a method
-  const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
 
   const handleCopyCode = () => {
