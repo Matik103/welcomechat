@@ -83,21 +83,29 @@ export const createClientAccount = async (
       // Send confirmation email with temporary password
       try {
         console.log("Sending confirmation email to client");
-        await supabase.functions.invoke("send-setup-confirmation", {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke("send-setup-confirmation", {
           body: { 
             email: clientData.email,
             clientName: clientData.client_name,
             temporaryPassword: temporaryPassword
           }
         });
-        console.log("Confirmation email sent successfully");
+
+        if (emailError) {
+          console.error("Error invoking send-setup-confirmation:", emailError);
+          // Don't throw here, we want to continue even if email fails
+          toast.warning("Account created but email notification failed to send");
+        } else {
+          console.log("Confirmation email sent successfully:", emailData);
+        }
       } catch (emailError) {
-        console.error("Error sending confirmation email:", emailError);
-        // Don't throw error here, just log it - we don't want to stop the process
+        console.error("Exception sending confirmation email:", emailError);
+        // Don't throw here, we want to continue even if email fails
+        toast.warning("Account created but email notification failed to send");
       }
     }
 
-    toast.success("Account setup successful! Confirmation email sent.");
+    toast.success("Account setup successful!");
     
     // Log this activity
     await logActivity(

@@ -37,7 +37,28 @@ serve(async (req) => {
     const resend = new Resend(resendApiKey);
     
     // Parse request body
-    const { email, clientName, temporaryPassword }: SetupConfirmationRequest = await req.json();
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log("Request body parsed:", JSON.stringify(requestBody, null, 2));
+    } catch (error) {
+      console.error("Failed to parse request body:", error);
+      throw new Error("Invalid JSON in request body");
+    }
+    
+    // Extract and validate required fields
+    const { email, clientName, temporaryPassword } = requestBody as SetupConfirmationRequest;
+    
+    if (!email || !clientName || !temporaryPassword) {
+      const missingFields = [];
+      if (!email) missingFields.push("email");
+      if (!clientName) missingFields.push("clientName");
+      if (!temporaryPassword) missingFields.push("temporaryPassword");
+      
+      console.error(`Missing required fields: ${missingFields.join(", ")}`);
+      throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+    }
+    
     console.log(`Sending setup confirmation to: ${email}`);
     
     // Generate the login URL
@@ -58,37 +79,45 @@ serve(async (req) => {
       <p>Thank you,<br>The Welcome.Chat Team</p>
     `;
     
+    console.log("About to send email with Resend");
+    
     // Send the email
-    const { data, error } = await resend.emails.send({
-      from: "Welcome.Chat <noreply@welcome.chat>",
-      to: email,
-      subject: "Welcome.Chat - Your Account is Ready",
-      html: htmlContent
-    });
-    
-    if (error) {
-      console.error("Error from Resend API:", error);
-      throw error;
-    }
-    
-    console.log("Setup confirmation email sent successfully:", data);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: "Setup confirmation email sent successfully"
-      }), 
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+    try {
+      const { data, error } = await resend.emails.send({
+        from: "Welcome.Chat <noreply@welcome.chat>",
+        to: email,
+        subject: "Welcome.Chat - Your Account is Ready",
+        html: htmlContent
+      });
+      
+      if (error) {
+        console.error("Error from Resend API:", error);
+        throw error;
       }
-    );
+      
+      console.log("Setup confirmation email sent successfully:", data);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          message: "Setup confirmation email sent successfully"
+        }), 
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    } catch (sendError) {
+      console.error("Error sending email with Resend:", sendError);
+      throw new Error(`Failed to send email: ${sendError.message || sendError}`);
+    }
   } catch (error: any) {
     console.error("Error in send-setup-confirmation function:", error);
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "Failed to send setup confirmation"
+        error: error.message || "Failed to send setup confirmation",
+        details: typeof error === 'object' ? JSON.stringify(error) : 'Unknown error'
       }), 
       {
         status: 500,

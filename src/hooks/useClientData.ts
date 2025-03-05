@@ -87,16 +87,17 @@ export const useClientData = (id: string | undefined) => {
           try {
             toast.info("Setting up client account...");
             // We'll now invoke our edge function to set up the client account
-            const { error: setupError } = await supabase.functions.invoke("send-client-invitation", {
+            const { data: setupData, error: setupError } = await supabase.functions.invoke("send-client-invitation", {
               body: {
                 clientId: newClient.id,
                 email: newClient.email,
                 clientName: newClient.client_name
               }
             });
+            
             if (setupError) {
               console.error("Error setting up client account:", setupError);
-              toast.error(`Failed to set up client account: ${setupError.message}`);
+              toast.error(`Failed to set up client account: ${setupError.message || "Unknown error"}`);
             } else {
               toast.success("Client account created successfully");
             }
@@ -127,18 +128,28 @@ export const useClientData = (id: string | undefined) => {
   const sendInvitation = async (clientId: string, email: string, clientName: string) => {
     try {
       toast.info("Setting up client account...");
-      const { error } = await supabase.functions.invoke("send-client-invitation", {
+      
+      console.log("Sending invitation with parameters:", {
+        clientId,
+        email,
+        clientName
+      });
+      
+      const { data, error } = await supabase.functions.invoke("send-client-invitation", {
         body: {
           clientId,
           email,
           clientName
         }
       });
+      
       if (error) {
-        console.error("Error setting up client account:", error);
-        toast.error(`Failed to set up client account: ${error.message}`);
+        console.error("Error from send-client-invitation function:", error);
+        toast.error(`Failed to set up client account: ${error.message || "Unknown error"}`);
         throw error;
       }
+      
+      console.log("Response from send-client-invitation:", data);
       toast.success("Client account setup completed");
       return true;
     } catch (error: any) {

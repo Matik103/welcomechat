@@ -40,7 +40,27 @@ serve(async (req) => {
     console.log("Client invitation function started");
     
     // Parse request body
-    const { clientId, email, clientName }: InvitationRequest = await req.json();
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log("Request body parsed:", JSON.stringify(requestBody, null, 2));
+    } catch (error) {
+      console.error("Failed to parse request body:", error);
+      throw new Error("Invalid JSON in request body");
+    }
+    
+    const { clientId, email, clientName } = requestBody as InvitationRequest;
+    
+    if (!clientId || !email || !clientName) {
+      const missingFields = [];
+      if (!clientId) missingFields.push("clientId");
+      if (!email) missingFields.push("email");
+      if (!clientName) missingFields.push("clientName");
+      
+      console.error(`Missing required fields: ${missingFields.join(", ")}`);
+      throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+    }
+    
     console.log(`Setting up account for client: ${clientName} (${email})`);
     
     // Create Supabase client with service role
@@ -83,13 +103,25 @@ serve(async (req) => {
     
     // Send confirmation email with temporary password
     console.log("Sending confirmation email");
-    await supabase.functions.invoke("send-setup-confirmation", {
-      body: { 
-        email: email,
-        clientName: clientName,
-        temporaryPassword: temporaryPassword
+    try {
+      const { data: emailData, error: emailError } = await supabase.functions.invoke("send-setup-confirmation", {
+        body: { 
+          email: email,
+          clientName: clientName,
+          temporaryPassword: temporaryPassword
+        }
+      });
+      
+      if (emailError) {
+        console.error("Error sending confirmation email:", emailError);
+        throw emailError;
       }
-    });
+      
+      console.log("Email sent successfully:", emailData);
+    } catch (emailError) {
+      console.error("Exception sending confirmation email:", emailError);
+      throw new Error(`Failed to send confirmation email: ${emailError.message || emailError}`);
+    }
     
     return new Response(
       JSON.stringify({ 
@@ -106,7 +138,8 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "Failed to set up client account"
+        error: error.message || "Failed to set up client account",
+        details: typeof error === 'object' ? JSON.stringify(error) : 'Unknown error'
       }), 
       {
         status: 500,
