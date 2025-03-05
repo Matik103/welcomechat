@@ -208,9 +208,14 @@ serve(async (req) => {
     // Manage invitation record in database
     await manageInvitationRecord(supabase, clientId, email, token, expiresAt);
     
-    // Generate the setup URL with the token
-    const baseUrl = Deno.env.get("PUBLIC_SITE_URL") || "http://localhost:5173";
-    const setupUrl = `${baseUrl}/client/setup?token=${token}`;
+    // Get the Supabase URL for the site
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    // Extract project ref from the URL (format: https://project-ref.supabase.co)
+    const projectRef = supabaseUrl.split("https://")[1]?.split(".supabase.co")[0];
+    
+    // Use Supabase site URL format for the client setup
+    const siteUrl = `https://${projectRef}.supabase.co`;
+    const setupUrl = `${siteUrl}/client/setup?token=${token}`;
     
     console.log("Generated setup URL:", setupUrl);
     

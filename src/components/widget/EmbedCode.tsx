@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EmbedCodeProps {
   settings: WidgetSettings;
@@ -10,13 +11,17 @@ interface EmbedCodeProps {
 
 export function EmbedCode({ settings }: EmbedCodeProps) {
   const { toast } = useToast();
+  
+  // Extract the Supabase project reference from the URL
+  const supabaseUrl = supabase.supabaseUrl;
+  const projectRef = supabaseUrl.split("https://")[1]?.split(".supabase.co")[0];
 
   const handleCopyCode = () => {
     const embedCode = `<!-- Widget Configuration -->
 <script>
     window.ChatWidgetConfig = {
         webhook: {
-            url: '${settings.webhook_url}',
+            url: 'https://${projectRef}.supabase.co/functions/v1/chat',
             route: 'general'
         },
         branding: {
@@ -34,7 +39,7 @@ export function EmbedCode({ settings }: EmbedCodeProps) {
         }
     };
 </script>
-<script src="https://cdn.jsdelivr.net/gh/WayneSimpson/n8n-chatbot-template@ba944c3/chat-widget.js"></script>
+<script src="https://${projectRef}.supabase.co/storage/v1/object/public/widget/chat-widget.js"></script>
 <!-- Widget Script -->`;
 
     navigator.clipboard.writeText(embedCode);
@@ -50,10 +55,11 @@ export function EmbedCode({ settings }: EmbedCodeProps) {
         {`<script>
   window.CHATBOT_CONFIG = {
     clientId: "${settings.agent_name}",
-    settings: ${JSON.stringify(settings, null, 2)}
+    settings: ${JSON.stringify(settings, null, 2)},
+    apiEndpoint: "https://${projectRef}.supabase.co/functions/v1/chat"
   };
 </script>
-<script src="https://cdn.example.com/widget.js" async></script>`}
+<script src="https://${projectRef}.supabase.co/storage/v1/object/public/widget/chat-widget.js" async></script>`}
       </pre>
       <Button
         size="sm"
