@@ -71,14 +71,14 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
               {isClientView 
-                ? "Account Settings" 
+                ? "Edit Client Information" 
                 : id 
                   ? `Edit Client - ${client?.client_name}` 
                   : "Add New Client"}
             </h1>
             <p className="text-gray-500">
               {isClientView 
-                ? "Manage your account information" 
+                ? "Update your client information" 
                 : id 
                   ? "Update client information" 
                   : "Create a new client"}
