@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Settings, User, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
