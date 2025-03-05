@@ -43,7 +43,7 @@ export const ClientHeader = () => {
                   <Settings className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 z-50" sideOffset={16}>
                 <DropdownMenuItem asChild>
                   <Link to="/client/edit" className="flex items-center">
                     <User className="mr-2 h-4 w-4" />
