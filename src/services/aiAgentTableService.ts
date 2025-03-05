@@ -14,8 +14,9 @@ export const setupTablePermissions = async (
     const sequenceName = `${tableName}_id_seq`;
     
     // First set the table owner to postgres
-    const { error: ownerError } = await supabase.rpc('execute_sql', {
-      sql: `ALTER TABLE ${tableName} OWNER TO postgres;`
+    // @ts-ignore - Using exec_sql function that's defined in our migrations
+    const { error: ownerError } = await supabase.rpc('exec_sql', {
+      sql_query: `ALTER TABLE ${tableName} OWNER TO postgres;`
     });
     
     if (ownerError) {
@@ -24,8 +25,9 @@ export const setupTablePermissions = async (
     }
     
     // Grant sequence permissions to various roles
-    const { error: permissionsError } = await supabase.rpc('execute_sql', {
-      sql: `
+    // @ts-ignore - Using exec_sql function that's defined in our migrations
+    const { error: permissionsError } = await supabase.rpc('exec_sql', {
+      sql_query: `
         GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${sequenceName} TO service_role;
         GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${sequenceName} TO authenticated;
         GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${sequenceName} TO anon;
@@ -38,8 +40,9 @@ export const setupTablePermissions = async (
     }
     
     // Create policy to allow access
-    const { error: policyError } = await supabase.rpc('execute_sql', {
-      sql: `
+    // @ts-ignore - Using exec_sql function that's defined in our migrations
+    const { error: policyError } = await supabase.rpc('exec_sql', {
+      sql_query: `
         DO $$
         BEGIN
             BEGIN
@@ -78,8 +81,9 @@ export const createAiAgentTable = async (
     const tableName = agentName.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
     // Create the table
-    const { error: tableError } = await supabase.rpc('execute_sql', {
-      sql: `
+    // @ts-ignore - Using exec_sql function that's defined in our migrations
+    const { error: tableError } = await supabase.rpc('exec_sql', {
+      sql_query: `
         CREATE TABLE IF NOT EXISTS ${tableName} (
           id BIGSERIAL PRIMARY KEY,
           content TEXT,
@@ -95,8 +99,9 @@ export const createAiAgentTable = async (
     }
     
     // Create matching function for semantic search
-    const { error: functionError } = await supabase.rpc('execute_sql', {
-      sql: `
+    // @ts-ignore - Using exec_sql function that's defined in our migrations
+    const { error: functionError } = await supabase.rpc('exec_sql', {
+      sql_query: `
         CREATE OR REPLACE FUNCTION match_${tableName}(
           query_embedding VECTOR(1536),
           match_count INTEGER DEFAULT NULL,
