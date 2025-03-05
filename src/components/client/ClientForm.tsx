@@ -122,7 +122,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
             disabled={isSendingInvitation}
           >
             {isSendingInvitation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Setup Email
+            Send Invitation Email
           </Button>
         )}
       </div>

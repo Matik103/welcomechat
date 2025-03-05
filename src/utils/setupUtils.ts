@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ExtendedActivityType } from "@/types/activity";
@@ -42,7 +43,8 @@ export const createClientAccount = async (
     
     console.log("Found client:", clientData.email);
     
-    // Create user account with client's email
+    // At this point the user should be following an invitation link from Supabase
+    // They'll set their password and then continue
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: clientData.email,
       password: password,
@@ -80,7 +82,7 @@ export const createClientAccount = async (
     
     // Log this activity
     await logActivity(
-      "ai_agent_created", // Using our enum value
+      "ai_agent_created", 
       "completed account setup",
       { setup_method: "invitation" }
     );
