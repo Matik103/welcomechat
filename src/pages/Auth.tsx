@@ -12,6 +12,7 @@ import { Navigate } from "react-router-dom";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [email, setEmail] = useState("");
@@ -67,7 +68,20 @@ const Auth = () => {
     setErrorMessage(""); // Clear any previous error
 
     try {
-      if (isSignUp) {
+      if (isForgotPassword) {
+        console.log("Sending password reset email to:", email);
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/reset-password`,
+        });
+        
+        if (error) {
+          console.error("Password reset error:", error);
+          throw error;
+        }
+        
+        toast.success("Password reset email sent. Please check your inbox.");
+        setIsForgotPassword(false);
+      } else if (isSignUp) {
         console.log("Starting sign up process for:", email);
         
         // Check if email already exists
@@ -161,6 +175,73 @@ const Auth = () => {
     }
   };
 
+  const resetForm = () => {
+    setEmail("");
+    setPassword("");
+    setErrorMessage("");
+  };
+
+  // Reset password form
+  if (isForgotPassword) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
+            <CardDescription>
+              Enter your email address and we'll send you a link to reset your password.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleEmailAuth} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="reset-email"
+                    placeholder="m@example.com"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              
+              {errorMessage && (
+                <div className="text-destructive text-sm bg-destructive/10 p-3 rounded-md">
+                  {errorMessage}
+                </div>
+              )}
+              
+              <Button type="submit" className="w-full" disabled={isAuthLoading}>
+                {isAuthLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Send Reset Link"
+                )}
+              </Button>
+              
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setIsForgotPassword(false);
+                  resetForm();
+                }}
+              >
+                Back to Sign In
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -216,6 +297,22 @@ const Auth = () => {
                   required
                 />
               </div>
+              {!isSignUp && (
+                <div className="text-right">
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="px-0 text-sm"
+                    onClick={() => {
+                      setIsForgotPassword(true);
+                      resetForm();
+                    }}
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
+              )}
             </div>
             
             {errorMessage && (
