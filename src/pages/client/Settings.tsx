@@ -4,16 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ProfileSection } from "@/components/settings/ProfileSection";
-import { SecuritySection } from "@/components/client/settings/SecuritySection";
+import { SecuritySection } from "@/components/settings/SecuritySection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Loader2, InfoIcon, LogOut } from "lucide-react";
+import { Loader2, InfoIcon } from "lucide-react";
 import { toast } from "sonner";
 
 const ClientSettings = () => {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [clientInfo, setClientInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -39,17 +37,6 @@ const ClientSettings = () => {
     
     fetchClientInfo();
   }, [user]);
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate("/auth", { replace: true });
-      toast.success("Successfully signed out");
-    } catch (error: any) {
-      console.error("Sign out error:", error);
-      toast.error(error.message || "Failed to sign out");
-    }
-  };
 
   if (isLoading) {
     return (
@@ -120,27 +107,7 @@ const ClientSettings = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-red-100">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-600">
-              <LogOut className="h-5 w-5" />
-              Sign Out
-            </CardTitle>
-            <CardDescription>
-              Sign out from your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              variant="destructive" 
-              className="w-full sm:w-auto"
-              onClick={handleSignOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
+        <SignOutSection />
       </div>
     </div>
   );
