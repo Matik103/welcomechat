@@ -17,6 +17,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const { session, isLoading } = useAuth();
 
   // Show loading spinner while checking auth state
@@ -58,6 +59,7 @@ const Auth = () => {
     
     if (isAuthLoading || isCheckingEmail) return;
     setIsAuthLoading(true);
+    setErrorMessage(""); // Clear any previous error
 
     try {
       if (isSignUp) {
@@ -67,7 +69,7 @@ const Auth = () => {
         const emailExists = await checkEmailExists(email);
         if (emailExists) {
           console.log("Email already exists:", email);
-          toast.error("An account with this email already exists. Please sign in instead.");
+          setErrorMessage("An account with this email already exists. Please sign in instead.");
           setIsSignUp(false); // Switch to sign in mode
           setIsAuthLoading(false);
           return;
@@ -102,13 +104,17 @@ const Auth = () => {
     } catch (error: any) {
       console.error('Auth error:', error);
       
-      // Check for specific error messages related to existing accounts
-      if (error.message?.includes("already registered")) {
-        toast.error("An account with this email already exists. Please sign in instead.");
+      // Set a user-friendly error message
+      if (error.message?.includes("Invalid login credentials")) {
+        setErrorMessage("Invalid email or password. Please try again.");
+      } else if (error.message?.includes("already registered")) {
+        setErrorMessage("An account with this email already exists. Please sign in instead.");
         setIsSignUp(false); // Switch to sign in mode
       } else {
-        toast.error(error.message || "Authentication failed");
+        setErrorMessage(error.message || "Authentication failed");
       }
+      
+      toast.error(errorMessage || "Authentication failed");
     } finally {
       setIsAuthLoading(false);
     }
@@ -188,6 +194,13 @@ const Auth = () => {
                 />
               </div>
             </div>
+            
+            {errorMessage && (
+              <div className="text-destructive text-sm bg-destructive/10 p-3 rounded-md">
+                {errorMessage}
+              </div>
+            )}
+            
             <Button type="submit" className="w-full" disabled={isAuthLoading || isCheckingEmail}>
               {isAuthLoading || isCheckingEmail ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -223,7 +236,10 @@ const Auth = () => {
                 Already have an account?{" "}
                 <button
                   type="button"
-                  onClick={() => setIsSignUp(false)}
+                  onClick={() => {
+                    setIsSignUp(false);
+                    setErrorMessage("");
+                  }}
                   className="text-primary hover:underline"
                 >
                   Sign in
@@ -234,7 +250,10 @@ const Auth = () => {
                 Don't have an account?{" "}
                 <button
                   type="button"
-                  onClick={() => setIsSignUp(true)}
+                  onClick={() => {
+                    setIsSignUp(true);
+                    setErrorMessage("");
+                  }}
                   className="text-primary hover:underline"
                 >
                   Sign up

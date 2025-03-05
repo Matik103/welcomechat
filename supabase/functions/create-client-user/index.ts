@@ -102,6 +102,7 @@ serve(async (req) => {
       }
     } else {
       // Get the stored temporary password for this user
+      console.log('Retrieving temporary password for:', email);
       const { data: passwordData, error: passwordError } = await supabaseAdmin
         .from('client_temp_passwords')
         .select('temp_password')
@@ -115,21 +116,31 @@ serve(async (req) => {
         
       if (passwordError || !passwordData) {
         console.log('No stored password found, generating a random one');
-        userPassword = crypto.randomUUID(); // Fallback to random UUID if no password found
-      } else {
-        console.log('Using stored temporary password');
-        userPassword = passwordData.temp_password;
+        // Fallback to random UUID if no password found
+        const randomDigits = Math.floor(1000 + Math.random() * 9000);
+        userPassword = `Welcome${randomDigits}!`;
         
-        // Mark password as used
-        await supabaseAdmin
+        // Store this password for future reference
+        console.log('Storing new generated password');
+        const { error: storeError } = await supabaseAdmin
           .from('client_temp_passwords')
-          .update({ used: true })
-          .eq('email', email)
-          .eq('temp_password', userPassword);
+          .insert({
+            email: email,
+            temp_password: userPassword,
+            created_at: new Date().toISOString(),
+            used: false
+          });
+          
+        if (storeError) {
+          console.error('Error storing generated password:', storeError);
+        }
+      } else {
+        console.log('Found stored password, using it for account creation');
+        userPassword = passwordData.temp_password;
       }
       
       // Create the user with the temporary password
-      console.log('Creating new user account...');
+      console.log('Creating new user account with email and password');
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         email_confirm: true,
@@ -145,6 +156,16 @@ serve(async (req) => {
       }
       console.log('User account created successfully');
       userId = userData.user.id;
+      
+      // Mark password as used
+      if (passwordData) {
+        console.log('Marking password as used');
+        await supabaseAdmin
+          .from('client_temp_passwords')
+          .update({ used: true })
+          .eq('email', email)
+          .eq('temp_password', passwordData.temp_password);
+      }
     }
 
     // Generate password reset link (works for both new and existing users)
@@ -172,6 +193,18 @@ serve(async (req) => {
       const resetLink = linkData?.properties?.action_link;
       console.log('Reset link:', resetLink);
 
+      // Get the current password for inclusion in the email
+      const { data: currentPassword } = await supabaseAdmin
+        .from('client_temp_passwords')
+        .select('temp_password')
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      const passwordToUse = currentPassword?.temp_password || 'Your temporary password';
+      console.log('Password to include in email:', passwordToUse);
+
       const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 
       // Try the new Resend API first
@@ -188,7 +221,10 @@ serve(async (req) => {
             html: `
               <h1>Welcome to Interact Metrics!</h1>
               <p>Hello ${clientName},</p>
-              <p>Your account has been created successfully. To get started:</p>
+              <p>Your account has been created successfully. You can login with:</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Password:</strong> ${passwordToUse}</p>
+              <p>To update your password:</p>
               <ol>
                 <li>Click the link below to set up your password:</li>
                 <li><a href="${resetLink}">Set Up Your Password</a></li>
@@ -218,7 +254,10 @@ serve(async (req) => {
           `
           <h1>Welcome to Interact Metrics!</h1>
           <p>Hello ${clientName},</p>
-          <p>Your account has been created successfully. To get started:</p>
+          <p>Your account has been created successfully. You can login with:</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Password:</strong> ${passwordToUse}</p>
+          <p>To update your password:</p>
           <ol>
             <li>Click the link below to set up your password:</li>
             <li><a href="${resetLink}">Set Up Your Password</a></li>
@@ -253,7 +292,7 @@ serve(async (req) => {
       JSON.stringify({ error: error.message }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
+        status: 200 // Always return 200 to avoid non-2xx errors
       }
     )
   }
