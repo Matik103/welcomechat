@@ -23,15 +23,30 @@ export const useClientData = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       try {
+        // Ensure agent_name is valid for database use by removing spaces and special characters
+        const sanitizedAgentName = data.agent_name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '_');
+
+        // If agent_name is empty after sanitization, add a default prefix
+        const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+
+        // Update the agent_name in the data to use the sanitized version
+        const updatedData = {
+          ...data,
+          agent_name: finalAgentName,
+        };
+
         if (id) {
           // Update existing client
           const { error } = await supabase
             .from("clients")
             .update({
-              client_name: data.client_name,
-              email: data.email,
-              agent_name: data.agent_name,
-              widget_settings: data.widget_settings,
+              client_name: updatedData.client_name,
+              email: updatedData.email,
+              agent_name: updatedData.agent_name,
+              widget_settings: updatedData.widget_settings,
             })
             .eq("id", id);
           if (error) throw error;
@@ -60,10 +75,10 @@ export const useClientData = (id: string | undefined) => {
           const { data: newClients, error } = await supabase
             .from("clients")
             .insert([{
-              client_name: data.client_name,
-              email: data.email,
-              agent_name: data.agent_name,
-              widget_settings: data.widget_settings || {},
+              client_name: updatedData.client_name,
+              email: updatedData.email,
+              agent_name: updatedData.agent_name,
+              widget_settings: updatedData.widget_settings || {},
               status: 'active'
             }])
             .select('*');
