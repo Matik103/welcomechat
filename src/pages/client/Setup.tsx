@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useClientActivity } from "@/hooks/useClientActivity";
 
 const ClientSetup = () => {
   const navigate = useNavigate();
@@ -23,6 +24,9 @@ const ClientSetup = () => {
   // Extract client ID from URL
   const query = new URLSearchParams(location.search);
   const clientId = query.get("id");
+  
+  // Initialize client activity logging
+  const { logClientActivity } = useClientActivity(clientId);
 
   // Check if the user is already logged in
   useEffect(() => {
@@ -58,6 +62,7 @@ const ClientSetup = () => {
 
     try {
       setIsLoading(true);
+      console.log("Starting account setup process");
       
       // Fetch client email from client ID
       const { data: clientData, error: clientError } = await supabase
@@ -67,8 +72,11 @@ const ClientSetup = () => {
         .single();
         
       if (clientError || !clientData) {
+        console.error("Client lookup error:", clientError);
         throw new Error("Could not find client information");
       }
+      
+      console.log("Found client:", clientData.email);
       
       // Create user account with client's email
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -76,10 +84,16 @@ const ClientSetup = () => {
         password: password,
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        console.error("Sign up error:", signUpError);
+        throw signUpError;
+      }
+      
+      console.log("Account created successfully");
       
       // Create user role mapping for the new user
       if (signUpData.user) {
+        console.log("Creating user role mapping");
         const { error: roleError } = await supabase
           .from("user_roles")
           .insert({
@@ -88,30 +102,52 @@ const ClientSetup = () => {
             client_id: clientId
           });
           
-        if (roleError) throw roleError;
+        if (roleError) {
+          console.error("Role mapping error:", roleError);
+          throw roleError;
+        }
         
         // Set client ID in user metadata
+        console.log("Setting client metadata");
         const { error: metadataError } = await supabase.auth.updateUser({
           data: { client_id: clientId }
         });
         
-        if (metadataError) throw metadataError;
+        if (metadataError) {
+          console.error("Metadata update error:", metadataError);
+          throw metadataError;
+        }
       }
 
       setSetupComplete(true);
       toast.success("Account setup successful! Signing you in...");
       
+      // Log this activity
+      await logClientActivity(
+        "client_updated", 
+        "completed account setup",
+        { setup_method: "invitation" }
+      );
+      
       // Sign in with the new credentials
+      console.log("Signing in with new credentials");
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: clientData.email,
         password: password,
       });
       
-      if (signInError) throw signInError;
+      if (signInError) {
+        console.error("Sign in error:", signInError);
+        throw signInError;
+      }
       
-      console.log("Setup complete, redirecting to client dashboard");
-      // Explicitly redirect to client dashboard after successful setup and sign in
-      navigate("/client/view", { replace: true });
+      console.log("Setup complete and signed in, redirecting to client dashboard");
+      
+      // Force a short delay to ensure auth state updates
+      setTimeout(() => {
+        // Explicitly redirect to client dashboard after successful setup and sign in
+        navigate("/client/view", { replace: true });
+      }, 1000);
       
     } catch (error: any) {
       console.error("Error setting up account:", error);
@@ -139,6 +175,7 @@ const ClientSetup = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -149,6 +186,7 @@ const ClientSetup = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
