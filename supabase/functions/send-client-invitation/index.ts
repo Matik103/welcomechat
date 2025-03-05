@@ -12,6 +12,7 @@ interface InvitationRequest {
   clientId: string;
   email: string;
   clientName: string;
+  defaultPassword?: string;
 }
 
 serve(async (req) => {
@@ -37,23 +38,29 @@ serve(async (req) => {
     const resend = new Resend(resendApiKey);
     
     // Parse request body
-    const { clientId, email, clientName }: InvitationRequest = await req.json();
+    const { clientId, email, clientName, defaultPassword }: InvitationRequest = await req.json();
     console.log(`Sending invitation to client: ${clientName} (${email})`);
     
-    // Generate the dashboard URL - where clients will set up their password
+    // Generate the dashboard URL - where clients will access their dashboard
     const origin = req.headers.get("origin") || "https://welcome.chat";
-    const dashboardUrl = `${origin}/client/dashboard?id=${clientId}`;
+    const dashboardUrl = `${origin}/client/view`;
     
     console.log(`Dashboard URL: ${dashboardUrl}`);
     
-    // Updated email content with dashboard link and clear password setup instructions
+    // Generate a default password if one wasn't provided
+    const password = defaultPassword || `welcome${Math.floor(1000 + Math.random() * 9000)}`;
+    
+    // Updated email content with dashboard link and login credentials
     const htmlContent = `
       <h1>Welcome to Welcome.Chat, Your Agent!</h1>
-      <p>Your account has been created. Click the link below to access your dashboard:</p>
+      <p>Your account has been created. Here are your login credentials:</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Password:</strong> ${password}</p>
+      <p>Click the button below to access your dashboard:</p>
       <p><a href="${dashboardUrl}" style="display: inline-block; background-color: #6366F1; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif;">Access Your Dashboard</a></p>
       <p>Or copy and paste this URL into your browser:</p>
       <p>${dashboardUrl}</p>
-      <p><strong>Important:</strong> When you first access your dashboard, you'll need to set up your password. Look for the password setup option in your account settings.</p>
+      <p><strong>Important:</strong> For security reasons, please change your password after logging in. You can do this in your account settings.</p>
       <p>Thank you,<br>The Welcome.Chat Team</p>
     `;
     
@@ -61,7 +68,7 @@ serve(async (req) => {
     const { data, error } = await resend.emails.send({
       from: "Welcome.Chat <noreply@welcome.chat>",
       to: email,
-      subject: "Welcome to Welcome.Chat - Access Your Dashboard",
+      subject: "Welcome to Welcome.Chat - Your Login Credentials",
       html: htmlContent
     });
     
@@ -72,10 +79,12 @@ serve(async (req) => {
     
     console.log("Invitation email sent successfully:", data);
     
+    // Return the password in the response so it can be saved in the database if needed
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: "Invitation email sent successfully"
+        message: "Invitation email sent successfully",
+        password: password
       }), 
       {
         status: 200,
