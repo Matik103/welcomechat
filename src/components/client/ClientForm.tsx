@@ -6,13 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { Client } from "@/types/client";
+import { Client, ClientFormData } from "@/types/client";
 import { useClientData } from "@/hooks/useClientData";
 import { Label } from "@/components/ui/label";
+import { useParams } from "react-router-dom";
 
 interface ClientFormProps {
   initialData?: Client | null;
-  onSubmit: (data: { client_name: string; email: string; agent_name: string }) => Promise<void>;
+  onSubmit: (data: ClientFormData) => Promise<void>;
   isLoading?: boolean;
   isClientView?: boolean;
 }
@@ -25,7 +26,9 @@ const clientFormSchema = z.object({
 
 export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientView = false }: ClientFormProps) => {
   const [isSendingInvitation, setIsSendingInvitation] = useState(false);
+  const { id } = useParams();
   const { sendInvitation } = useClientData(initialData?.id);
+  const isCreatingClient = !id && !isClientView;
   
   const { register, handleSubmit, formState: { errors }, setValue } = useForm({
     resolver: zodResolver(clientFormSchema),
@@ -69,6 +72,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
           id="client_name"
           {...register("client_name")}
           className={errors.client_name ? "border-red-500" : ""}
+          placeholder="Enter client name"
         />
         {errors.client_name && (
           <p className="text-sm text-red-500">{errors.client_name.message}</p>
@@ -84,6 +88,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
           type="email"
           {...register("email")}
           className={errors.email ? "border-red-500" : ""}
+          placeholder="Enter client email"
         />
         {errors.email && (
           <p className="text-sm text-red-500">{errors.email.message}</p>
@@ -98,6 +103,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
           id="agent_name"
           {...register("agent_name")}
           className={errors.agent_name ? "border-red-500" : ""}
+          placeholder="Enter agent name"
         />
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
