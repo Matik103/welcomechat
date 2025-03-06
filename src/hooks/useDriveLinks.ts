@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -196,18 +195,6 @@ export function useDriveLinks(clientId: string | undefined) {
     
     console.log("Adding drive link with client ID:", clientId);
     console.log("Input data:", input);
-    
-    // Check if this link already exists for this client
-    const { data: existingLinks } = await supabase
-      .from("google_drive_links")
-      .select("*")
-      .eq("client_id", clientId)
-      .eq("link", input.link);
-      
-    if (existingLinks && existingLinks.length > 0) {
-      console.error("Drive link already exists for this client");
-      throw new Error("This Google Drive link has already been added");
-    }
     
     // Check the access status of the drive link
     let accessStatus: AccessStatus;
