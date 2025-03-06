@@ -69,10 +69,6 @@ const ResourceSettings = () => {
           <CardTitle>Resource Settings</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground mb-6">
-            Manage your Google Drive links and website URLs that your AI agent can use to retrieve information.
-          </p>
-          
           <div className="space-y-8">            
             <ClientResourceSections
               clientId={clientId}
