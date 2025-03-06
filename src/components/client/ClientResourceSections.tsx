@@ -18,20 +18,34 @@ export const ClientResourceSections = ({
   isClientView,
   logClientActivity 
 }: ClientResourceSectionsProps) => {
+  if (!clientId) {
+    console.error("ClientResourceSections: clientId is undefined");
+    return null;
+  }
+
   const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation } = useDriveLinks(clientId);
   const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(clientId);
 
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     try {
+      if (!clientId) {
+        toast.error("Client ID is required to add a drive link");
+        return;
+      }
+      
       await addDriveLinkMutation.mutateAsync(data);
       
       // Log drive link addition activity
       if (isClientView) {
-        await logClientActivity(
-          "drive_link_added", 
-          "added a Google Drive link", 
-          { link: data.link, refresh_rate: data.refresh_rate }
-        );
+        try {
+          await logClientActivity(
+            "drive_link_added", 
+            "added a Google Drive link", 
+            { link: data.link, refresh_rate: data.refresh_rate }
+          );
+        } catch (logError) {
+          console.error("Error logging drive link activity:", logError);
+        }
       }
     } catch (error) {
       console.error("Error adding drive link:", error);
@@ -41,15 +55,24 @@ export const ClientResourceSections = ({
 
   const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
+      if (!clientId) {
+        toast.error("Client ID is required to add a website URL");
+        return;
+      }
+      
       await addWebsiteUrlMutation.mutateAsync(data);
       
       // Log website URL addition activity
       if (isClientView) {
-        await logClientActivity(
-          "website_url_added", 
-          "added a website URL", 
-          { url: data.url, refresh_rate: data.refresh_rate }
-        );
+        try {
+          await logClientActivity(
+            "website_url_added", 
+            "added a website URL", 
+            { url: data.url, refresh_rate: data.refresh_rate }
+          );
+        } catch (logError) {
+          console.error("Error logging website URL activity:", logError);
+        }
       }
     } catch (error) {
       console.error("Error adding website URL:", error);
@@ -64,11 +87,15 @@ export const ClientResourceSections = ({
       
       // Log drive link deletion activity
       if (isClientView && linkToDelete) {
-        await logClientActivity(
-          "drive_link_deleted", 
-          "removed a Google Drive link", 
-          { link: linkToDelete.link }
-        );
+        try {
+          await logClientActivity(
+            "drive_link_deleted", 
+            "removed a Google Drive link", 
+            { link: linkToDelete.link }
+          );
+        } catch (logError) {
+          console.error("Error logging drive link deletion:", logError);
+        }
       }
     } catch (error) {
       console.error("Error deleting drive link:", error);
@@ -83,11 +110,15 @@ export const ClientResourceSections = ({
       
       // Log website URL deletion activity
       if (isClientView && urlToDelete) {
-        await logClientActivity(
-          "url_deleted", 
-          "removed a website URL", 
-          { url: urlToDelete.url }
-        );
+        try {
+          await logClientActivity(
+            "url_deleted", 
+            "removed a website URL", 
+            { url: urlToDelete.url }
+          );
+        } catch (logError) {
+          console.error("Error logging website URL deletion:", logError);
+        }
       }
     } catch (error) {
       console.error("Error deleting website URL:", error);

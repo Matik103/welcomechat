@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +43,7 @@ export const WebsiteUrls = ({
     } catch (error) {
       console.error("Error adding URL:", error);
     } finally {
-      setIsSubmitting(true);
+      setIsSubmitting(false);
     }
   };
 

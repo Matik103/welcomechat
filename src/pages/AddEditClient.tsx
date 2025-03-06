@@ -18,9 +18,10 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   const { user } = useAuth();
   
   // If in client view, use the client ID from user metadata
-  const clientId = isClientView ? user?.user_metadata?.client_id : id;
+  const paramClientId = isClientView ? user?.user_metadata?.client_id : id;
   
-  const { client, isLoadingClient, error, clientMutation } = useClientData(clientId);
+  // Use the enhanced useClientData hook which will handle clientId resolution
+  const { client, isLoadingClient, error, clientMutation, clientId } = useClientData(paramClientId);
   const { logClientActivity } = useClientActivity(clientId);
 
   if (error) {
@@ -80,7 +81,8 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
             logClientActivity={logClientActivity}
           />
 
-          {(clientId || isClientView) && (
+          {/* Only show resource sections if we have a clientId */}
+          {clientId && (
             <ClientResourceSections 
               clientId={clientId} 
               isClientView={isClientView}

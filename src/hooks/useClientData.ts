@@ -3,10 +3,15 @@ import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
 import { useClientInvitation } from "./useClientInvitation";
 import { ClientFormData } from "@/types/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useClientData = (id: string | undefined) => {
-  const { client, isLoadingClient, error } = useClient(id);
-  const clientMutation = useClientMutation(id);
+  const { user } = useAuth();
+  // If in client view but no ID is passed, use the client ID from user metadata
+  const clientId = id || user?.user_metadata?.client_id;
+  
+  const { client, isLoadingClient, error } = useClient(clientId);
+  const clientMutation = useClientMutation(clientId);
   const { sendInvitation } = useClientInvitation();
 
   return {
@@ -14,6 +19,7 @@ export const useClientData = (id: string | undefined) => {
     isLoadingClient,
     error,
     clientMutation,
-    sendInvitation
+    sendInvitation,
+    clientId
   };
 };
