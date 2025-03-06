@@ -80,7 +80,7 @@ function App() {
           userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientList />
         } />
         <Route path="/settings" element={
-          userRole === 'client' ? <Navigate to="/client/settings" replace /> : <Settings />
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <Settings />
         } />
         <Route path="/admin/clients/new" element={
           userRole === 'client' ? <Navigate to="/client/view" replace /> : <AddEditClient />
@@ -102,9 +102,7 @@ function App() {
         <Route path="/client/settings" element={
           userRole === 'admin' ? <Navigate to="/settings" replace /> : <ClientSettings />
         } />
-        <Route path="/client/edit" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <AddEditClient isClientView={true} />
-        } />
+        {/* Removed the Edit Client Information route */}
         <Route path="/client/widget-settings" element={
           userRole === 'admin' ? <Navigate to="/" replace /> : <WidgetSettings />
         } />
