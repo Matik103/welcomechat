@@ -12,9 +12,9 @@ export const useClientData = (id: string | undefined) => {
   // If in client view but no ID is passed, use the client ID from user metadata
   const clientId = id || user?.user_metadata?.client_id;
   
-  console.log("useClientData - id provided:", id);
-  console.log("useClientData - user metadata client_id:", user?.user_metadata?.client_id);
-  console.log("useClientData - clientId being used:", clientId);
+  console.log("useClientData - DEBUG - id provided:", id);
+  console.log("useClientData - DEBUG - user metadata client_id:", user?.user_metadata?.client_id);
+  console.log("useClientData - DEBUG - clientId being used:", clientId);
   
   const { client, isLoadingClient, error } = useClient(clientId);
   const clientMutation = useClientMutation(clientId);

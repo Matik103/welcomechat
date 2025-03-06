@@ -26,6 +26,9 @@ export const ClientDetails = ({
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
+      console.log("ClientDetails - Submitting form with clientId:", clientId);
+      console.log("ClientDetails - Form data:", data);
+      
       // We don't need to check for clientId when creating a new client
       await clientMutation.mutateAsync(data);
       
