@@ -1,21 +1,22 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
-import { ClientDetails } from "@/components/client/ClientDetails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Database, User, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { DriveLinks } from "@/components/client/DriveLinks";
 import { toast } from "sonner";
+import { ClientForm } from "@/components/client/ClientForm";
 
 const EditInfo = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
-  const { client, isLoadingClient, error } = useClientData(clientId);
+  const { client, isLoadingClient, error, clientMutation } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   
   useEffect(() => {
@@ -41,6 +42,39 @@ const EditInfo = () => {
   console.log("EditInfo: client ID from auth:", clientId);
   console.log("Website URLs:", websiteUrls);
   console.log("Drive Links:", driveLinks);
+
+  const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
+    try {
+      if (!clientId) {
+        toast.error("Client ID is missing. Please try refreshing the page.");
+        return;
+      }
+      
+      await clientMutation.mutateAsync(data);
+      
+      if (clientId) {
+        try {
+          await logClientActivity(
+            "client_updated", 
+            "updated their client information",
+            { 
+              updated_fields: Object.keys(data).filter(key => 
+                client && data[key as keyof typeof data] !== client[key as keyof typeof client]
+              )
+            }
+          );
+        } catch (logError) {
+          console.error("Error logging activity:", logError);
+          // Continue even if logging fails
+        }
+      }
+      
+      toast.success("Client information saved successfully");
+    } catch (error) {
+      console.error("Error submitting client form:", error);
+      toast.error("Failed to save client information");
+    }
+  };
 
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
@@ -154,11 +188,11 @@ const EditInfo = () => {
             <CardTitle>Client Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <ClientDetails 
-              client={client} 
-              clientId={clientId} 
+            <ClientForm 
+              initialData={client}
+              onSubmit={handleSubmit}
+              isLoading={clientMutation.isPending}
               isClientView={true}
-              logClientActivity={logClientActivity}
             />
           </CardContent>
         </Card>
