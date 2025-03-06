@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Settings, Palette, UserCog } from "lucide-react";
@@ -42,6 +41,12 @@ export const ClientHeader = () => {
                     <span>Account Settings</span>
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/client/edit-info" className="flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Edit Info</span>
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button 
@@ -57,4 +62,3 @@ export const ClientHeader = () => {
     </header>
   );
 };
-
