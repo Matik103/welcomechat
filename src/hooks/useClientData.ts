@@ -6,14 +6,20 @@ import { ClientFormData } from "@/types/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const useClientData = (id: string | undefined) => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   
-  // If in client view but no ID is passed, use the client ID from user metadata
-  const clientId = id || user?.user_metadata?.client_id;
+  // Only use the user metadata client ID in specific cases:
+  // 1. We're in client view (userRole is 'client')
+  // 2. No ID was explicitly provided
+  let clientId = id;
+  if (!clientId && userRole === 'client' && user?.user_metadata?.client_id) {
+    clientId = user.user_metadata.client_id;
+  }
   
   // Log this info for debugging
   console.log("useClientData: id param =", id);
   console.log("useClientData: user metadata client_id =", user?.user_metadata?.client_id);
+  console.log("useClientData: user role =", userRole);
   console.log("useClientData: using clientId =", clientId);
   
   const { client, isLoadingClient, error, refetchClient } = useClient(clientId);

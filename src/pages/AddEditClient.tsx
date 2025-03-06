@@ -17,8 +17,8 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  // If in client view, use the client ID from user metadata
-  const paramClientId = isClientView ? user?.user_metadata?.client_id : id;
+  // Only use the paramClientId if we're editing an existing client or in client view
+  const paramClientId = id || (isClientView ? user?.user_metadata?.client_id : undefined);
   
   // Use the enhanced useClientData hook which will handle clientId resolution
   const { client, isLoadingClient, error, clientMutation, clientId } = useClientData(paramClientId);
@@ -37,7 +37,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
     }
   };
 
-  if (isLoadingClient) {
+  if (isLoadingClient && id) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
