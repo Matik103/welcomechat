@@ -16,6 +16,7 @@ const EditInfo = () => {
   const { logClientActivity } = useClientActivity(clientId);
 
   console.log("EditInfo: client ID from auth:", clientId);
+  console.log("EditInfo: client data:", client);
 
   useEffect(() => {
     // Force refresh of the component when it loads
@@ -23,6 +24,18 @@ const EditInfo = () => {
       console.log("EditInfo: forcing refresh for client:", clientId);
     }
   }, [clientId]);
+
+  if (!clientId) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <Card className="bg-red-50 border-red-200">
+          <CardContent className="pt-6">
+            <p className="text-red-700">Error: No client ID found in user data</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isLoadingClient) {
     return (
