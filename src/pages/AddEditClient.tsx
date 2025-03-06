@@ -20,8 +20,14 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   // If in client view, use the client ID from user metadata
   const paramClientId = isClientView ? user?.user_metadata?.client_id : id;
   
+  // For new client creation, don't attempt to load client data
+  const isNewClient = !isClientView && !id;
+  
   // Use the enhanced useClientData hook which will handle clientId resolution
-  const { client, isLoadingClient, error, clientMutation, clientId } = useClientData(paramClientId);
+  const { client, isLoadingClient, error, clientMutation, clientId } = useClientData(
+    isNewClient ? undefined : paramClientId
+  );
+  
   const { logClientActivity } = useClientActivity(clientId);
 
   if (error && paramClientId) {
@@ -37,6 +43,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
     }
   };
 
+  // Show loading state only when trying to load an existing client
   if (isLoadingClient && paramClientId) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">

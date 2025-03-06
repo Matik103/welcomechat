@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { checkAndRefreshAuth } from "./authService";
 
 /**
- * Fetches the average response time for a client's AI agent
+ * Fetches the average response time for a client's recent interactions
  */
 export const fetchAverageResponseTime = async (clientId: string): Promise<number> => {
   if (!clientId) return 0;
@@ -15,70 +15,34 @@ export const fetchAverageResponseTime = async (clientId: string): Promise<number
       throw new Error("Authentication failed");
     }
     
-    // First, get the agent_name for this client
-    const { data: clientData, error: clientError } = await supabase
-      .from("clients")
-      .select("agent_name")
-      .eq("id", clientId)
-      .single();
+    const { data, error } = await supabase
+      .from("client_activities")
+      .select("metadata")
+      .eq("client_id", clientId)
+      .eq("activity_type", "chat_interaction")
+      .order("created_at", { ascending: false })
+      .limit(30);
     
-    if (clientError || !clientData) {
-      console.error("Error fetching client agent name:", clientError);
+    if (error || !data) {
+      console.error("Error fetching recent interactions:", error);
       return 0;
     }
     
-    const sanitizedAgentName = clientData.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    let totalResponseTime = 0;
+    let countWithResponseTime = 0;
     
-    try {
-      // Try to get response times from the agent's table metadata using Edge Function
-      const { data, error } = await supabase
-        .functions
-        .invoke("dynamically-query-table", {
-          body: {
-            tableName: sanitizedAgentName,
-            query: "SELECT metadata FROM \"${tableName}\" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 30"
-          }
-        });
-      
-      if (error || !data || !Array.isArray(data)) {
-        console.log(`Error querying ${sanitizedAgentName} table:`, error);
-        return 0;
+    data.forEach(interaction => {
+      if (interaction.metadata && 
+          typeof interaction.metadata === 'object' && 
+          'response_time_ms' in interaction.metadata) {
+        totalResponseTime += Number(interaction.metadata.response_time_ms);
+        countWithResponseTime++;
       }
-      
-      // Extract and calculate average response time
-      let totalResponseTime = 0;
-      let validResponseTimes = 0;
-      
-      data.forEach(item => {
-        if (
-          item && 
-          item.metadata && 
-          (
-            (item.metadata.response_time && typeof item.metadata.response_time === 'number') ||
-            (item.metadata.processing_time && typeof item.metadata.processing_time === 'number')
-          )
-        ) {
-          // Use response_time if available, otherwise use processing_time
-          const responseTime = item.metadata.response_time || item.metadata.processing_time;
-          
-          // Only consider reasonable response times (less than 30 seconds)
-          if (responseTime > 0 && responseTime < 30000) {
-            totalResponseTime += responseTime;
-            validResponseTimes++;
-          }
-        }
-      });
-      
-      if (validResponseTimes === 0) {
-        return 0;
-      }
-      
-      // Return average in seconds, rounded to one decimal place
-      return Math.round((totalResponseTime / validResponseTimes / 1000) * 10) / 10;
-    } catch (err) {
-      console.error("Error processing agent data for response times:", err);
-      return 0;
-    }
+    });
+    
+    return countWithResponseTime > 0 
+      ? Number((totalResponseTime / countWithResponseTime / 1000).toFixed(2))
+      : 0;
   } catch (err) {
     console.error("Error fetching average response time:", err);
     return 0;
