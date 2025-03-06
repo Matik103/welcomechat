@@ -5,6 +5,8 @@ import { ClientForm } from "@/components/client/ClientForm";
 import { useClientMutation } from "@/hooks/useClientMutation";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
+import { createClient } from "@/services/clientService";
+import { toast } from "sonner";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -25,13 +27,25 @@ export const ClientDetails = ({
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
       console.log("ClientDetails - Submitting form with data:", data);
-      console.log("ClientDetails - Using client ID:", clientId);
       
+      // Handle new client creation
       if (!clientId) {
-        console.error("No client ID available for update");
-        return;
+        console.log("Creating new client");
+        try {
+          const newClientId = await createClient(data);
+          console.log("New client created with ID:", newClientId);
+          toast.success("Client created successfully");
+          navigate(`/admin/clients/${newClientId}`);
+          return;
+        } catch (error) {
+          console.error("Error creating client:", error);
+          toast.error(`Error creating client: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          return;
+        }
       }
       
+      // Handle existing client update
+      console.log("Updating existing client with ID:", clientId);
       await clientMutation.mutateAsync(data);
       
       if (clientId && isClientView) {
