@@ -58,9 +58,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
       toast.error("Your session has expired. Please sign in again.");
       // Give the toast time to display before signing out
       const timer = setTimeout(() => {
-        if (signOut) {
-          signOut();
-        }
+        signOut?.();
       }, 2000);
       
       return () => clearTimeout(timer);

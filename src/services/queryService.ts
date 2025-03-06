@@ -25,14 +25,7 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
       .limit(10);
     
     if (!commonQueriesError && commonQueries?.length > 0) {
-      // Convert database objects to QueryItem type
-      return commonQueries.map(q => ({
-        id: q.id,
-        query_text: q.query_text,
-        frequency: q.frequency,
-        // Include created_at as last_asked if needed
-        last_asked: q.created_at
-      })) as QueryItem[];
+      return commonQueries as QueryItem[];
     }
     
     // If no common queries found, try to get from agent's table
@@ -83,7 +76,7 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
         client_id: clientId,
         query_text: query,
         frequency,
-        last_asked: new Date().toISOString()
+        created_at: new Date().toISOString()
       }));
     
     return queryItems;

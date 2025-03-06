@@ -3,41 +3,64 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
 import { useClientActivity } from "@/hooks/useClientActivity";
+import { useDriveLinks } from "@/hooks/useDriveLinks";
+import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import ErrorDisplay from "@/components/client/ErrorDisplay";
 import EditInfoHeader from "@/components/client/EditInfoHeader";
 import ClientInfoSection from "@/components/client/ClientInfoSection";
-import { ClientResourceSections } from "@/components/client/ClientResourceSections";
+import WebsiteUrlsSection from "@/components/client/WebsiteUrlsSection";
+import DriveLinksSection from "@/components/client/DriveLinksSection";
 
 const EditInfo = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(true);
   
   // Set client ID from user metadata when available
   useEffect(() => {
-    console.log("EditInfo - Auth user data:", user);
-    
     if (user?.user_metadata?.client_id) {
       console.log("Setting client ID from user metadata:", user.user_metadata.client_id);
       setClientId(user.user_metadata.client_id);
     } else {
       console.warn("No client ID found in user metadata");
-      toast.error("Client ID not found. Please contact support.");
     }
-    
-    setIsLoading(false);
+    console.log("Client data initialized");
   }, [user]);
   
-  // Use the enhanced useClientData hook which will handle clientId resolution
   const { client, isLoadingClient, error, clientId: resolvedClientId } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
+  
+  // Website URL and Drive Link hooks
+  const { 
+    websiteUrls, 
+    addWebsiteUrlMutation, 
+    deleteWebsiteUrlMutation, 
+    isLoading: isUrlsLoading 
+  } = useWebsiteUrls(clientId);
+
+  const { 
+    driveLinks, 
+    addDriveLinkMutation, 
+    deleteDriveLinkMutation, 
+    isLoading: isDriveLinksLoading 
+  } = useDriveLinks(clientId);
 
   console.log("EditInfo: client ID from auth:", clientId);
   console.log("EditInfo: resolved client ID:", resolvedClientId);
+  console.log("Website URLs:", websiteUrls);
+  console.log("Drive Links:", driveLinks);
 
-  if ((isLoading || isLoadingClient) && clientId) {
+  // Handle adding a website URL
+  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
+    try {
+      await addWebsiteUrlMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error in handleAddUrl:", error);
+    }
+  };
+
+  if (isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -45,15 +68,8 @@ const EditInfo = () => {
     );
   }
 
-  if (error && clientId) {
+  if (error) {
     return <ErrorDisplay message={error.message} />;
-  }
-
-  // If no clientId is set yet but we're not in a loading state, show a helpful message
-  if (!clientId && !isLoading) {
-    return (
-      <ErrorDisplay message="No client ID found. Please refresh the page or contact support." />
-    );
   }
 
   return (
@@ -65,12 +81,21 @@ const EditInfo = () => {
           client={client} 
           clientId={clientId} 
           logClientActivity={logClientActivity}
-          isClientView={true}
         />
 
-        <ClientResourceSections 
-          clientId={clientId} 
-          isClientView={true}
+        <WebsiteUrlsSection
+          clientId={clientId}
+          websiteUrls={websiteUrls}
+          addWebsiteUrlMutation={addWebsiteUrlMutation}
+          deleteWebsiteUrlMutation={deleteWebsiteUrlMutation}
+          logClientActivity={logClientActivity}
+        />
+
+        <DriveLinksSection
+          clientId={clientId}
+          driveLinks={driveLinks}
+          addDriveLinkMutation={addDriveLinkMutation}
+          deleteDriveLinkMutation={deleteDriveLinkMutation}
           logClientActivity={logClientActivity}
         />
       </div>

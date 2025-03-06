@@ -40,7 +40,7 @@ export const SignOutSection = () => {
         }
       }
       
-      // Call the signOut function from AuthContext
+      // Explicitly call the signOut function from AuthContext
       await signOut();
       console.log("Sign out successful");
       toast.success("Successfully signed out");

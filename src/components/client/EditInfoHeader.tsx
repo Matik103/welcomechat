@@ -13,7 +13,7 @@ const EditInfoHeader = () => {
       </Link>
       <div>
         <h1 className="text-2xl font-bold">Edit Information</h1>
-        <p className="text-gray-500">Update client information and resources</p>
+        <p className="text-gray-500">Update client information</p>
       </div>
     </div>
   );
