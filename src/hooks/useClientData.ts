@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export const useClientData = (id: string | undefined) => {
   const { user } = useAuth();
-  // If in client view but no ID is passed, use the client ID from user metadata
+  // Prioritize the ID passed as an argument, fall back to user metadata
   const clientId = id || user?.user_metadata?.client_id;
   
   const { client, isLoadingClient, error } = useClient(clientId);
