@@ -38,17 +38,13 @@ const WidgetSettings = () => {
         return;
       }
 
-      // Optimistically update the local client data
-      const updatedClient = { ...client, widget_settings: settings };
-
       // Update the client data in Supabase
-      const { data, error } = await fetch(`/api/update-widget-settings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ clientId, settings }),
-      }).then((res) => res.json());
+      const { data, error } = await supabase
+        .from('clients')
+        .update({ widget_settings: settings })
+        .eq('id', clientId)
+        .select()
+        .single();
 
       if (error) {
         toast.error("Failed to save widget settings");
@@ -61,6 +57,13 @@ const WidgetSettings = () => {
       console.error("Error saving widget settings:", error);
     }
   };
+
+  // Parse the widget settings from the client data
+  const widgetSettings = client?.widget_settings ? 
+    (typeof client.widget_settings === 'string' 
+      ? JSON.parse(client.widget_settings) 
+      : client.widget_settings) as any
+    : undefined;
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
@@ -95,7 +98,7 @@ const WidgetSettings = () => {
           {client && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
               <WidgetForm
-                initialSettings={client.widget_settings}
+                initialSettings={widgetSettings}
                 onSave={handleSaveWidgetSettings}
               />
             </div>

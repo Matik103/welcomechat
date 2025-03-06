@@ -2,8 +2,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
 import { WidgetSettings } from "@/types/widget-settings";
+import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface WidgetFormProps {
   initialSettings?: WidgetSettings;
@@ -11,8 +13,8 @@ interface WidgetFormProps {
 }
 
 const WidgetForm = ({ initialSettings, onSave }: WidgetFormProps) => {
-  const [settings, setSettings] = useState<WidgetSettings>(
-    initialSettings || {
+  const form = useForm<WidgetSettings>({
+    defaultValues: initialSettings || {
       appearance: {
         theme: "light",
         chatBubbleColor: "#000000",
@@ -23,83 +25,94 @@ const WidgetForm = ({ initialSettings, onSave }: WidgetFormProps) => {
         logo: "",
       },
     }
-  );
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await onSave(settings);
-  };
+  const handleSubmit = form.handleSubmit(async (data) => {
+    await onSave(data);
+  });
 
   return (
-    <Form onSubmit={handleSubmit}>
-      <div className="space-y-6">
+    <Form {...form}>
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <h3 className="text-lg font-medium">Widget Settings</h3>
           <p className="text-sm text-gray-500">Customize how your widget appears and functions.</p>
         </div>
         
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Widget Name</label>
-            <Input
-              type="text"
-              value={settings.branding.name}
-              onChange={(e) => setSettings({
-                ...settings,
-                branding: { ...settings.branding, name: e.target.value }
-              })}
-              className="mt-1"
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="branding.name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Widget Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Theme</label>
-            <select
-              value={settings.appearance.theme}
-              onChange={(e) => setSettings({
-                ...settings,
-                appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" }
-              })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-            >
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </div>
+          <FormField
+            control={form.control}
+            name="appearance.theme"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Theme</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a theme" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="light">Light</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Chat Bubble Color</label>
-            <Input
-              type="color"
-              value={settings.appearance.chatBubbleColor}
-              onChange={(e) => setSettings({
-                ...settings,
-                appearance: { ...settings.appearance, chatBubbleColor: e.target.value }
-              })}
-              className="mt-1"
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="appearance.chatBubbleColor"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Chat Bubble Color</FormLabel>
+                <FormControl>
+                  <Input type="color" {...field} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Position</label>
-            <select
-              value={settings.appearance.position}
-              onChange={(e) => setSettings({
-                ...settings,
-                appearance: { ...settings.appearance, position: e.target.value as "bottom-right" | "bottom-left" }
-              })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
-            >
-              <option value="bottom-right">Bottom Right</option>
-              <option value="bottom-left">Bottom Left</option>
-            </select>
-          </div>
+          <FormField
+            control={form.control}
+            name="appearance.position"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Position</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a position" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                    <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="flex justify-end gap-3">
           <Button type="submit">Save Changes</Button>
         </div>
-      </div>
+      </form>
     </Form>
   );
 };
