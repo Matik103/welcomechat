@@ -7,12 +7,11 @@ import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { ClientDetails } from "@/components/client/ClientDetails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Database, User, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { Loader2, Database, User, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { WebsiteUrls } from "@/components/client/WebsiteUrls";
+import { DriveLinks } from "@/components/client/DriveLinks";
 import { toast } from "sonner";
-import { Label } from "@/components/ui/label";
 
 const EditInfo = () => {
   const { user } = useAuth();
@@ -27,9 +26,7 @@ const EditInfo = () => {
     }
   }, [user]);
   
-  // Website URL state and hooks
-  const [newUrl, setNewUrl] = useState("");
-  const [urlRefreshRate, setUrlRefreshRate] = useState(30);
+  // Website URL and Drive Link hooks
   const { 
     websiteUrls, 
     addWebsiteUrlMutation, 
@@ -37,9 +34,6 @@ const EditInfo = () => {
     isLoading: isUrlsLoading 
   } = useWebsiteUrls(clientId);
 
-  // Drive link state and hooks
-  const [newDriveLink, setNewDriveLink] = useState("");
-  const [driveLinkRefreshRate, setDriveLinkRefreshRate] = useState(30);
   const { 
     driveLinks, 
     addDriveLinkMutation, 
@@ -52,33 +46,23 @@ const EditInfo = () => {
   console.log("Drive Links:", driveLinks);
 
   // Handle adding a website URL
-  const handleAddUrl = async () => {
-    if (!newUrl) {
-      toast.error("Please enter a website URL");
-      return;
-    }
-
+  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     if (!clientId) {
       toast.error("Client ID is missing. Please try refreshing the page.");
       return;
     }
 
     try {
-      await addWebsiteUrlMutation.mutateAsync({
-        url: newUrl,
-        refresh_rate: urlRefreshRate
-      });
+      await addWebsiteUrlMutation.mutateAsync(data);
       
       await logClientActivity(
         "website_url_added", 
         "added a website URL", 
-        { url: newUrl }
+        { url: data.url }
       );
-      
-      setNewUrl("");
-      setUrlRefreshRate(30);
     } catch (error) {
       console.error("Error adding URL:", error);
+      throw error; // Re-throw to be caught by the WebsiteUrls component
     }
   };
 
@@ -97,42 +81,28 @@ const EditInfo = () => {
       }
     } catch (error) {
       console.error("Error deleting URL:", error);
+      throw error;
     }
   };
 
   // Handle adding a drive link
-  const handleAddDriveLink = async () => {
-    if (!newDriveLink) {
-      toast.error("Please enter a Google Drive link");
-      return;
-    }
-
+  const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     if (!clientId) {
       toast.error("Client ID is missing. Please try refreshing the page.");
       return;
     }
 
-    if (!newDriveLink.includes('drive.google.com') && !newDriveLink.includes('docs.google.com')) {
-      toast.error("Please enter a valid Google Drive link");
-      return;
-    }
-
     try {
-      await addDriveLinkMutation.mutateAsync({
-        link: newDriveLink,
-        refresh_rate: driveLinkRefreshRate
-      });
+      await addDriveLinkMutation.mutateAsync(data);
       
       await logClientActivity(
         "drive_link_added", 
         "added a Google Drive link", 
-        { link: newDriveLink }
+        { link: data.link }
       );
-      
-      setNewDriveLink("");
-      setDriveLinkRefreshRate(30);
     } catch (error) {
       console.error("Error adding drive link:", error);
+      throw error; // Re-throw to be caught by the DriveLinks component
     }
   };
 
@@ -151,6 +121,7 @@ const EditInfo = () => {
       }
     } catch (error) {
       console.error("Error deleting drive link:", error);
+      throw error;
     }
   };
 
@@ -211,71 +182,13 @@ const EditInfo = () => {
             <CardTitle>Website URLs</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {/* List of existing website URLs */}
-              {websiteUrls.length > 0 ? (
-                <div className="space-y-2">
-                  {websiteUrls.map((url) => (
-                    <div key={url.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
-                      <span className="flex-1 truncate text-sm">{url.url}</span>
-                      <span className="text-sm text-gray-500 whitespace-nowrap">({url.refresh_rate} days)</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteUrl(url.id)}
-                        disabled={deleteWebsiteUrlMutation.isPending}
-                        className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500 italic py-4">No website URLs added yet.</div>
-              )}
-
-              {/* Form to add new website URL */}
-              <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                <h3 className="text-sm font-medium mb-3">Add Website URL</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="website-url">Website URL</Label>
-                    <Input
-                      id="website-url"
-                      type="url"
-                      placeholder="https://example.com"
-                      value={newUrl}
-                      onChange={(e) => setNewUrl(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="url-refresh-rate">Refresh Rate (days)</Label>
-                    <Input
-                      id="url-refresh-rate"
-                      type="number"
-                      min="1"
-                      value={urlRefreshRate}
-                      onChange={(e) => setUrlRefreshRate(parseInt(e.target.value) || 30)}
-                    />
-                  </div>
-                  
-                  <Button 
-                    onClick={handleAddUrl}
-                    disabled={addWebsiteUrlMutation.isPending || !newUrl || !clientId}
-                    className="w-full"
-                  >
-                    {addWebsiteUrlMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : (
-                      <Plus className="w-4 h-4 mr-2" />
-                    )}
-                    Add URL
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <WebsiteUrls
+              urls={websiteUrls}
+              onAdd={handleAddUrl}
+              onDelete={handleDeleteUrl}
+              isAddLoading={addWebsiteUrlMutation.isPending}
+              isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+            />
           </CardContent>
         </Card>
 
@@ -285,83 +198,13 @@ const EditInfo = () => {
             <CardTitle>Google Drive Links</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {/* List of existing drive links */}
-              {driveLinks.length > 0 ? (
-                <div className="space-y-2">
-                  {driveLinks.map((link) => (
-                    <div 
-                      key={link.id} 
-                      className={`flex items-center gap-2 p-3 rounded-md border ${
-                        link.access_status === "restricted" 
-                          ? "bg-amber-50 border-amber-200" 
-                          : "bg-gray-50 border-gray-200"
-                      }`}
-                    >
-                      <span className="flex-1 truncate text-sm">{link.link}</span>
-                      {link.access_status === "restricted" && (
-                        <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full whitespace-nowrap">
-                          Restricted
-                        </span>
-                      )}
-                      <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteDriveLink(link.id)}
-                        disabled={deleteDriveLinkMutation.isPending}
-                        className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500 italic py-4">No Google Drive links added yet.</div>
-              )}
-
-              {/* Form to add new drive link */}
-              <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                <h3 className="text-sm font-medium mb-3">Add Google Drive Link</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="drive-link">Google Drive Link</Label>
-                    <Input
-                      id="drive-link"
-                      type="url"
-                      placeholder="https://drive.google.com/..."
-                      value={newDriveLink}
-                      onChange={(e) => setNewDriveLink(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="drive-refresh-rate">Refresh Rate (days)</Label>
-                    <Input
-                      id="drive-refresh-rate"
-                      type="number"
-                      min="1"
-                      value={driveLinkRefreshRate}
-                      onChange={(e) => setDriveLinkRefreshRate(parseInt(e.target.value) || 30)}
-                    />
-                  </div>
-                  
-                  <Button 
-                    onClick={handleAddDriveLink}
-                    disabled={addDriveLinkMutation.isPending || !newDriveLink || !clientId}
-                    className="w-full"
-                  >
-                    {addDriveLinkMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : (
-                      <Plus className="w-4 h-4 mr-2" />
-                    )}
-                    Add Drive Link
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <DriveLinks
+              driveLinks={driveLinks}
+              onAdd={handleAddDriveLink}
+              onDelete={handleDeleteDriveLink}
+              isAddLoading={addDriveLinkMutation.isPending}
+              isDeleteLoading={deleteDriveLinkMutation.isPending}
+            />
           </CardContent>
         </Card>
       </div>
