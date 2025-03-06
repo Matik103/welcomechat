@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { QueryItem } from "@/types/client-dashboard";
 import { checkAndRefreshAuth } from "./authService";
@@ -25,13 +26,13 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
     
     if (!commonQueriesError && commonQueries?.length > 0) {
       // Map the data to ensure it matches the QueryItem interface
-      // If last_asked is missing, use updated_at or created_at as fallback
+      // The common_queries table doesn't have a last_asked field, so we use updated_at instead
       return commonQueries.map(query => ({
         id: query.id,
         client_id: query.client_id,
         query_text: query.query_text,
         frequency: query.frequency,
-        last_asked: query.last_asked || query.updated_at || query.created_at
+        last_asked: query.updated_at || query.created_at // Use updated_at or created_at as the last_asked value
       })) as QueryItem[];
     }
     
