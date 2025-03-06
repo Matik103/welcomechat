@@ -20,8 +20,17 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   // If in client view, use the client ID from user metadata
   const paramClientId = isClientView ? user?.user_metadata?.client_id : id;
   
-  // Use the enhanced useClientData hook which will handle clientId resolution
-  const { client, isLoadingClient, error, clientMutation, clientId } = useClientData(paramClientId);
+  // Important: Don't attempt to retrieve client data when creating a new client
+  // Only pass the client ID if we're editing an existing client or in client view
+  const isNewClient = !isClientView && !id;
+  
+  // Don't fetch client data for new client form
+  const { client, isLoadingClient, error, clientMutation, clientId } = useClientData(
+    isNewClient ? undefined : paramClientId,
+    !isNewClient // Only enable the query when NOT creating a new client
+  );
+  
+  // Only set up activity logging when we have a valid client ID
   const { logClientActivity } = useClientActivity(clientId);
 
   if (error && paramClientId) {
@@ -37,6 +46,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
     }
   };
 
+  // Show loading state only when we're expecting client data
   if (isLoadingClient && paramClientId) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">

@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export const useClientData = (id: string | undefined) => {
+export const useClientData = (id: string | undefined, enabled = true) => {
   const { user } = useAuth();
   const [resolvedClientId, setResolvedClientId] = useState<string | undefined>(id);
   const [resolvingId, setResolvingId] = useState(true);
@@ -21,6 +21,7 @@ export const useClientData = (id: string | undefined) => {
       console.log("useClientData - Resolving client ID");
       console.log("useClientData - ID provided:", id);
       console.log("useClientData - User metadata client_id:", user?.user_metadata?.client_id);
+      console.log("useClientData - Enabled:", enabled);
       
       // If explicit ID is provided, use that first
       if (id) {
@@ -28,6 +29,13 @@ export const useClientData = (id: string | undefined) => {
         setResolvedClientId(id);
         return;
       } 
+      
+      // If creating a new client (no ID and not enabled), don't try to resolve
+      if (id === undefined && !enabled) {
+        console.log("Creating new client, not resolving ID");
+        setResolvedClientId(undefined);
+        return;
+      }
       
       // If ID in user metadata, use that next
       if (user?.user_metadata?.client_id) {
@@ -78,14 +86,14 @@ export const useClientData = (id: string | undefined) => {
       setResolvingId(false);
       setResolutionAttempted(true);
     }
-  }, [id, user]);
+  }, [id, user, enabled]);
   
   // Resolve client ID when component mounts or dependencies change
   useEffect(() => {
-    if ((id === undefined || resolvedClientId === undefined) && user && !resolutionAttempted) {
+    if (((id === undefined && enabled) || resolvedClientId === undefined) && user && !resolutionAttempted) {
       resolveClientId();
     }
-  }, [id, user, resolveClientId, resolvedClientId, resolutionAttempted]);
+  }, [id, user, resolveClientId, resolvedClientId, resolutionAttempted, enabled]);
   
   // If ID changes externally, reset the resolution state
   useEffect(() => {
@@ -100,7 +108,7 @@ export const useClientData = (id: string | undefined) => {
   console.log("useClientData - Resolved client ID being used:", resolvedClientId);
   
   // Only run query when we have either a resolved ID or finished resolving (even if it's null)
-  const { client, isLoadingClient, error } = useClient(resolvedClientId, resolutionAttempted);
+  const { client, isLoadingClient, error } = useClient(resolvedClientId, enabled && resolutionAttempted);
   const clientMutation = useClientMutation(resolvedClientId);
   const { sendInvitation } = useClientInvitation();
 
