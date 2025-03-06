@@ -3,7 +3,8 @@ import React from "react";
 import { format } from "date-fns";
 import { 
   Users, Settings, Link, UserPlus, Edit, Trash2, 
-  RotateCcw, Upload, Eye, Code, Image, Bot 
+  RotateCcw, Upload, Eye, Code, Image, Bot, 
+  Key, LogOut, FileText, Mail, ShieldAlert, Calendar
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -57,6 +58,19 @@ const getActivityIcon = (type: string, metadata: Json) => {
     case 'ai_agent_created':
     case 'ai_agent_updated':
       return <Bot className="w-4 h-4 text-primary" />;
+    case 'password_changed':
+    case 'password_reset':
+      return <Key className="w-4 h-4 text-primary" />;
+    case 'signed_out':
+      return <LogOut className="w-4 h-4 text-primary" />;
+    case 'document_viewed':
+      return <FileText className="w-4 h-4 text-primary" />;
+    case 'email_sent':
+      return <Mail className="w-4 h-4 text-primary" />;
+    case 'security_alert':
+      return <ShieldAlert className="w-4 h-4 text-destructive" />;
+    case 'scheduled_event':
+      return <Calendar className="w-4 h-4 text-primary" />;
     default:
       return <Users className="w-4 h-4 text-primary" />;
   }

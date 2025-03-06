@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ActivityList } from "@/components/dashboard/ActivityList";
@@ -8,6 +7,7 @@ import { useInteractionStats } from "@/hooks/useInteractionStats";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { toast } from "sonner";
 import { setupRealtimeActivities } from "@/utils/setupRealtimeActivities";
+import { subscribeToAllActivities } from "@/services/activitySubscriptionService";
 
 const Index = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
@@ -24,6 +24,21 @@ const Index = () => {
     
     setup();
   }, []);
+
+  // Set up global activity tracking for the admin dashboard
+  const { refetch: refetchActivities } = useRecentActivities();
+  
+  useEffect(() => {
+    // Subscribe to all client activities for real-time updates in the activity list
+    const channel = subscribeToAllActivities(() => {
+      console.log("Refreshing activity list due to new activity");
+      refetchActivities();
+    });
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetchActivities]);
   
   // Static stats that don't depend on time range
   const { 
