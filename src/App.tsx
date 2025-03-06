@@ -1,4 +1,3 @@
-
 import { Toaster } from "sonner";
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
@@ -17,6 +16,7 @@ import ClientSetup from "@/pages/client/Setup";
 import { useEffect, useState } from "react";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
+import EditClientInfo from "@/pages/client/EditClientInfo";
 
 function App() {
   const { isLoading, user, userRole } = useAuth();
@@ -102,6 +102,9 @@ function App() {
         } />
         <Route path="/client/resource-settings" element={
           userRole === 'admin' ? <Navigate to="/" replace /> : <ResourceSettings />
+        } />
+        <Route path="/client/edit-info" element={
+          userRole === 'admin' ? <Navigate to="/" replace /> : <EditClientInfo />
         } />
         
         <Route path="*" element={<Navigate to="/" replace />} />

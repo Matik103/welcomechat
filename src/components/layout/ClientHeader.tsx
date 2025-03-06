@@ -1,7 +1,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Settings, Palette, UserCog } from "lucide-react";
+import { Settings, Palette, UserCog, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,6 +34,12 @@ export const ClientHeader = () => {
                   <Link to="/client/widget-settings" className="flex items-center">
                     <Palette className="mr-2 h-4 w-4" />
                     <span>Widget Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/client/edit-info" className="flex items-center">
+                    <Edit className="mr-2 h-4 w-4" />
+                    <span>Edit Information</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
