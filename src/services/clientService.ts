@@ -82,41 +82,27 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
  * Creates a new client
  */
 export const createClient = async (data: ClientFormData): Promise<string> => {
-  console.log("Creating new client with data:", data);
-  
-  try {
-    // Sanitize the agent name
-    const sanitizedAgentName = data.agent_name
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '_');
-    
-    const { data: newClients, error } = await supabase
-      .from("clients")
-      .insert([{
-        client_name: data.client_name,
-        email: data.email,
-        agent_name: sanitizedAgentName,
-        widget_settings: data.widget_settings || {},
-        status: 'active'
-      }])
-      .select('*');
+  const { data: newClients, error } = await supabase
+    .from("clients")
+    .insert([{
+      client_name: data.client_name,
+      email: data.email,
+      agent_name: data.agent_name,
+      widget_settings: data.widget_settings || {},
+      status: 'active'
+    }])
+    .select('*');
 
-    if (error) {
-      console.error("Error creating client:", error);
-      throw error;
-    }
-
-    if (!newClients || newClients.length === 0) {
-      throw new Error("Failed to create client - no data returned");
-    }
-    
-    console.log("New client created:", newClients[0]);
-    return newClients[0].id;
-  } catch (error) {
-    console.error("Exception in createClient:", error);
+  if (error) {
+    console.error("Error creating client:", error);
     throw error;
   }
+
+  if (!newClients || newClients.length === 0) {
+    throw new Error("Failed to create client - no data returned");
+  }
+
+  return newClients[0].id;
 };
 
 /**
