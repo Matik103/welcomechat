@@ -76,3 +76,23 @@ export const signOutUser = async (): Promise<void> => {
     throw error;
   }
 }
+
+/**
+ * Get the current user details from Supabase
+ * @returns Promise with user data or null
+ */
+export const getCurrentUser = async () => {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      console.error("Error getting current user:", error);
+      return null;
+    }
+    
+    return data.user;
+  } catch (error) {
+    console.error("Error in getCurrentUser:", error);
+    return null;
+  }
+}
