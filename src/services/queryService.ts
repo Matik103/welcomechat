@@ -25,7 +25,16 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
       .limit(10);
     
     if (!commonQueriesError && commonQueries?.length > 0) {
-      return commonQueries as QueryItem[];
+      // Map the data to ensure it matches the QueryItem interface
+      // The common_queries table doesn't have last_asked field, so use updated_at or created_at as fallback
+      return commonQueries.map(query => ({
+        id: query.id,
+        client_id: query.client_id,
+        query_text: query.query_text,
+        frequency: query.frequency,
+        // Use updated_at or created_at as fallback since last_asked doesn't exist in the DB response
+        last_asked: query.updated_at || query.created_at
+      })) as QueryItem[];
     }
     
     // If no common queries found, try to get from agent's table
@@ -59,11 +68,18 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
     
     // Extract user queries from metadata and count frequency
     const queryFrequency: Record<string, number> = {};
+    const queryLastAsked: Record<string, string> = {};
     
     data.forEach(item => {
       if (item && item.metadata && item.metadata.user_message) {
         const query = item.metadata.user_message.trim();
         queryFrequency[query] = (queryFrequency[query] || 0) + 1;
+        
+        // Keep track of the latest date for each query
+        const timestamp = item.metadata.timestamp || new Date().toISOString();
+        if (!queryLastAsked[query] || timestamp > queryLastAsked[query]) {
+          queryLastAsked[query] = timestamp;
+        }
       }
     });
     
@@ -76,7 +92,7 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
         client_id: clientId,
         query_text: query,
         frequency,
-        created_at: new Date().toISOString()
+        last_asked: queryLastAsked[query] || new Date().toISOString()
       }));
     
     return queryItems;
