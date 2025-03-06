@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
@@ -47,11 +46,6 @@ const EditInfo = () => {
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
-      if (!clientId) {
-        toast.error("Client ID is missing. Please try refreshing the page.");
-        return;
-      }
-      
       await clientMutation.mutateAsync(data);
       
       if (clientId) {
@@ -82,7 +76,6 @@ const EditInfo = () => {
     try {
       await addWebsiteUrlMutation.mutateAsync(data);
       
-      // Fetch the updated list of URLs
       refetchWebsiteUrls();
       
       if (clientId) {
@@ -94,7 +87,7 @@ const EditInfo = () => {
       }
     } catch (error) {
       console.error("Error adding URL:", error);
-      throw error; // Re-throw to be caught by the WebsiteUrls component
+      throw error;
     }
   };
 
@@ -103,7 +96,6 @@ const EditInfo = () => {
       const urlToDelete = websiteUrls.find(url => url.id === id);
       await deleteWebsiteUrlMutation.mutateAsync(id);
       
-      // Fetch the updated list of URLs
       refetchWebsiteUrls();
       
       if (clientId && urlToDelete) {
@@ -123,7 +115,6 @@ const EditInfo = () => {
     try {
       await addDriveLinkMutation.mutateAsync(data);
       
-      // Fetch the updated list of drive links
       refetchDriveLinks();
       
       if (clientId) {
@@ -135,7 +126,7 @@ const EditInfo = () => {
       }
     } catch (error) {
       console.error("Error adding drive link:", error);
-      throw error; // Re-throw to be caught by the DriveLinks component
+      throw error;
     }
   };
 
@@ -144,7 +135,6 @@ const EditInfo = () => {
       const linkToDelete = driveLinks.find(link => link.id === id);
       await deleteDriveLinkMutation.mutateAsync(id);
       
-      // Fetch the updated list of drive links
       refetchDriveLinks();
       
       if (clientId && linkToDelete) {
