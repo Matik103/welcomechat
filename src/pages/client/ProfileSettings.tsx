@@ -95,7 +95,7 @@ const ProfileSettings = () => {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Client Name</label>
-                <div className="mt-1 p-2 border rounded bg-gray-50">{client.name}</div>
+                <div className="mt-1 p-2 border rounded bg-gray-50">{client.client_name}</div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">AI Agent Name</label>
