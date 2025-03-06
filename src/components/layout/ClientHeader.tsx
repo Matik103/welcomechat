@@ -1,7 +1,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Settings, Palette, UserCog, User } from "lucide-react";
+import { Settings, Palette, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,12 +30,6 @@ export const ClientHeader = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56" sideOffset={16}>
-                <DropdownMenuItem asChild>
-                  <Link to="/client/profile-settings" className="flex items-center">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile Settings</span>
-                  </Link>
-                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/client/widget-settings" className="flex items-center">
                     <Palette className="mr-2 h-4 w-4" />

@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, AlertTriangle } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { WebsiteUrl } from "@/types/client";
 
 interface WebsiteUrlsProps {
@@ -11,7 +10,6 @@ interface WebsiteUrlsProps {
   onDelete: (id: number) => void;
   isAddLoading: boolean;
   isDeleteLoading: boolean;
-  isValidating?: boolean;
 }
 
 export const WebsiteUrls = ({
@@ -20,26 +18,20 @@ export const WebsiteUrls = ({
   onDelete,
   isAddLoading,
   isDeleteLoading,
-  isValidating = false,
 }: WebsiteUrlsProps) => {
   const [showNewForm, setShowNewForm] = useState(false);
   const [newUrl, setNewUrl] = useState("");
   const [newRefreshRate, setNewRefreshRate] = useState(30);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!newUrl) {
-      setValidationError("URL is required");
-      return;
-    }
+    if (!newUrl) return;
     
     try {
       setIsSubmitting(true);
-      setValidationError(null);
       await onAdd({
         url: newUrl,
         refresh_rate: newRefreshRate,
@@ -48,9 +40,8 @@ export const WebsiteUrls = ({
       setNewUrl("");
       setNewRefreshRate(30);
       setShowNewForm(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error adding URL:", error);
-      setValidationError(error.message || "Failed to add website URL");
     } finally {
       setIsSubmitting(false);
     }
@@ -100,25 +91,13 @@ export const WebsiteUrls = ({
       ) : (
         <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
           <div className="space-y-4">
-            <div>
-              <Input
-                type="url"
-                placeholder="https://example.com"
-                value={newUrl}
-                onChange={(e) => {
-                  setNewUrl(e.target.value);
-                  if (validationError) setValidationError(null);
-                }}
-                className={validationError ? "border-red-500" : ""}
-                required
-              />
-              {validationError && (
-                <div className="mt-2 flex items-center text-red-600 text-sm">
-                  <AlertTriangle className="h-4 w-4 mr-1" />
-                  <span>{validationError}</span>
-                </div>
-              )}
-            </div>
+            <Input
+              type="url"
+              placeholder="https://example.com"
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              required
+            />
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -135,20 +114,18 @@ export const WebsiteUrls = ({
               <div className="flex items-center gap-2 pt-6">
                 <Button 
                   onClick={handleAdd}
-                  disabled={isAddLoading || isSubmitting || isValidating}
+                  disabled={isAddLoading || isSubmitting}
                 >
-                  {(isAddLoading || isSubmitting || isValidating) ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : null}
-                  {isValidating ? "Validating..." : "Save"}
+                  {(isAddLoading || isSubmitting) ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Save"
+                  )}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => {
-                    setShowNewForm(false);
-                    setValidationError(null);
-                  }}
+                  onClick={() => setShowNewForm(false)}
                 >
                   Cancel
                 </Button>

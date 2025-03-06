@@ -1,149 +1,74 @@
+
+import { useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import { useClientActivity } from "@/hooks/useClientActivity";
+import SetupForm from "@/components/client-setup/SetupForm";
+import { createClientAccount } from "@/utils/setupUtils";
 
 const ClientSetup = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [setupComplete, setSetupComplete] = useState(false);
   const navigate = useNavigate();
-  const { logClientActivity } = useClientActivity();
+  const location = useLocation();
+  
+  // State for form
+  const [isLoading, setIsLoading] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [setupComplete, setSetupComplete] = useState(false);
+  
+  // Extract client ID from URL
+  const query = new URLSearchParams(location.search);
+  const clientId = query.get("id");
+  
+  // Initialize client activity logging
+  const { logClientActivity } = useClientActivity(clientId);
 
+  // Check if the user is already logged in
   useEffect(() => {
-    const checkSetup = async () => {
-      setIsLoading(true);
-      try {
-        const { data: user } = await supabase.auth.getUser();
-        if (!user?.user?.id) {
-          navigate("/auth");
-          return;
-        }
-
-        // Check if the user has a client ID in their user metadata
-        const clientId = user.user.user_metadata?.client_id;
-        if (!clientId) {
-          console.error("No client ID found in user metadata");
-          toast.error("Client ID not found. Please contact support.");
-          return;
-        }
-
-        // Check if the client has already completed the setup
-        const { data: clientData, error: clientError } = await supabase
-          .from("clients")
-          .select("status")
-          .eq("id", clientId)
-          .single();
-
-        if (clientError) {
-          console.error("Error fetching client data:", clientError);
-          toast.error("Failed to load client data. Please contact support.");
-          return;
-        }
-
-        if (clientData?.status === "active") {
-          setSetupComplete(true);
-          navigate("/client/view");
-        }
-      } catch (error) {
-        console.error("Error during setup check:", error);
-        toast.error("An unexpected error occurred. Please contact support.");
-      } finally {
-        setIsLoading(false);
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session && !clientId) {
+        console.log("User already logged in, redirecting to client dashboard");
+        // If user is already logged in and not in the setup process, redirect to client dashboard
+        navigate("/client/view", { replace: true });
       }
     };
+    
+    checkSession();
+  }, [navigate, clientId]);
 
-    checkSetup();
-  }, [navigate]);
-
-  const handleCompleteSetup = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     setIsLoading(true);
+    
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user?.user?.id) {
-        navigate("/auth");
-        return;
-      }
-
-      const clientId = user.user.user_metadata?.client_id;
-      if (!clientId) {
-        console.error("No client ID found in user metadata");
-        toast.error("Client ID not found. Please contact support.");
-        return;
-      }
-
-      // Update the client status to 'active'
-      const { error: updateError } = await supabase
-        .from("clients")
-        .update({ status: "active" })
-        .eq("id", clientId);
-
-      if (updateError) {
-        console.error("Error updating client status:", updateError);
-        toast.error("Failed to complete setup. Please contact support.");
-        return;
-      }
-
-      // Log client activity
-      try {
-        await logClientActivity("client_setup_completed", "completed the initial setup");
-      } catch (logError) {
-        console.error("Error logging activity:", logError);
-      }
-
+      await createClientAccount(clientId, password, confirmPassword, logClientActivity);
+      
       setSetupComplete(true);
-      navigate("/client/view");
-      toast.success("Setup complete! Redirecting to your dashboard.");
+      
+      // Force a longer delay to ensure auth state updates completely
+      setTimeout(() => {
+        // Explicitly redirect to client dashboard after successful setup and sign in
+        navigate("/client/view", { replace: true });
+      }, 1500);
+      
     } catch (error) {
-      console.error("Error completing setup:", error);
-      toast.error("An unexpected error occurred. Please contact support.");
-    } finally {
       setIsLoading(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-gray-500">Checking setup status...</p>
-      </div>
-    );
-  }
-
-  if (setupComplete) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-gray-500">Redirecting to your dashboard...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-      <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-4">
-          Welcome to Welcome.Chat!
-        </h1>
-        <p className="text-gray-700 mb-6">
-          Thank you for signing up. Please complete the setup to access your
-          dashboard.
-        </p>
-        <button
-          onClick={handleCompleteSetup}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 font-medium transition-colors w-full"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : null}
-          Complete Setup
-        </button>
-      </div>
-    </div>
+    <SetupForm
+      isLoading={isLoading}
+      setupComplete={setupComplete}
+      password={password}
+      confirmPassword={confirmPassword}
+      setPassword={setPassword}
+      setConfirmPassword={setConfirmPassword}
+      handleSubmit={handleSubmit}
+    />
   );
 };
 

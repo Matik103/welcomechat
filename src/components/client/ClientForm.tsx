@@ -26,9 +26,8 @@ const clientFormSchema = z.object({
 export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientView = false }: ClientFormProps) => {
   const [isSendingInvitation, setIsSendingInvitation] = useState(false);
   const { sendInvitation } = useClientData(initialData?.id);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { register, handleSubmit, formState: { errors, isDirty }, setValue, reset } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || "",
@@ -39,24 +38,11 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
 
   useEffect(() => {
     if (initialData) {
-      reset({
-        client_name: initialData.client_name,
-        email: initialData.email,
-        agent_name: initialData.agent_name,
-      });
+      setValue("client_name", initialData.client_name);
+      setValue("email", initialData.email);
+      setValue("agent_name", initialData.agent_name);
     }
-  }, [initialData, reset]);
-
-  const handleFormSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
-    try {
-      setIsSubmitting(true);
-      await onSubmit(data);
-    } catch (error) {
-      console.error("Error submitting form:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  }, [initialData, setValue]);
 
   const handleSendInvitation = async () => {
     if (!initialData?.id) {
@@ -74,7 +60,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name
@@ -119,11 +105,8 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">
-        <Button 
-          type="submit" 
-          disabled={isLoading || isSubmitting || (!isDirty && isClientView)}
-        >
-          {(isLoading || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button type="submit" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isClientView 
             ? "Save Changes"
             : initialData 

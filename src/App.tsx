@@ -1,4 +1,3 @@
-
 import { Toaster } from "sonner";
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
@@ -16,7 +15,6 @@ import ClientDashboard from "@/pages/client/Dashboard";
 import ClientSetup from "@/pages/client/Setup";
 import { useEffect, useState } from "react";
 import AccountSettings from "@/pages/client/AccountSettings";
-import ProfileSettings from "@/pages/client/ProfileSettings";
 
 function App() {
   const { isLoading, user, userRole } = useAuth();
@@ -110,9 +108,6 @@ function App() {
         } />
         <Route path="/client/account-settings" element={
           userRole === 'admin' ? <Navigate to="/" replace /> : <AccountSettings />
-        } />
-        <Route path="/client/profile-settings" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <ProfileSettings />
         } />
         
         <Route path="*" element={<Navigate to="/" replace />} />

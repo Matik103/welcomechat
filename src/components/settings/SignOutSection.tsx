@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +10,9 @@ import { useClientActivity } from "@/hooks/useClientActivity";
 import { checkAndRefreshAuth } from "@/services/authService";
 
 export const SignOutSection = () => {
-  const { user, signOut } = useAuth();
-  const { logClientActivity } = useClientActivity();
   const navigate = useNavigate();
+  const { signOut, user } = useAuth();
+  const { logClientActivity } = useClientActivity(user?.user_metadata?.client_id);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {

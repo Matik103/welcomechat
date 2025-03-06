@@ -3,11 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { WebsiteUrl } from "@/types/client";
-import { useState } from "react";
 
 export const useWebsiteUrls = (clientId: string | undefined) => {
   const queryClient = useQueryClient();
-  const [isValidating, setIsValidating] = useState(false);
   
   const query = useQuery({
     queryKey: ["websiteUrls", clientId],
@@ -26,41 +24,11 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
     enabled: !!clientId,
   });
 
-  const validateWebsiteUrl = async (url: string): Promise<{ success: boolean; message?: string; crawlable?: boolean; url?: string; error?: string }> => {
-    setIsValidating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("validate-url", {
-        body: {
-          url,
-          type: "website"
-        }
-      });
-      
-      if (error) {
-        console.error("Error validating website URL:", error);
-        return { success: false, error: error.message };
-      }
-      
-      console.log("Validation response:", data);
-      return data;
-    } catch (error: any) {
-      console.error("Exception during website URL validation:", error);
-      return { success: false, error: error.message || "Failed to validate website URL" };
-    } finally {
-      setIsValidating(false);
-    }
-  };
-
   const checkWebsiteAccess = async (url: string) => {
     try {
-      const validationResult = await validateWebsiteUrl(url);
-      
-      if (!validationResult.success) {
-        throw new Error(validationResult.error || "URL validation failed");
-      }
-      
-      if (validationResult.crawlable === false) {
-        toast.warning("Website may have crawling restrictions, but we'll try our best", { duration: 5000 });
+      // Make sure the URL is properly formatted
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
       }
       
       // Check if the URL exists in the AI agent table
@@ -68,7 +36,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
         .from("ai_agent")
         .select("id")
         .eq("metadata->>client_id", clientId)
-        .eq("metadata->>url", validationResult.url)
+        .eq("metadata->>url", url)
         .maybeSingle();
 
       if (existingData) {
@@ -79,7 +47,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
           .eq("id", existingData.id);
       }
 
-      return validationResult.url || url;
+      return true;
     } catch (error: any) {
       // Log error to database
       await supabase.from("error_logs").insert({
@@ -97,14 +65,19 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
     mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
       if (!clientId) throw new Error("Client ID is required");
       
+      // Make sure the URL is properly formatted
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      
       // Validate website accessibility
-      const validatedUrl = await checkWebsiteAccess(url);
+      await checkWebsiteAccess(url);
       
       const { data, error } = await supabase
         .from("website_urls")
         .insert({
           client_id: clientId,
-          url: validatedUrl,
+          url,
           refresh_rate
         })
         .select('id, url, refresh_rate')
@@ -148,7 +121,6 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
     addWebsiteUrlMutation,
     deleteWebsiteUrlMutation,
     isLoading: query.isLoading,
-    isError: query.isError,
-    isValidating
+    isError: query.isError
   };
 };
