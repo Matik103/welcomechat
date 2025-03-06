@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
@@ -19,6 +19,16 @@ export interface ClientDashboardProps {
 const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
+  
+  // Set a timeout to ensure we don't get stuck in a loading state
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setLoadTimeout(true);
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, []);
   
   // Redirect if not authenticated
   useEffect(() => {
@@ -61,6 +71,18 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     );
   }
 
+  // Show fallback UI if we've been loading for too long
+  if ((isLoadingStats || isLoadingErrorLogs || isLoadingQueries) && !loadTimeout) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-2" />
+          <p className="text-sm text-gray-500">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleRefresh = () => {
     window.location.reload();
   };
@@ -85,7 +107,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <InteractionStats 
             stats={stats} 
-            isLoading={isLoadingStats} 
+            isLoading={isLoadingStats && !loadTimeout} 
           />
         </div>
 
@@ -94,13 +116,13 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           {/* Error logs card */}
           <ErrorLogList 
             logs={errorLogs as ErrorLog[]} 
-            isLoading={isLoadingErrorLogs} 
+            isLoading={isLoadingErrorLogs && !loadTimeout} 
           />
 
           {/* Common queries card */}
           <QueryList 
             queries={queries as QueryItem[]} 
-            isLoading={isLoadingQueries} 
+            isLoading={isLoadingQueries && !loadTimeout} 
           />
         </div>
       </div>
