@@ -50,7 +50,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
           
         if (robotsResponse) {
           console.log("robots.txt exists, website crawling may be restricted");
-          // We don't block here, just log - could be enhanced to parse robots.txt
+          toast.warning("This website has robots.txt - some content may be restricted from crawling");
         }
       } catch (robotsError) {
         console.warn("Error checking robots.txt:", robotsError);
@@ -82,6 +82,9 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
         message: error.message,
         status: "error"
       });
+      
+      // Immediately notify the user
+      toast.error(`Website access error: ${error.message}`);
       
       throw error;
     }

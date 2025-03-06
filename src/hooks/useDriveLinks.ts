@@ -94,6 +94,9 @@ export function useDriveLinks(clientId: string | undefined) {
         });
       }
       
+      // Immediately notify the user of the error
+      toast.error(`Google Drive access error: ${error.message}`);
+      
       throw error;
     }
   };
