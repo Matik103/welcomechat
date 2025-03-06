@@ -16,7 +16,7 @@ import ClientSetup from "@/pages/client/Setup";
 import { useEffect, useState } from "react";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
-import EditInfo from "@/pages/client/EditInfo";
+import EditClientInfo from "@/pages/client/EditClientInfo";
 
 function App() {
   const { isLoading, user, userRole } = useAuth();
@@ -104,7 +104,7 @@ function App() {
           userRole === 'admin' ? <Navigate to="/" replace /> : <ResourceSettings />
         } />
         <Route path="/client/edit-info" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <EditInfo />
+          userRole === 'admin' ? <Navigate to="/" replace /> : <EditClientInfo />
         } />
         
         <Route path="*" element={<Navigate to="/" replace />} />

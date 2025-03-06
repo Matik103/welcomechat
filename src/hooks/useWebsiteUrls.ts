@@ -32,7 +32,6 @@ export function useWebsiteUrls(clientId: string | undefined) {
   const addWebsiteUrl = async (input: { url: string; refresh_rate: number }): Promise<WebsiteUrl> => {
     if (!clientId) {
       console.error("Client ID is missing");
-      toast.error("Unable to add URL: Client ID is missing. Please refresh the page or contact support.");
       throw new Error("Client ID is required");
     }
     
