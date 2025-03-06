@@ -1,3 +1,4 @@
+
 import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { DriveLinks } from "@/components/client/DriveLinks";
@@ -23,6 +24,8 @@ export const ClientResourceSections = ({
     return null;
   }
 
+  console.log("ClientResourceSections rendering with clientId:", clientId);
+
   const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation, isLoading: isDriveLoading } = useDriveLinks(clientId);
   const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation, isLoading: isUrlsLoading } = useWebsiteUrls(clientId);
 
@@ -36,8 +39,11 @@ export const ClientResourceSections = ({
         return;
       }
       
-      console.log("Adding drive link:", data);
-      await addDriveLinkMutation.mutateAsync(data);
+      console.log("Adding drive link:", data, "for client:", clientId);
+      await addDriveLinkMutation.mutateAsync({
+        link: data.link,
+        refresh_rate: data.refresh_rate
+      });
       
       if (isClientView) {
         try {
@@ -63,8 +69,11 @@ export const ClientResourceSections = ({
         return;
       }
       
-      console.log("Adding website URL:", data);
-      await addWebsiteUrlMutation.mutateAsync(data);
+      console.log("Adding website URL:", data, "for client:", clientId);
+      await addWebsiteUrlMutation.mutateAsync({
+        url: data.url,
+        refresh_rate: data.refresh_rate
+      });
       
       if (isClientView) {
         try {

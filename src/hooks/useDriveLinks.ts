@@ -50,6 +50,7 @@ export function useDriveLinks(clientId: string | undefined) {
     try {
       // Extract file ID from Google Drive link
       const fileId = extractDriveFileId(link);
+      console.log("Extracted file ID:", fileId);
       
       // Check if the file is publicly accessible
       const accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
@@ -104,6 +105,9 @@ export function useDriveLinks(clientId: string | undefined) {
   const addDriveLink = async (input: { link: string; refresh_rate: number }): Promise<DriveLink> => {
     if (!clientId) throw new Error("Client ID is required");
     
+    console.log("Adding drive link with client ID:", clientId);
+    console.log("Input data:", input);
+    
     // Validate Google Drive link accessibility
     await checkDriveLinkAccess(input.link);
     
@@ -117,8 +121,13 @@ export function useDriveLinks(clientId: string | undefined) {
       })
       .select()
       .single();
+    
+    console.log("Supabase response:", { data, error });
       
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase error:", error);
+      throw error;
+    }
     if (!data) throw new Error("Failed to create drive link");
     
     return data as DriveLink;
@@ -140,6 +149,7 @@ export function useDriveLinks(clientId: string | undefined) {
       toast.success("Drive link added successfully");
     },
     onError: (error: Error) => {
+      console.error("Drive link mutation error:", error);
       toast.error(`Error adding drive link: ${error.message}`);
     }
   });

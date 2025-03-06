@@ -15,6 +15,8 @@ const ResourceSettings = () => {
   const { client, isLoadingClient, error } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
 
+  console.log("ResourceSettings: client ID from auth:", clientId);
+
   if (isLoadingClient) {
     return (
       <div className="flex items-center justify-center min-h-screen">
