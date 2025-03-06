@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Lock, Unlock, AlertTriangle } from "lucide-react";
 import { DriveLink } from "@/types/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DriveLinksProps {
   driveLinks: DriveLink[];
@@ -85,7 +86,35 @@ export const DriveLinks = ({
         <div className="space-y-2">
           {driveLinks.map((link) => (
             <div key={link.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
-              <span className="flex-1 truncate text-sm">{link.link}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex-shrink-0 ml-1 mr-1">
+                      {link.access_status === 'restricted' ? (
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                      ) : link.access_status === 'accessible' ? (
+                        <Unlock className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Lock className="h-4 w-4 text-gray-400" />
+                      )}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {link.access_status === 'restricted'
+                      ? "This file appears to be restricted. Please check sharing settings."
+                      : link.access_status === 'accessible'
+                      ? "This file is publicly accessible"
+                      : "Access status unknown"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span 
+                className={`flex-1 truncate text-sm ${
+                  link.access_status === 'restricted' ? 'text-amber-700' : ''
+                }`}
+              >
+                {link.link}
+              </span>
               <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
               <Button
                 variant="ghost"
@@ -135,6 +164,9 @@ export const DriveLinks = ({
                 onChange={(e) => setNewLink(e.target.value)}
                 required
               />
+              <p className="text-xs text-gray-500">
+                Make sure the link is publicly accessible. Anyone with the link should be able to view it.
+              </p>
             </div>
             
             <div className="space-y-2">
