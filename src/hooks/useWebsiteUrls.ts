@@ -47,18 +47,6 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
           .eq("id", existingData.id);
       }
 
-      // Attempt to fetch the website
-      const response = await fetch(url, {
-        method: "HEAD",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; Lovable/1.0; +https://lovable.dev)"
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error("Website is not publicly accessible");
-      }
-
       return true;
     } catch (error: any) {
       // Log error to database
@@ -115,6 +103,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
         .delete()
         .eq("id", urlId);
       if (error) throw error;
+      return urlId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });

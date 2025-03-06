@@ -5,6 +5,7 @@ import { DriveLinks } from "@/components/client/DriveLinks";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
@@ -21,56 +22,76 @@ export const ClientResourceSections = ({
   const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(clientId);
 
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
-    await addDriveLinkMutation.mutateAsync(data);
-    
-    // Log drive link addition activity
-    if (isClientView) {
-      await logClientActivity(
-        "drive_link_added", 
-        "added a Google Drive link", 
-        { link: data.link, refresh_rate: data.refresh_rate }
-      );
+    try {
+      await addDriveLinkMutation.mutateAsync(data);
+      
+      // Log drive link addition activity
+      if (isClientView) {
+        await logClientActivity(
+          "drive_link_added", 
+          "added a Google Drive link", 
+          { link: data.link, refresh_rate: data.refresh_rate }
+        );
+      }
+    } catch (error) {
+      console.error("Error adding drive link:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to add Google Drive link");
     }
   };
 
   const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
-    await addWebsiteUrlMutation.mutateAsync(data);
-    
-    // Log website URL addition activity
-    if (isClientView) {
-      await logClientActivity(
-        "website_url_added", 
-        "added a website URL", 
-        { url: data.url, refresh_rate: data.refresh_rate }
-      );
+    try {
+      await addWebsiteUrlMutation.mutateAsync(data);
+      
+      // Log website URL addition activity
+      if (isClientView) {
+        await logClientActivity(
+          "website_url_added", 
+          "added a website URL", 
+          { url: data.url, refresh_rate: data.refresh_rate }
+        );
+      }
+    } catch (error) {
+      console.error("Error adding website URL:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to add website URL");
     }
   };
 
   const handleDeleteDriveLink = async (linkId: number) => {
-    const linkToDelete = driveLinks.find(link => link.id === linkId);
-    await deleteDriveLinkMutation.mutate(linkId);
-    
-    // Log drive link deletion activity
-    if (isClientView && linkToDelete) {
-      await logClientActivity(
-        "drive_link_deleted", 
-        "removed a Google Drive link", 
-        { link: linkToDelete.link }
-      );
+    try {
+      const linkToDelete = driveLinks.find(link => link.id === linkId);
+      await deleteDriveLinkMutation.mutateAsync(linkId);
+      
+      // Log drive link deletion activity
+      if (isClientView && linkToDelete) {
+        await logClientActivity(
+          "drive_link_deleted", 
+          "removed a Google Drive link", 
+          { link: linkToDelete.link }
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting drive link:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to delete Google Drive link");
     }
   };
 
   const handleDeleteWebsiteUrl = async (urlId: number) => {
-    const urlToDelete = websiteUrls.find(url => url.id === urlId);
-    await deleteWebsiteUrlMutation.mutate(urlId);
-    
-    // Log website URL deletion activity
-    if (isClientView && urlToDelete) {
-      await logClientActivity(
-        "url_deleted", 
-        "removed a website URL", 
-        { url: urlToDelete.url }
-      );
+    try {
+      const urlToDelete = websiteUrls.find(url => url.id === urlId);
+      await deleteWebsiteUrlMutation.mutateAsync(urlId);
+      
+      // Log website URL deletion activity
+      if (isClientView && urlToDelete) {
+        await logClientActivity(
+          "url_deleted", 
+          "removed a website URL", 
+          { url: urlToDelete.url }
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting website URL:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to delete website URL");
     }
   };
 

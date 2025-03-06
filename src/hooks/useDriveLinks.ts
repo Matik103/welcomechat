@@ -61,27 +61,17 @@ export function useDriveLinks(clientId: string | undefined) {
           .eq('id', existingData.id);
       }
 
-      // Check if the file is publicly accessible using direct file URL
-      const response = await fetch(`https://drive.google.com/uc?export=view&id=${fileId}`, {
-        method: "HEAD",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; Lovable/1.0; +https://lovable.dev)"
-        }
-      });
-      
-      if (response.status !== 200) {
-        throw new Error("Google Drive file is not publicly accessible");
-      }
-
       return true;
     } catch (error: any) {
       // Log error to database
-      await supabase.from("error_logs").insert({
-        client_id: clientId,
-        error_type: "drive_link_access",
-        message: error.message,
-        status: "error"
-      });
+      if (clientId) {
+        await supabase.from("error_logs").insert({
+          client_id: clientId,
+          error_type: "drive_link_access",
+          message: error.message,
+          status: "error"
+        });
+      }
       
       throw error;
     }
@@ -110,12 +100,13 @@ export function useDriveLinks(clientId: string | undefined) {
     return data as DriveLink;
   };
 
-  const deleteDriveLink = async (linkId: number): Promise<void> => {
+  const deleteDriveLink = async (linkId: number): Promise<number> => {
     const { error } = await supabase
       .from("google_drive_links")
       .delete()
       .eq("id", linkId);
     if (error) throw error;
+    return linkId;
   };
 
   const addDriveLinkMutation = useMutation({

@@ -24,6 +24,7 @@ export const WebsiteUrls = ({
   const [newUrl, setNewUrl] = useState("");
   const [newRefreshRate, setNewRefreshRate] = useState(30);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +32,7 @@ export const WebsiteUrls = ({
     if (!newUrl) return;
     
     try {
+      setIsSubmitting(true);
       await onAdd({
         url: newUrl,
         refresh_rate: newRefreshRate,
@@ -41,13 +43,15 @@ export const WebsiteUrls = ({
       setShowNewForm(false);
     } catch (error) {
       console.error("Error adding URL:", error);
+    } finally {
+      setIsSubmitting(true);
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     setDeletingId(id);
     try {
-      onDelete(id);
+      await onDelete(id);
     } catch (error) {
       console.error("Error deleting URL:", error);
     } finally {
@@ -111,9 +115,9 @@ export const WebsiteUrls = ({
               <div className="flex items-center gap-2 pt-6">
                 <Button 
                   onClick={handleAdd}
-                  disabled={isAddLoading}
+                  disabled={isAddLoading || isSubmitting}
                 >
-                  {isAddLoading ? (
+                  {(isAddLoading || isSubmitting) ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     "Save"

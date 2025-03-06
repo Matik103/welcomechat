@@ -23,20 +23,40 @@ export const DriveLinks = ({
   const [showNewForm, setShowNewForm] = useState(false);
   const [newLink, setNewLink] = useState("");
   const [newRefreshRate, setNewRefreshRate] = useState(30);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!newLink) return;
     
-    await onAdd({
-      link: newLink,
-      refresh_rate: newRefreshRate,
-    });
-    
-    setNewLink("");
-    setNewRefreshRate(30);
-    setShowNewForm(false);
+    try {
+      setIsSubmitting(true);
+      await onAdd({
+        link: newLink,
+        refresh_rate: newRefreshRate,
+      });
+      
+      setNewLink("");
+      setNewRefreshRate(30);
+      setShowNewForm(false);
+    } catch (error) {
+      console.error("Error adding link:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    setDeletingId(id);
+    try {
+      await onDelete(id);
+    } catch (error) {
+      console.error("Error deleting link:", error);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -48,10 +68,10 @@ export const DriveLinks = ({
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => onDelete(link.id)}
-            disabled={isDeleteLoading}
+            onClick={() => handleDelete(link.id)}
+            disabled={isDeleteLoading || deletingId === link.id}
           >
-            {isDeleteLoading ? (
+            {(isDeleteLoading && deletingId === link.id) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               "Delete"
@@ -95,9 +115,9 @@ export const DriveLinks = ({
               <div className="flex items-center gap-2 pt-6">
                 <Button 
                   onClick={handleAdd}
-                  disabled={isAddLoading}
+                  disabled={isAddLoading || isSubmitting}
                 >
-                  {isAddLoading ? (
+                  {(isAddLoading || isSubmitting) ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     "Add"

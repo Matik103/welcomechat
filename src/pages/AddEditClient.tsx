@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ClientDetails } from "@/components/client/ClientDetails";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
 import { useClientActivity } from "@/hooks/useClientActivity";
+import { toast } from "sonner";
 
 interface AddEditClientProps {
   isClientView?: boolean;
@@ -19,8 +20,13 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   // If in client view, use the client ID from user metadata
   const clientId = isClientView ? user?.user_metadata?.client_id : id;
   
-  const { client, isLoadingClient } = useClientData(clientId);
+  const { client, isLoadingClient, error } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
+
+  if (error) {
+    toast.error("Failed to load client data");
+    console.error("Error loading client data:", error);
+  }
 
   const handleBack = () => {
     if (isClientView) {

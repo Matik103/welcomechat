@@ -5,6 +5,7 @@ import { ClientForm } from "@/components/client/ClientForm";
 import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -39,13 +40,15 @@ export const ClientDetails = ({
         );
       }
       
-      if (isClientView) {
-        navigate("/client/view");
-      } else {
+      toast.success("Client information saved successfully");
+      
+      // Only navigate away if not in client view
+      if (!isClientView) {
         navigate("/admin/clients");
       }
     } catch (error) {
       console.error("Error submitting client form:", error);
+      toast.error("Failed to save client information");
     }
   };
 
