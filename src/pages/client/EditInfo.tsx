@@ -5,170 +5,90 @@ import { useClientData } from "@/hooks/useClientData";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
+import { ClientDetails } from "@/components/client/ClientDetails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Loader2, Database, User, ArrowLeft } from "lucide-react";
+import { Loader2, Database, User, ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { WebsiteUrls } from "@/components/client/WebsiteUrls";
-import { DriveLinks } from "@/components/client/DriveLinks";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ClientForm } from "@/components/client/ClientForm";
-import { getCurrentUser } from "@/services/authService";
-import { supabase } from "@/integrations/supabase/client";
+import { Label } from "@/components/ui/label";
 
 const EditInfo = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
-  const [isLoadingId, setIsLoadingId] = useState(true);
+  const { client, isLoadingClient, error } = useClientData(clientId);
+  const { logClientActivity } = useClientActivity(clientId);
   
-  // Load user metadata directly from Supabase to ensure we have the latest data
+  // Set client ID from user metadata when available
   useEffect(() => {
-    const fetchClientId = async () => {
-      setIsLoadingId(true);
-      try {
-        // Check if client_id is in user metadata
-        if (user?.user_metadata?.client_id) {
-          console.log("Found client ID in user metadata:", user.user_metadata.client_id);
-          setClientId(user.user_metadata.client_id);
-        } else {
-          // If not in metadata, query user_roles table
-          console.log("No client ID in user metadata, checking user_roles table");
-          const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('client_id')
-            .eq('user_id', user?.id)
-            .eq('role', 'client')
-            .maybeSingle();
-          
-          if (roleError) {
-            console.error("Error fetching client role:", roleError);
-            throw roleError;
-          }
-          
-          if (roleData?.client_id) {
-            console.log("Found client ID in user_roles:", roleData.client_id);
-            setClientId(roleData.client_id);
-            
-            // Update user metadata for future use
-            await supabase.auth.updateUser({
-              data: { client_id: roleData.client_id }
-            });
-          } else {
-            console.error("No client ID found in user_roles");
-            toast.error("No client ID found. Please contact support.");
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching client ID:", error);
-        toast.error("Error fetching client information. Please try again.");
-      } finally {
-        setIsLoadingId(false);
-      }
-    };
-    
-    if (user) {
-      fetchClientId();
-    } else {
-      setIsLoadingId(false);
+    if (user?.user_metadata?.client_id) {
+      setClientId(user.user_metadata.client_id);
     }
   }, [user]);
   
-  const { client, isLoadingClient, error, clientMutation } = useClientData(clientId);
-  const { logClientActivity } = useClientActivity(clientId);
-  
-  console.log("EditInfo: client ID from auth:", clientId);
-  
+  // Website URL state and hooks
+  const [newUrl, setNewUrl] = useState("");
+  const [urlRefreshRate, setUrlRefreshRate] = useState(30);
   const { 
     websiteUrls, 
     addWebsiteUrlMutation, 
     deleteWebsiteUrlMutation, 
-    isLoading: isUrlsLoading,
-    refetchWebsiteUrls
+    isLoading: isUrlsLoading 
   } = useWebsiteUrls(clientId);
 
+  // Drive link state and hooks
+  const [newDriveLink, setNewDriveLink] = useState("");
+  const [driveLinkRefreshRate, setDriveLinkRefreshRate] = useState(30);
   const { 
     driveLinks, 
     addDriveLinkMutation, 
     deleteDriveLinkMutation, 
-    isLoading: isDriveLinksLoading,
-    refetchDriveLinks
+    isLoading: isDriveLinksLoading 
   } = useDriveLinks(clientId);
 
+  console.log("EditInfo: client ID from auth:", clientId);
   console.log("Website URLs:", websiteUrls);
   console.log("Drive Links:", driveLinks);
 
-  const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
-    try {
-      if (!clientId) {
-        toast.error("Client ID is missing. Please try refreshing the page.");
-        return;
-      }
-      
-      await clientMutation.mutateAsync(data);
-      
-      if (clientId) {
-        try {
-          await logClientActivity(
-            "client_updated", 
-            "updated their client information",
-            { 
-              updated_fields: Object.keys(data).filter(key => 
-                client && data[key as keyof typeof data] !== client[key as keyof typeof client]
-              )
-            }
-          );
-        } catch (logError) {
-          console.error("Error logging activity:", logError);
-          // Continue even if logging fails
-        }
-      }
-      
-      toast.success("Client information saved successfully");
-    } catch (error) {
-      console.error("Error submitting client form:", error);
-      toast.error("Failed to save client information");
+  // Handle adding a website URL
+  const handleAddUrl = async () => {
+    if (!newUrl) {
+      toast.error("Please enter a website URL");
+      return;
     }
-  };
 
-  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
+    if (!clientId) {
+      toast.error("Client ID is missing. Please try refreshing the page.");
+      return;
+    }
+
     try {
-      if (!clientId) {
-        toast.error("Client ID is missing. Please try refreshing the page.");
-        return;
-      }
+      await addWebsiteUrlMutation.mutateAsync({
+        url: newUrl,
+        refresh_rate: urlRefreshRate
+      });
       
-      await addWebsiteUrlMutation.mutateAsync(data);
+      await logClientActivity(
+        "website_url_added", 
+        "added a website URL", 
+        { url: newUrl }
+      );
       
-      // Explicitly refetch to ensure UI is updated
-      await refetchWebsiteUrls();
-      
-      if (clientId) {
-        await logClientActivity(
-          "website_url_added", 
-          "added a website URL", 
-          { url: data.url }
-        );
-      }
+      setNewUrl("");
+      setUrlRefreshRate(30);
     } catch (error) {
       console.error("Error adding URL:", error);
-      throw error;
     }
   };
 
+  // Handle deleting a website URL
   const handleDeleteUrl = async (id: number) => {
     try {
-      if (!clientId) {
-        toast.error("Client ID is missing. Please try refreshing the page.");
-        return;
-      }
-      
       const urlToDelete = websiteUrls.find(url => url.id === id);
       await deleteWebsiteUrlMutation.mutateAsync(id);
       
-      // Explicitly refetch to ensure UI is updated
-      await refetchWebsiteUrls();
-      
-      if (clientId && urlToDelete) {
+      if (urlToDelete) {
         await logClientActivity(
           "url_deleted", 
           "removed a website URL", 
@@ -177,49 +97,52 @@ const EditInfo = () => {
       }
     } catch (error) {
       console.error("Error deleting URL:", error);
-      throw error;
     }
   };
 
-  const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
+  // Handle adding a drive link
+  const handleAddDriveLink = async () => {
+    if (!newDriveLink) {
+      toast.error("Please enter a Google Drive link");
+      return;
+    }
+
+    if (!clientId) {
+      toast.error("Client ID is missing. Please try refreshing the page.");
+      return;
+    }
+
+    if (!newDriveLink.includes('drive.google.com') && !newDriveLink.includes('docs.google.com')) {
+      toast.error("Please enter a valid Google Drive link");
+      return;
+    }
+
     try {
-      if (!clientId) {
-        toast.error("Client ID is missing. Please try refreshing the page.");
-        return;
-      }
+      await addDriveLinkMutation.mutateAsync({
+        link: newDriveLink,
+        refresh_rate: driveLinkRefreshRate
+      });
       
-      await addDriveLinkMutation.mutateAsync(data);
+      await logClientActivity(
+        "drive_link_added", 
+        "added a Google Drive link", 
+        { link: newDriveLink }
+      );
       
-      // Explicitly refetch to ensure UI is updated
-      await refetchDriveLinks();
-      
-      if (clientId) {
-        await logClientActivity(
-          "drive_link_added", 
-          "added a Google Drive link", 
-          { link: data.link }
-        );
-      }
+      setNewDriveLink("");
+      setDriveLinkRefreshRate(30);
     } catch (error) {
       console.error("Error adding drive link:", error);
-      throw error;
     }
   };
 
+  // Handle deleting a drive link
   const handleDeleteDriveLink = async (id: number) => {
     try {
-      if (!clientId) {
-        toast.error("Client ID is missing. Please try refreshing the page.");
-        return;
-      }
-      
       const linkToDelete = driveLinks.find(link => link.id === id);
       await deleteDriveLinkMutation.mutateAsync(id);
       
-      // Explicitly refetch to ensure UI is updated
-      await refetchDriveLinks();
-      
-      if (clientId && linkToDelete) {
+      if (linkToDelete) {
         await logClientActivity(
           "drive_link_deleted", 
           "removed a Google Drive link", 
@@ -228,32 +151,13 @@ const EditInfo = () => {
       }
     } catch (error) {
       console.error("Error deleting drive link:", error);
-      throw error;
     }
   };
 
-  if (isLoadingId || isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
+  if (isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!clientId) {
-    return (
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <Card className="bg-red-50 border-red-200">
-          <CardContent className="pt-6">
-            <p className="text-red-700">Unable to find your client ID. Please contact support or try signing out and signing back in.</p>
-            <Button 
-              onClick={() => window.location.reload()} 
-              className="mt-4 mr-2"
-            >
-              Refresh Page
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     );
   }
@@ -292,11 +196,11 @@ const EditInfo = () => {
             <CardTitle>Client Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <ClientForm 
-              initialData={client}
-              onSubmit={handleSubmit}
-              isLoading={clientMutation.isPending}
+            <ClientDetails 
+              client={client} 
+              clientId={clientId} 
               isClientView={true}
+              logClientActivity={logClientActivity}
             />
           </CardContent>
         </Card>
@@ -307,13 +211,71 @@ const EditInfo = () => {
             <CardTitle>Website URLs</CardTitle>
           </CardHeader>
           <CardContent>
-            <WebsiteUrls
-              urls={websiteUrls}
-              onAdd={handleAddUrl}
-              onDelete={handleDeleteUrl}
-              isAddLoading={addWebsiteUrlMutation.isPending}
-              isDeleteLoading={deleteWebsiteUrlMutation.isPending}
-            />
+            <div className="space-y-6">
+              {/* List of existing website URLs */}
+              {websiteUrls.length > 0 ? (
+                <div className="space-y-2">
+                  {websiteUrls.map((url) => (
+                    <div key={url.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <span className="flex-1 truncate text-sm">{url.url}</span>
+                      <span className="text-sm text-gray-500 whitespace-nowrap">({url.refresh_rate} days)</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteUrl(url.id)}
+                        disabled={deleteWebsiteUrlMutation.isPending}
+                        className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 italic py-4">No website URLs added yet.</div>
+              )}
+
+              {/* Form to add new website URL */}
+              <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+                <h3 className="text-sm font-medium mb-3">Add Website URL</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="website-url">Website URL</Label>
+                    <Input
+                      id="website-url"
+                      type="url"
+                      placeholder="https://example.com"
+                      value={newUrl}
+                      onChange={(e) => setNewUrl(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="url-refresh-rate">Refresh Rate (days)</Label>
+                    <Input
+                      id="url-refresh-rate"
+                      type="number"
+                      min="1"
+                      value={urlRefreshRate}
+                      onChange={(e) => setUrlRefreshRate(parseInt(e.target.value) || 30)}
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={handleAddUrl}
+                    disabled={addWebsiteUrlMutation.isPending || !newUrl || !clientId}
+                    className="w-full"
+                  >
+                    {addWebsiteUrlMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
+                    Add URL
+                  </Button>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -323,13 +285,83 @@ const EditInfo = () => {
             <CardTitle>Google Drive Links</CardTitle>
           </CardHeader>
           <CardContent>
-            <DriveLinks
-              driveLinks={driveLinks}
-              onAdd={handleAddDriveLink}
-              onDelete={handleDeleteDriveLink}
-              isAddLoading={addDriveLinkMutation.isPending}
-              isDeleteLoading={deleteDriveLinkMutation.isPending}
-            />
+            <div className="space-y-6">
+              {/* List of existing drive links */}
+              {driveLinks.length > 0 ? (
+                <div className="space-y-2">
+                  {driveLinks.map((link) => (
+                    <div 
+                      key={link.id} 
+                      className={`flex items-center gap-2 p-3 rounded-md border ${
+                        link.access_status === "restricted" 
+                          ? "bg-amber-50 border-amber-200" 
+                          : "bg-gray-50 border-gray-200"
+                      }`}
+                    >
+                      <span className="flex-1 truncate text-sm">{link.link}</span>
+                      {link.access_status === "restricted" && (
+                        <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full whitespace-nowrap">
+                          Restricted
+                        </span>
+                      )}
+                      <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteDriveLink(link.id)}
+                        disabled={deleteDriveLinkMutation.isPending}
+                        className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 italic py-4">No Google Drive links added yet.</div>
+              )}
+
+              {/* Form to add new drive link */}
+              <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+                <h3 className="text-sm font-medium mb-3">Add Google Drive Link</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="drive-link">Google Drive Link</Label>
+                    <Input
+                      id="drive-link"
+                      type="url"
+                      placeholder="https://drive.google.com/..."
+                      value={newDriveLink}
+                      onChange={(e) => setNewDriveLink(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="drive-refresh-rate">Refresh Rate (days)</Label>
+                    <Input
+                      id="drive-refresh-rate"
+                      type="number"
+                      min="1"
+                      value={driveLinkRefreshRate}
+                      onChange={(e) => setDriveLinkRefreshRate(parseInt(e.target.value) || 30)}
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={handleAddDriveLink}
+                    disabled={addDriveLinkMutation.isPending || !newDriveLink || !clientId}
+                    className="w-full"
+                  >
+                    {addDriveLinkMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
+                    Add Drive Link
+                  </Button>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

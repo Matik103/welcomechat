@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -191,19 +190,7 @@ export function useDriveLinks(clientId: string | undefined) {
   const addDriveLink = async (input: { link: string; refresh_rate: number }): Promise<DriveLink> => {
     if (!clientId) {
       console.error("Client ID is missing");
-      // Create a temporary object that matches the DriveLink structure
-      // This allows the UI to show the link temporarily even without saving to the database
-      const tempLink: DriveLink = {
-        id: Math.floor(Math.random() * -1000), // Temporary negative ID to avoid conflicts
-        client_id: "temp",
-        link: input.link,
-        refresh_rate: input.refresh_rate,
-        created_at: new Date().toISOString(),
-        access_status: "unknown"
-      };
-      
-      // Emulate success by returning a temporary object
-      return tempLink;
+      throw new Error("Client ID is required");
     }
     
     console.log("Adding drive link with client ID:", clientId);
