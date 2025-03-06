@@ -1,3 +1,4 @@
+
 import {
   BrowserRouter,
   Routes,
@@ -6,11 +7,11 @@ import {
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Auth from "./pages/Auth";
-import ClientSetup from "./pages/ClientSetup";
-import ClientView from "./pages/client/ClientView";
-import ClientEdit from "./pages/client/ClientEdit";
-import WidgetSettings from "./pages/client/WidgetSettings";
-import AdminDashboard from "./pages/admin/AdminDashboard";
+import ClientSetup from "./pages/client/Setup";
+import ClientView from "./pages/client/Dashboard";
+import ClientEdit from "./pages/client/Settings";
+import WidgetSettings from "./pages/WidgetSettings";
+import AdminDashboard from "./pages/Index";
 import AccountSettings from "@/pages/client/AccountSettings";
 
 const AdminRoute = ({ children }: { children: JSX.Element }) => {
