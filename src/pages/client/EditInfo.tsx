@@ -17,47 +17,17 @@ import { supabase } from "@/integrations/supabase/client";
 
 const EditInfo = () => {
   const { user } = useAuth();
-  const [clientId, setClientId] = useState<string | undefined>(undefined);
-  const { client, isLoadingClient, error, clientMutation } = useClientData(clientId);
+  const { 
+    client, 
+    isLoadingClient, 
+    error, 
+    clientMutation, 
+    clientId 
+  } = useClientData(undefined); // We'll resolve the ID in the hook
+  
   const { logClientActivity } = useClientActivity(clientId);
   
-  // Set client ID from user metadata when available
-  useEffect(() => {
-    const fetchClientId = async () => {
-      if (user?.user_metadata?.client_id) {
-        console.log("Using client ID from user metadata:", user.user_metadata.client_id);
-        setClientId(user.user_metadata.client_id);
-      } else if (user?.id) {
-        // Try to get client ID from user_roles table if not in metadata
-        console.log("Fetching client ID from user_roles table");
-        const { data, error } = await supabase
-          .from("user_roles")
-          .select("client_id")
-          .eq("user_id", user.id)
-          .eq("role", "client")
-          .maybeSingle();
-
-        if (data?.client_id && !error) {
-          console.log("Found client ID in user_roles:", data.client_id);
-          setClientId(data.client_id);
-          
-          // Update user metadata for future use
-          const { error: updateError } = await supabase.auth.updateUser({
-            data: { client_id: data.client_id }
-          });
-          
-          if (updateError) {
-            console.error("Failed to update user metadata:", updateError);
-          }
-        } else if (error) {
-          console.error("Error fetching client ID from user_roles:", error);
-          toast.error("Failed to load client information");
-        }
-      }
-    };
-
-    fetchClientId();
-  }, [user]);
+  console.log("EditInfo: client ID from hook:", clientId);
   
   // Website URL hooks
   const { 
@@ -76,10 +46,6 @@ const EditInfo = () => {
     isLoading: isDriveLinksLoading,
     refetchDriveLinks
   } = useDriveLinks(clientId);
-
-  console.log("EditInfo: client ID from auth:", clientId);
-  console.log("Website URLs:", websiteUrls);
-  console.log("Drive Links:", driveLinks);
 
   // Handle client form submission
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
@@ -218,7 +184,7 @@ const EditInfo = () => {
     }
   };
 
-  if (isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
+  if (isLoadingClient) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
