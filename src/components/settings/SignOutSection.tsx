@@ -24,7 +24,9 @@ export const SignOutSection = () => {
         await logClientActivity("signed_out", "signed out of their account");
       }
       
+      // Explicitly call the signOut function from AuthContext
       await signOut();
+      console.log("Sign out successful");
       toast.success("Successfully signed out");
       navigate("/auth");
     } catch (error: any) {

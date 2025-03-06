@@ -33,8 +33,12 @@ export const SecuritySection = () => {
         password: newPassword,
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Password update failed:", error.message);
+        throw error;
+      }
       
+      console.log("Password updated successfully");
       toast.success("Password updated successfully");
       setNewPassword("");
       setConfirmPassword("");
