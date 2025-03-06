@@ -4,142 +4,97 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { WebsiteUrl } from "@/types/client";
 
-export const useWebsiteUrls = (clientId: string | undefined) => {
+export function useWebsiteUrls(clientId: string | undefined) {
   const queryClient = useQueryClient();
   
   const query = useQuery({
     queryKey: ["websiteUrls", clientId],
     queryFn: async () => {
       if (!clientId) return [];
+      
+      console.log("Fetching website URLs for client:", clientId);
       const { data, error } = await supabase
         .from("website_urls")
         .select("*")
         .eq("client_id", clientId);
+        
       if (error) {
         console.error("Error fetching website URLs:", error);
         throw error;
       }
+      
+      console.log("Fetched website URLs:", data);
       return data as WebsiteUrl[];
     },
     enabled: !!clientId,
   });
 
-  const checkWebsiteAccess = async (url: string) => {
-    try {
-      // Make sure the URL is properly formatted
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'https://' + url;
-      }
-
-      // First check: Send a HEAD request to verify URL is accessible
-      const response = await fetch(url, {
-        method: 'HEAD',
-        mode: 'no-cors',
-      }).catch(error => {
-        console.error("Initial fetch error:", error);
-        throw new Error("Website appears to be inaccessible");
-      });
-
-      // Check for robots.txt
-      try {
-        const urlObj = new URL(url);
-        const robotsUrl = `${urlObj.protocol}//${urlObj.hostname}/robots.txt`;
-        
-        const robotsResponse = await fetch(robotsUrl, { mode: 'no-cors' })
-          .catch(() => null); // Ignore error if robots.txt doesn't exist
-          
-        if (robotsResponse) {
-          console.log("robots.txt exists, website crawling may be restricted");
-          toast.warning("This website has robots.txt - some content may be restricted from crawling");
-        }
-      } catch (robotsError) {
-        console.warn("Error checking robots.txt:", robotsError);
-        // Non-blocking error
-      }
-      
-      // Check if the URL exists in the AI agent table
-      const { data: existingData } = await supabase
-        .from("ai_agent")
-        .select("id")
-        .eq("metadata->>client_id", clientId)
-        .eq("metadata->>url", url)
-        .maybeSingle();
-
-      if (existingData) {
-        // Delete the old content
-        await supabase
-          .from("ai_agent")
-          .delete()
-          .eq("id", existingData.id);
-      }
-
-      return true;
-    } catch (error: any) {
-      // Log error to database
-      await supabase.from("error_logs").insert({
-        client_id: clientId,
-        error_type: "website_access",
-        message: error.message,
-        status: "error"
-      });
-      
-      // Immediately notify the user
-      toast.error(`Website access error: ${error.message}`);
-      
-      throw error;
+  const addWebsiteUrl = async (input: { url: string; refresh_rate: number }): Promise<WebsiteUrl> => {
+    if (!clientId) {
+      console.error("Client ID is missing");
+      throw new Error("Client ID is required");
     }
-  };
-
-  const addWebsiteUrlMutation = useMutation({
-    mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
-      if (!clientId) throw new Error("Client ID is required");
-      
-      // Make sure the URL is properly formatted
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'https://' + url;
-      }
-      
-      // Validate website accessibility
-      await checkWebsiteAccess(url);
-      
+    
+    console.log("Adding website URL with client ID:", clientId);
+    console.log("Input data:", input);
+    
+    // Removed the check for existing URLs to allow duplicates
+    
+    // Insert the website URL
+    try {
       const { data, error } = await supabase
         .from("website_urls")
         .insert({
           client_id: clientId,
-          url,
-          refresh_rate
+          url: input.url,
+          refresh_rate: input.refresh_rate,
         })
-        .select('id, url, refresh_rate')
+        .select()
         .single();
+        
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
       
-      if (error) throw error;
+      if (!data) {
+        throw new Error("Failed to create website URL - no data returned");
+      }
+      
       return data as WebsiteUrl;
-    },
+    } catch (insertError) {
+      console.error("Error inserting website URL:", insertError);
+      throw insertError;
+    }
+  };
+
+  const deleteWebsiteUrl = async (urlId: number): Promise<number> => {
+    const { error } = await supabase
+      .from("website_urls")
+      .delete()
+      .eq("id", urlId);
+    if (error) throw error;
+    return urlId;
+  };
+
+  const addWebsiteUrlMutation = useMutation({
+    mutationFn: addWebsiteUrl,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
       toast.success("Website URL added successfully");
     },
     onError: (error: Error) => {
-      console.error("Error details:", error);
       toast.error(`Error adding website URL: ${error.message}`);
     }
   });
 
   const deleteWebsiteUrlMutation = useMutation({
-    mutationFn: async (urlId: number) => {
-      const { error } = await supabase
-        .from("website_urls")
-        .delete()
-        .eq("id", urlId);
-      if (error) throw error;
-      return urlId;
-    },
+    mutationFn: deleteWebsiteUrl,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
       toast.success("Website URL removed successfully");
     },
     onError: (error: Error) => {
-      console.error("Error details:", error);
       toast.error(`Error removing website URL: ${error.message}`);
     }
   });
@@ -152,4 +107,4 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
     isLoading: query.isLoading,
     isError: query.isError
   };
-};
+}
