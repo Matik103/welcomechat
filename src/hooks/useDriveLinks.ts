@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -233,11 +234,13 @@ export function useDriveLinks(clientId: string | undefined) {
       let insertData: any;
       
       if (!schemaError) {
+        console.log("The access_status column exists, adding it to the insert data");
         insertData = {
           ...baseData,
           access_status: accessStatus
         } as (typeof baseData & { access_status: AccessStatus });
       } else {
+        console.log("The access_status column does not exist, using base data only");
         insertData = baseData;
       }
       

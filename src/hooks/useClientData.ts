@@ -16,7 +16,7 @@ export const useClientData = (id: string | undefined) => {
   console.log("useClientData: user metadata client_id =", user?.user_metadata?.client_id);
   console.log("useClientData: using clientId =", clientId);
   
-  const { client, isLoadingClient, error } = useClient(clientId);
+  const { client, isLoadingClient, error, refetchClient } = useClient(clientId);
   const clientMutation = useClientMutation(clientId);
   const { sendInvitation } = useClientInvitation();
 
@@ -26,6 +26,7 @@ export const useClientData = (id: string | undefined) => {
     error,
     clientMutation,
     sendInvitation,
-    clientId
+    clientId,
+    refetchClient
   };
 };

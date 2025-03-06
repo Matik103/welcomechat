@@ -6,7 +6,7 @@ import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle, Lock } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ClientResourceSectionsProps {

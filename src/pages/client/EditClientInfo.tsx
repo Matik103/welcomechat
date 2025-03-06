@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { ClientForm } from "@/components/client/ClientForm";
+import { ClientResourceSections } from "@/components/client/ClientResourceSections";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, User, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -52,12 +53,14 @@ const EditClientInfo = () => {
   }, [user]);
   
   // Use the client ID to fetch client data
-  const { client, isLoadingClient, error, clientMutation } = useClientData(clientId || undefined);
-  const { logClientActivity } = useClientActivity(clientId || undefined);
+  const { client, isLoadingClient, error, clientMutation, clientId: resolvedClientId } = useClientData(clientId || undefined);
+  const { logClientActivity } = useClientActivity(clientId || resolvedClientId || undefined);
 
   // Handle the form submission
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
-    if (!clientId) {
+    const effectiveClientId = clientId || resolvedClientId;
+    
+    if (!effectiveClientId) {
       toast.error("No client ID available. Cannot save changes.");
       return;
     }
@@ -94,7 +97,7 @@ const EditClientInfo = () => {
   }
 
   // Handle case when no client ID is found
-  if (!clientId) {
+  if (!clientId && !resolvedClientId) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex items-center gap-4 mb-6">
@@ -163,6 +166,8 @@ const EditClientInfo = () => {
     );
   }
 
+  const effectiveClientId = clientId || resolvedClientId;
+
   // Render the form with client data
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -179,20 +184,30 @@ const EditClientInfo = () => {
         </div>
       </div>
       
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <User className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Client Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ClientForm
-            initialData={client}
-            onSubmit={handleSubmit}
-            isLoading={clientMutation.isPending}
+      <div className="space-y-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <User className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Client Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ClientForm
+              initialData={client}
+              onSubmit={handleSubmit}
+              isLoading={clientMutation.isPending}
+              isClientView={true}
+            />
+          </CardContent>
+        </Card>
+        
+        {effectiveClientId && (
+          <ClientResourceSections 
+            clientId={effectiveClientId} 
             isClientView={true}
+            logClientActivity={logClientActivity}
           />
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 };

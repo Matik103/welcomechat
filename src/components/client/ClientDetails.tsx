@@ -22,7 +22,7 @@ export const ClientDetails = ({
 }: ClientDetailsProps) => {
   const navigate = useNavigate();
   // Use the clientId that was passed to the component
-  const { clientMutation } = useClientData(clientId);
+  const { clientMutation, refetchClient } = useClientData(clientId);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
@@ -32,6 +32,9 @@ export const ClientDetails = ({
       }
       
       await clientMutation.mutateAsync(data);
+      
+      // Refetch client data to update the UI with the latest changes
+      refetchClient();
       
       // Log client information update activity
       if (clientId && isClientView) {

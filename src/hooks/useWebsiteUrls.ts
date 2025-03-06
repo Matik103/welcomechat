@@ -38,8 +38,6 @@ export function useWebsiteUrls(clientId: string | undefined) {
     console.log("Adding website URL with client ID:", clientId);
     console.log("Input data:", input);
     
-    // No check for duplicate URLs - allow duplicates
-    
     // Insert the website URL
     try {
       const { data, error } = await supabase

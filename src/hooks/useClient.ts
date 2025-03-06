@@ -7,7 +7,8 @@ export const useClient = (id: string | undefined) => {
   const { 
     data: client, 
     isLoading: isLoadingClient, 
-    error 
+    error,
+    refetch: refetchClient
   } = useQuery({
     queryKey: ["client", id],
     queryFn: async () => {
@@ -20,6 +21,7 @@ export const useClient = (id: string | undefined) => {
   return {
     client,
     isLoadingClient,
-    error
+    error,
+    refetchClient
   };
 };

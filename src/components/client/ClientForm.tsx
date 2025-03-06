@@ -27,7 +27,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
   const [isSendingInvitation, setIsSendingInvitation] = useState(false);
   const { sendInvitation } = useClientData(initialData?.id);
   
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || "",
@@ -36,13 +36,16 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
     },
   });
 
+  // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
-      setValue("client_name", initialData.client_name);
-      setValue("email", initialData.email);
-      setValue("agent_name", initialData.agent_name);
+      reset({
+        client_name: initialData.client_name || "",
+        email: initialData.email || "",
+        agent_name: initialData.agent_name || "",
+      });
     }
-  }, [initialData, setValue]);
+  }, [initialData, reset]);
 
   const handleSendInvitation = async () => {
     if (!initialData?.id) {
