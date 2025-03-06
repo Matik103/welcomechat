@@ -5,22 +5,24 @@ import { useClientData } from "@/hooks/useClientData";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
+import { ClientDetails } from "@/components/client/ClientDetails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Database, User, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
-import { EditForm } from "@/components/client/EditForm";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { DriveLinks } from "@/components/client/DriveLinks";
-import { ClientFormData } from "@/types/client";
+import { toast } from "sonner";
 
 const EditInfo = () => {
   const { user } = useAuth();
   const clientId = user?.user_metadata?.client_id;
-  const { client, isLoadingClient, error, clientMutation } = useClientData(clientId);
-  const { logClientActivity } = useClientActivity(clientId);
   
+  // Log this info for debugging
+  console.log("EditInfo: user =", user);
   console.log("EditInfo: client ID from auth:", clientId);
+  
+  const { client, isLoadingClient, error } = useClientData(clientId);
+  const { logClientActivity } = useClientActivity(clientId);
   
   // Website URL hooks
   const { 
@@ -38,26 +40,9 @@ const EditInfo = () => {
     isLoading: isDriveLinksLoading 
   } = useDriveLinks(clientId);
 
-  // Handle client information update
-  const handleUpdateClient = async (data: ClientFormData) => {
-    if (!clientId) {
-      toast.error("Client ID is missing. Please try refreshing the page.");
-      return;
-    }
+  console.log("Website URLs:", websiteUrls);
+  console.log("Drive Links:", driveLinks);
 
-    try {
-      await clientMutation.mutateAsync(data);
-      await logClientActivity(
-        "client_updated", 
-        "updated account information", 
-        { client_name: data.client_name }
-      );
-    } catch (error) {
-      console.error("Error updating client:", error);
-    }
-  };
-
-  // Handle adding a website URL
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     if (!clientId) {
       toast.error("Client ID is missing. Please try refreshing the page.");
@@ -66,6 +51,7 @@ const EditInfo = () => {
 
     try {
       await addWebsiteUrlMutation.mutateAsync(data);
+      
       await logClientActivity(
         "website_url_added", 
         "added a website URL", 
@@ -73,11 +59,10 @@ const EditInfo = () => {
       );
     } catch (error) {
       console.error("Error adding URL:", error);
-      throw error;
+      throw error; // Re-throw to be caught by the WebsiteUrls component
     }
   };
 
-  // Handle deleting a website URL
   const handleDeleteUrl = async (id: number) => {
     try {
       const urlToDelete = websiteUrls.find(url => url.id === id);
@@ -96,7 +81,6 @@ const EditInfo = () => {
     }
   };
 
-  // Handle adding a drive link
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     if (!clientId) {
       toast.error("Client ID is missing. Please try refreshing the page.");
@@ -105,6 +89,7 @@ const EditInfo = () => {
 
     try {
       await addDriveLinkMutation.mutateAsync(data);
+      
       await logClientActivity(
         "drive_link_added", 
         "added a Google Drive link", 
@@ -112,11 +97,10 @@ const EditInfo = () => {
       );
     } catch (error) {
       console.error("Error adding drive link:", error);
-      throw error;
+      throw error; // Re-throw to be caught by the DriveLinks component
     }
   };
 
-  // Handle deleting a drive link
   const handleDeleteDriveLink = async (id: number) => {
     try {
       const linkToDelete = driveLinks.find(link => link.id === id);
@@ -189,10 +173,11 @@ const EditInfo = () => {
             <CardTitle>Client Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <EditForm 
-              initialData={client} 
-              onSubmit={handleUpdateClient}
-              isLoading={clientMutation.isPending}
+            <ClientDetails 
+              client={client} 
+              clientId={clientId} 
+              isClientView={true}
+              logClientActivity={logClientActivity}
             />
           </CardContent>
         </Card>
