@@ -6,7 +6,7 @@ import { useClientActivity } from "@/hooks/useClientActivity";
 import { ClientDetails } from "@/components/client/ClientDetails";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Database } from "lucide-react";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
 
 const ResourceSettings = () => {
@@ -40,22 +40,16 @@ const ResourceSettings = () => {
       <SettingsHeader />
       
       <Card className="mb-8 mt-6">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center gap-2">
+          <Database className="h-5 w-5 text-muted-foreground" />
           <CardTitle>Resource Settings</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground mb-6">
-            Manage your account information, Google Drive links, and website URLs.
+            Manage your Google Drive links and website URLs that your AI agent can use to retrieve information.
           </p>
           
-          <div className="space-y-8">
-            <ClientDetails 
-              client={client} 
-              clientId={clientId} 
-              isClientView={true}
-              logClientActivity={logClientActivity}
-            />
-            
+          <div className="space-y-8">            
             <ClientResourceSections
               clientId={clientId}
               isClientView={true}
