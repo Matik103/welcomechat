@@ -23,8 +23,19 @@ export const ClientResourceSections = ({
     return null;
   }
 
-  const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation } = useDriveLinks(clientId);
-  const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(clientId);
+  const { 
+    driveLinks, 
+    addDriveLinkMutation, 
+    deleteDriveLinkMutation,
+    isValidating: isValidatingDriveLink
+  } = useDriveLinks(clientId);
+  
+  const { 
+    websiteUrls, 
+    addWebsiteUrlMutation, 
+    deleteWebsiteUrlMutation,
+    isValidating: isValidatingWebsiteUrl
+  } = useWebsiteUrls(clientId);
 
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     try {
@@ -49,7 +60,7 @@ export const ClientResourceSections = ({
       }
     } catch (error) {
       console.error("Error adding drive link:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to add Google Drive link");
+      throw error;
     }
   };
 
@@ -76,7 +87,7 @@ export const ClientResourceSections = ({
       }
     } catch (error) {
       console.error("Error adding website URL:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to add website URL");
+      throw error;
     }
   };
 
@@ -136,6 +147,7 @@ export const ClientResourceSections = ({
           onDelete={handleDeleteDriveLink}
           isAddLoading={addDriveLinkMutation.isPending}
           isDeleteLoading={deleteDriveLinkMutation.isPending}
+          isValidating={isValidatingDriveLink}
         />
       </div>
 
@@ -147,6 +159,7 @@ export const ClientResourceSections = ({
           onDelete={handleDeleteWebsiteUrl}
           isAddLoading={addWebsiteUrlMutation.isPending}
           isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+          isValidating={isValidatingWebsiteUrl}
         />
       </div>
     </>

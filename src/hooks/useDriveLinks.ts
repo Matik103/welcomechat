@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DriveLink } from "@/types/client";
+import { useState } from "react";
 
 export function useDriveLinks(clientId: string | undefined) {
   const queryClient = useQueryClient();
+  const [isValidating, setIsValidating] = useState(false);
   
   const query = useQuery({
     queryKey: ["driveLinks", clientId],
@@ -27,18 +29,50 @@ export function useDriveLinks(clientId: string | undefined) {
     enabled: !!clientId,
   });
 
-  const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
+  const validateDriveLink = async (link: string): Promise<{ success: boolean; message?: string; url?: string; error?: string }> => {
+    setIsValidating(true);
     try {
+      const { data, error } = await supabase.functions.invoke("validate-url", {
+        body: {
+          url: link,
+          type: "drive"
+        }
+      });
+      
+      if (error) {
+        console.error("Error validating drive link:", error);
+        return { success: false, error: error.message };
+      }
+      
+      console.log("Drive validation response:", data);
+      return data;
+    } catch (error: any) {
+      console.error("Exception during drive link validation:", error);
+      return { success: false, error: error.message || "Failed to validate drive link" };
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const checkDriveLinkAccess = async (link: string): Promise<string> => {
+    try {
+      const validationResult = await validateDriveLink(link);
+      
+      if (!validationResult.success) {
+        throw new Error(validationResult.error || "Google Drive link validation failed");
+      }
+      
       // Extract file ID from Google Drive link
+      const validatedLink = validationResult.url || link;
       let fileId = '';
       
       // Handle different Google Drive URL formats
-      if (link.includes('/file/d/')) {
-        fileId = link.split('/file/d/')[1]?.split('/')[0];
-      } else if (link.includes('id=')) {
-        fileId = new URL(link).searchParams.get('id') || '';
-      } else if (link.includes('/d/')) {
-        fileId = link.split('/d/')[1]?.split('/')[0];
+      if (validatedLink.includes('/file/d/')) {
+        fileId = validatedLink.split('/file/d/')[1]?.split('/')[0];
+      } else if (validatedLink.includes('id=')) {
+        fileId = new URL(validatedLink).searchParams.get('id') || '';
+      } else if (validatedLink.includes('/d/')) {
+        fileId = validatedLink.split('/d/')[1]?.split('/')[0];
       }
       
       if (!fileId) {
@@ -50,7 +84,7 @@ export function useDriveLinks(clientId: string | undefined) {
         .from('ai_agent')
         .select('id')
         .eq('metadata->>client_id', clientId)
-        .eq('metadata->>url', link)
+        .eq('metadata->>url', validatedLink)
         .maybeSingle();
       
       if (existingData) {
@@ -61,7 +95,7 @@ export function useDriveLinks(clientId: string | undefined) {
           .eq('id', existingData.id);
       }
 
-      return true;
+      return validatedLink;
     } catch (error: any) {
       // Log error to database
       if (clientId) {
@@ -81,14 +115,14 @@ export function useDriveLinks(clientId: string | undefined) {
     if (!clientId) throw new Error("Client ID is required");
     
     // Validate Google Drive link accessibility
-    await checkDriveLinkAccess(input.link);
+    const validatedLink = await checkDriveLinkAccess(input.link);
     
     // If validation passes, add the link to the database
     const { data, error } = await supabase
       .from("google_drive_links")
       .insert({
         client_id: clientId, 
-        link: input.link, 
+        link: validatedLink, 
         refresh_rate: input.refresh_rate 
       })
       .select()
@@ -137,6 +171,7 @@ export function useDriveLinks(clientId: string | undefined) {
     addDriveLinkMutation,
     deleteDriveLinkMutation,
     isLoading: query.isLoading,
-    isError: query.isError
+    isError: query.isError,
+    isValidating
   };
 }
