@@ -1,4 +1,3 @@
-
 import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { DriveLinks } from "@/components/client/DriveLinks";
@@ -150,13 +149,12 @@ export const ClientResourceSections = ({
     );
   }
 
-  // Show a warning if there are restricted files
   const hasRestrictedFiles = driveLinks.some(link => link.access_status === 'restricted');
 
   return (
     <div className="space-y-6">
       {hasRestrictedFiles && (
-        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+        <Alert variant="destructive" className="bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-700">
             Some of your Google Drive links appear to be restricted. Please ensure all files are publicly accessible 
