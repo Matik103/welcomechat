@@ -2,9 +2,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, AlertTriangle } from "lucide-react";
 import { DriveLink } from "@/types/client";
-import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 
 interface DriveLinksProps {
   driveLinks: DriveLink[];
@@ -115,7 +114,7 @@ export const DriveLinks = ({
               />
               {validationError && (
                 <div className="mt-2 flex items-center text-red-600 text-sm">
-                  <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
+                  <AlertTriangle className="h-4 w-4 mr-1" />
                   <span>{validationError}</span>
                 </div>
               )}
