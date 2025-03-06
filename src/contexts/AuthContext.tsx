@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -158,6 +157,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       console.log("Signing out user...");
+      
+      // First, check if we have a valid session before attempting to sign out
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error("Error getting session during sign out:", sessionError);
+      }
+      
+      // If we already don't have a session, just update the UI state
+      if (!sessionData?.session) {
+        console.log("No active session found, updating UI state only");
+        setUserRole(null);
+        setSession(null);
+        setUser(null);
+        navigate('/auth', { replace: true });
+        return Promise.resolve();
+      }
+      
+      // If we have a session, try to sign out
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Error during sign out:", error);
@@ -171,12 +188,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Force navigation to auth page
       navigate('/auth', { replace: true });
-      toast.success("Successfully signed out");
       
       return Promise.resolve();
     } catch (error: any) {
       console.error("Sign out error:", error);
-      toast.error(error.message || "Failed to sign out");
+      
+      // Even if sign out fails, update local state
+      setUserRole(null);
+      setSession(null);
+      setUser(null);
+      
       return Promise.reject(error);
     }
   };

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, KeyRound } from "lucide-react";
+import { checkAndRefreshAuth } from "@/services/authService";
 
 export const SecuritySection = () => {
   const [loading, setLoading] = useState(false);
@@ -29,6 +30,13 @@ export const SecuritySection = () => {
     setLoading(true);
     try {
       console.log("Updating password...");
+      
+      // Check and refresh auth session if needed
+      const isAuthValid = await checkAndRefreshAuth();
+      if (!isAuthValid) {
+        throw new Error("Authentication session expired. Please sign in again.");
+      }
+      
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
