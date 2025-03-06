@@ -6,8 +6,9 @@ import { useClientActivity } from "@/hooks/useClientActivity";
 import { ClientDetails } from "@/components/client/ClientDetails";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Database } from "lucide-react";
-import { SettingsHeader } from "@/components/settings/SettingsHeader";
+import { Loader2, Database, User } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 const ResourceSettings = () => {
   const { user } = useAuth();
@@ -37,9 +38,32 @@ const ResourceSettings = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <SettingsHeader />
+      <div className="flex items-center gap-4 mb-6">
+        <Link 
+          to="/client/view"
+          className="text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <h1 className="text-2xl font-bold">Resource Settings</h1>
+      </div>
       
-      <Card className="mb-8 mt-6">
+      <Card className="mb-8">
+        <CardHeader className="flex flex-row items-center gap-2">
+          <User className="h-5 w-5 text-muted-foreground" />
+          <CardTitle>Client Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ClientDetails 
+            client={client} 
+            clientId={clientId} 
+            isClientView={true}
+            logClientActivity={logClientActivity}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mb-8">
         <CardHeader className="flex flex-row items-center gap-2">
           <Database className="h-5 w-5 text-muted-foreground" />
           <CardTitle>Resource Settings</CardTitle>
