@@ -27,23 +27,44 @@ export function useDriveLinks(clientId: string | undefined) {
     enabled: !!clientId,
   });
 
+  const extractDriveFileId = (link: string): string => {
+    let fileId = '';
+    
+    // Handle different Google Drive URL formats
+    if (link.includes('/file/d/')) {
+      fileId = link.split('/file/d/')[1]?.split('/')[0];
+    } else if (link.includes('id=')) {
+      fileId = new URL(link).searchParams.get('id') || '';
+    } else if (link.includes('/d/')) {
+      fileId = link.split('/d/')[1]?.split('/')[0];
+    }
+    
+    if (!fileId) {
+      throw new Error("Invalid Google Drive link format - couldn't extract file ID");
+    }
+    
+    return fileId;
+  };
+
   const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
     try {
       // Extract file ID from Google Drive link
-      let fileId = '';
+      const fileId = extractDriveFileId(link);
       
-      // Handle different Google Drive URL formats
-      if (link.includes('/file/d/')) {
-        fileId = link.split('/file/d/')[1]?.split('/')[0];
-      } else if (link.includes('id=')) {
-        fileId = new URL(link).searchParams.get('id') || '';
-      } else if (link.includes('/d/')) {
-        fileId = link.split('/d/')[1]?.split('/')[0];
-      }
+      // Check if the file is publicly accessible
+      const accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
       
-      if (!fileId) {
-        throw new Error("Invalid Google Drive link format - couldn't extract file ID");
-      }
+      // Attempt to access the file without authentication
+      const response = await fetch(accessCheckUrl, {
+        method: 'HEAD',
+        mode: 'no-cors',
+        redirect: 'follow',
+      }).catch(error => {
+        console.error("Drive file access check error:", error);
+        throw new Error("Drive file appears to be inaccessible. Please check sharing settings.");
+      });
+
+      console.log(`Drive link access check response: ${response ? response.status : 'No response'}`);
       
       // Check if there's already data for this URL in the AI agent table
       const { data: existingData } = await supabase

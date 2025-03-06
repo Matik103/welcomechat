@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Plus } from "lucide-react";
 import { DriveLink } from "@/types/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface DriveLinksProps {
   driveLinks: DriveLink[];
@@ -25,11 +26,23 @@ export const DriveLinks = ({
   const [newRefreshRate, setNewRefreshRate] = useState(30);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!newLink) return;
+    setError(null);
+    
+    if (!newLink) {
+      setError("Please enter a Google Drive link");
+      return;
+    }
+    
+    // Basic validation for Google Drive links
+    if (!newLink.includes('drive.google.com')) {
+      setError("Please enter a valid Google Drive link");
+      return;
+    }
     
     try {
       setIsSubmitting(true);
@@ -43,6 +56,7 @@ export const DriveLinks = ({
       setShowNewForm(false);
     } catch (error) {
       console.error("Error adding link:", error);
+      setError(error instanceof Error ? error.message : "Failed to add Google Drive link");
     } finally {
       setIsSubmitting(false);
     }
@@ -92,6 +106,12 @@ export const DriveLinks = ({
       ) : (
         <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
           <div className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             <Input
               type="url"
               placeholder="https://drive.google.com/..."
@@ -115,7 +135,7 @@ export const DriveLinks = ({
               <div className="flex items-center gap-2 pt-6">
                 <Button 
                   onClick={handleAdd}
-                  disabled={isAddLoading || isSubmitting}
+                  disabled={isAddLoading || isSubmitting || !newLink}
                 >
                   {(isAddLoading || isSubmitting) ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -126,7 +146,10 @@ export const DriveLinks = ({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setShowNewForm(false)}
+                  onClick={() => {
+                    setShowNewForm(false);
+                    setError(null);
+                  }}
                 >
                   Cancel
                 </Button>

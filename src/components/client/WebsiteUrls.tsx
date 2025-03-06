@@ -1,8 +1,10 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Plus } from "lucide-react";
 import { WebsiteUrl } from "@/types/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
@@ -24,11 +26,17 @@ export const WebsiteUrls = ({
   const [newRefreshRate, setNewRefreshRate] = useState(30);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!newUrl) return;
+    setError(null);
+    
+    if (!newUrl) {
+      setError("Please enter a URL");
+      return;
+    }
     
     try {
       setIsSubmitting(true);
@@ -42,6 +50,7 @@ export const WebsiteUrls = ({
       setShowNewForm(false);
     } catch (error) {
       console.error("Error adding URL:", error);
+      setError(error instanceof Error ? error.message : "Failed to add URL");
     } finally {
       setIsSubmitting(false);
     }
@@ -91,6 +100,12 @@ export const WebsiteUrls = ({
       ) : (
         <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
           <div className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             <Input
               type="url"
               placeholder="https://example.com"
@@ -114,7 +129,7 @@ export const WebsiteUrls = ({
               <div className="flex items-center gap-2 pt-6">
                 <Button 
                   onClick={handleAdd}
-                  disabled={isAddLoading || isSubmitting}
+                  disabled={isAddLoading || isSubmitting || !newUrl}
                 >
                   {(isAddLoading || isSubmitting) ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -125,7 +140,10 @@ export const WebsiteUrls = ({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setShowNewForm(false)}
+                  onClick={() => {
+                    setShowNewForm(false);
+                    setError(null);
+                  }}
                 >
                   Cancel
                 </Button>

@@ -30,6 +30,32 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = 'https://' + url;
       }
+
+      // First check: Send a HEAD request to verify URL is accessible
+      const response = await fetch(url, {
+        method: 'HEAD',
+        mode: 'no-cors',
+      }).catch(error => {
+        console.error("Initial fetch error:", error);
+        throw new Error("Website appears to be inaccessible");
+      });
+
+      // Check for robots.txt
+      try {
+        const urlObj = new URL(url);
+        const robotsUrl = `${urlObj.protocol}//${urlObj.hostname}/robots.txt`;
+        
+        const robotsResponse = await fetch(robotsUrl, { mode: 'no-cors' })
+          .catch(() => null); // Ignore error if robots.txt doesn't exist
+          
+        if (robotsResponse) {
+          console.log("robots.txt exists, website crawling may be restricted");
+          // We don't block here, just log - could be enhanced to parse robots.txt
+        }
+      } catch (robotsError) {
+        console.warn("Error checking robots.txt:", robotsError);
+        // Non-blocking error
+      }
       
       // Check if the URL exists in the AI agent table
       const { data: existingData } = await supabase
