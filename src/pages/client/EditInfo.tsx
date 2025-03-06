@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
 import { useClientActivity } from "@/hooks/useClientActivity";
@@ -16,9 +16,16 @@ import { Label } from "@/components/ui/label";
 
 const EditInfo = () => {
   const { user } = useAuth();
-  const clientId = user?.user_metadata?.client_id;
+  const [clientId, setClientId] = useState<string | undefined>(undefined);
   const { client, isLoadingClient, error } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
+  
+  // Set client ID from user metadata when available
+  useEffect(() => {
+    if (user?.user_metadata?.client_id) {
+      setClientId(user.user_metadata.client_id);
+    }
+  }, [user]);
   
   // Website URL state and hooks
   const [newUrl, setNewUrl] = useState("");
@@ -48,6 +55,11 @@ const EditInfo = () => {
   const handleAddUrl = async () => {
     if (!newUrl) {
       toast.error("Please enter a website URL");
+      return;
+    }
+
+    if (!clientId) {
+      toast.error("Client ID is missing. Please try refreshing the page.");
       return;
     }
 
@@ -92,6 +104,11 @@ const EditInfo = () => {
   const handleAddDriveLink = async () => {
     if (!newDriveLink) {
       toast.error("Please enter a Google Drive link");
+      return;
+    }
+
+    if (!clientId) {
+      toast.error("Client ID is missing. Please try refreshing the page.");
       return;
     }
 
@@ -246,7 +263,7 @@ const EditInfo = () => {
                   
                   <Button 
                     onClick={handleAddUrl}
-                    disabled={addWebsiteUrlMutation.isPending || !newUrl}
+                    disabled={addWebsiteUrlMutation.isPending || !newUrl || !clientId}
                     className="w-full"
                   >
                     {addWebsiteUrlMutation.isPending ? (
@@ -332,7 +349,7 @@ const EditInfo = () => {
                   
                   <Button 
                     onClick={handleAddDriveLink}
-                    disabled={addDriveLinkMutation.isPending || !newDriveLink}
+                    disabled={addDriveLinkMutation.isPending || !newDriveLink || !clientId}
                     className="w-full"
                   >
                     {addDriveLinkMutation.isPending ? (
