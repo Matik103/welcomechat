@@ -31,12 +31,12 @@ export const fetchActiveDays = async (clientId: string): Promise<number> => {
     
     try {
       // Try to get data from the agent's table if it exists
-      const { data, error } = await supabase
-        .from(sanitizedAgentName)
-        .select("metadata")
-        .not("metadata", "is", null);
+      // We need to use executeQuery for dynamic table access
+      const { data, error } = await supabase.rpc('execute_sql', {
+        query_text: `SELECT metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL`
+      });
       
-      if (error || !data) {
+      if (error || !data || !Array.isArray(data)) {
         // Fallback to client_activities if agent table doesn't exist
         console.log(`Error querying ${sanitizedAgentName} table:`, error);
         
@@ -62,8 +62,9 @@ export const fetchActiveDays = async (clientId: string): Promise<number> => {
       
       // Extract dates from metadata in the agent table
       const uniqueDates = new Set();
+      
       data.forEach(item => {
-        if (item.metadata && item.metadata.timestamp) {
+        if (item && item.metadata && item.metadata.timestamp) {
           const dateStr = new Date(item.metadata.timestamp).toDateString();
           uniqueDates.add(dateStr);
         }

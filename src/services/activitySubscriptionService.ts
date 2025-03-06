@@ -30,6 +30,30 @@ export const subscribeToActivities = (clientId: string, onUpdate: () => void) =>
 };
 
 /**
+ * Sets up a real-time subscription for all client activities (for admin dashboard)
+ */
+export const subscribeToAllActivities = (onUpdate: () => void) => {
+  // Subscribe to client_activities table for all clients
+  const activitiesChannel = supabase
+    .channel('all-client-activities-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'client_activities'
+      },
+      (payload) => {
+        console.log('Global client activity changed:', payload);
+        onUpdate();
+      }
+    )
+    .subscribe();
+    
+  return activitiesChannel;
+};
+
+/**
  * Sets up realtime subscription to the agent's table if it exists
  */
 const setupAgentTableSubscription = async (clientId: string, onUpdate: () => void) => {

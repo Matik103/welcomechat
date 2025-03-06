@@ -30,15 +30,12 @@ export const fetchAverageResponseTime = async (clientId: string): Promise<number
     const sanitizedAgentName = clientData.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
     try {
-      // Try to get response times from the agent's table metadata
-      const { data, error } = await supabase
-        .from(sanitizedAgentName)
-        .select("metadata")
-        .not("metadata", "is", null)
-        .order("id", { ascending: false })
-        .limit(30);
+      // Try to get response times from the agent's table metadata using rpc
+      const { data, error } = await supabase.rpc('execute_sql', {
+        query_text: `SELECT metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 30`
+      });
       
-      if (error || !data) {
+      if (error || !data || !Array.isArray(data)) {
         // Fallback to client_activities if agent table doesn't exist
         console.log(`Error querying ${sanitizedAgentName} table:`, error);
         
@@ -77,7 +74,7 @@ export const fetchAverageResponseTime = async (clientId: string): Promise<number
       let countWithResponseTime = 0;
       
       data.forEach(item => {
-        if (item.metadata && 
+        if (item && item.metadata && 
             typeof item.metadata === 'object' && 
             'response_time_ms' in item.metadata) {
           totalResponseTime += Number(item.metadata.response_time_ms);

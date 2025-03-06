@@ -48,15 +48,12 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
     
     const sanitizedAgentName = clientData.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
-    // Try to get user queries from the agent's table metadata
-    const { data, error } = await supabase
-      .from(sanitizedAgentName)
-      .select("id, metadata")
-      .not("metadata", "is", null)
-      .order("id", { ascending: false })
-      .limit(100);
+    // Try to get user queries from the agent's table metadata using rpc
+    const { data, error } = await supabase.rpc('execute_sql', {
+      query_text: `SELECT id, metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 100`
+    });
     
-    if (error || !data) {
+    if (error || !data || !Array.isArray(data)) {
       console.log(`Error querying ${sanitizedAgentName} table:`, error);
       return [];
     }
@@ -65,7 +62,7 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
     const queryMap: Record<string, { count: number, lastTimestamp: string }> = {};
     
     data.forEach(item => {
-      if (item.metadata && item.metadata.user_message) {
+      if (item && item.metadata && item.metadata.user_message) {
         const query = item.metadata.user_message.trim();
         if (!queryMap[query]) {
           queryMap[query] = {

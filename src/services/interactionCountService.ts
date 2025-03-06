@@ -31,12 +31,12 @@ export const fetchTotalInteractions = async (clientId: string): Promise<number> 
     
     // Get the count from the agent's table if it exists
     try {
-      // Use a dynamic query to get count from the agent's table
-      const { count, error } = await supabase
-        .from(sanitizedAgentName)
-        .select("*", { count: "exact", head: true });
+      // Use RPC to dynamically query the agent's table
+      const { data, error } = await supabase.rpc('execute_sql', {
+        query_text: `SELECT COUNT(*) FROM "${sanitizedAgentName}"`
+      });
       
-      if (error) {
+      if (error || !data || !Array.isArray(data) || data.length === 0) {
         // Fallback to client_activities if agent table doesn't exist or other error
         console.log(`Error counting from ${sanitizedAgentName} table:`, error);
         
@@ -54,7 +54,8 @@ export const fetchTotalInteractions = async (clientId: string): Promise<number> 
         return activityCount || 0;
       }
       
-      return count || 0;
+      // Assuming the first row has the count in a field named "count"
+      return parseInt(data[0]?.count || '0', 10);
     } catch (err) {
       console.error("Error in dynamic query:", err);
       
