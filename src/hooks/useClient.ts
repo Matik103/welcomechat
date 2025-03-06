@@ -13,9 +13,10 @@ export const useClient = (id: string | undefined) => {
     queryFn: async () => {
       // If ID is undefined, we'll return null but not throw an error
       if (!id) return null;
+      console.log("Fetching client data for ID:", id);
       return getClientById(id);
     },
-    enabled: true, // Always enable the query, even if id is undefined
+    enabled: !!id, // Only run the query if id is defined
   });
 
   return {
