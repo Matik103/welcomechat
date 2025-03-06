@@ -1,60 +1,38 @@
 
+import { useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
-import { mapActivityType } from "@/utils/activityTypeUtils";
-import { createClientActivity, ensureUserRole } from "@/services/clientActivityService";
-import { supabase } from "@/integrations/supabase/client";
 
-export const useClientActivity = (clientId: string | undefined) => {
-  /**
-   * Logs client activity with enhanced error handling
-   */
-  const logClientActivity = async (
-    activity_type: ExtendedActivityType, 
-    description: string, 
-    metadata: Json = {}
-  ): Promise<void> => {
-    if (!clientId) {
-      console.warn("Cannot log activity: No client ID provided");
-      return;
-    }
-    
-    try {
-      // Map the activity type and enhance metadata if needed
-      const { dbActivityType, enhancedMetadata } = mapActivityType(activity_type, metadata);
-      
-      // Create the activity record
-      await createClientActivity(clientId, dbActivityType, description, enhancedMetadata);
-    } catch (error) {
-      // Enhanced error logging
-      console.error("Failed to log client activity:", {
-        error,
-        clientId,
-        activity_type,
-        description
-      });
-      
-      // We don't rethrow the error to prevent UI disruption,
-      // but this could be modified based on requirements
-    }
-  };
+export const useClientActivity = () => {
+  const { user } = useAuth();
+  const clientId = user?.user_metadata?.client_id;
 
-  /**
-   * Ensures a user role exists for the given user
-   */
-  const ensureClientRole = async (userId: string): Promise<void> => {
-    if (!clientId) {
-      console.warn("Cannot ensure client role: No client ID provided");
-      return;
-    }
-    
-    try {
-      await ensureUserRole(userId, "client", clientId);
-    } catch (error) {
-      console.error("Failed to ensure client role:", error);
-      // Don't rethrow to prevent UI disruption
-    }
-  };
+  const logClientActivity = useCallback(
+    async (activity_type: ExtendedActivityType, description: string, metadata: Json = {}) => {
+      if (!clientId) {
+        console.error("Cannot log activity: No client ID found");
+        return;
+      }
 
-  return { logClientActivity, ensureClientRole };
+      try {
+        const { error } = await supabase.from("client_activities").insert({
+          client_id: clientId,
+          activity_type,
+          description,
+          metadata
+        });
+
+        if (error) {
+          console.error("Error logging client activity:", error);
+        }
+      } catch (err) {
+        console.error("Failed to log client activity:", err);
+      }
+    },
+    [clientId]
+  );
+
+  return { logClientActivity };
 };
