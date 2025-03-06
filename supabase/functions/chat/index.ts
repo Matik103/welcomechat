@@ -28,7 +28,7 @@ serve(async (req) => {
         messages: [
           { 
             role: 'system', 
-            content: `You are ${agent_name}, a helpful AI assistant. Keep your responses friendly and concise.`
+            content: `You are ${agent_name || 'an AI assistant'}, a helpful AI assistant. Keep your responses friendly and concise.`
           },
           { role: 'user', content: prompt }
         ],

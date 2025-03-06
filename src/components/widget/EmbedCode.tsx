@@ -42,11 +42,13 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 
   const handleCopyCode = () => {
     try {
+      const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
+      
       const embedCode = `<!-- Widget Configuration -->
 <script>
     window.ChatWidgetConfig = {
         webhook: {
-            url: '${settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`}',
+            url: '${webhookUrl}',
             route: 'general'
         },
         branding: {
@@ -93,24 +95,30 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         ref={codeRef}
         className="p-4 bg-gray-50 rounded-lg text-sm overflow-x-auto border border-gray-200 max-h-[300px] font-mono"
       >
-{`<script>
-  window.CHATBOT_CONFIG = {
-    clientId: "${settings.agent_name}",
-    settings: {
-      agentName: "${settings.agent_name}",
-      logoUrl: "${settings.logo_url}",
-      chatColor: "${settings.chat_color}",
-      backgroundColor: "${settings.background_color}",
-      textColor: "${settings.text_color}",
-      secondaryColor: "${settings.secondary_color}",
-      position: "${settings.position}",
-      welcomeText: "${settings.welcome_text}",
-      responseTimeText: "${settings.response_time_text}"
-    },
-    apiEndpoint: "https://${projectRef}.supabase.co/functions/v1/chat"
-  };
+{`<!-- Widget Configuration -->
+<script>
+    window.ChatWidgetConfig = {
+        webhook: {
+            url: '${settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`}',
+            route: 'general'
+        },
+        branding: {
+            logo: '${settings.logo_url}',
+            name: '${settings.agent_name}',
+            welcomeText: '${settings.welcome_text}',
+            responseTimeText: '${settings.response_time_text}'
+        },
+        style: {
+            primaryColor: '${settings.chat_color}',
+            secondaryColor: '${settings.secondary_color}',
+            position: '${settings.position}',
+            backgroundColor: '${settings.background_color}',
+            fontColor: '${settings.text_color}'
+        }
+    };
 </script>
-<script src="https://${projectRef}.supabase.co/storage/v1/object/public/widget/chat-widget.js" async></script>`}
+<script src="https://${projectRef}.supabase.co/storage/v1/object/public/widget/chat-widget.js"></script>
+<!-- Widget Script End -->`}
       </pre>
       <Button
         size="sm"

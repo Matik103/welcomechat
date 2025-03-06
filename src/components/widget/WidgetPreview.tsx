@@ -25,21 +25,55 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     setIsExpanded(!isExpanded);
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!userMessage.trim()) return;
     
     // Add user message
     setChatMessages([...chatMessages, { type: 'user', text: userMessage }]);
     
-    // Simulate bot response
-    setTimeout(() => {
+    // Store the user message to clear input field
+    const currentMessage = userMessage;
+    setUserMessage("");
+    
+    // Make a real API call if webhook URL is provided
+    try {
+      if (settings.webhook_url) {
+        const response = await fetch(settings.webhook_url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            prompt: currentMessage,
+            agent_name: settings.agent_name || "AI Assistant"
+          }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setChatMessages(prev => [...prev, { 
+            type: 'bot', 
+            text: data.generatedText || "I'm your AI assistant. How can I help you today?"
+          }]);
+        } else {
+          throw new Error("Webhook error");
+        }
+      } else {
+        // Fallback to demo bot if no webhook URL
+        setTimeout(() => {
+          setChatMessages(prev => [...prev, { 
+            type: 'bot', 
+            text: "I'm a demo bot. This is how your responses will look to users." 
+          }]);
+        }, 800);
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
       setChatMessages(prev => [...prev, { 
         type: 'bot', 
-        text: "I'm a demo bot. This is how your responses will look to users." 
+        text: "Sorry, I couldn't process your request. Please try again later."
       }]);
-    }, 800);
-    
-    setUserMessage("");
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -152,14 +186,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                   borderColor: `${settings.chat_color}50`,
                   color: settings.text_color,
                   backgroundColor: 'white',
-                  // Fixing the focusRing error - replace with CSS class instead of inline style
-                }}
-                className="w-full py-2 px-3 pr-10 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                // Add a custom class to handle the focus ring color
-                style={{ 
-                  borderColor: `${settings.chat_color}50`,
-                  color: settings.text_color,
-                  backgroundColor: 'white'
+                  /* Focus ring color will be handled by Tailwind classes */
                 }}
                 value={userMessage}
                 onChange={(e) => setUserMessage(e.target.value)}
