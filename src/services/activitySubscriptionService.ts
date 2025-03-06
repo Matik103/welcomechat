@@ -2,12 +2,21 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Sets up a real-time subscription for any client activities
+ * Sets up a real-time subscription for client activities
+ * @param clientId - The client ID to subscribe to
+ * @param onUpdate - Callback function that will be called when updates occur
+ * @returns The subscription channel for cleanup
  */
 export const subscribeToActivities = (clientId: string, onUpdate: () => void) => {
-  // Subscribe to client_activities table
-  const activitiesChannel = supabase
-    .channel('client-activities-changes')
+  if (!clientId) {
+    console.error("No client ID provided for activity subscription");
+    return null;
+  }
+
+  console.log("Setting up subscription for client activities:", clientId);
+  
+  const channel = supabase
+    .channel(`activities-${clientId}`)
     .on(
       'postgres_changes',
       {
@@ -17,83 +26,52 @@ export const subscribeToActivities = (clientId: string, onUpdate: () => void) =>
         filter: `client_id=eq.${clientId}`
       },
       (payload) => {
-        console.log('Client activity changed:', payload);
+        console.log("Activity change detected:", payload);
         onUpdate();
       }
     )
-    .subscribe();
-  
-  // Also try to subscribe to the agent table if possible
-  setupAgentTableSubscription(clientId, onUpdate);
+    .subscribe((status) => {
+      console.log("Subscription status:", status);
+    });
     
-  return activitiesChannel;
+  return channel;
 };
 
 /**
- * Sets up a real-time subscription for all client activities (for admin dashboard)
+ * Removes an activity subscription channel
+ * @param channel - The channel to unsubscribe from
+ */
+export const unsubscribeFromActivities = (channel: any) => {
+  if (channel) {
+    supabase.removeChannel(channel);
+  }
+};
+
+/**
+ * Sets up a global subscription for all client activities across the system
+ * @param onUpdate - Callback function that will be called when any activity is added
+ * @returns The subscription channel for cleanup
  */
 export const subscribeToAllActivities = (onUpdate: () => void) => {
-  // Subscribe to client_activities table for all clients
-  const activitiesChannel = supabase
-    .channel('all-client-activities-changes')
+  console.log("Setting up global subscription for all client activities");
+  
+  const channel = supabase
+    .channel('all-activities')
     .on(
       'postgres_changes',
       {
-        event: '*',
+        event: 'INSERT',
         schema: 'public',
         table: 'client_activities'
       },
       (payload) => {
-        console.log('Global client activity changed:', payload);
+        console.log("New activity detected in global listener:", payload);
         onUpdate();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log("Global activity subscription status:", status);
+    });
     
-  return activitiesChannel;
-};
-
-/**
- * Sets up realtime subscription to the agent's table if it exists
- */
-const setupAgentTableSubscription = async (clientId: string, onUpdate: () => void) => {
-  try {
-    // Get the agent_name for this client
-    const { data, error } = await supabase
-      .from("clients")
-      .select("agent_name")
-      .eq("id", clientId)
-      .single();
-    
-    if (error || !data) {
-      console.error("Error fetching client agent name:", error);
-      return null;
-    }
-    
-    const sanitizedAgentName = data.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    
-    // Set up subscription to agent table
-    const agentChannel = supabase
-      .channel(`${sanitizedAgentName}-changes`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: sanitizedAgentName
-        },
-        (payload) => {
-          console.log(`Agent table ${sanitizedAgentName} changed:`, payload);
-          onUpdate();
-        }
-      )
-      .subscribe((status) => {
-        console.log(`Subscription to ${sanitizedAgentName} status:`, status);
-      });
-    
-    return agentChannel;
-  } catch (err) {
-    console.error("Error setting up agent table subscription:", err);
-    return null;
-  }
+  return channel;
 };

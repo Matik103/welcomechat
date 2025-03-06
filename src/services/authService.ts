@@ -2,37 +2,42 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Checks if authentication is valid and refreshes the session if needed
- * @returns Promise<boolean> - Whether auth is valid
+ * Checks if the authentication session is valid and refreshes if needed
+ * @returns Promise<boolean> indicating if auth is valid
  */
 export const checkAndRefreshAuth = async (): Promise<boolean> => {
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      console.warn("No active session found");
-      return false;
-    }
-    
-    // Check if token is expired or will expire soon (within 5 minutes)
-    const expiresAt = sessionData.session.expires_at;
-    const now = Math.floor(Date.now() / 1000);
-    const fiveMinutes = 5 * 60;
-    
-    if (expiresAt && expiresAt - now < fiveMinutes) {
-      console.log("Session token will expire soon, refreshing...");
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        console.error("Failed to refresh session:", error);
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) {
+      console.log("Auth session error or missing:", error);
+      // Session is invalid, try refreshing
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.error("Failed to refresh auth session:", refreshError);
         return false;
       }
-      
-      return !!data.session;
     }
-    
     return true;
-  } catch (error) {
-    console.error("Error checking auth status:", error);
+  } catch (err) {
+    console.error("Error checking auth session:", err);
     return false;
   }
-};
+}
+
+/**
+ * Gets the current user
+ * @returns Promise with user data or null
+ */
+export const getCurrentUser = async () => {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error("Error getting user:", error);
+      return null;
+    }
+    return data.user;
+  } catch (err) {
+    console.error("Error in getCurrentUser:", err);
+    return null;
+  }
+}

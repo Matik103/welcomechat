@@ -15,72 +15,19 @@ export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
     return [];
   }
   
-  // First try to get from error_logs table
-  const { data: errorLogs, error: errorLogsError } = await supabase
+  const { data, error } = await supabase
     .from("error_logs")
     .select("*")
     .eq("client_id", clientId)
     .order("created_at", { ascending: false })
     .limit(10);
 
-  if (!errorLogsError && errorLogs?.length > 0) {
-    return errorLogs as ErrorLog[];
+  if (error) {
+    console.error("Error fetching error logs:", error);
+    throw error;
   }
   
-  // If no error logs found or error occurred, try to find errors in agent table metadata
-  try {
-    // Get the agent_name for this client
-    const { data: clientData, error: clientError } = await supabase
-      .from("clients")
-      .select("agent_name")
-      .eq("id", clientId)
-      .single();
-    
-    if (clientError || !clientData) {
-      console.error("Error fetching client agent name:", clientError);
-      return [];
-    }
-    
-    const sanitizedAgentName = clientData.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    
-    // Try to get error entries from agent table metadata using Edge Function
-    const { data, error } = await supabase
-      .functions
-      .invoke("dynamically-query-table", {
-        body: {
-          tableName: sanitizedAgentName,
-          query: "SELECT id, metadata FROM \"${tableName}\" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 50"
-        }
-      });
-    
-    if (error || !data || !Array.isArray(data)) {
-      console.log(`Error querying ${sanitizedAgentName} table:`, error);
-      return [];
-    }
-    
-    // Filter entries with error information and format them
-    const agentErrors: ErrorLog[] = [];
-    
-    data.forEach(item => {
-      if (item && item.metadata && 
-          (item.metadata.error || item.metadata.error_type || item.metadata.error_message)) {
-        
-        agentErrors.push({
-          id: `agent-${item.id}`,
-          error_type: item.metadata.error_type || 'Processing Error',
-          message: item.metadata.error_message || item.metadata.error || 'Unknown error occurred',
-          created_at: item.metadata.timestamp || new Date().toISOString(),
-          status: 'pending',
-          client_id: clientId
-        });
-      }
-    });
-    
-    return agentErrors.slice(0, 10);
-  } catch (err) {
-    console.error("Error processing agent data for errors:", err);
-    return [];
-  }
+  return data as ErrorLog[];
 };
 
 /**
