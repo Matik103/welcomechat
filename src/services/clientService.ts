@@ -8,20 +8,12 @@ import { toast } from "sonner";
  */
 export const getClientById = async (id: string): Promise<Client | null> => {
   if (!id) return null;
-  
-  console.log("Fetching client with ID:", id);
   const { data, error } = await supabase
     .from("clients")
     .select("*")
     .eq("id", id)
     .maybeSingle();
-    
-  if (error) {
-    console.error("Error fetching client:", error);
-    throw error;
-  }
-  
-  console.log("Client data retrieved:", data);
+  if (error) throw error;
   return data as Client;
 };
 
@@ -29,35 +21,17 @@ export const getClientById = async (id: string): Promise<Client | null> => {
  * Updates an existing client
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
-  console.log("Updating client with ID:", id);
-  console.log("Update data:", data);
-
-  try {
-    const { data: updatedData, error } = await supabase
-      .from("clients")
-      .update({
-        client_name: data.client_name,
-        email: data.email,
-        agent_name: data.agent_name,
-        widget_settings: data.widget_settings,
-        company: data.company,
-        description: data.description
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error updating client:", error);
-      throw error;
-    }
-
-    console.log("Client updated successfully:", updatedData);
-    return id;
-  } catch (error) {
-    console.error("Exception in updateClient:", error);
-    throw error;
-  }
+  const { error } = await supabase
+    .from("clients")
+    .update({
+      client_name: data.client_name,
+      email: data.email,
+      agent_name: data.agent_name,
+      widget_settings: data.widget_settings,
+    })
+    .eq("id", id);
+  if (error) throw error;
+  return id;
 };
 
 /**
@@ -91,8 +65,6 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       email: data.email,
       agent_name: data.agent_name,
       widget_settings: data.widget_settings || {},
-      company: data.company,
-      description: data.description,
       status: 'active'
     }])
     .select('*');
@@ -135,11 +107,39 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
     }
     
     console.log("Invitation response:", data);
-    toast.success("Invitation email sent successfully");
     return true;
   } catch (error) {
     console.error("Invitation method failed:", error);
-    toast.error("Failed to send invitation email");
     throw error;
+  }
+};
+
+/**
+ * Sends a fallback email when invitation fails
+ */
+export const sendFallbackEmail = async (email: string): Promise<void> => {
+  try {
+    const { data: emailData, error: emailError } = await supabase.functions.invoke("send-email", {
+      body: {
+        to: email,
+        subject: "Welcome to Welcome.Chat",
+        html: `
+          <h1>Welcome to Welcome.Chat!</h1>
+          <p>Your account has been created. You'll receive a separate email with login instructions.</p>
+          <p>You can access your dashboard at: ${window.location.origin}/client/view</p>
+          <p>Thank you,<br>The Welcome.Chat Team</p>
+        `
+      }
+    });
+    
+    if (emailError) {
+      console.error("Error sending fallback email:", emailError);
+      throw emailError;
+    } else {
+      console.log("Fallback email sent successfully:", emailData);
+    }
+  } catch (fallbackError) {
+    console.error("Failed to send fallback email:", fallbackError);
+    throw fallbackError;
   }
 };

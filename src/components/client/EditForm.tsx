@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,11 +10,10 @@ import { Client } from "@/types/client";
 import { useClientData } from "@/hooks/useClientData";
 import { Label } from "@/components/ui/label";
 
-interface ClientFormProps {
+interface EditFormProps {
   initialData?: Client | null;
   onSubmit: (data: { client_name: string; email: string; agent_name: string }) => Promise<void>;
   isLoading?: boolean;
-  isClientView?: boolean;
 }
 
 const clientFormSchema = z.object({
@@ -23,10 +22,7 @@ const clientFormSchema = z.object({
   agent_name: z.string().min(1, "Agent name is required"),
 });
 
-export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientView = false }: ClientFormProps) => {
-  const [isSendingInvitation, setIsSendingInvitation] = useState(false);
-  const { sendInvitation } = useClientData(initialData?.id);
-  
+export const EditForm = ({ initialData, onSubmit, isLoading = false }: EditFormProps) => {
   const { register, handleSubmit, formState: { errors }, setValue } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
@@ -36,28 +32,14 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
     },
   });
 
-  useEffect(() => {
+  // Update form values when initialData changes
+  useState(() => {
     if (initialData) {
       setValue("client_name", initialData.client_name);
       setValue("email", initialData.email);
       setValue("agent_name", initialData.agent_name);
     }
-  }, [initialData, setValue]);
-
-  const handleSendInvitation = async () => {
-    if (!initialData?.id) {
-      return;
-    }
-
-    try {
-      setIsSendingInvitation(true);
-      await sendInvitation(initialData.id, initialData.email, initialData.client_name);
-    } catch (error) {
-      console.error("Failed to send invitation:", error);
-    } finally {
-      setIsSendingInvitation(false);
-    }
-  };
+  });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -107,24 +89,8 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       <div className="flex flex-col md:flex-row gap-4 pt-4">
         <Button type="submit" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isClientView 
-            ? "Save Changes"
-            : initialData 
-              ? "Update Client" 
-              : "Create Client"}
+          Save Changes
         </Button>
-        
-        {initialData?.id && !isClientView && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSendInvitation}
-            disabled={isSendingInvitation}
-          >
-            {isSendingInvitation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Invitation Email
-          </Button>
-        )}
       </div>
     </form>
   );

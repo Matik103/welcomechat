@@ -1,95 +1,79 @@
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { ClientFormData } from "@/types/client";
-import { updateClient, createClient, sendClientInvitation } from "@/services/clientService";
+import { 
+  updateClient, 
+  createClient, 
+  logClientUpdateActivity,
+  sendClientInvitation,
+  sendFallbackEmail
+} from "@/services/clientService";
 import { toast } from "sonner";
 
 export const useClientMutation = (id: string | undefined) => {
-  const queryClient = useQueryClient();
-  
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      // For new clients (no ID), use createClient
-      if (!id) {
-        console.log("Creating new client");
-        console.log("Data being sent:", data);
-        
-        try {
-          // Sanitize the agent name
-          const sanitizedAgentName = data.agent_name
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '_');
-          
-          const updatedData = {
-            ...data,
-            agent_name: sanitizedAgentName,
-          };
-
-          const newClientId = await createClient(updatedData);
-          console.log("New client created with ID:", newClientId);
-          
-          // Send invitation email
-          try {
-            await sendClientInvitation(newClientId, data.email, data.client_name);
-          } catch (inviteError) {
-            console.error("Error sending invitation:", inviteError);
-            // Continue even if invitation fails - we'll show a toast
-          }
-          
-          return newClientId;
-        } catch (error) {
-          console.error("Error in client creation:", error);
-          throw error;
-        }
-      }
-      
-      // For existing clients, use updateClient
-      console.log("Updating client for ID:", id);
-      console.log("Data being sent:", data);
-      
       try {
-        // Sanitize the agent name
         const sanitizedAgentName = data.agent_name
           .trim()
           .toLowerCase()
           .replace(/[^a-z0-9]/g, '_');
-        
+        const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
         const updatedData = {
           ...data,
-          agent_name: sanitizedAgentName,
+          agent_name: finalAgentName,
         };
 
-        const result = await updateClient(id, updatedData);
-        console.log("Update client result:", result);
-        return id;
+        if (id) {
+          const clientId = await updateClient(id, updatedData);
+          await logClientUpdateActivity(id);
+          return clientId;
+        } else {
+          const newClientId = await createClient(updatedData);
+          
+          try {
+            toast.info("Sending setup email...");
+            
+            try {
+              console.log("Calling send-client-invitation edge function");
+              await sendClientInvitation(
+                newClientId, 
+                updatedData.email, 
+                updatedData.client_name
+              );
+              toast.success("Setup email sent to client");
+            } catch (inviteError) {
+              console.error("Exception in invitation process:", inviteError);
+              toast.error(`Failed to send setup email: ${inviteError.message || "Unknown error"}`);
+              
+              try {
+                await sendFallbackEmail(updatedData.email);
+                toast.success("Setup email sent to client (basic version)");
+              } catch (fallbackError) {
+                console.error("Failed to send fallback email:", fallbackError);
+              }
+            }
+          } catch (setupError) {
+            console.error("Error in client setup process:", setupError);
+            toast.error(`Error during client setup: ${setupError.message || "Unknown error"}`);
+          }
+
+          return newClientId;
+        }
       } catch (error) {
         console.error("Error in client mutation:", error);
-        throw error;
+        throw new Error(error.message || "Failed to save client");
       }
     },
     onSuccess: (clientId) => {
-      console.log("Client mutation succeeded for ID:", clientId);
-      // Invalidate related queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["client", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
-      
-      const isNewClient = !id;
-      const successMessage = isNewClient 
-        ? "Client created successfully" 
-        : "Client information updated successfully";
-      
-      toast.success(successMessage);
+      if (id) {
+        toast.success("Client updated successfully");
+      } else {
+        toast.success("Client created successfully");
+      }
     },
-    onError: (error: Error) => {
-      console.error("Client mutation failed:", error);
-      const isNewClient = !id;
-      const errorMessage = isNewClient 
-        ? `Error creating client: ${error.message}`
-        : `Error updating client: ${error.message}`;
-      
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
     },
   });
 

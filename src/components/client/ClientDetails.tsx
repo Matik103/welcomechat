@@ -1,10 +1,11 @@
 
 import { useNavigate } from "react-router-dom";
-import { Client, ClientFormData } from "@/types/client";
+import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
-import { useClientMutation } from "@/hooks/useClientMutation";
+import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -20,44 +21,45 @@ export const ClientDetails = ({
   logClientActivity 
 }: ClientDetailsProps) => {
   const navigate = useNavigate();
-  const clientMutation = useClientMutation(clientId);
+  // Use the clientId that was passed to the component
+  const { clientMutation } = useClientData(clientId);
 
-  const handleSubmit = async (data: ClientFormData) => {
+  const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
-      console.log("ClientDetails - Submitting form with data:", data);
-      console.log("ClientDetails - Using client ID:", clientId);
+      if (!clientId) {
+        toast.error("Client ID is required to save changes");
+        return;
+      }
       
-      // Submit the data to create or update a client
-      const resultClientId = await clientMutation.mutateAsync(data);
+      await clientMutation.mutateAsync(data);
       
-      // Only log activity for existing clients that were updated
+      // Log client information update activity
       if (clientId && isClientView) {
         try {
-          // Determine which fields were actually updated
-          const updatedFields = Object.keys(data).filter(key => 
-            client && data[key as keyof typeof data] !== client[key as keyof typeof client]
+          await logClientActivity(
+            "client_updated", 
+            "updated their client information",
+            { 
+              updated_fields: Object.keys(data).filter(key => 
+                client && data[key as keyof typeof data] !== client[key as keyof typeof client]
+              )
+            }
           );
-          
-          console.log("Updated fields:", updatedFields);
-          
-          if (updatedFields.length > 0) {
-            await logClientActivity(
-              "client_updated", 
-              "updated their client information",
-              { updated_fields: updatedFields }
-            );
-          }
         } catch (logError) {
           console.error("Error logging activity:", logError);
+          // Continue even if logging fails
         }
       }
       
-      // For admin view, navigate back to clients list after creation
-      if (!isClientView && !clientId) {
+      toast.success("Client information saved successfully");
+      
+      // Only navigate away if not in client view
+      if (!isClientView) {
         navigate("/admin/clients");
       }
     } catch (error) {
       console.error("Error submitting client form:", error);
+      toast.error("Failed to save client information");
     }
   };
 

@@ -10,29 +10,21 @@ export function useWebsiteUrls(clientId: string | undefined) {
   const query = useQuery({
     queryKey: ["websiteUrls", clientId],
     queryFn: async () => {
-      if (!clientId) {
-        console.log("No client ID provided for websiteUrls query");
-        return [];
-      }
+      if (!clientId) return [];
       
       console.log("Fetching website URLs for client:", clientId);
-      try {
-        const { data, error } = await supabase
-          .from("website_urls")
-          .select("*")
-          .eq("client_id", clientId);
-          
-        if (error) {
-          console.error("Error fetching website URLs:", error);
-          throw error;
-        }
+      const { data, error } = await supabase
+        .from("website_urls")
+        .select("*")
+        .eq("client_id", clientId);
         
-        console.log("Fetched website URLs:", data);
-        return data as WebsiteUrl[];
-      } catch (error) {
-        console.error("Exception in websiteUrls query:", error);
+      if (error) {
+        console.error("Error fetching website URLs:", error);
         throw error;
       }
+      
+      console.log("Fetched website URLs:", data);
+      return data as WebsiteUrl[];
     },
     enabled: !!clientId,
   });
@@ -40,12 +32,13 @@ export function useWebsiteUrls(clientId: string | undefined) {
   const addWebsiteUrl = async (input: { url: string; refresh_rate: number }): Promise<WebsiteUrl> => {
     if (!clientId) {
       console.error("Client ID is missing");
-      toast.error("Unable to add URL: Client ID is missing. Please refresh the page or contact support.");
       throw new Error("Client ID is required");
     }
     
     console.log("Adding website URL with client ID:", clientId);
     console.log("Input data:", input);
+    
+    // No check for duplicate URLs - allow duplicates
     
     // Insert the website URL
     try {
@@ -60,7 +53,7 @@ export function useWebsiteUrls(clientId: string | undefined) {
         .single();
         
       if (error) {
-        console.error("Supabase error adding URL:", error);
+        console.error("Supabase error:", error);
         throw error;
       }
       
@@ -68,7 +61,6 @@ export function useWebsiteUrls(clientId: string | undefined) {
         throw new Error("Failed to create website URL - no data returned");
       }
       
-      console.log("Successfully added website URL:", data);
       return data as WebsiteUrl;
     } catch (insertError) {
       console.error("Error inserting website URL:", insertError);
@@ -77,35 +69,21 @@ export function useWebsiteUrls(clientId: string | undefined) {
   };
 
   const deleteWebsiteUrl = async (urlId: number): Promise<number> => {
-    console.log("Deleting website URL with ID:", urlId);
-    try {
-      const { error } = await supabase
-        .from("website_urls")
-        .delete()
-        .eq("id", urlId);
-        
-      if (error) {
-        console.error("Error deleting website URL:", error);
-        throw error;
-      }
-      
-      console.log("Successfully deleted website URL:", urlId);
-      return urlId;
-    } catch (deleteError) {
-      console.error("Exception in deleteWebsiteUrl:", deleteError);
-      throw deleteError;
-    }
+    const { error } = await supabase
+      .from("website_urls")
+      .delete()
+      .eq("id", urlId);
+    if (error) throw error;
+    return urlId;
   };
 
   const addWebsiteUrlMutation = useMutation({
     mutationFn: addWebsiteUrl,
     onSuccess: () => {
-      console.log("Website URL added successfully, invalidating queries");
       queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
       toast.success("Website URL added successfully");
     },
     onError: (error: Error) => {
-      console.error("Website URL mutation error:", error);
       toast.error(`Error adding website URL: ${error.message}`);
     }
   });
@@ -113,12 +91,10 @@ export function useWebsiteUrls(clientId: string | undefined) {
   const deleteWebsiteUrlMutation = useMutation({
     mutationFn: deleteWebsiteUrl,
     onSuccess: () => {
-      console.log("Website URL deleted successfully, invalidating queries");
       queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
       toast.success("Website URL removed successfully");
     },
     onError: (error: Error) => {
-      console.error("Website URL deletion error:", error);
       toast.error(`Error removing website URL: ${error.message}`);
     }
   });
