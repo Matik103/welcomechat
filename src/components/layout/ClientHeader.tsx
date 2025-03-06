@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const ClientHeader = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -44,6 +44,13 @@ export const ClientHeader = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button 
+              variant="ghost" 
+              onClick={() => signOut?.()}
+              className="text-sm"
+            >
+              Sign Out
+            </Button>
           </div>
         </div>
       </div>

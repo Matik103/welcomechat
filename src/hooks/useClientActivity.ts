@@ -3,7 +3,6 @@ import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { mapActivityType } from "@/utils/activityTypeUtils";
 import { createClientActivity, ensureUserRole } from "@/services/clientActivityService";
-import { supabase } from "@/integrations/supabase/client";
 
 export const useClientActivity = (clientId: string | undefined) => {
   /**

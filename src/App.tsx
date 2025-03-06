@@ -1,3 +1,4 @@
+
 import { Toaster } from "sonner";
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
@@ -102,7 +103,6 @@ function App() {
         <Route path="/client/settings" element={
           userRole === 'admin' ? <Navigate to="/settings" replace /> : <ClientSettings />
         } />
-        {/* Removed the Edit Client Information route */}
         <Route path="/client/widget-settings" element={
           userRole === 'admin' ? <Navigate to="/" replace /> : <WidgetSettings />
         } />
