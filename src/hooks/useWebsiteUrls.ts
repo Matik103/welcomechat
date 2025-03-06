@@ -7,6 +7,7 @@ import { WebsiteUrl } from "@/types/client";
 export function useWebsiteUrls(clientId: string | undefined) {
   const queryClient = useQueryClient();
   
+  // Fetch website URLs
   const query = useQuery({
     queryKey: ["websiteUrls", clientId],
     queryFn: async () => {
@@ -34,9 +35,11 @@ export function useWebsiteUrls(clientId: string | undefined) {
         throw error;
       }
     },
-    enabled: !!clientId,
+    enabled: !!clientId, // Only run the query if clientId is defined
+    retry: 1,
   });
 
+  // Add a new website URL
   const addWebsiteUrl = async (input: { url: string; refresh_rate: number }): Promise<WebsiteUrl> => {
     if (!clientId) {
       console.error("Client ID is missing");
@@ -76,6 +79,7 @@ export function useWebsiteUrls(clientId: string | undefined) {
     }
   };
 
+  // Delete a website URL
   const deleteWebsiteUrl = async (urlId: number): Promise<number> => {
     console.log("Deleting website URL with ID:", urlId);
     try {
@@ -97,6 +101,7 @@ export function useWebsiteUrls(clientId: string | undefined) {
     }
   };
 
+  // Setup mutations
   const addWebsiteUrlMutation = useMutation({
     mutationFn: addWebsiteUrl,
     onSuccess: () => {

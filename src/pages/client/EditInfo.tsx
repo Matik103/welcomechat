@@ -3,15 +3,12 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
 import { useClientActivity } from "@/hooks/useClientActivity";
-import { useDriveLinks } from "@/hooks/useDriveLinks";
-import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import ErrorDisplay from "@/components/client/ErrorDisplay";
 import EditInfoHeader from "@/components/client/EditInfoHeader";
 import ClientInfoSection from "@/components/client/ClientInfoSection";
-import WebsiteUrlsSection from "@/components/client/WebsiteUrlsSection";
-import DriveLinksSection from "@/components/client/DriveLinksSection";
+import { ClientResourceSections } from "@/components/client/ClientResourceSections";
 
 const EditInfo = () => {
   const { user } = useAuth();
@@ -24,43 +21,18 @@ const EditInfo = () => {
       setClientId(user.user_metadata.client_id);
     } else {
       console.warn("No client ID found in user metadata");
+      toast.error("Client ID not found. Please contact support.");
     }
-    console.log("Client data initialized");
   }, [user]);
   
+  // Use the enhanced useClientData hook which will handle clientId resolution
   const { client, isLoadingClient, error, clientId: resolvedClientId } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
-  
-  // Website URL and Drive Link hooks
-  const { 
-    websiteUrls, 
-    addWebsiteUrlMutation, 
-    deleteWebsiteUrlMutation, 
-    isLoading: isUrlsLoading 
-  } = useWebsiteUrls(clientId);
-
-  const { 
-    driveLinks, 
-    addDriveLinkMutation, 
-    deleteDriveLinkMutation, 
-    isLoading: isDriveLinksLoading 
-  } = useDriveLinks(clientId);
 
   console.log("EditInfo: client ID from auth:", clientId);
   console.log("EditInfo: resolved client ID:", resolvedClientId);
-  console.log("Website URLs:", websiteUrls);
-  console.log("Drive Links:", driveLinks);
 
-  // Handle adding a website URL
-  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
-    try {
-      await addWebsiteUrlMutation.mutateAsync(data);
-    } catch (error) {
-      console.error("Error in handleAddUrl:", error);
-    }
-  };
-
-  if (isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
+  if (isLoadingClient && clientId) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -68,8 +40,15 @@ const EditInfo = () => {
     );
   }
 
-  if (error) {
+  if (error && clientId) {
     return <ErrorDisplay message={error.message} />;
+  }
+
+  // If no clientId is set yet but we're not in a loading state, show a helpful message
+  if (!clientId && !isLoadingClient) {
+    return (
+      <ErrorDisplay message="No client ID found. Please refresh the page or contact support." />
+    );
   }
 
   return (
@@ -81,21 +60,12 @@ const EditInfo = () => {
           client={client} 
           clientId={clientId} 
           logClientActivity={logClientActivity}
+          isClientView={true}
         />
 
-        <WebsiteUrlsSection
-          clientId={clientId}
-          websiteUrls={websiteUrls}
-          addWebsiteUrlMutation={addWebsiteUrlMutation}
-          deleteWebsiteUrlMutation={deleteWebsiteUrlMutation}
-          logClientActivity={logClientActivity}
-        />
-
-        <DriveLinksSection
-          clientId={clientId}
-          driveLinks={driveLinks}
-          addDriveLinkMutation={addDriveLinkMutation}
-          deleteDriveLinkMutation={deleteDriveLinkMutation}
+        <ClientResourceSections 
+          clientId={clientId} 
+          isClientView={true}
           logClientActivity={logClientActivity}
         />
       </div>

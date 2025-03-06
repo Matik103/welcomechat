@@ -7,20 +7,25 @@ export const useClient = (id: string | undefined) => {
   const { 
     data: client, 
     isLoading: isLoadingClient, 
-    error 
+    error,
+    isError
   } = useQuery({
     queryKey: ["client", id],
     queryFn: async () => {
-      // If ID is undefined, we'll return null but not throw an error
-      if (!id) return null;
+      if (!id) {
+        console.log("useClient: No client ID provided");
+        return null;
+      }
+      console.log("useClient: Fetching client with ID:", id);
       return getClientById(id);
     },
-    enabled: true, // Always enable the query, even if id is undefined
+    enabled: !!id, // Only run the query if id is defined
+    retry: 1,
   });
 
   return {
     client,
     isLoadingClient,
-    error
+    error: isError ? error : null,
   };
 };

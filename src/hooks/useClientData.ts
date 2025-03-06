@@ -24,7 +24,7 @@ export const useClientData = (id: string | undefined) => {
   
   console.log("useClientData - Resolved client ID being used:", resolvedClientId);
   
-  // Even if resolvedClientId is undefined, we'll proceed anyway
+  // Only proceed with client data fetching if we have a resolvedClientId
   const { client, isLoadingClient, error } = useClient(resolvedClientId);
   const clientMutation = useClientMutation(resolvedClientId);
   const { sendInvitation } = useClientInvitation();

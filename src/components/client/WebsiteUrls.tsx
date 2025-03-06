@@ -134,7 +134,7 @@ export const WebsiteUrls = ({
                 type="number"
                 min="1"
                 value={newRefreshRate}
-                onChange={(e) => setNewRefreshRate(parseInt(e.target.value))}
+                onChange={(e) => setNewRefreshRate(parseInt(e.target.value) || 30)}
                 required
               />
             </div>
