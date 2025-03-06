@@ -5,7 +5,6 @@ import { useClientData } from "@/hooks/useClientData";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ClientDetails } from "@/components/client/ClientDetails";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 
@@ -56,6 +55,19 @@ const ProfileSettings = () => {
     );
   }
 
+  const handleSubmit = async (data: any) => {
+    setIsSubmitting(true);
+    try {
+      await clientMutation.mutateAsync(data);
+      toast.success("Profile updated successfully");
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      toast.error("Failed to update profile");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-3xl mx-auto space-y-8">
@@ -74,29 +86,42 @@ const ProfileSettings = () => {
         </div>
 
         <Card className="bg-white p-6">
-          <ClientDetails
-            client={client}
-            onSubmit={async (data) => {
-              setIsSubmitting(true);
-              try {
-                await clientMutation.mutateAsync(data);
-                toast.success("Profile updated successfully");
-              } catch (error) {
-                console.error("Failed to update profile:", error);
-                toast.error("Failed to update profile");
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
-            isSubmitting={isSubmitting}
-            cancelUrl="/client/view"
-            formTitle="Profile Information"
-            submitLabel="Save Changes"
-          />
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold">Client Information</h2>
+              <p className="text-sm text-gray-500">Basic information about your organization</p>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Client Name</label>
+                <div className="mt-1 p-2 border rounded bg-gray-50">{client.name}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">AI Agent Name</label>
+                <div className="mt-1 p-2 border rounded bg-gray-50">{client.agent_name || "Not set"}</div>
+              </div>
+            </div>
+            
+            <div className="pt-4">
+              <Button 
+                onClick={() => handleSubmit(client)}
+                disabled={isSubmitting}
+                className="w-full md:w-auto"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : "Save Changes"}
+              </Button>
+            </div>
+          </div>
         </Card>
       </div>
     </div>
   );
-};
+}
 
 export default ProfileSettings;

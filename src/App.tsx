@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import {
   BrowserRouter as Router,
@@ -5,53 +6,21 @@ import {
   Routes,
   Navigate,
 } from 'react-router-dom';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
-import Account from './pages/Account';
-import Home from './pages/Home';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import ClientDashboard from './pages/client/ClientDashboard';
-import WidgetSettings from './pages/client/WidgetSettings';
-import { AdminRoute } from './components/auth/AdminRoute';
-import { ClientRoute } from './components/auth/ClientRoute';
-import { AuthRoute } from './components/auth/AuthRoute';
-import { useAuth } from './contexts/AuthContext';
-import ClientSetup from './pages/auth/ClientSetup';
-import InvitationLanding from './pages/auth/InvitationLanding';
-import ProfileSettings from "./pages/client/ProfileSettings";
+import { useAuth } from '@/contexts/AuthContext';
+import ProfileSettings from "@/pages/client/ProfileSettings";
 
 function App() {
-  const session = useSession();
-  const supabase = useSupabaseClient();
-  const { isLoading } = useAuth();
-  const [isClientSetupComplete, setIsClientSetupComplete] = useState(false);
+  const { isLoading, user } = useAuth();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const checkClientSetup = async () => {
-      if (session && session.user) {
-        const { data: user_roles, error } = await supabase
-          .from('user_roles')
-          .select('*')
-          .eq('user_id', session.user.id);
-
-        if (error) {
-          console.error('Error fetching user roles:', error);
-          return;
-        }
-
-        if (user_roles && user_roles.length > 0) {
-          setIsClientSetupComplete(true);
-        } else {
-          setIsClientSetupComplete(false);
-        }
-      } else {
-        setIsClientSetupComplete(false);
-      }
-    };
-
-    checkClientSetup();
-  }, [session, supabase]);
+    // Check if user is authenticated
+    if (user) {
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+    }
+  }, [user]);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -60,69 +29,37 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route
-          exact
-          path="/"
+        <Route 
+          path="/" 
           element={
-            <AuthRoute>
-              <Home />
-            </AuthRoute>
-          }
-        />
-        <Route
-          exact
-          path="/account"
-          element={
-            <AuthRoute>
-              <Account session={session} />
-            </AuthRoute>
-          }
-        />
-        <Route
-          path="/auth/client-setup"
-          element={
-            <AuthRoute>
-              <ClientSetup />
-            </AuthRoute>
-          }
-        />
-        <Route
-          path="/invitation/:token"
-          element={
-            <AuthRoute>
-              <InvitationLanding />
-            </AuthRoute>
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            !session ? (
-              <div className="container" style={{ padding: '50px 0 100px 0' }}>
-                <Auth
-                  supabaseClient={supabase}
-                  appearance={{ theme: ThemeSupa }}
-                  providers={['google', 'github']}
-                  redirectTo={`${window.location.origin}/account`}
-                />
-              </div>
+            isAuthenticated ? (
+              <Navigate to="/client/view" />
             ) : (
-              <Navigate to="/account" />
+              <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow">
+                  <h1 className="text-2xl font-bold text-center">Welcome to Client Portal</h1>
+                  <p className="text-center text-gray-600">Please log in to continue</p>
+                  <button
+                    className="w-full px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-600"
+                    onClick={() => window.location.href = '/login'}
+                  >
+                    Login
+                  </button>
+                </div>
+              </div>
             )
-          }
+          } 
         />
-
-        {/* Admin routes */}
-        <Route element={<AdminRoute />}>
-          <Route path="/admin" element={<AdminDashboard />} />
-        </Route>
 
         {/* Client routes */}
-        <Route element={<ClientRoute />}>
-          <Route path="/client/view" element={<ClientDashboard />} />
-          <Route path="/client/widget-settings" element={<WidgetSettings />} />
-          <Route path="/client/profile-settings" element={<ProfileSettings />} />
+        <Route path="/client">
+          <Route path="profile-settings" element={<ProfileSettings />} />
+          <Route path="view" element={<div>Client Dashboard</div>} />
+          <Route path="widget-settings" element={<div>Widget Settings</div>} />
         </Route>
+
+        {/* Fallback route */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );
