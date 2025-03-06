@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Settings, Palette, UserCog } from "lucide-react";
@@ -11,6 +12,14 @@ import {
 
 export const ClientHeader = () => {
   const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -51,7 +60,7 @@ export const ClientHeader = () => {
             </DropdownMenu>
             <Button 
               variant="ghost" 
-              onClick={() => signOut?.()}
+              onClick={handleSignOut}
               className="text-sm"
             >
               Sign Out

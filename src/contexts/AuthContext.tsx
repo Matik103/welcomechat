@@ -1,5 +1,6 @@
+
 import { createContext, useContext, useState, useEffect } from 'react';
-import { AuthUser, SupabaseClient } from '@supabase/supabase-js';
+import { AuthUser, Session, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
@@ -7,6 +8,8 @@ interface AuthContextType {
   user: AuthUser | null;
   userRole: 'admin' | 'client' | null;
   setUserRole: (role: 'admin' | 'client' | null) => void;
+  session: Session | null;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -14,6 +17,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   userRole: null,
   setUserRole: () => {},
+  session: null,
+  signOut: async () => {},
 });
 
 interface AuthProviderProps {
@@ -23,7 +28,25 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'client' | null>(null);
+
+  // Sign out function
+  const signOut = async () => {
+    try {
+      console.log("Signing out user");
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Clear local state
+      setUser(null);
+      setSession(null);
+      setUserRole(null);
+    } catch (error) {
+      console.error("Error signing out:", error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -33,6 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (session) {
           console.log("Session user metadata:", session.user.user_metadata);
           setUser(session.user);
+          setSession(session);
           
           // Additional check for client role
           const isClientUser = session.user.user_metadata?.role === 'client' || 
@@ -45,6 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         } else {
           setUser(null);
+          setSession(null);
           setUserRole(null);
         }
         
@@ -55,6 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUser(session.user);
+        setSession(session);
         
         // Set user role based on metadata
         const isClientUser = session.user.user_metadata?.role === 'client' ||
@@ -79,6 +105,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     userRole,
     setUserRole,
+    session,
+    signOut,
   };
 
   return (

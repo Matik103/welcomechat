@@ -17,7 +17,11 @@ export const Header = () => {
   const location = useLocation();
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   if (!user) return null;
