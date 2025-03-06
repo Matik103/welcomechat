@@ -6,8 +6,8 @@ import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, AlertTriangle, Lock } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
@@ -34,7 +34,8 @@ export const ClientResourceSections = ({
   console.log("Website URLs:", websiteUrls);
 
   // Check if any drive links have restricted access
-  const hasRestrictedLinks = driveLinks.some(link => link.access_status === "restricted");
+  const restrictedLinks = driveLinks.filter(link => link.access_status === "restricted");
+  const hasRestrictedLinks = restrictedLinks.length > 0;
 
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     try {
@@ -148,10 +149,19 @@ export const ClientResourceSections = ({
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Links</h3>
         
         {hasRestrictedLinks && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Some Google Drive links have restricted access. Your AI agent may not be able to access these files.
+          <Alert variant="warning" className="mb-4 border-amber-300 bg-amber-50">
+            <Lock className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800">Restricted Access Detected</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              <p className="mb-2">
+                {restrictedLinks.length > 1 
+                  ? `${restrictedLinks.length} Google Drive links have restricted access.` 
+                  : "One Google Drive link has restricted access."} 
+                Your AI agent cannot access these files.
+              </p>
+              <p className="text-sm">
+                To fix this: Open each restricted link in Google Drive, click "Share", and change access to "Anyone with the link".
+              </p>
             </AlertDescription>
           </Alert>
         )}

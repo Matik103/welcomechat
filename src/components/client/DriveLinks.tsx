@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +39,6 @@ export const DriveLinks = ({
       return;
     }
     
-    // Basic validation for Google Drive links
     if (!newLink.includes('drive.google.com') && !newLink.includes('docs.google.com')) {
       setError("Please enter a valid Google Drive link");
       return;
@@ -103,7 +101,7 @@ export const DriveLinks = ({
                 <Lock className="w-4 h-4 text-amber-500" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Restricted access</p>
+                <p>Restricted access - AI cannot access this content</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -130,10 +128,22 @@ export const DriveLinks = ({
       {driveLinks.length > 0 ? (
         <div className="space-y-2">
           {driveLinks.map((link) => (
-            <div key={link.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+            <div 
+              key={link.id} 
+              className={`flex items-center gap-2 p-3 rounded-md border ${
+                link.access_status === "restricted" 
+                  ? "bg-amber-50 border-amber-200" 
+                  : "bg-gray-50 border-gray-200"
+              }`}
+            >
               <div className="flex-1 flex items-center gap-2">
                 {getAccessStatusIcon(link.access_status)}
                 <span className="truncate text-sm">{link.link}</span>
+                {link.access_status === "restricted" && (
+                  <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full whitespace-nowrap">
+                    Restricted access
+                  </span>
+                )}
               </div>
               <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
               <Button

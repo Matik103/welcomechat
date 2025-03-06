@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -34,32 +33,23 @@ export function useDriveLinks(clientId: string | undefined) {
     let fileId = '';
     
     try {
-      // Handle Google Drive folder URLs
       if (link.includes('drive.google.com/drive/folders/')) {
         const folderMatch = link.match(/folders\/([^/?]+)/);
         if (folderMatch && folderMatch[1]) {
           fileId = folderMatch[1];
         }
-      }
-      // Handle Google Docs, Sheets, Slides URLs
-      else if (link.includes('docs.google.com/document/d/') || 
-               link.includes('docs.google.com/spreadsheets/d/') ||
-               link.includes('docs.google.com/presentation/d/')) {
+      } else if (link.includes('docs.google.com/document/d/') || 
+                 link.includes('docs.google.com/spreadsheets/d/') ||
+                 link.includes('docs.google.com/presentation/d/')) {
         const docsMatch = link.match(/\/d\/([^/]+)/);
         if (docsMatch && docsMatch[1]) {
           fileId = docsMatch[1];
         }
-      }
-      // Handle Google Drive file URLs
-      else if (link.includes('/file/d/')) {
+      } else if (link.includes('/file/d/')) {
         fileId = link.split('/file/d/')[1]?.split('/')[0];
-      } 
-      // Handle URLs with id parameter
-      else if (link.includes('id=')) {
+      } else if (link.includes('id=')) {
         fileId = new URL(link).searchParams.get('id') || '';
-      } 
-      // Handle shortened /d/ URLs
-      else if (link.includes('/d/')) {
+      } else if (link.includes('/d/')) {
         fileId = link.split('/d/')[1]?.split('/')[0];
       }
       
@@ -78,73 +68,101 @@ export function useDriveLinks(clientId: string | undefined) {
 
   const checkDriveLinkAccess = async (link: string): Promise<AccessStatus> => {
     try {
-      // Extract file ID from Google Drive link
       const fileId = extractDriveFileId(link);
       console.log("Extracted file ID:", fileId);
       
-      // Setup the headers to detect redirects and access issues
       const headers = new Headers();
       headers.append('Accept', 'text/html,application/xhtml+xml');
       
-      // Check if the file is publicly accessible
-      // For Google Drive files and folders
       let accessCheckUrl: string;
       
       if (link.includes('docs.google.com')) {
-        // For Google Docs, Sheets, etc.
         accessCheckUrl = `https://docs.google.com/uc?id=${fileId}&export=download`;
       } else {
-        // For regular Drive files and folders
         accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
       }
       
       console.log("Checking access with URL:", accessCheckUrl);
       
-      // Attempt to access the file - don't actually do the fetch if we're in development
-      // This helps prevent network errors in local development
       let accessStatus: AccessStatus = "unknown";
       
       try {
-        // Attempt to access the file - this won't actually download it
-        // but will check if it's accessible without authentication
         const response = await fetch(accessCheckUrl, {
           method: 'HEAD',
           headers: headers,
-          redirect: 'manual', // Don't automatically follow redirects
+          redirect: 'manual',
+          cache: 'no-cache',
         });
 
         console.log("Drive link access check response status:", response.status);
         
-        // Check response status and patterns that indicate restricted access
         if (response.status === 200) {
-          // Check if there's any content-disposition header
           const contentDisposition = response.headers.get('content-disposition');
           if (contentDisposition) {
-            accessStatus = "public"; // If we get content disposition, it's downloadable and public
+            accessStatus = "public";
+          } else {
+            accessStatus = "public";
           }
-          accessStatus = "public"; // 200 OK generally means accessible
         } else if (response.status === 302 || response.status === 303) {
-          // Check where the redirect is going
           const location = response.headers.get('location');
           console.log("Redirect location:", location);
           
           if (location && (
               location.includes('accounts.google.com/signin') || 
               location.includes('accounts.google.com/ServiceLogin') ||
-              location.includes('accounts.google.com/v3/signin')
+              location.includes('accounts.google.com/v3/signin') ||
+              location.includes('accounts.google.com/AccountChooser')
           )) {
-            accessStatus = "restricted"; // Redirects to login page indicate restricted access
+            accessStatus = "restricted";
+          } else if (location && location.includes('drive.google.com/file/d/')) {
+            try {
+              const secondResponse = await fetch(location, {
+                method: 'HEAD',
+                headers: headers,
+                redirect: 'manual',
+              });
+              
+              if (secondResponse.status === 200) {
+                accessStatus = "public";
+              } else if (secondResponse.status === 302 || secondResponse.status === 303) {
+                const secondLocation = secondResponse.headers.get('location');
+                if (secondLocation && secondLocation.includes('accounts.google.com')) {
+                  accessStatus = "restricted";
+                }
+              }
+            } catch (secondFetchError) {
+              console.log("Second fetch error:", secondFetchError);
+            }
           }
         } else if (response.status === 401 || response.status === 403) {
-          accessStatus = "restricted"; // Explicit authorization errors
+          accessStatus = "restricted";
         }
       } catch (fetchError) {
         console.log("Fetch error during access check:", fetchError);
-        // Silently continue with "unknown" status instead of throwing an error
-        // We'll still add the drive link but with unknown access
+        accessStatus = "unknown";
       }
       
-      // Check if there's already data for this URL in the AI agent table
+      if (link.includes('drive.google.com/drive/folders/') && accessStatus === "unknown") {
+        try {
+          const folderResponse = await fetch(link, {
+            method: 'HEAD',
+            headers: headers,
+            redirect: 'manual',
+          });
+          
+          if (folderResponse.status === 200) {
+            accessStatus = "public";
+          } else if (folderResponse.status === 302 || folderResponse.status === 303) {
+            const location = folderResponse.headers.get('location');
+            if (location && location.includes('accounts.google.com')) {
+              accessStatus = "restricted";
+            }
+          }
+        } catch (folderFetchError) {
+          console.log("Folder fetch error:", folderFetchError);
+        }
+      }
+      
       const { data: existingData } = await supabase
         .from('ai_agent')
         .select('id')
@@ -153,19 +171,17 @@ export function useDriveLinks(clientId: string | undefined) {
         .maybeSingle();
       
       if (existingData) {
-        // Delete existing data to avoid duplicates
         await supabase
           .from('ai_agent')
           .delete()
           .eq('id', existingData.id);
       }
 
-      // Return the determined access status
+      console.log("Final access status determined:", accessStatus);
       return accessStatus;
     } catch (error: any) {
       console.error("Drive access check error:", error);
       
-      // Log error to database but don't show toast to user for network errors
       if (clientId) {
         await supabase.from("error_logs").insert({
           client_id: clientId,
@@ -175,7 +191,6 @@ export function useDriveLinks(clientId: string | undefined) {
         });
       }
       
-      // We'll return unknown instead of showing an error toast
       return "unknown";
     }
   };
@@ -189,7 +204,6 @@ export function useDriveLinks(clientId: string | undefined) {
     console.log("Adding drive link with client ID:", clientId);
     console.log("Input data:", input);
     
-    // First check if this URL already exists for this client
     const { data: existingLinks } = await supabase
       .from("google_drive_links")
       .select("*")
@@ -201,31 +215,28 @@ export function useDriveLinks(clientId: string | undefined) {
       throw new Error("This Google Drive link has already been added");
     }
     
-    // Validate Google Drive link and check access status
     let accessStatus: AccessStatus;
     try {
       accessStatus = await checkDriveLinkAccess(input.link);
       console.log("Drive link access status:", accessStatus);
       
       if (accessStatus === "restricted") {
-        // Show a warning toast but don't block the addition
-        toast.warning("This Google Drive link has restricted access. The AI agent may not be able to access all content.");
+        toast.warning("This Google Drive link has restricted access. The AI agent will not be able to access this content.", {
+          duration: 5000,
+          description: "Please change sharing settings to 'Anyone with the link' in Google Drive."
+        });
       }
     } catch (error) {
       console.error("Drive link access check failed:", error);
       accessStatus = "unknown";
-      // Still proceed with adding the link
     }
     
-    // If validation passes, add the link to the database
     try {
-      // First check if the access_status column exists
       const { error: schemaError } = await supabase
         .from("google_drive_links")
         .select("access_status")
         .limit(1);
       
-      // Define the base data object with the required fields
       const baseData: {
         client_id: string;
         link: string;
@@ -236,17 +247,14 @@ export function useDriveLinks(clientId: string | undefined) {
         refresh_rate: input.refresh_rate,
       };
       
-      // Create the insert data, conditionally adding access_status if the column exists
       let insertData: any;
       
       if (!schemaError) {
-        console.log("access_status column exists, including in insert");
         insertData = {
           ...baseData,
           access_status: accessStatus
-        };
+        } as (typeof baseData & { access_status: AccessStatus });
       } else {
-        console.log("access_status column doesn't exist, skipping in insert");
         insertData = baseData;
       }
       
@@ -289,7 +297,6 @@ export function useDriveLinks(clientId: string | undefined) {
       console.log("Drive link added successfully:", data);
       queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
       
-      // Show specific toast based on access status
       if (data.access_status === "public") {
         toast.success("Drive link added successfully - Public access detected");
       } else if (data.access_status === "restricted") {
