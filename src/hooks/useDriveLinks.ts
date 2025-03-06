@@ -1,7 +1,8 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DriveLink } from "@/types/client";
+import { DriveLink, AccessStatus } from "@/types/client";
 
 export function useDriveLinks(clientId: string | undefined) {
   const queryClient = useQueryClient();
@@ -75,28 +76,65 @@ export function useDriveLinks(clientId: string | undefined) {
     }
   };
 
-  const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
+  const checkDriveLinkAccess = async (link: string): Promise<AccessStatus> => {
     try {
       // Extract file ID from Google Drive link
       const fileId = extractDriveFileId(link);
       console.log("Extracted file ID:", fileId);
       
+      // Setup the headers to detect redirects and access issues
+      const headers = new Headers();
+      headers.append('Accept', 'text/html,application/xhtml+xml');
+      
       // Check if the file is publicly accessible
-      const accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
+      // For Google Drive files and folders
+      let accessCheckUrl: string;
+      
+      if (link.includes('docs.google.com')) {
+        // For Google Docs, Sheets, etc.
+        accessCheckUrl = `https://docs.google.com/uc?id=${fileId}&export=download`;
+      } else {
+        // For regular Drive files and folders
+        accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
+      }
       
       console.log("Checking access with URL:", accessCheckUrl);
       
-      // Attempt to access the file without authentication
+      // Attempt to access the file - this won't actually download it
+      // but will check if it's accessible without authentication
       const response = await fetch(accessCheckUrl, {
         method: 'HEAD',
-        mode: 'no-cors',
-        redirect: 'follow',
-      }).catch(error => {
-        console.error("Drive file access check error:", error);
-        throw new Error("Drive file appears to be inaccessible. Please check sharing settings.");
+        headers: headers,
+        redirect: 'manual', // Don't automatically follow redirects
       });
 
-      console.log(`Drive link access check response: ${response ? response.status : 'No response'}`);
+      console.log("Drive link access check response status:", response.status);
+      
+      // Check response status and patterns that indicate restricted access
+      if (response.status === 200) {
+        // Check if there's any content-disposition header
+        const contentDisposition = response.headers.get('content-disposition');
+        if (contentDisposition) {
+          return "public"; // If we get content disposition, it's downloadable and public
+        }
+        return "public"; // 200 OK generally means accessible
+      } else if (response.status === 302 || response.status === 303) {
+        // Check where the redirect is going
+        const location = response.headers.get('location');
+        console.log("Redirect location:", location);
+        
+        if (location && (
+            location.includes('accounts.google.com/signin') || 
+            location.includes('accounts.google.com/ServiceLogin') ||
+            location.includes('accounts.google.com/v3/signin')
+        )) {
+          return "restricted"; // Redirects to login page indicate restricted access
+        }
+        
+        return "unknown"; // Other redirects might be ambiguous
+      } else if (response.status === 401 || response.status === 403) {
+        return "restricted"; // Explicit authorization errors
+      }
       
       // Check if there's already data for this URL in the AI agent table
       const { data: existingData } = await supabase
@@ -114,8 +152,11 @@ export function useDriveLinks(clientId: string | undefined) {
           .eq('id', existingData.id);
       }
 
-      return true;
+      // Default to unknown if we can't determine for sure
+      return "unknown";
     } catch (error: any) {
+      console.error("Drive access check error:", error);
+      
       // Log error to database
       if (clientId) {
         await supabase.from("error_logs").insert({
@@ -129,7 +170,7 @@ export function useDriveLinks(clientId: string | undefined) {
       // Immediately notify the user of the error
       toast.error(`Google Drive access error: ${error.message}`);
       
-      throw error;
+      return "unknown";
     }
   };
 
@@ -142,12 +183,20 @@ export function useDriveLinks(clientId: string | undefined) {
     console.log("Adding drive link with client ID:", clientId);
     console.log("Input data:", input);
     
-    // Validate Google Drive link accessibility
+    // Validate Google Drive link and check access status
+    let accessStatus: AccessStatus;
     try {
-      await checkDriveLinkAccess(input.link);
+      accessStatus = await checkDriveLinkAccess(input.link);
+      console.log("Drive link access status:", accessStatus);
+      
+      if (accessStatus === "restricted") {
+        // Show a warning toast but don't block the addition
+        toast.warning("This Google Drive link has restricted access. The AI agent may not be able to access all content.");
+      }
     } catch (error) {
       console.error("Drive link access check failed:", error);
-      throw error;
+      accessStatus = "unknown";
+      // Still proceed with adding the link
     }
     
     // If validation passes, add the link to the database
@@ -157,7 +206,8 @@ export function useDriveLinks(clientId: string | undefined) {
         .insert({
           client_id: clientId, 
           link: input.link, 
-          refresh_rate: input.refresh_rate 
+          refresh_rate: input.refresh_rate,
+          access_status: accessStatus
         })
         .select()
         .single();
@@ -194,7 +244,15 @@ export function useDriveLinks(clientId: string | undefined) {
     onSuccess: (data) => {
       console.log("Drive link added successfully:", data);
       queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
-      toast.success("Drive link added successfully");
+      
+      // Show specific toast based on access status
+      if (data.access_status === "public") {
+        toast.success("Drive link added successfully - Public access detected");
+      } else if (data.access_status === "restricted") {
+        toast.warning("Drive link added with restricted access - AI may not be able to access all content");
+      } else {
+        toast.success("Drive link added successfully");
+      }
     },
     onError: (error: Error) => {
       console.error("Drive link mutation error:", error);

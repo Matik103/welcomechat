@@ -6,7 +6,8 @@ import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
@@ -31,6 +32,9 @@ export const ClientResourceSections = ({
 
   console.log("Drive Links:", driveLinks);
   console.log("Website URLs:", websiteUrls);
+
+  // Check if any drive links have restricted access
+  const hasRestrictedLinks = driveLinks.some(link => link.access_status === "restricted");
 
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     try {
@@ -142,6 +146,16 @@ export const ClientResourceSections = ({
     <div className="space-y-6">
       <div className="rounded-lg">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Links</h3>
+        
+        {hasRestrictedLinks && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Some Google Drive links have restricted access. Your AI agent may not be able to access these files.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <DriveLinks
           driveLinks={driveLinks}
           onAdd={handleAddDriveLink}
