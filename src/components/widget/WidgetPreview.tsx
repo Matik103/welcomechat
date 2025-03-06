@@ -152,7 +152,14 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                   borderColor: `${settings.chat_color}50`,
                   color: settings.text_color,
                   backgroundColor: 'white',
-                  focusRing: settings.chat_color
+                  // Fixing the focusRing error - replace with CSS class instead of inline style
+                }}
+                className="w-full py-2 px-3 pr-10 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                // Add a custom class to handle the focus ring color
+                style={{ 
+                  borderColor: `${settings.chat_color}50`,
+                  color: settings.text_color,
+                  backgroundColor: 'white'
                 }}
                 value={userMessage}
                 onChange={(e) => setUserMessage(e.target.value)}
