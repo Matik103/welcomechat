@@ -1,11 +1,10 @@
-
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData, Client } from "@/types/client";
 import { toast } from "sonner";
 
 export const useClientData = (id: string | undefined) => {
-  const { data: client, isLoading: isLoadingClient, error } = useQuery({
+  const { data: client, isLoading: isLoadingClient } = useQuery({
     queryKey: ["client", id],
     queryFn: async () => {
       if (!id) return null;
@@ -196,7 +195,6 @@ export const useClientData = (id: string | undefined) => {
   return {
     client,
     isLoadingClient,
-    error,
     clientMutation,
     sendInvitation
   };

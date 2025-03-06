@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,39 +17,18 @@ export const ProfileSection = ({ initialFullName, initialEmail }: ProfileSection
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState(initialFullName);
   const [email, setEmail] = useState(initialEmail);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    // Update state when props change
-    setFullName(initialFullName);
-    setEmail(initialEmail);
-  }, [initialFullName, initialEmail]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
-    
     try {
-      console.log("Updating profile with:", { email, fullName });
-      
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         email: email,
         data: { full_name: fullName }
       });
-      
-      if (updateError) {
-        console.error("Profile update error:", updateError);
-        setError(updateError.message);
-        toast.error(updateError.message);
-        return;
-      }
-      
-      console.log("Profile updated successfully");
+      if (error) throw error;
       toast.success("Profile updated successfully");
     } catch (error: any) {
-      console.error("Error in profile update:", error);
-      setError(error.message);
       toast.error(error.message);
     } finally {
       setLoading(false);
@@ -88,7 +67,6 @@ export const ProfileSection = ({ initialFullName, initialEmail }: ProfileSection
               required
             />
           </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             Update Profile
