@@ -1,81 +1,53 @@
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClientFormData } from "@/types/client";
-import { 
-  updateClient, 
-  createClient, 
-  logClientUpdateActivity,
-  sendClientInvitation,
-  sendFallbackEmail
-} from "@/services/clientService";
+import { updateClient } from "@/services/clientService";
 import { toast } from "sonner";
 
 export const useClientMutation = (id: string | undefined) => {
+  const queryClient = useQueryClient();
+  
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
+      if (!id) {
+        console.error("Client mutation called without ID");
+        throw new Error("Client ID is required to update client information");
+      }
+
+      console.log("Starting client mutation for ID:", id);
+      console.log("Data being sent:", data);
+      
       try {
+        // Sanitize the agent name
         const sanitizedAgentName = data.agent_name
           .trim()
           .toLowerCase()
           .replace(/[^a-z0-9]/g, '_');
-        const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+        
         const updatedData = {
           ...data,
-          agent_name: finalAgentName,
+          agent_name: sanitizedAgentName,
         };
 
-        // If id exists, update existing client, otherwise create new one
-        if (id) {
-          const clientId = await updateClient(id, updatedData);
-          await logClientUpdateActivity(id);
-          return clientId;
-        } else {
-          // Creating a new client (no ID required)
-          const newClientId = await createClient(updatedData);
-          
-          try {
-            toast.info("Sending setup email...");
-            
-            try {
-              console.log("Calling send-client-invitation edge function");
-              await sendClientInvitation(
-                newClientId, 
-                updatedData.email, 
-                updatedData.client_name
-              );
-              toast.success("Setup email sent to client");
-            } catch (inviteError) {
-              console.error("Exception in invitation process:", inviteError);
-              toast.error(`Failed to send setup email: ${inviteError.message || "Unknown error"}`);
-              
-              try {
-                await sendFallbackEmail(updatedData.email);
-                toast.success("Setup email sent to client (basic version)");
-              } catch (fallbackError) {
-                console.error("Failed to send fallback email:", fallbackError);
-              }
-            }
-          } catch (setupError) {
-            console.error("Error in client setup process:", setupError);
-            toast.error(`Error during client setup: ${setupError.message || "Unknown error"}`);
-          }
-
-          return newClientId;
-        }
+        const result = await updateClient(id, updatedData);
+        console.log("Update client result:", result);
+        return id;
       } catch (error) {
         console.error("Error in client mutation:", error);
-        throw new Error(error.message || "Failed to save client");
+        throw error;
       }
     },
-    onSuccess: (clientId) => {
-      if (id) {
-        toast.success("Client updated successfully");
-      } else {
-        toast.success("Client created successfully");
-      }
+    onSuccess: (id) => {
+      console.log("Client mutation succeeded for ID:", id);
+      // Invalidate related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["client", id] });
+      queryClient.invalidateQueries({ queryKey: ["websiteUrls", id] });
+      queryClient.invalidateQueries({ queryKey: ["driveLinks", id] });
+      toast.success("Client information updated successfully");
     },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
+    onError: (error: Error) => {
+      console.error("Client mutation failed:", error);
+      toast.error(`Error updating client: ${error.message}`);
     },
   });
 
