@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -21,6 +20,9 @@ export const getClientById = async (id: string): Promise<Client | null> => {
  * Updates an existing client
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
+  console.log("Updating client with ID:", id);
+  console.log("Update data:", data);
+
   const { error } = await supabase
     .from("clients")
     .update({
@@ -30,7 +32,12 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
       widget_settings: data.widget_settings,
     })
     .eq("id", id);
-  if (error) throw error;
+
+  if (error) {
+    console.error("Error updating client:", error);
+    throw error;
+  }
+
   return id;
 };
 

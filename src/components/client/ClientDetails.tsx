@@ -5,7 +5,6 @@ import { ClientForm } from "@/components/client/ClientForm";
 import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
-import { toast } from "sonner";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -21,18 +20,14 @@ export const ClientDetails = ({
   logClientActivity 
 }: ClientDetailsProps) => {
   const navigate = useNavigate();
-  // Use the clientId that was passed to the component
   const { clientMutation } = useClientData(clientId);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
-      console.log("ClientDetails - Submitting form with clientId:", clientId);
-      console.log("ClientDetails - Form data:", data);
+      console.log("ClientDetails - Submitting form with data:", data);
       
-      // We don't need to check for clientId when creating a new client
       await clientMutation.mutateAsync(data);
       
-      // Log client information update activity - only for existing clients
       if (clientId && isClientView) {
         try {
           await logClientActivity(
@@ -46,19 +41,14 @@ export const ClientDetails = ({
           );
         } catch (logError) {
           console.error("Error logging activity:", logError);
-          // Continue even if logging fails
         }
       }
       
-      toast.success(clientId ? "Client information saved successfully" : "Client created successfully");
-      
-      // Only navigate away if not in client view
       if (!isClientView) {
         navigate("/admin/clients");
       }
     } catch (error) {
       console.error("Error submitting client form:", error);
-      toast.error("Failed to save client information");
     }
   };
 
