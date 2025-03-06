@@ -24,7 +24,7 @@ const ClientSettings = () => {
       if (isMounted) {
         setLoadTimeout(true);
       }
-    }, 5000);
+    }, 3000); // Reduced timeout to 3 seconds from 5 seconds
 
     const fetchClientInfo = async () => {
       if (!user?.email) {
@@ -35,11 +35,11 @@ const ClientSettings = () => {
       }
       
       try {
-        console.log("Fetching client info for email:", user.email);
         const { data, error } = await supabase
           .from("clients")
           .select("*")
           .eq("email", user.email)
+          .limit(1)
           .maybeSingle();
           
         if (error) {
@@ -47,7 +47,6 @@ const ClientSettings = () => {
           throw error;
         }
         
-        console.log("Client info fetched:", data);
         if (isMounted) {
           setClientInfo(data);
         }
@@ -75,7 +74,7 @@ const ClientSettings = () => {
   // If we've been loading for too long or there's a data issue, try to provide a graceful experience
   if ((isLoading && loadTimeout) || (!isLoading && !clientInfo && !error && user)) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8">
+      <div className="min-h-screen bg-[#F8F9FA] p-4 md:p-8">
         <div className="max-w-2xl mx-auto space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
@@ -112,26 +111,13 @@ const ClientSettings = () => {
 
   if (isLoading && !loadTimeout) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F8F9FA] p-4 md:p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center flex-col">
-        <div className="text-red-500 mb-4">Error loading settings: {error}</div>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="px-4 py-2 bg-primary text-white rounded-md"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
+  // Main render with client info
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-4">
       <div className="max-w-2xl mx-auto space-y-6">

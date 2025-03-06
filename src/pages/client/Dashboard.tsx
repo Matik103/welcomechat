@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
 import { ErrorLogList } from "@/components/client-dashboard/ErrorLogList";
@@ -20,22 +20,38 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
+  const [isAuthVerified, setIsAuthVerified] = useState<boolean>(false);
   
   // Set a timeout to ensure we don't get stuck in a loading state
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
-    }, 5000);
+    }, 3000); // Reduced timeout to 3 seconds from 5 seconds
     
     return () => clearTimeout(timeout);
   }, []);
   
-  // Redirect if not authenticated
+  // Verify authentication early to avoid unnecessary data fetching
   useEffect(() => {
-    if (!user) {
-      navigate("/auth");
+    if (user) {
+      setIsAuthVerified(true);
+    } else {
+      // Small delay before redirecting to avoid flashing content
+      const timer = setTimeout(() => {
+        navigate("/auth");
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [user, navigate]);
+
+  // Don't fetch any data until authentication is verified
+  if (!isAuthVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
   // Get client ID from user metadata if not provided
   const effectiveClientId = clientId || user?.user_metadata?.client_id;
@@ -63,14 +79,6 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     }
   }, [authError, signOut]);
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
   // Show fallback UI if we've been loading for too long
   if ((isLoadingStats || isLoadingErrorLogs || isLoadingQueries) && !loadTimeout) {
     return (
@@ -89,7 +97,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
 
   return (
     <div className="bg-[#F8F9FA] min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* Refresh button */}
         <div className="flex justify-end">
           <Button 
@@ -103,7 +111,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           </Button>
         </div>
         
-        {/* Stats section - with increased top spacing */}
+        {/* Stats section */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <InteractionStats 
             stats={stats} 

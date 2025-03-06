@@ -7,19 +7,23 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const checkAndRefreshAuth = async (): Promise<boolean> => {
   try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session) {
-      console.log("Auth session error or missing:", error);
-      // Session is invalid, try refreshing
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.error("Failed to refresh auth session:", refreshError);
-        return false;
-      }
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      console.log("No active session found");
+      return false;
     }
     return true;
   } catch (err) {
     console.error("Error checking auth session:", err);
     return false;
   }
+}
+
+/**
+ * Sign out the current user
+ * @returns Promise<void>
+ */
+export const signOutUser = async (): Promise<void> => {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 }

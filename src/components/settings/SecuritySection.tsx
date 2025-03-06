@@ -30,11 +30,17 @@ export const SecuritySection = () => {
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Password update error:", error);
+        throw error;
+      }
+      
       toast.success("Password updated successfully");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
+      console.error("Error updating password:", error);
       toast.error(error.message || "Failed to update password");
     } finally {
       setLoading(false);

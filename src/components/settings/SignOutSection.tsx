@@ -16,14 +16,22 @@ export const SignOutSection = () => {
     try {
       // Log the sign out action before actually signing out
       if (user?.user_metadata?.client_id) {
-        await logClientActivity("signed_out", "signed out of their account");
+        try {
+          await logClientActivity("client_updated", "signed out of their account", {
+            action_type: "signed_out"
+          });
+        } catch (error) {
+          console.error("Failed to log signout activity:", error);
+          // Continue with sign out even if logging fails
+        }
       }
       
       await signOut();
       toast.success("Successfully signed out");
       navigate("/auth");
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Sign out error:", error);
+      toast.error(error.message || "Failed to sign out");
     }
   };
 

@@ -28,7 +28,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkUserRole = async (userId: string) => {
     try {
-      console.log("Checking user role for:", userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, client_id')
@@ -42,13 +41,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // If user has client_id in user_roles, update user metadata
       if (data?.client_id && data.role === 'client') {
-        console.log("Updating user metadata with client_id:", data.client_id);
         await supabase.auth.updateUser({
           data: { client_id: data.client_id }
         });
       }
 
-      console.log("User role found:", data?.role);
       return data?.role as UserRole || null;
     } catch (error) {
       console.error("Error checking user role:", error);
@@ -61,13 +58,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
-        console.log("Initializing auth...");
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
         if (initialSession) {
-          console.log("Initial session found:", initialSession.user.email);
           setSession(initialSession);
           setUser(initialSession.user);
           
@@ -75,9 +70,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUserRole(role);
           
           // If on the setup page with a session, redirect to dashboard
-          // But ONLY if not in the middle of setup process (URL has id parameter)
           if (location.pathname.startsWith('/client/setup') && !location.search.includes('id=')) {
-            console.log("Already logged in on setup page, redirecting to dashboard");
             navigate('/client/view', { replace: true });
           }
         }
@@ -87,7 +80,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (mounted) {
           setIsLoading(false);
           setAuthCheckCompleted(true);
-          console.log("Auth check completed");
         }
       }
     };
@@ -97,12 +89,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
-        console.log("Auth state changed:", event, currentSession?.user?.email);
-
-        // Set loading to true for auth state changes
-        if (!authCheckCompleted || event !== 'INITIAL_SESSION') {
-          setIsLoading(true);
-        }
 
         // Only update session if it's actually different
         const sessionChanged = 
@@ -110,7 +96,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           (currentSession === null && session !== null);
 
         if (sessionChanged || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          console.log("Session changed, updating state");
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
 
@@ -120,13 +105,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             // Redirect based on role after sign in
             if (event === 'SIGNED_IN') {
-              console.log("Sign in detected, redirecting based on role:", role);
               if (role === 'client') {
-                // Add small delay to ensure auth is complete
-                setTimeout(() => {
-                  console.log("Redirecting client to dashboard");
-                  navigate('/client/view', { replace: true });
-                }, 800); // Increased delay slightly for more reliable auth state propagation
+                navigate('/client/view', { replace: true });
               } else if (role === 'admin') {
                 navigate('/', { replace: true });
               }
@@ -157,6 +137,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
@@ -165,10 +146,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       
       navigate('/auth', { replace: true });
-      toast.success("Successfully signed out");
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error(error.message || "Failed to sign out");
+    } finally {
+      setIsLoading(false);
     }
   };
 
