@@ -33,7 +33,6 @@ export function WidgetSettingsContainer({
   logClientActivity
 }: WidgetSettingsContainerProps) {
   const [currentSettings, setCurrentSettings] = useState<IWidgetSettings>(settings);
-  const [showPreview, setShowPreview] = useState(true);
 
   const handleSettingsChange = (newSettings: Partial<IWidgetSettings>) => {
     setCurrentSettings({ ...currentSettings, ...newSettings });
@@ -59,18 +58,6 @@ export function WidgetSettingsContainer({
     }
   };
 
-  const handleTogglePreview = (isVisible: boolean) => {
-    setShowPreview(isVisible);
-    
-    if (isClientView) {
-      logClientActivity(
-        "widget_previewed", 
-        isVisible ? "previewed their widget" : "closed the widget preview",
-        {}
-      );
-    }
-  };
-
   return (
     <div className="container mx-auto py-8 max-w-4xl">
       <WidgetSettingsHeader onBack={handleBack} />
@@ -88,11 +75,7 @@ export function WidgetSettingsContainer({
           onCopy={handleCopyEmbedCode} 
         />
 
-        <WidgetPreviewCard
-          settings={currentSettings}
-          showPreview={showPreview}
-          onTogglePreview={handleTogglePreview}
-        />
+        <WidgetPreviewCard settings={currentSettings} />
 
         <div className="flex justify-end">
           <Button 

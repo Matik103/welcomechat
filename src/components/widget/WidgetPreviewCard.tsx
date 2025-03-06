@@ -5,15 +5,9 @@ import { WidgetSettings } from "@/types/widget-settings";
 
 interface WidgetPreviewCardProps {
   settings: WidgetSettings;
-  showPreview: boolean;
-  onTogglePreview: (isVisible: boolean) => void;
 }
 
-export function WidgetPreviewCard({ 
-  settings, 
-  showPreview, 
-  onTogglePreview 
-}: WidgetPreviewCardProps) {
+export function WidgetPreviewCard({ settings }: WidgetPreviewCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -21,11 +15,7 @@ export function WidgetPreviewCard({
         <CardDescription>See how your widget will appear to visitors. Click the chat icon to expand the preview.</CardDescription>
       </CardHeader>
       <CardContent>
-        <WidgetPreview
-          settings={settings}
-          showPreview={showPreview}
-          onTogglePreview={onTogglePreview}
-        />
+        <WidgetPreview settings={settings} />
       </CardContent>
     </Card>
   );
