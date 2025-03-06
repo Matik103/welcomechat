@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkUserRole = async (userId: string) => {
     try {
+      console.log("Checking user role for userId:", userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, client_id')
@@ -39,11 +40,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return null;
       }
 
+      console.log("User role data:", data);
+
       // If user has client_id in user_roles, update user metadata
       if (data?.client_id && data.role === 'client') {
-        await supabase.auth.updateUser({
-          data: { client_id: data.client_id }
-        });
+        try {
+          console.log("Updating user metadata with client_id:", data.client_id);
+          await supabase.auth.updateUser({
+            data: { client_id: data.client_id }
+          });
+        } catch (updateError) {
+          console.error("Error updating user metadata:", updateError);
+        }
       }
 
       return data?.role as UserRole || null;
@@ -58,21 +66,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.log("Initializing auth...");
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Error getting session:", error);
+        }
         
         if (!mounted) return;
 
         if (initialSession) {
+          console.log("Initial session found:", initialSession.user.id);
           setSession(initialSession);
           setUser(initialSession.user);
           
           const role = await checkUserRole(initialSession.user.id);
+          console.log("User role:", role);
           setUserRole(role);
           
           // If on the setup page with a session, redirect to dashboard
           if (location.pathname.startsWith('/client/setup') && !location.search.includes('id=')) {
             navigate('/client/view', { replace: true });
           }
+        } else {
+          console.log("No initial session found");
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
@@ -88,7 +105,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log("Auth state change event:", event);
+        
         if (!mounted) return;
+
+        if (event === 'SIGNED_OUT') {
+          console.log("User signed out, clearing state");
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          navigate('/auth', { replace: true });
+          setIsLoading(false);
+          return;
+        }
 
         // Only update session if it's actually different
         const sessionChanged = 
@@ -96,6 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           (currentSession === null && session !== null);
 
         if (sessionChanged || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log("Setting new session");
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
 
@@ -137,15 +167,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      console.log("Starting sign out process...");
       setIsLoading(true);
+      
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase sign out error:", error);
+        throw error;
+      }
 
+      console.log("Sign out successful, clearing state");
       setUserRole(null);
       setSession(null);
       setUser(null);
       
       navigate('/auth', { replace: true });
+      console.log("Navigation to auth page complete");
+      
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error(error.message || "Failed to sign out");

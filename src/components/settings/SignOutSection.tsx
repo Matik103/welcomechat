@@ -6,13 +6,16 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useClientActivity } from "@/hooks/useClientActivity";
+import { signOutUser } from "@/services/authService";
 
 export const SignOutSection = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { logClientActivity } = useClientActivity(user?.user_metadata?.client_id);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {
+    setIsLoading(true);
     try {
       // Log the sign out action before actually signing out
       if (user?.user_metadata?.client_id) {
@@ -26,12 +29,15 @@ export const SignOutSection = () => {
         }
       }
       
+      await signOutUser();
       await signOut();
       toast.success("Successfully signed out");
       navigate("/auth");
     } catch (error: any) {
       console.error("Sign out error:", error);
       toast.error(error.message || "Failed to sign out");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -47,8 +53,15 @@ export const SignOutSection = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button variant="destructive" onClick={handleSignOut}>
-          Sign Out
+        <Button variant="destructive" onClick={handleSignOut} disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <span className="animate-spin mr-2">⟳</span>
+              Signing Out...
+            </>
+          ) : (
+            "Sign Out"
+          )}
         </Button>
       </CardContent>
     </Card>
