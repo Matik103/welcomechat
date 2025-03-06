@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
-import { useClientData } from "@/hooks/useClientData";
+import { useClientMutation } from "@/hooks/useClientMutation";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
@@ -20,25 +20,36 @@ export const ClientDetails = ({
   logClientActivity 
 }: ClientDetailsProps) => {
   const navigate = useNavigate();
-  const { clientMutation } = useClientData(clientId);
+  const clientMutation = useClientMutation(clientId);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
       console.log("ClientDetails - Submitting form with data:", data);
+      console.log("ClientDetails - Using client ID:", clientId);
+      
+      if (!clientId) {
+        console.error("No client ID available for update");
+        return;
+      }
       
       await clientMutation.mutateAsync(data);
       
       if (clientId && isClientView) {
         try {
-          await logClientActivity(
-            "client_updated", 
-            "updated their client information",
-            { 
-              updated_fields: Object.keys(data).filter(key => 
-                client && data[key as keyof typeof data] !== client[key as keyof typeof client]
-              )
-            }
+          // Determine which fields were actually updated
+          const updatedFields = Object.keys(data).filter(key => 
+            client && data[key as keyof typeof data] !== client[key as keyof typeof client]
           );
+          
+          console.log("Updated fields:", updatedFields);
+          
+          if (updatedFields.length > 0) {
+            await logClientActivity(
+              "client_updated", 
+              "updated their client information",
+              { updated_fields: updatedFields }
+            );
+          }
         } catch (logError) {
           console.error("Error logging activity:", logError);
         }

@@ -10,10 +10,15 @@ export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       if (!id) {
+        console.error("Client mutation called without ID");
         throw new Error("Client ID is required to update client information");
       }
 
+      console.log("Starting client mutation for ID:", id);
+      console.log("Data being sent:", data);
+      
       try {
+        // Sanitize the agent name
         const sanitizedAgentName = data.agent_name
           .trim()
           .toLowerCase()
@@ -24,18 +29,24 @@ export const useClientMutation = (id: string | undefined) => {
           agent_name: sanitizedAgentName,
         };
 
-        await updateClient(id, updatedData);
+        const result = await updateClient(id, updatedData);
+        console.log("Update client result:", result);
         return id;
       } catch (error) {
         console.error("Error in client mutation:", error);
         throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client"] });
+    onSuccess: (id) => {
+      console.log("Client mutation succeeded for ID:", id);
+      // Invalidate related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["client", id] });
+      queryClient.invalidateQueries({ queryKey: ["websiteUrls", id] });
+      queryClient.invalidateQueries({ queryKey: ["driveLinks", id] });
       toast.success("Client information updated successfully");
     },
     onError: (error: Error) => {
+      console.error("Client mutation failed:", error);
       toast.error(`Error updating client: ${error.message}`);
     },
   });
