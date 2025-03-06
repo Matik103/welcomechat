@@ -24,11 +24,13 @@ export const useClientMutation = (id: string | undefined) => {
           agent_name: finalAgentName,
         };
 
+        // If id exists, update existing client, otherwise create new one
         if (id) {
           const clientId = await updateClient(id, updatedData);
           await logClientUpdateActivity(id);
           return clientId;
         } else {
+          // Creating a new client (no ID required)
           const newClientId = await createClient(updatedData);
           
           try {

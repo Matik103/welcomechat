@@ -21,19 +21,22 @@ export const ClientDetails = ({
   logClientActivity 
 }: ClientDetailsProps) => {
   const navigate = useNavigate();
+  // In creation mode, we don't have a clientId yet
+  const isCreationMode = !clientId;
   // Use the clientId that was passed to the component
   const { clientMutation } = useClientData(clientId);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
-      if (!clientId) {
+      // Don't require clientId when creating a new client
+      if (!isCreationMode && !clientId) {
         toast.error("Client ID is required to save changes");
         return;
       }
       
       await clientMutation.mutateAsync(data);
       
-      // Log client information update activity
+      // Log client information update activity - only for existing clients
       if (clientId && isClientView) {
         try {
           await logClientActivity(
@@ -51,7 +54,7 @@ export const ClientDetails = ({
         }
       }
       
-      toast.success("Client information saved successfully");
+      toast.success(isCreationMode ? "Client created successfully" : "Client information saved successfully");
       
       // Only navigate away if not in client view
       if (!isClientView) {
