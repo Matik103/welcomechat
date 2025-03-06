@@ -15,34 +15,112 @@ export const fetchAverageResponseTime = async (clientId: string): Promise<number
       throw new Error("Authentication failed");
     }
     
-    const { data, error } = await supabase
-      .from("client_activities")
-      .select("metadata")
-      .eq("client_id", clientId)
-      .eq("activity_type", "chat_interaction")
-      .order("created_at", { ascending: false })
-      .limit(30);
+    // First, get the agent_name for this client
+    const { data: clientData, error: clientError } = await supabase
+      .from("clients")
+      .select("agent_name")
+      .eq("id", clientId)
+      .single();
     
-    if (error || !data) {
-      console.error("Error fetching recent interactions:", error);
+    if (clientError || !clientData) {
+      console.error("Error fetching client agent name:", clientError);
       return 0;
     }
     
-    let totalResponseTime = 0;
-    let countWithResponseTime = 0;
+    const sanitizedAgentName = clientData.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
-    data.forEach(interaction => {
-      if (interaction.metadata && 
-          typeof interaction.metadata === 'object' && 
-          'response_time_ms' in interaction.metadata) {
-        totalResponseTime += Number(interaction.metadata.response_time_ms);
-        countWithResponseTime++;
+    try {
+      // Try to get response times from the agent's table metadata
+      const { data, error } = await supabase
+        .from(sanitizedAgentName)
+        .select("metadata")
+        .not("metadata", "is", null)
+        .order("id", { ascending: false })
+        .limit(30);
+      
+      if (error || !data) {
+        // Fallback to client_activities if agent table doesn't exist
+        console.log(`Error querying ${sanitizedAgentName} table:`, error);
+        
+        const { data: activityData, error: activityError } = await supabase
+          .from("client_activities")
+          .select("metadata")
+          .eq("client_id", clientId)
+          .eq("activity_type", "chat_interaction")
+          .order("created_at", { ascending: false })
+          .limit(30);
+        
+        if (activityError || !activityData) {
+          console.error("Error fetching recent interactions:", activityError);
+          return 0;
+        }
+        
+        let totalResponseTime = 0;
+        let countWithResponseTime = 0;
+        
+        activityData.forEach(interaction => {
+          if (interaction.metadata && 
+              typeof interaction.metadata === 'object' && 
+              'response_time_ms' in interaction.metadata) {
+            totalResponseTime += Number(interaction.metadata.response_time_ms);
+            countWithResponseTime++;
+          }
+        });
+        
+        return countWithResponseTime > 0 
+          ? Number((totalResponseTime / countWithResponseTime / 1000).toFixed(2))
+          : 0;
       }
-    });
-    
-    return countWithResponseTime > 0 
-      ? Number((totalResponseTime / countWithResponseTime / 1000).toFixed(2))
-      : 0;
+      
+      // Calculate average response time from agent table metadata
+      let totalResponseTime = 0;
+      let countWithResponseTime = 0;
+      
+      data.forEach(item => {
+        if (item.metadata && 
+            typeof item.metadata === 'object' && 
+            'response_time_ms' in item.metadata) {
+          totalResponseTime += Number(item.metadata.response_time_ms);
+          countWithResponseTime++;
+        }
+      });
+      
+      return countWithResponseTime > 0 
+        ? Number((totalResponseTime / countWithResponseTime / 1000).toFixed(2))
+        : 0;
+    } catch (err) {
+      // Fallback to client_activities
+      console.error(`Error processing data from ${sanitizedAgentName} table:`, err);
+      
+      const { data: activityData, error: activityError } = await supabase
+        .from("client_activities")
+        .select("metadata")
+        .eq("client_id", clientId)
+        .eq("activity_type", "chat_interaction")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      
+      if (activityError || !activityData) {
+        console.error("Error fetching recent interactions:", activityError);
+        return 0;
+      }
+      
+      let totalResponseTime = 0;
+      let countWithResponseTime = 0;
+      
+      activityData.forEach(interaction => {
+        if (interaction.metadata && 
+            typeof interaction.metadata === 'object' && 
+            'response_time_ms' in interaction.metadata) {
+          totalResponseTime += Number(interaction.metadata.response_time_ms);
+          countWithResponseTime++;
+        }
+      });
+      
+      return countWithResponseTime > 0 
+        ? Number((totalResponseTime / countWithResponseTime / 1000).toFixed(2))
+        : 0;
+    }
   } catch (err) {
     console.error("Error fetching average response time:", err);
     return 0;

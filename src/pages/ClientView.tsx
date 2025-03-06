@@ -10,6 +10,9 @@ import { QueriesCard } from "@/components/client-view/QueriesCard";
 import { ChatHistoryCard } from "@/components/client-view/ChatHistoryCard";
 import { ErrorLogsCard } from "@/components/client-view/ErrorLogsCard";
 import { useClientChatHistory } from "@/hooks/useClientChatHistory";
+import { fetchDashboardStats } from "@/services/statsService";
+import { fetchErrorLogs } from "@/services/errorLogService";
+import { fetchQueries } from "@/services/queryService";
 
 const ClientView = () => {
   const { id } = useParams();
@@ -30,39 +33,40 @@ const ClientView = () => {
   // Use the custom hook for chat history
   const { data: chatHistory } = useClientChatHistory(client?.agent_name);
 
-  // Query common end-user questions
-  const { data: commonQueries } = useQuery({
-    queryKey: ["common-queries", id],
+  // Query live metrics from AI agent table
+  const { data: dashboardStats, isLoading: isLoadingStats } = useQuery({
+    queryKey: ["dashboard-stats", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("common_queries")
-        .select("*")
-        .eq("client_id", id)
-        .order("frequency", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return data;
+      if (!id) return null;
+      return await fetchDashboardStats(id);
     },
     enabled: !!id,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Query common end-user questions from AI agent table
+  const { data: commonQueries, isLoading: isLoadingQueries } = useQuery({
+    queryKey: ["common-queries", id],
+    queryFn: async () => {
+      if (!id) return [];
+      return await fetchQueries(id);
+    },
+    enabled: !!id,
+    refetchInterval: 30000,
   });
 
   // Query error logs for chatbot issues
-  const { data: errorLogs } = useQuery({
+  const { data: errorLogs, isLoading: isLoadingErrorLogs } = useQuery({
     queryKey: ["error-logs", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("error_logs")
-        .select("*")
-        .eq("client_id", id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return data;
+      if (!id) return [];
+      return await fetchErrorLogs(id);
     },
     enabled: !!id,
+    refetchInterval: 30000,
   });
 
-  if (isLoadingClient) {
+  if (isLoadingClient || isLoadingStats) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -103,10 +107,23 @@ const ClientView = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ClientInfoCard client={client} chatHistory={chatHistory} />
-          <QueriesCard queries={commonQueries} />
-          <ChatHistoryCard chatHistory={chatHistory} />
-          <ErrorLogsCard errorLogs={errorLogs} />
+          <ClientInfoCard 
+            client={client} 
+            chatHistory={chatHistory}
+            stats={dashboardStats}
+            isLoadingStats={isLoadingStats}
+          />
+          <QueriesCard 
+            queries={commonQueries} 
+            isLoading={isLoadingQueries}
+          />
+          <ChatHistoryCard 
+            chatHistory={chatHistory} 
+          />
+          <ErrorLogsCard 
+            errorLogs={errorLogs}
+            isLoading={isLoadingErrorLogs}
+          />
         </div>
       </div>
     </div>
