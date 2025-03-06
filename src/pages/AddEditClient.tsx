@@ -20,7 +20,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   // If in client view, use the client ID from user metadata
   const clientId = isClientView ? user?.user_metadata?.client_id : id;
   
-  const { client, isLoadingClient, error } = useClientData(clientId);
+  const { client, isLoadingClient, error, clientMutation } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
 
   if (error) {
