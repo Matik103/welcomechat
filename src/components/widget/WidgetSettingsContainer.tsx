@@ -8,6 +8,7 @@ import { EmbedCodeCard } from "@/components/widget/EmbedCodeCard";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { ExtendedActivityType } from "@/types/activity";
+import { toast } from "sonner";
 
 interface WidgetSettingsContainerProps {
   settings: IWidgetSettings;
@@ -39,7 +40,13 @@ export function WidgetSettingsContainer({
   };
 
   const handleSave = async () => {
-    await updateSettingsMutation.mutateAsync(currentSettings);
+    try {
+      await updateSettingsMutation.mutateAsync(currentSettings);
+      toast.success("Widget settings saved successfully!");
+    } catch (error) {
+      console.error("Error saving widget settings:", error);
+      toast.error("Failed to save widget settings. Please try again.");
+    }
   };
 
   const handleCopyEmbedCode = () => {

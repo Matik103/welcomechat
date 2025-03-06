@@ -20,6 +20,11 @@ export const SecuritySection = () => {
       return;
     }
 
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({
@@ -30,7 +35,7 @@ export const SecuritySection = () => {
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to update password");
     } finally {
       setLoading(false);
     }
@@ -57,6 +62,7 @@ export const SecuritySection = () => {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
+              minLength={6}
             />
           </div>
           <div className="space-y-2">
@@ -67,6 +73,7 @@ export const SecuritySection = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              minLength={6}
             />
           </div>
           <Button type="submit" disabled={loading}>

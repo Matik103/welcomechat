@@ -13,6 +13,7 @@ export const SignOutSection = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
+      toast.success("Successfully signed out");
       navigate("/auth");
     } catch (error: any) {
       toast.error(error.message);

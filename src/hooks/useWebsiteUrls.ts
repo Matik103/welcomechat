@@ -1,11 +1,13 @@
 
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { WebsiteUrl } from "@/types/client";
 
 export const useWebsiteUrls = (clientId: string | undefined) => {
-  const { data: websiteUrls = [], refetch: refetchWebsiteUrls } = useQuery({
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
     queryKey: ["websiteUrls", clientId],
     queryFn: async () => {
       if (!clientId) return [];
@@ -13,14 +15,22 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
         .from("website_urls")
         .select("*")
         .eq("client_id", clientId);
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        console.error("Error fetching website URLs:", error);
+        throw error;
+      }
+      return data as WebsiteUrl[];
     },
     enabled: !!clientId,
   });
 
   const checkWebsiteAccess = async (url: string) => {
     try {
+      // Make sure the URL is properly formatted
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      
       // Check if the URL exists in the AI agent table
       const { data: existingData } = await supabase
         .from("ai_agent")
@@ -49,20 +59,9 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
         throw new Error("Website is not publicly accessible");
       }
 
-      // Trigger n8n webhook for processing
-      await fetch(process.env.N8N_WEBHOOK_URL || "", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId,
-          url,
-          type: "website"
-        })
-      });
-
       return true;
     } catch (error: any) {
-      // Log error to error_logs table
+      // Log error to database
       await supabase.from("error_logs").insert({
         client_id: clientId,
         error_type: "website_access",
@@ -78,6 +77,11 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
     mutationFn: async ({ url, refresh_rate }: { url: string; refresh_rate: number }) => {
       if (!clientId) throw new Error("Client ID is required");
       
+      // Make sure the URL is properly formatted
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      
       // Validate website accessibility
       await checkWebsiteAccess(url);
       
@@ -92,10 +96,10 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
         .single();
       
       if (error) throw error;
-      return data;
+      return data as WebsiteUrl;
     },
     onSuccess: () => {
-      refetchWebsiteUrls();
+      queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
       toast.success("Website URL added successfully");
     },
     onError: (error: Error) => {
@@ -113,7 +117,7 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      refetchWebsiteUrls();
+      queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
       toast.success("Website URL removed successfully");
     },
     onError: (error: Error) => {
@@ -123,9 +127,11 @@ export const useWebsiteUrls = (clientId: string | undefined) => {
   });
 
   return {
-    websiteUrls,
-    refetchWebsiteUrls,
+    websiteUrls: query.data || [],
+    refetchWebsiteUrls: query.refetch,
     addWebsiteUrlMutation,
     deleteWebsiteUrlMutation,
+    isLoading: query.isLoading,
+    isError: query.isError
   };
 };

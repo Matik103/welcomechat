@@ -26,6 +26,7 @@ export function BrandingSettings({
           id="agent_name"
           value={settings.agent_name}
           onChange={(e) => onSettingsChange({ agent_name: e.target.value })}
+          placeholder="Your AI assistant's name"
         />
       </div>
 
@@ -61,18 +62,19 @@ export function BrandingSettings({
               onChange={onLogoUpload}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               disabled={isUploading}
+              aria-label="Upload logo"
             />
           </Button>
         </div>
       </div>
 
       <div>
-        <Label htmlFor="webhook_url">N8N Webhook URL</Label>
+        <Label htmlFor="webhook_url">Webhook URL (Optional)</Label>
         <Input
           id="webhook_url"
           value={settings.webhook_url}
           onChange={(e) => onSettingsChange({ webhook_url: e.target.value })}
-          placeholder="https://your-n8n-webhook-url.com"
+          placeholder="https://your-webhook-url.com"
         />
       </div>
 

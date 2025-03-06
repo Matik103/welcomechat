@@ -1,19 +1,27 @@
 
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DriveLink } from "@/types/client";
 
 export function useDriveLinks(clientId: string | undefined) {
+  const queryClient = useQueryClient();
+  
   const query = useQuery({
     queryKey: ["driveLinks", clientId],
     queryFn: async () => {
       if (!clientId) return [];
+      
       const { data, error } = await supabase
         .from("google_drive_links")
         .select("*")
         .eq("client_id", clientId);
-      if (error) throw error;
+        
+      if (error) {
+        console.error("Error fetching drive links:", error);
+        throw error;
+      }
+      
       return data as DriveLink[];
     },
     enabled: !!clientId,
@@ -65,17 +73,6 @@ export function useDriveLinks(clientId: string | undefined) {
         throw new Error("Google Drive file is not publicly accessible");
       }
 
-      // Trigger processing via webhook if file is accessible
-      await fetch(process.env.N8N_WEBHOOK_URL || "", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId,
-          url: link,
-          type: "google_drive"
-        })
-      });
-
       return true;
     } catch (error: any) {
       // Log error to database
@@ -124,7 +121,7 @@ export function useDriveLinks(clientId: string | undefined) {
   const addDriveLinkMutation = useMutation({
     mutationFn: addDriveLink,
     onSuccess: () => {
-      query.refetch();
+      queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
       toast.success("Drive link added successfully");
     },
     onError: (error: Error) => {
@@ -135,7 +132,7 @@ export function useDriveLinks(clientId: string | undefined) {
   const deleteDriveLinkMutation = useMutation({
     mutationFn: deleteDriveLink,
     onSuccess: () => {
-      query.refetch();
+      queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
       toast.success("Drive link removed successfully");
     },
     onError: (error: Error) => {
@@ -148,5 +145,7 @@ export function useDriveLinks(clientId: string | undefined) {
     refetchDriveLinks: query.refetch,
     addDriveLinkMutation,
     deleteDriveLinkMutation,
+    isLoading: query.isLoading,
+    isError: query.isError
   };
 }

@@ -14,16 +14,16 @@ interface EmbedCodeProps {
 export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   const { toast } = useToast();
   
-  // Get the Supabase project reference from the client file's constant
-  // We access it directly from the imported file since the client might not expose it as a method
+  // Get the Supabase project reference from the URL
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
 
   const handleCopyCode = () => {
-    const embedCode = `<!-- Widget Configuration -->
+    try {
+      const embedCode = `<!-- Widget Configuration -->
 <script>
     window.ChatWidgetConfig = {
         webhook: {
-            url: 'https://${projectRef}.supabase.co/functions/v1/chat',
+            url: '${settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`}',
             route: 'general'
         },
         branding: {
@@ -42,17 +42,25 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     };
 </script>
 <script src="https://${projectRef}.supabase.co/storage/v1/object/public/widget/chat-widget.js"></script>
-<!-- Widget Script -->`;
+<!-- Widget Script End -->`;
 
-    navigator.clipboard.writeText(embedCode);
-    toast({
-      title: "Code copied! 📋",
-      description: "The widget code has been copied to your clipboard.",
-    });
-    
-    // Call the onCopy callback if provided
-    if (onCopy) {
-      onCopy();
+      navigator.clipboard.writeText(embedCode);
+      toast({
+        title: "Code copied! 📋",
+        description: "The widget code has been copied to your clipboard.",
+      });
+      
+      // Call the onCopy callback if provided
+      if (onCopy) {
+        onCopy();
+      }
+    } catch (error) {
+      console.error("Failed to copy code:", error);
+      toast({
+        title: "Copy failed",
+        description: "Could not copy code to clipboard. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -62,7 +70,17 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         {`<script>
   window.CHATBOT_CONFIG = {
     clientId: "${settings.agent_name}",
-    settings: ${JSON.stringify(settings, null, 2)},
+    settings: ${JSON.stringify({
+      agentName: settings.agent_name,
+      logoUrl: settings.logo_url,
+      chatColor: settings.chat_color,
+      backgroundColor: settings.background_color,
+      textColor: settings.text_color,
+      secondaryColor: settings.secondary_color,
+      position: settings.position,
+      welcomeText: settings.welcome_text,
+      responseTimeText: settings.response_time_text
+    }, null, 2)},
     apiEndpoint: "https://${projectRef}.supabase.co/functions/v1/chat"
   };
 </script>
