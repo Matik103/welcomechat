@@ -19,5 +19,5 @@ export interface QueryItem {
   id: string;
   query_text: string;
   frequency: number;
-  last_asked: string;
+  last_asked?: string; // Make this optional with ?
 }
