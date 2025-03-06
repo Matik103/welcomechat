@@ -1,4 +1,3 @@
-
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useClientData } from "@/hooks/useClientData";
@@ -22,7 +21,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   
   // Use the enhanced useClientData hook which will handle clientId resolution
   const { client, isLoadingClient, error, clientMutation, clientId } = useClientData(paramClientId);
-  const { logClientActivity } = useClientActivity(clientId);
+  const { logClientActivity } = useClientActivity();
 
   if (error) {
     toast.error("Failed to load client data");

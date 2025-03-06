@@ -1,188 +1,108 @@
-
-import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import type { Json } from "@/integrations/supabase/types";
-import { WidgetSettings as IWidgetSettings, defaultSettings, isWidgetSettings } from "@/types/widget-settings";
 import { useAuth } from "@/contexts/AuthContext";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
-
-function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
-  return {
-    agent_name: settings.agent_name,
-    logo_url: settings.logo_url,
-    webhook_url: settings.webhook_url,
-    chat_color: settings.chat_color,
-    background_color: settings.background_color,
-    text_color: settings.text_color,
-    secondary_color: settings.secondary_color,
-    position: settings.position,
-    welcome_text: settings.welcome_text,
-    response_time_text: settings.response_time_text
-  };
-}
+import { useClientData } from "@/hooks/useClientData";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import WidgetForm from "@/components/widget/WidgetForm";
 
 const WidgetSettings = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { toast } = useToast();
   const { user } = useAuth();
-  const [isUploading, setIsUploading] = useState(false);
-  const [settings, setSettings] = useState<IWidgetSettings>(defaultSettings);
-
-  const isClientView = !id;
-  const clientId = id || user?.user_metadata?.client_id;
-  const { logClientActivity } = useClientActivity(clientId);
-
-  const { data: client, isLoading } = useQuery({
-    queryKey: ["client", clientId],
-    queryFn: async () => {
-      if (!clientId) return null;
-      
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("id", clientId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!clientId
-  });
+  const clientId = user?.user_metadata?.client_id;
+  const { client, isLoadingClient, error } = useClientData(clientId);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (client) {
-      const widgetSettings = client.widget_settings;
-      if (isWidgetSettings(widgetSettings)) {
-        setSettings(widgetSettings);
-      } else {
-        setSettings({
-          ...defaultSettings,
-          agent_name: client.agent_name || ""
-        });
-      }
+    if (error) {
+      toast.error("Failed to load client data");
+      console.error("Error loading client data:", error);
     }
-  }, [client]);
-
-  const updateSettingsMutation = useMutation({
-    mutationFn: async (newSettings: IWidgetSettings) => {
-      const { error } = await supabase
-        .from("clients")
-        .update({
-          widget_settings: convertSettingsToJson(newSettings)
-        })
-        .eq("id", clientId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      if (isClientView) {
-        logClientActivity(
-          "widget_settings_updated", 
-          "updated widget settings", 
-          { 
-            updated_fields: Object.keys(settings).filter(key => 
-              client?.widget_settings && 
-              settings[key as keyof IWidgetSettings] !== client.widget_settings[key]
-            ) 
-          }
-        );
-      }
-      
-      toast({
-        title: "Settings saved successfully! 🎉",
-        description: "Your widget is ready to be embedded.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Failed to save settings",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setIsUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `${clientId}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("logos")
-        .upload(filePath, file, { 
-          upsert: true,
-          contentType: file.type 
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("logos")
-        .getPublicUrl(filePath);
-
-      const newSettings = { ...settings, logo_url: publicUrl };
-      setSettings(newSettings);
-      await updateSettingsMutation.mutateAsync(newSettings);
-
-      if (isClientView) {
-        await logClientActivity(
-          "logo_uploaded", 
-          "uploaded a new logo for their widget", 
-          { logo_url: publicUrl }
-        );
-      }
-
-      toast({
-        title: "Logo uploaded successfully! ✨",
-        description: "Your brand is looking great!",
-      });
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      toast({
-        title: "Upload failed",
-        description: error.message || "There was an error uploading your logo. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
+  }, [error]);
 
   const handleBack = () => {
-    if (isClientView) {
-      navigate('/client/view');
-    } else {
-      navigate(-1);
-    }
+    navigate("/client/view");
   };
 
-  if (isLoading) {
+  if (isLoadingClient) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
+  const handleSaveWidgetSettings = async (settings: any) => {
+    try {
+      if (!clientId) {
+        toast.error("Client ID is required to save widget settings");
+        return;
+      }
+
+      // Optimistically update the local client data
+      const updatedClient = { ...client, widget_settings: settings };
+
+      // Update the client data in Supabase
+      const { data, error } = await fetch(`/api/update-widget-settings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ clientId, settings }),
+      }).then((res) => res.json());
+
+      if (error) {
+        toast.error("Failed to save widget settings");
+        console.error("Error saving widget settings:", error);
+      } else {
+        toast.success("Widget settings saved successfully");
+      }
+    } catch (error) {
+      toast.error("Failed to save widget settings");
+      console.error("Error saving widget settings:", error);
+    }
+  };
+
   return (
-    <WidgetSettingsContainer
-      settings={settings}
-      isClientView={isClientView}
-      isUploading={isUploading}
-      updateSettingsMutation={updateSettingsMutation}
-      handleBack={handleBack}
-      handleLogoUpload={handleLogoUpload}
-      logClientActivity={logClientActivity}
-    />
+    <div className="min-h-screen bg-[#F8F9FA] p-8">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleBack}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-5 h-5"
+            >
+              <path
+                fillRule="evenodd"
+                d="M15 10a.75.75 0 01-.22.53l-4 4a.75.75 0 01-1.06-1.06l3.22-3.22H5.75a.75.75 0 010-1.5h7.19L9.72 6.53a.75.75 0 011.06-1.06l4 4a.75.75 0 01.22.53z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Widget Settings
+            </h1>
+            <p className="text-gray-500">Customize your widget settings</p>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          {client && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+              <WidgetForm
+                initialSettings={client.widget_settings}
+                onSave={handleSaveWidgetSettings}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

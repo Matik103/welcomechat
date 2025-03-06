@@ -17,9 +17,10 @@ export const useClientActivity = () => {
       }
 
       try {
+        // Type assertion to handle the Extended activity types
         const { error } = await supabase.from("client_activities").insert({
           client_id: clientId,
-          activity_type,
+          activity_type: activity_type as any, // Use type assertion to handle extended types
           description,
           metadata
         });
