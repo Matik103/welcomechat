@@ -13,9 +13,12 @@ import { ClientResourceSections } from "@/components/client/ClientResourceSectio
 const EditInfo = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Set client ID from user metadata when available
   useEffect(() => {
+    console.log("EditInfo - Auth user data:", user);
+    
     if (user?.user_metadata?.client_id) {
       console.log("Setting client ID from user metadata:", user.user_metadata.client_id);
       setClientId(user.user_metadata.client_id);
@@ -23,6 +26,8 @@ const EditInfo = () => {
       console.warn("No client ID found in user metadata");
       toast.error("Client ID not found. Please contact support.");
     }
+    
+    setIsLoading(false);
   }, [user]);
   
   // Use the enhanced useClientData hook which will handle clientId resolution
@@ -32,7 +37,7 @@ const EditInfo = () => {
   console.log("EditInfo: client ID from auth:", clientId);
   console.log("EditInfo: resolved client ID:", resolvedClientId);
 
-  if (isLoadingClient && clientId) {
+  if ((isLoading || isLoadingClient) && clientId) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -45,7 +50,7 @@ const EditInfo = () => {
   }
 
   // If no clientId is set yet but we're not in a loading state, show a helpful message
-  if (!clientId && !isLoadingClient) {
+  if (!clientId && !isLoading) {
     return (
       <ErrorDisplay message="No client ID found. Please refresh the page or contact support." />
     );
