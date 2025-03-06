@@ -14,10 +14,6 @@ export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       try {
-        if (!id) {
-          throw new Error("Client ID is required for this operation");
-        }
-        
         const sanitizedAgentName = data.agent_name
           .trim()
           .toLowerCase()
