@@ -45,37 +45,42 @@ const EditInfo = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-2xl font-bold">Edit Information</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Edit Information</h1>
+          <p className="text-gray-500">Update client information</p>
+        </div>
       </div>
       
-      <Card className="mb-8">
-        <CardHeader className="flex flex-row items-center gap-2">
-          <User className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Client Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ClientDetails 
-            client={client} 
-            clientId={clientId} 
-            isClientView={true}
-            logClientActivity={logClientActivity}
-          />
-        </CardContent>
-      </Card>
+      <div className="space-y-8">
+        <Card className="mb-8">
+          <CardHeader className="flex flex-row items-center gap-2">
+            <User className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Client Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ClientDetails 
+              client={client} 
+              clientId={clientId} 
+              isClientView={true}
+              logClientActivity={logClientActivity}
+            />
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Database className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Resources</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ClientResourceSections
-            clientId={clientId}
-            isClientView={true}
-            logClientActivity={logClientActivity}
-          />
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <Database className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Resources</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ClientResourceSections
+              clientId={clientId}
+              isClientView={true}
+              logClientActivity={logClientActivity}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
