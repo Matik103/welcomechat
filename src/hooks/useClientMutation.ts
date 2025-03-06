@@ -14,6 +14,12 @@ export const useClientMutation = (id: string | undefined) => {
         throw new Error("Client ID is required to update client information");
       }
 
+      // Validate the ID format
+      if (id === "restored_client_id" || !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        console.error("Invalid client ID format:", id);
+        throw new Error("Invalid client ID format. Please try again or contact support.");
+      }
+
       console.log("Starting client mutation for ID:", id);
       console.log("Data being sent:", data);
       

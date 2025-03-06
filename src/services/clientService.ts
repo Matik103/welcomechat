@@ -32,6 +32,12 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   console.log("Updating client with ID:", id);
   console.log("Update data:", data);
 
+  // Validate that id is a valid UUID before proceeding
+  if (id === "restored_client_id" || !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    console.error("Invalid client ID format:", id);
+    throw new Error("Invalid client ID format");
+  }
+
   try {
     const { data: updatedData, error } = await supabase
       .from("clients")
@@ -82,27 +88,35 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
  * Creates a new client
  */
 export const createClient = async (data: ClientFormData): Promise<string> => {
-  const { data: newClients, error } = await supabase
-    .from("clients")
-    .insert([{
-      client_name: data.client_name,
-      email: data.email,
-      agent_name: data.agent_name,
-      widget_settings: data.widget_settings || {},
-      status: 'active'
-    }])
-    .select('*');
+  try {
+    console.log("Creating new client with data:", data);
+    
+    const { data: newClients, error } = await supabase
+      .from("clients")
+      .insert([{
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: data.agent_name,
+        widget_settings: data.widget_settings || {},
+        status: 'active'
+      }])
+      .select('*');
 
-  if (error) {
-    console.error("Error creating client:", error);
+    if (error) {
+      console.error("Error creating client:", error);
+      throw error;
+    }
+
+    if (!newClients || newClients.length === 0) {
+      throw new Error("Failed to create client - no data returned");
+    }
+
+    console.log("Client created successfully:", newClients[0]);
+    return newClients[0].id;
+  } catch (error) {
+    console.error("Exception in createClient:", error);
     throw error;
   }
-
-  if (!newClients || newClients.length === 0) {
-    throw new Error("Failed to create client - no data returned");
-  }
-
-  return newClients[0].id;
 };
 
 /**
