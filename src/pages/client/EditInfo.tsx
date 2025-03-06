@@ -25,7 +25,6 @@ const EditInfo = () => {
     } else {
       console.warn("No client ID found in user metadata");
     }
-    console.log("Client data initialized");
   }, [user]);
   
   const { client, isLoadingClient, error, clientId: resolvedClientId } = useClientData(clientId);
@@ -50,15 +49,6 @@ const EditInfo = () => {
   console.log("EditInfo: resolved client ID:", resolvedClientId);
   console.log("Website URLs:", websiteUrls);
   console.log("Drive Links:", driveLinks);
-
-  // Handle adding a website URL
-  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
-    try {
-      await addWebsiteUrlMutation.mutateAsync(data);
-    } catch (error) {
-      console.error("Error in handleAddUrl:", error);
-    }
-  };
 
   if (isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
     return (

@@ -22,6 +22,8 @@ const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
   agent_name: z.string().min(1, "Agent name is required"),
+  company: z.string().optional(),
+  description: z.string().optional(),
 });
 
 export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientView = false }: ClientFormProps) => {
@@ -30,12 +32,14 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
   const { sendInvitation } = useClientData(initialData?.id);
   const isCreatingClient = !id && !isClientView;
   
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
       agent_name: initialData?.agent_name || "",
+      company: initialData?.company || "",
+      description: initialData?.description || ""
     },
   });
 
@@ -44,6 +48,8 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       setValue("client_name", initialData.client_name);
       setValue("email", initialData.email);
       setValue("agent_name", initialData.agent_name);
+      if (initialData.company) setValue("company", initialData.company);
+      if (initialData.description) setValue("description", initialData.description);
     }
   }, [initialData, setValue]);
 
@@ -107,6 +113,36 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
         />
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="company" className="text-sm font-medium text-gray-900">
+          Company (Optional)
+        </Label>
+        <Input
+          id="company"
+          {...register("company")}
+          className={errors.company ? "border-red-500" : ""}
+          placeholder="Enter company name"
+        />
+        {errors.company && (
+          <p className="text-sm text-red-500">{errors.company.message}</p>
+        )}
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="description" className="text-sm font-medium text-gray-900">
+          Description (Optional)
+        </Label>
+        <Input
+          id="description"
+          {...register("description")}
+          className={errors.description ? "border-red-500" : ""}
+          placeholder="Enter description"
+        />
+        {errors.description && (
+          <p className="text-sm text-red-500">{errors.description.message}</p>
         )}
       </div>
 
