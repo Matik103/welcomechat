@@ -29,14 +29,16 @@ const EditInfo = () => {
     websiteUrls, 
     addWebsiteUrlMutation, 
     deleteWebsiteUrlMutation, 
-    isLoading: isUrlsLoading 
+    isLoading: isUrlsLoading,
+    refetchWebsiteUrls
   } = useWebsiteUrls(clientId);
 
   const { 
     driveLinks, 
     addDriveLinkMutation, 
     deleteDriveLinkMutation, 
-    isLoading: isDriveLinksLoading 
+    isLoading: isDriveLinksLoading,
+    refetchDriveLinks
   } = useDriveLinks(clientId);
 
   console.log("EditInfo: client ID from auth:", clientId);
@@ -80,6 +82,9 @@ const EditInfo = () => {
     try {
       await addWebsiteUrlMutation.mutateAsync(data);
       
+      // Fetch the updated list of URLs
+      refetchWebsiteUrls();
+      
       if (clientId) {
         await logClientActivity(
           "website_url_added", 
@@ -98,6 +103,9 @@ const EditInfo = () => {
       const urlToDelete = websiteUrls.find(url => url.id === id);
       await deleteWebsiteUrlMutation.mutateAsync(id);
       
+      // Fetch the updated list of URLs
+      refetchWebsiteUrls();
+      
       if (clientId && urlToDelete) {
         await logClientActivity(
           "url_deleted", 
@@ -114,6 +122,9 @@ const EditInfo = () => {
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     try {
       await addDriveLinkMutation.mutateAsync(data);
+      
+      // Fetch the updated list of drive links
+      refetchDriveLinks();
       
       if (clientId) {
         await logClientActivity(
@@ -132,6 +143,9 @@ const EditInfo = () => {
     try {
       const linkToDelete = driveLinks.find(link => link.id === id);
       await deleteDriveLinkMutation.mutateAsync(id);
+      
+      // Fetch the updated list of drive links
+      refetchDriveLinks();
       
       if (clientId && linkToDelete) {
         await logClientActivity(
