@@ -201,14 +201,32 @@ export function useDriveLinks(clientId: string | undefined) {
     
     // If validation passes, add the link to the database
     try {
+      // First check if the access_status column exists
+      const { error: schemaError } = await supabase
+        .from("google_drive_links")
+        .select("access_status")
+        .limit(1);
+      
+      let insertData = {
+        client_id: clientId, 
+        link: input.link, 
+        refresh_rate: input.refresh_rate,
+      };
+      
+      // Only include access_status if the column exists
+      if (!schemaError) {
+        console.log("access_status column exists, including in insert");
+        insertData = {
+          ...insertData,
+          access_status: accessStatus
+        };
+      } else {
+        console.log("access_status column doesn't exist, skipping in insert");
+      }
+      
       const { data, error } = await supabase
         .from("google_drive_links")
-        .insert({
-          client_id: clientId, 
-          link: input.link, 
-          refresh_rate: input.refresh_rate,
-          access_status: accessStatus
-        })
+        .insert(insertData)
         .select()
         .single();
       
