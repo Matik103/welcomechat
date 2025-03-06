@@ -44,8 +44,8 @@ export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
     const sanitizedAgentName = clientData.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
     // Try to get error entries from agent table metadata using rpc
-    const { data, error } = await supabase.rpc('execute_sql_query', {
-      query_text: `SELECT id, metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 50`
+    const { data, error } = await supabase.rpc('exec_sql', {
+      sql_query: `SELECT id, metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 50`
     });
     
     if (error || !data || !Array.isArray(data)) {
