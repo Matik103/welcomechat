@@ -596,6 +596,27 @@ export type Database = {
           },
         ]
       }
+      great_deal: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       imanye_3: {
         Row: {
           content: string | null
@@ -1611,6 +1632,19 @@ export type Database = {
         }[]
       }
       match_glouglu: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_great_deal: {
         Args: {
           query_embedding: string
           match_count?: number

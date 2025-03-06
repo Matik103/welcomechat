@@ -18,7 +18,7 @@ export function WidgetPreviewCard({
     <Card>
       <CardHeader>
         <CardTitle>Widget Preview</CardTitle>
-        <CardDescription>See how your widget will appear</CardDescription>
+        <CardDescription>See how your widget will appear to visitors. Click the chat icon to expand the preview.</CardDescription>
       </CardHeader>
       <CardContent>
         <WidgetPreview
