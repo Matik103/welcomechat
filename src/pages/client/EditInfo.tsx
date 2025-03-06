@@ -7,24 +7,31 @@ import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { ClientDetails } from "@/components/client/ClientDetails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Database, User, ArrowLeft } from "lucide-react";
+import { Loader2, Database, User, ArrowLeft, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { DriveLinks } from "@/components/client/DriveLinks";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 const EditInfo = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
-  const { client, isLoadingClient, error } = useClientData(clientId);
-  const { logClientActivity } = useClientActivity(clientId);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // Set client ID from user metadata when available
   useEffect(() => {
     if (user?.user_metadata?.client_id) {
+      console.log("Setting client ID from user metadata:", user.user_metadata.client_id);
       setClientId(user.user_metadata.client_id);
+    } else {
+      console.warn("No client ID found in user metadata");
     }
+    setIsInitialized(true);
   }, [user]);
+  
+  const { client, isLoadingClient, error, clientId: resolvedClientId } = useClientData(clientId);
+  const { logClientActivity } = useClientActivity(clientId);
   
   // Website URL and Drive Link hooks
   const { 
@@ -42,6 +49,7 @@ const EditInfo = () => {
   } = useDriveLinks(clientId);
 
   console.log("EditInfo: client ID from auth:", clientId);
+  console.log("EditInfo: resolved client ID:", resolvedClientId);
   console.log("Website URLs:", websiteUrls);
   console.log("Drive Links:", driveLinks);
 
@@ -129,6 +137,36 @@ const EditInfo = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Handle case when initialized but no client ID is found
+  if (isInitialized && !clientId) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardContent className="pt-6 flex flex-col items-center gap-4">
+            <AlertTriangle className="h-12 w-12 text-yellow-500" />
+            <div className="text-center">
+              <h2 className="text-xl font-semibold mb-2">Client ID Missing</h2>
+              <p className="text-gray-700 mb-4">
+                We couldn't find your client ID. This is required to edit information.
+              </p>
+              <div className="flex justify-center gap-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh Page
+                </Button>
+                <Link to="/client/view">
+                  <Button>Return to Dashboard</Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
