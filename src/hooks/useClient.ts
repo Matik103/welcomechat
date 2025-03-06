@@ -11,10 +11,11 @@ export const useClient = (id: string | undefined) => {
   } = useQuery({
     queryKey: ["client", id],
     queryFn: async () => {
+      // If ID is undefined, we'll return null but not throw an error
       if (!id) return null;
       return getClientById(id);
     },
-    enabled: !!id,
+    enabled: true, // Always enable the query, even if id is undefined
   });
 
   return {
