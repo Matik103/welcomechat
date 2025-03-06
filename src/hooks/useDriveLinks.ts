@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -71,39 +72,32 @@ export function useDriveLinks(clientId: string | undefined) {
       const fileId = extractDriveFileId(link);
       console.log("Extracted file ID:", fileId);
       
-      const headers = new Headers();
-      headers.append('Accept', 'text/html,application/xhtml+xml');
-      
-      let accessCheckUrl: string;
-      
-      if (link.includes('docs.google.com')) {
-        accessCheckUrl = `https://docs.google.com/uc?id=${fileId}&export=download`;
-      } else {
-        accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
-      }
-      
+      // Build the unauthenticated access check URL
+      const accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
       console.log("Checking access with URL:", accessCheckUrl);
       
       let accessStatus: AccessStatus = "unknown";
       
       try {
+        // Attempt to fetch the resource without authentication
         const response = await fetch(accessCheckUrl, {
           method: 'HEAD',
-          headers: headers,
-          redirect: 'manual',
-          cache: 'no-cache',
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml',
+            'User-Agent': 'Mozilla/5.0' // Simple user agent to look like a regular browser
+          },
+          redirect: 'manual', // Important: don't follow redirects automatically
+          cache: 'no-cache'
         });
 
         console.log("Drive link access check response status:", response.status);
         
+        // Check the response status
         if (response.status === 200) {
-          const contentDisposition = response.headers.get('content-disposition');
-          if (contentDisposition) {
-            accessStatus = "public";
-          } else {
-            accessStatus = "public";
-          }
+          // 200 OK means public access is granted
+          accessStatus = "public";
         } else if (response.status === 302 || response.status === 303) {
+          // Check where the redirect is pointing
           const location = response.headers.get('location');
           console.log("Redirect location:", location);
           
@@ -111,15 +105,21 @@ export function useDriveLinks(clientId: string | undefined) {
               location.includes('accounts.google.com/signin') || 
               location.includes('accounts.google.com/ServiceLogin') ||
               location.includes('accounts.google.com/v3/signin') ||
-              location.includes('accounts.google.com/AccountChooser')
+              location.includes('accounts.google.com/AccountChooser') ||
+              location.includes('accounts.google.com')
           )) {
+            // Redirecting to Google login means restricted access
             accessStatus = "restricted";
           } else if (location && location.includes('drive.google.com/file/d/')) {
+            // It might be redirecting to the file viewer, try a secondary check
             try {
               const secondResponse = await fetch(location, {
                 method: 'HEAD',
-                headers: headers,
-                redirect: 'manual',
+                headers: {
+                  'Accept': 'text/html,application/xhtml+xml,application/xml',
+                  'User-Agent': 'Mozilla/5.0'
+                },
+                redirect: 'manual'
               });
               
               if (secondResponse.status === 200) {
@@ -135,19 +135,26 @@ export function useDriveLinks(clientId: string | undefined) {
             }
           }
         } else if (response.status === 401 || response.status === 403) {
+          // Explicit permission denied
           accessStatus = "restricted";
         }
       } catch (fetchError) {
         console.log("Fetch error during access check:", fetchError);
+        // If there's a network error, default to unknown rather than failing
         accessStatus = "unknown";
       }
       
+      // Special handling for folders, which may need a different check
       if (link.includes('drive.google.com/drive/folders/') && accessStatus === "unknown") {
         try {
+          // For folders, try to access the folder URL directly
           const folderResponse = await fetch(link, {
             method: 'HEAD',
-            headers: headers,
-            redirect: 'manual',
+            headers: {
+              'Accept': 'text/html,application/xhtml+xml,application/xml',
+              'User-Agent': 'Mozilla/5.0'
+            },
+            redirect: 'manual'
           });
           
           if (folderResponse.status === 200) {
@@ -163,20 +170,6 @@ export function useDriveLinks(clientId: string | undefined) {
         }
       }
       
-      const { data: existingData } = await supabase
-        .from('ai_agent')
-        .select('id')
-        .eq('metadata->>client_id', clientId)
-        .eq('metadata->>url', link)
-        .maybeSingle();
-      
-      if (existingData) {
-        await supabase
-          .from('ai_agent')
-          .delete()
-          .eq('id', existingData.id);
-      }
-
       console.log("Final access status determined:", accessStatus);
       return accessStatus;
     } catch (error: any) {
@@ -204,6 +197,7 @@ export function useDriveLinks(clientId: string | undefined) {
     console.log("Adding drive link with client ID:", clientId);
     console.log("Input data:", input);
     
+    // Check if this link already exists for this client
     const { data: existingLinks } = await supabase
       .from("google_drive_links")
       .select("*")
@@ -215,6 +209,7 @@ export function useDriveLinks(clientId: string | undefined) {
       throw new Error("This Google Drive link has already been added");
     }
     
+    // Check the access status of the drive link
     let accessStatus: AccessStatus;
     try {
       accessStatus = await checkDriveLinkAccess(input.link);
@@ -231,6 +226,7 @@ export function useDriveLinks(clientId: string | undefined) {
       accessStatus = "unknown";
     }
     
+    // Insert the drive link with access status
     try {
       const { error: schemaError } = await supabase
         .from("google_drive_links")
