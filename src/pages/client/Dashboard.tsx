@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
@@ -20,6 +20,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Set a timeout to ensure we don't get stuck in a loading state
   useEffect(() => {
@@ -47,7 +48,8 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     isLoadingErrorLogs,
     isLoadingQueries,
     isLoadingStats,
-    authError
+    authError,
+    refetchAll
   } = useClientDashboard(effectiveClientId);
 
   // Handle auth error
@@ -62,6 +64,15 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
       return () => clearTimeout(timer);
     }
   }, [authError, signOut]);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await refetchAll();
+    setTimeout(() => {
+      setIsRefreshing(false);
+      toast.success("Dashboard data refreshed");
+    }, 500);
+  }, [refetchAll]);
 
   if (!user) {
     return (
@@ -83,10 +94,6 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     );
   }
 
-  const handleRefresh = () => {
-    window.location.reload();
-  };
-
   return (
     <div className="bg-[#F8F9FA] min-h-screen">
       <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
@@ -96,10 +103,11 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
             variant="outline" 
             size="sm" 
             onClick={handleRefresh}
+            disabled={isRefreshing}
             className="flex items-center gap-1 text-gray-600"
           >
-            <RefreshCcw className="h-4 w-4" />
-            <span>Refresh</span>
+            <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </Button>
         </div>
         
