@@ -7,7 +7,6 @@ import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import ClientIdMissingAlert from "@/components/client/ClientIdMissingAlert";
 import ErrorDisplay from "@/components/client/ErrorDisplay";
 import EditInfoHeader from "@/components/client/EditInfoHeader";
 import ClientInfoSection from "@/components/client/ClientInfoSection";
@@ -17,7 +16,6 @@ import DriveLinksSection from "@/components/client/DriveLinksSection";
 const EditInfo = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
-  const [isInitialized, setIsInitialized] = useState(false);
   
   // Set client ID from user metadata when available
   useEffect(() => {
@@ -27,7 +25,6 @@ const EditInfo = () => {
     } else {
       console.warn("No client ID found in user metadata");
     }
-    setIsInitialized(true);
     console.log("Client data initialized");
   }, [user]);
   
@@ -56,11 +53,6 @@ const EditInfo = () => {
 
   // Handle adding a website URL
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
-    if (!clientId) {
-      toast.error("Client ID is missing. Please try refreshing the page.");
-      return;
-    }
-    
     try {
       await addWebsiteUrlMutation.mutateAsync(data);
     } catch (error) {
@@ -74,11 +66,6 @@ const EditInfo = () => {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  // Handle case when initialized but no client ID is found
-  if (isInitialized && !clientId) {
-    return <ClientIdMissingAlert />;
   }
 
   if (error) {

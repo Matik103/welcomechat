@@ -2,7 +2,6 @@
 import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
 import { useClientInvitation } from "./useClientInvitation";
-import { ClientFormData } from "@/types/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 
@@ -25,6 +24,7 @@ export const useClientData = (id: string | undefined) => {
   
   console.log("useClientData - Resolved client ID being used:", resolvedClientId);
   
+  // Even if resolvedClientId is undefined, we'll proceed anyway
   const { client, isLoadingClient, error } = useClient(resolvedClientId);
   const clientMutation = useClientMutation(resolvedClientId);
   const { sendInvitation } = useClientInvitation();
