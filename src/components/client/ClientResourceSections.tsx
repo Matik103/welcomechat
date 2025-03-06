@@ -1,4 +1,3 @@
-
 import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { DriveLinks } from "@/components/client/DriveLinks";
@@ -10,8 +9,7 @@ import { Loader2 } from "lucide-react";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
-  is
-  ClientView: boolean;
+  isClientView: boolean;
   logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
