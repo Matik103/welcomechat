@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { checkAndRefreshAuth } from "./authService";
 
 /**
- * Fetches the number of active days for a client
+ * Fetches the number of active days for a client's AI agent
  */
 export const fetchActiveDays = async (clientId: string): Promise<number> => {
   if (!clientId) return 0;
@@ -31,68 +31,57 @@ export const fetchActiveDays = async (clientId: string): Promise<number> => {
     
     try {
       // Try to get data from the agent's table if it exists
-      // We need to use executeQuery for dynamic table access
-      const { data, error } = await supabase.rpc('exec_sql', {
-        sql_query: `SELECT metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL`
-      });
+      // We need to use Edge Function for dynamic table access
+      const { data, error } = await supabase
+        .functions
+        .invoke("dynamically-query-table", {
+          body: {
+            tableName: sanitizedAgentName,
+            query: "SELECT metadata FROM \"${tableName}\" WHERE metadata IS NOT NULL"
+          }
+        });
       
       if (error || !data || !Array.isArray(data)) {
-        // Fallback to client_activities if agent table doesn't exist
+        // Fallback to client_activities
         console.log(`Error querying ${sanitizedAgentName} table:`, error);
         
-        const { data: activityData, error: activityError } = await supabase
+        const { data: activeDays, error: activeDaysError } = await supabase
           .from("client_activities")
           .select("created_at")
           .eq("client_id", clientId)
           .eq("activity_type", "chat_interaction");
         
-        if (activityError || !activityData) {
-          console.error("Error fetching active days:", activityError);
+        if (activeDaysError) {
+          console.error("Error fetching active days from activities:", activeDaysError);
           return 0;
         }
         
-        const uniqueDates = new Set();
-        activityData.forEach(activity => {
-          const activityDate = new Date(activity.created_at).toDateString();
-          uniqueDates.add(activityDate);
+        // Count unique days from client_activities
+        const uniqueDays = new Set();
+        activeDays?.forEach(activity => {
+          if (activity.created_at) {
+            const date = new Date(activity.created_at).toISOString().split('T')[0];
+            uniqueDays.add(date);
+          }
         });
         
-        return uniqueDates.size;
+        return uniqueDays.size;
       }
       
-      // Extract dates from metadata in the agent table
-      const uniqueDates = new Set();
+      // Extract timestamps from metadata and count unique days
+      const uniqueDays = new Set();
       
       data.forEach(item => {
         if (item && item.metadata && item.metadata.timestamp) {
-          const dateStr = new Date(item.metadata.timestamp).toDateString();
-          uniqueDates.add(dateStr);
+          const date = new Date(item.metadata.timestamp).toISOString().split('T')[0];
+          uniqueDays.add(date);
         }
       });
       
-      return uniqueDates.size;
+      return uniqueDays.size;
     } catch (err) {
-      // Fallback to client_activities
-      console.error(`Error processing data from ${sanitizedAgentName} table:`, err);
-      
-      const { data: activityData, error: activityError } = await supabase
-        .from("client_activities")
-        .select("created_at")
-        .eq("client_id", clientId)
-        .eq("activity_type", "chat_interaction");
-      
-      if (activityError || !activityData) {
-        console.error("Error fetching active days:", activityError);
-        return 0;
-      }
-      
-      const uniqueDates = new Set();
-      activityData.forEach(activity => {
-        const activityDate = new Date(activity.created_at).toDateString();
-        uniqueDates.add(activityDate);
-      });
-      
-      return uniqueDates.size;
+      console.error("Error processing agent data for active days:", err);
+      return 0;
     }
   } catch (err) {
     console.error("Error fetching active days:", err);

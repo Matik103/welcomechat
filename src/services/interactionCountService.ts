@@ -31,10 +31,15 @@ export const fetchTotalInteractions = async (clientId: string): Promise<number> 
     
     // Get the count from the agent's table if it exists
     try {
-      // Use RPC to dynamically query the agent's table
-      const { data, error } = await supabase.rpc('exec_sql', {
-        sql_query: `SELECT COUNT(*) FROM "${sanitizedAgentName}"`
-      });
+      // Use Edge Function to dynamically query the agent's table
+      const { data, error } = await supabase
+        .functions
+        .invoke("dynamically-query-table", {
+          body: {
+            tableName: sanitizedAgentName,
+            query: "SELECT COUNT(*) FROM \"${tableName}\""
+          }
+        });
       
       if (error || !data || !Array.isArray(data) || data.length === 0) {
         // Fallback to client_activities if agent table doesn't exist or other error

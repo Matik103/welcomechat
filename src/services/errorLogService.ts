@@ -43,10 +43,15 @@ export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
     
     const sanitizedAgentName = clientData.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
-    // Try to get error entries from agent table metadata using rpc
-    const { data, error } = await supabase.rpc('exec_sql', {
-      sql_query: `SELECT id, metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 50`
-    });
+    // Try to get error entries from agent table metadata using Edge Function
+    const { data, error } = await supabase
+      .functions
+      .invoke("dynamically-query-table", {
+        body: {
+          tableName: sanitizedAgentName,
+          query: "SELECT id, metadata FROM \"${tableName}\" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 50"
+        }
+      });
     
     if (error || !data || !Array.isArray(data)) {
       console.log(`Error querying ${sanitizedAgentName} table:`, error);
