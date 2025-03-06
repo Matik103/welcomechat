@@ -1,67 +1,119 @@
-
-import React, { useEffect, useState } from 'react';
-import {
-  BrowserRouter as Router,
-  Route,
-  Routes,
-  Navigate,
-} from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import ProfileSettings from "@/pages/client/ProfileSettings";
+import { Toaster } from "sonner";
+import { Header } from "@/components/layout/Header";
+import { ClientHeader } from "@/components/layout/ClientHeader";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import Auth from "@/pages/Auth";
+import Index from "@/pages/Index";
+import ClientList from "@/pages/ClientList";
+import Settings from "@/pages/Settings";
+import ClientView from "@/pages/ClientView";
+import AddEditClient from "@/pages/AddEditClient";
+import WidgetSettings from "@/pages/WidgetSettings";
+import { useAuth } from "./contexts/AuthContext";
+import ClientSettings from "@/pages/client/Settings";
+import ClientDashboard from "@/pages/client/Dashboard";
+import ClientSetup from "@/pages/client/Setup";
+import { useEffect, useState } from "react";
+import AccountSettings from "@/pages/client/AccountSettings";
 
 function App() {
-  const { isLoading, user } = useAuth();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
+  const { isLoading, user, userRole } = useAuth();
+  const location = useLocation();
+  const [showLoader, setShowLoader] = useState(true);
+  
+  // Set a timeout to prevent infinite loading
   useEffect(() => {
-    // Check if user is authenticated
-    if (user) {
-      setIsAuthenticated(true);
-    } else {
-      setIsAuthenticated(false);
+    const timer = setTimeout(() => {
+      setShowLoader(false);
+    }, 3000); // Reduced timeout to 3 seconds
+    
+    // Clear timeout if loading state changes
+    if (!isLoading) {
+      clearTimeout(timer);
+      setShowLoader(false);
     }
-  }, [user]);
+    
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
-  if (isLoading) {
-    return <div>Loading...</div>;
+  // Check if this is a public route
+  const isPublicRoute = 
+    location.pathname === '/auth' || 
+    location.pathname.startsWith('/client/setup');
+  
+  // Show loading spinner only while checking auth and not more than the timeout
+  if (isLoading && showLoader) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
+          <p className="text-sm text-gray-500">Loading your application...</p>
+        </div>
+      </div>
+    );
   }
 
+  // If loading timed out or finished, and no user, and not on a public route, redirect to auth
+  if ((!isLoading || !showLoader) && !user && !isPublicRoute) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Determine if we need to show the client header or admin header
+  // This is independent of role checks to avoid UI flickering
+  const isClientRoute = 
+    location.pathname.startsWith('/client') && 
+    !location.pathname.startsWith('/client/setup');
+
   return (
-    <Router>
+    <div className="min-h-screen bg-background">
+      {isClientRoute ? <ClientHeader /> : <Header />}
       <Routes>
-        <Route 
-          path="/" 
-          element={
-            isAuthenticated ? (
-              <Navigate to="/client/view" />
-            ) : (
-              <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow">
-                  <h1 className="text-2xl font-bold text-center">Welcome to Client Portal</h1>
-                  <p className="text-center text-gray-600">Please log in to continue</p>
-                  <button
-                    className="w-full px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-600"
-                    onClick={() => window.location.href = '/login'}
-                  >
-                    Login
-                  </button>
-                </div>
-              </div>
-            )
-          } 
-        />
-
-        {/* Client routes */}
-        <Route path="/client">
-          <Route path="profile-settings" element={<ProfileSettings />} />
-          <Route path="view" element={<div>Client Dashboard</div>} />
-          <Route path="widget-settings" element={<div>Widget Settings</div>} />
-        </Route>
-
-        {/* Fallback route */}
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* Public Routes */}
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/client/setup" element={<ClientSetup />} />
+        
+        {/* Admin Routes */}
+        <Route path="/" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <Index />
+        } />
+        <Route path="/admin/clients" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientList />
+        } />
+        <Route path="/settings" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <Settings />
+        } />
+        <Route path="/admin/clients/new" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <AddEditClient />
+        } />
+        <Route path="/admin/clients/:id" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientView />
+        } />
+        <Route path="/admin/clients/:id/edit" element={
+          userRole === 'client' ? <Navigate to="/client/view" replace /> : <AddEditClient />
+        } />
+        <Route path="/admin/clients/:id/widget-settings" element={
+          userRole === 'client' ? <Navigate to="/client/widget-settings" replace /> : <WidgetSettings />
+        } />
+        
+        {/* Client Routes */}
+        <Route path="/client/view" element={
+          userRole === 'admin' ? <Navigate to="/" replace /> : <ClientDashboard />
+        } />
+        <Route path="/client/settings" element={
+          userRole === 'admin' ? <Navigate to="/settings" replace /> : <ClientSettings />
+        } />
+        {/* Removed the Edit Client Information route */}
+        <Route path="/client/widget-settings" element={
+          userRole === 'admin' ? <Navigate to="/" replace /> : <WidgetSettings />
+        } />
+        <Route path="/client/account-settings" element={
+          userRole === 'admin' ? <Navigate to="/" replace /> : <AccountSettings />
+        } />
+        
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </Router>
+      <Toaster />
+    </div>
   );
 }
 
