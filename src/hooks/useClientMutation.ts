@@ -5,8 +5,7 @@ import {
   updateClient, 
   createClient, 
   logClientUpdateActivity,
-  sendClientInvitation,
-  sendFallbackEmail
+  sendClientInvitation
 } from "@/services/clientService";
 import { toast } from "sonner";
 
@@ -30,34 +29,6 @@ export const useClientMutation = (id: string | undefined) => {
           return clientId;
         } else {
           const newClientId = await createClient(updatedData);
-          
-          try {
-            toast.info("Sending setup email...");
-            
-            try {
-              console.log("Calling send-client-invitation edge function");
-              await sendClientInvitation(
-                newClientId, 
-                updatedData.email, 
-                updatedData.client_name
-              );
-              toast.success("Setup email sent to client");
-            } catch (inviteError) {
-              console.error("Exception in invitation process:", inviteError);
-              toast.error(`Failed to send setup email: ${inviteError.message || "Unknown error"}`);
-              
-              try {
-                await sendFallbackEmail(updatedData.email);
-                toast.success("Setup email sent to client (basic version)");
-              } catch (fallbackError) {
-                console.error("Failed to send fallback email:", fallbackError);
-              }
-            }
-          } catch (setupError) {
-            console.error("Error in client setup process:", setupError);
-            toast.error(`Error during client setup: ${setupError.message || "Unknown error"}`);
-          }
-
           return newClientId;
         }
       } catch (error) {

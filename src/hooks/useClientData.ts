@@ -18,7 +18,7 @@ export const useClientData = (id: string | undefined) => {
   
   const { client, isLoadingClient, error, refetchClient } = useClient(clientId);
   const clientMutation = useClientMutation(clientId);
-  const { sendInvitation } = useClientInvitation();
+  const { sendInvitation, isSending } = useClientInvitation();
 
   return {
     client,
@@ -26,6 +26,7 @@ export const useClientData = (id: string | undefined) => {
     error,
     clientMutation,
     sendInvitation,
+    isSending,
     clientId,
     refetchClient
   };

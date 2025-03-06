@@ -563,6 +563,7 @@ export type Database = {
       }
       google_drive_links: {
         Row: {
+          access_status: string | null
           client_id: string | null
           created_at: string | null
           id: number
@@ -570,6 +571,7 @@ export type Database = {
           refresh_rate: number
         }
         Insert: {
+          access_status?: string | null
           client_id?: string | null
           created_at?: string | null
           id?: number
@@ -577,6 +579,7 @@ export type Database = {
           refresh_rate?: number
         }
         Update: {
+          access_status?: string | null
           client_id?: string | null
           created_at?: string | null
           id?: number

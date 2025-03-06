@@ -113,33 +113,3 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
     throw error;
   }
 };
-
-/**
- * Sends a fallback email when invitation fails
- */
-export const sendFallbackEmail = async (email: string): Promise<void> => {
-  try {
-    const { data: emailData, error: emailError } = await supabase.functions.invoke("send-email", {
-      body: {
-        to: email,
-        subject: "Welcome to Welcome.Chat",
-        html: `
-          <h1>Welcome to Welcome.Chat!</h1>
-          <p>Your account has been created. You'll receive a separate email with login instructions.</p>
-          <p>You can access your dashboard at: ${window.location.origin}/client/view</p>
-          <p>Thank you,<br>The Welcome.Chat Team</p>
-        `
-      }
-    });
-    
-    if (emailError) {
-      console.error("Error sending fallback email:", emailError);
-      throw emailError;
-    } else {
-      console.log("Fallback email sent successfully:", emailData);
-    }
-  } catch (fallbackError) {
-    console.error("Failed to send fallback email:", fallbackError);
-    throw fallbackError;
-  }
-};

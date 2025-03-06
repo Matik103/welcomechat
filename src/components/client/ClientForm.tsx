@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
-import { useClientData } from "@/hooks/useClientData";
 import { Label } from "@/components/ui/label";
 
 interface ClientFormProps {
@@ -15,6 +14,8 @@ interface ClientFormProps {
   onSubmit: (data: { client_name: string; email: string; agent_name: string }) => Promise<void>;
   isLoading?: boolean;
   isClientView?: boolean;
+  onSendInvitation?: () => Promise<void>;
+  isSendingInvitation?: boolean;
 }
 
 const clientFormSchema = z.object({
@@ -23,10 +24,14 @@ const clientFormSchema = z.object({
   agent_name: z.string().min(1, "Agent name is required"),
 });
 
-export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientView = false }: ClientFormProps) => {
-  const [isSendingInvitation, setIsSendingInvitation] = useState(false);
-  const { sendInvitation } = useClientData(initialData?.id);
-  
+export const ClientForm = ({ 
+  initialData, 
+  onSubmit, 
+  isLoading = false, 
+  isClientView = false,
+  onSendInvitation,
+  isSendingInvitation = false
+}: ClientFormProps) => {
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
@@ -46,21 +51,6 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
       });
     }
   }, [initialData, reset]);
-
-  const handleSendInvitation = async () => {
-    if (!initialData?.id) {
-      return;
-    }
-
-    try {
-      setIsSendingInvitation(true);
-      await sendInvitation(initialData.id, initialData.email, initialData.client_name);
-    } catch (error) {
-      console.error("Failed to send invitation:", error);
-    } finally {
-      setIsSendingInvitation(false);
-    }
-  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -117,11 +107,11 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
               : "Create Client"}
         </Button>
         
-        {initialData?.id && !isClientView && (
+        {initialData?.id && onSendInvitation && !isClientView && (
           <Button
             type="button"
             variant="outline"
-            onClick={handleSendInvitation}
+            onClick={onSendInvitation}
             disabled={isSendingInvitation}
           >
             {isSendingInvitation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
