@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -76,44 +75,28 @@ export function useDriveLinks(clientId: string | undefined) {
     }
   };
 
-  const checkDriveLinkAccess = async (link: string): Promise<{ isAccessible: boolean, fileId: string }> => {
+  const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
     try {
       // Extract file ID from Google Drive link
       const fileId = extractDriveFileId(link);
-      console.log("Extracted file ID for access check:", fileId);
+      console.log("Extracted file ID:", fileId);
       
-      // Determine link type and construct appropriate access check URL
-      let accessCheckUrl = '';
-      let headers = {};
-      
-      if (link.includes('docs.google.com')) {
-        // For Google Docs, Sheets, etc.
-        accessCheckUrl = `https://docs.google.com/feeds/download/documents/export/Export?id=${fileId}&exportFormat=pdf`;
-        headers = {
-          'method': 'HEAD',
-        };
-      } else {
-        // For regular Drive files and folders
-        accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
-        headers = {
-          'method': 'HEAD',
-        };
-      }
+      // Check if the file is publicly accessible
+      const accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
       
       console.log("Checking access with URL:", accessCheckUrl);
       
-      // Perform access check
+      // Attempt to access the file without authentication
       const response = await fetch(accessCheckUrl, {
         method: 'HEAD',
         mode: 'no-cors',
         redirect: 'follow',
+      }).catch(error => {
+        console.error("Drive file access check error:", error);
+        throw new Error("Drive file appears to be inaccessible. Please check sharing settings.");
       });
 
       console.log(`Drive link access check response: ${response ? response.status : 'No response'}`);
-      
-      // Unfortunately, due to CORS restrictions, we can't reliably check the status code
-      // So we'll assume the file is accessible if we made it this far
-      // A more reliable approach would be to have a server-side function that checks this
       
       // Check if there's already data for this URL in the AI agent table
       const { data: existingData } = await supabase
@@ -131,10 +114,8 @@ export function useDriveLinks(clientId: string | undefined) {
           .eq('id', existingData.id);
       }
 
-      return { isAccessible: true, fileId };
+      return true;
     } catch (error: any) {
-      console.warn("Drive link access check failed:", error.message);
-      
       // Log error to database
       if (clientId) {
         await supabase.from("error_logs").insert({
@@ -145,13 +126,10 @@ export function useDriveLinks(clientId: string | undefined) {
         });
       }
       
-      // If there's an error, we still return the fileId but mark as inaccessible
-      try {
-        const fileId = extractDriveFileId(link);
-        return { isAccessible: false, fileId };
-      } catch (idError) {
-        throw new Error(`Could not extract file ID: ${idError.message}`);
-      }
+      // Immediately notify the user of the error
+      toast.error(`Google Drive access error: ${error.message}`);
+      
+      throw error;
     }
   };
 
@@ -164,19 +142,22 @@ export function useDriveLinks(clientId: string | undefined) {
     console.log("Adding drive link with client ID:", clientId);
     console.log("Input data:", input);
     
-    // Check Google Drive link accessibility
+    // Validate Google Drive link accessibility
     try {
-      const { isAccessible, fileId } = await checkDriveLinkAccess(input.link);
-      
-      // We'll still add the link but with access_status
+      await checkDriveLinkAccess(input.link);
+    } catch (error) {
+      console.error("Drive link access check failed:", error);
+      throw error;
+    }
+    
+    // If validation passes, add the link to the database
+    try {
       const { data, error } = await supabase
         .from("google_drive_links")
         .insert({
           client_id: clientId, 
           link: input.link, 
-          refresh_rate: input.refresh_rate,
-          file_id: fileId,
-          access_status: isAccessible ? 'accessible' : 'restricted'
+          refresh_rate: input.refresh_rate 
         })
         .select()
         .single();
@@ -190,11 +171,6 @@ export function useDriveLinks(clientId: string | undefined) {
       
       if (!data) {
         throw new Error("Failed to create drive link - no data returned");
-      }
-      
-      // Show warning toast if file is restricted
-      if (!isAccessible) {
-        toast.warning("This Google Drive link appears to be restricted. Please ensure it's publicly accessible for our AI to process it.");
       }
       
       return data as DriveLink;

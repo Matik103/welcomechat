@@ -38,9 +38,9 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
 
   useEffect(() => {
     if (initialData) {
-      setValue("client_name", initialData.client_name || "");
-      setValue("email", initialData.email || "");
-      setValue("agent_name", initialData.agent_name || "");
+      setValue("client_name", initialData.client_name);
+      setValue("email", initialData.email);
+      setValue("agent_name", initialData.agent_name);
     }
   }, [initialData, setValue]);
 
@@ -51,7 +51,7 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
 
     try {
       setIsSendingInvitation(true);
-      await sendInvitation(initialData.id, initialData.email || "", initialData.client_name || "");
+      await sendInvitation(initialData.id, initialData.email, initialData.client_name);
     } catch (error) {
       console.error("Failed to send invitation:", error);
     } finally {

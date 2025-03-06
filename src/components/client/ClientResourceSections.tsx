@@ -1,3 +1,4 @@
+
 import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { DriveLinks } from "@/components/client/DriveLinks";
@@ -5,8 +6,7 @@ import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
@@ -26,8 +26,8 @@ export const ClientResourceSections = ({
 
   console.log("ClientResourceSections rendering with clientId:", clientId);
 
-  const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation, isLoading: isDriveLoading, isError: isDriveError } = useDriveLinks(clientId);
-  const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation, isLoading: isUrlsLoading, isError: isUrlsError } = useWebsiteUrls(clientId);
+  const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation, isLoading: isDriveLoading } = useDriveLinks(clientId);
+  const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation, isLoading: isUrlsLoading } = useWebsiteUrls(clientId);
 
   console.log("Drive Links:", driveLinks);
   console.log("Website URLs:", websiteUrls);
@@ -138,31 +138,8 @@ export const ClientResourceSections = ({
     );
   }
 
-  if (isDriveError || isUrlsError) {
-    return (
-      <Alert variant="destructive" className="mt-4">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          There was an error loading resources. Please refresh the page and try again.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  const hasRestrictedFiles = driveLinks.some(link => link.access_status === 'restricted');
-
   return (
     <div className="space-y-6">
-      {hasRestrictedFiles && (
-        <Alert variant="destructive" className="bg-amber-50 border-amber-200">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-700">
-            Some of your Google Drive links appear to be restricted. Please ensure all files are publicly accessible 
-            (Anyone with the link can view) for our AI to process them.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="rounded-lg">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Links</h3>
         <DriveLinks
