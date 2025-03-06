@@ -37,14 +37,17 @@ export function useDriveLinks(clientId: string | undefined) {
     enabled: !!clientId,
   });
 
-  const addDriveLink = async (input: { link: string; refresh_rate: number }): Promise<DriveLink> => {
-    if (!clientId) {
+  const addDriveLink = async (input: { link: string; refresh_rate: number; client_id?: string }): Promise<DriveLink> => {
+    // Ensure we have a client ID, either from the input or the hook parameter
+    const effectiveClientId = input.client_id || clientId;
+    
+    if (!effectiveClientId) {
       console.error("Client ID is missing");
       toast.error("Unable to add Google Drive link: Client ID is missing. Please refresh the page or contact support.");
       throw new Error("Client ID is required");
     }
     
-    console.log("Adding drive link with client ID:", clientId);
+    console.log("Adding drive link with client ID:", effectiveClientId);
     console.log("Input data:", input);
     
     // Insert the drive link
@@ -52,7 +55,7 @@ export function useDriveLinks(clientId: string | undefined) {
       const { data, error } = await supabase
         .from("google_drive_links")
         .insert({
-          client_id: clientId,
+          client_id: effectiveClientId,
           link: input.link,
           refresh_rate: input.refresh_rate,
         })

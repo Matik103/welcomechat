@@ -37,14 +37,17 @@ export function useWebsiteUrls(clientId: string | undefined) {
     enabled: !!clientId,
   });
 
-  const addWebsiteUrl = async (input: { url: string; refresh_rate: number }): Promise<WebsiteUrl> => {
-    if (!clientId) {
+  const addWebsiteUrl = async (input: { url: string; refresh_rate: number; client_id?: string }): Promise<WebsiteUrl> => {
+    // Ensure we have a client ID, either from the input or the hook parameter
+    const effectiveClientId = input.client_id || clientId;
+    
+    if (!effectiveClientId) {
       console.error("Client ID is missing");
       toast.error("Unable to add URL: Client ID is missing. Please refresh the page or contact support.");
       throw new Error("Client ID is required");
     }
     
-    console.log("Adding website URL with client ID:", clientId);
+    console.log("Adding website URL with client ID:", effectiveClientId);
     console.log("Input data:", input);
     
     // Insert the website URL
@@ -52,7 +55,7 @@ export function useWebsiteUrls(clientId: string | undefined) {
       const { data, error } = await supabase
         .from("website_urls")
         .insert({
-          client_id: clientId,
+          client_id: effectiveClientId,
           url: input.url,
           refresh_rate: input.refresh_rate,
         })

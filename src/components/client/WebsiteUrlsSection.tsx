@@ -30,6 +30,9 @@ const WebsiteUrlsSection = ({
     }
 
     try {
+      console.log("Adding website URL with client ID:", clientId);
+      console.log("URL data:", data);
+      
       // Make sure to include the client_id in the data
       const dataWithClientId = {
         ...data,

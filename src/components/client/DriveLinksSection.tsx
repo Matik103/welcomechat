@@ -30,6 +30,9 @@ const DriveLinksSection = ({
     }
 
     try {
+      console.log("Adding drive link with client ID:", clientId);
+      console.log("Link data:", data);
+      
       // Make sure to include the client_id in the data
       const dataWithClientId = {
         ...data,
