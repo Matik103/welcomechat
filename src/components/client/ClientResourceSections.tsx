@@ -6,6 +6,7 @@ import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
@@ -23,8 +24,11 @@ export const ClientResourceSections = ({
     return null;
   }
 
-  const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation } = useDriveLinks(clientId);
-  const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation } = useWebsiteUrls(clientId);
+  const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation, isLoading: isDriveLoading } = useDriveLinks(clientId);
+  const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation, isLoading: isUrlsLoading } = useWebsiteUrls(clientId);
+
+  console.log("Drive Links:", driveLinks);
+  console.log("Website URLs:", websiteUrls);
 
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     try {
@@ -126,9 +130,17 @@ export const ClientResourceSections = ({
     }
   };
 
+  if (isDriveLoading || isUrlsLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Share Links</h2>
         <DriveLinks
           driveLinks={driveLinks}

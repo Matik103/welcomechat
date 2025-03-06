@@ -66,7 +66,7 @@ const ResourceSettings = () => {
       <Card className="mb-8">
         <CardHeader className="flex flex-row items-center gap-2">
           <Database className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Resource Settings</CardTitle>
+          <CardTitle>Resources</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-8">            
