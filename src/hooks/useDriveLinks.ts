@@ -207,21 +207,29 @@ export function useDriveLinks(clientId: string | undefined) {
         .select("access_status")
         .limit(1);
       
-      let insertData = {
-        client_id: clientId, 
-        link: input.link, 
+      // Define the base data object with the required fields
+      const baseData: {
+        client_id: string;
+        link: string;
+        refresh_rate: number;
+      } = {
+        client_id: clientId,
+        link: input.link,
         refresh_rate: input.refresh_rate,
       };
       
-      // Only include access_status if the column exists
+      // Create the insert data, conditionally adding access_status if the column exists
+      let insertData: any;
+      
       if (!schemaError) {
         console.log("access_status column exists, including in insert");
         insertData = {
-          ...insertData,
+          ...baseData,
           access_status: accessStatus
         };
       } else {
         console.log("access_status column doesn't exist, skipping in insert");
+        insertData = baseData;
       }
       
       const { data, error } = await supabase
