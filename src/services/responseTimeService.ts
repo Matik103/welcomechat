@@ -31,7 +31,7 @@ export const fetchAverageResponseTime = async (clientId: string): Promise<number
     
     try {
       // Try to get response times from the agent's table metadata using rpc
-      const { data, error } = await supabase.rpc('execute_sql', {
+      const { data, error } = await supabase.rpc('execute_sql_query', {
         query_text: `SELECT metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 30`
       });
       

@@ -32,7 +32,7 @@ export const fetchActiveDays = async (clientId: string): Promise<number> => {
     try {
       // Try to get data from the agent's table if it exists
       // We need to use executeQuery for dynamic table access
-      const { data, error } = await supabase.rpc('execute_sql', {
+      const { data, error } = await supabase.rpc('execute_sql_query', {
         query_text: `SELECT metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL`
       });
       

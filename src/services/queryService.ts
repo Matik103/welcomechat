@@ -49,7 +49,7 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
     const sanitizedAgentName = clientData.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
     // Try to get user queries from the agent's table metadata using rpc
-    const { data, error } = await supabase.rpc('execute_sql', {
+    const { data, error } = await supabase.rpc('execute_sql_query', {
       query_text: `SELECT id, metadata FROM "${sanitizedAgentName}" WHERE metadata IS NOT NULL ORDER BY id DESC LIMIT 100`
     });
     
