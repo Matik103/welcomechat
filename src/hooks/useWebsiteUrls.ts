@@ -7,6 +7,8 @@ import { WebsiteUrl } from "@/types/client";
 export function useWebsiteUrls(clientId: string | undefined) {
   const queryClient = useQueryClient();
   
+  console.log("useWebsiteUrls hook called with clientId:", clientId);
+  
   const query = useQuery({
     queryKey: ["websiteUrls", clientId],
     queryFn: async () => {
