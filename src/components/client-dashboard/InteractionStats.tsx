@@ -1,7 +1,7 @@
 
 import { Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { InteractionStats as InteractionStatsType } from "@/hooks/useClientDashboard";
+import { InteractionStats as InteractionStatsType } from "@/types/client-dashboard";
 
 interface InteractionStatsProps {
   stats: InteractionStatsType;

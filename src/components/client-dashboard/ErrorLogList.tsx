@@ -1,4 +1,3 @@
-
 import React from "react";
 import { format } from "date-fns";
 import {
@@ -9,15 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Loader2, AlertCircle } from "lucide-react";
-
-interface ErrorLog {
-  id: string;
-  error_type: string;
-  message: string;
-  created_at: string;
-  client_id: string;
-  status: string;
-}
+import { ErrorLog } from "@/types/client-dashboard";
 
 interface ErrorLogListProps {
   logs: ErrorLog[] | undefined;

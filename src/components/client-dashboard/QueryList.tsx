@@ -17,9 +17,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, MessageSquare } from "lucide-react";
+import { QueryItem } from "@/types/client-dashboard";
 
 interface QueryListProps {
-  queries: any[] | undefined;
+  queries: QueryItem[] | undefined;
   isLoading: boolean;
 }
 

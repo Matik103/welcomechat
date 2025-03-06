@@ -8,7 +8,7 @@ import { QueryList } from "@/components/client-dashboard/QueryList";
 import { useClientDashboard } from "@/hooks/useClientDashboard";
 import { Loader2, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { ErrorLog, QueryItem } from "@/hooks/useClientDashboard";
+import { ErrorLog, QueryItem } from "@/types/client-dashboard";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
