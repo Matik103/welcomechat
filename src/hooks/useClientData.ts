@@ -11,12 +11,16 @@ export const useClientData = (id: string | undefined) => {
   const [resolvedClientId, setResolvedClientId] = useState<string | undefined>(id);
   const [resolvingId, setResolvingId] = useState(id === undefined);
   
-  // If in client view but no ID is passed, try to resolve client ID
+  // Only resolve client ID when needed and avoid unnecessary re-resolving
   useEffect(() => {
     const resolveClientId = async () => {
+      if (!resolvingId) return;
+      
+      console.log("useClientData - Resolving client ID");
       console.log("useClientData - ID provided:", id);
       console.log("useClientData - User metadata client_id:", user?.user_metadata?.client_id);
       
+      // If explicit ID is provided, use that first
       if (id) {
         console.log("Using provided ID:", id);
         setResolvedClientId(id);
@@ -24,6 +28,7 @@ export const useClientData = (id: string | undefined) => {
         return;
       } 
       
+      // If ID in user metadata, use that next
       if (user?.user_metadata?.client_id) {
         console.log("Using client ID from user metadata:", user.user_metadata.client_id);
         setResolvedClientId(user.user_metadata.client_id);
@@ -31,7 +36,7 @@ export const useClientData = (id: string | undefined) => {
         return;
       }
       
-      // If client ID is still not found and we have a user email, try to look it up
+      // Last resort: look up by email
       if (user?.email) {
         try {
           console.log("Looking up client ID by email:", user.email);
@@ -59,16 +64,24 @@ export const useClientData = (id: string | undefined) => {
       setResolvingId(false);
     };
     
-    if (resolvingId) {
+    if (resolvingId && user) {
       resolveClientId();
     }
   }, [id, user, resolvingId]);
   
+  // If ID changes externally, reset the resolution state
+  useEffect(() => {
+    if (id !== undefined && id !== resolvedClientId) {
+      console.log("External ID changed, updating resolved ID:", id);
+      setResolvedClientId(id);
+      setResolvingId(false);
+    }
+  }, [id, resolvedClientId]);
+  
   console.log("useClientData - Resolved client ID being used:", resolvedClientId);
   
-  // Even if resolvedClientId is undefined, we'll proceed anyway
-  // The useClient hook should handle this gracefully
-  const { client, isLoadingClient, error } = useClient(resolvedClientId);
+  // Only run query when we have either a resolved ID or finished resolving (even if it's null)
+  const { client, isLoadingClient, error } = useClient(resolvedClientId, !resolvingId);
   const clientMutation = useClientMutation(resolvedClientId);
   const { sendInvitation } = useClientInvitation();
 

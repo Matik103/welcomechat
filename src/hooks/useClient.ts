@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Client } from "@/types/client";
 import { getClientById } from "@/services/clientService";
 
-export const useClient = (id: string | undefined) => {
+export const useClient = (id: string | undefined, enabled = true) => {
   const { 
     data: client, 
     isLoading: isLoadingClient, 
@@ -26,7 +26,9 @@ export const useClient = (id: string | undefined) => {
         throw err;
       }
     },
-    enabled: true, // Always enable the query, even if id is undefined
+    enabled: enabled && id !== undefined, // Only run query when we have an ID and explicitly enabled
+    staleTime: 5 * 60 * 1000, // 5 minutes - reduce refetching
+    retry: 1, // Only retry once if there's an error
   });
 
   return {

@@ -4,6 +4,7 @@ import { Database } from "lucide-react";
 import { DriveLinks } from "@/components/client/DriveLinks";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
 interface DriveLinksSectionProps {
   clientId: string | undefined;
@@ -24,6 +25,7 @@ const DriveLinksSection = ({
   // Handle adding a drive link
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     if (!clientId) {
+      toast.error("Cannot add drive link: Client ID not found");
       return;
     }
 

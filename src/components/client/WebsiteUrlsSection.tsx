@@ -4,6 +4,7 @@ import { Database } from "lucide-react";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
 interface WebsiteUrlsSectionProps {
   clientId: string | undefined;
@@ -24,6 +25,7 @@ const WebsiteUrlsSection = ({
   // Handle adding a website URL
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     if (!clientId) {
+      toast.error("Cannot add URL: Client ID not found");
       return;
     }
 

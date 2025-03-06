@@ -17,20 +17,22 @@ import { supabase } from "@/integrations/supabase/client";
 const EditInfo = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
-  const [loadingClientId, setLoadingClientId] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Load client ID from user metadata or directly from the database
+  // Load client ID only once during initial component mount
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchClientId = async () => {
       try {
-        setLoadingClientId(true);
-        
         // First try to get from user metadata
         if (user?.user_metadata?.client_id) {
           console.log("Setting client ID from user metadata:", user.user_metadata.client_id);
-          setClientId(user.user_metadata.client_id);
-          setLoadingClientId(false);
+          if (isMounted) {
+            setClientId(user.user_metadata.client_id);
+            setInitialLoadComplete(true);
+          }
           return;
         }
         
@@ -45,32 +47,52 @@ const EditInfo = () => {
             
           if (error) {
             console.error("Error finding client by email:", error);
-            setError("Could not find your client account. Please contact support.");
+            if (isMounted) {
+              setError("Could not find your client account. Please contact support.");
+              setInitialLoadComplete(true);
+            }
           } else if (data?.id) {
             console.log("Found client ID from database:", data.id);
-            setClientId(data.id);
+            if (isMounted) {
+              setClientId(data.id);
+              setInitialLoadComplete(true);
+            }
           } else {
-            setError("No client account found for your email address.");
+            if (isMounted) {
+              setError("No client account found for your email address.");
+              setInitialLoadComplete(true);
+            }
           }
         } else {
-          setError("User email not available. Please try logging out and in again.");
+          if (isMounted) {
+            setError("User email not available. Please try logging out and in again.");
+            setInitialLoadComplete(true);
+          }
         }
       } catch (err) {
         console.error("Error in fetchClientId:", err);
-        setError("An unexpected error occurred. Please try again later.");
-      } finally {
-        setLoadingClientId(false);
+        if (isMounted) {
+          setError("An unexpected error occurred. Please try again later.");
+          setInitialLoadComplete(true);
+        }
       }
     };
     
-    fetchClientId();
+    if (user) {
+      fetchClientId();
+    }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
   
-  // Use client data hooks only after clientId is available
+  // Only use client data hooks after clientId is available and stable
   const { 
     client, 
     isLoadingClient,
-    error: clientError 
+    error: clientError,
+    isResolvingId
   } = useClientData(clientId);
   
   const { logClientActivity } = useClientActivity(clientId);
@@ -95,7 +117,10 @@ const EditInfo = () => {
   console.log("EditInfo: website URLs:", websiteUrls);
   console.log("EditInfo: drive links:", driveLinks);
 
-  if (loadingClientId || isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
+  // New centralized loading state
+  const isLoading = !initialLoadComplete || isLoadingClient || isUrlsLoading || isDriveLinksLoading || isResolvingId;
+  
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
