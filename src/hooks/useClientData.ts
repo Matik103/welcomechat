@@ -16,22 +16,9 @@ export const useClientData = (id: string | undefined) => {
   console.log("useClientData - user metadata client_id:", user?.user_metadata?.client_id);
   console.log("useClientData - clientId being used:", clientId);
   
-  // When creating a new client, there's no client ID yet, and that's OK
-  const isCreationMode = !id && !user?.user_metadata?.client_id;
-  
-  // Only fetch client data if we have a client ID or we're not in creation mode
   const { client, isLoadingClient, error } = useClient(clientId);
-  
-  // For client mutation, we need to handle both existing clients (with IDs) and new clients (without IDs)
   const clientMutation = useClientMutation(clientId);
   const { sendInvitation } = useClientInvitation();
-
-  // Debug output for non-creation mode
-  useEffect(() => {
-    if (!clientId && !isCreationMode) {
-      console.warn("No client ID available in useClientData. This might cause issues with data operations.");
-    }
-  }, [clientId, isCreationMode]);
 
   return {
     client,
@@ -39,7 +26,6 @@ export const useClientData = (id: string | undefined) => {
     error,
     clientMutation,
     sendInvitation,
-    clientId,
-    isCreationMode
+    clientId
   };
 };
