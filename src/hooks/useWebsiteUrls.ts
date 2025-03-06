@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -38,9 +37,6 @@ export function useWebsiteUrls(clientId: string | undefined) {
     console.log("Adding website URL with client ID:", clientId);
     console.log("Input data:", input);
     
-    // Removed the check for existing URLs to allow duplicates
-    
-    // Insert the website URL
     try {
       const { data, error } = await supabase
         .from("website_urls")
