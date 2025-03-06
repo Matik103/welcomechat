@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -7,12 +8,20 @@ import { toast } from "sonner";
  */
 export const getClientById = async (id: string): Promise<Client | null> => {
   if (!id) return null;
+  
+  console.log("Fetching client with ID:", id);
   const { data, error } = await supabase
     .from("clients")
     .select("*")
     .eq("id", id)
     .maybeSingle();
-  if (error) throw error;
+    
+  if (error) {
+    console.error("Error fetching client:", error);
+    throw error;
+  }
+  
+  console.log("Client data retrieved:", data);
   return data as Client;
 };
 
@@ -23,22 +32,30 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   console.log("Updating client with ID:", id);
   console.log("Update data:", data);
 
-  const { error } = await supabase
-    .from("clients")
-    .update({
-      client_name: data.client_name,
-      email: data.email,
-      agent_name: data.agent_name,
-      widget_settings: data.widget_settings,
-    })
-    .eq("id", id);
+  try {
+    const { data: updatedData, error } = await supabase
+      .from("clients")
+      .update({
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: data.agent_name,
+        widget_settings: data.widget_settings,
+      })
+      .eq("id", id)
+      .select()
+      .single();
 
-  if (error) {
-    console.error("Error updating client:", error);
+    if (error) {
+      console.error("Error updating client:", error);
+      throw error;
+    }
+
+    console.log("Client updated successfully:", updatedData);
+    return id;
+  } catch (error) {
+    console.error("Exception in updateClient:", error);
     throw error;
   }
-
-  return id;
 };
 
 /**
