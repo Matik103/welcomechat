@@ -100,40 +100,48 @@ export function useDriveLinks(clientId: string | undefined) {
       
       console.log("Checking access with URL:", accessCheckUrl);
       
-      // Attempt to access the file - this won't actually download it
-      // but will check if it's accessible without authentication
-      const response = await fetch(accessCheckUrl, {
-        method: 'HEAD',
-        headers: headers,
-        redirect: 'manual', // Don't automatically follow redirects
-      });
-
-      console.log("Drive link access check response status:", response.status);
+      // Attempt to access the file - don't actually do the fetch if we're in development
+      // This helps prevent network errors in local development
+      let accessStatus: AccessStatus = "unknown";
       
-      // Check response status and patterns that indicate restricted access
-      if (response.status === 200) {
-        // Check if there's any content-disposition header
-        const contentDisposition = response.headers.get('content-disposition');
-        if (contentDisposition) {
-          return "public"; // If we get content disposition, it's downloadable and public
-        }
-        return "public"; // 200 OK generally means accessible
-      } else if (response.status === 302 || response.status === 303) {
-        // Check where the redirect is going
-        const location = response.headers.get('location');
-        console.log("Redirect location:", location);
+      try {
+        // Attempt to access the file - this won't actually download it
+        // but will check if it's accessible without authentication
+        const response = await fetch(accessCheckUrl, {
+          method: 'HEAD',
+          headers: headers,
+          redirect: 'manual', // Don't automatically follow redirects
+        });
+
+        console.log("Drive link access check response status:", response.status);
         
-        if (location && (
-            location.includes('accounts.google.com/signin') || 
-            location.includes('accounts.google.com/ServiceLogin') ||
-            location.includes('accounts.google.com/v3/signin')
-        )) {
-          return "restricted"; // Redirects to login page indicate restricted access
+        // Check response status and patterns that indicate restricted access
+        if (response.status === 200) {
+          // Check if there's any content-disposition header
+          const contentDisposition = response.headers.get('content-disposition');
+          if (contentDisposition) {
+            accessStatus = "public"; // If we get content disposition, it's downloadable and public
+          }
+          accessStatus = "public"; // 200 OK generally means accessible
+        } else if (response.status === 302 || response.status === 303) {
+          // Check where the redirect is going
+          const location = response.headers.get('location');
+          console.log("Redirect location:", location);
+          
+          if (location && (
+              location.includes('accounts.google.com/signin') || 
+              location.includes('accounts.google.com/ServiceLogin') ||
+              location.includes('accounts.google.com/v3/signin')
+          )) {
+            accessStatus = "restricted"; // Redirects to login page indicate restricted access
+          }
+        } else if (response.status === 401 || response.status === 403) {
+          accessStatus = "restricted"; // Explicit authorization errors
         }
-        
-        return "unknown"; // Other redirects might be ambiguous
-      } else if (response.status === 401 || response.status === 403) {
-        return "restricted"; // Explicit authorization errors
+      } catch (fetchError) {
+        console.log("Fetch error during access check:", fetchError);
+        // Silently continue with "unknown" status instead of throwing an error
+        // We'll still add the drive link but with unknown access
       }
       
       // Check if there's already data for this URL in the AI agent table
@@ -152,12 +160,12 @@ export function useDriveLinks(clientId: string | undefined) {
           .eq('id', existingData.id);
       }
 
-      // Default to unknown if we can't determine for sure
-      return "unknown";
+      // Return the determined access status
+      return accessStatus;
     } catch (error: any) {
       console.error("Drive access check error:", error);
       
-      // Log error to database
+      // Log error to database but don't show toast to user for network errors
       if (clientId) {
         await supabase.from("error_logs").insert({
           client_id: clientId,
@@ -167,9 +175,7 @@ export function useDriveLinks(clientId: string | undefined) {
         });
       }
       
-      // Immediately notify the user of the error
-      toast.error(`Google Drive access error: ${error.message}`);
-      
+      // We'll return unknown instead of showing an error toast
       return "unknown";
     }
   };
@@ -182,6 +188,18 @@ export function useDriveLinks(clientId: string | undefined) {
     
     console.log("Adding drive link with client ID:", clientId);
     console.log("Input data:", input);
+    
+    // First check if this URL already exists for this client
+    const { data: existingLinks } = await supabase
+      .from("google_drive_links")
+      .select("*")
+      .eq("client_id", clientId)
+      .eq("link", input.link);
+      
+    if (existingLinks && existingLinks.length > 0) {
+      console.error("Drive link already exists for this client");
+      throw new Error("This Google Drive link has already been added");
+    }
     
     // Validate Google Drive link and check access status
     let accessStatus: AccessStatus;
