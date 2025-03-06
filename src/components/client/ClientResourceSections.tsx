@@ -40,10 +40,7 @@ export const ClientResourceSections = ({
       }
       
       console.log("Adding drive link:", data, "for client:", clientId);
-      await addDriveLinkMutation.mutateAsync({
-        link: data.link,
-        refresh_rate: data.refresh_rate
-      });
+      await addDriveLinkMutation.mutateAsync(data);
       
       if (isClientView) {
         try {
@@ -70,10 +67,7 @@ export const ClientResourceSections = ({
       }
       
       console.log("Adding website URL:", data, "for client:", clientId);
-      await addWebsiteUrlMutation.mutateAsync({
-        url: data.url,
-        refresh_rate: data.refresh_rate
-      });
+      await addWebsiteUrlMutation.mutateAsync(data);
       
       if (isClientView) {
         try {

@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,22 +29,50 @@ export function useDriveLinks(clientId: string | undefined) {
   });
 
   const extractDriveFileId = (link: string): string => {
+    console.log("Extracting file ID from link:", link);
     let fileId = '';
     
-    // Handle different Google Drive URL formats
-    if (link.includes('/file/d/')) {
-      fileId = link.split('/file/d/')[1]?.split('/')[0];
-    } else if (link.includes('id=')) {
-      fileId = new URL(link).searchParams.get('id') || '';
-    } else if (link.includes('/d/')) {
-      fileId = link.split('/d/')[1]?.split('/')[0];
-    }
-    
-    if (!fileId) {
+    try {
+      // Handle Google Drive folder URLs
+      if (link.includes('drive.google.com/drive/folders/')) {
+        const folderMatch = link.match(/folders\/([^/?]+)/);
+        if (folderMatch && folderMatch[1]) {
+          fileId = folderMatch[1];
+        }
+      }
+      // Handle Google Docs, Sheets, Slides URLs
+      else if (link.includes('docs.google.com/document/d/') || 
+               link.includes('docs.google.com/spreadsheets/d/') ||
+               link.includes('docs.google.com/presentation/d/')) {
+        const docsMatch = link.match(/\/d\/([^/]+)/);
+        if (docsMatch && docsMatch[1]) {
+          fileId = docsMatch[1];
+        }
+      }
+      // Handle Google Drive file URLs
+      else if (link.includes('/file/d/')) {
+        fileId = link.split('/file/d/')[1]?.split('/')[0];
+      } 
+      // Handle URLs with id parameter
+      else if (link.includes('id=')) {
+        fileId = new URL(link).searchParams.get('id') || '';
+      } 
+      // Handle shortened /d/ URLs
+      else if (link.includes('/d/')) {
+        fileId = link.split('/d/')[1]?.split('/')[0];
+      }
+      
+      console.log("Extracted file ID:", fileId);
+      
+      if (!fileId) {
+        throw new Error("Invalid Google Drive link format - couldn't extract file ID");
+      }
+      
+      return fileId;
+    } catch (error) {
+      console.error("Error extracting file ID:", error);
       throw new Error("Invalid Google Drive link format - couldn't extract file ID");
     }
-    
-    return fileId;
   };
 
   const checkDriveLinkAccess = async (link: string): Promise<boolean> => {
@@ -56,6 +83,8 @@ export function useDriveLinks(clientId: string | undefined) {
       
       // Check if the file is publicly accessible
       const accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
+      
+      console.log("Checking access with URL:", accessCheckUrl);
       
       // Attempt to access the file without authentication
       const response = await fetch(accessCheckUrl, {
@@ -162,7 +191,8 @@ export function useDriveLinks(clientId: string | undefined) {
 
   const addDriveLinkMutation = useMutation({
     mutationFn: addDriveLink,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Drive link added successfully:", data);
       queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
       toast.success("Drive link added successfully");
     },
@@ -174,11 +204,13 @@ export function useDriveLinks(clientId: string | undefined) {
 
   const deleteDriveLinkMutation = useMutation({
     mutationFn: deleteDriveLink,
-    onSuccess: () => {
+    onSuccess: (id) => {
+      console.log("Drive link deleted successfully, ID:", id);
       queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
       toast.success("Drive link removed successfully");
     },
     onError: (error: Error) => {
+      console.error("Drive link deletion error:", error);
       toast.error(`Error removing drive link: ${error.message}`);
     }
   });

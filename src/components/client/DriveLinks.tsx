@@ -40,7 +40,7 @@ export const DriveLinks = ({
     }
     
     // Basic validation for Google Drive links
-    if (!newLink.includes('drive.google.com')) {
+    if (!newLink.includes('drive.google.com') && !newLink.includes('docs.google.com')) {
       setError("Please enter a valid Google Drive link");
       return;
     }
@@ -48,10 +48,14 @@ export const DriveLinks = ({
     try {
       setIsSubmitting(true);
       console.log("Submitting drive link:", newLink, newRefreshRate);
-      await onAdd({
+      
+      const linkData = {
         link: newLink,
         refresh_rate: newRefreshRate,
-      });
+      };
+      
+      console.log("Sending data to onAdd:", linkData);
+      await onAdd(linkData);
       
       setNewLink("");
       setNewRefreshRate(30);
@@ -140,7 +144,7 @@ export const DriveLinks = ({
                 type="number"
                 min="1"
                 value={newRefreshRate}
-                onChange={(e) => setNewRefreshRate(parseInt(e.target.value))}
+                onChange={(e) => setNewRefreshRate(parseInt(e.target.value) || 30)}
                 required
               />
             </div>
