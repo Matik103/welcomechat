@@ -26,14 +26,10 @@ export const ClientDetails = ({
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
-      if (!clientId) {
-        toast.error("Client ID is required to save changes");
-        return;
-      }
-      
+      // We don't need to check for clientId when creating a new client
       await clientMutation.mutateAsync(data);
       
-      // Log client information update activity
+      // Log client information update activity - only for existing clients
       if (clientId && isClientView) {
         try {
           await logClientActivity(
@@ -51,7 +47,7 @@ export const ClientDetails = ({
         }
       }
       
-      toast.success("Client information saved successfully");
+      toast.success(clientId ? "Client information saved successfully" : "Client created successfully");
       
       // Only navigate away if not in client view
       if (!isClientView) {

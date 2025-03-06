@@ -24,7 +24,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   const { client, isLoadingClient, error, clientMutation, clientId } = useClientData(paramClientId);
   const { logClientActivity } = useClientActivity(clientId);
 
-  if (error) {
+  if (error && paramClientId) {
     toast.error("Failed to load client data");
     console.error("Error loading client data:", error);
   }
@@ -37,7 +37,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
     }
   };
 
-  if (isLoadingClient) {
+  if (isLoadingClient && paramClientId) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -81,7 +81,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
             logClientActivity={logClientActivity}
           />
 
-          {/* Only show resource sections if we have a clientId */}
+          {/* Only show resource sections if we have a clientId - not during client creation */}
           {clientId && (
             <ClientResourceSections 
               clientId={clientId} 
