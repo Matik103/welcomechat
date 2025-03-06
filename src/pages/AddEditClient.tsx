@@ -23,8 +23,8 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   // For new client creation, don't attempt to load client data
   const isNewClient = !isClientView && !id;
   
-  // Use the enhanced useClientData hook which will handle clientId resolution
-  const { client, isLoadingClient, error, clientMutation, clientId } = useClientData(
+  // Only load client data if this is not a new client
+  const { client, isLoadingClient, error, clientId } = useClientData(
     isNewClient ? undefined : paramClientId
   );
   

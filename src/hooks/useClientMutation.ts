@@ -24,25 +24,7 @@ export const useClientMutation = (id: string | undefined) => {
       console.log("Starting client mutation for ID:", id);
       console.log("Data being sent:", data);
       
-      try {
-        // Sanitize the agent name
-        const sanitizedAgentName = data.agent_name
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '_');
-        
-        const updatedData = {
-          ...data,
-          agent_name: sanitizedAgentName,
-        };
-
-        const result = await updateClient(id, updatedData);
-        console.log("Update client result:", result);
-        return id;
-      } catch (error) {
-        console.error("Error in client mutation:", error);
-        throw error;
-      }
+      return await updateClient(id, data);
     },
     onSuccess: (id) => {
       console.log("Client mutation succeeded for ID:", id);

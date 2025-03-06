@@ -22,6 +22,7 @@ export const ClientDetails = ({
   logClientActivity 
 }: ClientDetailsProps) => {
   const navigate = useNavigate();
+  // Only initialize clientMutation for existing clients
   const clientMutation = useClientMutation(clientId);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
@@ -44,7 +45,7 @@ export const ClientDetails = ({
         }
       }
       
-      // Handle existing client update
+      // Only get here if we have a valid clientId
       console.log("Updating existing client with ID:", clientId);
       await clientMutation.mutateAsync(data);
       
@@ -82,7 +83,7 @@ export const ClientDetails = ({
       <ClientForm
         initialData={client}
         onSubmit={handleSubmit}
-        isLoading={clientMutation.isPending}
+        isLoading={clientId ? clientMutation.isPending : false}
         isClientView={isClientView}
       />
     </div>
