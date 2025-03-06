@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const checkAndRefreshAuth = async (): Promise<boolean> => {
   try {
+    console.log("Checking auth session validity");
     const { data, error } = await supabase.auth.getSession();
     
     if (error) {
@@ -19,9 +20,40 @@ export const checkAndRefreshAuth = async (): Promise<boolean> => {
       return false;
     }
     
+    console.log("Valid session found:", data.session.user.id);
+    
+    // Check if session is about to expire (less than 30 minutes remaining)
+    const expiresAt = data.session.expires_at;
+    if (expiresAt) {
+      const expiryTime = new Date(expiresAt * 1000);
+      const now = new Date();
+      const diffMs = expiryTime.getTime() - now.getTime();
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      
+      console.log(`Session expires in ${diffMins} minutes`);
+      
+      // If less than 30 minutes remaining, attempt to refresh the session
+      if (diffMins < 30) {
+        console.log("Session expiring soon, refreshing");
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          console.error("Failed to refresh session:", refreshError);
+          return false;
+        }
+        
+        if (!refreshData.session) {
+          console.log("Failed to get a new session when refreshing");
+          return false;
+        }
+        
+        console.log("Session refreshed successfully");
+      }
+    }
+    
     return true;
   } catch (err) {
-    console.error("Error checking auth session:", err);
+    console.error("Error in checkAndRefreshAuth:", err);
     return false;
   }
 }
@@ -32,6 +64,7 @@ export const checkAndRefreshAuth = async (): Promise<boolean> => {
  */
 export const signOutUser = async (): Promise<void> => {
   try {
+    console.log("Starting sign out process");
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Error signing out:", error);
