@@ -139,9 +139,9 @@ export const ClientResourceSections = ({
   }
 
   return (
-    <>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Share Links</h2>
+    <div className="space-y-6">
+      <div className="rounded-lg">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Links</h3>
         <DriveLinks
           driveLinks={driveLinks}
           onAdd={handleAddDriveLink}
@@ -151,8 +151,8 @@ export const ClientResourceSections = ({
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h2>
+      <div className="mt-8 rounded-lg">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Website URLs</h3>
         <WebsiteUrls
           urls={websiteUrls}
           onAdd={handleAddWebsiteUrl}
@@ -161,6 +161,6 @@ export const ClientResourceSections = ({
           isDeleteLoading={deleteWebsiteUrlMutation.isPending}
         />
       </div>
-    </>
+    </div>
   );
 };

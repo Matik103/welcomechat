@@ -62,19 +62,17 @@ const ResourceSettings = () => {
         </CardContent>
       </Card>
 
-      <Card className="mb-8">
+      <Card>
         <CardHeader className="flex flex-row items-center gap-2">
           <Database className="h-5 w-5 text-muted-foreground" />
           <CardTitle>Resources</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-8">            
-            <ClientResourceSections
-              clientId={clientId}
-              isClientView={true}
-              logClientActivity={logClientActivity}
-            />
-          </div>
+          <ClientResourceSections
+            clientId={clientId}
+            isClientView={true}
+            logClientActivity={logClientActivity}
+          />
         </CardContent>
       </Card>
     </div>
