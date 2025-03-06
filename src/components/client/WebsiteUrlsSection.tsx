@@ -16,7 +16,7 @@ interface WebsiteUrlsSectionProps {
 
 const WebsiteUrlsSection = ({ 
   clientId, 
-  websiteUrls, 
+  websiteUrls = [], 
   addWebsiteUrlMutation, 
   deleteWebsiteUrlMutation,
   logClientActivity 
@@ -30,15 +30,24 @@ const WebsiteUrlsSection = ({
     }
 
     try {
-      await addWebsiteUrlMutation.mutateAsync(data);
+      // Make sure to include the client_id in the data
+      const dataWithClientId = {
+        ...data,
+        client_id: clientId
+      };
+      
+      await addWebsiteUrlMutation.mutateAsync(dataWithClientId);
       
       await logClientActivity(
         "website_url_added", 
         "added a website URL", 
         { url: data.url }
       );
+      
+      toast.success("Website URL added successfully");
     } catch (error) {
       console.error("Error adding URL:", error);
+      toast.error("Failed to add website URL");
       throw error; // Re-throw to be caught by the WebsiteUrls component
     }
   };
@@ -56,8 +65,11 @@ const WebsiteUrlsSection = ({
           { url: urlToDelete.url }
         );
       }
+      
+      toast.success("Website URL removed successfully");
     } catch (error) {
       console.error("Error deleting URL:", error);
+      toast.error("Failed to remove website URL");
       throw error;
     }
   };

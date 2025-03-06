@@ -26,9 +26,10 @@ export const useClient = (id: string | undefined, enabled = true) => {
         throw err;
       }
     },
-    enabled: enabled && id !== undefined, // Only run query when we have an ID and explicitly enabled
+    enabled: !!id && enabled, // Only run query when we have an ID and explicitly enabled
     staleTime: 5 * 60 * 1000, // 5 minutes - reduce refetching
     retry: 1, // Only retry once if there's an error
+    refetchOnWindowFocus: false, // Prevent refetching on window focus to reduce flickering
   });
 
   return {

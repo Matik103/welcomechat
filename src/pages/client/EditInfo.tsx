@@ -13,12 +13,33 @@ import ClientInfoSection from "@/components/client/ClientInfoSection";
 import WebsiteUrlsSection from "@/components/client/WebsiteUrlsSection";
 import DriveLinksSection from "@/components/client/DriveLinksSection";
 import { supabase } from "@/integrations/supabase/client";
+import { checkAndRefreshAuth } from "@/services/authService";
 
 const EditInfo = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshingAuth, setIsRefreshingAuth] = useState(true);
+  
+  // First refresh auth to ensure we have valid tokens
+  useEffect(() => {
+    const refreshAuth = async () => {
+      try {
+        const isAuthValid = await checkAndRefreshAuth();
+        if (!isAuthValid) {
+          console.error("Auth validation failed");
+          setError("Your session has expired. Please log in again.");
+        }
+      } catch (err) {
+        console.error("Error refreshing auth:", err);
+      } finally {
+        setIsRefreshingAuth(false);
+      }
+    };
+    
+    refreshAuth();
+  }, []);
   
   // Load client ID only once during initial component mount
   useEffect(() => {
@@ -53,6 +74,17 @@ const EditInfo = () => {
             }
           } else if (data?.id) {
             console.log("Found client ID from database:", data.id);
+            
+            // Update user metadata with the client ID for future use
+            try {
+              await supabase.auth.updateUser({
+                data: { client_id: data.id }
+              });
+              console.log("Updated user metadata with client_id:", data.id);
+            } catch (updateErr) {
+              console.error("Error updating user metadata:", updateErr);
+            }
+            
             if (isMounted) {
               setClientId(data.id);
               setInitialLoadComplete(true);
@@ -78,52 +110,58 @@ const EditInfo = () => {
       }
     };
     
-    if (user) {
+    if (user && !isRefreshingAuth) {
       fetchClientId();
     }
     
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, isRefreshingAuth]);
   
   // Only use client data hooks after clientId is available and stable
   const { 
     client, 
     isLoadingClient,
     error: clientError,
-    isResolvingId
+    isResolvingId,
+    clientId: resolvedClientId
   } = useClientData(clientId);
   
-  const { logClientActivity } = useClientActivity(clientId);
+  const effectiveClientId = clientId || resolvedClientId;
+  
+  const { logClientActivity } = useClientActivity(effectiveClientId);
   
   const { 
     websiteUrls, 
     addWebsiteUrlMutation, 
     deleteWebsiteUrlMutation, 
     isLoading: isUrlsLoading 
-  } = useWebsiteUrls(clientId);
+  } = useWebsiteUrls(effectiveClientId);
 
   const { 
     driveLinks, 
     addDriveLinkMutation, 
     deleteDriveLinkMutation, 
     isLoading: isDriveLinksLoading 
-  } = useDriveLinks(clientId);
+  } = useDriveLinks(effectiveClientId);
 
   console.log("EditInfo: user email:", user?.email);
-  console.log("EditInfo: client ID:", clientId);
+  console.log("EditInfo: client ID:", effectiveClientId);
   console.log("EditInfo: client data:", client);
   console.log("EditInfo: website URLs:", websiteUrls);
   console.log("EditInfo: drive links:", driveLinks);
 
   // New centralized loading state
-  const isLoading = !initialLoadComplete || isLoadingClient || isUrlsLoading || isDriveLinksLoading || isResolvingId;
+  const isLoading = !initialLoadComplete || isLoadingClient || isUrlsLoading || isDriveLinksLoading || isResolvingId || isRefreshingAuth;
   
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+          <p className="text-sm text-gray-500">Loading client information...</p>
+        </div>
       </div>
     );
   }
@@ -132,7 +170,7 @@ const EditInfo = () => {
     return <ErrorDisplay message={error || clientError?.message || "An error occurred"} />;
   }
 
-  if (!clientId) {
+  if (!effectiveClientId) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-6">
@@ -150,22 +188,22 @@ const EditInfo = () => {
       <div className="space-y-8">
         <ClientInfoSection 
           client={client} 
-          clientId={clientId} 
+          clientId={effectiveClientId} 
           logClientActivity={logClientActivity}
           isClientView={true}
         />
 
         <WebsiteUrlsSection
-          clientId={clientId}
-          websiteUrls={websiteUrls}
+          clientId={effectiveClientId}
+          websiteUrls={websiteUrls || []}
           addWebsiteUrlMutation={addWebsiteUrlMutation}
           deleteWebsiteUrlMutation={deleteWebsiteUrlMutation}
           logClientActivity={logClientActivity}
         />
 
         <DriveLinksSection
-          clientId={clientId}
-          driveLinks={driveLinks}
+          clientId={effectiveClientId}
+          driveLinks={driveLinks || []}
           addDriveLinkMutation={addDriveLinkMutation}
           deleteDriveLinkMutation={deleteDriveLinkMutation}
           logClientActivity={logClientActivity}
