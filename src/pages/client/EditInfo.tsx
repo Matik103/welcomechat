@@ -7,7 +7,6 @@ import { ClientResourceSections } from "@/components/client/ClientResourceSectio
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Database, User, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useEffect } from "react";
 
 const EditInfo = () => {
   const { user } = useAuth();
@@ -16,26 +15,6 @@ const EditInfo = () => {
   const { logClientActivity } = useClientActivity(clientId);
 
   console.log("EditInfo: client ID from auth:", clientId);
-  console.log("EditInfo: client data:", client);
-
-  useEffect(() => {
-    // Force refresh of the component when it loads
-    if (clientId) {
-      console.log("EditInfo: forcing refresh for client:", clientId);
-    }
-  }, [clientId]);
-
-  if (!clientId) {
-    return (
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <Card className="bg-red-50 border-red-200">
-          <CardContent className="pt-6">
-            <p className="text-red-700">Error: No client ID found in user data</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   if (isLoadingClient) {
     return (
