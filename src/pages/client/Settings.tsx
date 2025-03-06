@@ -14,9 +14,17 @@ const ClientSettings = () => {
   const [clientInfo, setClientInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
+    
+    // Set a timeout to ensure we don't get stuck in a loading state
+    const timeout = setTimeout(() => {
+      if (isMounted) {
+        setLoadTimeout(true);
+      }
+    }, 5000);
 
     const fetchClientInfo = async () => {
       if (!user?.email) {
@@ -60,10 +68,49 @@ const ClientSettings = () => {
 
     return () => {
       isMounted = false;
+      clearTimeout(timeout);
     };
   }, [user]);
 
-  if (isLoading) {
+  // If we've been loading for too long or there's a data issue, try to provide a graceful experience
+  if ((isLoading && loadTimeout) || (!isLoading && !clientInfo && !error && user)) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] p-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
+            <p className="text-gray-500">Manage your account preferences</p>
+          </div>
+
+          <ProfileSection 
+            initialFullName={user?.user_metadata?.full_name || ""}
+            initialEmail={user?.email || ""}
+          />
+
+          <SecuritySection />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <InfoIcon className="h-5 w-5" />
+                Client Information
+              </CardTitle>
+              <CardDescription>
+                Information about your AI assistant
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-500">There was an issue loading your client information. Your core account settings are still accessible above.</p>
+            </CardContent>
+          </Card>
+
+          <SignOutSection />
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading && !loadTimeout) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
