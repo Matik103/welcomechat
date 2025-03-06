@@ -23,15 +23,15 @@ const EditInfo = () => {
       console.log("Setting client ID from user metadata:", user.user_metadata.client_id);
       setClientId(user.user_metadata.client_id);
     } else {
-      console.warn("No client ID found in user metadata");
+      console.log("No client ID found in user metadata, trying to continue anyway");
     }
-    console.log("Client data initialized");
   }, [user]);
   
-  const { client, isLoadingClient, error, clientId: resolvedClientId } = useClientData(clientId);
+  // Use the enhanced useClientData hook to handle client data regardless of client ID
+  const { client, isLoadingClient, error } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   
-  // Website URL and Drive Link hooks
+  // Website URL and Drive Link hooks - these will handle empty client IDs gracefully
   const { 
     websiteUrls, 
     addWebsiteUrlMutation, 
@@ -46,19 +46,10 @@ const EditInfo = () => {
     isLoading: isDriveLinksLoading 
   } = useDriveLinks(clientId);
 
-  console.log("EditInfo: client ID from auth:", clientId);
-  console.log("EditInfo: resolved client ID:", resolvedClientId);
-  console.log("Website URLs:", websiteUrls);
-  console.log("Drive Links:", driveLinks);
-
-  // Handle adding a website URL
-  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
-    try {
-      await addWebsiteUrlMutation.mutateAsync(data);
-    } catch (error) {
-      console.error("Error in handleAddUrl:", error);
-    }
-  };
+  console.log("EditInfo: user email:", user?.email);
+  console.log("EditInfo: client data:", client);
+  console.log("EditInfo: website URLs:", websiteUrls);
+  console.log("EditInfo: drive links:", driveLinks);
 
   if (isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
     return (
@@ -81,6 +72,7 @@ const EditInfo = () => {
           client={client} 
           clientId={clientId} 
           logClientActivity={logClientActivity}
+          isClientView={true}
         />
 
         <WebsiteUrlsSection

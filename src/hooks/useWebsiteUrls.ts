@@ -11,7 +11,7 @@ export function useWebsiteUrls(clientId: string | undefined) {
     queryKey: ["websiteUrls", clientId],
     queryFn: async () => {
       if (!clientId) {
-        console.log("No client ID provided for websiteUrls query");
+        console.log("No client ID provided for websiteUrls query, returning empty array");
         return [];
       }
       

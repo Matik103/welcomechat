@@ -19,12 +19,15 @@ export const useClientData = (id: string | undefined) => {
     } else if (user?.user_metadata?.client_id) {
       console.log("Using client ID from user metadata:", user.user_metadata.client_id);
       setResolvedClientId(user.user_metadata.client_id);
+    } else {
+      console.log("No client ID available from props or user metadata");
     }
   }, [id, user]);
   
   console.log("useClientData - Resolved client ID being used:", resolvedClientId);
   
   // Even if resolvedClientId is undefined, we'll proceed anyway
+  // The useClient hook should handle this gracefully
   const { client, isLoadingClient, error } = useClient(resolvedClientId);
   const clientMutation = useClientMutation(resolvedClientId);
   const { sendInvitation } = useClientInvitation();
