@@ -5,6 +5,7 @@ import { WidgetSettings } from "@/types/widget-settings";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
+import { useEffect, useRef } from "react";
 
 interface EmbedCodeProps {
   settings: WidgetSettings;
@@ -13,9 +14,31 @@ interface EmbedCodeProps {
 
 export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   const { toast } = useToast();
+  const codeRef = useRef<HTMLPreElement>(null);
   
   // Get the Supabase project reference from the URL
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
+
+  // Syntax highlighting effect
+  useEffect(() => {
+    if (codeRef.current) {
+      const keywords = ["window", "script", "const", "let", "var", "function", "return", "new", "true", "false"];
+      let html = codeRef.current.innerHTML;
+      
+      keywords.forEach(keyword => {
+        const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+        html = html.replace(regex, `<span class="text-purple-600">${keyword}</span>`);
+      });
+      
+      // Highlight strings
+      html = html.replace(/"(.*?)"/g, '<span class="text-green-600">"$1"</span>');
+      
+      // Highlight properties
+      html = html.replace(/(\w+):/g, '<span class="text-blue-600">$1</span>:');
+      
+      codeRef.current.innerHTML = html;
+    }
+  }, [settings]);
 
   const handleCopyCode = () => {
     try {
@@ -66,21 +89,24 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 
   return (
     <div className="relative">
-      <pre className="p-4 bg-gray-50 rounded-lg text-sm overflow-x-auto">
-        {`<script>
+      <pre 
+        ref={codeRef}
+        className="p-4 bg-gray-50 rounded-lg text-sm overflow-x-auto border border-gray-200 max-h-[300px] font-mono"
+      >
+{`<script>
   window.CHATBOT_CONFIG = {
     clientId: "${settings.agent_name}",
-    settings: ${JSON.stringify({
-      agentName: settings.agent_name,
-      logoUrl: settings.logo_url,
-      chatColor: settings.chat_color,
-      backgroundColor: settings.background_color,
-      textColor: settings.text_color,
-      secondaryColor: settings.secondary_color,
-      position: settings.position,
-      welcomeText: settings.welcome_text,
-      responseTimeText: settings.response_time_text
-    }, null, 2)},
+    settings: {
+      agentName: "${settings.agent_name}",
+      logoUrl: "${settings.logo_url}",
+      chatColor: "${settings.chat_color}",
+      backgroundColor: "${settings.background_color}",
+      textColor: "${settings.text_color}",
+      secondaryColor: "${settings.secondary_color}",
+      position: "${settings.position}",
+      welcomeText: "${settings.welcome_text}",
+      responseTimeText: "${settings.response_time_text}"
+    },
     apiEndpoint: "https://${projectRef}.supabase.co/functions/v1/chat"
   };
 </script>
@@ -89,7 +115,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
       <Button
         size="sm"
         onClick={handleCopyCode}
-        className="absolute top-2 right-2"
+        className="absolute top-2 right-2 bg-indigo-600 hover:bg-indigo-700"
       >
         <Copy className="w-4 h-4 mr-2" />
         Copy Code

@@ -9,12 +9,15 @@ interface WidgetPreviewCardProps {
 
 export function WidgetPreviewCard({ settings }: WidgetPreviewCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Widget Preview</CardTitle>
-        <CardDescription>See how your widget will appear to visitors. Click the chat icon to expand the preview.</CardDescription>
+    <Card className="border-2 border-indigo-100 shadow-lg">
+      <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50">
+        <CardTitle className="text-indigo-700">Live Widget Preview</CardTitle>
+        <CardDescription>
+          This is exactly how your widget will appear to your website visitors. 
+          Click the chat icon to expand the preview.
+        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6 pb-6">
         <WidgetPreview settings={settings} />
       </CardContent>
     </Card>
