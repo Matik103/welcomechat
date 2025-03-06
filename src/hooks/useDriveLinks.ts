@@ -12,6 +12,7 @@ export function useDriveLinks(clientId: string | undefined) {
     queryFn: async () => {
       if (!clientId) return [];
       
+      console.log("Fetching drive links for client:", clientId);
       const { data, error } = await supabase
         .from("google_drive_links")
         .select("*")
@@ -22,6 +23,7 @@ export function useDriveLinks(clientId: string | undefined) {
         throw error;
       }
       
+      console.log("Fetched drive links:", data);
       return data as DriveLink[];
     },
     enabled: !!clientId,
@@ -103,34 +105,50 @@ export function useDriveLinks(clientId: string | undefined) {
   };
 
   const addDriveLink = async (input: { link: string; refresh_rate: number }): Promise<DriveLink> => {
-    if (!clientId) throw new Error("Client ID is required");
+    if (!clientId) {
+      console.error("Client ID is missing");
+      throw new Error("Client ID is required");
+    }
     
     console.log("Adding drive link with client ID:", clientId);
     console.log("Input data:", input);
     
     // Validate Google Drive link accessibility
-    await checkDriveLinkAccess(input.link);
-    
-    // If validation passes, add the link to the database
-    const { data, error } = await supabase
-      .from("google_drive_links")
-      .insert({
-        client_id: clientId, 
-        link: input.link, 
-        refresh_rate: input.refresh_rate 
-      })
-      .select()
-      .single();
-    
-    console.log("Supabase response:", { data, error });
-      
-    if (error) {
-      console.error("Supabase error:", error);
+    try {
+      await checkDriveLinkAccess(input.link);
+    } catch (error) {
+      console.error("Drive link access check failed:", error);
       throw error;
     }
-    if (!data) throw new Error("Failed to create drive link");
     
-    return data as DriveLink;
+    // If validation passes, add the link to the database
+    try {
+      const { data, error } = await supabase
+        .from("google_drive_links")
+        .insert({
+          client_id: clientId, 
+          link: input.link, 
+          refresh_rate: input.refresh_rate 
+        })
+        .select()
+        .single();
+      
+      console.log("Supabase response:", { data, error });
+        
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error("Failed to create drive link - no data returned");
+      }
+      
+      return data as DriveLink;
+    } catch (insertError) {
+      console.error("Error inserting drive link:", insertError);
+      throw insertError;
+    }
   };
 
   const deleteDriveLink = async (linkId: number): Promise<number> => {
