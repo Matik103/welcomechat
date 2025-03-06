@@ -10,7 +10,8 @@ import { Loader2 } from "lucide-react";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
-  isClientView: boolean;
+  is
+  ClientView: boolean;
   logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
@@ -37,9 +38,9 @@ export const ClientResourceSections = ({
         return;
       }
       
+      console.log("Adding drive link:", data);
       await addDriveLinkMutation.mutateAsync(data);
       
-      // Log drive link addition activity
       if (isClientView) {
         try {
           await logClientActivity(
@@ -64,9 +65,9 @@ export const ClientResourceSections = ({
         return;
       }
       
+      console.log("Adding website URL:", data);
       await addWebsiteUrlMutation.mutateAsync(data);
       
-      // Log website URL addition activity
       if (isClientView) {
         try {
           await logClientActivity(
@@ -89,7 +90,6 @@ export const ClientResourceSections = ({
       const linkToDelete = driveLinks.find(link => link.id === linkId);
       await deleteDriveLinkMutation.mutateAsync(linkId);
       
-      // Log drive link deletion activity
       if (isClientView && linkToDelete) {
         try {
           await logClientActivity(
@@ -112,7 +112,6 @@ export const ClientResourceSections = ({
       const urlToDelete = websiteUrls.find(url => url.id === urlId);
       await deleteWebsiteUrlMutation.mutateAsync(urlId);
       
-      // Log website URL deletion activity
       if (isClientView && urlToDelete) {
         try {
           await logClientActivity(

@@ -31,7 +31,7 @@ export const WebsiteUrls = ({
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    e.stopPropagation();
+    console.log("handleAdd called with URL:", newUrl);
     setError(null);
     
     if (!newUrl) {
@@ -41,6 +41,7 @@ export const WebsiteUrls = ({
     
     try {
       setIsSubmitting(true);
+      console.log("Submitting website URL:", newUrl, newRefreshRate);
       await onAdd({
         url: newUrl,
         refresh_rate: newRefreshRate,
@@ -106,7 +107,7 @@ export const WebsiteUrls = ({
           <Plus className="w-4 h-4 mr-2" /> Add Website URL
         </Button>
       ) : (
-        <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+        <form className="border border-gray-200 rounded-md p-4 bg-gray-50" onSubmit={handleAdd}>
           <div className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -150,7 +151,7 @@ export const WebsiteUrls = ({
                 Cancel
               </Button>
               <Button 
-                onClick={handleAdd}
+                type="submit"
                 disabled={isAddLoading || isSubmitting || !newUrl}
               >
                 {(isAddLoading || isSubmitting) ? (
@@ -162,7 +163,7 @@ export const WebsiteUrls = ({
               </Button>
             </div>
           </div>
-        </div>
+        </form>
       )}
     </div>
   );
