@@ -12,9 +12,9 @@ export const SettingsHeader = () => {
         <ArrowLeft className="w-5 h-5" />
       </Link>
       <div>
-        <h1 className="text-2xl font-bold">Account Settings</h1>
+        <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-muted-foreground">
-          Manage your account settings and security preferences
+          Manage your settings and preferences
         </p>
       </div>
     </div>
