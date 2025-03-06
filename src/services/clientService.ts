@@ -115,29 +115,13 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
 };
 
 /**
- * Sends invitation email to a client
+ * Sends invitation email to a client using Supabase's built-in invitation system
  */
-export const sendClientInvitation = async (clientId: string, email: string, clientName: string): Promise<boolean> => {
+export const sendInvitation = async (clientId: string, email: string, clientName: string): Promise<boolean> => {
   try {
     console.log("Sending invitation for client:", clientId, email, clientName);
     
-    // Generate a temporary password for the client account
-    console.log("Generating temporary password for the client");
-    const { data: passwordData, error: passwordError } = await supabase.functions.invoke("generate-client-password", {
-      body: {
-        email,
-        clientId
-      }
-    });
-    
-    if (passwordError) {
-      console.error("Error generating password:", passwordError);
-      throw new Error("Failed to generate password for client");
-    }
-    
-    console.log("Password generated:", passwordData?.success);
-    
-    // Now send the actual invitation email
+    // Call the edge function to send the Supabase invitation
     const { data, error } = await supabase.functions.invoke("send-client-invitation", {
       body: {
         clientId,
@@ -158,29 +142,15 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
     
     console.log("Invitation response:", data);
     
-    // If password was generated but invitation failed, create client account using edge function
-    if (!data?.success && passwordData?.success) {
-      console.log("Invitation failed, creating client account via edge function");
-      const { data: createData, error: createError } = await supabase.functions.invoke("create-client-user", {
-        body: {
-          email,
-          clientName,
-          aiAgentName: clientId  // We'll pass the client ID as the agent name for now
-        }
-      });
-      
-      if (createError) {
-        console.error("Error creating client account:", createError);
-        throw createError;
-      }
-      
-      console.log("Client account creation response:", createData);
+    if (data?.success) {
+      toast.success("Invitation sent successfully");
       return true;
+    } else {
+      throw new Error("Invitation failed to send");
     }
     
-    return true;
   } catch (error) {
-    console.error("Invitation method failed:", error);
+    console.error("Invitation failed:", error);
     
     // Try fallback email as last resort
     try {
@@ -190,6 +160,7 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
       console.error("Even fallback email failed:", fallbackError);
     }
     
+    toast.error("Failed to send invitation. The account was created but the user will need to be notified manually.");
     throw error;
   }
 };
@@ -221,19 +192,5 @@ export const sendFallbackEmail = async (email: string): Promise<void> => {
   } catch (fallbackError) {
     console.error("Failed to send fallback email:", fallbackError);
     throw fallbackError;
-  }
-};
-
-/**
- * Function that combines all invitation methods
- */
-export const sendInvitation = async (clientId: string, email: string, clientName: string): Promise<boolean> => {
-  console.log("Sending combined invitation for client:", clientId);
-  try {
-    return await sendClientInvitation(clientId, email, clientName);
-  } catch (error) {
-    console.error("All invitation methods failed:", error);
-    toast.error("Failed to send invitation. The account was created but the user will need to be notified manually.");
-    throw error;
   }
 };

@@ -5,7 +5,7 @@ import { ClientForm } from "@/components/client/ClientForm";
 import { useClientMutation } from "@/hooks/useClientMutation";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
-import { createClient } from "@/services/clientService";
+import { createClient, sendInvitation } from "@/services/clientService";
 import { toast } from "sonner";
 
 interface ClientDetailsProps {
@@ -60,8 +60,7 @@ export const ClientDetails = ({
           const newClientId = await createClient(data);
           console.log("New client created with ID:", newClientId);
           
-          // Send invitation to the new client
-          const { sendInvitation } = await import("@/services/clientService");
+          // Send invitation using Supabase's built-in invitation system
           await sendInvitation(newClientId, data.email, data.client_name);
           
           toast.success("Client created and invitation sent successfully");
