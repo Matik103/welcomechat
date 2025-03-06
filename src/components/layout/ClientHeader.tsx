@@ -31,7 +31,7 @@ export const ClientHeader = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56" sideOffset={16}>
                 <DropdownMenuItem asChild>
-                  <Link to="/client/settings" className="flex items-center">
+                  <Link to="/client/profile-settings" className="flex items-center">
                     <UserCog className="mr-2 h-4 w-4" />
                     <span>Profile Settings</span>
                   </Link>

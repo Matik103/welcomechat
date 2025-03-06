@@ -1,119 +1,130 @@
-import { Toaster } from "sonner";
-import { Header } from "@/components/layout/Header";
-import { ClientHeader } from "@/components/layout/ClientHeader";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import Auth from "@/pages/Auth";
-import Index from "@/pages/Index";
-import ClientList from "@/pages/ClientList";
-import Settings from "@/pages/Settings";
-import ClientView from "@/pages/ClientView";
-import AddEditClient from "@/pages/AddEditClient";
-import WidgetSettings from "@/pages/WidgetSettings";
-import { useAuth } from "./contexts/AuthContext";
-import ClientSettings from "@/pages/client/Settings";
-import ClientDashboard from "@/pages/client/Dashboard";
-import ClientSetup from "@/pages/client/Setup";
-import { useEffect, useState } from "react";
-import AccountSettings from "@/pages/client/AccountSettings";
+import React, { useEffect, useState } from 'react';
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  Navigate,
+} from 'react-router-dom';
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
+import Account from './pages/Account';
+import Home from './pages/Home';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import ClientDashboard from './pages/client/ClientDashboard';
+import WidgetSettings from './pages/client/WidgetSettings';
+import { AdminRoute } from './components/auth/AdminRoute';
+import { ClientRoute } from './components/auth/ClientRoute';
+import { AuthRoute } from './components/auth/AuthRoute';
+import { useAuth } from './contexts/AuthContext';
+import ClientSetup from './pages/auth/ClientSetup';
+import InvitationLanding from './pages/auth/InvitationLanding';
+import ProfileSettings from "./pages/client/ProfileSettings";
 
 function App() {
-  const { isLoading, user, userRole } = useAuth();
-  const location = useLocation();
-  const [showLoader, setShowLoader] = useState(true);
-  
-  // Set a timeout to prevent infinite loading
+  const session = useSession();
+  const supabase = useSupabaseClient();
+  const { isLoading } = useAuth();
+  const [isClientSetupComplete, setIsClientSetupComplete] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowLoader(false);
-    }, 3000); // Reduced timeout to 3 seconds
-    
-    // Clear timeout if loading state changes
-    if (!isLoading) {
-      clearTimeout(timer);
-      setShowLoader(false);
-    }
-    
-    return () => clearTimeout(timer);
-  }, [isLoading]);
+    const checkClientSetup = async () => {
+      if (session && session.user) {
+        const { data: user_roles, error } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', session.user.id);
 
-  // Check if this is a public route
-  const isPublicRoute = 
-    location.pathname === '/auth' || 
-    location.pathname.startsWith('/client/setup');
-  
-  // Show loading spinner only while checking auth and not more than the timeout
-  if (isLoading && showLoader) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
-          <p className="text-sm text-gray-500">Loading your application...</p>
-        </div>
-      </div>
-    );
+        if (error) {
+          console.error('Error fetching user roles:', error);
+          return;
+        }
+
+        if (user_roles && user_roles.length > 0) {
+          setIsClientSetupComplete(true);
+        } else {
+          setIsClientSetupComplete(false);
+        }
+      } else {
+        setIsClientSetupComplete(false);
+      }
+    };
+
+    checkClientSetup();
+  }, [session, supabase]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
   }
-
-  // If loading timed out or finished, and no user, and not on a public route, redirect to auth
-  if ((!isLoading || !showLoader) && !user && !isPublicRoute) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Determine if we need to show the client header or admin header
-  // This is independent of role checks to avoid UI flickering
-  const isClientRoute = 
-    location.pathname.startsWith('/client') && 
-    !location.pathname.startsWith('/client/setup');
 
   return (
-    <div className="min-h-screen bg-background">
-      {isClientRoute ? <ClientHeader /> : <Header />}
+    <Router>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/client/setup" element={<ClientSetup />} />
-        
-        {/* Admin Routes */}
-        <Route path="/" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <Index />
-        } />
-        <Route path="/admin/clients" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientList />
-        } />
-        <Route path="/settings" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <Settings />
-        } />
-        <Route path="/admin/clients/new" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <AddEditClient />
-        } />
-        <Route path="/admin/clients/:id" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientView />
-        } />
-        <Route path="/admin/clients/:id/edit" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <AddEditClient />
-        } />
-        <Route path="/admin/clients/:id/widget-settings" element={
-          userRole === 'client' ? <Navigate to="/client/widget-settings" replace /> : <WidgetSettings />
-        } />
-        
-        {/* Client Routes */}
-        <Route path="/client/view" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <ClientDashboard />
-        } />
-        <Route path="/client/settings" element={
-          userRole === 'admin' ? <Navigate to="/settings" replace /> : <ClientSettings />
-        } />
-        {/* Removed the Edit Client Information route */}
-        <Route path="/client/widget-settings" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <WidgetSettings />
-        } />
-        <Route path="/client/account-settings" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <AccountSettings />
-        } />
-        
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          exact
+          path="/"
+          element={
+            <AuthRoute>
+              <Home />
+            </AuthRoute>
+          }
+        />
+        <Route
+          exact
+          path="/account"
+          element={
+            <AuthRoute>
+              <Account session={session} />
+            </AuthRoute>
+          }
+        />
+        <Route
+          path="/auth/client-setup"
+          element={
+            <AuthRoute>
+              <ClientSetup />
+            </AuthRoute>
+          }
+        />
+        <Route
+          path="/invitation/:token"
+          element={
+            <AuthRoute>
+              <InvitationLanding />
+            </AuthRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            !session ? (
+              <div className="container" style={{ padding: '50px 0 100px 0' }}>
+                <Auth
+                  supabaseClient={supabase}
+                  appearance={{ theme: ThemeSupa }}
+                  providers={['google', 'github']}
+                  redirectTo={`${window.location.origin}/account`}
+                />
+              </div>
+            ) : (
+              <Navigate to="/account" />
+            )
+          }
+        />
+
+        {/* Admin routes */}
+        <Route element={<AdminRoute />}>
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Route>
+
+        {/* Client routes */}
+        <Route element={<ClientRoute />}>
+          <Route path="/client/view" element={<ClientDashboard />} />
+          <Route path="/client/widget-settings" element={<WidgetSettings />} />
+          <Route path="/client/profile-settings" element={<ProfileSettings />} />
+        </Route>
       </Routes>
-      <Toaster />
-    </div>
+    </Router>
   );
 }
 

@@ -1,3 +1,4 @@
+
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { mapActivityType } from "@/utils/activityTypeUtils";
