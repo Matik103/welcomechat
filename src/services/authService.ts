@@ -23,3 +23,21 @@ export const checkAndRefreshAuth = async (): Promise<boolean> => {
     return false;
   }
 }
+
+/**
+ * Gets the current user
+ * @returns Promise with user data or null
+ */
+export const getCurrentUser = async () => {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error("Error getting user:", error);
+      return null;
+    }
+    return data.user;
+  } catch (err) {
+    console.error("Error in getCurrentUser:", err);
+    return null;
+  }
+}

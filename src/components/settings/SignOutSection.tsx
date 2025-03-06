@@ -1,7 +1,8 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -11,9 +12,13 @@ export const SignOutSection = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { logClientActivity } = useClientActivity(user?.user_metadata?.client_id);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {
+    setIsLoading(true);
     try {
+      console.log("Signing out user:", user?.email);
+      
       // Log the sign out action before actually signing out
       if (user?.user_metadata?.client_id) {
         await logClientActivity("signed_out", "signed out of their account");
@@ -23,7 +28,10 @@ export const SignOutSection = () => {
       toast.success("Successfully signed out");
       navigate("/auth");
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Sign out error:", error);
+      toast.error(error.message || "Failed to sign out");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -39,7 +47,8 @@ export const SignOutSection = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button variant="destructive" onClick={handleSignOut}>
+        <Button variant="destructive" onClick={handleSignOut} disabled={isLoading}>
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
           Sign Out
         </Button>
       </CardContent>

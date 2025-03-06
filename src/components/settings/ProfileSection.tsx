@@ -22,6 +22,7 @@ export const ProfileSection = ({ initialFullName, initialEmail }: ProfileSection
     e.preventDefault();
     setLoading(true);
     try {
+      console.log("Updating profile with:", { email, fullName });
       const { error } = await supabase.auth.updateUser({
         email: email,
         data: { full_name: fullName }
@@ -29,7 +30,8 @@ export const ProfileSection = ({ initialFullName, initialEmail }: ProfileSection
       if (error) throw error;
       toast.success("Profile updated successfully");
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Profile update error:", error);
+      toast.error(error.message || "Failed to update profile");
     } finally {
       setLoading(false);
     }

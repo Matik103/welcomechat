@@ -15,6 +15,7 @@ export const SecuritySection = () => {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (newPassword !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
@@ -27,14 +28,18 @@ export const SecuritySection = () => {
 
     setLoading(true);
     try {
+      console.log("Updating password...");
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
+      
       if (error) throw error;
+      
       toast.success("Password updated successfully");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
+      console.error("Password update error:", error);
       toast.error(error.message || "Failed to update password");
     } finally {
       setLoading(false);
