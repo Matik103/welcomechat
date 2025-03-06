@@ -10,18 +10,13 @@ interface ClientInfoSectionProps {
   client: Client | null;
   clientId: string | undefined;
   logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
-  isClientView: boolean;
 }
 
 const ClientInfoSection = ({ 
   client, 
   clientId, 
-  logClientActivity,
-  isClientView
+  logClientActivity 
 }: ClientInfoSectionProps) => {
-  console.log("ClientInfoSection: client", client);
-  console.log("ClientInfoSection: clientId", clientId);
-  
   return (
     <Card className="mb-8">
       <CardHeader className="flex flex-row items-center gap-2">
@@ -32,7 +27,7 @@ const ClientInfoSection = ({
         <ClientDetails 
           client={client} 
           clientId={clientId} 
-          isClientView={isClientView}
+          isClientView={true}
           logClientActivity={logClientActivity}
         />
       </CardContent>

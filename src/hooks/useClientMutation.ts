@@ -11,7 +11,6 @@ export const useClientMutation = (id: string | undefined) => {
     mutationFn: async (data: ClientFormData) => {
       if (!id) {
         console.error("Client mutation called without ID");
-        toast.error("Unable to update client information: No client ID found");
         throw new Error("Client ID is required to update client information");
       }
 

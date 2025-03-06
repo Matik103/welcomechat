@@ -5,8 +5,6 @@ import { ClientForm } from "@/components/client/ClientForm";
 import { useClientMutation } from "@/hooks/useClientMutation";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
-import { createClient, sendInvitation } from "@/services/clientService";
-import { toast } from "sonner";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -27,51 +25,39 @@ export const ClientDetails = ({
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
       console.log("ClientDetails - Submitting form with data:", data);
+      console.log("ClientDetails - Using client ID:", clientId);
       
-      if (clientId) {
-        // Update existing client
-        console.log("ClientDetails - Using client ID:", clientId);
-        await clientMutation.mutateAsync(data);
-        
-        if (isClientView) {
-          try {
-            // Determine which fields were actually updated
-            const updatedFields = Object.keys(data).filter(key => 
-              client && data[key as keyof typeof data] !== client[key as keyof typeof client]
-            );
-            
-            console.log("Updated fields:", updatedFields);
-            
-            if (updatedFields.length > 0) {
-              await logClientActivity(
-                "client_updated", 
-                "updated their client information",
-                { updated_fields: updatedFields }
-              );
-            }
-          } catch (logError) {
-            console.error("Error logging activity:", logError);
-          }
-        }
-      } else {
-        // Create new client
-        console.log("Creating new client with data:", data);
+      if (!clientId) {
+        console.error("No client ID available for update");
+        return;
+      }
+      
+      await clientMutation.mutateAsync(data);
+      
+      if (clientId && isClientView) {
         try {
-          const newClientId = await createClient(data);
-          console.log("New client created with ID:", newClientId);
+          // Determine which fields were actually updated
+          const updatedFields = Object.keys(data).filter(key => 
+            client && data[key as keyof typeof data] !== client[key as keyof typeof client]
+          );
           
-          // Send invitation using Supabase's built-in invitation system
-          await sendInvitation(newClientId, data.email, data.client_name);
+          console.log("Updated fields:", updatedFields);
           
-          toast.success("Client created and invitation sent successfully");
-        } catch (createError) {
-          console.error("Error creating client:", createError);
-          toast.error("Failed to create client. Please try again.");
-          throw createError;
+          if (updatedFields.length > 0) {
+            await logClientActivity(
+              "client_updated", 
+              "updated their client information",
+              { updated_fields: updatedFields }
+            );
+          }
+        } catch (logError) {
+          console.error("Error logging activity:", logError);
         }
       }
       
-      navigate("/admin/clients");
+      if (!isClientView) {
+        navigate("/admin/clients");
+      }
     } catch (error) {
       console.error("Error submitting client form:", error);
     }

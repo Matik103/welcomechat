@@ -4,7 +4,6 @@ import { Database } from "lucide-react";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
-import { toast } from "sonner";
 
 interface WebsiteUrlsSectionProps {
   clientId: string | undefined;
@@ -16,7 +15,7 @@ interface WebsiteUrlsSectionProps {
 
 const WebsiteUrlsSection = ({ 
   clientId, 
-  websiteUrls = [], 
+  websiteUrls, 
   addWebsiteUrlMutation, 
   deleteWebsiteUrlMutation,
   logClientActivity 
@@ -25,32 +24,19 @@ const WebsiteUrlsSection = ({
   // Handle adding a website URL
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     if (!clientId) {
-      toast.error("Cannot add URL: Client ID not found");
       return;
     }
 
     try {
-      console.log("Adding website URL with client ID:", clientId);
-      console.log("URL data:", data);
-      
-      // Make sure to include the client_id in the data
-      const dataWithClientId = {
-        ...data,
-        client_id: clientId
-      };
-      
-      await addWebsiteUrlMutation.mutateAsync(dataWithClientId);
+      await addWebsiteUrlMutation.mutateAsync(data);
       
       await logClientActivity(
         "website_url_added", 
         "added a website URL", 
         { url: data.url }
       );
-      
-      toast.success("Website URL added successfully");
     } catch (error) {
       console.error("Error adding URL:", error);
-      toast.error("Failed to add website URL");
       throw error; // Re-throw to be caught by the WebsiteUrls component
     }
   };
@@ -68,11 +54,8 @@ const WebsiteUrlsSection = ({
           { url: urlToDelete.url }
         );
       }
-      
-      toast.success("Website URL removed successfully");
     } catch (error) {
       console.error("Error deleting URL:", error);
-      toast.error("Failed to remove website URL");
       throw error;
     }
   };

@@ -4,7 +4,6 @@ import { Database } from "lucide-react";
 import { DriveLinks } from "@/components/client/DriveLinks";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
-import { toast } from "sonner";
 
 interface DriveLinksSectionProps {
   clientId: string | undefined;
@@ -16,7 +15,7 @@ interface DriveLinksSectionProps {
 
 const DriveLinksSection = ({ 
   clientId, 
-  driveLinks = [], 
+  driveLinks, 
   addDriveLinkMutation, 
   deleteDriveLinkMutation,
   logClientActivity 
@@ -25,32 +24,19 @@ const DriveLinksSection = ({
   // Handle adding a drive link
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     if (!clientId) {
-      toast.error("Cannot add drive link: Client ID not found");
       return;
     }
 
     try {
-      console.log("Adding drive link with client ID:", clientId);
-      console.log("Link data:", data);
-      
-      // Make sure to include the client_id in the data
-      const dataWithClientId = {
-        ...data,
-        client_id: clientId
-      };
-      
-      await addDriveLinkMutation.mutateAsync(dataWithClientId);
+      await addDriveLinkMutation.mutateAsync(data);
       
       await logClientActivity(
         "drive_link_added", 
         "added a Google Drive link", 
         { link: data.link }
       );
-      
-      toast.success("Google Drive link added successfully");
     } catch (error) {
       console.error("Error adding drive link:", error);
-      toast.error("Failed to add Google Drive link");
       throw error; // Re-throw to be caught by the DriveLinks component
     }
   };
@@ -68,11 +54,8 @@ const DriveLinksSection = ({
           { link: linkToDelete.link }
         );
       }
-      
-      toast.success("Google Drive link removed successfully");
     } catch (error) {
       console.error("Error deleting drive link:", error);
-      toast.error("Failed to remove Google Drive link");
       throw error;
     }
   };

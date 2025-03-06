@@ -71,11 +71,11 @@ serve(async (req) => {
         client_id: clientId,
         client_name: clientName
       },
-      redirectTo: `${origin}/client/view`,
-      emailRedirectTo: `${origin}/client/view`,
+      redirectTo: `${origin}/client/setup?id=${clientId}`,
+      emailRedirectTo: `${origin}/client/setup?id=${clientId}`,
       // Custom email template content for Supabase's invitation email
       email_template: {
-        subject: "Welcome to Welcome.Chat - Access Your Dashboard",
+        subject: "Welcome to Welcome.Chat - Complete Your Account Setup",
         content: `
 <h2>You have been invited to Welcome.Chat</h2>
 
@@ -88,7 +88,8 @@ serve(async (req) => {
 <p><strong>Important next steps:</strong></p>
 <ol>
   <li>Click the link above to accept this invitation</li>
-  <li>You'll be taken directly to your dashboard after creating your password</li>
+  <li>You'll be asked to create a password for your account</li>
+  <li>After setting your password, you'll be automatically signed in to your dashboard</li>
 </ol>
 
 <p>Thank you,<br>The Welcome.Chat Team</p>
@@ -96,7 +97,7 @@ serve(async (req) => {
       }
     };
     
-    // Send Supabase built-in invitation
+    // Send Supabase built-in invitation - this is our primary approach
     console.log("Sending Supabase built-in invitation");
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, emailOptions);
     

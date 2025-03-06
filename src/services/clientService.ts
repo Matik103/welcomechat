@@ -82,20 +82,12 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
  * Creates a new client
  */
 export const createClient = async (data: ClientFormData): Promise<string> => {
-  console.log("Creating new client with data:", data);
-  
-  // Sanitize the agent name to ensure it's valid for DB operations
-  const sanitizedAgentName = data.agent_name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '_');
-  
   const { data: newClients, error } = await supabase
     .from("clients")
     .insert([{
       client_name: data.client_name,
       email: data.email,
-      agent_name: sanitizedAgentName,
+      agent_name: data.agent_name,
       widget_settings: data.widget_settings || {},
       status: 'active'
     }])
@@ -109,19 +101,17 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   if (!newClients || newClients.length === 0) {
     throw new Error("Failed to create client - no data returned");
   }
-  
-  console.log("Client created successfully:", newClients[0]);
+
   return newClients[0].id;
 };
 
 /**
- * Sends invitation email to a client using Supabase's built-in invitation system
+ * Sends invitation email to a client
  */
-export const sendInvitation = async (clientId: string, email: string, clientName: string): Promise<boolean> => {
+export const sendClientInvitation = async (clientId: string, email: string, clientName: string): Promise<boolean> => {
   try {
     console.log("Sending invitation for client:", clientId, email, clientName);
     
-    // Call the edge function to send the Supabase invitation
     const { data, error } = await supabase.functions.invoke("send-client-invitation", {
       body: {
         clientId,
@@ -141,26 +131,9 @@ export const sendInvitation = async (clientId: string, email: string, clientName
     }
     
     console.log("Invitation response:", data);
-    
-    if (data?.success) {
-      toast.success("Invitation sent successfully");
-      return true;
-    } else {
-      throw new Error("Invitation failed to send");
-    }
-    
+    return true;
   } catch (error) {
-    console.error("Invitation failed:", error);
-    
-    // Try fallback email as last resort
-    try {
-      console.log("Attempting to send fallback email notification");
-      await sendFallbackEmail(email);
-    } catch (fallbackError) {
-      console.error("Even fallback email failed:", fallbackError);
-    }
-    
-    toast.error("Failed to send invitation. The account was created but the user will need to be notified manually.");
+    console.error("Invitation method failed:", error);
     throw error;
   }
 };
