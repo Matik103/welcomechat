@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ActivityList } from "@/components/dashboard/ActivityList";
@@ -8,7 +7,7 @@ import { useInteractionStats } from "@/hooks/useInteractionStats";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { toast } from "sonner";
 import { setupRealtimeActivities } from "@/utils/setupRealtimeActivities";
-import { subscribeToActivities } from "@/services/activitySubscriptionService";
+import { subscribeToAllActivities } from "@/services/activitySubscriptionService";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
@@ -32,8 +31,7 @@ const Index = () => {
   
   useEffect(() => {
     // Subscribe to all client activities for real-time updates in the activity list
-    // Use the subscribeToActivities function with no clientId to listen to all activities
-    const channel = subscribeToActivities('', () => {
+    const channel = subscribeToAllActivities(() => {
       console.log("Refreshing activity list due to new activity");
       refetchActivities();
     });

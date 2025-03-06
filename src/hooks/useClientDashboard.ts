@@ -1,6 +1,6 @@
 
-import { useState, useEffect, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -15,7 +15,6 @@ import { fetchDashboardStats, subscribeToActivities } from "@/services/statsServ
 export type { ErrorLog, InteractionStats, QueryItem };
 
 export const useClientDashboard = (clientId: string | undefined) => {
-  const queryClient = useQueryClient();
   const [stats, setStats] = useState<InteractionStats>({
     total_interactions: 0,
     active_days: 0,
@@ -88,7 +87,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
   }, [clientId, refetchErrorLogs, refetchQueries]);
 
   // Function to fetch dashboard stats
-  const fetchStats = useCallback(async () => {
+  const fetchStats = async () => {
     if (!clientId) {
       setIsLoadingStats(false);
       return;
@@ -107,26 +106,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     } finally {
       setIsLoadingStats(false);
     }
-  }, [clientId]);
-
-  // Function to refresh all data
-  const refetchAll = useCallback(async () => {
-    if (!clientId) return;
-    
-    try {
-      await Promise.all([
-        fetchStats(),
-        refetchErrorLogs(),
-        refetchQueries()
-      ]);
-      // Invalidate any cached queries
-      queryClient.invalidateQueries({ queryKey: ["errorLogs", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["queries", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", clientId] });
-    } catch (error) {
-      console.error("Error refreshing dashboard data:", error);
-    }
-  }, [clientId, fetchStats, refetchErrorLogs, refetchQueries, queryClient]);
+  };
 
   // Initial fetch and periodic refresh
   useEffect(() => {
@@ -135,7 +115,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     const intervalId = setInterval(fetchStats, 15000); // Refresh every 15 seconds
     
     return () => clearInterval(intervalId);
-  }, [clientId, fetchStats]);
+  }, [clientId]);
 
   return {
     stats,
@@ -144,7 +124,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
     isLoadingErrorLogs,
     isLoadingQueries,
     isLoadingStats,
-    authError,
-    refetchAll
+    authError
   };
 };
