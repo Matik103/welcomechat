@@ -14,6 +14,11 @@ export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       try {
+        if (!id) {
+          console.error("No client ID available, cannot update client data");
+          throw new Error("Client ID is missing");
+        }
+
         const sanitizedAgentName = data.agent_name
           .trim()
           .toLowerCase()
@@ -24,16 +29,10 @@ export const useClientMutation = (id: string | undefined) => {
           agent_name: finalAgentName,
         };
 
-        if (id) {
-          console.log("Updating client with ID:", id, "Data:", updatedData);
-          const clientId = await updateClient(id, updatedData);
-          await logClientUpdateActivity(id);
-          return clientId;
-        } else {
-          console.error("No client ID available, cannot update client data");
-          toast.error("Client ID is missing. Please try refreshing the page.");
-          throw new Error("Client ID is missing");
-        }
+        console.log("Updating client with ID:", id, "Data:", updatedData);
+        const clientId = await updateClient(id, updatedData);
+        await logClientUpdateActivity(id);
+        return clientId;
       } catch (error: any) {
         console.error("Error in client mutation:", error);
         throw new Error(error.message || "Failed to save client");

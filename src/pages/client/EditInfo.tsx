@@ -12,22 +12,70 @@ import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { DriveLinks } from "@/components/client/DriveLinks";
 import { toast } from "sonner";
 import { ClientForm } from "@/components/client/ClientForm";
+import { getCurrentUser } from "@/services/authService";
+import { supabase } from "@/integrations/supabase/client";
 
 const EditInfo = () => {
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
+  const [isLoadingId, setIsLoadingId] = useState(true);
+  
+  // Load user metadata directly from Supabase to ensure we have the latest data
+  useEffect(() => {
+    const fetchClientId = async () => {
+      setIsLoadingId(true);
+      try {
+        // Check if client_id is in user metadata
+        if (user?.user_metadata?.client_id) {
+          console.log("Found client ID in user metadata:", user.user_metadata.client_id);
+          setClientId(user.user_metadata.client_id);
+        } else {
+          // If not in metadata, query user_roles table
+          console.log("No client ID in user metadata, checking user_roles table");
+          const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .select('client_id')
+            .eq('user_id', user?.id)
+            .eq('role', 'client')
+            .maybeSingle();
+          
+          if (roleError) {
+            console.error("Error fetching client role:", roleError);
+            throw roleError;
+          }
+          
+          if (roleData?.client_id) {
+            console.log("Found client ID in user_roles:", roleData.client_id);
+            setClientId(roleData.client_id);
+            
+            // Update user metadata for future use
+            await supabase.auth.updateUser({
+              data: { client_id: roleData.client_id }
+            });
+          } else {
+            console.error("No client ID found in user_roles");
+            toast.error("No client ID found. Please contact support.");
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching client ID:", error);
+        toast.error("Error fetching client information. Please try again.");
+      } finally {
+        setIsLoadingId(false);
+      }
+    };
+    
+    if (user) {
+      fetchClientId();
+    } else {
+      setIsLoadingId(false);
+    }
+  }, [user]);
+  
   const { client, isLoadingClient, error, clientMutation } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   
-  useEffect(() => {
-    if (user?.user_metadata?.client_id) {
-      setClientId(user.user_metadata.client_id);
-      console.log("Set client ID from user metadata:", user.user_metadata.client_id);
-    } else {
-      console.error("No client ID found in user metadata");
-      toast.error("No client ID found. Please contact support.");
-    }
-  }, [user]);
+  console.log("EditInfo: client ID from auth:", clientId);
   
   const { 
     websiteUrls, 
@@ -45,7 +93,6 @@ const EditInfo = () => {
     refetchDriveLinks
   } = useDriveLinks(clientId);
 
-  console.log("EditInfo: client ID from auth:", clientId);
   console.log("Website URLs:", websiteUrls);
   console.log("Drive Links:", driveLinks);
 
@@ -184,10 +231,28 @@ const EditInfo = () => {
     }
   };
 
-  if (isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
+  if (isLoadingId || isLoadingClient || isUrlsLoading || isDriveLinksLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!clientId) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <Card className="bg-red-50 border-red-200">
+          <CardContent className="pt-6">
+            <p className="text-red-700">Unable to find your client ID. Please contact support or try signing out and signing back in.</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 mr-2"
+            >
+              Refresh Page
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
