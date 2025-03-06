@@ -1,6 +1,6 @@
 
 import { useNavigate } from "react-router-dom";
-import { Client, ClientFormData } from "@/types/client";
+import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
 import { useClientMutation } from "@/hooks/useClientMutation";
 import { ExtendedActivityType } from "@/types/activity";
@@ -22,15 +22,18 @@ export const ClientDetails = ({
   const navigate = useNavigate();
   const clientMutation = useClientMutation(clientId);
 
-  const handleSubmit = async (data: ClientFormData) => {
+  const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
       console.log("ClientDetails - Submitting form with data:", data);
       console.log("ClientDetails - Using client ID:", clientId);
       
-      // Submit the data to create or update a client
-      const resultClientId = await clientMutation.mutateAsync(data);
+      if (!clientId) {
+        console.error("No client ID available for update");
+        return;
+      }
       
-      // Only log activity for existing clients that were updated
+      await clientMutation.mutateAsync(data);
+      
       if (clientId && isClientView) {
         try {
           // Determine which fields were actually updated
@@ -52,8 +55,7 @@ export const ClientDetails = ({
         }
       }
       
-      // For admin view, navigate back to clients list after creation
-      if (!isClientView && !clientId) {
+      if (!isClientView) {
         navigate("/admin/clients");
       }
     } catch (error) {

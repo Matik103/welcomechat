@@ -1,7 +1,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClientFormData } from "@/types/client";
-import { updateClient, createClient } from "@/services/clientService";
+import { updateClient } from "@/services/clientService";
 import { toast } from "sonner";
 
 export const useClientMutation = (id: string | undefined) => {
@@ -9,34 +9,12 @@ export const useClientMutation = (id: string | undefined) => {
   
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      // For new clients (no ID), use createClient
       if (!id) {
-        console.log("Creating new client");
-        console.log("Data being sent:", data);
-        
-        try {
-          // Sanitize the agent name
-          const sanitizedAgentName = data.agent_name
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '_');
-          
-          const updatedData = {
-            ...data,
-            agent_name: sanitizedAgentName,
-          };
-
-          const newClientId = await createClient(updatedData);
-          console.log("New client created with ID:", newClientId);
-          return newClientId;
-        } catch (error) {
-          console.error("Error in client creation:", error);
-          throw error;
-        }
+        console.error("Client mutation called without ID");
+        throw new Error("Client ID is required to update client information");
       }
-      
-      // For existing clients, use updateClient
-      console.log("Updating client for ID:", id);
+
+      console.log("Starting client mutation for ID:", id);
       console.log("Data being sent:", data);
       
       try {
@@ -59,28 +37,17 @@ export const useClientMutation = (id: string | undefined) => {
         throw error;
       }
     },
-    onSuccess: (clientId) => {
-      console.log("Client mutation succeeded for ID:", clientId);
+    onSuccess: (id) => {
+      console.log("Client mutation succeeded for ID:", id);
       // Invalidate related queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["client", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
-      
-      const isNewClient = !id;
-      const successMessage = isNewClient 
-        ? "Client created successfully" 
-        : "Client information updated successfully";
-      
-      toast.success(successMessage);
+      queryClient.invalidateQueries({ queryKey: ["client", id] });
+      queryClient.invalidateQueries({ queryKey: ["websiteUrls", id] });
+      queryClient.invalidateQueries({ queryKey: ["driveLinks", id] });
+      toast.success("Client information updated successfully");
     },
     onError: (error: Error) => {
       console.error("Client mutation failed:", error);
-      const isNewClient = !id;
-      const errorMessage = isNewClient 
-        ? `Error creating client: ${error.message}`
-        : `Error updating client: ${error.message}`;
-      
-      toast.error(errorMessage);
+      toast.error(`Error updating client: ${error.message}`);
     },
   });
 

@@ -7,7 +7,6 @@ import { ClientDetails } from "@/components/client/ClientDetails";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { toast } from "sonner";
-import ErrorDisplay from "@/components/client/ErrorDisplay";
 
 interface AddEditClientProps {
   isClientView?: boolean;
@@ -17,7 +16,6 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isCreatingClient = !id && !isClientView;
   
   // If in client view, use the client ID from user metadata
   const paramClientId = isClientView ? user?.user_metadata?.client_id : id;
@@ -27,8 +25,8 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
   const { logClientActivity } = useClientActivity(clientId);
 
   if (error && paramClientId) {
+    toast.error("Failed to load client data");
     console.error("Error loading client data:", error);
-    return <ErrorDisplay message={error.message} />;
   }
 
   const handleBack = () => {
@@ -39,8 +37,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
     }
   };
 
-  // Only show loading state when we expect to load an existing client
-  if (isLoadingClient && paramClientId && !isCreatingClient) {
+  if (isLoadingClient && paramClientId) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -85,7 +82,7 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
           />
 
           {/* Only show resource sections if we have a clientId - not during client creation */}
-          {clientId && !isCreatingClient && (
+          {clientId && (
             <ClientResourceSections 
               clientId={clientId} 
               isClientView={isClientView}
