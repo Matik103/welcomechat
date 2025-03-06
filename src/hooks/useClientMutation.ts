@@ -25,28 +25,24 @@ export const useClientMutation = (id: string | undefined) => {
         };
 
         if (id) {
+          console.log("Updating client with ID:", id, "Data:", updatedData);
           const clientId = await updateClient(id, updatedData);
           await logClientUpdateActivity(id);
           return clientId;
         } else {
-          // If no client ID is available, create a temporary success object
-          // but don't actually attempt to update anything in the database
-          console.log("No client ID available for update, creating temporary success object");
-          return "temp_" + Date.now();
+          console.error("No client ID available, cannot update client data");
+          toast.error("Client ID is missing. Please try refreshing the page.");
+          throw new Error("Client ID is missing");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error in client mutation:", error);
         throw new Error(error.message || "Failed to save client");
       }
     },
     onSuccess: (clientId) => {
-      if (id) {
-        toast.success("Client updated successfully");
-      } else {
-        toast.success("Client information saved successfully");
-      }
+      toast.success("Client updated successfully");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Error: ${error.message}`);
     },
   });

@@ -32,24 +32,11 @@ export function useWebsiteUrls(clientId: string | undefined) {
   const addWebsiteUrl = async (input: { url: string; refresh_rate: number }): Promise<WebsiteUrl> => {
     if (!clientId) {
       console.error("Client ID is missing");
-      // Create a temporary object that matches the WebsiteUrl structure
-      // This allows the UI to show the URL temporarily even without saving to the database
-      const tempUrl: WebsiteUrl = {
-        id: Math.floor(Math.random() * -1000), // Temporary negative ID to avoid conflicts
-        client_id: "temp",
-        url: input.url,
-        refresh_rate: input.refresh_rate,
-        created_at: new Date().toISOString()
-      };
-      
-      // Emulate success by returning a temporary object
-      return tempUrl;
+      throw new Error("Client ID is required to add a website URL");
     }
     
     console.log("Adding website URL with client ID:", clientId);
     console.log("Input data:", input);
-    
-    // No check for duplicate URLs - allow duplicates
     
     // Insert the website URL
     try {
@@ -80,10 +67,16 @@ export function useWebsiteUrls(clientId: string | undefined) {
   };
 
   const deleteWebsiteUrl = async (urlId: number): Promise<number> => {
+    if (!clientId) {
+      console.error("Client ID is missing");
+      throw new Error("Client ID is required to delete a website URL");
+    }
+    
     const { error } = await supabase
       .from("website_urls")
       .delete()
       .eq("id", urlId);
+      
     if (error) throw error;
     return urlId;
   };
@@ -112,7 +105,7 @@ export function useWebsiteUrls(clientId: string | undefined) {
 
   return {
     websiteUrls: query.data || [],
-    refetchWebsiteUrls: query.refetch,
+    refetchWebsiteUrls: () => query.refetch(),
     addWebsiteUrlMutation,
     deleteWebsiteUrlMutation,
     isLoading: query.isLoading,

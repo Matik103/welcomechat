@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
@@ -21,6 +22,10 @@ const EditInfo = () => {
   useEffect(() => {
     if (user?.user_metadata?.client_id) {
       setClientId(user.user_metadata.client_id);
+      console.log("Set client ID from user metadata:", user.user_metadata.client_id);
+    } else {
+      console.error("No client ID found in user metadata");
+      toast.error("No client ID found. Please contact support.");
     }
   }, [user]);
   
@@ -46,6 +51,11 @@ const EditInfo = () => {
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
+      if (!clientId) {
+        toast.error("Client ID is missing. Please try refreshing the page.");
+        return;
+      }
+      
       await clientMutation.mutateAsync(data);
       
       if (clientId) {
@@ -74,9 +84,15 @@ const EditInfo = () => {
 
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
+      if (!clientId) {
+        toast.error("Client ID is missing. Please try refreshing the page.");
+        return;
+      }
+      
       await addWebsiteUrlMutation.mutateAsync(data);
       
-      refetchWebsiteUrls();
+      // Explicitly refetch to ensure UI is updated
+      await refetchWebsiteUrls();
       
       if (clientId) {
         await logClientActivity(
@@ -93,10 +109,16 @@ const EditInfo = () => {
 
   const handleDeleteUrl = async (id: number) => {
     try {
+      if (!clientId) {
+        toast.error("Client ID is missing. Please try refreshing the page.");
+        return;
+      }
+      
       const urlToDelete = websiteUrls.find(url => url.id === id);
       await deleteWebsiteUrlMutation.mutateAsync(id);
       
-      refetchWebsiteUrls();
+      // Explicitly refetch to ensure UI is updated
+      await refetchWebsiteUrls();
       
       if (clientId && urlToDelete) {
         await logClientActivity(
@@ -113,9 +135,15 @@ const EditInfo = () => {
 
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
     try {
+      if (!clientId) {
+        toast.error("Client ID is missing. Please try refreshing the page.");
+        return;
+      }
+      
       await addDriveLinkMutation.mutateAsync(data);
       
-      refetchDriveLinks();
+      // Explicitly refetch to ensure UI is updated
+      await refetchDriveLinks();
       
       if (clientId) {
         await logClientActivity(
@@ -132,10 +160,16 @@ const EditInfo = () => {
 
   const handleDeleteDriveLink = async (id: number) => {
     try {
+      if (!clientId) {
+        toast.error("Client ID is missing. Please try refreshing the page.");
+        return;
+      }
+      
       const linkToDelete = driveLinks.find(link => link.id === id);
       await deleteDriveLinkMutation.mutateAsync(id);
       
-      refetchDriveLinks();
+      // Explicitly refetch to ensure UI is updated
+      await refetchDriveLinks();
       
       if (clientId && linkToDelete) {
         await logClientActivity(
