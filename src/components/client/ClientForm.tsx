@@ -59,8 +59,13 @@ export const ClientForm = ({ initialData, onSubmit, isLoading = false, isClientV
     }
   };
 
+  const handleFormSubmit = async (data: any) => {
+    console.log("Form submitted with data:", data);
+    await onSubmit(data);
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name
