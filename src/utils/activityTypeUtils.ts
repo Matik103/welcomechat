@@ -22,6 +22,21 @@ export const mapActivityType = (
       dbActivityType = "ai_agent_created";
       break;
       
+    // Handle signed_out activity
+    case "signed_out":
+      dbActivityType = "client_updated";
+      
+      // Store the original activity type in metadata for reference
+      const metadataObj = typeof metadata === 'object' && metadata !== null 
+        ? metadata 
+        : {};
+        
+      enhancedMetadata = {
+        ...metadataObj,
+        original_activity_type: activity_type
+      } as Json;
+      break;
+      
     // These still need to be mapped
     case "ai_agent_updated":
     case "logo_uploaded":
@@ -32,12 +47,12 @@ export const mapActivityType = (
       
       // Store the original activity type in metadata for reference
       // Make sure metadata is an object before spreading
-      const metadataObj = typeof metadata === 'object' && metadata !== null 
+      const otherMetadataObj = typeof metadata === 'object' && metadata !== null 
         ? metadata 
         : {};
         
       enhancedMetadata = {
-        ...metadataObj,
+        ...otherMetadataObj,
         original_activity_type: activity_type
       } as Json;
       break;

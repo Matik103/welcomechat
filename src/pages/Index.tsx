@@ -8,6 +8,7 @@ import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { toast } from "sonner";
 import { setupRealtimeActivities } from "@/utils/setupRealtimeActivities";
 import { subscribeToAllActivities } from "@/services/activitySubscriptionService";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
