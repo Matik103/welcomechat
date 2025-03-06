@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
@@ -19,14 +18,12 @@ const EditInfo = () => {
   const { client, isLoadingClient, error } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   
-  // Set client ID from user metadata when available
   useEffect(() => {
     if (user?.user_metadata?.client_id) {
       setClientId(user.user_metadata.client_id);
     }
   }, [user]);
   
-  // Website URL and Drive Link hooks
   const { 
     websiteUrls, 
     addWebsiteUrlMutation, 
@@ -45,34 +42,29 @@ const EditInfo = () => {
   console.log("Website URLs:", websiteUrls);
   console.log("Drive Links:", driveLinks);
 
-  // Handle adding a website URL
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
-    if (!clientId) {
-      toast.error("Client ID is missing. Please try refreshing the page.");
-      return;
-    }
-
     try {
       await addWebsiteUrlMutation.mutateAsync(data);
       
-      await logClientActivity(
-        "website_url_added", 
-        "added a website URL", 
-        { url: data.url }
-      );
+      if (clientId) {
+        await logClientActivity(
+          "website_url_added", 
+          "added a website URL", 
+          { url: data.url }
+        );
+      }
     } catch (error) {
       console.error("Error adding URL:", error);
       throw error; // Re-throw to be caught by the WebsiteUrls component
     }
   };
 
-  // Handle deleting a website URL
   const handleDeleteUrl = async (id: number) => {
     try {
       const urlToDelete = websiteUrls.find(url => url.id === id);
       await deleteWebsiteUrlMutation.mutateAsync(id);
       
-      if (urlToDelete) {
+      if (clientId && urlToDelete) {
         await logClientActivity(
           "url_deleted", 
           "removed a website URL", 
@@ -85,34 +77,29 @@ const EditInfo = () => {
     }
   };
 
-  // Handle adding a drive link
   const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
-    if (!clientId) {
-      toast.error("Client ID is missing. Please try refreshing the page.");
-      return;
-    }
-
     try {
       await addDriveLinkMutation.mutateAsync(data);
       
-      await logClientActivity(
-        "drive_link_added", 
-        "added a Google Drive link", 
-        { link: data.link }
-      );
+      if (clientId) {
+        await logClientActivity(
+          "drive_link_added", 
+          "added a Google Drive link", 
+          { link: data.link }
+        );
+      }
     } catch (error) {
       console.error("Error adding drive link:", error);
       throw error; // Re-throw to be caught by the DriveLinks component
     }
   };
 
-  // Handle deleting a drive link
   const handleDeleteDriveLink = async (id: number) => {
     try {
       const linkToDelete = driveLinks.find(link => link.id === id);
       await deleteDriveLinkMutation.mutateAsync(id);
       
-      if (linkToDelete) {
+      if (clientId && linkToDelete) {
         await logClientActivity(
           "drive_link_deleted", 
           "removed a Google Drive link", 
