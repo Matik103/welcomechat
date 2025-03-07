@@ -2,7 +2,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, Trash2, Copy } from "lucide-react";
+import { Loader2, Upload, Trash2, Copy, Image } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -153,31 +153,35 @@ export function BrandingSettings({
         </p>
       </div>
 
-      {settings.logo_url && (
-        <div>
-          <Label htmlFor="logo_url">Logo URL</Label>
-          <div className="flex mt-1">
-            <Input
-              id="logo_url"
-              value={settings.logo_url}
-              readOnly
-              className="flex-1 pr-10 font-mono text-xs"
-            />
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="ml-2" 
-              onClick={copyLogoUrl}
-              title="Copy URL"
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-          <p className="text-sm text-gray-500 mt-1">
-            This URL is generated from Supabase and used in the embed code.
-          </p>
+      {/* New Logo URL field as the third item */}
+      <div>
+        <Label htmlFor="generated_logo_url" className="flex items-center gap-2">
+          <Image className="w-4 h-4" />
+          Generated Logo URL
+        </Label>
+        <div className="flex mt-1">
+          <Input
+            id="generated_logo_url"
+            value={settings.logo_url || ''}
+            readOnly
+            className="flex-1 pr-10 font-mono text-xs bg-gray-50"
+            placeholder="Upload a logo to generate URL"
+          />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="ml-2" 
+            onClick={copyLogoUrl}
+            disabled={!settings.logo_url}
+            title="Copy URL"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
         </div>
-      )}
+        <p className="text-sm text-gray-500 mt-1">
+          This is the automatically generated URL for your logo that will be used in the widget.
+        </p>
+      </div>
 
       <div>
         <Label htmlFor="webhook_url">Webhook URL (Optional)</Label>
