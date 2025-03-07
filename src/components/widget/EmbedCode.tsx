@@ -44,6 +44,9 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     try {
       const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
       
+      // Make sure the logo URL is properly included
+      const logoUrl = settings.logo_url || '';
+      
       const embedCode = `<!-- Widget Configuration -->
 <script>
     window.ChatWidgetConfig = {
@@ -52,7 +55,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
             route: 'general'
         },
         branding: {
-            logo: '${settings.logo_url || ''}',
+            logo: '${logoUrl}',
             name: '${settings.agent_name}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'

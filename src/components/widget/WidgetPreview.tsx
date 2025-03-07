@@ -136,7 +136,12 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                 <img 
                   src={settings.logo_url} 
                   alt="Logo" 
-                  className="w-6 h-6 rounded-full object-cover"
+                  className="w-6 h-6 rounded-full object-cover bg-white"
+                  onError={(e) => {
+                    // Handle image loading errors
+                    console.error("Error loading logo image");
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
                 />
               )}
               <span className="font-medium text-sm text-white truncate">

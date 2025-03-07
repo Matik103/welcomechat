@@ -2,9 +2,10 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, Trash2 } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 interface BrandingSettingsProps {
   settings: WidgetSettings;
@@ -33,6 +34,19 @@ export function BrandingSettings({
   const handleLogoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Logo file must be less than 5MB");
+        return;
+      }
+      
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Please select a valid image file (JPG, PNG, GIF, SVG, WebP)");
+        return;
+      }
+      
       // Show preview and then upload
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -43,6 +57,12 @@ export function BrandingSettings({
       // Trigger the actual upload
       onLogoUpload(event);
     }
+  };
+  
+  const handleRemoveLogo = () => {
+    setLogoPreview(null);
+    onSettingsChange({ logo_url: "" });
+    toast.success("Logo removed");
   };
 
   return (
@@ -72,17 +92,16 @@ export function BrandingSettings({
                 className="h-16 w-16 object-contain rounded border border-gray-200"
               />
               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center transition-all rounded">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="text-transparent group-hover:text-white opacity-0 group-hover:opacity-100"
-                  onClick={() => {
-                    setLogoPreview(null);
-                    onSettingsChange({ logo_url: "" });
-                  }}
-                >
-                  Change
-                </Button>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100">
+                  <Button 
+                    variant="secondary" 
+                    size="sm"
+                    className="text-transparent group-hover:text-white"
+                    onClick={handleRemoveLogo}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ) : null}
