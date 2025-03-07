@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { MessageCircle, X, Send, Bot, User } from "lucide-react";
+import { X, Send, Bot, User } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 
@@ -15,7 +15,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     { type: 'bot', text: settings.welcome_text || "Hi 👋, how can I help?" }
   ]);
   const [isLoading, setIsLoading] = useState(false);
-  const [iconSize, setIconSize] = useState(1); // Normal size multiplier
+  const [iconSize, setIconSize] = useState<'normal' | 'medium' | 'large'>('normal'); // Icon size state
   
   // Get the Supabase project reference from the URL
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
@@ -99,17 +99,38 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     }
   };
 
-  // Handle icon size change (new feature)
-  const cycleIconSize = () => {
+  // Cycle through icon sizes when double-clicked
+  const cycleIconSize = (e: React.MouseEvent) => {
+    // Only change size if chat is not expanded
     if (!isExpanded) {
-      // Cycle between 3 sizes: 1 (normal), 1.25 (medium), 1.5 (large)
-      setIconSize(prev => prev >= 1.5 ? 1 : prev + 0.25);
+      e.stopPropagation(); // Prevent toggling expanded state
+      if (iconSize === 'normal') {
+        setIconSize('medium');
+      } else if (iconSize === 'medium') {
+        setIconSize('large');
+      } else {
+        setIconSize('normal');
+      }
     }
   };
 
-  // Calculate actual size in pixels based on the multiplier
-  const actualIconSize = 16 * (iconSize || 1);
-  const actualButtonSize = 60 * (iconSize || 1);
+  // Get icon size in pixels based on the current size state
+  const getIconSize = () => {
+    switch (iconSize) {
+      case 'medium': return 38;
+      case 'large': return 46;
+      default: return 30;
+    }
+  };
+
+  // Get button size in pixels based on the current icon size
+  const getButtonSize = () => {
+    switch (iconSize) {
+      case 'medium': return 70;
+      case 'large': return 80;
+      default: return 60;
+    }
+  };
 
   return (
     <div className="relative border border-gray-200 rounded-md p-4 h-[420px] bg-gray-50">
@@ -240,22 +261,36 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
           </div>
         </div>
       ) : (
-        <div 
-          className={`absolute ${settings.position === 'left' ? 'bottom-4 left-4' : 'bottom-4 right-4'} rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 group`}
-          style={{ 
-            backgroundColor: settings.chat_color || '#854fff',
-            width: actualButtonSize,
-            height: actualButtonSize
-          }}
-          onClick={toggleExpand}
-          onDoubleClick={cycleIconSize}
-        >
-          <MessageCircle 
-            className="text-white transition-all duration-300" 
-            size={actualIconSize} 
-          />
-          <div className="absolute -top-10 bg-gray-800 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            Double-click to resize
+        <div className="flex flex-col items-center justify-center">
+          <div 
+            className={`absolute ${settings.position === 'left' ? 'bottom-4 left-4' : 'bottom-4 right-4'} 
+              rounded-full shadow-lg flex items-center justify-center cursor-pointer 
+              hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 group`}
+            style={{ 
+              backgroundColor: settings.chat_color || '#854fff',
+              width: `${getButtonSize()}px`,
+              height: `${getButtonSize()}px`
+            }}
+            onClick={toggleExpand}
+            onDoubleClick={cycleIconSize}
+          >
+            <span 
+              className="text-white transition-all duration-300"
+              style={{ 
+                fontSize: `${getIconSize()}px`,
+                lineHeight: 1
+              }}
+            >
+              💬
+            </span>
+            
+            <div className="absolute -top-10 bg-gray-800 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              Double-click to resize
+            </div>
+          </div>
+          
+          <div className="absolute bottom-4 left-0 right-0 text-center text-gray-500 text-xs">
+            Current icon size: {iconSize} ({getIconSize()}px)
           </div>
         </div>
       )}

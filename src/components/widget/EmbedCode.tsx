@@ -22,7 +22,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   // Syntax highlighting effect
   useEffect(() => {
     if (codeRef.current) {
-      const keywords = ["window", "script", "const", "let", "var", "function", "return", "new", "true", "false", "import", "from"];
+      const keywords = ["window", "script", "const", "let", "var", "function", "return", "new", "true", "false", "import", "from", "document", "addEventListener", "querySelector", "createElement", "appendChild", "classList", "toggle", "add"];
       let html = codeRef.current.innerHTML;
       
       keywords.forEach(keyword => {
@@ -65,14 +65,115 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     };
 </script>
 
+<!-- Add custom CSS for expandable behavior -->
+<style>
+    /* Chat container styling */
+    .n8n-chat-widget {
+        position: fixed;
+        ${settings.position}: 20px;
+        bottom: 20px;
+        z-index: 9999;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background-color: ${settings.chat_color};
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    /* When the chat is expanded */
+    .n8n-chat-widget.expanded {
+        width: 350px; /* Adjust the width for the expanded chat */
+        height: 400px; /* Adjust the height for the expanded chat */
+        border-radius: 10px;
+        bottom: 30px;
+        ${settings.position}: 30px;
+    }
+
+    /* Chat content inside the widget */
+    .n8n-chat-widget .chat-content {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        padding: 10px;
+        background-color: ${settings.background_color};
+        border-radius: 10px;
+    }
+
+    /* When chat is expanded, show chat content */
+    .n8n-chat-widget.expanded .chat-content {
+        display: flex;
+    }
+
+    /* Icon for the collapsed state */
+    .n8n-chat-widget .chat-icon {
+        font-size: 30px;
+        color: white;
+    }
+    
+    /* You can cycle between icon sizes by double-clicking */
+    .n8n-chat-widget .chat-icon.medium {
+        font-size: 38px;
+    }
+    
+    .n8n-chat-widget .chat-icon.large {
+        font-size: 46px;
+    }
+</style>
+
 <!-- Load n8n Chat Widget -->
 <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
-    createChat({
+    // Create the chat widget
+    const chatWidget = createChat({
         webhookUrl: '${webhookUrl}'
     });
-</script>`;
+
+    // Add event listener to handle expand/collapse
+    document.addEventListener('DOMContentLoaded', () => {
+        const chatWidgetElement = document.querySelector('.n8n-chat-widget');
+        const chatIcon = document.querySelector('.chat-icon');
+        const chatContent = document.createElement('div');
+        chatContent.classList.add('chat-content');
+        chatContent.innerHTML = \`
+            <div>Welcome to the chat!</div>
+            <!-- Chat widget content will be dynamically inserted here -->
+        \`;
+        chatWidgetElement.appendChild(chatContent);
+
+        chatWidgetElement.addEventListener('click', () => {
+            chatWidgetElement.classList.toggle('expanded');
+        });
+        
+        // Add double-click to cycle through icon sizes
+        chatWidgetElement.addEventListener('dblclick', (e) => {
+            if (!chatWidgetElement.classList.contains('expanded')) {
+                // Prevent expansion on double-click
+                e.stopPropagation();
+                
+                // Cycle through icon sizes
+                if (chatIcon.classList.contains('medium')) {
+                    chatIcon.classList.remove('medium');
+                    chatIcon.classList.add('large');
+                } else if (chatIcon.classList.contains('large')) {
+                    chatIcon.classList.remove('large');
+                } else {
+                    chatIcon.classList.add('medium');
+                }
+            }
+        });
+    });
+</script>
+
+<!-- HTML for the chat icon -->
+<div class="n8n-chat-widget">
+    <div class="chat-icon">💬</div>
+</div>`;
 
       navigator.clipboard.writeText(embedCode);
       setCopied(true);
@@ -126,14 +227,115 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     };
 </script>
 
+<!-- Add custom CSS for expandable behavior -->
+<style>
+    /* Chat container styling */
+    .n8n-chat-widget {
+        position: fixed;
+        ${settings.position}: 20px;
+        bottom: 20px;
+        z-index: 9999;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background-color: ${settings.chat_color};
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    /* When the chat is expanded */
+    .n8n-chat-widget.expanded {
+        width: 350px; /* Adjust the width for the expanded chat */
+        height: 400px; /* Adjust the height for the expanded chat */
+        border-radius: 10px;
+        bottom: 30px;
+        ${settings.position}: 30px;
+    }
+
+    /* Chat content inside the widget */
+    .n8n-chat-widget .chat-content {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        padding: 10px;
+        background-color: ${settings.background_color};
+        border-radius: 10px;
+    }
+
+    /* When chat is expanded, show chat content */
+    .n8n-chat-widget.expanded .chat-content {
+        display: flex;
+    }
+
+    /* Icon for the collapsed state */
+    .n8n-chat-widget .chat-icon {
+        font-size: 30px;
+        color: white;
+    }
+    
+    /* You can cycle between icon sizes by double-clicking */
+    .n8n-chat-widget .chat-icon.medium {
+        font-size: 38px;
+    }
+    
+    .n8n-chat-widget .chat-icon.large {
+        font-size: 46px;
+    }
+</style>
+
 <!-- Load n8n Chat Widget -->
 <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
-    createChat({
+    // Create the chat widget
+    const chatWidget = createChat({
         webhookUrl: '${webhookUrl}'
     });
-</script>`}
+
+    // Add event listener to handle expand/collapse
+    document.addEventListener('DOMContentLoaded', () => {
+        const chatWidgetElement = document.querySelector('.n8n-chat-widget');
+        const chatIcon = document.querySelector('.chat-icon');
+        const chatContent = document.createElement('div');
+        chatContent.classList.add('chat-content');
+        chatContent.innerHTML = \`
+            <div>Welcome to the chat!</div>
+            <!-- Chat widget content will be dynamically inserted here -->
+        \`;
+        chatWidgetElement.appendChild(chatContent);
+
+        chatWidgetElement.addEventListener('click', () => {
+            chatWidgetElement.classList.toggle('expanded');
+        });
+        
+        // Add double-click to cycle through icon sizes
+        chatWidgetElement.addEventListener('dblclick', (e) => {
+            if (!chatWidgetElement.classList.contains('expanded')) {
+                // Prevent expansion on double-click
+                e.stopPropagation();
+                
+                // Cycle through icon sizes
+                if (chatIcon.classList.contains('medium')) {
+                    chatIcon.classList.remove('medium');
+                    chatIcon.classList.add('large');
+                } else if (chatIcon.classList.contains('large')) {
+                    chatIcon.classList.remove('large');
+                } else {
+                    chatIcon.classList.add('medium');
+                }
+            }
+        });
+    });
+</script>
+
+<!-- HTML for the chat icon -->
+<div class="n8n-chat-widget">
+    <div class="chat-icon">💬</div>
+</div>`}
       </pre>
       <Button
         size="sm"
