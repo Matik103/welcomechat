@@ -85,10 +85,16 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
 
     // After a successful upload, directly update the widget settings with the logo URL
     const storagePath = `${BUCKET_NAME}/${filePath}`;
+    
+    // Using the JSONB update approach without the sql method
     const { error: updateError } = await supabase
       .from("clients")
       .update({
-        widget_settings: supabase.sql`jsonb_set(widget_settings, '{logo_url}', '"${publicUrl}"')`,
+        widget_settings: {
+          ...(await getCurrentWidgetSettings(clientId)),
+          logo_url: publicUrl,
+          logo_storage_path: storagePath
+        }
       })
       .eq("id", clientId);
       
@@ -123,6 +129,29 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
   } catch (error) {
     console.error("Error in uploadWidgetLogo:", error);
     throw error;
+  }
+}
+
+/**
+ * Helper function to get current widget settings to avoid overwriting other settings
+ */
+async function getCurrentWidgetSettings(clientId: string): Promise<any> {
+  try {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("widget_settings")
+      .eq("id", clientId)
+      .single();
+      
+    if (error) {
+      console.error("Error fetching current widget settings:", error);
+      return {};
+    }
+    
+    return data?.widget_settings || {};
+  } catch (error) {
+    console.error("Error in getCurrentWidgetSettings:", error);
+    return {};
   }
 }
 

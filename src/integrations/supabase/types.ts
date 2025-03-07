@@ -2018,6 +2018,14 @@ export type Database = {
         }
         Returns: number
       }
+      update_logo_url: {
+        Args: {
+          client_id: string
+          logo_url: string
+          storage_path: string
+        }
+        Returns: undefined
+      }
       vector_avg: {
         Args: {
           "": number[]
