@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { WidgetSettings as IWidgetSettings, defaultSettings } from "@/types/widget-settings";
 import { Json } from "@/integrations/supabase/types";
@@ -46,7 +45,6 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
   
   try {
     // Upload the file to Supabase Storage with proper metadata format
-    // Important: Don't include clientId in the 'metadata' object to avoid type issues
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(filePath, file, { 
@@ -75,19 +73,35 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
     const publicUrl = publicUrlData.publicUrl;
     console.log("Logo public URL generated:", publicUrl);
 
-    // Associate the uploaded file with the client
-    // This step is performed separately after successful upload
+    // Update the client's widget settings with the new logo URL
     try {
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('widget_settings')
+        .eq('id', clientId)
+        .single();
+
+      if (clientError) {
+        console.error("Error fetching client settings:", clientError);
+        throw clientError;
+      }
+
+      const currentSettings = clientData?.widget_settings || {};
+      const updatedSettings = {
+        ...currentSettings,
+        logo_url: publicUrl
+      };
+
       const { error: updateError } = await supabase
         .from('clients')
         .update({ 
-          logo_url: publicUrl 
+          widget_settings: updatedSettings 
         })
         .eq('id', clientId);
         
       if (updateError) {
-        console.error("Error updating client with logo URL:", updateError);
-        // Don't throw here, we still want to return the URL even if the association fails
+        console.error("Error updating client widget settings:", updateError);
+        // Don't throw here, we still want to return the URL even if the update fails
       }
     } catch (clientUpdateError) {
       console.error("Error in client update operation:", clientUpdateError);
