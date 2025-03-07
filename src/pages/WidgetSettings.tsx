@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +13,6 @@ import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsConta
 import { toast } from "sonner";
 
 function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
-  // Ensure all fields are properly defined
   return {
     agent_name: settings.agent_name || defaultSettings.agent_name,
     logo_url: settings.logo_url || '',
@@ -32,7 +30,7 @@ function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json
 const WidgetSettings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast: uiToast } = useToast(); // Renamed to avoid conflicts with sonner toast
+  const { toast: uiToast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
@@ -65,7 +63,7 @@ const WidgetSettings = () => {
       return data;
     },
     enabled: !!clientId,
-    staleTime: 0 // Always refetch to get latest data
+    staleTime: 0
   });
 
   useEffect(() => {
@@ -112,7 +110,6 @@ const WidgetSettings = () => {
       
       console.log("Update response:", data);
       
-      // Invalidate the client query to refetch the latest data
       queryClient.invalidateQueries({ queryKey: ["client", clientId] });
       
       return data;
@@ -131,7 +128,6 @@ const WidgetSettings = () => {
         );
       }
       
-      // Using the UI toast from shadcn/ui
       uiToast({
         title: "Settings saved successfully! 🎉",
         description: "Your widget is ready to be embedded.",
@@ -158,19 +154,14 @@ const WidgetSettings = () => {
       setIsUploading(true);
       console.log("Starting logo upload process...");
       
-      // Prepare file name with client ID and timestamp for uniqueness
       const fileExt = file.name.split('.').pop() || 'png';
       const fileName = `logo_${clientId}_${Date.now()}.${fileExt}`;
       console.log("Prepared file name for upload:", fileName);
 
-      // Use the "widget-logos" bucket
       const BUCKET_NAME = "widget-logos";
-      
-      // Create a folder structure for better organization
       const FOLDER_NAME = "Logo URL";
       const filePath = `${FOLDER_NAME}/${fileName}`;
       
-      // Upload the file to the folder
       console.log(`Uploading logo to ${BUCKET_NAME}/${filePath} storage...`);
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from(BUCKET_NAME)
@@ -186,10 +177,11 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
-      // Get the public URL with the folder path included
-      const { data: { publicUrl } } = supabase.storage
+      const { data } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(filePath);
+      
+      const publicUrl = data.publicUrl;
 
       console.log("Logo public URL generated:", publicUrl);
 
@@ -197,7 +189,6 @@ const WidgetSettings = () => {
         throw new Error("Failed to generate public URL for uploaded logo");
       }
 
-      // Update local state with the new logo URL
       const newSettings = { 
         ...settings, 
         logo_url: publicUrl 
@@ -206,8 +197,6 @@ const WidgetSettings = () => {
       console.log("Updating settings with logo URL:", publicUrl);
       setSettings(newSettings);
       
-      // Save the settings with the new logo URL
-      console.log("Saving settings with new logo URL...");
       await updateSettingsMutation.mutateAsync(newSettings);
 
       if (isClientView) {
@@ -243,12 +232,10 @@ const WidgetSettings = () => {
     );
   }
 
-  // Create a wrapper object that adapts the mutation to the expected interface
   const adaptedMutation = {
     isPending: updateSettingsMutation.isPending,
     mutateAsync: async (newSettings: IWidgetSettings): Promise<void> => {
       await updateSettingsMutation.mutateAsync(newSettings);
-      // Return void to match the expected type
       return;
     }
   };
