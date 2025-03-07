@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";

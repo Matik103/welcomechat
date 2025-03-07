@@ -157,43 +157,18 @@ const WidgetSettings = () => {
       setIsUploading(true);
       console.log("Starting logo upload process...");
       
-      // First, ensure the storage is initialized properly
-      try {
-        console.log("Checking if 'logos' bucket exists...");
-        const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('logos');
-        
-        if (bucketError) {
-          console.log("Error checking bucket:", bucketError);
-          console.log("Attempting to create 'logos' bucket...");
-          
-          const { data: newBucket, error: createError } = await supabase.storage.createBucket('logos', {
-            public: true,
-            fileSizeLimit: 5242880 // 5MB
-          });
-          
-          if (createError) {
-            console.error("Failed to create bucket:", createError);
-            throw new Error(`Failed to create storage bucket: ${createError.message}`);
-          }
-          
-          console.log("Created 'logos' bucket successfully:", newBucket);
-        } else {
-          console.log("'logos' bucket exists:", bucketData);
-        }
-      } catch (bucketError) {
-        console.error("Error managing bucket:", bucketError);
-        // Continue anyway, as the bucket might exist despite the error
-      }
-      
       // Prepare file name with extension
       const fileExt = file.name.split('.').pop() || 'png';
       const fileName = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
       console.log("Prepared file name for upload:", fileName);
 
+      // Use the existing "widget-logos" bucket
+      const BUCKET_NAME = "widget-logos";
+      
       // Attempt to upload the file
-      console.log("Uploading logo to storage...");
+      console.log(`Uploading logo to ${BUCKET_NAME} storage...`);
       const { error: uploadError, data: uploadData } = await supabase.storage
-        .from("logos")
+        .from(BUCKET_NAME)
         .upload(fileName, file, { 
           upsert: true,
           contentType: file.type 
@@ -208,7 +183,7 @@ const WidgetSettings = () => {
 
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
-        .from("logos")
+        .from(BUCKET_NAME)
         .getPublicUrl(fileName);
 
       console.log("Logo public URL generated:", publicUrl);
