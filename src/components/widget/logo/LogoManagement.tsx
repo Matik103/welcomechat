@@ -1,8 +1,8 @@
 
-import { useLogoPreview } from "./logo/useLogoPreview";
-import { LogoPreview } from "./logo/LogoPreview";
-import { LogoUploadButton } from "./logo/LogoUploadButton";
-import { LogoUrlDisplay } from "./logo/LogoUrlDisplay";
+import { useLogoPreview } from "../logo/useLogoPreview";
+import { LogoPreview } from "../logo/LogoPreview";
+import { LogoUploadButton } from "../logo/LogoUploadButton";
+import { LogoUrlDisplay } from "../logo/LogoUrlDisplay";
 
 interface LogoManagementProps {
   logoUrl: string;
