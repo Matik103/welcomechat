@@ -34,32 +34,35 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
     // Sanitize agent name to get the table name format (matches the convention in function create_ai_agent_table)
     const agentTableName = client.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
-    // Use RPC function to query the agent table safely
-    // This avoids TypeScript errors when trying to access dynamic table names
-    const { data: interactions, error: interactionsError } = await supabase.rpc(
-      'execute_sql', 
-      { 
-        query_text: `SELECT metadata, created_at FROM "${agentTableName}" WHERE metadata->>'type' = 'chat_interaction'` 
-      }
-    );
+    // Use a raw SQL query to fetch data from the dynamic table name
+    const { data, error } = await supabase
+      .rpc('execute_sql', {
+        query_text: `SELECT metadata, created_at FROM "${agentTableName}" WHERE metadata->>'type' = 'chat_interaction'`
+      });
 
-    if (interactionsError) {
-      console.error(`Error fetching data from ${agentTableName}:`, interactionsError);
-      throw interactionsError;
+    if (error) {
+      console.error(`Error fetching data from ${agentTableName}:`, error);
+      throw error;
     }
 
+    // Ensure the data is an array and process it
+    const interactions = Array.isArray(data) ? data : [];
+
     // Calculate total interactions
-    const totalInteractions = interactions?.length || 0;
+    const totalInteractions = interactions.length;
 
     // Calculate active days (unique days when interactions occurred)
     const uniqueDates = new Set();
-    interactions?.forEach((interaction: any) => {
+    interactions.forEach((interaction: { created_at?: string, metadata?: Json }) => {
       if (interaction.created_at) {
         const dateStr = new Date(interaction.created_at).toDateString();
         uniqueDates.add(dateStr);
-      } else if (interaction.metadata?.timestamp) {
-        const dateStr = new Date(interaction.metadata.timestamp).toDateString();
-        uniqueDates.add(dateStr);
+      } else if (interaction.metadata && typeof interaction.metadata === 'object' && 'timestamp' in interaction.metadata) {
+        const timestamp = interaction.metadata.timestamp;
+        if (timestamp && typeof timestamp === 'string') {
+          const dateStr = new Date(timestamp).toDateString();
+          uniqueDates.add(dateStr);
+        }
       }
     });
     const activeDays = uniqueDates.size;
@@ -68,11 +71,14 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
     let totalResponseTime = 0;
     let responsesWithTime = 0;
     
-    interactions?.forEach((interaction: any) => {
-      const metadata = interaction.metadata as Json;
+    interactions.forEach((interaction: { metadata?: Json }) => {
+      const metadata = interaction.metadata;
       if (metadata && typeof metadata === 'object' && 'response_time_ms' in metadata) {
-        totalResponseTime += Number(metadata.response_time_ms);
-        responsesWithTime++;
+        const responseTime = metadata.response_time_ms;
+        if (typeof responseTime === 'number' || (typeof responseTime === 'string' && !isNaN(Number(responseTime)))) {
+          totalResponseTime += Number(responseTime);
+          responsesWithTime++;
+        }
       }
     });
     
