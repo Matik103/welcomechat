@@ -148,35 +148,50 @@ const WidgetSettings = () => {
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !clientId) return;
+    if (!file || !clientId) {
+      console.log("No file or clientId available:", { file: !!file, clientId });
+      return;
+    }
 
     try {
       setIsUploading(true);
+      console.log("Starting logo upload process...");
       
-      // Check if the logos bucket exists, create it if not
+      // First, ensure the storage is initialized properly
       try {
-        const { data: bucketData } = await supabase.storage.getBucket('logos');
-        if (!bucketData) {
-          await supabase.storage.createBucket('logos', {
+        console.log("Checking if 'logos' bucket exists...");
+        const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('logos');
+        
+        if (bucketError) {
+          console.log("Error checking bucket:", bucketError);
+          console.log("Attempting to create 'logos' bucket...");
+          
+          const { data: newBucket, error: createError } = await supabase.storage.createBucket('logos', {
             public: true,
             fileSizeLimit: 5242880 // 5MB
           });
-          console.log("Created 'logos' bucket");
+          
+          if (createError) {
+            console.error("Failed to create bucket:", createError);
+            throw new Error(`Failed to create storage bucket: ${createError.message}`);
+          }
+          
+          console.log("Created 'logos' bucket successfully:", newBucket);
+        } else {
+          console.log("'logos' bucket exists:", bucketData);
         }
       } catch (bucketError) {
-        console.log("Checking/creating bucket:", bucketError);
-        // Create bucket if doesn't exist
-        await supabase.storage.createBucket('logos', {
-          public: true,
-          fileSizeLimit: 5242880 // 5MB
-        });
+        console.error("Error managing bucket:", bucketError);
+        // Continue anyway, as the bucket might exist despite the error
       }
       
-      const fileExt = file.name.split('.').pop();
+      // Prepare file name with extension
+      const fileExt = file.name.split('.').pop() || 'png';
       const fileName = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
+      console.log("Prepared file name for upload:", fileName);
 
-      console.log("Uploading logo:", { fileName });
-
+      // Attempt to upload the file
+      console.log("Uploading logo to storage...");
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from("logos")
         .upload(fileName, file, { 
@@ -186,16 +201,21 @@ const WidgetSettings = () => {
 
       if (uploadError) {
         console.error("Logo upload error:", uploadError);
-        throw uploadError;
+        throw new Error(`Upload failed: ${uploadError.message}`);
       }
 
       console.log("Logo uploaded successfully:", uploadData);
 
+      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from("logos")
         .getPublicUrl(fileName);
 
       console.log("Logo public URL generated:", publicUrl);
+
+      if (!publicUrl) {
+        throw new Error("Failed to generate public URL for uploaded logo");
+      }
 
       // Update the settings with the new logo URL
       const newSettings = { 
@@ -203,9 +223,11 @@ const WidgetSettings = () => {
         logo_url: publicUrl 
       };
       
+      console.log("Updating settings with logo URL:", publicUrl);
       setSettings(newSettings);
       
-      // Save the new settings immediately when the logo is uploaded
+      // Save the new settings immediately
+      console.log("Saving settings with new logo URL...");
       await updateSettingsMutation.mutateAsync(newSettings);
 
       if (isClientView) {
@@ -216,10 +238,9 @@ const WidgetSettings = () => {
         );
       }
 
-      // Using sonner toast
       toast.success("Logo uploaded successfully! ✨");
     } catch (error: any) {
-      console.error("Upload error:", error);
+      console.error("Logo upload process failed:", error);
       toast.error(error.message || "Failed to upload logo");
     } finally {
       setIsUploading(false);

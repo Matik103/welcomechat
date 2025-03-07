@@ -6,7 +6,6 @@ import { Loader2, Upload, Trash2, Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface BrandingSettingsProps {
   settings: WidgetSettings;

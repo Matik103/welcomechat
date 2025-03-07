@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -26,7 +25,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     }
   }, [settings.welcome_text]);
 
-  // Function to get a valid logo URL
+  // Update the method that gets a valid logo URL to add better logging
   const getFormattedLogoUrl = () => {
     if (!settings.logo_url) return '';
     const url = settings.logo_url.trim();
