@@ -95,6 +95,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 
   // Make sure the logo URL is properly displayed in the preview code
   const displayLogoUrl = settings.logo_url ? settings.logo_url.trim() : '';
+  console.log("Display logo URL for embed code:", displayLogoUrl);
 
   return (
     <div className="relative">

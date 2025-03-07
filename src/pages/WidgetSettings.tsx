@@ -30,7 +30,7 @@ function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json
 const WidgetSettings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast(); // Renamed to avoid conflicts with sonner toast
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
@@ -124,14 +124,15 @@ const WidgetSettings = () => {
         );
       }
       
-      toast({
+      // Using the UI toast from shadcn/ui
+      uiToast({
         title: "Settings saved successfully! 🎉",
         description: "Your widget is ready to be embedded.",
       });
     },
     onError: (error) => {
       console.error("Failed to save settings:", error);
-      toast({
+      uiToast({
         title: "Failed to save settings",
         description: error.message,
         variant: "destructive",
@@ -200,6 +201,7 @@ const WidgetSettings = () => {
         );
       }
 
+      // Using sonner toast
       toast.success("Logo uploaded successfully! ✨");
     } catch (error: any) {
       console.error("Upload error:", error);
@@ -225,12 +227,22 @@ const WidgetSettings = () => {
     );
   }
 
+  // Create a wrapper object that adapts the mutation to the expected interface
+  const adaptedMutation = {
+    isPending: updateSettingsMutation.isPending,
+    mutateAsync: async (newSettings: IWidgetSettings): Promise<void> => {
+      await updateSettingsMutation.mutateAsync(newSettings);
+      // Return void to match the expected type
+      return;
+    }
+  };
+
   return (
     <WidgetSettingsContainer
       settings={settings}
       isClientView={isClientView}
       isUploading={isUploading}
-      updateSettingsMutation={updateSettingsMutation}
+      updateSettingsMutation={adaptedMutation}
       handleBack={handleBack}
       handleLogoUpload={handleLogoUpload}
       logClientActivity={logClientActivity}
