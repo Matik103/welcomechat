@@ -146,25 +146,34 @@ const WidgetSettings = () => {
 
     try {
       setIsUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `${clientId}/${fileName}`;
-
-      console.log("Uploading logo:", { fileName, filePath });
-
-      // Create a logos bucket if it doesn't exist
-      const { data: bucketExists } = await supabase.storage.getBucket('logos');
-      if (!bucketExists) {
-        console.log("Creating logos bucket");
+      
+      // Check if the logos bucket exists, create it if not
+      try {
+        const { data: bucketData } = await supabase.storage.getBucket('logos');
+        if (!bucketData) {
+          await supabase.storage.createBucket('logos', {
+            public: true,
+            fileSizeLimit: 5242880 // 5MB
+          });
+          console.log("Created 'logos' bucket");
+        }
+      } catch (bucketError) {
+        console.log("Checking/creating bucket:", bucketError);
+        // Create bucket if doesn't exist
         await supabase.storage.createBucket('logos', {
           public: true,
-          fileSizeLimit: 5242880, // 5MB
+          fileSizeLimit: 5242880 // 5MB
         });
       }
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
+
+      console.log("Uploading logo:", { fileName });
 
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from("logos")
-        .upload(filePath, file, { 
+        .upload(fileName, file, { 
           upsert: true,
           contentType: file.type 
         });
@@ -178,7 +187,7 @@ const WidgetSettings = () => {
 
       const { data: { publicUrl } } = supabase.storage
         .from("logos")
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       console.log("Logo public URL generated:", publicUrl);
 

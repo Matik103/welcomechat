@@ -6,6 +6,7 @@ import { Loader2, Upload, Trash2 } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BrandingSettingsProps {
   settings: WidgetSettings;
@@ -34,7 +35,7 @@ export function BrandingSettings({
   }, [settings.logo_url]);
 
   // Handle logo file selection for preview
-  const handleLogoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       // Validate file size (max 5MB)
@@ -50,7 +51,7 @@ export function BrandingSettings({
         return;
       }
       
-      // Show preview and then upload
+      // Show preview immediately before upload completes
       const reader = new FileReader();
       reader.onload = (e) => {
         const previewUrl = e.target?.result as string;
