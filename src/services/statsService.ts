@@ -35,11 +35,13 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
     const agentTableName = client.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
     // Use a raw SQL query to fetch data from the dynamic table name
-    // @ts-ignore - Using exec_sql function that's defined in our migrations but not in the TypeScript types
-    const { data, error } = await supabase
-      .rpc('exec_sql', {
+    // We need to use any type here because exec_sql is not in the TypeScript definitions
+    const { data, error } = await supabase.rpc(
+      'exec_sql' as any, 
+      {
         sql_query: `SELECT metadata, created_at FROM "${agentTableName}" WHERE metadata->>'type' = 'chat_interaction'`
-      });
+      }
+    );
 
     if (error) {
       console.error(`Error fetching data from ${agentTableName}:`, error);
