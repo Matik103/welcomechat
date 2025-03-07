@@ -126,7 +126,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
             style={{ backgroundColor: settings.chat_color || '#854fff' }}
           >
             <div className="flex items-center gap-2">
-              {logoUrl && (
+              {logoUrl ? (
                 <img 
                   src={logoUrl} 
                   alt="Logo" 
@@ -137,6 +137,13 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
+              ) : (
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: settings.secondary_color || '#6b3fd4' }}
+                >
+                  <Bot size={14} className="text-white" />
+                </div>
               )}
               <span className="font-medium text-sm text-white truncate">
                 {settings.agent_name || "AI Assistant"}
@@ -160,12 +167,32 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
               <div key={index} className={`${message.type === 'user' ? 'flex justify-end' : ''} animate-in fade-in-50 duration-300`}>
                 <div className="flex items-start gap-2 max-w-[85%]">
                   {message.type === 'bot' && (
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
-                      style={{ backgroundColor: settings.secondary_color || '#6b3fd4' }}
-                    >
-                      <Bot size={14} className="text-white" />
-                    </div>
+                    logoUrl ? (
+                      <img 
+                        src={logoUrl} 
+                        alt="Logo" 
+                        className="w-6 h-6 rounded-full object-contain bg-white p-0.5 mt-1 border border-gray-200"
+                        onError={(e) => {
+                          console.error("Error loading logo in message:", logoUrl);
+                          // Replace with Bot icon if logo fails to load
+                          const parent = e.currentTarget.parentNode;
+                          if (parent) {
+                            const botIcon = document.createElement('div');
+                            botIcon.className = "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1";
+                            botIcon.style.backgroundColor = settings.secondary_color || '#6b3fd4';
+                            botIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>';
+                            parent.replaceChild(botIcon, e.currentTarget);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
+                        style={{ backgroundColor: settings.secondary_color || '#6b3fd4' }}
+                      >
+                        <Bot size={14} className="text-white" />
+                      </div>
+                    )
                   )}
                   <div 
                     className={`rounded-lg py-2 px-3 text-sm break-words ${
@@ -249,7 +276,25 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
           style={{ backgroundColor: settings.chat_color || '#854fff' }}
           onClick={toggleExpand}
         >
-          <MessageCircle className="w-8 h-8 text-white" />
+          {logoUrl ? (
+            <img 
+              src={logoUrl} 
+              alt="Logo" 
+              className="w-8 h-8 object-contain rounded-full bg-white p-1"
+              onError={(e) => {
+                console.error("Error loading logo in chat button:", logoUrl);
+                // Replace with MessageCircle icon if logo fails to load
+                const parent = e.currentTarget.parentNode;
+                if (parent) {
+                  const messageIcon = document.createElement('div');
+                  messageIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>';
+                  parent.replaceChild(messageIcon, e.currentTarget);
+                }
+              }}
+            />
+          ) : (
+            <MessageCircle className="w-8 h-8 text-white" />
+          )}
         </div>
       )}
     </div>

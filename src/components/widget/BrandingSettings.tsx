@@ -2,7 +2,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, Trash2 } from "lucide-react";
+import { Loader2, Upload, Trash2, Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -70,6 +70,13 @@ export function BrandingSettings({
     setLogoPreview(null);
     onSettingsChange({ logo_url: "" });
     toast.success("Logo removed");
+  };
+
+  const copyLogoUrl = () => {
+    if (settings.logo_url) {
+      navigator.clipboard.writeText(settings.logo_url);
+      toast.success("Logo URL copied to clipboard");
+    }
   };
 
   return (
@@ -146,6 +153,32 @@ export function BrandingSettings({
           Recommended size: 64x64px. Max size: 5MB. The logo will be displayed in the chat header.
         </p>
       </div>
+
+      {settings.logo_url && (
+        <div>
+          <Label htmlFor="logo_url">Logo URL</Label>
+          <div className="flex mt-1">
+            <Input
+              id="logo_url"
+              value={settings.logo_url}
+              readOnly
+              className="flex-1 pr-10 font-mono text-xs"
+            />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="ml-2" 
+              onClick={copyLogoUrl}
+              title="Copy URL"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            This URL is generated from Supabase and used in the embed code.
+          </p>
+        </div>
+      )}
 
       <div>
         <Label htmlFor="webhook_url">Webhook URL (Optional)</Label>
