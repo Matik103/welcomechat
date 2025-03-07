@@ -7,6 +7,7 @@ import { WidgetSettings as IWidgetSettings, defaultSettings, isWidgetSettings } 
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { convertSettingsToJson, handleLogoUploadEvent } from "@/utils/widgetSettingsUtils";
 import { toast } from "sonner";
+import { checkAndRefreshAuth } from "@/services/authService";
 
 export function useWidgetSettings(clientId: string | undefined, isClientView: boolean = false) {
   const { toast: uiToast } = useToast();
@@ -24,6 +25,10 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       if (!clientId) return null;
       
       console.log("Fetching client data for ID:", clientId);
+      
+      // Ensure we have a valid auth session
+      await checkAndRefreshAuth();
+      
       const { data, error } = await supabase
         .from("clients")
         .select("*")
@@ -39,7 +44,8 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       return data;
     },
     enabled: !!clientId,
-    staleTime: 0
+    staleTime: 0,
+    retry: 1
   });
 
   // Update settings state when client data changes
@@ -69,6 +75,9 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       if (!clientId) {
         throw new Error("No client ID available");
       }
+      
+      // Ensure we have a valid auth session
+      await checkAndRefreshAuth();
       
       const settingsJson = convertSettingsToJson(newSettings);
       console.log("Settings being saved to DB:", settingsJson);
@@ -143,10 +152,11 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
           );
         }
 
-        // Refetch after a short delay to get the updated URL from the trigger
+        // Force refetch after a short delay to get the updated URL from the trigger
         setTimeout(() => {
           refetch().then(() => {
             console.log("Refetched client data after logo upload");
+            queryClient.invalidateQueries({ queryKey: ["client", clientId] });
           });
         }, 1500);
 

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { WidgetSettings as IWidgetSettings, defaultSettings } from "@/types/widget-settings";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { checkAndRefreshAuth } from "@/services/authService";
 
 /**
  * Converts WidgetSettings object to a JSON structure for database storage
@@ -31,6 +32,12 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
     throw new Error("File and client ID are required");
   }
 
+  // Refresh auth token before attempting upload
+  const isAuthValid = await checkAndRefreshAuth();
+  if (!isAuthValid) {
+    throw new Error("Authentication session expired. Please refresh the page and try again.");
+  }
+
   console.log("Starting logo upload process...");
   
   // Create a unique filename with original extension and client ID
@@ -56,6 +63,9 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
 
     if (uploadError) {
       console.error("Logo upload error:", uploadError);
+      if (uploadError.message.includes("jwt expired")) {
+        throw new Error("Your session has expired. Please refresh the page and try again.");
+      }
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
 
@@ -126,8 +136,20 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
     }, 1000); // Check after 1 second
 
     return { publicUrl, storagePath };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in uploadWidgetLogo:", error);
+    
+    // Check if it's an auth error
+    if (error.message?.includes("jwt") || error.message?.includes("auth") || error.message?.includes("session")) {
+      // Try to refresh the auth session
+      try {
+        await checkAndRefreshAuth();
+        throw new Error("Authentication token expired. Please try again after refreshing the page.");
+      } catch (refreshError) {
+        throw new Error("Your session has expired. Please log in again.");
+      }
+    }
+    
     throw error;
   }
 }
@@ -175,6 +197,9 @@ export async function handleLogoUploadEvent(
   try {
     onStart();
     
+    // Check authentication before upload
+    await checkAndRefreshAuth();
+    
     // Upload the logo and get public URL
     const { publicUrl, storagePath } = await uploadWidgetLogo(file, clientId);
     
@@ -186,6 +211,13 @@ export async function handleLogoUploadEvent(
   } catch (error: any) {
     console.error("Logo upload process failed:", error);
     onError(error);
+    
+    // Display user-friendly error message
+    if (error.message?.includes("jwt") || error.message?.includes("auth") || error.message?.includes("session")) {
+      toast.error("Your session has expired. Please refresh the page and try again.");
+    } else {
+      toast.error(error.message || "Failed to upload logo");
+    }
   } finally {
     onComplete();
   }

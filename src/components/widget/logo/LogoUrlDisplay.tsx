@@ -1,8 +1,9 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Check, Copy, RefreshCw } from "lucide-react";
+import { Copy } from "lucide-react";
 import { toast } from "sonner";
 
 interface LogoUrlDisplayProps {
@@ -10,91 +11,69 @@ interface LogoUrlDisplayProps {
 }
 
 export function LogoUrlDisplay({ logoUrl }: LogoUrlDisplayProps) {
-  const [copied, setCopied] = useState(false);
   const [isValidUrl, setIsValidUrl] = useState(false);
-  const [displayUrl, setDisplayUrl] = useState<string>("");
-  
+  const [displayUrl, setDisplayUrl] = useState("");
+
   useEffect(() => {
-    if (logoUrl) {
-      try {
+    // Validate URL and prepare for display
+    try {
+      if (logoUrl) {
         new URL(logoUrl);
         setIsValidUrl(true);
         setDisplayUrl(logoUrl);
-      } catch (e) {
-        console.error("Invalid URL format:", logoUrl, e);
+      } else {
         setIsValidUrl(false);
-        setDisplayUrl(logoUrl || "");
+        setDisplayUrl("");
       }
-    } else {
+    } catch (e) {
+      console.error("Invalid logo URL:", logoUrl);
       setIsValidUrl(false);
-      setDisplayUrl("");
+      setDisplayUrl(logoUrl || "");
     }
   }, [logoUrl]);
 
-  const handleCopy = (text: string) => {
-    if (!text) return;
+  const handleCopy = () => {
+    if (!isValidUrl) {
+      toast.error("No valid URL to copy");
+      return;
+    }
     
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        setCopied(true);
-        toast.success("URL copied to clipboard");
-        setTimeout(() => setCopied(false), 2000);
-      })
+    navigator.clipboard.writeText(logoUrl)
+      .then(() => toast.success("URL copied to clipboard!"))
       .catch(err => {
-        console.error("Failed to copy URL:", err);
+        console.error("Failed to copy:", err);
         toast.error("Failed to copy URL");
       });
   };
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Input 
-          value={displayUrl} 
-          readOnly 
-          placeholder="No public URL available"
-          className={!isValidUrl && displayUrl ? "border-red-300" : ""}
-        />
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={() => handleCopy(displayUrl)}
-          disabled={!isValidUrl}
-          title={isValidUrl ? "Copy URL" : "Invalid URL"}
-        >
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-        </Button>
+      <div className="flex items-center justify-between">
+        <Label htmlFor="logo-url">Public Logo URL</Label>
+        {isValidUrl && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            type="button" 
+            onClick={handleCopy}
+            className="px-2 h-8"
+          >
+            <Copy className="h-4 w-4 mr-1" />
+            <span className="text-xs">Copy</span>
+          </Button>
+        )}
       </div>
-      
-      {!isValidUrl && displayUrl && (
-        <p className="text-sm text-red-500">Invalid URL format</p>
-      )}
-      
-      {isValidUrl && displayUrl && (
-        <p className="text-xs text-gray-500 break-all mt-1">
-          {displayUrl}
+      <Input
+        id="logo-url"
+        value={displayUrl}
+        readOnly
+        placeholder="No logo uploaded yet"
+        className={isValidUrl ? "font-mono text-sm" : "text-muted-foreground italic"}
+      />
+      {!isValidUrl && logoUrl && (
+        <p className="text-xs text-yellow-600">
+          The stored logo URL appears to be invalid. Try uploading a new logo.
         </p>
-      )}
-      
-      {isValidUrl && displayUrl && (
-        <div className="mt-2">
-          <p className="text-sm text-gray-700 mb-1">Logo Preview:</p>
-          <div className="relative">
-            <img 
-              src={displayUrl} 
-              alt="Logo Preview" 
-              className="h-10 w-10 object-contain border border-gray-200 rounded"
-              onError={(e) => {
-                console.error("Error loading logo in URL display:", displayUrl);
-                (e.currentTarget as HTMLImageElement).style.display = 'none';
-                const errorMsg = document.createElement('p');
-                errorMsg.className = "text-xs text-red-500";
-                errorMsg.textContent = "Failed to load image";
-                e.currentTarget.parentNode?.appendChild(errorMsg);
-              }}
-            />
-          </div>
-        </div>
       )}
     </div>
   );
