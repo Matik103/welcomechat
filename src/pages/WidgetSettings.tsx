@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -158,6 +159,7 @@ const WidgetSettings = () => {
       const fileName = `logo_${clientId}_${Date.now()}.${fileExt}`;
       console.log("Prepared file name for upload:", fileName);
 
+      // Define the folder path - this is just a prefix in the file path, not an actual folder
       const BUCKET_NAME = "widget-logos";
       const FOLDER_NAME = "Logo URL";
       const filePath = `${FOLDER_NAME}/${fileName}`;
@@ -177,6 +179,7 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
+      // Get the public URL
       const { data } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(filePath);

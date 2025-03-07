@@ -73,8 +73,17 @@ export function BrandingSettings({
 
   const copyLogoUrl = () => {
     if (settings.logo_url) {
-      navigator.clipboard.writeText(settings.logo_url);
-      toast.success("Logo URL copied to clipboard");
+      navigator.clipboard.writeText(settings.logo_url)
+        .then(() => {
+          toast.success("Logo URL copied to clipboard");
+          console.log("Copied URL to clipboard:", settings.logo_url);
+        })
+        .catch(err => {
+          console.error("Failed to copy URL:", err);
+          toast.error("Failed to copy URL to clipboard");
+        });
+    } else {
+      toast.error("No logo URL to copy");
     }
   };
 
@@ -86,14 +95,16 @@ export function BrandingSettings({
       // Parse out the folder structure from the URL
       const url = new URL(settings.logo_url);
       const pathParts = url.pathname.split('/');
-      // Look for the folder name in the path (usually before the filename)
-      const folderIndex = pathParts.findIndex(part => part === "Logo URL");
       
-      if (folderIndex !== -1) {
+      // Look for the folder name in the path (usually before the filename)
+      const logoUrlIndex = pathParts.findIndex(part => part === "Logo URL");
+      
+      if (logoUrlIndex !== -1) {
         return `From folder: Logo URL`;
       }
       return '';
     } catch (e) {
+      console.error("Error parsing logo URL path:", e);
       return '';
     }
   };
@@ -201,7 +212,7 @@ export function BrandingSettings({
           </div>
           {settings.logo_url && (
             <p className="text-xs text-indigo-600 font-medium mt-1">
-              {getLogoUrlPath()}
+              {getLogoUrlPath() || "From storage: widget-logos"}
             </p>
           )}
         </div>
