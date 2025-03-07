@@ -182,8 +182,7 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
-      // Our trigger should automatically update the database with the URL
-      // But we'll also get the public URL to update the local state
+      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(fileName);
@@ -203,8 +202,7 @@ const WidgetSettings = () => {
       console.log("Updating settings with logo URL:", publicUrl);
       setSettings(newSettings);
       
-      // The database should be updated by the trigger, but we'll also call the mutation
-      // to ensure everything is in sync
+      // Save the settings with the new logo URL
       console.log("Saving settings with new logo URL...");
       await updateSettingsMutation.mutateAsync(newSettings);
 
