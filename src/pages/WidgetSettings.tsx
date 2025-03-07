@@ -5,15 +5,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { WidgetSettings as IWidgetSettings, defaultSettings, isWidgetSettings } from "@/types/widget-settings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { toast } from "sonner";
-import { checkAndRefreshAuth } from "@/services/authService";
 
 function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
+  // Ensure all fields are properly defined
   return {
     agent_name: settings.agent_name || defaultSettings.agent_name,
     logo_url: settings.logo_url || '',
@@ -31,7 +32,7 @@ function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json
 const WidgetSettings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast: uiToast } = useToast();
+  const { toast: uiToast } = useToast(); // Renamed to avoid conflicts with sonner toast
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
@@ -64,7 +65,7 @@ const WidgetSettings = () => {
       return data;
     },
     enabled: !!clientId,
-    staleTime: 0
+    staleTime: 0 // Always refetch to get latest data
   });
 
   useEffect(() => {
@@ -111,6 +112,7 @@ const WidgetSettings = () => {
       
       console.log("Update response:", data);
       
+      // Invalidate the client query to refetch the latest data
       queryClient.invalidateQueries({ queryKey: ["client", clientId] });
       
       return data;
@@ -129,6 +131,7 @@ const WidgetSettings = () => {
         );
       }
       
+      // Using the UI toast from shadcn/ui
       uiToast({
         title: "Settings saved successfully! 🎉",
         description: "Your widget is ready to be embedded.",
@@ -155,15 +158,15 @@ const WidgetSettings = () => {
       setIsUploading(true);
       console.log("Starting logo upload process...");
       
-      // Refresh auth session to prevent JWT expired errors
-      await checkAndRefreshAuth();
-      
+      // Prepare file name with extension
       const fileExt = file.name.split('.').pop() || 'png';
-      const fileName = `${clientId}-${crypto.randomUUID()}.${fileExt}`;
+      const fileName = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
       console.log("Prepared file name for upload:", fileName);
 
+      // Use the existing "widget-logos" bucket
       const BUCKET_NAME = "widget-logos";
       
+      // Attempt to upload the file
       console.log(`Uploading logo to ${BUCKET_NAME} storage...`);
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from(BUCKET_NAME)
@@ -178,37 +181,48 @@ const WidgetSettings = () => {
       }
 
       console.log("Logo uploaded successfully:", uploadData);
-      
-      // Get public URL for the uploaded file
-      const { data: urlData } = await supabase.storage
+
+      // Get the public URL with complete URL path
+      const { data: { publicUrl } } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(fileName);
+
+      console.log("Logo public URL generated:", publicUrl);
+
+      if (!publicUrl) {
+        throw new Error("Failed to generate public URL for uploaded logo");
+      }
+
+      // Ensure the URL is properly formatted
+      const fullPublicUrl = publicUrl.startsWith('http') 
+        ? publicUrl 
+        : `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
       
-      console.log("Generated public URL:", urlData.publicUrl);
-      
-      // Update client settings with the new logo URL
-      const updatedSettings = {
-        ...settings,
-        logo_url: urlData.publicUrl
+      console.log("Full public URL for logo:", fullPublicUrl);
+
+      // Update the settings with the new logo URL
+      const newSettings = { 
+        ...settings, 
+        logo_url: fullPublicUrl 
       };
       
-      // Update settings in database
-      await updateSettingsMutation.mutateAsync(updatedSettings);
+      console.log("Updating settings with logo URL:", fullPublicUrl);
+      setSettings(newSettings);
       
-      // Update local state
-      setSettings(updatedSettings);
-      
-      // Log activity
+      // Save the new settings immediately
+      console.log("Saving settings with new logo URL...");
+      await updateSettingsMutation.mutateAsync(newSettings);
+
       if (isClientView) {
         await logClientActivity(
           "logo_uploaded", 
           "uploaded a new logo for their widget", 
-          { fileName }
+          { logo_url: fullPublicUrl }
         );
       }
-      
+
       toast.success("Logo uploaded successfully! ✨");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Logo upload process failed:", error);
       toast.error(error.message || "Failed to upload logo");
     } finally {
@@ -232,10 +246,12 @@ const WidgetSettings = () => {
     );
   }
 
+  // Create a wrapper object that adapts the mutation to the expected interface
   const adaptedMutation = {
     isPending: updateSettingsMutation.isPending,
     mutateAsync: async (newSettings: IWidgetSettings): Promise<void> => {
       await updateSettingsMutation.mutateAsync(newSettings);
+      // Return void to match the expected type
       return;
     }
   };

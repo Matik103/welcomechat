@@ -1,3 +1,4 @@
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,8 +20,10 @@ export function BrandingSettings({
   onSettingsChange,
   onLogoUpload
 }: BrandingSettingsProps) {
+  // Add state to handle logo preview
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
+  // Update logo preview when settings change
   useEffect(() => {
     if (settings.logo_url) {
       console.log("Setting logo preview from settings:", settings.logo_url);
@@ -30,20 +33,24 @@ export function BrandingSettings({
     }
   }, [settings.logo_url]);
 
+  // Handle logo file selection for preview
   const handleLogoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast.error("Logo file must be less than 5MB");
         return;
       }
       
+      // Validate file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
         toast.error("Please select a valid image file (JPG, PNG, GIF, SVG, WebP)");
         return;
       }
       
+      // Show preview immediately before upload completes
       const reader = new FileReader();
       reader.onload = (e) => {
         const previewUrl = e.target?.result as string;
@@ -52,10 +59,11 @@ export function BrandingSettings({
       };
       reader.readAsDataURL(file);
       
+      // Trigger the actual upload
       onLogoUpload(event);
     }
   };
-
+  
   const handleRemoveLogo = () => {
     console.log("Removing logo");
     setLogoPreview(null);
@@ -133,7 +141,7 @@ export function BrandingSettings({
             <input
               type="file"
               accept="image/*"
-              onChange={onLogoUpload}
+              onChange={handleLogoSelect}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               disabled={isUploading}
               aria-label="Upload logo"
@@ -145,6 +153,7 @@ export function BrandingSettings({
         </p>
       </div>
 
+      {/* New Logo URL field as the third item */}
       <div>
         <Label htmlFor="generated_logo_url" className="flex items-center gap-2">
           <Image className="w-4 h-4" />
