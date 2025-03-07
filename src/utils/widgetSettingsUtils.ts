@@ -32,16 +32,20 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
 
   console.log("Starting logo upload process...");
   
+  // Create a unique filename with original extension
   const fileExt = file.name.split('.').pop() || 'png';
   const fileName = `logo_${clientId}_${Date.now()}.${fileExt}`;
   console.log("Prepared file name for upload:", fileName);
 
+  // Define storage bucket and path
   const BUCKET_NAME = "widget-logos";
   const FOLDER_NAME = "Logo URL";
   const filePath = `${FOLDER_NAME}/${fileName}`;
   
   console.log(`Uploading logo to ${BUCKET_NAME}/${filePath} storage...`);
-  const { error: uploadError, data: uploadData } = await supabase.storage
+  
+  // Upload the file to Supabase Storage
+  const { error: uploadError } = await supabase.storage
     .from(BUCKET_NAME)
     .upload(filePath, file, { 
       upsert: true,
@@ -54,15 +58,15 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
     throw new Error(`Upload failed: ${uploadError.message}`);
   }
 
-  console.log("Logo uploaded successfully:", uploadData);
+  console.log("Logo uploaded successfully. Getting public URL...");
 
-  // Get the full public URL for the uploaded file
+  // Get the public URL for the uploaded file
   const { data: publicUrlData } = supabase.storage
     .from(BUCKET_NAME)
     .getPublicUrl(filePath);
   
   if (!publicUrlData || !publicUrlData.publicUrl) {
-    console.error("Failed to generate public URL:", publicUrlData);
+    console.error("Failed to generate public URL");
     throw new Error("Failed to generate public URL for uploaded logo");
   }
 
@@ -100,9 +104,13 @@ export async function handleLogoUploadEvent(
   try {
     onStart();
     
+    // Upload the logo and get public URL
     const publicUrl = await uploadWidgetLogo(file, clientId);
+    
+    // Call the success callback with the URL
     onSuccess(publicUrl);
-
+    
+    console.log("Logo upload and URL generation complete:", publicUrl);
   } catch (error: any) {
     console.error("Logo upload process failed:", error);
     onError(error);

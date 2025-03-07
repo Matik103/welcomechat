@@ -22,7 +22,9 @@ export function LogoManagement({
   const handleLogoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Show preview immediately while uploading happens in background
       handleLocalPreview(file);
+      // Pass the event to parent for actual upload
       onLogoUpload(event);
     }
   };

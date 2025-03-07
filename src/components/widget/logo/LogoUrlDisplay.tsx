@@ -1,8 +1,8 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Copy, CheckCircle, Image } from "lucide-react";
-import { useState } from "react";
+import { Copy, CheckCircle, Image, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 
@@ -12,6 +12,23 @@ interface LogoUrlDisplayProps {
 
 export function LogoUrlDisplay({ logoUrl }: LogoUrlDisplayProps) {
   const [isCopied, setIsCopied] = useState(false);
+  const [isValidUrl, setIsValidUrl] = useState(false);
+
+  // Validate URL when it changes
+  useEffect(() => {
+    const isValid = validateUrl(logoUrl);
+    setIsValidUrl(isValid);
+  }, [logoUrl]);
+
+  const validateUrl = (url: string): boolean => {
+    if (!url) return false;
+    try {
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
 
   const copyLogoUrl = () => {
     if (logoUrl) {
@@ -34,34 +51,37 @@ export function LogoUrlDisplay({ logoUrl }: LogoUrlDisplayProps) {
     }
   };
 
-  const getLogoUrlPath = () => {
-    if (!logoUrl) return '';
+  const getLogoUrlInfo = () => {
+    if (!logoUrl) return { path: '', isValid: false };
     
     try {
       const url = new URL(logoUrl);
       const pathParts = url.pathname.split('/');
       
-      // Look for "Logo URL" in the path
-      const logoUrlIndex = pathParts.findIndex(part => part === "Logo%20URL" || part === "Logo URL");
+      // Check if URL contains the expected path parts
+      const logoUrlIndex = pathParts.findIndex(part => 
+        part === "Logo%20URL" || part === "Logo URL"
+      );
       
+      const bucketIndex = pathParts.findIndex(part => part === "widget-logos");
+      
+      let path = '';
       if (logoUrlIndex !== -1) {
-        return `From folder: Logo URL`;
+        path = `From folder: Logo URL`;
+      } else if (bucketIndex !== -1) {
+        path = 'From storage: widget-logos';
+      } else {
+        path = 'External URL';
       }
-      return 'From storage: widget-logos';
+      
+      return { path, isValid: true };
     } catch (e) {
-      console.error("Error parsing logo URL path:", e);
-      return '';
+      console.error("Error parsing logo URL:", e);
+      return { path: 'Invalid URL format', isValid: false };
     }
   };
 
-  const isValidUrl = (url: string): boolean => {
-    try {
-      new URL(url);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  };
+  const urlInfo = getLogoUrlInfo();
 
   return (
     <div>
@@ -75,7 +95,9 @@ export function LogoUrlDisplay({ logoUrl }: LogoUrlDisplayProps) {
             id="generated_logo_url"
             value={logoUrl || ''}
             readOnly
-            className={`flex-1 pr-10 font-mono text-xs ${isValidUrl(logoUrl || '') ? 'bg-gray-50' : 'bg-red-50'}`}
+            className={`flex-1 pr-10 font-mono text-xs ${
+              isValidUrl ? 'bg-gray-50' : 'bg-red-50'
+            }`}
             placeholder="Upload a logo to generate URL"
           />
           <Button 
@@ -86,13 +108,25 @@ export function LogoUrlDisplay({ logoUrl }: LogoUrlDisplayProps) {
             disabled={!logoUrl}
             title="Copy URL"
           >
-            {isCopied ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            {isCopied ? 
+              <CheckCircle className="h-4 w-4 text-green-500" /> : 
+              <Copy className="h-4 w-4" />
+            }
           </Button>
         </div>
         {logoUrl && (
-          <p className="text-xs text-indigo-600 font-medium mt-1">
-            {getLogoUrlPath()}
-          </p>
+          <div className="flex items-center mt-1">
+            {isValidUrl ? (
+              <p className="text-xs text-indigo-600 font-medium">
+                {urlInfo.path}
+              </p>
+            ) : (
+              <p className="text-xs text-red-500 font-medium flex items-center">
+                <AlertCircle className="w-3 h-3 mr-1" />
+                Invalid URL format
+              </p>
+            )}
+          </div>
         )}
       </div>
       <p className="text-sm text-gray-500 mt-1">

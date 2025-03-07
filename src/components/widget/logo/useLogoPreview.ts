@@ -6,8 +6,15 @@ export function useLogoPreview(logoUrl: string) {
   
   useEffect(() => {
     if (logoUrl) {
-      console.log("Setting logo preview from settings:", logoUrl);
-      setLogoPreview(logoUrl);
+      try {
+        // Validate URL format
+        new URL(logoUrl);
+        console.log("Setting logo preview from settings:", logoUrl);
+        setLogoPreview(logoUrl);
+      } catch (e) {
+        console.error("Invalid logo URL in settings:", logoUrl, e);
+        setLogoPreview(null);
+      }
     } else {
       setLogoPreview(null);
     }
