@@ -158,7 +158,6 @@ const WidgetSettings = () => {
       const fileName = `logo_${clientId}_${Date.now()}.${fileExt}`;
       console.log("Prepared file name for upload:", fileName);
 
-      // Define the folder path - this is just a prefix in the file path, not an actual folder
       const BUCKET_NAME = "widget-logos";
       const FOLDER_NAME = "Logo URL";
       const filePath = `${FOLDER_NAME}/${fileName}`;
@@ -179,7 +178,6 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
-      // Explicitly generate the public URL
       const { data: publicUrlData } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(filePath);
@@ -192,7 +190,6 @@ const WidgetSettings = () => {
       const publicUrl = publicUrlData.publicUrl;
       console.log("Logo public URL generated:", publicUrl);
 
-      // Ensure the URL is valid
       try {
         new URL(publicUrl);
       } catch (e) {
