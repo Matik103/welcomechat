@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -186,11 +187,16 @@ const WidgetSettings = () => {
         console.log("Client data refreshed after logo upload");
         
         // Update the local state with the latest client data
-        if (client?.widget_settings?.logo_url) {
-          setSettings(prev => ({
-            ...prev,
-            logo_url: client.widget_settings.logo_url as string
-          }));
+        const refreshedClient = await refetch();
+        if (refreshedClient.data && refreshedClient.data.widget_settings) {
+          // Type-safe approach to access widget_settings using the isWidgetSettings check
+          const widgetSettings = refreshedClient.data.widget_settings;
+          if (isWidgetSettings(widgetSettings)) {
+            setSettings(prev => ({
+              ...prev,
+              logo_url: widgetSettings.logo_url
+            }));
+          }
         }
         
         if (isClientView) {
