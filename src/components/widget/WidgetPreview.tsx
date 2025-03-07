@@ -48,7 +48,8 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
       console.log(`Sending message to endpoint: ${endpointUrl}`);
       console.log("Payload:", { 
         prompt: currentMessage,
-        agent_name: settings.agent_name || "AI Assistant"
+        agent_name: settings.agent_name || "AI Assistant",
+        webhook_url: settings.webhook_url // Pass the webhook URL through for potential forwarding
       });
       
       // Make the API call to the webhook or Supabase edge function
@@ -59,7 +60,8 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
         },
         body: JSON.stringify({ 
           prompt: currentMessage,
-          agent_name: settings.agent_name || "AI Assistant"
+          agent_name: settings.agent_name || "AI Assistant",
+          webhook_url: settings.webhook_url // Pass this through so the edge function can use it
         }),
       });
       
@@ -68,11 +70,11 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
         console.log("API response:", data);
         
         responseText = data.generatedText || data.response || data.message || 
-                       "I'm your AI assistant. How can I help you today?";
+                     "I'm your AI assistant. How can I help you today?";
       } else {
-        const errorText = await response.text();
-        console.error(`API error (${response.status}):`, errorText);
-        throw new Error(`Error ${response.status}: ${errorText}`);
+        const errorData = await response.text();
+        console.error(`API error (${response.status}):`, errorData);
+        throw new Error(`Error ${response.status}: ${errorData}`);
       }
       
       // Add bot response
@@ -108,12 +110,12 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
       {isExpanded ? (
         <div 
           className="absolute bottom-4 right-4 sm:w-80 w-72 sm:h-96 h-80 rounded-lg shadow-xl overflow-hidden transition-all duration-300 ease-in-out transform scale-100"
-          style={{ backgroundColor: settings.background_color }}
+          style={{ backgroundColor: settings.background_color || '#ffffff' }}
         >
           {/* Chat Header */}
           <div 
             className="p-3 flex items-center justify-between"
-            style={{ backgroundColor: settings.chat_color }}
+            style={{ backgroundColor: settings.chat_color || '#854fff' }}
           >
             <div className="flex items-center gap-2">
               {logoUrl && (
@@ -144,7 +146,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
           {/* Chat Body */}
           <div 
             className="p-3 h-64 overflow-y-auto flex flex-col space-y-4"
-            style={{ color: settings.text_color }}
+            style={{ color: settings.text_color || '#333333' }}
           >
             {chatMessages.map((message, index) => (
               <div key={index} className={`${message.type === 'user' ? 'flex justify-end' : ''} animate-in fade-in-50 duration-300`}>
@@ -152,7 +154,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                   {message.type === 'bot' && (
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
-                      style={{ backgroundColor: settings.secondary_color }}
+                      style={{ backgroundColor: settings.secondary_color || '#6b3fd4' }}
                     >
                       <Bot size={14} className="text-white" />
                     </div>
@@ -164,7 +166,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                         : ''
                     }`}
                     style={message.type === 'bot' ? { 
-                      backgroundColor: settings.secondary_color,
+                      backgroundColor: settings.secondary_color || '#6b3fd4',
                       color: 'white'
                     } : {}}
                   >
@@ -181,7 +183,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                 {message.type === 'bot' && index === 0 && (
                   <div 
                     className="text-xs mt-1 opacity-60"
-                    style={{ color: settings.text_color }}
+                    style={{ color: settings.text_color || '#333333' }}
                   >
                     {settings.response_time_text || "I typically respond right away"}
                   </div>
@@ -202,8 +204,8 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
           <div 
             className="absolute bottom-0 left-0 right-0 p-3 border-t"
             style={{ 
-              backgroundColor: settings.background_color,
-              borderColor: `${settings.chat_color}20`
+              backgroundColor: settings.background_color || '#ffffff',
+              borderColor: `${settings.chat_color || '#854fff'}20`
             }}
           >
             <div className="relative">
@@ -212,8 +214,8 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                 placeholder="Type your message..."
                 className="w-full py-2 px-3 pr-10 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
                 style={{ 
-                  borderColor: `${settings.chat_color}50`,
-                  color: settings.text_color,
+                  borderColor: `${settings.chat_color || '#854fff'}50`,
+                  color: settings.text_color || '#333333',
                   backgroundColor: 'white',
                 }}
                 value={userMessage}
@@ -223,7 +225,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
               />
               <button 
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full disabled:opacity-50"
-                style={{ backgroundColor: settings.chat_color }}
+                style={{ backgroundColor: settings.chat_color || '#854fff' }}
                 onClick={handleSendMessage}
                 disabled={isLoading || !userMessage.trim()}
                 aria-label="Send message"
@@ -236,7 +238,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
       ) : (
         <div 
           className={`absolute ${settings.position === 'left' ? 'bottom-4 left-4' : 'bottom-4 right-4'} w-16 h-16 rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105`}
-          style={{ backgroundColor: settings.chat_color }}
+          style={{ backgroundColor: settings.chat_color || '#854fff' }}
           onClick={toggleExpand}
         >
           <MessageCircle className="w-8 h-8 text-white" />

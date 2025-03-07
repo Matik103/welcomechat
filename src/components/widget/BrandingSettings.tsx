@@ -150,7 +150,7 @@ export function BrandingSettings({
         <Label htmlFor="webhook_url">Webhook URL (Optional)</Label>
         <Input
           id="webhook_url"
-          value={settings.webhook_url}
+          value={settings.webhook_url || ''}
           onChange={(e) => onSettingsChange({ webhook_url: e.target.value })}
           placeholder="https://your-webhook-url.com"
           className="mt-1"
@@ -164,7 +164,7 @@ export function BrandingSettings({
         <Label htmlFor="welcome_text">Welcome Message</Label>
         <Input
           id="welcome_text"
-          value={settings.welcome_text}
+          value={settings.welcome_text || ''}
           onChange={(e) => onSettingsChange({ welcome_text: e.target.value })}
           placeholder="Hi 👋, how can I help?"
           className="mt-1"
@@ -175,7 +175,7 @@ export function BrandingSettings({
         <Label htmlFor="response_time_text">Response Time Message</Label>
         <Input
           id="response_time_text"
-          value={settings.response_time_text}
+          value={settings.response_time_text || ''}
           onChange={(e) => onSettingsChange({ response_time_text: e.target.value })}
           placeholder="I typically respond right away"
           className="mt-1"

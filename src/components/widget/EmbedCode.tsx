@@ -43,7 +43,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     try {
       const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
       
-      // Make sure to properly process and include the logo URL - ensure it's a string
+      // Ensure we have a valid logo URL - use empty string if undefined
       const logoUrl = settings.logo_url ? settings.logo_url.trim() : '';
       
       console.log("Logo URL being added to embed code:", logoUrl);
@@ -93,6 +93,9 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
   };
 
+  // Make sure the logo URL is properly displayed in the preview code
+  const displayLogoUrl = settings.logo_url ? settings.logo_url.trim() : '';
+
   return (
     <div className="relative">
       <pre 
@@ -107,7 +110,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
             route: 'general'
         },
         branding: {
-            logo: '${settings.logo_url || ''}',
+            logo: '${displayLogoUrl}',
             name: '${settings.agent_name}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
