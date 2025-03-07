@@ -36,8 +36,8 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
     
     // Use a raw SQL query to fetch data from the dynamic table name
     const { data, error } = await supabase
-      .rpc('execute_sql', {
-        query_text: `SELECT metadata, created_at FROM "${agentTableName}" WHERE metadata->>'type' = 'chat_interaction'`
+      .rpc('exec_sql', {
+        sql_query: `SELECT metadata, created_at FROM "${agentTableName}" WHERE metadata->>'type' = 'chat_interaction'`
       });
 
     if (error) {
