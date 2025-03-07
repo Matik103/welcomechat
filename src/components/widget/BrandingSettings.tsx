@@ -21,8 +21,7 @@ export function BrandingSettings({
   const handleRemoveLogo = () => {
     console.log("Removing logo");
     onSettingsChange({ 
-      logo_url: "",
-      logo_storage_path: "" 
+      logo_url: "" 
     });
     toast.success("Logo removed");
   };
@@ -45,7 +44,6 @@ export function BrandingSettings({
 
       <LogoManagement
         logoUrl={settings.logo_url}
-        logoStoragePath={settings.logo_storage_path}
         isUploading={isUploading}
         onLogoUpload={onLogoUpload}
         onRemoveLogo={handleRemoveLogo}

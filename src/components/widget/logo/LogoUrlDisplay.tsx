@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 interface LogoUrlDisplayProps {
   logoUrl: string;
-  logoStoragePath?: string;
 }
 
 export function LogoUrlDisplay({ logoUrl }: LogoUrlDisplayProps) {

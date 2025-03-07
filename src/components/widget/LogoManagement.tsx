@@ -6,7 +6,6 @@ import { LogoUrlDisplay } from "./logo/LogoUrlDisplay";
 
 interface LogoManagementProps {
   logoUrl: string;
-  logoStoragePath?: string;
   isUploading: boolean;
   onLogoUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveLogo: () => void;
@@ -14,7 +13,6 @@ interface LogoManagementProps {
 
 export function LogoManagement({
   logoUrl,
-  logoStoragePath,
   isUploading,
   onLogoUpload,
   onRemoveLogo
@@ -51,7 +49,7 @@ export function LogoManagement({
         </p>
       </div>
 
-      <LogoUrlDisplay logoUrl={logoUrl} logoStoragePath={logoStoragePath} />
+      <LogoUrlDisplay logoUrl={logoUrl} />
     </div>
   );
 }
