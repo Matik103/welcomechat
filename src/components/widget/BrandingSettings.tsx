@@ -2,8 +2,6 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { WidgetSettings } from "@/types/widget-settings";
-import { LogoManagement } from "@/components/widget/LogoManagement";
-import { toast } from "sonner";
 
 interface BrandingSettingsProps {
   settings: WidgetSettings;
@@ -18,14 +16,6 @@ export function BrandingSettings({
   onSettingsChange,
   onLogoUpload
 }: BrandingSettingsProps) {
-  const handleRemoveLogo = () => {
-    console.log("Removing logo");
-    onSettingsChange({ 
-      logo_url: "" 
-    });
-    toast.success("Logo removed");
-  };
-
   return (
     <div className="space-y-4">
       <div>
@@ -41,13 +31,6 @@ export function BrandingSettings({
           This is the name that will appear in the chat header.
         </p>
       </div>
-
-      <LogoManagement
-        logoUrl={settings.logo_url}
-        isUploading={isUploading}
-        onLogoUpload={onLogoUpload}
-        onRemoveLogo={handleRemoveLogo}
-      />
 
       <div>
         <Label htmlFor="webhook_url">Webhook URL (Optional)</Label>

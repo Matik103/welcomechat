@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -14,7 +15,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     { type: 'bot', text: settings.welcome_text || "Hi 👋, how can I help?" }
   ]);
   const [isLoading, setIsLoading] = useState(false);
-  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [iconSize, setIconSize] = useState(1); // Normal size multiplier
   
   // Get the Supabase project reference from the URL
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
@@ -25,14 +26,6 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
       setChatMessages([{ type: 'bot', text: settings.welcome_text || "Hi 👋, how can I help?" }]);
     }
   }, [settings.welcome_text]);
-
-  // Update the method that gets a valid logo URL to add better logging
-  const getFormattedLogoUrl = () => {
-    if (!settings.logo_url) return '';
-    const url = settings.logo_url.trim();
-    console.log("Using logo URL in chat preview:", url);
-    return url;
-  };
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
@@ -106,29 +99,17 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     }
   };
 
-  // Get formatted logo URL
-  const logoUrl = getFormattedLogoUrl();
-
-  // Handle logo loading success 
-  const handleLogoLoadSuccess = () => {
-    setLogoLoaded(true);
-    console.log("Logo loaded successfully in preview");
-  };
-
-  // Handle logo loading error
-  const handleLogoLoadError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    console.error("Error loading logo in chat:", logoUrl);
-    setLogoLoaded(false);
-    
-    // Hide the broken image
-    e.currentTarget.style.display = 'none';
-    
-    // Show Bot icon instead (parent will handle this via CSS)
-    const parent = e.currentTarget.parentNode;
-    if (parent instanceof HTMLElement) {
-      parent.classList.add('logo-error');
+  // Handle icon size change (new feature)
+  const cycleIconSize = () => {
+    if (!isExpanded) {
+      // Cycle between 3 sizes: 1 (normal), 1.25 (medium), 1.5 (large)
+      setIconSize(prev => prev >= 1.5 ? 1 : prev + 0.25);
     }
   };
+
+  // Calculate actual size in pixels based on the multiplier
+  const actualIconSize = 16 * (iconSize || 1);
+  const actualButtonSize = 60 * (iconSize || 1);
 
   return (
     <div className="relative border border-gray-200 rounded-md p-4 h-[420px] bg-gray-50">
@@ -147,22 +128,12 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
             style={{ backgroundColor: settings.chat_color || '#854fff' }}
           >
             <div className="flex items-center gap-2">
-              {logoUrl ? (
-                <img 
-                  src={logoUrl} 
-                  alt="Logo" 
-                  className="w-6 h-6 rounded-full object-contain bg-white p-0.5"
-                  onLoad={handleLogoLoadSuccess}
-                  onError={handleLogoLoadError}
-                />
-              ) : (
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: settings.secondary_color || '#6b3fd4' }}
-                >
-                  <Bot size={14} className="text-white" />
-                </div>
-              )}
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: settings.secondary_color || '#6b3fd4' }}
+              >
+                <Bot size={14} className="text-white" />
+              </div>
               <span className="font-medium text-sm text-white truncate">
                 {settings.agent_name || "AI Assistant"}
               </span>
@@ -185,21 +156,12 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
               <div key={index} className={`${message.type === 'user' ? 'flex justify-end' : ''} animate-in fade-in-50 duration-300`}>
                 <div className="flex items-start gap-2 max-w-[85%]">
                   {message.type === 'bot' && (
-                    logoUrl ? (
-                      <img 
-                        src={logoUrl} 
-                        alt="Logo" 
-                        className="w-6 h-6 rounded-full object-contain bg-white p-0.5 mt-1 border border-gray-200"
-                        onError={handleLogoLoadError}
-                      />
-                    ) : (
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
-                        style={{ backgroundColor: settings.secondary_color || '#6b3fd4' }}
-                      >
-                        <Bot size={14} className="text-white" />
-                      </div>
-                    )
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
+                      style={{ backgroundColor: settings.secondary_color || '#6b3fd4' }}
+                    >
+                      <Bot size={14} className="text-white" />
+                    </div>
                   )}
                   <div 
                     className={`rounded-lg py-2 px-3 text-sm break-words ${
@@ -279,25 +241,22 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
         </div>
       ) : (
         <div 
-          className={`absolute ${settings.position === 'left' ? 'bottom-4 left-4' : 'bottom-4 right-4'} w-16 h-16 rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105`}
-          style={{ backgroundColor: settings.chat_color || '#854fff' }}
+          className={`absolute ${settings.position === 'left' ? 'bottom-4 left-4' : 'bottom-4 right-4'} rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105 group`}
+          style={{ 
+            backgroundColor: settings.chat_color || '#854fff',
+            width: actualButtonSize,
+            height: actualButtonSize
+          }}
           onClick={toggleExpand}
+          onDoubleClick={cycleIconSize}
         >
-          {logoUrl ? (
-            <img 
-              src={logoUrl} 
-              alt="Logo" 
-              className="w-8 h-8 object-contain rounded-full bg-white p-1"
-              onLoad={handleLogoLoadSuccess}
-              onError={(e) => {
-                console.error("Error loading logo in chat button:", logoUrl);
-                e.currentTarget.style.display = 'none';
-                // Parent will show the MessageCircle icon automatically when img is hidden
-              }}
-            />
-          ) : (
-            <MessageCircle className="w-8 h-8 text-white" />
-          )}
+          <MessageCircle 
+            className="text-white transition-all duration-300" 
+            size={actualIconSize} 
+          />
+          <div className="absolute -top-10 bg-gray-800 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            Double-click to resize
+          </div>
         </div>
       )}
     </div>

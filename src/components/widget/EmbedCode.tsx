@@ -19,14 +19,6 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   // Get the Supabase project reference from the URL
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
 
-  // Format logo URL to ensure it's valid
-  const getFormattedLogoUrl = () => {
-    if (!settings.logo_url) return '';
-    const url = settings.logo_url.trim();
-    console.log("Using logo URL in embed code:", url);
-    return url;
-  };
-
   // Syntax highlighting effect
   useEffect(() => {
     if (codeRef.current) {
@@ -51,9 +43,6 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   const handleCopyCode = () => {
     try {
       const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
-      const logoUrl = getFormattedLogoUrl();
-      
-      console.log("Logo URL being copied to clipboard:", logoUrl);
       
       const embedCode = `<!-- Load n8n Chat Widget CSS -->
 <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
@@ -62,7 +51,6 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 <script>
     window.ChatWidgetConfig = {
         branding: {
-            logo: '${logoUrl}',
             name: '${settings.agent_name}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
@@ -109,8 +97,6 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
   };
 
-  // Format and display logo URL
-  const logoUrl = getFormattedLogoUrl();
   const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
   
   return (
@@ -126,7 +112,6 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 <script>
     window.ChatWidgetConfig = {
         branding: {
-            logo: '${logoUrl}',
             name: '${settings.agent_name}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
