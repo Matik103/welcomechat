@@ -45,7 +45,8 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
   console.log(`Uploading logo to ${BUCKET_NAME}/${filePath} storage...`);
   
   try {
-    // Upload the file to Supabase Storage
+    // Upload the file to Supabase Storage with proper metadata format
+    // Important: Don't include clientId in the 'metadata' object to avoid type issues
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(filePath, file, { 
@@ -73,6 +74,25 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
 
     const publicUrl = publicUrlData.publicUrl;
     console.log("Logo public URL generated:", publicUrl);
+
+    // Associate the uploaded file with the client
+    // This step is performed separately after successful upload
+    try {
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update({ 
+          logo_url: publicUrl 
+        })
+        .eq('id', clientId);
+        
+      if (updateError) {
+        console.error("Error updating client with logo URL:", updateError);
+        // Don't throw here, we still want to return the URL even if the association fails
+      }
+    } catch (clientUpdateError) {
+      console.error("Error in client update operation:", clientUpdateError);
+      // Continue since we have the URL
+    }
 
     // Validate the URL
     try {
