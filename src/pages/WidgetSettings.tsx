@@ -4,13 +4,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { SUPABASE_URL } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { WidgetSettings as IWidgetSettings, defaultSettings, isWidgetSettings } from "@/types/widget-settings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { toast } from "sonner";
+import { checkAndRefreshAuth } from "@/services/authService";
 
 function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
   return {
@@ -154,6 +154,9 @@ const WidgetSettings = () => {
       setIsUploading(true);
       console.log("Starting logo upload process...");
       
+      // Refresh auth session to prevent JWT expired errors
+      await checkAndRefreshAuth();
+      
       const fileExt = file.name.split('.').pop() || 'png';
       const fileName = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
       console.log("Prepared file name for upload:", fileName);
@@ -175,6 +178,7 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
+      // Get the public URL directly
       const { data: { publicUrl } } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(fileName);
@@ -185,29 +189,7 @@ const WidgetSettings = () => {
         throw new Error("Failed to generate public URL for uploaded logo");
       }
 
-      try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-logo-url`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabase.auth.getSession().then(({ data }) => data.session?.access_token)}`,
-          },
-          body: JSON.stringify({
-            fileKey: fileName,
-            clientId,
-            bucketName: BUCKET_NAME
-          })
-        });
-
-        if (!response.ok) {
-          console.warn("Edge function call failed, but continuing with local URL:", await response.text());
-        } else {
-          console.log("Edge function response:", await response.json());
-        }
-      } catch (edgeFnError) {
-        console.warn("Edge function error (non-blocking):", edgeFnError);
-      }
-
+      // Update the client's widget settings directly with the new logo URL
       const newSettings = { 
         ...settings, 
         logo_url: publicUrl 
@@ -218,6 +200,7 @@ const WidgetSettings = () => {
       
       await updateSettingsMutation.mutateAsync(newSettings);
       
+      // Refresh client data to show updated settings
       await queryClient.invalidateQueries({ queryKey: ["client", clientId] });
       await refetch();
       console.log("Client data refreshed after logo upload");
