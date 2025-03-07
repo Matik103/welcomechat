@@ -177,43 +177,33 @@ const WidgetSettings = () => {
       }
 
       console.log("Logo uploaded successfully:", uploadData);
-
-      // Get the public URL directly
-      const { data: { publicUrl } } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(fileName);
-
-      console.log("Logo public URL generated:", publicUrl);
-
-      if (!publicUrl) {
-        throw new Error("Failed to generate public URL for uploaded logo");
-      }
-
-      // Update the client's widget settings directly with the new logo URL
-      const newSettings = { 
-        ...settings, 
-        logo_url: publicUrl 
-      };
       
-      console.log("Updating settings with logo URL:", publicUrl);
-      setSettings(newSettings);
+      // The trigger function we just created will automatically update the logo_url
+      // Give it a moment to process
+      setTimeout(async () => {
+        await queryClient.invalidateQueries({ queryKey: ["client", clientId] });
+        await refetch();
+        console.log("Client data refreshed after logo upload");
+        
+        // Update the local state with the latest client data
+        if (client?.widget_settings?.logo_url) {
+          setSettings(prev => ({
+            ...prev,
+            logo_url: client.widget_settings.logo_url as string
+          }));
+        }
+        
+        if (isClientView) {
+          await logClientActivity(
+            "logo_uploaded", 
+            "uploaded a new logo for their widget", 
+            { fileName }
+          );
+        }
+        
+        toast.success("Logo uploaded and URL generated successfully! ✨");
+      }, 1000);
       
-      await updateSettingsMutation.mutateAsync(newSettings);
-      
-      // Refresh client data to show updated settings
-      await queryClient.invalidateQueries({ queryKey: ["client", clientId] });
-      await refetch();
-      console.log("Client data refreshed after logo upload");
-
-      if (isClientView) {
-        await logClientActivity(
-          "logo_uploaded", 
-          "uploaded a new logo for their widget", 
-          { logo_url: publicUrl }
-        );
-      }
-
-      toast.success("Logo uploaded successfully! ✨");
     } catch (error) {
       console.error("Logo upload process failed:", error);
       toast.error(error.message || "Failed to upload logo");

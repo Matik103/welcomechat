@@ -1306,6 +1306,10 @@ export type Database = {
         }
         Returns: string[]
       }
+      generate_logo_urls: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_active_days_count: {
         Args: {
           client_id_param: string
