@@ -59,13 +59,45 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
           throw new Error("Webhook error");
         }
       } else {
-        // Fallback to demo bot if no webhook URL
-        setTimeout(() => {
-          setChatMessages(prev => [...prev, { 
-            type: 'bot', 
-            text: "I'm a demo bot. This is how your responses will look to users." 
-          }]);
-        }, 800);
+        // Call the Supabase edge function if no webhook URL
+        try {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({
+              prompt: currentMessage,
+              agent_name: settings.agent_name || "AI Assistant"
+            }),
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setChatMessages(prev => [...prev, { 
+              type: 'bot', 
+              text: data.generatedText || "I'm your AI assistant. How can I help you today?"
+            }]);
+          } else {
+            // Fallback to demo bot if edge function fails
+            setTimeout(() => {
+              setChatMessages(prev => [...prev, { 
+                type: 'bot', 
+                text: "I'm a demo bot. This is how your responses will look to users." 
+              }]);
+            }, 800);
+          }
+        } catch (error) {
+          console.error("Error calling edge function:", error);
+          // Fallback to demo bot
+          setTimeout(() => {
+            setChatMessages(prev => [...prev, { 
+              type: 'bot', 
+              text: "I'm a demo bot. This is how your responses will look to users." 
+            }]);
+          }, 800);
+        }
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -186,7 +218,6 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                   borderColor: `${settings.chat_color}50`,
                   color: settings.text_color,
                   backgroundColor: 'white',
-                  /* Focus ring color will be handled by Tailwind classes */
                 }}
                 value={userMessage}
                 onChange={(e) => setUserMessage(e.target.value)}

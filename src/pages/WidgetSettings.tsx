@@ -116,6 +116,15 @@ const WidgetSettings = () => {
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `${clientId}/${fileName}`;
 
+      // Create a logos bucket if it doesn't exist
+      const { data: bucketExists } = await supabase.storage.getBucket('logos');
+      if (!bucketExists) {
+        await supabase.storage.createBucket('logos', {
+          public: true,
+          fileSizeLimit: 5242880, // 5MB
+        });
+      }
+
       const { error: uploadError } = await supabase.storage
         .from("logos")
         .upload(filePath, file, { 
@@ -131,6 +140,8 @@ const WidgetSettings = () => {
 
       const newSettings = { ...settings, logo_url: publicUrl };
       setSettings(newSettings);
+      
+      // Save the new settings immediately when the logo is uploaded
       await updateSettingsMutation.mutateAsync(newSettings);
 
       if (isClientView) {

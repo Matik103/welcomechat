@@ -52,7 +52,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
             route: 'general'
         },
         branding: {
-            logo: '${settings.logo_url}',
+            logo: '${settings.logo_url || ''}',
             name: '${settings.agent_name}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
@@ -103,7 +103,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
             route: 'general'
         },
         branding: {
-            logo: '${settings.logo_url}',
+            logo: '${settings.logo_url || ''}',
             name: '${settings.agent_name}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
