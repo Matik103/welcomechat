@@ -144,6 +144,7 @@ const WidgetSettings = () => {
     },
   });
 
+  // Improved function to handle logo upload with proper URL generation and retrieval
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !clientId) {
@@ -176,6 +177,7 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
+      // Immediately get the public URL using getPublicUrl
       const { data: { publicUrl } } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(fileName);
@@ -186,6 +188,7 @@ const WidgetSettings = () => {
         throw new Error("Failed to generate public URL for uploaded logo");
       }
 
+      // Update settings with the new logo URL
       const newSettings = { 
         ...settings, 
         logo_url: publicUrl 
@@ -194,6 +197,7 @@ const WidgetSettings = () => {
       console.log("Updating settings with logo URL:", publicUrl);
       setSettings(newSettings);
       
+      // Save the updated settings to the database
       await updateSettingsMutation.mutateAsync(newSettings);
       
       // Force refresh of client data to show the updated logo URL
