@@ -158,15 +158,15 @@ const WidgetSettings = () => {
       setIsUploading(true);
       console.log("Starting logo upload process...");
       
-      // Prepare file name with extension
+      // Prepare file name - using a flat structure to avoid UUID/string comparison issues
       const fileExt = file.name.split('.').pop() || 'png';
-      const fileName = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
+      const fileName = `logo_${clientId}_${Date.now()}.${fileExt}`;
       console.log("Prepared file name for upload:", fileName);
 
-      // Use the existing "widget-logos" bucket
+      // Use the "widget-logos" bucket
       const BUCKET_NAME = "widget-logos";
       
-      // Attempt to upload the file
+      // Upload the file
       console.log(`Uploading logo to ${BUCKET_NAME} storage...`);
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from(BUCKET_NAME)
@@ -182,7 +182,7 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
-      // Get the public URL with complete URL path
+      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(fileName);
@@ -193,23 +193,16 @@ const WidgetSettings = () => {
         throw new Error("Failed to generate public URL for uploaded logo");
       }
 
-      // Ensure the URL is properly formatted
-      const fullPublicUrl = publicUrl.startsWith('http') 
-        ? publicUrl 
-        : `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
-      
-      console.log("Full public URL for logo:", fullPublicUrl);
-
       // Update the settings with the new logo URL
       const newSettings = { 
         ...settings, 
-        logo_url: fullPublicUrl 
+        logo_url: publicUrl 
       };
       
-      console.log("Updating settings with logo URL:", fullPublicUrl);
+      console.log("Updating settings with logo URL:", publicUrl);
       setSettings(newSettings);
       
-      // Save the new settings immediately
+      // Save the new settings
       console.log("Saving settings with new logo URL...");
       await updateSettingsMutation.mutateAsync(newSettings);
 
@@ -217,7 +210,7 @@ const WidgetSettings = () => {
         await logClientActivity(
           "logo_uploaded", 
           "uploaded a new logo for their widget", 
-          { logo_url: fullPublicUrl }
+          { logo_url: publicUrl }
         );
       }
 
