@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { WidgetSettings as IWidgetSettings, defaultSettings, isWidgetSettings } from "@/types/widget-settings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -195,7 +196,7 @@ const WidgetSettings = () => {
       // Ensure the URL is properly formatted
       const fullPublicUrl = publicUrl.startsWith('http') 
         ? publicUrl 
-        : `${supabase.supabaseUrl}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
+        : `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
       
       console.log("Full public URL for logo:", fullPublicUrl);
 
