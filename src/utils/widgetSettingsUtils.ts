@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { WidgetSettings as IWidgetSettings, defaultSettings } from "@/types/widget-settings";
 import { Json } from "@/integrations/supabase/types";
@@ -86,9 +87,14 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
         throw clientError;
       }
 
-      const currentSettings = clientData?.widget_settings || {};
+      // Ensure currentSettings is treated as an object
+      const currentSettings = clientData?.widget_settings ? 
+        (typeof clientData.widget_settings === 'object' ? clientData.widget_settings : {}) : 
+        {};
+        
+      // Create updated settings object with type safety
       const updatedSettings = {
-        ...currentSettings,
+        ...(currentSettings as Record<string, Json>),
         logo_url: publicUrl
       };
 
