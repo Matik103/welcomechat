@@ -40,7 +40,7 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
 
   // Define storage bucket and path
   const BUCKET_NAME = "widget-logos";
-  const FOLDER_NAME = "Logo URL";
+  const FOLDER_NAME = clientId; // Use client ID as folder name for better organization
   const filePath = `${FOLDER_NAME}/${fileName}`;
   
   console.log(`Uploading logo to ${BUCKET_NAME}/${filePath} storage...`);
@@ -75,47 +75,6 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
     const publicUrl = publicUrlData.publicUrl;
     console.log("Logo public URL generated:", publicUrl);
     console.log("Logo storage path:", `${BUCKET_NAME}/${filePath}`);
-
-    // Update the client's widget settings with the new logo URL and storage path
-    try {
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('widget_settings')
-        .eq('id', clientId)
-        .single();
-
-      if (clientError) {
-        console.error("Error fetching client settings:", clientError);
-        throw clientError;
-      }
-
-      // Ensure currentSettings is treated as an object
-      const currentSettings = clientData?.widget_settings ? 
-        (typeof clientData.widget_settings === 'object' ? clientData.widget_settings : {}) : 
-        {};
-        
-      // Create updated settings object with type safety
-      const updatedSettings = {
-        ...(currentSettings as Record<string, Json>),
-        logo_url: publicUrl,
-        logo_storage_path: `${BUCKET_NAME}/${filePath}`
-      };
-
-      const { error: updateError } = await supabase
-        .from('clients')
-        .update({ 
-          widget_settings: updatedSettings 
-        })
-        .eq('id', clientId);
-        
-      if (updateError) {
-        console.error("Error updating client widget settings:", updateError);
-        // Don't throw here, we still want to return the URL even if the update fails
-      }
-    } catch (clientUpdateError) {
-      console.error("Error in client update operation:", clientUpdateError);
-      // Continue since we have the URL
-    }
 
     // Validate the URL
     try {
