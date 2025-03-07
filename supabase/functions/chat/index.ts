@@ -19,6 +19,7 @@ serve(async (req) => {
     const { prompt, agent_name } = await req.json();
 
     if (!prompt) {
+      console.error("Missing prompt in request");
       return new Response(JSON.stringify({ error: 'Missing prompt parameter' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -44,7 +45,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           { 
             role: 'system', 
@@ -52,7 +53,7 @@ serve(async (req) => {
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 150
+        max_tokens: 250
       }),
     });
 

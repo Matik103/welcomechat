@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { useEffect, useRef } from "react";
 
@@ -44,8 +43,10 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     try {
       const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
       
-      // Make sure to properly process and include the logo URL
+      // Make sure to properly process and include the logo URL - ensure it's a string
       const logoUrl = settings.logo_url ? settings.logo_url.trim() : '';
+      
+      console.log("Logo URL being added to embed code:", logoUrl);
       
       const embedCode = `<!-- Widget Configuration -->
 <script>

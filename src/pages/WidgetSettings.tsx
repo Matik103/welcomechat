@@ -56,10 +56,15 @@ const WidgetSettings = () => {
 
   useEffect(() => {
     if (client) {
+      console.log("Client data:", client);
       const widgetSettings = client.widget_settings;
+      console.log("Widget settings from client:", widgetSettings);
+      
       if (isWidgetSettings(widgetSettings)) {
+        console.log("Valid widget settings detected, applying to state");
         setSettings(widgetSettings);
       } else {
+        console.log("Invalid or missing widget settings, using defaults with agent name");
         setSettings({
           ...defaultSettings,
           agent_name: client.agent_name || ""
@@ -70,6 +75,7 @@ const WidgetSettings = () => {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: IWidgetSettings) => {
+      console.log("Saving widget settings:", newSettings);
       const { error } = await supabase
         .from("clients")
         .update({
@@ -98,6 +104,7 @@ const WidgetSettings = () => {
       });
     },
     onError: (error) => {
+      console.error("Failed to save settings:", error);
       toast({
         title: "Failed to save settings",
         description: error.message,
@@ -116,27 +123,37 @@ const WidgetSettings = () => {
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `${clientId}/${fileName}`;
 
+      console.log("Uploading logo:", { fileName, filePath });
+
       // Create a logos bucket if it doesn't exist
       const { data: bucketExists } = await supabase.storage.getBucket('logos');
       if (!bucketExists) {
+        console.log("Creating logos bucket");
         await supabase.storage.createBucket('logos', {
           public: true,
           fileSizeLimit: 5242880, // 5MB
         });
       }
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from("logos")
         .upload(filePath, file, { 
           upsert: true,
           contentType: file.type 
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Logo upload error:", uploadError);
+        throw uploadError;
+      }
+
+      console.log("Logo uploaded successfully:", uploadData);
 
       const { data: { publicUrl } } = supabase.storage
         .from("logos")
         .getPublicUrl(filePath);
+
+      console.log("Logo public URL generated:", publicUrl);
 
       const newSettings = { ...settings, logo_url: publicUrl };
       setSettings(newSettings);

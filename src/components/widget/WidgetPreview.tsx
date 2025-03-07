@@ -41,79 +41,42 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     setUserMessage("");
     setIsLoading(true);
     
-    // Make a real API call if webhook URL is provided
     try {
-      if (settings.webhook_url) {
-        console.log(`Sending message to webhook: ${settings.webhook_url}`);
+      let responseText = "";
+      const endpointUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
+      
+      console.log(`Sending message to endpoint: ${endpointUrl}`);
+      console.log("Payload:", { 
+        prompt: currentMessage,
+        agent_name: settings.agent_name || "AI Assistant"
+      });
+      
+      // Make the API call to the webhook or Supabase edge function
+      const response = await fetch(endpointUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          prompt: currentMessage,
+          agent_name: settings.agent_name || "AI Assistant"
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("API response:", data);
         
-        const response = await fetch(settings.webhook_url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            prompt: currentMessage,
-            agent_name: settings.agent_name || "AI Assistant"
-          }),
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setChatMessages(prev => [...prev, { 
-            type: 'bot', 
-            text: data.generatedText || data.response || data.message || "I'm your AI assistant. How can I help you today?"
-          }]);
-        } else {
-          throw new Error(`Webhook error: ${response.status}`);
-        }
+        responseText = data.generatedText || data.response || data.message || 
+                       "I'm your AI assistant. How can I help you today?";
       } else {
-        // Call the Supabase edge function if no webhook URL
-        console.log("No webhook URL provided, calling Supabase edge function");
-        
-        try {
-          const edgeFunctionUrl = `https://${projectRef}.supabase.co/functions/v1/chat`;
-          console.log(`Calling edge function: ${edgeFunctionUrl}`);
-          
-          const response = await fetch(edgeFunctionUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              prompt: currentMessage,
-              agent_name: settings.agent_name || "AI Assistant"
-            }),
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log("Edge function response:", data);
-            
-            setChatMessages(prev => [...prev, { 
-              type: 'bot', 
-              text: data.generatedText || "I'm your AI assistant. How can I help you today?"
-            }]);
-          } else {
-            console.error("Edge function error:", await response.text());
-            // Fallback to demo bot if edge function fails
-            setTimeout(() => {
-              setChatMessages(prev => [...prev, { 
-                type: 'bot', 
-                text: "I'm a demo bot. This is how your responses will look to users." 
-              }]);
-            }, 800);
-          }
-        } catch (error) {
-          console.error("Error calling edge function:", error);
-          // Fallback to demo bot
-          setTimeout(() => {
-            setChatMessages(prev => [...prev, { 
-              type: 'bot', 
-              text: "I'm a demo bot. This is how your responses will look to users." 
-            }]);
-          }, 800);
-        }
+        const errorText = await response.text();
+        console.error(`API error (${response.status}):`, errorText);
+        throw new Error(`Error ${response.status}: ${errorText}`);
       }
+      
+      // Add bot response
+      setChatMessages(prev => [...prev, { type: 'bot', text: responseText }]);
     } catch (error) {
       console.error("Error sending message:", error);
       setChatMessages(prev => [...prev, { 
@@ -132,8 +95,9 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     }
   };
 
-  // Prepare the logo URL
+  // Prepare the logo URL - ensure it's never undefined
   const logoUrl = settings.logo_url ? settings.logo_url.trim() : '';
+  console.log("Logo URL in chat preview:", logoUrl);
 
   return (
     <div className="relative border border-gray-200 rounded-md p-4 h-[420px] bg-gray-50">
@@ -159,7 +123,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                   className="w-6 h-6 rounded-full object-contain bg-white p-0.5"
                   onError={(e) => {
                     // Handle image loading errors
-                    console.error("Error loading logo image");
+                    console.error("Error loading logo image:", logoUrl);
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
