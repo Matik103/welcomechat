@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -194,6 +195,10 @@ const WidgetSettings = () => {
       setSettings(newSettings);
       
       await updateSettingsMutation.mutateAsync(newSettings);
+      
+      // Force refresh of client data to show the updated logo URL
+      await queryClient.invalidateQueries({ queryKey: ["client", clientId] });
+      console.log("Client data refreshed after logo upload");
 
       if (isClientView) {
         await logClientActivity(

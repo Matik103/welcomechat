@@ -153,7 +153,7 @@ export function BrandingSettings({
         </p>
       </div>
 
-      {/* New Logo URL field as the third item */}
+      {/* Generated Logo URL field */}
       <div>
         <Label htmlFor="generated_logo_url" className="flex items-center gap-2">
           <Image className="w-4 h-4" />
