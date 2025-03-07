@@ -4,7 +4,7 @@ import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useToast } from "@/components/ui/use-toast";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface EmbedCodeProps {
   settings: WidgetSettings;
@@ -14,6 +14,7 @@ interface EmbedCodeProps {
 export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   const { toast } = useToast();
   const codeRef = useRef<HTMLPreElement>(null);
+  const [copied, setCopied] = useState(false);
   
   // Get the Supabase project reference from the URL
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
@@ -86,6 +87,9 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 </script>`;
 
       navigator.clipboard.writeText(embedCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      
       toast({
         title: "Code copied! 📋",
         description: "The widget code has been copied to your clipboard.",
@@ -152,7 +156,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         className="absolute top-2 right-2 bg-indigo-600 hover:bg-indigo-700"
       >
         <Copy className="w-4 h-4 mr-2" />
-        Copy Code
+        {copied ? "Copied!" : "Copy Code"}
       </Button>
     </div>
   );

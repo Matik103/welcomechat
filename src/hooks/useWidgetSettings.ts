@@ -97,6 +97,7 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       
       console.log("Update response:", data);
       
+      // Force refetch to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ["client", clientId] });
       
       return data;
@@ -152,13 +153,13 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
           );
         }
 
-        // Force refetch after a short delay to get the updated URL from the trigger
+        // Force refetch after a short delay to get the updated URL from the database
         setTimeout(() => {
           refetch().then(() => {
             console.log("Refetched client data after logo upload");
             queryClient.invalidateQueries({ queryKey: ["client", clientId] });
           });
-        }, 1500);
+        }, 1000);
 
         toast.success("Logo uploaded successfully! ✨");
       },

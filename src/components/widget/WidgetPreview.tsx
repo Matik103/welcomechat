@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -15,6 +14,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     { type: 'bot', text: settings.welcome_text || "Hi 👋, how can I help?" }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [logoLoaded, setLogoLoaded] = useState(false);
   
   // Get the Supabase project reference from the URL
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
@@ -109,6 +109,27 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
   // Get formatted logo URL
   const logoUrl = getFormattedLogoUrl();
 
+  // Handle logo loading success 
+  const handleLogoLoadSuccess = () => {
+    setLogoLoaded(true);
+    console.log("Logo loaded successfully in preview");
+  };
+
+  // Handle logo loading error
+  const handleLogoLoadError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error("Error loading logo in chat:", logoUrl);
+    setLogoLoaded(false);
+    
+    // Hide the broken image
+    e.currentTarget.style.display = 'none';
+    
+    // Show Bot icon instead (parent will handle this via CSS)
+    const parent = e.currentTarget.parentNode;
+    if (parent instanceof HTMLElement) {
+      parent.classList.add('logo-error');
+    }
+  };
+
   return (
     <div className="relative border border-gray-200 rounded-md p-4 h-[420px] bg-gray-50">
       <div className="absolute top-0 left-0 right-0 p-3 bg-gray-100 text-sm text-gray-500 rounded-t-md text-center">
@@ -131,11 +152,8 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                   src={logoUrl} 
                   alt="Logo" 
                   className="w-6 h-6 rounded-full object-contain bg-white p-0.5"
-                  onError={(e) => {
-                    // Handle image loading errors
-                    console.error("Error loading logo image:", logoUrl);
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
+                  onLoad={handleLogoLoadSuccess}
+                  onError={handleLogoLoadError}
                 />
               ) : (
                 <div
@@ -172,18 +190,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                         src={logoUrl} 
                         alt="Logo" 
                         className="w-6 h-6 rounded-full object-contain bg-white p-0.5 mt-1 border border-gray-200"
-                        onError={(e) => {
-                          console.error("Error loading logo in message:", logoUrl);
-                          // Replace with Bot icon if logo fails to load
-                          const parent = e.currentTarget.parentNode;
-                          if (parent) {
-                            const botIcon = document.createElement('div');
-                            botIcon.className = "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1";
-                            botIcon.style.backgroundColor = settings.secondary_color || '#6b3fd4';
-                            botIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>';
-                            parent.replaceChild(botIcon, e.currentTarget);
-                          }
-                        }}
+                        onError={handleLogoLoadError}
                       />
                     ) : (
                       <div
@@ -281,15 +288,11 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
               src={logoUrl} 
               alt="Logo" 
               className="w-8 h-8 object-contain rounded-full bg-white p-1"
+              onLoad={handleLogoLoadSuccess}
               onError={(e) => {
                 console.error("Error loading logo in chat button:", logoUrl);
-                // Replace with MessageCircle icon if logo fails to load
-                const parent = e.currentTarget.parentNode;
-                if (parent) {
-                  const messageIcon = document.createElement('div');
-                  messageIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>';
-                  parent.replaceChild(messageIcon, e.currentTarget);
-                }
+                e.currentTarget.style.display = 'none';
+                // Parent will show the MessageCircle icon automatically when img is hidden
               }}
             />
           ) : (
