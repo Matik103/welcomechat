@@ -126,8 +126,12 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
     await handleLogoUploadEvent(
       event,
       clientId,
-      (publicUrl) => {
-        const newSettings = { ...settings, logo_url: publicUrl };
+      (publicUrl, storagePath) => {
+        const newSettings = { 
+          ...settings, 
+          logo_url: publicUrl,
+          logo_storage_path: storagePath
+        };
         setSettings(newSettings);
         updateSettingsMutation.mutateAsync(newSettings);
 
@@ -135,7 +139,7 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
           logClientActivity(
             "logo_uploaded", 
             "uploaded a new logo for their widget", 
-            { logo_url: publicUrl }
+            { logo_url: publicUrl, logo_storage_path: storagePath }
           );
         }
 

@@ -11,6 +11,7 @@ export function convertSettingsToJson(settings: IWidgetSettings): { [key: string
   return {
     agent_name: settings.agent_name || defaultSettings.agent_name,
     logo_url: settings.logo_url || '',
+    logo_storage_path: settings.logo_storage_path || '',
     webhook_url: settings.webhook_url || '',
     chat_color: settings.chat_color || defaultSettings.chat_color,
     background_color: settings.background_color || defaultSettings.background_color,
@@ -25,7 +26,7 @@ export function convertSettingsToJson(settings: IWidgetSettings): { [key: string
 /**
  * Uploads a logo file to Supabase storage and returns the public URL
  */
-export async function uploadWidgetLogo(file: File, clientId: string): Promise<string> {
+export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ publicUrl: string, storagePath: string }> {
   if (!file || !clientId) {
     throw new Error("File and client ID are required");
   }
@@ -73,8 +74,9 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
 
     const publicUrl = publicUrlData.publicUrl;
     console.log("Logo public URL generated:", publicUrl);
+    console.log("Logo storage path:", `${BUCKET_NAME}/${filePath}`);
 
-    // Update the client's widget settings with the new logo URL
+    // Update the client's widget settings with the new logo URL and storage path
     try {
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
@@ -95,7 +97,8 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
       // Create updated settings object with type safety
       const updatedSettings = {
         ...(currentSettings as Record<string, Json>),
-        logo_url: publicUrl
+        logo_url: publicUrl,
+        logo_storage_path: `${BUCKET_NAME}/${filePath}`
       };
 
       const { error: updateError } = await supabase
@@ -122,7 +125,7 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
       throw new Error("Generated URL is invalid");
     }
 
-    return publicUrl;
+    return { publicUrl, storagePath: `${BUCKET_NAME}/${filePath}` };
   } catch (error) {
     console.error("Error in uploadWidgetLogo:", error);
     throw error;
@@ -135,7 +138,7 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
 export async function handleLogoUploadEvent(
   event: React.ChangeEvent<HTMLInputElement>,
   clientId: string | undefined,
-  onSuccess: (url: string) => void,
+  onSuccess: (url: string, storagePath: string) => void,
   onError: (error: Error) => void,
   onStart: () => void,
   onComplete: () => void
@@ -150,12 +153,13 @@ export async function handleLogoUploadEvent(
     onStart();
     
     // Upload the logo and get public URL
-    const publicUrl = await uploadWidgetLogo(file, clientId);
+    const { publicUrl, storagePath } = await uploadWidgetLogo(file, clientId);
     
-    // Call the success callback with the URL
-    onSuccess(publicUrl);
+    // Call the success callback with the URL and storage path
+    onSuccess(publicUrl, storagePath);
     
     console.log("Logo upload and URL generation complete:", publicUrl);
+    console.log("Logo storage path:", storagePath);
   } catch (error: any) {
     console.error("Logo upload process failed:", error);
     onError(error);
