@@ -83,8 +83,22 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
       throw new Error("Generated URL is invalid");
     }
 
-    // The SQL trigger we created will update the logo_url field in the clients table
-    // After successful upload, fetch client data to check if the trigger has updated the logo_url
+    // After a successful upload, directly update the widget settings with the logo URL
+    const storagePath = `${BUCKET_NAME}/${filePath}`;
+    const { error: updateError } = await supabase
+      .from("clients")
+      .update({
+        widget_settings: supabase.sql`jsonb_set(widget_settings, '{logo_url}', '"${publicUrl}"')`,
+      })
+      .eq("id", clientId);
+      
+    if (updateError) {
+      console.error("Error updating widget settings with logo URL:", updateError);
+    } else {
+      console.log("Successfully updated widget settings with logo URL");
+    }
+
+    // For backward compatibility, we'll check if the client data has been updated
     setTimeout(async () => {
       try {
         const { data: clientData } = await supabase
@@ -103,9 +117,9 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
       } catch (fetchError) {
         console.error("Error fetching client data after logo upload:", fetchError);
       }
-    }, 1000); // Check after 1 second to allow the trigger to run
+    }, 1000); // Check after 1 second
 
-    return { publicUrl, storagePath: `${BUCKET_NAME}/${filePath}` };
+    return { publicUrl, storagePath };
   } catch (error) {
     console.error("Error in uploadWidgetLogo:", error);
     throw error;
