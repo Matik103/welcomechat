@@ -159,7 +159,7 @@ const WidgetSettings = () => {
       await checkAndRefreshAuth();
       
       const fileExt = file.name.split('.').pop() || 'png';
-      const fileName = `${clientId}/${crypto.randomUUID()}.${fileExt}`;
+      const fileName = `${clientId}-${crypto.randomUUID()}.${fileExt}`;
       console.log("Prepared file name for upload:", fileName);
 
       const BUCKET_NAME = "widget-logos";
@@ -179,37 +179,35 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
       
-      // The trigger function we just created will automatically update the logo_url
-      // Give it a moment to process
-      setTimeout(async () => {
-        await queryClient.invalidateQueries({ queryKey: ["client", clientId] });
-        await refetch();
-        console.log("Client data refreshed after logo upload");
-        
-        // Update the local state with the latest client data
-        const refreshedClient = await refetch();
-        if (refreshedClient.data && refreshedClient.data.widget_settings) {
-          // Type-safe approach to access widget_settings using the isWidgetSettings check
-          const widgetSettings = refreshedClient.data.widget_settings;
-          if (isWidgetSettings(widgetSettings)) {
-            setSettings(prev => ({
-              ...prev,
-              logo_url: widgetSettings.logo_url
-            }));
-          }
-        }
-        
-        if (isClientView) {
-          await logClientActivity(
-            "logo_uploaded", 
-            "uploaded a new logo for their widget", 
-            { fileName }
-          );
-        }
-        
-        toast.success("Logo uploaded and URL generated successfully! ✨");
-      }, 1000);
+      // Get public URL for the uploaded file
+      const { data: urlData } = await supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(fileName);
       
+      console.log("Generated public URL:", urlData.publicUrl);
+      
+      // Update client settings with the new logo URL
+      const updatedSettings = {
+        ...settings,
+        logo_url: urlData.publicUrl
+      };
+      
+      // Update settings in database
+      await updateSettingsMutation.mutateAsync(updatedSettings);
+      
+      // Update local state
+      setSettings(updatedSettings);
+      
+      // Log activity
+      if (isClientView) {
+        await logClientActivity(
+          "logo_uploaded", 
+          "uploaded a new logo for their widget", 
+          { fileName }
+        );
+      }
+      
+      toast.success("Logo uploaded successfully! ✨");
     } catch (error) {
       console.error("Logo upload process failed:", error);
       toast.error(error.message || "Failed to upload logo");
