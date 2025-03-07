@@ -3,6 +3,7 @@ import { InteractionStats } from "@/types/client-dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchTopQueries } from "./topQueriesService";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { Json } from "@/integrations/supabase/types";
 
 /**
  * Fetches dashboard statistics for a specific client
@@ -33,11 +34,14 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
     // Sanitize agent name to get the table name format (matches the convention in function create_ai_agent_table)
     const agentTableName = client.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
-    // Fetch interaction data from the agent table
-    const { data: interactions, error: interactionsError } = await supabase
-      .from(agentTableName)
-      .select("metadata, created_at")
-      .eq("metadata->>type", "chat_interaction");
+    // Use RPC function to query the agent table safely
+    // This avoids TypeScript errors when trying to access dynamic table names
+    const { data: interactions, error: interactionsError } = await supabase.rpc(
+      'execute_sql', 
+      { 
+        query_text: `SELECT metadata, created_at FROM "${agentTableName}" WHERE metadata->>'type' = 'chat_interaction'` 
+      }
+    );
 
     if (interactionsError) {
       console.error(`Error fetching data from ${agentTableName}:`, interactionsError);
@@ -49,7 +53,7 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
 
     // Calculate active days (unique days when interactions occurred)
     const uniqueDates = new Set();
-    interactions?.forEach(interaction => {
+    interactions?.forEach((interaction: any) => {
       if (interaction.created_at) {
         const dateStr = new Date(interaction.created_at).toDateString();
         uniqueDates.add(dateStr);
@@ -64,9 +68,10 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
     let totalResponseTime = 0;
     let responsesWithTime = 0;
     
-    interactions?.forEach(interaction => {
-      if (interaction.metadata?.response_time_ms) {
-        totalResponseTime += Number(interaction.metadata.response_time_ms);
+    interactions?.forEach((interaction: any) => {
+      const metadata = interaction.metadata as Json;
+      if (metadata && typeof metadata === 'object' && 'response_time_ms' in metadata) {
+        totalResponseTime += Number(metadata.response_time_ms);
         responsesWithTime++;
       }
     });
@@ -101,7 +106,6 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
 /**
  * Sets up a real-time subscription for client's AI agent table
  * @param clientId - The client ID to subscribe to
- * @param agentName - The name of the AI agent (table name)
  * @param onUpdate - Callback function that will be called when updates occur
  * @returns The subscription channel for cleanup
  */
