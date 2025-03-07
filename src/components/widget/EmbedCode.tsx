@@ -18,6 +18,14 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   // Get the Supabase project reference from the URL
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
 
+  // Format logo URL to ensure it's valid
+  const getFormattedLogoUrl = () => {
+    if (!settings.logo_url) return '';
+    const url = settings.logo_url.trim();
+    console.log("Using logo URL in embed code:", url);
+    return url;
+  };
+
   // Syntax highlighting effect
   useEffect(() => {
     if (codeRef.current) {
@@ -42,11 +50,9 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   const handleCopyCode = () => {
     try {
       const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
+      const logoUrl = getFormattedLogoUrl();
       
-      // Ensure we have a valid logo URL - use empty string if undefined
-      const logoUrl = settings.logo_url ? settings.logo_url.trim() : '';
-      
-      console.log("Logo URL being added to embed code:", logoUrl);
+      console.log("Logo URL being copied to clipboard:", logoUrl);
       
       const embedCode = `<!-- Widget Configuration -->
 <script>
@@ -93,10 +99,9 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
   };
 
-  // Make sure the logo URL is properly displayed in the preview code
-  const displayLogoUrl = settings.logo_url ? settings.logo_url.trim() : '';
-  console.log("Display logo URL for embed code:", displayLogoUrl);
-
+  // Format and display logo URL
+  const logoUrl = getFormattedLogoUrl();
+  
   return (
     <div className="relative">
       <pre 
@@ -111,7 +116,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
             route: 'general'
         },
         branding: {
-            logo: '${displayLogoUrl}',
+            logo: '${logoUrl}',
             name: '${settings.agent_name}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'

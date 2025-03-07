@@ -18,7 +18,7 @@ serve(async (req) => {
   try {
     // Parse the request body
     const requestData = await req.json();
-    const { prompt, agent_name } = requestData;
+    const { prompt, agent_name, webhook_url } = requestData;
 
     if (!prompt) {
       console.error("Missing prompt in request");
@@ -29,24 +29,38 @@ serve(async (req) => {
     }
 
     console.log(`Processing chat request with prompt: "${prompt.substring(0, 50)}..." for agent "${agent_name || 'AI Assistant'}"`);
+    console.log(`Webhook URL provided: ${webhook_url || 'None'}`);
 
     // Attempt to call external webhook if specified
-    if (requestData.webhook_url) {
+    if (webhook_url) {
       try {
-        const webhookResponse = await fetch(requestData.webhook_url, {
+        console.log(`Attempting to call webhook at: ${webhook_url}`);
+        const webhookResponse = await fetch(webhook_url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestData),
+          body: JSON.stringify({
+            prompt,
+            agent_name,
+            // Don't pass webhook_url to avoid potential infinite loops
+          }),
         });
         
         if (webhookResponse.ok) {
           const webhookData = await webhookResponse.json();
           console.log("Successfully received webhook response");
-          return new Response(JSON.stringify({ generatedText: webhookData.response || webhookData.message || webhookData.generatedText }), {
+          return new Response(JSON.stringify({ 
+            generatedText: webhookData.response || webhookData.message || webhookData.generatedText,
+            webhook_used: true
+          }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
+        } else {
+          console.error(`Webhook returned status: ${webhookResponse.status}`);
+          const errorText = await webhookResponse.text();
+          console.error(`Webhook error: ${errorText}`);
+          // Continue with OpenAI fallback if webhook fails
         }
       } catch (webhookError) {
         console.error("Webhook call failed, falling back to default response:", webhookError);
@@ -65,6 +79,7 @@ serve(async (req) => {
     }
 
     // Default to OpenAI if no webhook or webhook failed
+    console.log("Calling OpenAI API");
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {

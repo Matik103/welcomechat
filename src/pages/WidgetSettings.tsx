@@ -13,17 +13,18 @@ import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsConta
 import { toast } from "sonner";
 
 function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
+  // Ensure all fields are properly defined
   return {
-    agent_name: settings.agent_name,
-    logo_url: settings.logo_url,
-    webhook_url: settings.webhook_url,
-    chat_color: settings.chat_color,
-    background_color: settings.background_color,
-    text_color: settings.text_color,
-    secondary_color: settings.secondary_color,
-    position: settings.position,
-    welcome_text: settings.welcome_text,
-    response_time_text: settings.response_time_text
+    agent_name: settings.agent_name || defaultSettings.agent_name,
+    logo_url: settings.logo_url || '',
+    webhook_url: settings.webhook_url || '',
+    chat_color: settings.chat_color || defaultSettings.chat_color,
+    background_color: settings.background_color || defaultSettings.background_color,
+    text_color: settings.text_color || defaultSettings.text_color,
+    secondary_color: settings.secondary_color || defaultSettings.secondary_color,
+    position: settings.position || defaultSettings.position,
+    welcome_text: settings.welcome_text || defaultSettings.welcome_text,
+    response_time_text: settings.response_time_text || defaultSettings.response_time_text
   };
 }
 
@@ -39,6 +40,8 @@ const WidgetSettings = () => {
   const isClientView = !id;
   const clientId = id || user?.user_metadata?.client_id;
   const { logClientActivity } = useClientActivity(clientId);
+
+  console.log("Client ID for widget settings:", clientId);
 
   const { data: client, isLoading, refetch } = useQuery({
     queryKey: ["client", clientId],
@@ -90,10 +93,13 @@ const WidgetSettings = () => {
         throw new Error("No client ID available");
       }
       
+      const settingsJson = convertSettingsToJson(newSettings);
+      console.log("Settings being saved to DB:", settingsJson);
+      
       const { error, data } = await supabase
         .from("clients")
         .update({
-          widget_settings: convertSettingsToJson(newSettings)
+          widget_settings: settingsJson
         })
         .eq("id", clientId)
         .select();

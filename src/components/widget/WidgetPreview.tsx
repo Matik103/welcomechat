@@ -26,6 +26,14 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     }
   }, [settings.welcome_text]);
 
+  // Function to get a valid logo URL
+  const getFormattedLogoUrl = () => {
+    if (!settings.logo_url) return '';
+    const url = settings.logo_url.trim();
+    console.log("Using logo URL in chat preview:", url);
+    return url;
+  };
+
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
   };
@@ -43,6 +51,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     
     try {
       let responseText = "";
+      // Use the webhook URL directly if provided, otherwise fallback to Supabase edge function
       const endpointUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
       
       console.log(`Sending message to endpoint: ${endpointUrl}`);
@@ -70,7 +79,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
         console.log("API response:", data);
         
         responseText = data.generatedText || data.response || data.message || 
-                     "I'm your AI assistant. How can I help you today?";
+                      "I'm your AI assistant. How can I help you today?";
       } else {
         const errorData = await response.text();
         console.error(`API error (${response.status}):`, errorData);
@@ -97,9 +106,8 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     }
   };
 
-  // Prepare the logo URL - ensure it's never undefined
-  const logoUrl = settings.logo_url ? settings.logo_url.trim() : '';
-  console.log("Logo URL in chat preview:", logoUrl);
+  // Get formatted logo URL
+  const logoUrl = getFormattedLogoUrl();
 
   return (
     <div className="relative border border-gray-200 rounded-md p-4 h-[420px] bg-gray-50">
