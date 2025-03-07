@@ -2,7 +2,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, Trash2, Copy, Image } from "lucide-react";
+import { Loader2, Upload, Trash2, Copy, Image, CheckCircle } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -20,8 +20,9 @@ export function BrandingSettings({
   onSettingsChange,
   onLogoUpload
 }: BrandingSettingsProps) {
-  // Add state to handle logo preview
+  // Add state to handle logo preview and copy state
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   // Update logo preview when settings change
   useEffect(() => {
@@ -75,8 +76,14 @@ export function BrandingSettings({
     if (settings.logo_url) {
       navigator.clipboard.writeText(settings.logo_url)
         .then(() => {
+          setIsCopied(true);
           toast.success("Logo URL copied to clipboard");
           console.log("Copied URL to clipboard:", settings.logo_url);
+          
+          // Reset copied state after 2 seconds
+          setTimeout(() => {
+            setIsCopied(false);
+          }, 2000);
         })
         .catch(err => {
           console.error("Failed to copy URL:", err);
@@ -96,7 +103,7 @@ export function BrandingSettings({
       const url = new URL(settings.logo_url);
       const pathParts = url.pathname.split('/');
       
-      // Look for the folder name in the path (usually before the filename)
+      // Check if the Logo URL folder is in the path
       const logoUrlIndex = pathParts.findIndex(part => part === "Logo URL");
       
       if (logoUrlIndex !== -1) {
@@ -106,6 +113,16 @@ export function BrandingSettings({
     } catch (e) {
       console.error("Error parsing logo URL path:", e);
       return '';
+    }
+  };
+
+  // Validate the URL to ensure it's public and accessible
+  const isValidUrl = (url: string): boolean => {
+    try {
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
     }
   };
 
@@ -196,7 +213,7 @@ export function BrandingSettings({
               id="generated_logo_url"
               value={settings.logo_url || ''}
               readOnly
-              className="flex-1 pr-10 font-mono text-xs bg-gray-50"
+              className={`flex-1 pr-10 font-mono text-xs ${isValidUrl(settings.logo_url || '') ? 'bg-gray-50' : 'bg-red-50'}`}
               placeholder="Upload a logo to generate URL"
             />
             <Button 
@@ -207,7 +224,7 @@ export function BrandingSettings({
               disabled={!settings.logo_url}
               title="Copy URL"
             >
-              <Copy className="h-4 w-4" />
+              {isCopied ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </Button>
           </div>
           {settings.logo_url && (

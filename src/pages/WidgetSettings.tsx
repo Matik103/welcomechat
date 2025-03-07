@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -169,7 +168,8 @@ const WidgetSettings = () => {
         .from(BUCKET_NAME)
         .upload(filePath, file, { 
           upsert: true,
-          contentType: file.type 
+          contentType: file.type,
+          cacheControl: '3600'
         });
 
       if (uploadError) {
@@ -179,17 +179,25 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
-      // Get the public URL
-      const { data } = supabase.storage
+      // Explicitly generate the public URL
+      const { data: publicUrlData } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(filePath);
       
-      const publicUrl = data.publicUrl;
+      if (!publicUrlData || !publicUrlData.publicUrl) {
+        console.error("Failed to generate public URL:", publicUrlData);
+        throw new Error("Failed to generate public URL for uploaded logo");
+      }
 
+      const publicUrl = publicUrlData.publicUrl;
       console.log("Logo public URL generated:", publicUrl);
 
-      if (!publicUrl) {
-        throw new Error("Failed to generate public URL for uploaded logo");
+      // Ensure the URL is valid
+      try {
+        new URL(publicUrl);
+      } catch (e) {
+        console.error("Invalid URL generated:", publicUrl, e);
+        throw new Error("Generated URL is invalid");
       }
 
       const newSettings = { 
