@@ -10,6 +10,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -26,6 +27,16 @@ serve(async (req) => {
 
     console.log(`Processing chat request with prompt: "${prompt.substring(0, 50)}..." for agent "${agent_name || 'AI Assistant'}"`);
 
+    // If no OpenAI key is set, return a demo response
+    if (!openAIApiKey) {
+      console.log("No OpenAI API key set, returning demo response");
+      return new Response(JSON.stringify({ 
+        generatedText: "This is a demo response. Configure OpenAI API key for real responses." 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -33,7 +44,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4',
         messages: [
           { 
             role: 'system', 
@@ -41,6 +52,7 @@ serve(async (req) => {
           },
           { role: 'user', content: prompt }
         ],
+        max_tokens: 150
       }),
     });
 
@@ -60,7 +72,10 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in chat function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: 'An error occurred while processing your request',
+      details: error.message 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

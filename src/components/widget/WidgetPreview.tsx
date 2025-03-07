@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -13,6 +14,10 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
   const [chatMessages, setChatMessages] = useState<Array<{type: 'user' | 'bot', text: string}>>([
     { type: 'bot', text: settings.welcome_text || "Hi 👋, how can I help?" }
   ]);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Get the Supabase project reference from the URL
+  const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
   
   // Update welcome message when settings change
   useEffect(() => {
@@ -26,18 +31,21 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
   };
 
   const handleSendMessage = async () => {
-    if (!userMessage.trim()) return;
+    if (!userMessage.trim() || isLoading) return;
     
     // Add user message
-    setChatMessages([...chatMessages, { type: 'user', text: userMessage }]);
+    setChatMessages(prev => [...prev, { type: 'user', text: userMessage }]);
     
     // Store the user message to clear input field
     const currentMessage = userMessage;
     setUserMessage("");
+    setIsLoading(true);
     
     // Make a real API call if webhook URL is provided
     try {
       if (settings.webhook_url) {
+        console.log(`Sending message to webhook: ${settings.webhook_url}`);
+        
         const response = await fetch(settings.webhook_url, {
           method: 'POST',
           headers: {
@@ -53,19 +61,23 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
           const data = await response.json();
           setChatMessages(prev => [...prev, { 
             type: 'bot', 
-            text: data.generatedText || "I'm your AI assistant. How can I help you today?"
+            text: data.generatedText || data.response || data.message || "I'm your AI assistant. How can I help you today?"
           }]);
         } else {
-          throw new Error("Webhook error");
+          throw new Error(`Webhook error: ${response.status}`);
         }
       } else {
         // Call the Supabase edge function if no webhook URL
+        console.log("No webhook URL provided, calling Supabase edge function");
+        
         try {
-          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+          const edgeFunctionUrl = `https://${projectRef}.supabase.co/functions/v1/chat`;
+          console.log(`Calling edge function: ${edgeFunctionUrl}`);
+          
+          const response = await fetch(edgeFunctionUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
             },
             body: JSON.stringify({
               prompt: currentMessage,
@@ -75,11 +87,14 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
           
           if (response.ok) {
             const data = await response.json();
+            console.log("Edge function response:", data);
+            
             setChatMessages(prev => [...prev, { 
               type: 'bot', 
               text: data.generatedText || "I'm your AI assistant. How can I help you today?"
             }]);
           } else {
+            console.error("Edge function error:", await response.text());
             // Fallback to demo bot if edge function fails
             setTimeout(() => {
               setChatMessages(prev => [...prev, { 
@@ -105,6 +120,8 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
         type: 'bot', 
         text: "Sorry, I couldn't process your request. Please try again later."
       }]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -114,6 +131,9 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
       handleSendMessage();
     }
   };
+
+  // Prepare the logo URL
+  const logoUrl = settings.logo_url ? settings.logo_url.trim() : '';
 
   return (
     <div className="relative border border-gray-200 rounded-md p-4 h-[420px] bg-gray-50">
@@ -132,11 +152,11 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
             style={{ backgroundColor: settings.chat_color }}
           >
             <div className="flex items-center gap-2">
-              {settings.logo_url && (
+              {logoUrl && (
                 <img 
-                  src={settings.logo_url} 
+                  src={logoUrl} 
                   alt="Logo" 
-                  className="w-6 h-6 rounded-full object-cover bg-white"
+                  className="w-6 h-6 rounded-full object-contain bg-white p-0.5"
                   onError={(e) => {
                     // Handle image loading errors
                     console.error("Error loading logo image");
@@ -204,6 +224,14 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                 )}
               </div>
             ))}
+            
+            {isLoading && (
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '600ms' }}></div>
+              </div>
+            )}
           </div>
           
           {/* Chat Input */}
@@ -227,11 +255,13 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
                 value={userMessage}
                 onChange={(e) => setUserMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
+                disabled={isLoading}
               />
               <button 
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full disabled:opacity-50"
                 style={{ backgroundColor: settings.chat_color }}
                 onClick={handleSendMessage}
+                disabled={isLoading || !userMessage.trim()}
                 aria-label="Send message"
               >
                 <Send size={14} className="text-white" />
