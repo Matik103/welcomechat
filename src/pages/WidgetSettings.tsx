@@ -181,7 +181,7 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
-      // Get the public URL
+      // Get the public URL with complete URL path
       const { data: { publicUrl } } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(fileName);
@@ -192,13 +192,20 @@ const WidgetSettings = () => {
         throw new Error("Failed to generate public URL for uploaded logo");
       }
 
+      // Ensure the URL is properly formatted
+      const fullPublicUrl = publicUrl.startsWith('http') 
+        ? publicUrl 
+        : `${supabase.supabaseUrl}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
+      
+      console.log("Full public URL for logo:", fullPublicUrl);
+
       // Update the settings with the new logo URL
       const newSettings = { 
         ...settings, 
-        logo_url: publicUrl 
+        logo_url: fullPublicUrl 
       };
       
-      console.log("Updating settings with logo URL:", publicUrl);
+      console.log("Updating settings with logo URL:", fullPublicUrl);
       setSettings(newSettings);
       
       // Save the new settings immediately
@@ -209,7 +216,7 @@ const WidgetSettings = () => {
         await logClientActivity(
           "logo_uploaded", 
           "uploaded a new logo for their widget", 
-          { logo_url: publicUrl }
+          { logo_url: fullPublicUrl }
         );
       }
 
