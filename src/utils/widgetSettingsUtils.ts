@@ -35,13 +35,12 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
   
   // Create a unique filename with original extension
   const fileExt = file.name.split('.').pop() || 'png';
-  const fileName = `logo_${Date.now()}.${fileExt}`;
+  const fileName = `${clientId}_${Date.now()}.${fileExt}`;
   console.log("Prepared file name for upload:", fileName);
 
   // Define storage bucket and path
   const BUCKET_NAME = "widget-logos";
-  const FOLDER_NAME = clientId; // Use client ID as folder name for better organization
-  const filePath = `${FOLDER_NAME}/${fileName}`;
+  const filePath = fileName;
   
   console.log(`Uploading logo to ${BUCKET_NAME}/${filePath} storage...`);
   
@@ -83,6 +82,25 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
       console.error("Invalid URL generated:", publicUrl, e);
       throw new Error("Generated URL is invalid");
     }
+
+    // After successful upload, fetch client data to check if the trigger has updated the logo_url
+    // This may be updated by the trigger we just created
+    setTimeout(async () => {
+      try {
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("widget_settings")
+          .eq("id", clientId)
+          .single();
+        
+        console.log("Client data after logo upload:", clientData);
+        if (clientData?.widget_settings?.logo_url) {
+          console.log("Logo URL from database:", clientData.widget_settings.logo_url);
+        }
+      } catch (fetchError) {
+        console.error("Error fetching client data after logo upload:", fetchError);
+      }
+    }, 1000); // Check after 1 second to allow the trigger to run
 
     return { publicUrl, storagePath: `${BUCKET_NAME}/${filePath}` };
   } catch (error) {
