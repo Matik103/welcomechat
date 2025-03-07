@@ -10,11 +10,15 @@ import { QueriesCard } from "@/components/client-view/QueriesCard";
 import { ChatHistoryCard } from "@/components/client-view/ChatHistoryCard";
 import { ErrorLogsCard } from "@/components/client-view/ErrorLogsCard";
 import { useClientChatHistory } from "@/hooks/useClientChatHistory";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const ClientView = () => {
   const { id } = useParams();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: client, isLoading: isLoadingClient } = useQuery({
+  const { data: client, isLoading: isLoadingClient, refetch: refetchClient } = useQuery({
     queryKey: ["client", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -28,10 +32,10 @@ const ClientView = () => {
   });
 
   // Use the custom hook for chat history
-  const { data: chatHistory } = useClientChatHistory(client?.agent_name);
+  const { data: chatHistory, refetch: refetchChatHistory } = useClientChatHistory(client?.agent_name);
 
   // Query common end-user questions
-  const { data: commonQueries } = useQuery({
+  const { data: commonQueries, refetch: refetchQueries } = useQuery({
     queryKey: ["common-queries", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -47,7 +51,7 @@ const ClientView = () => {
   });
 
   // Query error logs for chatbot issues
-  const { data: errorLogs } = useQuery({
+  const { data: errorLogs, refetch: refetchErrorLogs } = useQuery({
     queryKey: ["error-logs", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -61,6 +65,25 @@ const ClientView = () => {
     },
     enabled: !!id,
   });
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        refetchClient(),
+        refetchChatHistory(),
+        refetchQueries(),
+        refetchErrorLogs()
+      ]);
+      toast.success("Dashboard data refreshed");
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      toast.error("Failed to refresh dashboard data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   if (isLoadingClient) {
     return (
@@ -89,17 +112,38 @@ const ClientView = () => {
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex items-center gap-4">
-          <Link 
-            to="/clients"
-            className="text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{client.client_name}</h1>
-            <p className="text-gray-500">AI Agent Performance Dashboard</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link 
+              to="/clients"
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{client.client_name}</h1>
+              <p className="text-gray-500">AI Agent Performance Dashboard</p>
+            </div>
           </div>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1"
+          >
+            {isRefreshing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Refreshing...</span>
+              </>
+            ) : (
+              <>
+                <span>Refresh Data</span>
+              </>
+            )}
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

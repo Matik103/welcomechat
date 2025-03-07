@@ -47,7 +47,9 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     isLoadingErrorLogs,
     isLoadingQueries,
     isLoadingStats,
-    authError
+    isRefreshing,
+    authError,
+    refreshDashboard
   } = useClientDashboard(effectiveClientId);
 
   // Handle auth error
@@ -83,10 +85,6 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     );
   }
 
-  const handleRefresh = () => {
-    window.location.reload();
-  };
-
   return (
     <div className="bg-[#F8F9FA] min-h-screen">
       <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
@@ -95,11 +93,21 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={handleRefresh}
+            onClick={refreshDashboard}
             className="flex items-center gap-1 text-gray-600"
+            disabled={isRefreshing}
           >
-            <RefreshCcw className="h-4 w-4" />
-            <span>Refresh</span>
+            {isRefreshing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Refreshing...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCcw className="h-4 w-4" />
+                <span>Refresh</span>
+              </>
+            )}
           </Button>
         </div>
         
@@ -116,13 +124,13 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           {/* Error logs card */}
           <ErrorLogList 
             logs={errorLogs as ErrorLog[]} 
-            isLoading={isLoadingErrorLogs && !loadTimeout} 
+            isLoading={isLoadingErrorLogs && !loadTimeout || isRefreshing} 
           />
 
           {/* Common queries card */}
           <QueryList 
             queries={queries as QueryItem[]} 
-            isLoading={isLoadingQueries && !loadTimeout} 
+            isLoading={isLoadingQueries && !loadTimeout || isRefreshing} 
           />
         </div>
       </div>

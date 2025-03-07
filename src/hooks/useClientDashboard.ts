@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { ErrorLog, InteractionStats, QueryItem } from "@/types/client-dashboard"
 // Import services
 import { fetchErrorLogs, subscribeToErrorLogs } from "@/services/errorLogService";
 import { fetchQueries, subscribeToQueries } from "@/services/queryService";
-import { fetchDashboardStats, subscribeToActivities } from "@/services/statsService";
+import { fetchDashboardStats, subscribeToAgentData, subscribeToActivities } from "@/services/statsService";
 
 export type { ErrorLog, InteractionStats, QueryItem };
 
@@ -23,6 +23,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
   });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [authError, setAuthError] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Query error logs for this client
   const { 
@@ -70,24 +71,8 @@ export const useClientDashboard = (clientId: string | undefined) => {
     retry: 3, // Increase retries
   });
 
-  // Set up real-time subscriptions
-  useEffect(() => {
-    if (!clientId) return;
-    
-    // Setup channels for real-time updates
-    const errorLogsChannel = subscribeToErrorLogs(clientId, refetchErrorLogs);
-    const queriesChannel = subscribeToQueries(clientId, refetchQueries);
-    const activitiesChannel = subscribeToActivities(clientId, fetchStats);
-    
-    return () => {
-      if (errorLogsChannel) supabase.removeChannel(errorLogsChannel);
-      if (queriesChannel) supabase.removeChannel(queriesChannel);
-      if (activitiesChannel) supabase.removeChannel(activitiesChannel);
-    };
-  }, [clientId, refetchErrorLogs, refetchQueries]);
-
   // Function to fetch dashboard stats
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     if (!clientId) {
       setIsLoadingStats(false);
       return;
@@ -105,17 +90,66 @@ export const useClientDashboard = (clientId: string | undefined) => {
       }
     } finally {
       setIsLoadingStats(false);
+      setIsRefreshing(false);
     }
-  };
+  }, [clientId]);
 
-  // Initial fetch and periodic refresh
+  // Function to handle manual refresh
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    
+    try {
+      // Refresh all data in parallel
+      await Promise.all([
+        fetchStats(),
+        refetchErrorLogs(),
+        refetchQueries()
+      ]);
+      
+      toast.success("Dashboard refreshed successfully");
+    } catch (error) {
+      console.error("Error refreshing dashboard:", error);
+      toast.error("Failed to refresh dashboard data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchStats, refetchErrorLogs, refetchQueries]);
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!clientId) return;
+    
+    let agentChannel: any = null;
+    let errorLogsChannel: any = null;
+    let queriesChannel: any = null;
+    let activitiesChannel: any = null;
+    
+    // Setup subscriptions
+    const setupSubscriptions = async () => {
+      // Subscribe to the AI agent table
+      agentChannel = await subscribeToAgentData(clientId, fetchStats);
+      
+      // Setup other channels
+      errorLogsChannel = subscribeToErrorLogs(clientId, refetchErrorLogs);
+      queriesChannel = subscribeToQueries(clientId, refetchQueries);
+      activitiesChannel = subscribeToActivities(clientId, fetchStats);
+    };
+    
+    setupSubscriptions();
+    
+    return () => {
+      // Clean up all channels
+      if (agentChannel) supabase.removeChannel(agentChannel);
+      if (errorLogsChannel) supabase.removeChannel(errorLogsChannel);
+      if (queriesChannel) supabase.removeChannel(queriesChannel);
+      if (activitiesChannel) supabase.removeChannel(activitiesChannel);
+    };
+  }, [clientId, fetchStats, refetchErrorLogs, refetchQueries]);
+
+  // Initial fetch
   useEffect(() => {
     fetchStats();
-    
-    const intervalId = setInterval(fetchStats, 15000); // Refresh every 15 seconds
-    
-    return () => clearInterval(intervalId);
-  }, [clientId]);
+  }, [fetchStats]);
 
   return {
     stats,
@@ -124,6 +158,8 @@ export const useClientDashboard = (clientId: string | undefined) => {
     isLoadingErrorLogs,
     isLoadingQueries,
     isLoadingStats,
-    authError
+    isRefreshing,
+    authError,
+    refreshDashboard: handleRefresh
   };
 };
