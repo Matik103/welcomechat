@@ -3,75 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 /**
- * Ensures that the sequence for an AI agent table has the necessary permissions
- * This helps prevent the "permission denied for sequence" errors
- */
-export const setupTablePermissions = async (
-  tableName: string
-): Promise<boolean> => {
-  try {
-    // SQL to be executed for setting up permissions
-    const sequenceName = `${tableName}_id_seq`;
-    
-    // First set the table owner to postgres
-    // @ts-ignore - Using exec_sql function that's defined in our migrations
-    const { error: ownerError } = await supabase.rpc('exec_sql', {
-      sql_query: `ALTER TABLE ${tableName} OWNER TO postgres;`
-    });
-    
-    if (ownerError) {
-      console.error(`Error setting owner for table ${tableName}:`, ownerError);
-      throw ownerError;
-    }
-    
-    // Grant sequence permissions to various roles
-    // @ts-ignore - Using exec_sql function that's defined in our migrations
-    const { error: permissionsError } = await supabase.rpc('exec_sql', {
-      sql_query: `
-        GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${sequenceName} TO service_role;
-        GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${sequenceName} TO authenticated;
-        GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${sequenceName} TO anon;
-      `
-    });
-    
-    if (permissionsError) {
-      console.error(`Error granting permissions for sequence ${sequenceName}:`, permissionsError);
-      throw permissionsError;
-    }
-    
-    // Create policy to allow access
-    // @ts-ignore - Using exec_sql function that's defined in our migrations
-    const { error: policyError } = await supabase.rpc('exec_sql', {
-      sql_query: `
-        DO $$
-        BEGIN
-            BEGIN
-                EXECUTE 'CREATE POLICY "Enable sequence usage for all users" ON ${tableName} FOR ALL USING (true) WITH CHECK (true)';
-            EXCEPTION WHEN duplicate_object THEN
-                -- Policy already exists, do nothing
-            END;
-        END
-        $$;
-      `
-    });
-    
-    if (policyError) {
-      console.error(`Error creating policy for table ${tableName}:`, policyError);
-      throw policyError;
-    }
-    
-    console.log(`Successfully set up permissions for table ${tableName} and sequence ${sequenceName}`);
-    return true;
-  } catch (error) {
-    console.error(`Failed to set up permissions for table ${tableName}:`, error);
-    toast.error(`Failed to set up permissions for AI agent table: ${error.message || error}`);
-    return false;
-  }
-};
-
-/**
  * Creates a new AI agent table with the correct structure and permissions
- * Based on the tweoo table setup
+ * Based on the tweoo table setup (which is working properly)
  */
 export const createAiAgentTable = async (
   agentName: string
@@ -80,7 +13,7 @@ export const createAiAgentTable = async (
     // Sanitize agent name to create a valid table name
     const tableName = agentName.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
-    // Create the table
+    // Create the table based on tweoo structure
     // @ts-ignore - Using exec_sql function that's defined in our migrations
     const { error: tableError } = await supabase.rpc('exec_sql', {
       sql_query: `
@@ -90,6 +23,35 @@ export const createAiAgentTable = async (
           metadata JSONB,
           embedding VECTOR(1536)
         );
+        
+        -- Apply the same owner as tweoo
+        ALTER TABLE ${tableName} OWNER TO postgres;
+        
+        -- Apply the same permissions as tweoo
+        GRANT ALL ON TABLE ${tableName} TO postgres;
+        GRANT ALL ON TABLE ${tableName} TO service_role;
+        GRANT ALL ON TABLE ${tableName} TO anon;
+        GRANT ALL ON TABLE ${tableName} TO authenticated;
+        
+        -- Set up sequence permissions
+        GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${tableName}_id_seq TO postgres;
+        GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${tableName}_id_seq TO service_role;
+        GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${tableName}_id_seq TO anon;
+        GRANT USAGE, SELECT, UPDATE ON SEQUENCE ${tableName}_id_seq TO authenticated;
+        
+        -- Create RLS policy identical to tweoo
+        ALTER TABLE ${tableName} ENABLE ROW LEVEL SECURITY;
+        
+        DO $$
+        BEGIN
+            BEGIN
+                CREATE POLICY "Enable full access for all users" ON ${tableName} 
+                FOR ALL USING (true) WITH CHECK (true);
+            EXCEPTION WHEN duplicate_object THEN
+                -- Policy already exists
+            END;
+        END
+        $$;
       `
     });
     
@@ -136,13 +98,7 @@ export const createAiAgentTable = async (
       throw functionError;
     }
     
-    // Set up permissions for the new table
-    const permissionsSetup = await setupTablePermissions(tableName);
-    if (!permissionsSetup) {
-      throw new Error("Failed to set up permissions for the new table");
-    }
-    
-    console.log(`Successfully created AI agent table: ${tableName}`);
+    console.log(`Successfully created AI agent table: ${tableName} with tweoo-like permissions`);
     return true;
   } catch (error) {
     console.error("Failed to create AI agent table:", error);

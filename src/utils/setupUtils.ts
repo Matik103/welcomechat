@@ -84,8 +84,9 @@ export const createClientAccount = async (
       // Use the ensureUserRole utility to handle role assignment with proper type
       await ensureUserRole(signUpData.user.id, "client", clientId);
       
-      // Setup the AI agent table with the correct permissions
+      // Setup the AI agent table with the tweoo-like structure and permissions
       if (clientData.agent_name) {
+        console.log("Creating AI agent table with tweoo-like permissions");
         await createAiAgentTable(clientData.agent_name);
       }
       
