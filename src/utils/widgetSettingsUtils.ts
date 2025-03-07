@@ -34,7 +34,7 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
   
   // Create a unique filename with original extension
   const fileExt = file.name.split('.').pop() || 'png';
-  const fileName = `logo_${clientId}_${Date.now()}.${fileExt}`;
+  const fileName = `logo_${Date.now()}.${fileExt}`;
   console.log("Prepared file name for upload:", fileName);
 
   // Define storage bucket and path
