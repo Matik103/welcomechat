@@ -44,44 +44,49 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
   
   console.log(`Uploading logo to ${BUCKET_NAME}/${filePath} storage...`);
   
-  // Upload the file to Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET_NAME)
-    .upload(filePath, file, { 
-      upsert: true,
-      contentType: file.type,
-      cacheControl: '3600'
-    });
-
-  if (uploadError) {
-    console.error("Logo upload error:", uploadError);
-    throw new Error(`Upload failed: ${uploadError.message}`);
-  }
-
-  console.log("Logo uploaded successfully. Getting public URL...");
-
-  // Get the public URL for the uploaded file
-  const { data: publicUrlData } = supabase.storage
-    .from(BUCKET_NAME)
-    .getPublicUrl(filePath);
-  
-  if (!publicUrlData || !publicUrlData.publicUrl) {
-    console.error("Failed to generate public URL");
-    throw new Error("Failed to generate public URL for uploaded logo");
-  }
-
-  const publicUrl = publicUrlData.publicUrl;
-  console.log("Logo public URL generated:", publicUrl);
-
-  // Validate the URL
   try {
-    new URL(publicUrl);
-  } catch (e) {
-    console.error("Invalid URL generated:", publicUrl, e);
-    throw new Error("Generated URL is invalid");
-  }
+    // Upload the file to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(filePath, file, { 
+        upsert: true,
+        contentType: file.type,
+        cacheControl: '3600'
+      });
 
-  return publicUrl;
+    if (uploadError) {
+      console.error("Logo upload error:", uploadError);
+      throw new Error(`Upload failed: ${uploadError.message}`);
+    }
+
+    console.log("Logo uploaded successfully. Getting public URL...");
+
+    // Get the public URL for the uploaded file
+    const { data: publicUrlData } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(filePath);
+    
+    if (!publicUrlData || !publicUrlData.publicUrl) {
+      console.error("Failed to generate public URL");
+      throw new Error("Failed to generate public URL for uploaded logo");
+    }
+
+    const publicUrl = publicUrlData.publicUrl;
+    console.log("Logo public URL generated:", publicUrl);
+
+    // Validate the URL
+    try {
+      new URL(publicUrl);
+    } catch (e) {
+      console.error("Invalid URL generated:", publicUrl, e);
+      throw new Error("Generated URL is invalid");
+    }
+
+    return publicUrl;
+  } catch (error) {
+    console.error("Error in uploadWidgetLogo:", error);
+    throw error;
+  }
 }
 
 /**
