@@ -29,7 +29,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   // Syntax highlighting effect
   useEffect(() => {
     if (codeRef.current) {
-      const keywords = ["window", "script", "const", "let", "var", "function", "return", "new", "true", "false"];
+      const keywords = ["window", "script", "const", "let", "var", "function", "return", "new", "true", "false", "import", "from"];
       let html = codeRef.current.innerHTML;
       
       keywords.forEach(keyword => {
@@ -54,13 +54,12 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
       
       console.log("Logo URL being copied to clipboard:", logoUrl);
       
-      const embedCode = `<!-- Widget Configuration -->
+      const embedCode = `<!-- Load n8n Chat Widget CSS -->
+<link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+
+<!-- Widget Configuration -->
 <script>
     window.ChatWidgetConfig = {
-        webhook: {
-            url: '${webhookUrl}',
-            route: 'general'
-        },
         branding: {
             logo: '${logoUrl}',
             name: '${settings.agent_name}',
@@ -76,8 +75,15 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         }
     };
 </script>
-<script src="https://${projectRef}.supabase.co/storage/v1/object/public/widget/chat-widget.js"></script>
-<!-- Widget Script End -->`;
+
+<!-- Load n8n Chat Widget -->
+<script type="module">
+    import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+
+    createChat({
+        webhookUrl: '${webhookUrl}'
+    });
+</script>`;
 
       navigator.clipboard.writeText(embedCode);
       toast({
@@ -101,6 +107,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 
   // Format and display logo URL
   const logoUrl = getFormattedLogoUrl();
+  const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
   
   return (
     <div className="relative">
@@ -108,13 +115,12 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         ref={codeRef}
         className="p-4 bg-gray-50 rounded-lg text-sm overflow-x-auto border border-gray-200 max-h-[300px] font-mono"
       >
-{`<!-- Widget Configuration -->
+{`<!-- Load n8n Chat Widget CSS -->
+<link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+
+<!-- Widget Configuration -->
 <script>
     window.ChatWidgetConfig = {
-        webhook: {
-            url: '${settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`}',
-            route: 'general'
-        },
         branding: {
             logo: '${logoUrl}',
             name: '${settings.agent_name}',
@@ -130,8 +136,15 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         }
     };
 </script>
-<script src="https://${projectRef}.supabase.co/storage/v1/object/public/widget/chat-widget.js"></script>
-<!-- Widget Script End -->`}
+
+<!-- Load n8n Chat Widget -->
+<script type="module">
+    import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+
+    createChat({
+        webhookUrl: '${webhookUrl}'
+    });
+</script>`}
       </pre>
       <Button
         size="sm"

@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
 import { Loader2, Upload, Trash2, Copy, Image, CheckCircle } from "lucide-react";
-import { WidgetSettings } from "@/types/widget-settings";
 import { toast } from "sonner";
 
 interface LogoManagementProps {
@@ -86,12 +85,13 @@ export function LogoManagement({
       const url = new URL(logoUrl);
       const pathParts = url.pathname.split('/');
       
-      const logoUrlIndex = pathParts.findIndex(part => part === "Logo URL");
+      // Look for "Logo URL" in the path
+      const logoUrlIndex = pathParts.findIndex(part => part === "Logo%20URL" || part === "Logo URL");
       
       if (logoUrlIndex !== -1) {
         return `From folder: Logo URL`;
       }
-      return '';
+      return 'From storage: widget-logos';
     } catch (e) {
       console.error("Error parsing logo URL path:", e);
       return '';
@@ -195,7 +195,7 @@ export function LogoManagement({
           </div>
           {logoUrl && (
             <p className="text-xs text-indigo-600 font-medium mt-1">
-              {getLogoUrlPath() || "From storage: widget-logos"}
+              {getLogoUrlPath()}
             </p>
           )}
         </div>

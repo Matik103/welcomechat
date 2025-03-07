@@ -56,6 +56,7 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
 
   console.log("Logo uploaded successfully:", uploadData);
 
+  // Get the full public URL for the uploaded file
   const { data: publicUrlData } = supabase.storage
     .from(BUCKET_NAME)
     .getPublicUrl(filePath);
@@ -68,6 +69,7 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<st
   const publicUrl = publicUrlData.publicUrl;
   console.log("Logo public URL generated:", publicUrl);
 
+  // Validate the URL
   try {
     new URL(publicUrl);
   } catch (e) {
