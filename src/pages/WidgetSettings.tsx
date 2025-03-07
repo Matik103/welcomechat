@@ -166,11 +166,15 @@ const WidgetSettings = () => {
       // Use the "widget-logos" bucket
       const BUCKET_NAME = "widget-logos";
       
-      // Upload the file
-      console.log(`Uploading logo to ${BUCKET_NAME} storage...`);
+      // Create a folder structure for better organization
+      const FOLDER_NAME = "Logo URL";
+      const filePath = `${FOLDER_NAME}/${fileName}`;
+      
+      // Upload the file to the folder
+      console.log(`Uploading logo to ${BUCKET_NAME}/${filePath} storage...`);
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from(BUCKET_NAME)
-        .upload(fileName, file, { 
+        .upload(filePath, file, { 
           upsert: true,
           contentType: file.type 
         });
@@ -182,10 +186,10 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
-      // Get the public URL
+      // Get the public URL with the folder path included
       const { data: { publicUrl } } = supabase.storage
         .from(BUCKET_NAME)
-        .getPublicUrl(fileName);
+        .getPublicUrl(filePath);
 
       console.log("Logo public URL generated:", publicUrl);
 

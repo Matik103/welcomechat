@@ -78,6 +78,26 @@ export function BrandingSettings({
     }
   };
 
+  // Extract the folder name from the logo URL for display
+  const getLogoUrlPath = () => {
+    if (!settings.logo_url) return '';
+    
+    try {
+      // Parse out the folder structure from the URL
+      const url = new URL(settings.logo_url);
+      const pathParts = url.pathname.split('/');
+      // Look for the folder name in the path (usually before the filename)
+      const folderIndex = pathParts.findIndex(part => part === "Logo URL");
+      
+      if (folderIndex !== -1) {
+        return `From folder: Logo URL`;
+      }
+      return '';
+    } catch (e) {
+      return '';
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -153,30 +173,37 @@ export function BrandingSettings({
         </p>
       </div>
 
-      {/* Generated Logo URL field */}
+      {/* Generated Logo URL field with folder path highlighted */}
       <div>
         <Label htmlFor="generated_logo_url" className="flex items-center gap-2">
           <Image className="w-4 h-4" />
           Generated Logo URL
         </Label>
-        <div className="flex mt-1">
-          <Input
-            id="generated_logo_url"
-            value={settings.logo_url || ''}
-            readOnly
-            className="flex-1 pr-10 font-mono text-xs bg-gray-50"
-            placeholder="Upload a logo to generate URL"
-          />
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="ml-2" 
-            onClick={copyLogoUrl}
-            disabled={!settings.logo_url}
-            title="Copy URL"
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
+        <div className="flex mt-1 flex-col">
+          <div className="flex">
+            <Input
+              id="generated_logo_url"
+              value={settings.logo_url || ''}
+              readOnly
+              className="flex-1 pr-10 font-mono text-xs bg-gray-50"
+              placeholder="Upload a logo to generate URL"
+            />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="ml-2" 
+              onClick={copyLogoUrl}
+              disabled={!settings.logo_url}
+              title="Copy URL"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          {settings.logo_url && (
+            <p className="text-xs text-indigo-600 font-medium mt-1">
+              {getLogoUrlPath()}
+            </p>
+          )}
         </div>
         <p className="text-sm text-gray-500 mt-1">
           This is the automatically generated URL for your logo that will be used in the widget.
