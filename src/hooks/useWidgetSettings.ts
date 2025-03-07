@@ -143,7 +143,7 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
           );
         }
 
-        // Add a quick refetch after a short delay to get the updated URL from the trigger
+        // Refetch after a short delay to get the updated URL from the trigger
         setTimeout(() => {
           refetch().then(() => {
             console.log("Refetched client data after logo upload");
