@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -144,7 +143,6 @@ const WidgetSettings = () => {
     },
   });
 
-  // Improved function to handle logo upload with proper URL generation and retrieval
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !clientId) {
@@ -177,7 +175,6 @@ const WidgetSettings = () => {
 
       console.log("Logo uploaded successfully:", uploadData);
 
-      // Immediately get the public URL using getPublicUrl
       const { data: { publicUrl } } = supabase.storage
         .from(BUCKET_NAME)
         .getPublicUrl(fileName);
@@ -188,7 +185,29 @@ const WidgetSettings = () => {
         throw new Error("Failed to generate public URL for uploaded logo");
       }
 
-      // Update settings with the new logo URL
+      try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-logo-url`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabase.auth.getSession().then(({ data }) => data.session?.access_token)}`,
+          },
+          body: JSON.stringify({
+            fileKey: fileName,
+            clientId,
+            bucketName: BUCKET_NAME
+          })
+        });
+
+        if (!response.ok) {
+          console.warn("Edge function call failed, but continuing with local URL:", await response.text());
+        } else {
+          console.log("Edge function response:", await response.json());
+        }
+      } catch (edgeFnError) {
+        console.warn("Edge function error (non-blocking):", edgeFnError);
+      }
+
       const newSettings = { 
         ...settings, 
         logo_url: publicUrl 
@@ -197,11 +216,10 @@ const WidgetSettings = () => {
       console.log("Updating settings with logo URL:", publicUrl);
       setSettings(newSettings);
       
-      // Save the updated settings to the database
       await updateSettingsMutation.mutateAsync(newSettings);
       
-      // Force refresh of client data to show the updated logo URL
       await queryClient.invalidateQueries({ queryKey: ["client", clientId] });
+      await refetch();
       console.log("Client data refreshed after logo upload");
 
       if (isClientView) {
@@ -213,7 +231,7 @@ const WidgetSettings = () => {
       }
 
       toast.success("Logo uploaded successfully! ✨");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Logo upload process failed:", error);
       toast.error(error.message || "Failed to upload logo");
     } finally {
