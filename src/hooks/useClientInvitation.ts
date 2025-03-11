@@ -18,15 +18,18 @@ export const useClientInvitation = () => {
         toast.success("Invitation email sent to client");
         return true;
       } catch (customInviteError) {
-        console.warn("Custom invitation failed, falling back to Supabase's built-in method:", customInviteError);
+        console.warn("Custom invitation failed, falling back to Supabase's OTP method:", customInviteError);
         
-        // Fall back to Supabase's built-in email confirmation
-        const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-          data: {
-            client_id: clientId,
-            client_name: clientName
-          },
-          redirectTo: `https://admin.welcome.chat/client/setup?id=${clientId}`
+        // Fall back to Supabase's built-in email OTP
+        const { data, error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            data: {
+              client_id: clientId,
+              client_name: clientName
+            },
+            emailRedirectTo: `${window.location.origin}/client/setup?id=${clientId}`
+          }
         });
         
         if (error) {

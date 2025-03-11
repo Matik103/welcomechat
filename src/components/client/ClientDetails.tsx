@@ -68,34 +68,11 @@ export const ClientDetails = ({
         // Try to send invitation if we have a new client id
         if (newClientId) {
           try {
-            toast.info("Sending invitation email...");
             await sendInvitation(newClientId, data.email, data.client_name);
-            toast.success("Invitation email sent to client");
-          } catch (inviteError) {
-            console.error("Failed to send invitation:", inviteError);
-            
-            // Fallback to Supabase's built-in email confirmation
-            try {
-              const { error: confirmError } = await supabase.auth.signInWithOtp({
-                email: data.email,
-                options: {
-                  data: {
-                    client_id: newClientId,
-                    client_name: data.client_name,
-                  },
-                  emailRedirectTo: `https://admin.welcome.chat/client/setup?id=${newClientId}`
-                }
-              });
-              
-              if (confirmError) {
-                throw confirmError;
-              }
-              
-              toast.success("Confirmation email sent to client");
-            } catch (confirmError) {
-              console.error("Failed to send confirmation email:", confirmError);
-              toast.error("Client created but failed to send email invitation. Please try again later.");
-            }
+            // Success toast is already shown in the sendInvitation function
+          } catch (error) {
+            console.error("All invitation methods failed:", error);
+            toast.error("Client created but failed to send email invitation. Please try again later.");
           }
         }
         
@@ -117,31 +94,10 @@ export const ClientDetails = ({
 
     try {
       await sendInvitation(clientId, client.email, client.client_name);
-    } catch (error: any) {
-      console.error("Error sending invitation:", error);
-      
-      // Fallback to Supabase's built-in email confirmation
-      try {
-        const { error: confirmError } = await supabase.auth.signInWithOtp({
-          email: client.email,
-          options: {
-            data: {
-              client_id: clientId,
-              client_name: client.client_name,
-            },
-            emailRedirectTo: `https://admin.welcome.chat/client/setup?id=${clientId}`
-          }
-        });
-        
-        if (confirmError) {
-          throw confirmError;
-        }
-        
-        toast.success("Confirmation email sent to client");
-      } catch (confirmError) {
-        console.error("Failed to send confirmation email:", confirmError);
-        toast.error(`Failed to send invitation: ${error.message || String(error)}`);
-      }
+      // Success toast is already shown in the sendInvitation function
+    } catch (error) {
+      console.error("All invitation methods failed:", error);
+      toast.error("Failed to send invitation. Please try again later.");
     }
   };
 

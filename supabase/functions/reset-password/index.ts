@@ -46,20 +46,47 @@ serve(async (req) => {
 
     console.log(`Attempting to update user password with token`);
 
-    // Update user with the new password
-    const { data, error } = await supabase.auth.admin.updateUserById(
-      token,
-      { password }
-    )
+    // First try using the token directly as a user ID
+    let result;
+    try {
+      result = await supabase.auth.admin.updateUserById(
+        token,
+        { password }
+      );
+    } catch (error) {
+      console.error('Error using token as user ID:', error);
+      // If that fails, try to verify and use the token as a recovery token
+      try {
+        const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: 'recovery'
+        });
+        
+        if (verifyError) throw verifyError;
+        
+        // If verified, update the password for the user
+        if (verifyData?.user?.id) {
+          result = await supabase.auth.admin.updateUserById(
+            verifyData.user.id,
+            { password }
+          );
+        } else {
+          throw new Error('Could not verify token');
+        }
+      } catch (verifyError) {
+        console.error('Error verifying token:', verifyError);
+        throw verifyError;
+      }
+    }
     
-    if (error) {
-      console.error('Error resetting password:', error);
+    if (result.error) {
+      console.error('Error resetting password:', result.error);
       
       // Return more specific error information
-      let errorMessage = error.message;
-      let errorCode = error.status || 400;
+      let errorMessage = result.error.message;
+      let errorCode = result.error.status || 400;
       
-      if (error.message.includes('expired') || error.message.includes('invalid')) {
+      if (result.error.message.includes('expired') || result.error.message.includes('invalid')) {
         errorMessage = 'Password reset link has expired or is invalid. Please request a new one.';
         errorCode = 403;
       }
