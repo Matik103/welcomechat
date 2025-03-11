@@ -1,28 +1,114 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Mail, Lock, Loader2 } from "lucide-react";
+import { Mail, Lock, Loader2, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isResetPassword, setIsResetPassword] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [isProcessingToken, setIsProcessingToken] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const { session, isLoading } = useAuth();
+  const location = useLocation();
 
-  // Show loading spinner while checking auth state
-  if (isLoading) {
+  // Process token from URL if we're on the reset-password or callback page
+  useEffect(() => {
+    const processToken = async () => {
+      // Check if we're on the reset password or callback route
+      const isResetPasswordRoute = location.pathname === "/auth/reset-password";
+      const isCallbackRoute = location.pathname === "/auth/callback";
+      
+      if (!isResetPasswordRoute && !isCallbackRoute) {
+        setIsProcessingToken(false);
+        return;
+      }
+      
+      console.log("Processing token on route:", location.pathname);
+      
+      try {
+        // Check for access_token in the URL hash (password reset or magic link)
+        const fragment = location.hash;
+        
+        if (fragment && fragment.includes("access_token")) {
+          console.log("Found access token in URL hash");
+          const params = new URLSearchParams(fragment.substring(1));
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token") || "";
+          const type = params.get("type");
+          
+          if (accessToken) {
+            // If it's a recovery (password reset), show the reset password form
+            if (type === "recovery") {
+              console.log("Processing password reset token");
+              
+              // Just store token in auth state, show reset form
+              const { error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              });
+              
+              if (error) {
+                console.error("Error setting session for password reset:", error);
+                throw new Error("Invalid or expired password reset link");
+              }
+              
+              // Show password reset form instead of login form
+              setIsResetPassword(true);
+              toast.info("Please set your new password");
+            } else {
+              // For other token types (like magic link or signup confirmation)
+              console.log("Processing authentication token");
+              
+              // Exchange the token for a session
+              const { error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              });
+              
+              if (error) {
+                console.error("Error setting session:", error);
+                throw error;
+              }
+              
+              toast.success("Authentication successful!");
+            }
+          }
+        } else {
+          console.log("No token found in URL");
+          // If no token found on reset password page, show error
+          if (isResetPasswordRoute) {
+            setErrorMessage("Invalid or expired password reset link");
+            toast.error("Invalid or expired password reset link");
+          }
+        }
+      } catch (error) {
+        console.error("Error processing token:", error);
+        setErrorMessage(error.message || "Authentication failed");
+        toast.error(error.message || "Authentication failed");
+      } finally {
+        setIsProcessingToken(false);
+      }
+    };
+    
+    processToken();
+  }, [location]);
+
+  // Show loading spinner while checking auth state or processing token
+  if (isLoading || isProcessingToken) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -30,8 +116,8 @@ const Auth = () => {
     );
   }
 
-  // Redirect authenticated users to the main dashboard
-  if (session) {
+  // Redirect authenticated users to the main dashboard (unless we're resetting password)
+  if (session && !isResetPassword) {
     return <Navigate to="/" replace />;
   }
 
@@ -57,6 +143,44 @@ const Auth = () => {
       return false;
     } finally {
       setIsCheckingEmail(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (isAuthLoading) return;
+    setIsAuthLoading(true);
+    setErrorMessage("");
+    
+    if (password !== confirmPassword) {
+      setErrorMessage("Passwords do not match");
+      setIsAuthLoading(false);
+      return;
+    }
+    
+    try {
+      console.log("Resetting password");
+      const { error } = await supabase.auth.updateUser({ password });
+      
+      if (error) {
+        console.error("Error resetting password:", error);
+        throw error;
+      }
+      
+      toast.success("Password updated successfully. Please sign in with your new password.");
+      
+      // Reset form and show login screen
+      setIsResetPassword(false);
+      setPassword("");
+      setConfirmPassword("");
+      
+    } catch (error) {
+      console.error("Error in password reset:", error);
+      setErrorMessage(error.message || "Failed to reset password");
+      toast.error(error.message || "Failed to reset password");
+    } finally {
+      setIsAuthLoading(false);
     }
   };
 
@@ -179,10 +303,74 @@ const Auth = () => {
   const resetForm = () => {
     setEmail("");
     setPassword("");
+    setConfirmPassword("");
     setErrorMessage("");
   };
 
-  // Reset password form
+  // Reset password form (after clicking reset link in email)
+  if (isResetPassword) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold">Set New Password</CardTitle>
+            <CardDescription>
+              Please create a new password for your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              
+              {errorMessage && (
+                <div className="text-destructive text-sm bg-destructive/10 p-3 rounded-md">
+                  {errorMessage}
+                </div>
+              )}
+              
+              <Button type="submit" className="w-full" disabled={isAuthLoading}>
+                {isAuthLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Update Password"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Forgot password form (request reset email)
   if (isForgotPassword) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
@@ -243,6 +431,7 @@ const Auth = () => {
     );
   }
 
+  // Standard login/signup form
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">

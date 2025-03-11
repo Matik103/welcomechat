@@ -1,3 +1,4 @@
+
 import { Toaster } from "sonner";
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
@@ -36,9 +37,12 @@ function App() {
     return () => clearTimeout(timer);
   }, [isLoading]);
 
+  // Expanded list of public routes
   const isPublicRoute = 
     location.pathname === '/auth' || 
-    location.pathname.startsWith('/client/setup');
+    location.pathname.startsWith('/client/setup') ||
+    location.pathname.startsWith('/auth/callback') ||
+    location.pathname.startsWith('/auth/reset-password');
   
   if (isLoading && showLoader) {
     return (
@@ -63,9 +67,13 @@ function App() {
     <div className="min-h-screen bg-background">
       {isClientRoute ? <ClientHeader /> : <Header />}
       <Routes>
+        {/* Auth routes */}
         <Route path="/auth" element={<Auth />} />
+        <Route path="/auth/callback" element={<Auth />} />
+        <Route path="/auth/reset-password" element={<Auth />} />
         <Route path="/client/setup" element={<ClientSetup />} />
         
+        {/* Admin routes */}
         <Route path="/" element={
           userRole === 'client' ? <Navigate to="/client/view" replace /> : <Index />
         } />
@@ -88,6 +96,7 @@ function App() {
           userRole === 'client' ? <Navigate to="/client/widget-settings" replace /> : <WidgetSettings />
         } />
         
+        {/* Client routes */}
         <Route path="/client/view" element={
           userRole === 'admin' ? <Navigate to="/" replace /> : <ClientDashboard />
         } />

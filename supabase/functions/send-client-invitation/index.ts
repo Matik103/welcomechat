@@ -45,8 +45,11 @@ serve(async (req) => {
     
     console.log(`Sending invitation to client: ${clientName || 'Unknown'} (${email}), ID: ${clientId}`);
     
-    // Generate the dashboard URL
+    // Generate the dashboard URL - use client setup URL with the client ID
     const origin = req.headers.get("origin") || "https://welcome.chat";
+    const setupUrl = `${origin}/client/setup?id=${clientId}`;
+    
+    console.log("Setup URL for client:", setupUrl);
     
     // Initialize Supabase admin client
     const supabaseAdmin = createClient(
@@ -65,14 +68,15 @@ serve(async (req) => {
       throw new Error("Failed to initialize Supabase client");
     }
     
-    // Custom email template options
+    // Custom email template options - direct to setup page instead of auth flow
     const emailOptions = {
       data: {
         client_id: clientId,
         client_name: clientName
       },
-      redirectTo: `${origin}/client/view`,
-      emailRedirectTo: `${origin}/client/view`,
+      // This is critical: redirect directly to setup page with client ID
+      redirectTo: setupUrl,
+      emailRedirectTo: setupUrl,
       // Custom email template content for Supabase's invitation email
       email_template: {
         subject: "Welcome to Welcome.Chat - Your Account Invitation",
@@ -81,13 +85,13 @@ serve(async (req) => {
 
 <p>Hello${clientName ? ` ${clientName}` : ''},</p>
 
-<p>You have been invited to create an account on Welcome.Chat. Follow this link to accept the invite:</p>
+<p>You have been invited to create an account on Welcome.Chat. Follow this link to set up your account:</p>
 
-<p><a href="{{ .ConfirmationURL }}">Accept the invite</a></p>
+<p><a href="${setupUrl}">Set Up Your Account</a></p>
 
 <p><strong>Important next steps:</strong></p>
 <ol>
-  <li>Click the link above to accept this invitation</li>
+  <li>Click the link above to go to your setup page</li>
   <li>You'll be asked to create a password for your account</li>
   <li>After setting your password, you'll be automatically signed in to your dashboard</li>
 </ol>

@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +25,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Check if we're on an auth special page (password reset, setup, etc.)
+  const isAuthSpecialPage = 
+    location.pathname.startsWith('/client/setup') || 
+    location.pathname.startsWith('/auth/reset-password') ||
+    location.pathname.startsWith('/auth/callback');
 
   const checkUserRole = async (userId: string) => {
     try {
@@ -73,11 +80,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const role = await checkUserRole(initialSession.user.id);
           setUserRole(role);
           
-          // If on the setup page with a session, redirect to dashboard
-          // But ONLY if not in the middle of setup process (URL has id parameter)
+          // If on the setup page with a session, only redirect if not in setup flow
+          // (URL has no id parameter)
           if (location.pathname.startsWith('/client/setup') && !location.search.includes('id=')) {
-            console.log("Already logged in on setup page, redirecting to dashboard");
+            console.log("Already logged in on setup page without ID, redirecting to dashboard");
             navigate('/client/view', { replace: true });
+          }
+          
+          // Don't redirect if we're on a special auth page (password reset, callback, etc.)
+          // or if we're processing a hash fragment
+          if (!isAuthSpecialPage && !location.hash) {
+            console.log("Authenticated user on non-auth page, no redirection needed");
+          }
+        } else {
+          console.log("No initial session found");
+          // If no session and not on auth page or special auth page, redirect to auth
+          if (!location.pathname.startsWith('/auth') && !isAuthSpecialPage) {
+            console.log("No session, not on auth page, redirecting to auth");
+            navigate('/auth', { replace: true });
           }
         }
       } catch (error) {
@@ -117,25 +137,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const role = await checkUserRole(currentSession.user.id);
             setUserRole(role);
             
-            // Redirect based on role after sign in
-            if (event === 'SIGNED_IN') {
+            // Redirect based on role after sign in, but only if not on a special auth page
+            if (event === 'SIGNED_IN' && !isAuthSpecialPage) {
               console.log("Sign in detected, redirecting based on role:", role);
               if (role === 'client') {
                 // Add small delay to ensure auth is complete
                 setTimeout(() => {
                   console.log("Redirecting client to dashboard");
                   navigate('/client/view', { replace: true });
-                }, 800); // Increased delay slightly for more reliable auth state propagation
+                }, 800);
               } else if (role === 'admin') {
                 navigate('/', { replace: true });
               }
             }
           } else {
             setUserRole(null);
+            
             // Only navigate to auth if we're not already there and not loading
-            // Also don't redirect if we're on the setup page
+            // Also don't redirect if we're on a special auth page
             if (!location.pathname.startsWith('/auth') && 
-                !location.pathname.startsWith('/client/setup') && 
+                !isAuthSpecialPage && 
                 authCheckCompleted) {
               navigate('/auth', { replace: true });
             }
@@ -152,7 +173,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, location.search, authCheckCompleted, session]);
+  }, [navigate, location.pathname, location.search, location.hash, authCheckCompleted, session, isAuthSpecialPage]);
 
   const signOut = async () => {
     try {
