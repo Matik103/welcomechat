@@ -44,10 +44,10 @@ serve(async (req) => {
       )
     }
 
-    console.log(`Attempting to reset password for user token: ${token.substring(0, 10)}...`);
+    console.log(`Attempting to update user password with token`);
 
     // Update user with the new password
-    const { error } = await supabase.auth.admin.updateUserById(
+    const { data, error } = await supabase.auth.admin.updateUserById(
       token,
       { password }
     )
@@ -59,8 +59,8 @@ serve(async (req) => {
       let errorMessage = error.message;
       let errorCode = error.status || 400;
       
-      if (error.message.includes('expired')) {
-        errorMessage = 'Password reset link has expired. Please request a new one.';
+      if (error.message.includes('expired') || error.message.includes('invalid')) {
+        errorMessage = 'Password reset link has expired or is invalid. Please request a new one.';
         errorCode = 403;
       }
       
@@ -79,7 +79,10 @@ serve(async (req) => {
     
     console.log('Password reset successfully');
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true,
+        message: 'Password has been updated successfully'
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
