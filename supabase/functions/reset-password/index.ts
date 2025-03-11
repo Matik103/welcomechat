@@ -31,6 +31,7 @@ serve(async (req) => {
     const { token, password } = await req.json()
     
     if (!token || !password) {
+      console.error('Missing token or password in request');
       return new Response(
         JSON.stringify({ 
           error: 'Token and password are required',
@@ -43,6 +44,8 @@ serve(async (req) => {
       )
     }
 
+    console.log(`Attempting to reset password for user token: ${token.substring(0, 10)}...`);
+
     // Update user with the new password
     const { error } = await supabase.auth.admin.updateUserById(
       token,
@@ -51,18 +54,30 @@ serve(async (req) => {
     
     if (error) {
       console.error('Error resetting password:', error);
+      
+      // Return more specific error information
+      let errorMessage = error.message;
+      let errorCode = error.status || 400;
+      
+      if (error.message.includes('expired')) {
+        errorMessage = 'Password reset link has expired. Please request a new one.';
+        errorCode = 403;
+      }
+      
       return new Response(
         JSON.stringify({ 
-          error: error.message,
+          error: errorMessage,
+          code: errorCode,
           success: false 
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400
+          status: errorCode
         }
       )
     }
     
+    console.log('Password reset successfully');
     return new Response(
       JSON.stringify({ success: true }),
       { 

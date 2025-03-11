@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -40,9 +39,33 @@ const Auth = () => {
       console.log("Processing token on route:", location.pathname);
       
       try {
-        // Check for access_token in the URL hash (password reset or magic link)
+        // First check for error parameters in the URL hash
         const fragment = location.hash;
         
+        if (fragment && fragment.includes("error=")) {
+          console.log("Found error in URL hash:", fragment);
+          const params = new URLSearchParams(fragment.substring(1));
+          const error = params.get("error");
+          const errorCode = params.get("error_code");
+          const errorDescription = params.get("error_description");
+          
+          console.error("Auth error from URL:", { error, errorCode, errorDescription });
+          
+          // Handle specific error types
+          if (errorCode === "otp_expired") {
+            setErrorMessage("Your password reset link has expired. Please request a new one.");
+            toast.error("Your password reset link has expired. Please request a new one.");
+            setIsForgotPassword(true); // Show the forgot password form
+          } else {
+            setErrorMessage(errorDescription || "Authentication failed. Please try again.");
+            toast.error(errorDescription || "Authentication failed. Please try again.");
+          }
+          
+          setIsProcessingToken(false);
+          return;
+        }
+        
+        // Check for access_token in the URL hash (password reset or magic link)
         if (fragment && fragment.includes("access_token")) {
           console.log("Found access token in URL hash");
           const params = new URLSearchParams(fragment.substring(1));
@@ -87,18 +110,22 @@ const Auth = () => {
               toast.success("Authentication successful!");
             }
           }
-        } else {
-          console.log("No token found in URL");
+        } else if (isResetPasswordRoute) {
+          console.log("No token found in URL on reset password page");
           // If no token found on reset password page, show error
-          if (isResetPasswordRoute) {
-            setErrorMessage("Invalid or expired password reset link");
-            toast.error("Invalid or expired password reset link");
-          }
+          setErrorMessage("Invalid or expired password reset link");
+          toast.error("Invalid or expired password reset link");
+          setIsForgotPassword(true); // Show the forgot password form
         }
       } catch (error) {
         console.error("Error processing token:", error);
         setErrorMessage(error.message || "Authentication failed");
         toast.error(error.message || "Authentication failed");
+        
+        // For password reset errors, show the forgot password form
+        if (location.pathname === "/auth/reset-password") {
+          setIsForgotPassword(true);
+        }
       } finally {
         setIsProcessingToken(false);
       }
@@ -307,6 +334,36 @@ const Auth = () => {
     setErrorMessage("");
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (isAuthLoading || !email) return;
+    setIsAuthLoading(true);
+    setErrorMessage("");
+    
+    try {
+      console.log("Sending password reset email to:", email);
+      // Use Supabase's built-in password reset functionality
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+      
+      if (error) {
+        console.error("Password reset error:", error);
+        throw error;
+      }
+      
+      toast.success("Password reset email sent. Please check your inbox.");
+      setIsForgotPassword(false);
+    } catch (error) {
+      console.error("Password reset request error:", error);
+      setErrorMessage(error.message || "Failed to send password reset email");
+      toast.error(error.message || "Failed to send password reset email");
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
   // Reset password form (after clicking reset link in email)
   if (isResetPassword) {
     return (
@@ -382,7 +439,7 @@ const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleEmailAuth} className="space-y-4">
+            <form onSubmit={handleForgotPassword} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="reset-email">Email</Label>
                 <div className="relative">
