@@ -33,15 +33,18 @@ export const useClientMutation = (id: string | undefined) => {
           await logClientUpdateActivity(id);
           
           // Ensure AI agent is initialized
-          await createAiAgentTable(finalAgentName, clientId);
+          const agentResult = await createAiAgentTable(finalAgentName, clientId);
+          console.log("Updated AI agent table result:", agentResult);
           
           return clientId;
         } else {
           // For new clients, create the client and then initialize AI agent
           const newClientId = await createClient(updatedData);
+          console.log("New client created with ID:", newClientId);
           
           // Initialize AI agent in centralized table
-          await createAiAgentTable(finalAgentName, newClientId);
+          const agentResult = await createAiAgentTable(finalAgentName, newClientId);
+          console.log("Created AI agent table result:", agentResult);
           
           return newClientId;
         }

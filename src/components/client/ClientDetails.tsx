@@ -77,11 +77,12 @@ export const ClientDetails = ({
         }
         
         toast.success("Client created successfully");
+        // Use the specific route to avoid 404 errors
         navigate("/admin/clients");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting client form:", error);
-      toast.error("Failed to save client information");
+      toast.error(`Failed to save client information: ${error.message || String(error)}`);
     }
   };
 
@@ -93,8 +94,9 @@ export const ClientDetails = ({
 
     try {
       await sendInvitation(clientId, client.email, client.client_name);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending invitation:", error);
+      toast.error(`Failed to send invitation: ${error.message || String(error)}`);
     }
   };
 

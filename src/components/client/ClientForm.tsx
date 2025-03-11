@@ -62,6 +62,7 @@ export const ClientForm = ({
         ...data,
         agent_name: sanitizeAgentName(data.agent_name),
       };
+      console.log("Sanitized form data:", sanitizedData);
       await onSubmit(sanitizedData);
     } catch (error) {
       console.error("Error in form submission:", error);
@@ -108,7 +109,9 @@ export const ClientForm = ({
           {...register("agent_name")}
           className={errors.agent_name ? "border-red-500" : ""}
           onChange={(e) => {
-            setValue("agent_name", sanitizeAgentName(e.target.value));
+            const sanitized = sanitizeAgentName(e.target.value);
+            setValue("agent_name", sanitized);
+            e.target.value = sanitized; // Update the input value for immediate feedback
           }}
         />
         {errors.agent_name && (
