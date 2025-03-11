@@ -41,10 +41,7 @@ export const ClientForm = ({
     },
   });
 
-  const sanitizeAgentName = (value: string) => {
-    return value.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-  };
-
+  // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
       reset({
@@ -55,22 +52,8 @@ export const ClientForm = ({
     }
   }, [initialData, reset]);
 
-  const handleCustomSubmit = async (data: any) => {
-    console.log("Form submitted with data:", data);
-    try {
-      const sanitizedData = {
-        ...data,
-        agent_name: sanitizeAgentName(data.agent_name),
-      };
-      console.log("Sanitized form data:", sanitizedData);
-      await onSubmit(sanitizedData);
-    } catch (error) {
-      console.error("Error in form submission:", error);
-    }
-  };
-
   return (
-    <form onSubmit={handleSubmit(handleCustomSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name
@@ -108,18 +91,10 @@ export const ClientForm = ({
           id="agent_name"
           {...register("agent_name")}
           className={errors.agent_name ? "border-red-500" : ""}
-          onChange={(e) => {
-            const sanitized = sanitizeAgentName(e.target.value);
-            setValue("agent_name", sanitized);
-            e.target.value = sanitized; // Update the input value for immediate feedback
-          }}
         />
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
-        <p className="text-xs text-gray-500">
-          Agent name must be unique and will be used to identify this agent. Only lowercase letters, numbers, and underscores are allowed.
-        </p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">

@@ -6,7 +6,6 @@ import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -27,8 +26,6 @@ export const ClientDetails = ({
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
-      console.log("Client details handleSubmit called with data:", data);
-      
       if (clientId && isClientView) {
         // Update existing client
         await clientMutation.mutateAsync(data);
@@ -55,34 +52,31 @@ export const ClientDetails = ({
         toast.success("Client information saved successfully");
       } else if (clientId) {
         // Admin updating client
-        console.log("Updating existing client with ID:", clientId);
         await clientMutation.mutateAsync(data);
         toast.success("Client information updated successfully");
         navigate("/admin/clients");
       } else {
         // Create new client
-        console.log("Creating new client with data:", data);
         const newClientId = await clientMutation.mutateAsync(data);
-        console.log("Client created with ID:", newClientId);
         
         // Try to send invitation if we have a new client id
         if (newClientId) {
           try {
+            toast.info("Sending invitation email...");
             await sendInvitation(newClientId, data.email, data.client_name);
-            // Success toast is already shown in the sendInvitation function
-          } catch (error) {
-            console.error("All invitation methods failed:", error);
-            toast.error("Client created but failed to send email invitation. Please try again later.");
+            toast.success("Invitation email sent to client");
+          } catch (inviteError) {
+            console.error("Failed to send invitation:", inviteError);
+            toast.error("Client created but failed to send invitation email");
           }
         }
         
         toast.success("Client created successfully");
-        // Use the specific route to avoid 404 errors
         navigate("/admin/clients");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error submitting client form:", error);
-      toast.error(`Failed to save client information: ${error.message || String(error)}`);
+      toast.error("Failed to save client information");
     }
   };
 
@@ -94,10 +88,8 @@ export const ClientDetails = ({
 
     try {
       await sendInvitation(clientId, client.email, client.client_name);
-      // Success toast is already shown in the sendInvitation function
     } catch (error) {
-      console.error("All invitation methods failed:", error);
-      toast.error("Failed to send invitation. Please try again later.");
+      console.error("Error sending invitation:", error);
     }
   };
 

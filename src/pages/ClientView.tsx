@@ -1,3 +1,4 @@
+
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -30,8 +31,8 @@ const ClientView = () => {
     },
   });
 
-  // Use the custom hook for chat history with both required parameters
-  const { data: chatHistory, refetch: refetchChatHistory } = useClientChatHistory(client?.agent_name, id);
+  // Use the custom hook for chat history
+  const { data: chatHistory, refetch: refetchChatHistory } = useClientChatHistory(client?.agent_name);
 
   // Query common end-user questions
   const { data: commonQueries, refetch: refetchQueries } = useQuery({

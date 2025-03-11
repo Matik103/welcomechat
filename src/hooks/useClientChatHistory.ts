@@ -3,26 +3,34 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatInteraction } from "@/types/agent";
 
-export const useClientChatHistory = (agentName: string | undefined, clientId: string | undefined) => {
+export const useClientChatHistory = (agentName: string | undefined) => {
   return useQuery<ChatInteraction[]>({
-    queryKey: ["chat-history", agentName, clientId],
+    queryKey: ["chat-history", agentName],
     queryFn: async (): Promise<ChatInteraction[]> => {
-      if (!agentName || !clientId) {
-        console.log("Missing required parameters for chat history:", { agentName, clientId });
-        return [];
-      }
+      if (!agentName) return [];
       
       try {
-        console.log(`Fetching chat history for client: ${clientId}, agent: ${agentName}`);
+        // Use table select based on agent name
+        let query;
+        switch (agentName.toLowerCase()) {
+          case 'coca cola':
+            query = supabase.from('coca_cola');
+            break;
+          case 'the agent':
+            query = supabase.from('the_agent');
+            break;
+          case 'ai agent':
+            query = supabase.from('ai_agent');
+            break;
+          default:
+            console.error('Unknown agent type:', agentName);
+            return [];
+        }
         
-        // Use the centralized ai_agents table
-        const { data: chatData, error } = await supabase
-          .from('ai_agents')
-          .select('id, content, metadata, created_at')
-          .eq('client_id', clientId)
-          .eq('agent_name', agentName)
+        const { data: chatData, error } = await query
+          .select('id, content, metadata')
           .eq('metadata->>type', 'chat_interaction')
-          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .limit(10);
 
         if (error) {
@@ -31,25 +39,20 @@ export const useClientChatHistory = (agentName: string | undefined, clientId: st
         }
 
         // Transform and validate the data
-        return (chatData || []).map(row => {
-          // Cast metadata to access properties safely
-          const metadata = row.metadata as Record<string, any>;
-          
-          return {
-            id: Number(row.id),
-            content: row.content || '',
-            metadata: {
-              timestamp: metadata?.timestamp || row.created_at || new Date().toISOString(),
-              user_message: metadata?.user_message || '',
-              type: metadata?.type || 'chat_interaction'
-            }
-          };
-        });
+        return (chatData || []).map(row => ({
+          id: Number(row.id),
+          content: row.content || '',
+          metadata: {
+            timestamp: row.metadata?.timestamp || new Date().toISOString(),
+            user_message: row.metadata?.user_message || '',
+            type: row.metadata?.type || 'chat_interaction'
+          }
+        }));
       } catch (error) {
         console.error("Error in chat history query:", error);
         return [];
       }
     },
-    enabled: !!agentName && !!clientId,
+    enabled: !!agentName,
   });
 };

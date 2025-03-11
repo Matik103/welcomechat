@@ -8,13 +8,11 @@ import {
   sendClientInvitation
 } from "@/services/clientService";
 import { toast } from "sonner";
-import { createAiAgentTable } from "@/services/aiAgentTableService";
 
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       try {
-        // Ensure consistent, sanitized agent names
         const sanitizedAgentName = data.agent_name
           .trim()
           .toLowerCase()
@@ -25,30 +23,15 @@ export const useClientMutation = (id: string | undefined) => {
           agent_name: finalAgentName,
         };
 
-        let clientId: string;
-        
         if (id) {
-          // For existing clients, update client data
-          clientId = await updateClient(id, updatedData);
+          const clientId = await updateClient(id, updatedData);
           await logClientUpdateActivity(id);
-          
-          // Ensure AI agent is initialized
-          const agentResult = await createAiAgentTable(finalAgentName, clientId);
-          console.log("Updated AI agent table result:", agentResult);
-          
           return clientId;
         } else {
-          // For new clients, create the client and then initialize AI agent
           const newClientId = await createClient(updatedData);
-          console.log("New client created with ID:", newClientId);
-          
-          // Initialize AI agent in centralized table
-          const agentResult = await createAiAgentTable(finalAgentName, newClientId);
-          console.log("Created AI agent table result:", agentResult);
-          
           return newClientId;
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error in client mutation:", error);
         throw new Error(error.message || "Failed to save client");
       }
@@ -60,7 +43,7 @@ export const useClientMutation = (id: string | undefined) => {
         toast.success("Client created successfully");
       }
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error(`Error: ${error.message}`);
     },
   });

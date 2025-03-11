@@ -31,16 +31,20 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
       throw new Error("Could not determine AI agent name");
     }
 
-    // Use the centralized ai_agents table with client_id and agent_name filters
-    const { data, error } = await supabase
-      .from('ai_agents')
-      .select('metadata, created_at')
-      .eq('client_id', clientId)
-      .eq('agent_name', client.agent_name)
-      .eq('metadata->>type', 'chat_interaction');
+    // Sanitize agent name to get the table name format (matches the convention in function create_ai_agent_table)
+    const agentTableName = client.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    
+    // Use a raw SQL query to fetch data from the dynamic table name
+    // We need to use any type here because exec_sql is not in the TypeScript definitions
+    const { data, error } = await supabase.rpc(
+      'exec_sql' as any, 
+      {
+        sql_query: `SELECT metadata, created_at FROM "${agentTableName}" WHERE metadata->>'type' = 'chat_interaction'`
+      }
+    );
 
     if (error) {
-      console.error(`Error fetching data for client ${clientId} with agent ${client.agent_name}:`, error);
+      console.error(`Error fetching data from ${agentTableName}:`, error);
       throw error;
     }
 
@@ -52,7 +56,7 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
 
     // Calculate active days (unique days when interactions occurred)
     const uniqueDates = new Set();
-    interactions.forEach((interaction) => {
+    interactions.forEach((interaction: { created_at?: string, metadata?: Json }) => {
       if (interaction.created_at) {
         const dateStr = new Date(interaction.created_at).toDateString();
         uniqueDates.add(dateStr);
@@ -70,7 +74,7 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
     let totalResponseTime = 0;
     let responsesWithTime = 0;
     
-    interactions.forEach((interaction) => {
+    interactions.forEach((interaction: { metadata?: Json }) => {
       const metadata = interaction.metadata;
       if (metadata && typeof metadata === 'object' && 'response_time_ms' in metadata) {
         const responseTime = metadata.response_time_ms;
@@ -109,7 +113,7 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
 };
 
 /**
- * Sets up a real-time subscription for client's AI agent data
+ * Sets up a real-time subscription for client's AI agent table
  * @param clientId - The client ID to subscribe to
  * @param onUpdate - Callback function that will be called when updates occur
  * @returns The subscription channel for cleanup
@@ -124,7 +128,7 @@ export const subscribeToAgentData = async (
   }
 
   try {
-    // Get the client details to find the agent name
+    // Get the client details to find the agent table name
     const { data: client, error: clientError } = await supabase
       .from("clients")
       .select("agent_name")
@@ -135,10 +139,12 @@ export const subscribeToAgentData = async (
       console.error("Error fetching client data for subscription:", clientError);
       return null;
     }
+
+    // Sanitize agent name to get the table name format
+    const agentTableName = client.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     
-    console.log(`Setting up subscription for client ${clientId} with agent ${client.agent_name}`);
+    console.log(`Setting up subscription for AI agent table: ${agentTableName}`);
     
-    // Subscribe to the centralized ai_agents table with filters
     const channel = supabase
       .channel(`agent-data-${clientId}`)
       .on(
@@ -146,8 +152,7 @@ export const subscribeToAgentData = async (
         {
           event: '*',
           schema: 'public',
-          table: 'ai_agents',
-          filter: `client_id=eq.${clientId}`
+          table: agentTableName,
         },
         (payload) => {
           console.log("AI agent data change detected:", payload);
@@ -155,7 +160,7 @@ export const subscribeToAgentData = async (
         }
       )
       .subscribe((status) => {
-        console.log(`Subscription to ai_agents for client ${clientId} status:`, status);
+        console.log(`Subscription to ${agentTableName} status:`, status);
       });
       
     return channel;
