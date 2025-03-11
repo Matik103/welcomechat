@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -18,18 +17,60 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 };
 
 /**
+ * Creates a new client
+ */
+export const createClient = async (data: ClientFormData): Promise<string> => {
+  // Ensure agent_name is properly formatted
+  const sanitizedAgentName = data.agent_name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_');
+  const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+
+  const { data: newClients, error } = await supabase
+    .from("clients")
+    .insert([{
+      client_name: data.client_name,
+      email: data.email,
+      agent_name: finalAgentName, // Use sanitized agent name
+      widget_settings: data.widget_settings || {},
+      status: 'active'
+    }])
+    .select('*');
+
+  if (error) {
+    console.error("Error creating client:", error);
+    throw error;
+  }
+
+  if (!newClients || newClients.length === 0) {
+    throw new Error("Failed to create client - no data returned");
+  }
+
+  return newClients[0].id;
+};
+
+/**
  * Updates an existing client
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
+  // Ensure agent_name is properly formatted
+  const sanitizedAgentName = data.agent_name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_');
+  const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+
   const { error } = await supabase
     .from("clients")
     .update({
       client_name: data.client_name,
       email: data.email,
-      agent_name: data.agent_name,
+      agent_name: finalAgentName, // Use sanitized agent name
       widget_settings: data.widget_settings,
     })
     .eq("id", id);
+    
   if (error) throw error;
   return id;
 };
@@ -52,33 +93,6 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
   } catch (activityError) {
     console.error("Error logging activity:", activityError);
   }
-};
-
-/**
- * Creates a new client
- */
-export const createClient = async (data: ClientFormData): Promise<string> => {
-  const { data: newClients, error } = await supabase
-    .from("clients")
-    .insert([{
-      client_name: data.client_name,
-      email: data.email,
-      agent_name: data.agent_name,
-      widget_settings: data.widget_settings || {},
-      status: 'active'
-    }])
-    .select('*');
-
-  if (error) {
-    console.error("Error creating client:", error);
-    throw error;
-  }
-
-  if (!newClients || newClients.length === 0) {
-    throw new Error("Failed to create client - no data returned");
-  }
-
-  return newClients[0].id;
 };
 
 /**

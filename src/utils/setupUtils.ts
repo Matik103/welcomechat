@@ -78,7 +78,7 @@ export const createClientAccount = async (
       await ensureUserRole(signUpData.user.id, "client", clientId);
       
       if (clientData.agent_name) {
-        console.log("Setting up AI agent in centralized table");
+        console.log(`Setting up AI agent in centralized table for client ID: ${clientId}, agent name: ${clientData.agent_name}`);
         await createAiAgentTable(clientData.agent_name, clientId);
       }
       

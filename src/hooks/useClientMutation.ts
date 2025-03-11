@@ -8,11 +8,13 @@ import {
   sendClientInvitation
 } from "@/services/clientService";
 import { toast } from "sonner";
+import { createAiAgentTable } from "@/services/aiAgentTableService";
 
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       try {
+        // Ensure consistent, sanitized agent names
         const sanitizedAgentName = data.agent_name
           .trim()
           .toLowerCase()
@@ -23,12 +25,24 @@ export const useClientMutation = (id: string | undefined) => {
           agent_name: finalAgentName,
         };
 
+        let clientId: string;
+        
         if (id) {
-          const clientId = await updateClient(id, updatedData);
+          // For existing clients, update client data
+          clientId = await updateClient(id, updatedData);
           await logClientUpdateActivity(id);
+          
+          // Ensure AI agent is initialized
+          await createAiAgentTable(finalAgentName, clientId);
+          
           return clientId;
         } else {
+          // For new clients, create the client and then initialize AI agent
           const newClientId = await createClient(updatedData);
+          
+          // Initialize AI agent in centralized table
+          await createAiAgentTable(finalAgentName, newClientId);
+          
           return newClientId;
         }
       } catch (error) {

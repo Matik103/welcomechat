@@ -7,9 +7,14 @@ export const useClientChatHistory = (agentName: string | undefined, clientId: st
   return useQuery<ChatInteraction[]>({
     queryKey: ["chat-history", agentName, clientId],
     queryFn: async (): Promise<ChatInteraction[]> => {
-      if (!agentName || !clientId) return [];
+      if (!agentName || !clientId) {
+        console.log("Missing required parameters for chat history:", { agentName, clientId });
+        return [];
+      }
       
       try {
+        console.log(`Fetching chat history for client: ${clientId}, agent: ${agentName}`);
+        
         // Use the centralized ai_agents table
         const { data: chatData, error } = await supabase
           .from('ai_agents')
@@ -27,16 +32,16 @@ export const useClientChatHistory = (agentName: string | undefined, clientId: st
 
         // Transform and validate the data
         return (chatData || []).map(row => {
-          // Cast metadata to any to safely access properties that might not exist
-          const meta = row.metadata as Record<string, any>;
+          // Cast metadata to access properties safely
+          const metadata = row.metadata as Record<string, any>;
           
           return {
             id: Number(row.id),
             content: row.content || '',
             metadata: {
-              timestamp: meta?.timestamp || row.created_at || new Date().toISOString(),
-              user_message: meta?.user_message || '',
-              type: meta?.type || 'chat_interaction'
+              timestamp: metadata?.timestamp || row.created_at || new Date().toISOString(),
+              user_message: metadata?.user_message || '',
+              type: metadata?.type || 'chat_interaction'
             }
           };
         });

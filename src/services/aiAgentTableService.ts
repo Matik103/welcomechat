@@ -11,11 +11,49 @@ export const createAiAgentTable = async (
   clientId: string
 ): Promise<boolean> => {
   try {
+    if (!clientId || !agentName) {
+      throw new Error("Client ID and agent name are required");
+    }
+    
     // No need to create a new table, just log the creation for activity tracking
     console.log(`Using centralized ai_agents table for client: ${clientId} with agent: ${agentName}`);
     
+    // Check if any entries already exist for this client and agent combination
+    const { data, error } = await supabase
+      .from('ai_agents')
+      .select('id')
+      .eq('client_id', clientId)
+      .eq('agent_name', agentName)
+      .limit(1);
+      
+    if (error) {
+      console.error("Error checking existing AI agent entries:", error);
+      throw error;
+    }
+    
+    if (data && data.length > 0) {
+      console.log(`AI agent ${agentName} already exists for client ${clientId}`);
+    } else {
+      // Create an initial record to establish the client-agent relationship
+      const { error: insertError } = await supabase
+        .from('ai_agents')
+        .insert({
+          client_id: clientId,
+          agent_name: agentName,
+          content: 'Agent initialization',
+          metadata: {
+            type: 'agent_creation',
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+      if (insertError) {
+        console.error("Error creating initial AI agent record:", insertError);
+        throw insertError;
+      }
+    }
+    
     // For compatibility with existing code, return success
-    // The actual data insertion will happen when interacting with the agent
     return true;
   } catch (error) {
     console.error("Failed to set up AI agent in centralized table:", error);
@@ -84,6 +122,8 @@ export const searchAiAgentData = async (
 
     // Convert query embedding to string
     const queryEmbeddingString = JSON.stringify(queryEmbedding);
+    
+    console.log(`Searching for similar content with client: ${clientId}, agent: ${agentName}`);
     
     // Use the match_ai_agents function to find similar vectors
     const { data, error } = await supabase.rpc(
