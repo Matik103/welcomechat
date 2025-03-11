@@ -52,7 +52,7 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
 
     // Calculate active days (unique days when interactions occurred)
     const uniqueDates = new Set();
-    interactions.forEach((interaction: { created_at?: string, metadata?: Json }) => {
+    interactions.forEach((interaction) => {
       if (interaction.created_at) {
         const dateStr = new Date(interaction.created_at).toDateString();
         uniqueDates.add(dateStr);
@@ -70,7 +70,7 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
     let totalResponseTime = 0;
     let responsesWithTime = 0;
     
-    interactions.forEach((interaction: { metadata?: Json }) => {
+    interactions.forEach((interaction) => {
       const metadata = interaction.metadata;
       if (metadata && typeof metadata === 'object' && 'response_time_ms' in metadata) {
         const responseTime = metadata.response_time_ms;

@@ -35,6 +35,7 @@ export type Database = {
           agent_name: string | null
           client_id: string | null
           content: string | null
+          created_at: string | null
           embedding: string | null
           id: number
           metadata: Json | null
@@ -43,6 +44,7 @@ export type Database = {
           agent_name?: string | null
           client_id?: string | null
           content?: string | null
+          created_at?: string | null
           embedding?: string | null
           id?: number
           metadata?: Json | null
@@ -51,6 +53,7 @@ export type Database = {
           agent_name?: string | null
           client_id?: string | null
           content?: string | null
+          created_at?: string | null
           embedding?: string | null
           id?: number
           metadata?: Json | null

@@ -3,34 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatInteraction } from "@/types/agent";
 
-export const useClientChatHistory = (agentName: string | undefined) => {
+export const useClientChatHistory = (agentName: string | undefined, clientId: string | undefined) => {
   return useQuery<ChatInteraction[]>({
-    queryKey: ["chat-history", agentName],
+    queryKey: ["chat-history", agentName, clientId],
     queryFn: async (): Promise<ChatInteraction[]> => {
-      if (!agentName) return [];
+      if (!agentName || !clientId) return [];
       
       try {
-        // Use table select based on agent name
-        let query;
-        switch (agentName.toLowerCase()) {
-          case 'coca cola':
-            query = supabase.from('coca_cola');
-            break;
-          case 'the agent':
-            query = supabase.from('the_agent');
-            break;
-          case 'ai agent':
-            query = supabase.from('ai_agent');
-            break;
-          default:
-            console.error('Unknown agent type:', agentName);
-            return [];
-        }
-        
-        const { data: chatData, error } = await query
-          .select('id, content, metadata')
+        // Use the centralized ai_agents table
+        const { data: chatData, error } = await supabase
+          .from('ai_agents')
+          .select('id, content, metadata, created_at')
+          .eq('client_id', clientId)
+          .eq('agent_name', agentName)
           .eq('metadata->>type', 'chat_interaction')
-          .order('id', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(10);
 
         if (error) {
@@ -43,7 +30,7 @@ export const useClientChatHistory = (agentName: string | undefined) => {
           id: Number(row.id),
           content: row.content || '',
           metadata: {
-            timestamp: row.metadata?.timestamp || new Date().toISOString(),
+            timestamp: row.metadata?.timestamp || row.created_at || new Date().toISOString(),
             user_message: row.metadata?.user_message || '',
             type: row.metadata?.type || 'chat_interaction'
           }
@@ -53,6 +40,6 @@ export const useClientChatHistory = (agentName: string | undefined) => {
         return [];
       }
     },
-    enabled: !!agentName,
+    enabled: !!agentName && !!clientId,
   });
 };

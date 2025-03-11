@@ -35,6 +35,13 @@ export const insertAiAgentData = async (
   embedding: number[]
 ): Promise<boolean> => {
   try {
+    if (!clientId || !agentName) {
+      throw new Error("Client ID and agent name are required");
+    }
+
+    // Convert embedding array to string for storage
+    const embeddingString = JSON.stringify(embedding);
+    
     // Insert directly into the centralized ai_agents table
     const { error } = await supabase
       .from('ai_agents')
@@ -43,7 +50,7 @@ export const insertAiAgentData = async (
         agent_name: agentName,
         content: content,
         metadata: metadata,
-        embedding: embedding
+        embedding: embeddingString
       });
     
     if (error) {
@@ -57,5 +64,47 @@ export const insertAiAgentData = async (
     console.error("Failed to insert AI agent data:", error);
     toast.error(`Error inserting AI agent data: ${error.message || error}`);
     return false;
+  }
+};
+
+/**
+ * Search for similar content in the ai_agents table for a specific client and agent
+ */
+export const searchAiAgentData = async (
+  clientId: string,
+  agentName: string,
+  queryEmbedding: number[],
+  matchCount: number = 5,
+  filter: any = {}
+): Promise<any[]> => {
+  try {
+    if (!clientId || !agentName) {
+      throw new Error("Client ID and agent name are required");
+    }
+
+    // Convert query embedding to string
+    const queryEmbeddingString = JSON.stringify(queryEmbedding);
+    
+    // Use the match_ai_agents function to find similar vectors
+    const { data, error } = await supabase.rpc(
+      'match_ai_agents',
+      {
+        client_id_filter: clientId,
+        agent_name_filter: agentName,
+        query_embedding: queryEmbeddingString,
+        match_count: matchCount,
+        filter: filter
+      }
+    );
+    
+    if (error) {
+      console.error("Error searching AI agent data:", error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error("Failed to search AI agent data:", error);
+    return [];
   }
 };
