@@ -26,7 +26,7 @@ const ClientSetup = () => {
   // Initialize client activity logging
   const { logClientActivity } = useClientActivity(clientId);
 
-  // Check if there's an access token in the URL (from password reset link)
+  // Check if there's an access token in the URL (from password reset link or invitation)
   useEffect(() => {
     const checkAccessToken = async () => {
       console.log("Checking for access token in URL...");
