@@ -23,12 +23,15 @@ export const searchAgentData = async (
   }
 
   try {
+    // Convert the embedding array to a string for the RPC call
+    const queryEmbeddingString = JSON.stringify(queryEmbedding);
+    
     const { data, error } = await supabase.rpc(
       'match_ai_agents', 
       {
         client_id_filter: clientId,
         agent_name_filter: agentName,
-        query_embedding: queryEmbedding,
+        query_embedding: queryEmbeddingString,
         match_count: maxResults,
         filter: { type: 'document' }
       }

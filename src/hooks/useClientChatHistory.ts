@@ -26,15 +26,20 @@ export const useClientChatHistory = (agentName: string | undefined, clientId: st
         }
 
         // Transform and validate the data
-        return (chatData || []).map(row => ({
-          id: Number(row.id),
-          content: row.content || '',
-          metadata: {
-            timestamp: row.metadata?.timestamp || row.created_at || new Date().toISOString(),
-            user_message: row.metadata?.user_message || '',
-            type: row.metadata?.type || 'chat_interaction'
-          }
-        }));
+        return (chatData || []).map(row => {
+          // Cast metadata to any to safely access properties that might not exist
+          const meta = row.metadata as Record<string, any>;
+          
+          return {
+            id: Number(row.id),
+            content: row.content || '',
+            metadata: {
+              timestamp: meta?.timestamp || row.created_at || new Date().toISOString(),
+              user_message: meta?.user_message || '',
+              type: meta?.type || 'chat_interaction'
+            }
+          };
+        });
       } catch (error) {
         console.error("Error in chat history query:", error);
         return [];
