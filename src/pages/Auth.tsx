@@ -57,8 +57,10 @@ const Auth = () => {
             toast.error("Your password reset link has expired. Please request a new one.");
             setIsForgotPassword(true); // Show the forgot password form
           } else {
-            setErrorMessage(errorDescription || "Authentication failed. Please try again.");
-            toast.error(errorDescription || "Authentication failed. Please try again.");
+            const friendlyMessage = "Your password reset link is invalid or has expired. Please request a new one.";
+            setErrorMessage(friendlyMessage);
+            toast.error(friendlyMessage);
+            setIsForgotPassword(true); // Show the forgot password form
           }
           
           setIsProcessingToken(false);
