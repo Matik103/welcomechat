@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -20,6 +21,8 @@ export const getClientById = async (id: string): Promise<Client | null> => {
  * Creates a new client
  */
 export const createClient = async (data: ClientFormData): Promise<string> => {
+  console.log("Creating client with data:", data);
+  
   // Ensure agent_name is properly formatted
   const sanitizedAgentName = data.agent_name
     .trim()
@@ -27,6 +30,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     .replace(/[^a-z0-9]/g, '_');
   const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
 
+  // Insert the client record
   const { data: newClients, error } = await supabase
     .from("clients")
     .insert([{
@@ -47,6 +51,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     throw new Error("Failed to create client - no data returned");
   }
 
+  console.log("Client created successfully with ID:", newClients[0].id);
   return newClients[0].id;
 };
 

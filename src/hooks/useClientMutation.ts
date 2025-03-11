@@ -45,7 +45,7 @@ export const useClientMutation = (id: string | undefined) => {
           
           return newClientId;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error in client mutation:", error);
         throw new Error(error.message || "Failed to save client");
       }
@@ -57,7 +57,7 @@ export const useClientMutation = (id: string | undefined) => {
         toast.success("Client created successfully");
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Error: ${error.message}`);
     },
   });

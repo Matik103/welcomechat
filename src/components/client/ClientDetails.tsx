@@ -26,6 +26,8 @@ export const ClientDetails = ({
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
+      console.log("Client details handleSubmit called with data:", data);
+      
       if (clientId && isClientView) {
         // Update existing client
         await clientMutation.mutateAsync(data);
@@ -52,12 +54,15 @@ export const ClientDetails = ({
         toast.success("Client information saved successfully");
       } else if (clientId) {
         // Admin updating client
+        console.log("Updating existing client with ID:", clientId);
         await clientMutation.mutateAsync(data);
         toast.success("Client information updated successfully");
         navigate("/admin/clients");
       } else {
         // Create new client
+        console.log("Creating new client with data:", data);
         const newClientId = await clientMutation.mutateAsync(data);
+        console.log("Client created with ID:", newClientId);
         
         // Try to send invitation if we have a new client id
         if (newClientId) {

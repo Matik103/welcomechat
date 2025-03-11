@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -55,11 +56,16 @@ export const ClientForm = ({
   }, [initialData, reset]);
 
   const handleCustomSubmit = async (data: any) => {
-    const sanitizedData = {
-      ...data,
-      agent_name: sanitizeAgentName(data.agent_name),
-    };
-    await onSubmit(sanitizedData);
+    console.log("Form submitted with data:", data);
+    try {
+      const sanitizedData = {
+        ...data,
+        agent_name: sanitizeAgentName(data.agent_name),
+      };
+      await onSubmit(sanitizedData);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+    }
   };
 
   return (
