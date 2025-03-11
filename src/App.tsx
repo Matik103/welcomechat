@@ -41,8 +41,8 @@ function App() {
   const isPublicRoute = 
     location.pathname === '/auth' || 
     location.pathname.startsWith('/client/setup') ||
-    location.pathname.startsWith('/auth/callback') ||
-    location.pathname.startsWith('/auth/reset-password');
+    location.pathname === '/auth/callback' ||
+    location.pathname === '/auth/reset-password';
   
   if (isLoading && showLoader) {
     return (

@@ -46,7 +46,7 @@ serve(async (req) => {
     console.log(`Sending invitation to client: ${clientName || 'Unknown'} (${email}), ID: ${clientId}`);
     
     // Generate the dashboard URL - use client setup URL with the client ID
-    const origin = req.headers.get("origin") || "https://welcome.chat";
+    const origin = req.headers.get("origin") || "https://admin.welcome.chat";
     const setupUrl = `${origin}/client/setup?id=${clientId}`;
     
     console.log("Setup URL for client:", setupUrl);
@@ -72,11 +72,11 @@ serve(async (req) => {
     const emailOptions = {
       data: {
         client_id: clientId,
-        client_name: clientName
+        client_name: clientName,
+        setup_url: setupUrl
       },
       // This is critical: redirect directly to setup page with client ID
       redirectTo: setupUrl,
-      emailRedirectTo: setupUrl,
       // Custom email template content for Supabase's invitation email
       email_template: {
         subject: "Welcome to Welcome.Chat - Your Account Invitation",
