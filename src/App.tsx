@@ -11,7 +11,7 @@ import ClientView from "@/pages/client/View";
 import AdminDashboard from "@/pages/admin/Dashboard";
 
 // Main App component
-const App = () => {
+export default function App() {
   return (
     <>
       <Routes>
@@ -45,6 +45,4 @@ const App = () => {
       />
     </>
   );
-};
-
-export default App;
+}
