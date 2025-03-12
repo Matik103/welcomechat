@@ -12,6 +12,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   isLoading: boolean;
   userRole: UserRole | null;
+  isInitialized: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,13 +22,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   const checkUserRole = async (userId: string) => {
     try {
-      console.log("Checking user role for:", userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, client_id')
@@ -39,15 +39,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return null;
       }
 
-      // If user has client_id in user_roles, update user metadata
       if (data?.client_id && data.role === 'client') {
-        console.log("Updating user metadata with client_id:", data.client_id);
         await supabase.auth.updateUser({
           data: { client_id: data.client_id }
         });
       }
 
-      console.log("User role found:", data?.role);
       return data?.role as UserRole || null;
     } catch (error) {
       console.error("Error checking user role:", error);
@@ -55,7 +52,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Function to update all auth states together
   const updateAuthStates = async (newSession: Session | null) => {
     try {
       if (newSession?.user) {
@@ -72,6 +68,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error("Error updating auth states:", error);
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
       return null;
     }
   };
@@ -80,51 +79,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let mounted = true;
 
     const initializeAuth = async () => {
+      if (!mounted) return;
+      
       try {
-        if (!authCheckCompleted) {
-          setIsLoading(true);
-          console.log("Initializing auth...");
-          
-          // Get current session
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
-          
-          if (!mounted) return;
+        setIsLoading(true);
+        
+        // Get current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
 
-          if (currentSession?.user) {
-            console.log("Found existing session:", currentSession.user.email);
-            await updateAuthStates(currentSession);
-          } else {
-            // Try to refresh the session
-            console.log("No session found, attempting refresh...");
-            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-            
-            if (!mounted) return;
-
-            if (refreshError) {
-              console.error("Session refresh failed:", refreshError);
-              await updateAuthStates(null);
-              
-              // Only redirect if not on auth or setup pages
-              if (!location.pathname.startsWith('/auth') && 
-                  !location.pathname.startsWith('/client/setup')) {
-                navigate('/auth', { replace: true });
-              }
-            } else if (refreshedSession) {
-              console.log("Session refreshed successfully:", refreshedSession.user.email);
-              await updateAuthStates(refreshedSession);
-            }
+        if (currentSession?.user) {
+          const role = await updateAuthStates(currentSession);
+          
+          // Handle initial navigation based on role
+          if (role === 'client' && !location.pathname.startsWith('/client/dashboard')) {
+            navigate('/client/dashboard', { replace: true });
+          } else if (role === 'admin' && location.pathname !== '/') {
+            navigate('/', { replace: true });
+          }
+        } else {
+          await updateAuthStates(null);
+          if (!location.pathname.startsWith('/auth') && 
+              !location.pathname.startsWith('/client/setup')) {
+            navigate('/auth', { replace: true });
           }
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
-        if (mounted) {
-          await updateAuthStates(null);
+        await updateAuthStates(null);
+        if (!location.pathname.startsWith('/auth')) {
+          navigate('/auth', { replace: true });
         }
       } finally {
         if (mounted) {
           setIsLoading(false);
-          setAuthCheckCompleted(true);
-          console.log("Auth check completed");
+          setIsInitialized(true);
         }
       }
     };
@@ -134,34 +124,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
-        console.log("Auth state changed:", event, currentSession?.user?.email);
-
-        // Skip state updates for initial session if we've already completed auth check
-        if (event === 'INITIAL_SESSION' && authCheckCompleted) {
-          console.log("Skipping initial session handling - auth already checked");
-          return;
-        }
-
-        setIsLoading(true);
 
         try {
           if (event === 'SIGNED_IN') {
+            setIsLoading(true);
             const role = await updateAuthStates(currentSession);
-            console.log("Sign in detected, redirecting based on role:", role);
             
-            // Only navigate if we're not already on the correct path
             if (role === 'client' && !location.pathname.startsWith('/client/dashboard')) {
               navigate('/client/dashboard', { replace: true });
             } else if (role === 'admin' && location.pathname !== '/') {
               navigate('/', { replace: true });
             }
           } else if (event === 'SIGNED_OUT') {
+            setIsLoading(true);
             await updateAuthStates(null);
             if (!location.pathname.startsWith('/auth')) {
               navigate('/auth', { replace: true });
             }
           } else if (event === 'TOKEN_REFRESHED' && currentSession) {
-            // Only update states for token refresh, no navigation
+            setIsLoading(true);
             await updateAuthStates(currentSession);
           }
         } catch (error) {
@@ -169,7 +150,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await updateAuthStates(null);
         } finally {
           setIsLoading(false);
-          setAuthCheckCompleted(true);
         }
       }
     );
@@ -178,25 +158,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, authCheckCompleted]);
+  }, [navigate, location.pathname]);
 
   const signOut = async () => {
     try {
       setIsLoading(true);
-      console.log("Signing out user...");
-      
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
       await updateAuthStates(null);
-      
-      // Only navigate if not already on auth page
       if (!location.pathname.startsWith('/auth')) {
         navigate('/auth', { replace: true });
       }
     } catch (error) {
       console.error("Sign out error:", error);
-      // Force state clear and navigation on error
       await updateAuthStates(null);
       if (!location.pathname.startsWith('/auth')) {
         navigate('/auth', { replace: true });
@@ -208,7 +183,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signOut, isLoading, userRole }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      signOut, 
+      isLoading, 
+      userRole,
+      isInitialized 
+    }}>
       {children}
     </AuthContext.Provider>
   );
