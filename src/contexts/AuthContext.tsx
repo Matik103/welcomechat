@@ -185,47 +185,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log("Signing out user...");
       
-      // First, check if we have a valid session before attempting to sign out
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error("Error getting session during sign out:", sessionError);
-      }
+      // Clear states first to prevent any UI issues
+      setIsLoading(true);
       
-      // If we already don't have a session, just update the UI state
-      if (!sessionData?.session) {
-        console.log("No active session found, updating UI state only");
-        setUserRole(null);
-        setSession(null);
-        setUser(null);
-        navigate('/auth', { replace: true });
-        return Promise.resolve();
-      }
-      
-      // If we have a session, try to sign out
+      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Error during sign out:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("Sign out successful, updating state");
+      // Clear all auth states
       setUserRole(null);
       setSession(null);
       setUser(null);
       
-      // Force navigation to auth page
+      // Navigate to auth page
       navigate('/auth', { replace: true });
-      
-      return Promise.resolve();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Sign out error:", error);
-      
-      // Even if sign out fails, update local state
+      // Force clear state and redirect even on error
       setUserRole(null);
       setSession(null);
       setUser(null);
-      
-      return Promise.reject(error);
+      navigate('/auth', { replace: true });
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 

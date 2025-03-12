@@ -51,7 +51,13 @@ export const ClientHeader = () => {
             </DropdownMenu>
             <Button 
               variant="ghost" 
-              onClick={() => signOut?.()}
+              onClick={async () => {
+                try {
+                  await signOut();
+                } catch (error) {
+                  console.error('Sign out error:', error);
+                }
+              }}
               className="text-sm"
             >
               Sign Out
