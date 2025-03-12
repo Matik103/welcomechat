@@ -1,22 +1,42 @@
 {
-  "rewrites": [
+  "version": 2,
+  "routes": [
     {
-      "source": "/client/:path*",
-      "destination": "/index.html"
+      "src": "^/client/.*",
+      "dest": "/index.html"
     },
     {
-      "source": "/auth/:path*",
-      "destination": "/index.html"
+      "src": "^/auth.*",
+      "dest": "/index.html"
     },
     {
-      "source": "/admin/:path*",
-      "destination": "/index.html"
+      "src": "^/admin.*",
+      "dest": "/index.html"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "^/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "^/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "^/favicon.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": ".*",
+      "dest": "/index.html"
     }
   ],
-  "cleanUrls": true,
-  "trailingSlash": false
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ]
 } 
