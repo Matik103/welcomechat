@@ -1,76 +1,92 @@
-import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { RoleRoute } from "@/components/auth/RoleRoute";
-import { PrivateRoute } from "@/components/auth/PrivateRoute";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { Suspense } from "react";
+import { Header } from "@/components/layout/Header";
+import { ClientHeader } from "@/components/layout/ClientHeader";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import Auth from "@/pages/Auth";
+import Index from "@/pages/Index";
+import ClientList from "@/pages/ClientList";
+import Settings from "@/pages/Settings";
+import ClientView from "@/pages/ClientView";
+import AddEditClient from "@/pages/AddEditClient";
+import WidgetSettings from "@/pages/WidgetSettings";
+import { useAuth } from "./contexts/AuthContext";
+import ClientSettings from "@/pages/client/Settings";
+import ClientDashboard from "@/pages/client/Dashboard";
+import ClientSetup from "@/pages/client/Setup";
+import AccountSettings from "@/pages/client/AccountSettings";
+import ResourceSettings from "@/pages/client/ResourceSettings";
+import EditClientInfo from "@/pages/client/EditClientInfo";
 import { Loader2 } from "lucide-react";
 
-// Pages
-import Auth from "@/pages/Auth";
-import ClientAuth from "@/pages/client/Auth";
-import ClientSetup from "@/pages/client/Setup";
-import ClientView from "@/pages/client/View";
-import ClientDashboard from "@/pages/client/Dashboard";
-import ClientSettings from "@/pages/client/Settings";
-import ClientResourceSettings from "@/pages/client/ResourceSettings";
-import ClientEditInfo from "@/pages/client/EditClientInfo";
-import ClientAccountSettings from "@/pages/client/AccountSettings";
-import AdminDashboard from "@/pages/admin/Dashboard";
-import AdminClients from "@/pages/admin/Clients";
-import AdminSettings from "@/pages/admin/Settings";
+function App() {
+  const { isLoading, user, userRole } = useAuth();
+  const location = useLocation();
 
-// Loading component
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-  </div>
-);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-gray-500 mt-2">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-// Main App component
-export default function App() {
+  const isPublicRoute = location.pathname === '/auth' || location.pathname.startsWith('/client/setup');
+  
+  if (!user && !isPublicRoute) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  const isClientRoute = location.pathname.startsWith('/client') && !location.pathname.startsWith('/client/setup');
+
   return (
-    <ErrorBoundary>
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/client/auth" element={<ClientAuth />} />
-          <Route path="/client/setup" element={<ClientSetup />} />
+    <div className="min-h-screen bg-background">
+      {user && (isClientRoute ? <ClientHeader /> : <Header />)}
+      <Routes>
+        {/* Public routes */}
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/client/setup" element={<ClientSetup />} />
+        
+        {/* Protected routes */}
+        {user && (
+          <>
+            {/* Admin routes */}
+            {userRole === 'admin' && (
+              <>
+                <Route path="/" element={<Index />} />
+                <Route path="/admin/clients" element={<ClientList />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/admin/clients/new" element={<AddEditClient />} />
+                <Route path="/admin/clients/:id" element={<ClientView />} />
+                <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
+                <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
+              </>
+            )}
 
-          {/* Protected Routes */}
-          <Route element={<PrivateRoute />}>
-            {/* Admin Routes */}
-            <Route element={<RoleRoute allowedRole="admin" />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/clients" element={<AdminClients />} />
-              <Route path="/admin/settings" element={<AdminSettings />} />
-            </Route>
+            {/* Client routes */}
+            {userRole === 'client' && (
+              <>
+                <Route path="/client/view" element={<ClientDashboard />} />
+                <Route path="/client/settings" element={<ClientSettings />} />
+                <Route path="/client/widget-settings" element={<WidgetSettings />} />
+                <Route path="/client/account-settings" element={<AccountSettings />} />
+                <Route path="/client/resource-settings" element={<ResourceSettings />} />
+                <Route path="/client/edit-info" element={<EditClientInfo />} />
+              </>
+            )}
+          </>
+        )}
 
-            {/* Client Routes */}
-            <Route element={<RoleRoute allowedRole="client" />}>
-              {/* Main Views */}
-              <Route path="/client/dashboard" element={<ClientDashboard />} />
-              <Route path="/client/view" element={<ClientView />} />
-              
-              {/* Settings */}
-              <Route path="/client/settings" element={<ClientSettings />} />
-              <Route path="/client/resource-settings" element={<ClientResourceSettings />} />
-              <Route path="/client/account-settings" element={<ClientAccountSettings />} />
-              <Route path="/client/edit-info" element={<ClientEditInfo />} />
-            </Route>
-          </Route>
-
-          {/* Catch-all redirect */}
-          <Route path="*" element={<Navigate to="/auth" replace />} />
-        </Routes>
-        <Toaster 
-          position="top-right" 
-          closeButton
-          richColors
-        />
-      </Suspense>
-    </ErrorBoundary>
+        {/* Redirect based on role */}
+        <Route path="*" element={
+          <Navigate to={userRole === 'admin' ? '/' : '/client/view'} replace />
+        } />
+      </Routes>
+      <Toaster />
+    </div>
   );
 }
+
+export default App;

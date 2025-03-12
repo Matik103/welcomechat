@@ -1,12 +1,35 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
-export const PrivateRoute = () => {
-  const { user, isLoading, userRole } = useAuth();
-  const location = useLocation();
+interface UserRole {
+  role: 'admin' | 'client';
+}
 
-  if (isLoading) {
+export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+  const { session, isLoading } = useAuth();
+
+  const { data: userRole, isLoading: isLoadingRole } = useQuery({
+    queryKey: ["userRole", session?.user.id],
+    queryFn: async () => {
+      if (!session?.user.id) return null;
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      
+      return (data as UserRole | null);
+    },
+    enabled: !!session?.user.id,
+    staleTime: 30000,
+    retry: false
+  });
+
+  if (isLoading || isLoadingRole) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -14,15 +37,17 @@ export const PrivateRoute = () => {
     );
   }
 
-  if (!user || !userRole) {
-    // Preserve the attempted URL for redirect after login
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+  if (!session) {
+    return <Navigate to="/auth" replace />;
   }
 
-  // Only redirect clients from the root path
-  if (location.pathname === '/' && userRole === 'client') {
-    return <Navigate to="/client/view" replace />;
+  if (!userRole) {
+    return <Navigate to="/auth" replace />;
   }
 
-  return <Outlet />;
+  if (userRole.role !== "admin") {
+    return <Navigate to="/client-dashboard" replace />;
+  }
+
+  return <>{children}</>;
 };

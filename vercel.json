@@ -1,21 +1,28 @@
 {
-  "rewrites": [
-    { "source": "/client/:path*", "destination": "/" },
-    { "source": "/auth/:path*", "destination": "/" },
-    { "source": "/admin/:path*", "destination": "/" },
-    { "source": "/(.*)", "destination": "/" }
-  ],
-  "headers": [
+  "version": 2,
+  "routes": [
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
+      "src": "/auth/callback",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/auth.*",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/client.*",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/admin.*",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ],
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 } 
