@@ -1,3 +1,4 @@
+
 import { Toaster } from "sonner";
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
@@ -79,7 +80,7 @@ function App() {
           </>
         )}
 
-        {/* Redirect based on role */}
+        {/* Default redirect based on role */}
         <Route path="*" element={
           <Navigate to={userRole === 'admin' ? '/' : '/client/view'} replace />
         } />
