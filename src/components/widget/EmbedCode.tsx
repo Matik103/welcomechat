@@ -1,10 +1,11 @@
-
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { useToast } from "@/components/ui/use-toast";
-import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { useEffect, useRef, useState } from "react";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 interface EmbedCodeProps {
   settings: WidgetSettings;
@@ -17,7 +18,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   const [copied, setCopied] = useState(false);
   
   // Get the Supabase project reference from the URL
-  const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
+  const projectRef = SUPABASE_URL?.split("https://")[1]?.split(".supabase.co")[0];
 
   // Syntax highlighting effect
   useEffect(() => {
