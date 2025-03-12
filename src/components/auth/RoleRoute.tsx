@@ -1,4 +1,3 @@
-
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
@@ -15,7 +14,7 @@ export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -25,8 +24,7 @@ export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
   }
 
   if (!userRole || !allowedRoles.includes(userRole)) {
-    // Redirect admin to admin dashboard, clients to client dashboard
-    const redirectPath = userRole === 'admin' ? '/admin' : '/dashboard';
+    const redirectPath = userRole === 'admin' ? '/' : '/client/view';
     return <Navigate to={redirectPath} replace />;
   }
 
