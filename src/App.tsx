@@ -17,6 +17,8 @@ import ClientResourceSettings from "@/pages/client/ResourceSettings";
 import ClientEditInfo from "@/pages/client/EditClientInfo";
 import ClientAccountSettings from "@/pages/client/AccountSettings";
 import AdminDashboard from "@/pages/admin/Dashboard";
+import AdminClients from "@/pages/admin/Clients";
+import AdminSettings from "@/pages/admin/Settings";
 
 // Loading component
 const PageLoader = () => (
@@ -42,15 +44,15 @@ export default function App() {
             <Route element={<RoleRoute allowedRole="admin" />}>
               <Route index element={<AdminDashboard />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/clients" element={<AdminDashboard />} />
-              <Route path="/admin/settings" element={<AdminDashboard />} />
+              <Route path="/admin/clients" element={<AdminClients />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
             </Route>
 
             {/* Client Routes */}
             <Route element={<RoleRoute allowedRole="client" />}>
               {/* Main Views */}
-              <Route path="/client/view" element={<ClientView />} />
               <Route path="/client/dashboard" element={<ClientDashboard />} />
+              <Route path="/client/view" element={<ClientView />} />
               
               {/* Settings */}
               <Route path="/client/settings" element={<ClientSettings />} />
