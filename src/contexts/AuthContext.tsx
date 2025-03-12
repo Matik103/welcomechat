@@ -137,29 +137,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (sessionChanged || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           console.log("Session changed, updating state");
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
 
           if (currentSession?.user) {
-            // Get user role first
             const role = await checkUserRole(currentSession.user.id);
+            setUserRole(role);
             
-            // For sign in, handle navigation before state updates
+            // Redirect based on role after sign in
             if (event === 'SIGNED_IN') {
-              const targetPath = role === 'client' ? '/client/dashboard' : '/';
-              if (location.pathname !== targetPath) {
-                navigate(targetPath, { replace: true });
+              console.log("Sign in detected, redirecting based on role:", role);
+              if (role === 'client') {
+                // Add small delay to ensure auth is complete
+                setTimeout(() => {
+                  console.log("Redirecting client to dashboard");
+                  navigate('/client/dashboard', { replace: true });
+                }, 800); // Increased delay slightly for more reliable auth state propagation
+              } else if (role === 'admin') {
+                navigate('/', { replace: true });
               }
             }
-
-            // Update states together to prevent flashing
-            setSession(currentSession);
-            setUser(currentSession.user);
-            setUserRole(role);
           } else {
-            setSession(null);
-            setUser(null);
             setUserRole(null);
-            
-            // Only navigate to auth if we're not already there and not in setup
+            // Only navigate to auth if we're not already there and not loading
+            // Also don't redirect if we're on the setup page
             if (!location.pathname.startsWith('/auth') && 
                 !location.pathname.startsWith('/client/setup') && 
                 authCheckCompleted) {
