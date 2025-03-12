@@ -1,121 +1,170 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { toast } from 'react-hot-toast';
-import type { Client } from '@/types/supabase';
+import { Client } from '@/types/supabase';
+import { toast } from 'sonner';
+
+// Simple spinner component
+function Spinner({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <div className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${className}`} />
+  );
+}
 
 export default function EditClientInfo() {
   const { clientId } = useParams<{ clientId: string }>();
   const [client, setClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (hasError) return; // Prevent refetching if there's an error
-    fetchClientData();
-  }, [clientId, hasError]);
-
-  async function fetchClientData() {
-    try {
+    async function fetchClientData() {
       if (!clientId) return;
+      
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const { data, error } = await supabase
+          .from('clients')
+          .select(`
+            *,
+            ai_agent (
+              id,
+              name,
+              personality
+            )
+          `)
+          .eq('id', clientId)
+          .single();
 
-      const { data: client, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', clientId)
-        .single();
-
-      if (error) throw error;
-      setClient(client);
-      setHasError(false); // Reset error state on successful fetch
-    } catch (error) {
-      console.error('Error fetching client:', error);
-      setHasError(true); // Set error state
-      toast.error('Failed to load your information');
-    } finally {
-      setIsLoading(false);
+        if (error) throw error;
+        setClient(data);
+      } catch (err) {
+        console.error('Error fetching client:', err);
+        setError('Failed to load client information');
+        toast.error('Failed to load client information');
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }
 
-  async function handleUpdateWebsiteUrl(url: string) {
+    fetchClientData();
+  }, [clientId]);
+
+  const handleUpdateClient = async (updates: Partial<Client>) => {
     if (!clientId || !client) return;
-    
+
     try {
       setIsSaving(true);
-      
-      // Basic URL validation
-      if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'https://' + url;
-      }
+      setError(null);
 
       const { error } = await supabase
         .from('clients')
-        .update({
-          website_url: url,
-          website_url_added_at: url ? new Date().toISOString() : null
-        })
+        .update(updates)
         .eq('id', clientId);
 
       if (error) throw error;
 
-      setClient(prev => prev ? { ...prev, website_url: url } : null);
-      toast.success('Website URL updated successfully');
-    } catch (error) {
-      console.error('Error updating website URL:', error);
-      toast.error('Failed to update website URL');
+      setClient(prev => prev ? { ...prev, ...updates } : null);
+      toast.success('Client information updated successfully');
+    } catch (err) {
+      console.error('Error updating client:', err);
+      setError('Failed to update client information');
+      toast.error('Failed to update client information');
     } finally {
       setIsSaving(false);
     }
-  }
+  };
 
   if (isLoading) {
-    return <div className="p-4">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-500 p-4">
+        {error}
+      </div>
+    );
   }
 
   if (!client) {
-    return <div className="p-4">Client not found</div>;
+    return (
+      <div className="text-gray-500 p-4">
+        Client not found
+      </div>
+    );
   }
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Edit Your Information</h1>
+    <div className="space-y-6 p-6">
+      <h2 className="text-2xl font-bold">Edit Client Information</h2>
       
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Name</label>
-          <Input value={client.client_name || ''} disabled />
+          <label className="block text-sm font-medium text-gray-700">Name</label>
+          <input
+            type="text"
+            value={client.client_name || ''}
+            onChange={(e) => handleUpdateClient({ client_name: e.target.value })}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Email</label>
-          <Input value={client.email || ''} disabled />
+          <label className="block text-sm font-medium text-gray-700">Email</label>
+          <input
+            type="email"
+            value={client.email || ''}
+            onChange={(e) => handleUpdateClient({ email: e.target.value })}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">AI Agent Name</label>
-          <Input value={client.agent_name || ''} disabled />
+          <label className="block text-sm font-medium text-gray-700">Website URL</label>
+          <input
+            type="url"
+            value={client.website_url || ''}
+            onChange={(e) => handleUpdateClient({ 
+              website_url: e.target.value,
+              website_url_added_at: new Date().toISOString()
+            })}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Website URL</label>
-          <div className="flex gap-2">
-            <Input
-              value={client.website_url || ''}
-              onChange={(e) => setClient(prev => prev ? { ...prev, website_url: e.target.value } : null)}
-              placeholder="Enter your website URL"
-            />
-            <Button
-              onClick={() => handleUpdateWebsiteUrl(client.website_url || '')}
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save URL'}
-            </Button>
-          </div>
-        </div>
+        {client.ai_agent && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">AI Agent Name</label>
+              <div className="text-gray-600 mt-1 px-3 py-2 bg-gray-50 rounded-md">
+                {client.ai_agent.name}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">AI Agent Personality</label>
+              <div className="text-gray-600 mt-1 px-3 py-2 bg-gray-50 rounded-md whitespace-pre-wrap">
+                {client.ai_agent.personality}
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      {isSaving && (
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Spinner className="h-4 w-4" />
+          Saving changes...
+        </div>
+      )}
     </div>
   );
 }
