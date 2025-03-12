@@ -67,7 +67,7 @@ function App() {
         <Route path="/client/setup" element={<ClientSetup />} />
         
         <Route path="/" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <Index />
+          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <Index />
         } />
         <Route path="/admin/clients" element={
           userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientList />
