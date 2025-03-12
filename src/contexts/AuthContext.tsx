@@ -55,59 +55,67 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Function to update all auth states together
+  const updateAuthStates = async (newSession: Session | null) => {
+    try {
+      if (newSession?.user) {
+        const role = await checkUserRole(newSession.user.id);
+        setSession(newSession);
+        setUser(newSession.user);
+        setUserRole(role);
+        return role;
+      } else {
+        setSession(null);
+        setUser(null);
+        setUserRole(null);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error updating auth states:", error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
       try {
+        setIsLoading(true);
         console.log("Initializing auth...");
-        // First try to recover the session from storage
-        const { data: { session: storedSession } } = await supabase.auth.getSession();
+        
+        // Get current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
-        if (storedSession) {
-          console.log("Recovered stored session:", storedSession.user.email);
-          setSession(storedSession);
-          setUser(storedSession.user);
-          
-          const role = await checkUserRole(storedSession.user.id);
-          setUserRole(role);
+        if (currentSession?.user) {
+          console.log("Found existing session:", currentSession.user.email);
+          await updateAuthStates(currentSession);
         } else {
-          // If no stored session, try to refresh
-          console.log("No stored session, attempting refresh...");
+          // Try to refresh the session
+          console.log("No session found, attempting refresh...");
           const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
           
           if (!mounted) return;
 
           if (refreshError) {
             console.error("Session refresh failed:", refreshError);
-            // Clear any stale session data
-            setSession(null);
-            setUser(null);
-            setUserRole(null);
+            await updateAuthStates(null);
             
-            // Only redirect to auth if not already there and not in setup
             if (!location.pathname.startsWith('/auth') && 
                 !location.pathname.startsWith('/client/setup')) {
               navigate('/auth', { replace: true });
             }
           } else if (refreshedSession) {
             console.log("Session refreshed successfully:", refreshedSession.user.email);
-            setSession(refreshedSession);
-            setUser(refreshedSession.user);
-            
-            const role = await checkUserRole(refreshedSession.user.id);
-            setUserRole(role);
+            await updateAuthStates(refreshedSession);
           }
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
-        // Handle initialization error gracefully
         if (mounted) {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
+          await updateAuthStates(null);
         }
       } finally {
         if (mounted) {
@@ -125,53 +133,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!mounted) return;
         console.log("Auth state changed:", event, currentSession?.user?.email);
 
-        // Set loading to true for auth state changes
-        if (!authCheckCompleted || event !== 'INITIAL_SESSION') {
-          setIsLoading(true);
-        }
+        setIsLoading(true);
 
-        // Only update session if it's actually different
-        const sessionChanged = 
-          (currentSession?.user?.id !== session?.user?.id) ||
-          (currentSession === null && session !== null);
-
-        if (sessionChanged || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          console.log("Session changed, updating state");
-          setSession(currentSession);
-          setUser(currentSession?.user ?? null);
-
-          if (currentSession?.user) {
-            const role = await checkUserRole(currentSession.user.id);
-            setUserRole(role);
+        try {
+          if (event === 'SIGNED_IN') {
+            const role = await updateAuthStates(currentSession);
+            console.log("Sign in detected, redirecting based on role:", role);
             
-            // Redirect based on role after sign in
-            if (event === 'SIGNED_IN') {
-              console.log("Sign in detected, redirecting based on role:", role);
-              if (role === 'client') {
-                // Add small delay to ensure auth is complete
-                setTimeout(() => {
-                  console.log("Redirecting client to dashboard");
-                  navigate('/client/dashboard', { replace: true });
-                }, 800); // Increased delay slightly for more reliable auth state propagation
-              } else if (role === 'admin') {
-                navigate('/', { replace: true });
-              }
+            if (role === 'client') {
+              navigate('/client/dashboard', { replace: true });
+            } else if (role === 'admin') {
+              navigate('/', { replace: true });
             }
-          } else {
-            setUserRole(null);
-            // Only navigate to auth if we're not already there and not loading
-            // Also don't redirect if we're on the setup page
-            if (!location.pathname.startsWith('/auth') && 
-                !location.pathname.startsWith('/client/setup') && 
-                authCheckCompleted) {
+          } else if (event === 'SIGNED_OUT') {
+            await updateAuthStates(null);
+            if (!location.pathname.startsWith('/auth')) {
               navigate('/auth', { replace: true });
             }
+          } else if (event === 'TOKEN_REFRESHED' && currentSession) {
+            await updateAuthStates(currentSession);
           }
+        } catch (error) {
+          console.error("Error handling auth state change:", error);
+          await updateAuthStates(null);
+        } finally {
+          setIsLoading(false);
+          setAuthCheckCompleted(true);
         }
-        
-        // Always set loading to false when done processing
-        setIsLoading(false);
-        setAuthCheckCompleted(true);
       }
     );
 
@@ -179,32 +167,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, location.search, authCheckCompleted, session]);
+  }, [navigate, location.pathname]);
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       console.log("Signing out user...");
       
-      // Clear states first to prevent any UI issues
-      setIsLoading(true);
-      
-      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
-      // Clear all auth states
-      setUserRole(null);
-      setSession(null);
-      setUser(null);
-      
-      // Navigate to auth page
+      await updateAuthStates(null);
       navigate('/auth', { replace: true });
     } catch (error) {
       console.error("Sign out error:", error);
-      // Force clear state and redirect even on error
-      setUserRole(null);
-      setSession(null);
-      setUser(null);
+      // Force state clear and navigation on error
+      await updateAuthStates(null);
       navigate('/auth', { replace: true });
       throw error;
     } finally {
