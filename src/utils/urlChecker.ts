@@ -16,19 +16,21 @@ export const DEFAULT_REFRESH_RATES = {
   drive: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
 };
 
+const FUNCTION_BASE_URL = process.env.NEXT_PUBLIC_SUPABASE_FUNCTIONS_URL || 'http://localhost:54321/functions/v1';
+
 export async function checkWebsiteAccessibility(url: string): Promise<URLCheckResult> {
   try {
-    const response = await fetch(
-      `${supabase.functions.url}/check-url-access`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.session()?.access_token}`,
-        },
-        body: JSON.stringify({ url }),
-      }
-    );
+    const { data: { session } } = await supabase.auth.getSession();
+    const functionUrl = `${FUNCTION_BASE_URL}/check-url-access`;
+    
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ url }),
+    });
 
     const data = await response.json();
     
@@ -60,17 +62,17 @@ export async function checkWebsiteAccessibility(url: string): Promise<URLCheckRe
 
 export async function checkDriveAccessibility(url: string): Promise<URLCheckResult> {
   try {
-    const response = await fetch(
-      `${supabase.functions.url}/check-drive-access`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.session()?.access_token}`,
-        },
-        body: JSON.stringify({ url }),
-      }
-    );
+    const { data: { session } } = await supabase.auth.getSession();
+    const functionUrl = `${FUNCTION_BASE_URL}/check-drive-access`;
+    
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ url }),
+    });
 
     const data = await response.json();
     
