@@ -35,14 +35,17 @@ export default function App() {
           <Route element={<PrivateRoute />}>
             {/* Admin Routes */}
             <Route element={<RoleRoute allowedRole="admin" />}>
-              <Route path="/" element={<AdminDashboard />} />
-              <Route path="/admin/*" element={<AdminDashboard />} />
+              <Route index element={<AdminDashboard />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/clients" element={<AdminDashboard />} />
+              <Route path="/admin/settings" element={<AdminDashboard />} />
             </Route>
 
             {/* Client Routes */}
             <Route element={<RoleRoute allowedRole="client" />}>
               <Route path="/client/view" element={<ClientView />} />
-              <Route path="/client/*" element={<ClientView />} />
+              <Route path="/client/settings" element={<ClientView />} />
+              <Route path="/client/widget" element={<ClientView />} />
             </Route>
           </Route>
 

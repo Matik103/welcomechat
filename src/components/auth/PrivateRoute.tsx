@@ -19,9 +19,9 @@ export const PrivateRoute = () => {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Redirect clients to their view and admins to dashboard
-  if (location.pathname === '/') {
-    return <Navigate to={userRole === 'admin' ? '/' : '/client/view'} replace />;
+  // Only redirect clients from the root path
+  if (location.pathname === '/' && userRole === 'client') {
+    return <Navigate to="/client/view" replace />;
   }
 
   return <Outlet />;
