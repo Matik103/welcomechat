@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,12 +10,22 @@ import { ArrowLeft, User, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { checkAndRefreshAuth, getCurrentUser } from "@/services/authService";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { validateAndNotify } from "@/utils/urlValidator";
 
 const EditClientInfo = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [clientId, setClientId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [urls, setUrls] = useState<string[]>([]);
+  const [driveUrls, setDriveUrls] = useState<string[]>([]);
+  const [newUrl, setNewUrl] = useState("");
+  const [newDriveUrl, setNewDriveUrl] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   
   // Initialize client ID from user metadata
   useEffect(() => {
@@ -83,6 +92,136 @@ const EditClientInfo = () => {
     } catch (error: any) {
       console.error("Error submitting client form:", error);
       toast.error(`Failed to update your information: ${error.message || "Unknown error"}`);
+    }
+  };
+
+  useEffect(() => {
+    fetchClientInfo();
+  }, [user]);
+
+  const fetchClientInfo = async () => {
+    if (!user) return;
+
+    try {
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('urls, drive_urls')
+        .eq('user_id', user.id)
+        .single();
+
+      if (clientError) throw clientError;
+
+      setUrls(clientData?.urls || []);
+      setDriveUrls(clientData?.drive_urls || []);
+    } catch (error) {
+      console.error('Error fetching client info:', error);
+      toast.error('Failed to load your information');
+    }
+  };
+
+  const handleAddUrl = async () => {
+    if (!newUrl.trim()) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Validate URL before adding
+      const isValid = await validateAndNotify(newUrl);
+      if (!isValid) {
+        setIsLoading(false);
+        return;
+      }
+
+      const updatedUrls = [...urls, newUrl];
+      const { error } = await supabase
+        .from('clients')
+        .update({ urls: updatedUrls })
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      setUrls(updatedUrls);
+      setNewUrl("");
+      toast.success('URL added successfully');
+    } catch (error) {
+      console.error('Error adding URL:', error);
+      toast.error('Failed to add URL');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddDriveUrl = async () => {
+    if (!newDriveUrl.trim()) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Validate Google Drive URL before adding
+      const isValid = await validateAndNotify(newDriveUrl);
+      if (!isValid) {
+        setIsLoading(false);
+        return;
+      }
+
+      const updatedDriveUrls = [...driveUrls, newDriveUrl];
+      const { error } = await supabase
+        .from('clients')
+        .update({ drive_urls: updatedDriveUrls })
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      setDriveUrls(updatedDriveUrls);
+      setNewDriveUrl("");
+      toast.success('Google Drive URL added successfully');
+    } catch (error) {
+      console.error('Error adding Drive URL:', error);
+      toast.error('Failed to add Google Drive URL');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveUrl = async (index: number) => {
+    try {
+      setIsLoading(true);
+      const updatedUrls = urls.filter((_, i) => i !== index);
+      const { error } = await supabase
+        .from('clients')
+        .update({ urls: updatedUrls })
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      setUrls(updatedUrls);
+      toast.success('URL removed successfully');
+    } catch (error) {
+      console.error('Error removing URL:', error);
+      toast.error('Failed to remove URL');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveDriveUrl = async (index: number) => {
+    try {
+      setIsLoading(true);
+      const updatedDriveUrls = driveUrls.filter((_, i) => i !== index);
+      const { error } = await supabase
+        .from('clients')
+        .update({ drive_urls: updatedDriveUrls })
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      setDriveUrls(updatedDriveUrls);
+      toast.success('Google Drive URL removed successfully');
+    } catch (error) {
+      console.error('Error removing Drive URL:', error);
+      toast.error('Failed to remove Google Drive URL');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -207,6 +346,76 @@ const EditClientInfo = () => {
             logClientActivity={logClientActivity}
           />
         )}
+
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <Label>Add Website URL</Label>
+            <div className="flex gap-2">
+              <Input
+                type="url"
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                placeholder="Enter website URL"
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleAddUrl}
+                disabled={isLoading || !newUrl.trim()}
+              >
+                Add URL
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {urls.map((url, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="flex-1 truncate">{url}</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleRemoveUrl(index)}
+                    disabled={isLoading}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <Label>Add Google Drive URL</Label>
+            <div className="flex gap-2">
+              <Input
+                type="url"
+                value={newDriveUrl}
+                onChange={(e) => setNewDriveUrl(e.target.value)}
+                placeholder="Enter Google Drive URL"
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleAddDriveUrl}
+                disabled={isLoading || !newDriveUrl.trim()}
+              >
+                Add Drive URL
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {driveUrls.map((url, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="flex-1 truncate">{url}</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleRemoveDriveUrl(index)}
+                    disabled={isLoading}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
