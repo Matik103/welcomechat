@@ -18,7 +18,7 @@ import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
 
-function App() {
+const App = () => {
   const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
   const [showLoader, setShowLoader] = useState(true);
@@ -112,6 +112,6 @@ function App() {
       <Toaster />
     </div>
   );
-}
+};
 
 export default App;
