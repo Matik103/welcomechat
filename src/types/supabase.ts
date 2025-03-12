@@ -1,3 +1,5 @@
+import { Database as GeneratedDatabase } from './supabase-types';
+
 export interface AIAgentBase {
   id: string;
   client_id: string;
@@ -31,30 +33,59 @@ export type AIAgentRow = AIAgentBase | AIAgentVectorData;
 
 export interface Client {
   id: string;
-  client_name: string;
+  name: string;
   email: string;
-  website_url?: string;
-  website_url_added_at?: string;
   created_at: string;
   updated_at: string;
-  ai_agent?: AIAgentBase;
-  ai_agent_id?: string;
+  ai_agents: AIAgent[];
 }
 
-export type Database = {
+export interface AIAgent {
+  id: string;
+  agent_name: string;
+  client_id: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  action_type: 'create' | 'update' | 'delete' | 'login' | 'chat' | 'knowledge_update';
+  entity_type: 'client' | 'ai_agent' | 'chat' | 'knowledge_base';
+  entity_id: string;
+  user_id?: string;
+  client_id?: string;
+  description: string;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
+export interface SupabaseResponse<T> {
+  data: T | null;
+  error: {
+    message: string;
+    details: string;
+    hint: string;
+    code: string;
+  } | null;
+}
+
+export type Database = GeneratedDatabase & {
   public: {
     Tables: {
       clients: {
         Row: Client;
-        Insert: Partial<Client>;
-        Update: Partial<Client>;
+        Insert: Omit<Client, 'id' | 'created_at' | 'updated_at' | 'ai_agents'>;
+        Update: Partial<Omit<Client, 'id' | 'created_at' | 'updated_at' | 'ai_agents'>>;
       };
       ai_agents: {
-        Row: AIAgentRow;
-        Insert: Partial<AIAgentBase> | Partial<AIAgentVectorData>;
-        Update: Partial<AIAgentBase> | Partial<AIAgentVectorData>;
+        Row: AIAgent;
+        Insert: Omit<AIAgent, 'id'>;
+        Update: Partial<Omit<AIAgent, 'id'>>;
       };
-      // ... other tables
+      activity_logs: {
+        Row: ActivityLog;
+        Insert: Omit<ActivityLog, 'id' | 'created_at'>;
+        Update: never;
+      };
     };
   };
 }; 
