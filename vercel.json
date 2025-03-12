@@ -1,28 +1,22 @@
 {
-  "version": 2,
-  "routes": [
+  "rewrites": [
     {
-      "src": "/auth/callback",
-      "dest": "/index.html"
+      "source": "/client/:path*",
+      "destination": "/index.html"
     },
     {
-      "src": "/auth.*",
-      "dest": "/index.html"
+      "source": "/auth/:path*",
+      "destination": "/index.html"
     },
     {
-      "src": "/client.*",
-      "dest": "/index.html"
+      "source": "/admin/:path*",
+      "destination": "/index.html"
     },
     {
-      "src": "/admin.*",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "cleanUrls": true,
+  "trailingSlash": false
 } 
