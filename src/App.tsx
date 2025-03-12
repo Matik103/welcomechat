@@ -70,22 +70,22 @@ function App() {
           userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <Index />
         } />
         <Route path="/admin/clients" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientList />
+          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <ClientList />
         } />
         <Route path="/settings" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <Settings />
+          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <Settings />
         } />
         <Route path="/admin/clients/new" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <AddEditClient />
+          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <AddEditClient />
         } />
         <Route path="/admin/clients/:id" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <ClientView />
+          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <ClientView />
         } />
         <Route path="/admin/clients/:id/edit" element={
-          userRole === 'client' ? <Navigate to="/client/view" replace /> : <AddEditClient />
+          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <AddEditClient />
         } />
         <Route path="/admin/clients/:id/widget-settings" element={
-          userRole === 'client' ? <Navigate to="/client/widget-settings" replace /> : <WidgetSettings />
+          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <WidgetSettings />
         } />
         
         <Route path="/client/view" element={
@@ -109,7 +109,7 @@ function App() {
         
         {/* Catch-all route for 404s */}
         <Route path="*" element={
-          <Navigate to={userRole === 'admin' ? '/' : '/client/view'} replace />
+          <Navigate to={userRole === 'admin' ? '/' : '/client/dashboard'} replace />
         } />
       </Routes>
       <Toaster />
