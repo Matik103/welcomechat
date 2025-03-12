@@ -26,6 +26,7 @@ export default function EditClientInfo() {
         setIsLoading(true);
         setError(null);
         
+        console.log('Fetching client data for ID:', clientId);
         const { data, error } = await supabase
           .from('clients')
           .select(`
@@ -39,7 +40,12 @@ export default function EditClientInfo() {
           .eq('id', clientId)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error fetching client:', error);
+          throw error;
+        }
+        
+        console.log('Fetched client data:', data);
         setClient(data);
       } catch (err) {
         console.error('Error fetching client:', err);
@@ -60,13 +66,18 @@ export default function EditClientInfo() {
       setIsSaving(true);
       setError(null);
 
+      console.log('Updating client with data:', updates);
       const { error } = await supabase
         .from('clients')
         .update(updates)
         .eq('id', clientId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error updating client:', error);
+        throw error;
+      }
 
+      console.log('Client updated successfully');
       setClient(prev => prev ? { ...prev, ...updates } : null);
       toast.success('Client information updated successfully');
     } catch (err) {
