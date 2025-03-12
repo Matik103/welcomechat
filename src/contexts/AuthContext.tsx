@@ -130,59 +130,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setIsLoading(true);
         }
 
-        try {
-          // Only update session if it's actually different
-          const sessionChanged = 
-            (currentSession?.user?.id !== session?.user?.id) ||
-            (currentSession === null && session !== null);
+        // Only update session if it's actually different
+        const sessionChanged = 
+          (currentSession?.user?.id !== session?.user?.id) ||
+          (currentSession === null && session !== null);
 
-          if (sessionChanged || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            console.log("Session changed, updating state");
+        if (sessionChanged || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log("Session changed, updating state");
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+
+          if (currentSession?.user) {
+            const role = await checkUserRole(currentSession.user.id);
+            setUserRole(role);
             
-            if (currentSession?.user) {
-              // Get user role before updating any state
-              const role = await checkUserRole(currentSession.user.id);
-              
-              // If it's a client signing in, redirect immediately before any state updates
-              if (event === 'SIGNED_IN' && role === 'client') {
-                console.log("Client sign-in detected, redirecting immediately");
-                navigate('/client/dashboard', { replace: true });
-              }
-              
-              // Now update all states together
-              setSession(currentSession);
-              setUser(currentSession.user);
-              setUserRole(role);
-              
-              // Handle admin redirect
-              if (event === 'SIGNED_IN' && role === 'admin') {
+            // Redirect based on role after sign in
+            if (event === 'SIGNED_IN') {
+              console.log("Sign in detected, redirecting based on role:", role);
+              if (role === 'client') {
+                // Add small delay to ensure auth is complete
+                setTimeout(() => {
+                  console.log("Redirecting client to dashboard");
+                  navigate('/client/dashboard', { replace: true });
+                }, 800); // Increased delay slightly for more reliable auth state propagation
+              } else if (role === 'admin') {
                 navigate('/', { replace: true });
               }
-            } else {
-              // Clear all states together
-              setSession(null);
-              setUser(null);
-              setUserRole(null);
-              
-              // Only navigate to auth if we're not already there and not in setup
-              if (!location.pathname.startsWith('/auth') && 
-                  !location.pathname.startsWith('/client/setup') && 
-                  authCheckCompleted) {
-                navigate('/auth', { replace: true });
-              }
+            }
+          } else {
+            setUserRole(null);
+            // Only navigate to auth if we're not already there and not loading
+            // Also don't redirect if we're on the setup page
+            if (!location.pathname.startsWith('/auth') && 
+                !location.pathname.startsWith('/client/setup') && 
+                authCheckCompleted) {
+              navigate('/auth', { replace: true });
             }
           }
-        } catch (error) {
-          console.error("Error handling auth state change:", error);
-          // Handle error gracefully
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-        } finally {
-          // Always set loading to false when done processing
-          setIsLoading(false);
-          setAuthCheckCompleted(true);
         }
+        
+        // Always set loading to false when done processing
+        setIsLoading(false);
+        setAuthCheckCompleted(true);
       }
     );
 
