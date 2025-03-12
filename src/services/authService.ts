@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -38,6 +37,37 @@ export const getCurrentUser = async () => {
     return data.user;
   } catch (err) {
     console.error("Error in getCurrentUser:", err);
+    return null;
+  }
+}
+
+/**
+ * Recovers and validates the authentication session
+ * @returns Promise with the recovered session or null
+ */
+export const recoverAuthSession = async () => {
+  try {
+    // First try to get the session from storage
+    const { data: { session: storedSession } } = await supabase.auth.getSession();
+    
+    if (storedSession) {
+      // Validate the session
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (!userError && user) {
+        return storedSession;
+      }
+    }
+    
+    // If no valid stored session, try to refresh
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error("Failed to refresh session:", error);
+      return null;
+    }
+    
+    return session;
+  } catch (err) {
+    console.error("Error recovering auth session:", err);
     return null;
   }
 }

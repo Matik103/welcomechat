@@ -61,27 +61,54 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const initializeAuth = async () => {
       try {
         console.log("Initializing auth...");
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        // First try to recover the session from storage
+        const { data: { session: storedSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
-        if (initialSession) {
-          console.log("Initial session found:", initialSession.user.email);
-          setSession(initialSession);
-          setUser(initialSession.user);
+        if (storedSession) {
+          console.log("Recovered stored session:", storedSession.user.email);
+          setSession(storedSession);
+          setUser(storedSession.user);
           
-          const role = await checkUserRole(initialSession.user.id);
+          const role = await checkUserRole(storedSession.user.id);
           setUserRole(role);
+        } else {
+          // If no stored session, try to refresh
+          console.log("No stored session, attempting refresh...");
+          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
           
-          // If on the setup page with a session, redirect to dashboard
-          // But ONLY if not in the middle of setup process (URL has id parameter)
-          if (location.pathname.startsWith('/client/setup') && !location.search.includes('id=')) {
-            console.log("Already logged in on setup page, redirecting to dashboard");
-            navigate('/client/view', { replace: true });
+          if (!mounted) return;
+
+          if (refreshError) {
+            console.error("Session refresh failed:", refreshError);
+            // Clear any stale session data
+            setSession(null);
+            setUser(null);
+            setUserRole(null);
+            
+            // Only redirect to auth if not already there and not in setup
+            if (!location.pathname.startsWith('/auth') && 
+                !location.pathname.startsWith('/client/setup')) {
+              navigate('/auth', { replace: true });
+            }
+          } else if (refreshedSession) {
+            console.log("Session refreshed successfully:", refreshedSession.user.email);
+            setSession(refreshedSession);
+            setUser(refreshedSession.user);
+            
+            const role = await checkUserRole(refreshedSession.user.id);
+            setUserRole(role);
           }
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
+        // Handle initialization error gracefully
+        if (mounted) {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+        }
       } finally {
         if (mounted) {
           setIsLoading(false);
