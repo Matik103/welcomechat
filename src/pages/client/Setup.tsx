@@ -1,4 +1,3 @@
-
 import { useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -31,7 +30,7 @@ const ClientSetup = () => {
       if (data.session && !clientId) {
         console.log("User already logged in, redirecting to client dashboard");
         // If user is already logged in and not in the setup process, redirect to client dashboard
-        navigate("/client/view", { replace: true });
+        navigate("/client/dashboard", { replace: true });
       }
     };
     
@@ -51,7 +50,7 @@ const ClientSetup = () => {
       // Force a longer delay to ensure auth state updates completely
       setTimeout(() => {
         // Explicitly redirect to client dashboard after successful setup and sign in
-        navigate("/client/view", { replace: true });
+        navigate("/client/dashboard", { replace: true });
       }, 1500);
       
     } catch (error) {

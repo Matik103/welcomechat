@@ -151,7 +151,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 // Add small delay to ensure auth is complete
                 setTimeout(() => {
                   console.log("Redirecting client to dashboard");
-                  navigate('/client/view', { replace: true });
+                  navigate('/client/dashboard', { replace: true });
                 }, 800); // Increased delay slightly for more reliable auth state propagation
               } else if (role === 'admin') {
                 navigate('/', { replace: true });

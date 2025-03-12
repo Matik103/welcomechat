@@ -89,6 +89,9 @@ function App() {
         } />
         
         <Route path="/client/view" element={
+          <Navigate to="/client/dashboard" replace />
+        } />
+        <Route path="/client/dashboard" element={
           userRole === 'admin' ? <Navigate to="/" replace /> : <ClientDashboard />
         } />
         <Route path="/client/settings" element={

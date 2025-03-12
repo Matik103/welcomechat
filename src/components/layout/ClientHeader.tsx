@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Settings, Palette, UserCog, Edit } from "lucide-react";
@@ -18,7 +17,7 @@ export const ClientHeader = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link to="/client/view" className="text-xl font-semibold text-gray-900">
+            <Link to="/client/dashboard" className="text-xl font-semibold text-gray-900">
               AI Agent Dashboard
             </Link>
           </div>
