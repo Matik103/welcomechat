@@ -1,42 +1,21 @@
 {
-  "version": 2,
-  "routes": [
+  "rewrites": [
+    { "source": "/client/:path*", "destination": "/" },
+    { "source": "/auth/:path*", "destination": "/" },
+    { "source": "/admin/:path*", "destination": "/" },
+    { "source": "/(.*)", "destination": "/" }
+  ],
+  "headers": [
     {
-      "src": "^/client/.*",
-      "dest": "/index.html"
-    },
-    {
-      "src": "^/auth.*",
-      "dest": "/index.html"
-    },
-    {
-      "src": "^/admin.*",
-      "dest": "/index.html"
-    },
-    {
-      "src": "^/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "^/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "^/favicon.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": ".*",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
     }
   ],
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ]
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist"
 } 
