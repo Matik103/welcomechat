@@ -1,156 +1,118 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { useParams } from "react-router-dom";
 import { useClientData } from "@/hooks/useClientData";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { ClientForm } from "@/components/client/ClientForm";
-import { ClientResourceSections } from "@/components/client/ClientResourceSections";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, User, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { toast } from "sonner";
-import { checkAndRefreshAuth, getCurrentUser } from "@/services/authService";
+import { toast } from "react-hot-toast";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 const EditClientInfo = () => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const [clientId, setClientId] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-  
-  // Initialize client ID from user metadata
-  useEffect(() => {
-    const initializeClientId = async () => {
-      try {
-        // Try to refresh auth session if needed
-        await checkAndRefreshAuth();
-        
-        // Get the most up-to-date user data
-        const currentUser = await getCurrentUser();
-        
-        console.log("EditClientInfo - Current user:", currentUser);
-        console.log("EditClientInfo - User metadata:", currentUser?.user_metadata);
-        
-        if (currentUser?.user_metadata?.client_id) {
-          console.log("EditClientInfo - Setting client ID from metadata:", currentUser.user_metadata.client_id);
-          setClientId(currentUser.user_metadata.client_id);
-        } else if (user?.user_metadata?.client_id) {
-          console.log("EditClientInfo - Setting client ID from context user:", user.user_metadata.client_id);
-          setClientId(user.user_metadata.client_id);
-        } else {
-          console.error("EditClientInfo - No client ID found in user metadata");
-          setClientId(null);
-        }
-      } catch (error) {
-        console.error("EditClientInfo - Error initializing client ID:", error);
-        setClientId(null);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-    
-    initializeClientId();
-  }, [user]);
-  
-  // Use the client ID to fetch client data
-  const { client, isLoadingClient, error, clientMutation, clientId: resolvedClientId } = useClientData(clientId || undefined);
-  const { logClientActivity } = useClientActivity(clientId || resolvedClientId || undefined);
+  const { id } = useParams<{ id: string }>();
+  const { client, isLoading, error, updateClient } = useClientData(id);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState("");
 
-  // Handle the form submission
-  const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
-    const effectiveClientId = clientId || resolvedClientId;
+  const handleUpdateWebsiteUrl = async (newUrl: string) => {
+    if (!newUrl || isUpdating) return;
     
-    if (!effectiveClientId) {
-      toast.error("No client ID available. Cannot save changes.");
-      return;
-    }
-    
+    setIsUpdating(true);
     try {
-      await clientMutation.mutateAsync(data);
-      
-      // Log client information update activity
-      await logClientActivity(
-        "client_updated", 
-        "updated their client information",
-        { 
-          updated_fields: Object.keys(data).filter(key => 
-            client && data[key as keyof typeof data] !== client[key as keyof typeof client]
-          )
-        }
-      );
-      
-      toast.success("Your information has been updated successfully");
-    } catch (error: any) {
-      console.error("Error submitting client form:", error);
-      toast.error(`Failed to update your information: ${error.message || "Unknown error"}`);
+      await updateClient({
+        website_url: newUrl,
+        website_url_added_at: new Date().toISOString()
+      });
+      setWebsiteUrl(newUrl);
+      toast.success("Website URL updated successfully");
+    } catch (err) {
+      // Error is already handled in useClientData hook
+      console.error("Error updating URL:", err);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  // Show loading state during initialization
-  if (isInitializing) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center p-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Initializing...</span>
+        <span className="ml-2">Loading client data...</span>
       </div>
     );
   }
 
-  // Handle case when no client ID is found
-  if (!clientId && !resolvedClientId) {
+  if (error || !client) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-6">
-          <Link 
-            to="/client/view"
-            className="text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-2xl font-bold">Edit Your Information</h1>
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <User className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-lg text-gray-600">No client information found.</p>
-              <p className="text-sm text-gray-500 mt-2">Please contact support for assistance.</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="text-center p-4">
+        <p className="text-red-500">Failed to load client data</p>
+        <p className="text-sm text-gray-500">{error?.message || "Client not found"}</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-4 mb-6">
-        <Link 
-          to="/client/view"
-          className="text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-2xl font-bold">Edit Your Information</h1>
-      </div>
-
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ClientForm 
-              client={client}
-              isLoading={isLoadingClient}
-              error={error}
-              onSubmit={handleSubmit}
+    <Card>
+      <CardHeader>
+        <CardTitle>Edit Client Information</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="client-name">Client Name</Label>
+            <Input
+              id="client-name"
+              value={client.client_name || ''}
+              readOnly
             />
-          </CardContent>
-        </Card>
+          </div>
+          
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              value={client.email || ''}
+              readOnly
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="agent-name">AI Agent Name</Label>
+            <Input
+              id="agent-name"
+              value={client.agent_name || ''}
+              readOnly
+            />
+          </div>
 
-        <ClientResourceSections clientId={clientId || resolvedClientId} />
-      </div>
-    </div>
+          <div>
+            <Label htmlFor="website-url">Website URL</Label>
+            <div className="flex gap-2">
+              <Input
+                id="website-url"
+                type="url"
+                value={websiteUrl || client.website_url || ''}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="https://example.com"
+              />
+              <Button
+                onClick={() => handleUpdateWebsiteUrl(websiteUrl || client.website_url || '')}
+                disabled={isUpdating || !websiteUrl}
+              >
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update URL'
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
