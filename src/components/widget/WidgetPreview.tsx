@@ -1,8 +1,10 @@
-
+import React from "react";
 import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { X, Send, Bot, User } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
-import { SUPABASE_URL } from "@/integrations/supabase/client";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -18,7 +20,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
   const [iconSize, setIconSize] = useState<'normal' | 'medium' | 'large'>('normal'); // Icon size state
   
   // Get the Supabase project reference from the URL
-  const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
+  const projectRef = SUPABASE_URL?.split("https://")[1]?.split(".supabase.co")[0];
   
   // Update welcome message when settings change
   useEffect(() => {
