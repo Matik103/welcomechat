@@ -1,8 +1,8 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
-export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+export const PrivateRoute = () => {
   const { user, isLoading, userRole } = useAuth();
 
   if (isLoading) {
@@ -25,5 +25,5 @@ export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/client/view" replace />;
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 };
