@@ -107,7 +107,10 @@ function App() {
           userRole === 'admin' ? <Navigate to="/" replace /> : <EditClientInfo />
         } />
         
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Catch-all route for 404s */}
+        <Route path="*" element={
+          <Navigate to={userRole === 'admin' ? '/' : '/client/view'} replace />
+        } />
       </Routes>
       <Toaster />
     </div>
