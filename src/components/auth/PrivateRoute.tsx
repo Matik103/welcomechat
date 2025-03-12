@@ -1,9 +1,10 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 export const PrivateRoute = () => {
-  const { user, isLoading, userRole } = useAuth();
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -14,15 +15,8 @@ export const PrivateRoute = () => {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (!userRole) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (userRole !== "admin") {
-    return <Navigate to="/client/view" replace />;
+    // Preserve the attempted URL for redirect after login
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   return <Outlet />;

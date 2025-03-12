@@ -2,6 +2,9 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { RoleRoute } from "@/components/auth/RoleRoute";
 import { PrivateRoute } from "@/components/auth/PrivateRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
 
 // Pages
 import Auth from "@/pages/Auth";
@@ -10,39 +13,48 @@ import ClientSetup from "@/pages/client/Setup";
 import ClientView from "@/pages/client/View";
 import AdminDashboard from "@/pages/admin/Dashboard";
 
+// Loading component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
+
 // Main App component
 export default function App() {
   return (
-    <>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/client/auth" element={<ClientAuth />} />
-        <Route path="/client/setup" element={<ClientSetup />} />
+    <ErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/client/auth" element={<ClientAuth />} />
+          <Route path="/client/setup" element={<ClientSetup />} />
 
-        {/* Protected Routes */}
-        <Route element={<PrivateRoute />}>
-          {/* Admin Routes */}
-          <Route element={<RoleRoute allowedRole="admin" />}>
-            <Route path="/" element={<AdminDashboard />} />
-            {/* Add other admin routes here */}
+          {/* Protected Routes */}
+          <Route element={<PrivateRoute />}>
+            {/* Admin Routes */}
+            <Route element={<RoleRoute allowedRole="admin" />}>
+              <Route path="/" element={<AdminDashboard />} />
+              {/* Add other admin routes here */}
+            </Route>
+
+            {/* Client Routes */}
+            <Route element={<RoleRoute allowedRole="client" />}>
+              <Route path="/client/view" element={<ClientView />} />
+              {/* Add other client routes here */}
+            </Route>
           </Route>
 
-          {/* Client Routes */}
-          <Route element={<RoleRoute allowedRole="client" />}>
-            <Route path="/client/view" element={<ClientView />} />
-            {/* Add other client routes here */}
-          </Route>
-        </Route>
-
-        {/* Catch-all redirect */}
-        <Route path="*" element={<Navigate to="/auth" replace />} />
-      </Routes>
-      <Toaster 
-        position="top-right" 
-        closeButton
-        richColors
-      />
-    </>
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/auth" replace />} />
+        </Routes>
+        <Toaster 
+          position="top-right" 
+          closeButton
+          richColors
+        />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
