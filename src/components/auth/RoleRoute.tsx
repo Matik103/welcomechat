@@ -1,32 +1,28 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
 type RoleRouteProps = {
-  children: React.ReactNode;
-  allowedRoles: ('admin' | 'client')[];
+  allowedRole: 'admin' | 'client';
 };
 
-export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
-  const { user, isLoading, userRole } = useAuth();
-  const location = useLocation();
+export const RoleRoute = ({ allowedRole }: RoleRouteProps) => {
+  const { user, userRole, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
-  if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+  // If no user or no role, redirect to auth
+  if (!user || !userRole) {
+    return <Navigate to="/auth" replace />;
   }
 
-  if (!userRole || !allowedRoles.includes(userRole)) {
-    const redirectPath = userRole === 'admin' ? '/' : '/client/view';
+  // If role doesn't match, redirect to appropriate dashboard
+  if (userRole !== allowedRole) {
+    const redirectPath = userRole === 'client' ? '/client/view' : '/';
     return <Navigate to={redirectPath} replace />;
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 };

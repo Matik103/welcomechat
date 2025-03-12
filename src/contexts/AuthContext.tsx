@@ -77,12 +77,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(storedSession);
           setUser(storedSession.user);
           
+          // Keep loading state true until role check is complete
           const role = await checkUserRole(storedSession.user.id);
           if (mounted) {
             setUserRole(role);
             
-            // Redirect based on role and current path
-            if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup')) {
+            // Only redirect if we have a valid role
+            if (role && !location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup')) {
               const correctPath = role === 'client' ? '/client/view' : '/';
               if (location.pathname !== correctPath) {
                 navigate(correctPath, { replace: true });
@@ -106,12 +107,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(refreshedSession);
             setUser(refreshedSession.user);
             
+            // Keep loading state true until role check is complete
             const role = await checkUserRole(refreshedSession.user.id);
             if (mounted) {
               setUserRole(role);
               
-              // Redirect based on role and current path
-              if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup')) {
+              // Only redirect if we have a valid role
+              if (role && !location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup')) {
                 const correctPath = role === 'client' ? '/client/view' : '/';
                 if (location.pathname !== correctPath) {
                   navigate(correctPath, { replace: true });
@@ -122,6 +124,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } catch (error) {
         console.error("Auth initialization error:", error);
+        setSession(null);
+        setUser(null);
+        setUserRole(null);
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -134,11 +139,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (!mounted) return;
 
+      setIsLoading(true); // Set loading true for any auth state change
+
       if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
         setUserRole(null);
         navigate('/auth', { replace: true });
+        setIsLoading(false);
         return;
       }
 
@@ -146,11 +154,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(currentSession);
         setUser(currentSession.user);
         
+        // Keep loading true until role check is complete
         const role = await checkUserRole(currentSession.user.id);
         if (mounted) {
           setUserRole(role);
           
-          if (event === 'SIGNED_IN') {
+          if (event === 'SIGNED_IN' && role) {
             const correctPath = role === 'client' ? '/client/view' : '/';
             navigate(correctPath, { replace: true });
           }
