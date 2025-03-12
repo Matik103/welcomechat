@@ -36,13 +36,13 @@ export default function App() {
             {/* Admin Routes */}
             <Route element={<RoleRoute allowedRole="admin" />}>
               <Route path="/" element={<AdminDashboard />} />
-              {/* Add other admin routes here */}
+              <Route path="/admin/*" element={<AdminDashboard />} />
             </Route>
 
             {/* Client Routes */}
             <Route element={<RoleRoute allowedRole="client" />}>
               <Route path="/client/view" element={<ClientView />} />
-              {/* Add other client routes here */}
+              <Route path="/client/*" element={<ClientView />} />
             </Route>
           </Route>
 
