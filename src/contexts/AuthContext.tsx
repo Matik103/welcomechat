@@ -16,28 +16,18 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Separate the hook into its own named function for better Fast Refresh support
-function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-}
-
-// Export both the provider and the hook
-export { AuthContext, useAuth };
-
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const checkUserRole = async (userId: string): Promise<UserRole | null> => {
+  const checkUserRole = async (userId: string) => {
     try {
+      console.log("Checking user role for:", userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, client_id')
@@ -49,12 +39,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return null;
       }
 
+      // If user has client_id in user_roles, update user metadata
       if (data?.client_id && data.role === 'client') {
+        console.log("Updating user metadata with client_id:", data.client_id);
         await supabase.auth.updateUser({
           data: { client_id: data.client_id }
         });
       }
 
+      console.log("User role found:", data?.role);
       return data?.role as UserRole || null;
     } catch (error) {
       console.error("Error checking user role:", error);
@@ -62,125 +55,177 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Handle auth state changes
   useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
       try {
-        setIsLoading(true);
+        console.log("Initializing auth...");
+        // First try to recover the session from storage
         const { data: { session: storedSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
         if (storedSession) {
+          console.log("Recovered stored session:", storedSession.user.email);
           setSession(storedSession);
           setUser(storedSession.user);
           
           const role = await checkUserRole(storedSession.user.id);
-          if (mounted) {
-            setUserRole(role);
-            
-            // Redirect based on role and current path
-            if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup')) {
-              const correctPath = role === 'client' ? '/client/view' : '/';
-              if (location.pathname !== correctPath) {
-                navigate(correctPath, { replace: true });
-              }
-            }
-          }
+          setUserRole(role);
         } else {
+          // If no stored session, try to refresh
+          console.log("No stored session, attempting refresh...");
           const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
           
           if (!mounted) return;
 
           if (refreshError) {
+            console.error("Session refresh failed:", refreshError);
+            // Clear any stale session data
             setSession(null);
             setUser(null);
             setUserRole(null);
             
-            if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup')) {
+            // Only redirect to auth if not already there and not in setup
+            if (!location.pathname.startsWith('/auth') && 
+                !location.pathname.startsWith('/client/setup')) {
               navigate('/auth', { replace: true });
             }
           } else if (refreshedSession) {
+            console.log("Session refreshed successfully:", refreshedSession.user.email);
             setSession(refreshedSession);
             setUser(refreshedSession.user);
             
             const role = await checkUserRole(refreshedSession.user.id);
-            if (mounted) {
-              setUserRole(role);
-              
-              // Redirect based on role and current path
-              if (!location.pathname.startsWith('/auth') && !location.pathname.startsWith('/client/setup')) {
-                const correctPath = role === 'client' ? '/client/view' : '/';
-                if (location.pathname !== correctPath) {
-                  navigate(correctPath, { replace: true });
-                }
-              }
-            }
+            setUserRole(role);
           }
         }
       } catch (error) {
-        console.error("Auth initialization error:", error);
+        console.error("Error initializing auth:", error);
+        // Handle initialization error gracefully
+        if (mounted) {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+        }
       } finally {
         if (mounted) {
           setIsLoading(false);
+          setAuthCheckCompleted(true);
+          console.log("Auth check completed");
         }
       }
     };
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      if (!mounted) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        if (!mounted) return;
+        console.log("Auth state changed:", event, currentSession?.user?.email);
 
-      if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setUserRole(null);
-        navigate('/auth', { replace: true });
-        return;
-      }
+        // Set loading to true for auth state changes
+        if (!authCheckCompleted || event !== 'INITIAL_SESSION') {
+          setIsLoading(true);
+        }
 
-      if (currentSession) {
-        setSession(currentSession);
-        setUser(currentSession.user);
-        
-        const role = await checkUserRole(currentSession.user.id);
-        if (mounted) {
-          setUserRole(role);
-          
-          if (event === 'SIGNED_IN') {
-            const correctPath = role === 'client' ? '/client/view' : '/';
-            navigate(correctPath, { replace: true });
+        // Only update session if it's actually different
+        const sessionChanged = 
+          (currentSession?.user?.id !== session?.user?.id) ||
+          (currentSession === null && session !== null);
+
+        if (sessionChanged || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log("Session changed, updating state");
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+
+          if (currentSession?.user) {
+            const role = await checkUserRole(currentSession.user.id);
+            setUserRole(role);
+            
+            // Redirect based on role after sign in
+            if (event === 'SIGNED_IN') {
+              console.log("Sign in detected, redirecting based on role:", role);
+              if (role === 'client') {
+                // Add small delay to ensure auth is complete
+                setTimeout(() => {
+                  console.log("Redirecting client to dashboard");
+                  navigate('/client/view', { replace: true });
+                }, 800); // Increased delay slightly for more reliable auth state propagation
+              } else if (role === 'admin') {
+                navigate('/', { replace: true });
+              }
+            }
+          } else {
+            setUserRole(null);
+            // Only navigate to auth if we're not already there and not loading
+            // Also don't redirect if we're on the setup page
+            if (!location.pathname.startsWith('/auth') && 
+                !location.pathname.startsWith('/client/setup') && 
+                authCheckCompleted) {
+              navigate('/auth', { replace: true });
+            }
           }
         }
+        
+        // Always set loading to false when done processing
+        setIsLoading(false);
+        setAuthCheckCompleted(true);
       }
-      
-      setIsLoading(false);
-    });
+    );
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, location.search, authCheckCompleted, session]);
 
   const signOut = async () => {
     try {
-      setIsLoading(true);
+      console.log("Signing out user...");
+      
+      // First, check if we have a valid session before attempting to sign out
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error("Error getting session during sign out:", sessionError);
+      }
+      
+      // If we already don't have a session, just update the UI state
+      if (!sessionData?.session) {
+        console.log("No active session found, updating UI state only");
+        setUserRole(null);
+        setSession(null);
+        setUser(null);
+        navigate('/auth', { replace: true });
+        return Promise.resolve();
+      }
+      
+      // If we have a session, try to sign out
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (error) {
+        console.error("Error during sign out:", error);
+        throw error;
+      }
 
+      console.log("Sign out successful, updating state");
       setUserRole(null);
       setSession(null);
       setUser(null);
+      
+      // Force navigation to auth page
       navigate('/auth', { replace: true });
-    } catch (error) {
+      
+      return Promise.resolve();
+    } catch (error: any) {
       console.error("Sign out error:", error);
-      toast.error("Failed to sign out");
-    } finally {
-      setIsLoading(false);
+      
+      // Even if sign out fails, update local state
+      setUserRole(null);
+      setSession(null);
+      setUser(null);
+      
+      return Promise.reject(error);
     }
   };
 
@@ -189,4 +234,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };
