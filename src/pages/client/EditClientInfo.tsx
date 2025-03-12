@@ -11,10 +11,12 @@ export default function EditClientInfo() {
   const [client, setClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    if (hasError) return; // Prevent refetching if there's an error
     fetchClientData();
-  }, [clientId]);
+  }, [clientId, hasError]);
 
   async function fetchClientData() {
     try {
@@ -28,8 +30,10 @@ export default function EditClientInfo() {
 
       if (error) throw error;
       setClient(client);
+      setHasError(false); // Reset error state on successful fetch
     } catch (error) {
       console.error('Error fetching client:', error);
+      setHasError(true); // Set error state
       toast.error('Failed to load your information');
     } finally {
       setIsLoading(false);
