@@ -81,35 +81,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
-        setIsLoading(true);
-        console.log("Initializing auth...");
-        
-        // Get current session
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-
-        if (currentSession?.user) {
-          console.log("Found existing session:", currentSession.user.email);
-          await updateAuthStates(currentSession);
-        } else {
-          // Try to refresh the session
-          console.log("No session found, attempting refresh...");
-          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (!authCheckCompleted) {
+          setIsLoading(true);
+          console.log("Initializing auth...");
+          
+          // Get current session
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
           
           if (!mounted) return;
 
-          if (refreshError) {
-            console.error("Session refresh failed:", refreshError);
-            await updateAuthStates(null);
+          if (currentSession?.user) {
+            console.log("Found existing session:", currentSession.user.email);
+            await updateAuthStates(currentSession);
+          } else {
+            // Try to refresh the session
+            console.log("No session found, attempting refresh...");
+            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
             
-            if (!location.pathname.startsWith('/auth') && 
-                !location.pathname.startsWith('/client/setup')) {
-              navigate('/auth', { replace: true });
+            if (!mounted) return;
+
+            if (refreshError) {
+              console.error("Session refresh failed:", refreshError);
+              await updateAuthStates(null);
+              
+              // Only redirect if not on auth or setup pages
+              if (!location.pathname.startsWith('/auth') && 
+                  !location.pathname.startsWith('/client/setup')) {
+                navigate('/auth', { replace: true });
+              }
+            } else if (refreshedSession) {
+              console.log("Session refreshed successfully:", refreshedSession.user.email);
+              await updateAuthStates(refreshedSession);
             }
-          } else if (refreshedSession) {
-            console.log("Session refreshed successfully:", refreshedSession.user.email);
-            await updateAuthStates(refreshedSession);
           }
         }
       } catch (error) {
@@ -133,6 +136,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!mounted) return;
         console.log("Auth state changed:", event, currentSession?.user?.email);
 
+        // Skip state updates for initial session if we've already completed auth check
+        if (event === 'INITIAL_SESSION' && authCheckCompleted) {
+          console.log("Skipping initial session handling - auth already checked");
+          return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -140,9 +149,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const role = await updateAuthStates(currentSession);
             console.log("Sign in detected, redirecting based on role:", role);
             
-            if (role === 'client') {
+            // Only navigate if we're not already on the correct path
+            if (role === 'client' && !location.pathname.startsWith('/client/dashboard')) {
               navigate('/client/dashboard', { replace: true });
-            } else if (role === 'admin') {
+            } else if (role === 'admin' && location.pathname !== '/') {
               navigate('/', { replace: true });
             }
           } else if (event === 'SIGNED_OUT') {
@@ -151,6 +161,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               navigate('/auth', { replace: true });
             }
           } else if (event === 'TOKEN_REFRESHED' && currentSession) {
+            // Only update states for token refresh, no navigation
             await updateAuthStates(currentSession);
           }
         } catch (error) {
@@ -167,7 +178,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, authCheckCompleted]);
 
   const signOut = async () => {
     try {
@@ -178,12 +189,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) throw error;
 
       await updateAuthStates(null);
-      navigate('/auth', { replace: true });
+      
+      // Only navigate if not already on auth page
+      if (!location.pathname.startsWith('/auth')) {
+        navigate('/auth', { replace: true });
+      }
     } catch (error) {
       console.error("Sign out error:", error);
       // Force state clear and navigation on error
       await updateAuthStates(null);
-      navigate('/auth', { replace: true });
+      if (!location.pathname.startsWith('/auth')) {
+        navigate('/auth', { replace: true });
+      }
       throw error;
     } finally {
       setIsLoading(false);
