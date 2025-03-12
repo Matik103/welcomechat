@@ -14,6 +14,12 @@ export interface Client {
   widget_settings: any;
   urls: string[];
   drive_urls: string[];
+  website_url_refresh_rate: number | null;
+  website_url_last_checked: string | null;
+  website_url_next_check: string | null;
+  drive_link_refresh_rate: number | null;
+  drive_link_last_checked: string | null;
+  drive_link_next_check: string | null;
 }
 
 export type Database = {
