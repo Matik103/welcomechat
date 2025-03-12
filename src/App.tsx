@@ -26,7 +26,7 @@ function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowLoader(false);
-    }, 3000);
+    }, 1000);
     
     if (!isLoading) {
       clearTimeout(timer);
@@ -39,8 +39,9 @@ function App() {
   const isPublicRoute = 
     location.pathname === '/auth' || 
     location.pathname.startsWith('/client/setup');
-  
-  if (isLoading && showLoader) {
+
+  // Early return for loading states to prevent any flash of content
+  if (isLoading || showLoader || (user && userRole === null)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center">
@@ -51,8 +52,14 @@ function App() {
     );
   }
 
-  if ((!isLoading || !showLoader) && !user && !isPublicRoute) {
+  // Redirect to auth if not authenticated and not on a public route
+  if (!user && !isPublicRoute) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Immediate redirect for clients to their dashboard if they're on any non-client route
+  if (user && userRole === 'client' && !location.pathname.startsWith('/client/')) {
+    return <Navigate to="/client/dashboard" replace />;
   }
 
   const isClientRoute = 
@@ -63,12 +70,21 @@ function App() {
     <div className="min-h-screen bg-background">
       {isClientRoute ? <ClientHeader /> : <Header />}
       <Routes>
+        {/* Public routes */}
         <Route path="/auth" element={<Auth />} />
         <Route path="/client/setup" element={<ClientSetup />} />
         
+        {/* Protected routes with role-based access */}
         <Route path="/" element={
-          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <Index />
+          !user ? <Navigate to="/auth" replace /> :
+          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> :
+          userRole === 'admin' ? <Index /> :
+          <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
         } />
+        
+        {/* Admin routes */}
         <Route path="/admin/clients" element={
           userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <ClientList />
         } />
@@ -88,6 +104,7 @@ function App() {
           userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <WidgetSettings />
         } />
         
+        {/* Client routes */}
         <Route path="/client/view" element={
           <Navigate to="/client/dashboard" replace />
         } />
