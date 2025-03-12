@@ -1,6 +1,6 @@
-
 project_id = "mgjodiqecnnltsgorife"
 
+[functions]
 [functions.chat]
 verify_jwt = false
 
@@ -39,3 +39,9 @@ verify_jwt = false
 
 [functions.reset-password]
 verify_jwt = false
+
+[functions.check-drive-access]
+verify_jwt = true
+
+[functions.check-url-access]
+verify_jwt = true
