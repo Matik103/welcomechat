@@ -11,6 +11,11 @@ import Auth from "@/pages/Auth";
 import ClientAuth from "@/pages/client/Auth";
 import ClientSetup from "@/pages/client/Setup";
 import ClientView from "@/pages/client/View";
+import ClientDashboard from "@/pages/client/Dashboard";
+import ClientSettings from "@/pages/client/Settings";
+import ClientResourceSettings from "@/pages/client/ResourceSettings";
+import ClientEditInfo from "@/pages/client/EditClientInfo";
+import ClientAccountSettings from "@/pages/client/AccountSettings";
 import AdminDashboard from "@/pages/admin/Dashboard";
 
 // Loading component
@@ -43,9 +48,15 @@ export default function App() {
 
             {/* Client Routes */}
             <Route element={<RoleRoute allowedRole="client" />}>
+              {/* Main Views */}
               <Route path="/client/view" element={<ClientView />} />
-              <Route path="/client/settings" element={<ClientView />} />
-              <Route path="/client/widget" element={<ClientView />} />
+              <Route path="/client/dashboard" element={<ClientDashboard />} />
+              
+              {/* Settings */}
+              <Route path="/client/settings" element={<ClientSettings />} />
+              <Route path="/client/resource-settings" element={<ClientResourceSettings />} />
+              <Route path="/client/account-settings" element={<ClientAccountSettings />} />
+              <Route path="/client/edit-info" element={<ClientEditInfo />} />
             </Route>
           </Route>
 
