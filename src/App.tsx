@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
-import { Toaster } from "sonner";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   const { isLoading, user, userRole } = useAuth();
@@ -115,7 +115,7 @@ function App() {
           <Navigate to={userRole === 'admin' ? '/' : '/client/dashboard'} replace />
         } />
       </Routes>
-      <Toaster />
+      <Toaster position="top-right" />
     </div>
   );
 }
