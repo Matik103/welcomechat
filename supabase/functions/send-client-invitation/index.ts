@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
@@ -46,7 +45,7 @@ serve(async (req) => {
     console.log(`Sending invitation to client: ${clientName || 'Unknown'} (${email}), ID: ${clientId}`);
     
     // Generate the dashboard URL
-    const origin = req.headers.get("origin") || "https://welcome.chat";
+    const origin = req.headers.get("origin") || "https://admin.welcome.chat";
     
     // Initialize Supabase admin client
     const supabaseAdmin = createClient(
@@ -64,61 +63,111 @@ serve(async (req) => {
       console.error("Failed to initialize Supabase admin client");
       throw new Error("Failed to initialize Supabase client");
     }
+
+    // Verify environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    // Custom email template options
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("Missing required environment variables:", {
+        hasSupabaseUrl: !!supabaseUrl,
+        hasServiceRoleKey: !!serviceRoleKey
+      });
+      throw new Error("Missing required environment variables");
+    }
+    
+    // Custom email template options with proper redirect URL
     const emailOptions = {
       data: {
         client_id: clientId,
-        client_name: clientName
+        client_name: clientName,
+        origin: origin
       },
       redirectTo: `${origin}/client/view`,
-      emailRedirectTo: `${origin}/client/view`,
-      // Custom email template content for Supabase's invitation email
-      email_template: {
-        subject: "Welcome to Welcome.Chat - Your Account Invitation",
-        content: `
-<h2>You have been invited to Welcome.Chat</h2>
-
-<p>Hello${clientName ? ` ${clientName}` : ''},</p>
-
-<p>You have been invited to create an account on Welcome.Chat. Follow this link to accept the invite:</p>
-
-<p><a href="{{ .ConfirmationURL }}">Accept the invite</a></p>
-
-<p><strong>Important next steps:</strong></p>
-<ol>
-  <li>Click the link above to accept this invitation</li>
-  <li>You'll be asked to create a password for your account</li>
-  <li>After setting your password, you'll be automatically signed in to your dashboard</li>
-</ol>
-
-<p>Thank you,<br>The Welcome.Chat Team</p>
-        `
-      }
+      // Do not include email template here as it's configured in Supabase dashboard
     };
     
     // Send Supabase built-in invitation
-    console.log("Sending Supabase built-in invitation");
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, emailOptions);
+    console.log("Sending invitation via Resend with options:", {
+      email,
+      clientId,
+      clientName,
+      redirectTo: emailOptions.redirectTo,
+      origin: origin
+    });
     
-    if (inviteError) {
-      console.error("Supabase invitation failed:", inviteError.message);
-      throw inviteError;
-    }
-    
-    console.log("Supabase invitation sent successfully:", inviteData);
-    
-    // Return success
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: "Invitation email sent successfully"
-      }), 
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+    try {
+      // First check if user already exists
+      const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+      
+      if (existingUser) {
+        console.log("User already exists:", {
+          email,
+          userId: existingUser.id
+        });
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "User already exists",
+            details: { email }
+          }), 
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
       }
-    );
+
+      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, emailOptions);
+      
+      if (inviteError) {
+        console.error("Supabase invitation failed:", {
+          error: inviteError.message,
+          code: inviteError.status,
+          details: inviteError
+        });
+        throw inviteError;
+      }
+
+      // Verify the invite was created
+      if (!inviteData) {
+        console.error("No invite data returned");
+        throw new Error("Failed to create invitation");
+      }
+      
+      console.log("Supabase invitation sent successfully:", {
+        inviteData,
+        email,
+        clientName,
+        redirectUrl: emailOptions.redirectTo
+      });
+      
+      // Return success
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          message: "Invitation email sent successfully",
+          data: inviteData
+        }), 
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    } catch (inviteError) {
+      console.error("Failed to send invitation:", inviteError);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: inviteError.message || "Failed to send invitation",
+          details: inviteError
+        }), 
+        {
+          status: 200, // Keep 200 to handle in frontend
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
   } catch (error) {
     console.error("Error in send-client-invitation function:", error);
     
