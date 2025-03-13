@@ -471,6 +471,27 @@ export type Database = {
           },
         ]
       }
+      deals: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       digicel: {
         Row: {
           content: string | null
@@ -902,6 +923,48 @@ export type Database = {
         Relationships: []
       }
       news: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
+      news_2: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
+      news_one: {
         Row: {
           content: string | null
           embedding: string | null
@@ -1693,6 +1756,19 @@ export type Database = {
           similarity: number
         }[]
       }
+      match_deals: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
       match_digicel: {
         Args: {
           query_embedding: string
@@ -1876,6 +1952,32 @@ export type Database = {
         }[]
       }
       match_news: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_news_2: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_news_one: {
         Args: {
           query_embedding: string
           match_count?: number

@@ -58,27 +58,58 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
  * Creates a new client
  */
 export const createClient = async (data: ClientFormData): Promise<string> => {
-  const { data: newClients, error } = await supabase
-    .from("clients")
-    .insert([{
-      client_name: data.client_name,
-      email: data.email,
-      agent_name: data.agent_name,
-      widget_settings: data.widget_settings || {},
-      status: 'active'
-    }])
-    .select('*');
+  try {
+    // Create the client record
+    const { data: newClients, error } = await supabase
+      .from("clients")
+      .insert([{
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: data.agent_name,
+        widget_settings: data.widget_settings || {},
+        status: 'active'
+      }])
+      .select('*');
 
-  if (error) {
-    console.error("Error creating client:", error);
+    if (error) {
+      console.error("Error creating client:", error);
+      throw error;
+    }
+
+    if (!newClients || newClients.length === 0) {
+      throw new Error("Failed to create client - no data returned");
+    }
+
+    const clientId = newClients[0].id;
+
+    // Add entry to ai_agents table
+    try {
+      const { error: aiAgentError } = await supabase
+        .from("ai_agents")
+        .insert([{
+          client_id: clientId,
+          agent_name: data.agent_name,
+          content: `AI Agent for ${data.client_name}`,
+          metadata: {
+            client_name: data.client_name,
+            created_at: new Date().toISOString()
+          }
+        }]);
+
+      if (aiAgentError) {
+        console.error("Error creating AI agent entry:", aiAgentError);
+        // Continue despite error, as client was created successfully
+      }
+    } catch (aiAgentError) {
+      console.error("Failed to create AI agent entry:", aiAgentError);
+      // Continue despite error, as client was created successfully
+    }
+
+    return clientId;
+  } catch (error) {
+    console.error("Error in createClient:", error);
     throw error;
   }
-
-  if (!newClients || newClients.length === 0) {
-    throw new Error("Failed to create client - no data returned");
-  }
-
-  return newClients[0].id;
 };
 
 /**
