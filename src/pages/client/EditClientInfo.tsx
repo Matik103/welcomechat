@@ -5,21 +5,11 @@ import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'react-hot-toast';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
 import { ExtendedActivityType, Json } from '@/types/supabase';
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  ai_agent_id: string | null;
-  created_at: string;
-  updated_at: string;
-  client_name: string;
-  agent_name: string;
-}
+import { ClientWithAgent } from '@/types/client';
 
 export const EditClientInfo: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
-  const [client, setClient] = useState<Client | null>(null);
+  const [client, setClient] = useState<ClientWithAgent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -87,7 +77,14 @@ export const EditClientInfo: React.FC = () => {
       // Refresh client data
       const { data: updatedClient, error: fetchError } = await supabase
         .from('clients')
-        .select('*')
+        .select(`
+          *,
+          ai_agents (
+            id,
+            agent_name,
+            personality
+          )
+        `)
         .eq('id', clientId)
         .single();
 
@@ -150,7 +147,6 @@ export const EditClientInfo: React.FC = () => {
         logClientActivity={async (activity_type: ExtendedActivityType, description: string, metadata?: Json) => {
           // Implement activity logging
           console.log('Client activity:', { activity_type, description, metadata });
-          // Add your actual logging logic here
           await supabase.from('client_activities').insert({
             client_id: clientId,
             activity_type,

@@ -88,4 +88,24 @@ export type Database = GeneratedDatabase & {
       };
     };
   };
-}; 
+};
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type ExtendedActivityType = 
+  | 'login'
+  | 'logout'
+  | 'update_profile'
+  | 'update_settings'
+  | 'create_client'
+  | 'update_client'
+  | 'delete_client'
+  | 'send_invitation'
+  | 'access_resource'
+  | 'update_resource'; 

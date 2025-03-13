@@ -1,4 +1,3 @@
-
 import { WidgetSettings } from "./widget-settings";
 import { Json } from "@/integrations/supabase/types";
 
@@ -30,16 +29,24 @@ export interface ClientFormData {
   description?: string;
 }
 
-export interface Client extends ClientFormData {
+export interface Client {
   id: string;
-  created_at?: string;
-  updated_at?: string;
-  deletion_scheduled_at?: string;
-  deleted_at?: string;
-  last_active?: string;
-  status?: string;
-  website_url?: string;
-  drive_link?: string;
-  drive_link_added_at?: string;
-  website_url_added_at?: string;
+  name: string;
+  email: string;
+  ai_agent_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AIAgent {
+  id: string;
+  client_id: string;
+  agent_name: string;
+  personality: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientWithAgent extends Client {
+  ai_agents?: AIAgent;
 }

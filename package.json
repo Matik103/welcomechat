@@ -4,38 +4,26 @@
   "private": true,
   "dependencies": {
     "@headlessui/react": "^1.7.18",
-    "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.86",
-    "@types/react": "^18.2.61",
-    "@types/react-dom": "^18.2.19",
+    "@supabase/supabase-js": "^2.39.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
     "react-icons": "^5.0.1",
-    "react-router-dom": "^6.22.2",
-    "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
+    "react-router-dom": "^6.22.2"
   },
   "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@types/react": "^18.2.61",
+    "@types/react-dom": "^18.2.19",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
+    "autoprefixer": "^10.4.18",
+    "eslint": "^8.57.0",
+    "postcss": "^8.4.35",
     "react-scripts": "5.0.1",
-    "@typescript-eslint/eslint-plugin": "^5.62.0",
-    "@typescript-eslint/parser": "^5.62.0",
-    "vite": "^5.4.14"
-  },
-  "overrides": {
-    "svgo": {
-      "nth-check": ">=2.0.2"
-    },
-    "react-scripts": {
-      "postcss": ">=8.4.31",
-      "@svgr/webpack": "^6.2.1"
-    },
-    "vite": {
-      "esbuild": ">=0.24.3"
-    }
+    "tailwindcss": "^3.4.1",
+    "typescript": "^4.9.5",
+    "vite": "^5.1.4"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -60,5 +48,17 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "overrides": {
+    "svgo": {
+      "nth-check": ">=2.0.2"
+    },
+    "react-scripts": {
+      "postcss": ">=8.4.31",
+      "@svgr/webpack": "^6.2.1"
+    },
+    "vite": {
+      "esbuild": ">=0.24.3"
+    }
   }
 }
