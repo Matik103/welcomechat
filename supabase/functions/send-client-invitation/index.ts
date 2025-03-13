@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { createClient } from "@supabase/supabase-js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,13 +45,21 @@ serve(async (req) => {
     
     console.log(`Sending invitation to client: ${clientName || 'Unknown'} (${email}), ID: ${clientId}`);
     
-    // Generate the dashboard URL
+    // Get the origin from request headers or use default
     const origin = req.headers.get("origin") || "https://welcome.chat";
     
     // Initialize Supabase admin client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables");
+      throw new Error("Server configuration error: Missing Supabase credentials");
+    }
+    
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      supabaseUrl,
+      supabaseServiceRoleKey,
       {
         auth: {
           autoRefreshToken: false,
@@ -59,11 +67,6 @@ serve(async (req) => {
         }
       }
     );
-    
-    if (!supabaseAdmin) {
-      console.error("Failed to initialize Supabase admin client");
-      throw new Error("Failed to initialize Supabase client");
-    }
     
     // Custom email template options
     const emailOptions = {
@@ -122,14 +125,14 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in send-client-invitation function:", error);
     
-    // Always return 200 status to avoid frontend throwing non-2xx errors
+    // Return with error information
     return new Response(
       JSON.stringify({ 
         error: error.message || "Failed to send invitation",
         success: false
       }), 
       {
-        status: 200, // Changed from 500 to 200 to avoid non-2xx error
+        status: 200, // Using 200 instead of error status to avoid CORS issues
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );

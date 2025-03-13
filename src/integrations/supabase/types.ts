@@ -985,6 +985,27 @@ export type Database = {
         }
         Relationships: []
       }
+      news_4: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       news_one: {
         Row: {
           content: string | null
@@ -1999,6 +2020,19 @@ export type Database = {
         }[]
       }
       match_news_3: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_news_4: {
         Args: {
           query_embedding: string
           match_count?: number
