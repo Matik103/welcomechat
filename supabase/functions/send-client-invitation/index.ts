@@ -74,81 +74,77 @@ serve(async (req) => {
     // Generate a unique token for the invitation
     const token = crypto.randomUUID();
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiration
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour expiration
 
     // Store the invitation in the database
     const { error: inviteError } = await supabaseAdmin
       .from('client_invitations')
       .insert({
         client_id: clientId,
-        email: email,
         token: token,
-        status: 'pending',
-        expires_at: expiresAt.toISOString()
+        email: email,
+        expires_at: expiresAt.toISOString(),
+        status: 'pending'
       });
 
     if (inviteError) {
-      console.error("Failed to create invitation record:", inviteError);
-      throw inviteError;
+      console.error("Error storing invitation:", inviteError);
+      throw new Error("Failed to create invitation record");
     }
 
     // Initialize Resend
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
     
-    if (!Deno.env.get("RESEND_API_KEY")) {
-      console.error("Missing RESEND_API_KEY environment variable");
-      throw new Error("Server configuration error: Missing Resend API key");
-    }
-
     // Send invitation email using Resend
+    const setupUrl = `${origin}/client/setup?token=${token}`;
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: "WelcomeChat <onboarding@resend.dev>",
+      from: "Welcome.Chat <onboarding@resend.dev>",
       to: email,
-      subject: "Welcome to WelcomeChat - Your Account Invitation",
+      subject: "Welcome to Welcome.Chat - Your Account Invitation",
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Welcome to WelcomeChat!</h2>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333; margin-bottom: 20px;">Welcome to Welcome.Chat!</h2>
           
           <p>Hello${clientName ? ` ${clientName}` : ''},</p>
           
-          <p>You have been invited to create an account on WelcomeChat. To get started:</p>
+          <p>You have been invited to create your Welcome.Chat account. To get started:</p>
           
           <ol style="line-height: 1.6;">
-            <li>Click the button below to accept this invitation</li>
-            <li>Set up your password</li>
+            <li>Click the button below to set up your account</li>
+            <li>Create your password</li>
             <li>You'll be automatically signed in to your dashboard</li>
           </ol>
           
           <div style="margin: 30px 0;">
-            <a href="${origin}/client-setup?token=${token}" style="
+            <a href="${setupUrl}" style="
               background-color: #3b82f6;
               color: white;
               padding: 12px 24px;
               text-decoration: none;
               border-radius: 6px;
               display: inline-block;
-            ">Accept Invitation</a>
+            ">Set Up Your Account</a>
           </div>
           
-          <p>This invitation link will expire in 24 hours.</p>
+          <p style="color: #666;">This invitation link will expire in 24 hours.</p>
           
-          <p style="color: #666; font-size: 14px; margin-top: 40px;">
+          <p style="color: #666; font-size: 14px; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
             If you didn't expect this invitation, you can safely ignore this email.
           </p>
           
-          <p>Best regards,<br>The WelcomeChat Team</p>
+          <p>Best regards,<br>The Welcome.Chat Team</p>
         </div>
       `
     });
 
     if (emailError) {
-      console.error("Failed to send email with Resend:", emailError);
+      console.error("Error sending email with Resend:", emailError);
       throw emailError;
     }
 
-    console.log("Invitation email sent successfully:", emailData);
+    console.log("Email sent successfully with Resend:", emailData);
     
-    // Return success
+    // Return success response
     return new Response(
       JSON.stringify({ 
         success: true,
@@ -168,7 +164,7 @@ serve(async (req) => {
       stack: error.stack
     });
     
-    // Return with error information
+    // Return error response
     return new Response(
       JSON.stringify({ 
         error: error.message || "Failed to send invitation",
