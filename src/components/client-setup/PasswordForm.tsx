@@ -1,16 +1,18 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { TokenData } from "@/hooks/useSetupToken";
 
 interface PasswordFormProps {
-  tokenData: TokenData;
+  tokenData: {
+    isValid: boolean;
+    email: string;
+    clientId: string;
+  };
   token: string;
 }
 
@@ -24,7 +26,7 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
     e.preventDefault();
     
     if (!tokenData.isValid) {
-      toast.error("Invalid invitation");
+      toast.error("Invalid or expired invitation");
       return;
     }
 
@@ -45,6 +47,11 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: tokenData.email,
         password: password,
+        options: {
+          data: {
+            client_id: tokenData.clientId
+          }
+        }
       });
 
       if (signUpError) throw signUpError;
@@ -61,18 +68,38 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
       if (updateError) throw updateError;
 
       // Create user role for the client
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: signUpData.user!.id,
-        role: "client"
-      });
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert({
+          user_id: signUpData.user!.id,
+          role: "client",
+          client_id: tokenData.clientId
+        });
 
       if (roleError) throw roleError;
 
-      toast.success("Account created successfully! Redirecting to dashboard...");
+      // Log the setup completion
+      const { error: activityError } = await supabase
+        .from("client_activities")
+        .insert({
+          client_id: tokenData.clientId,
+          activity_type: "account_setup",
+          description: "completed account setup",
+          metadata: {
+            setup_method: "invitation"
+          }
+        });
+
+      if (activityError) {
+        console.error("Failed to log activity:", activityError);
+        // Don't throw, as the setup was successful
+      }
+
+      toast.success("Account set up successfully! Redirecting to your dashboard...");
       
       // Allow time for toast to be seen then redirect to client dashboard
       setTimeout(() => {
-        navigate("/client/view");
+        navigate("/client/dashboard");
       }, 2000);
     } catch (error: any) {
       console.error("Error setting up account:", error);
@@ -83,11 +110,7 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" value={tokenData.email} disabled />
-      </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="password">Create Password</Label>
         <Input
@@ -95,28 +118,27 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter your password"
           required
+          minLength={6}
         />
       </div>
+
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm Password</Label>
+        <Label htmlFor="confirm-password">Confirm Password</Label>
         <Input
-          id="confirmPassword"
+          id="confirm-password"
           type="password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Confirm your password"
           required
         />
       </div>
+
       <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Setting up...
-          </>
-        ) : (
-          "Create Account"
-        )}
+        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Set Up Account
       </Button>
     </form>
   );
