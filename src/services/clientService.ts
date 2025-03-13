@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -88,17 +87,34 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
   try {
     console.log("Sending invitation for client:", clientId, email, clientName);
     
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) {
+      throw new Error("No authentication token available");
+    }
+
+    // Get the current project URL
+    const {
+      data: { publicUrl },
+    } = await supabase.functions.getPublicUrl();
+
+    console.log("Invoking function with URL:", publicUrl);
+
     const { data, error } = await supabase.functions.invoke("send-client-invitation", {
       body: {
         clientId,
         email,
         clientName
+      },
+      headers: {
+        Authorization: `Bearer ${session.session.access_token}`,
+        'x-client-info': 'supabase-js/2.38.4',
+        'x-supabase-auth': session.session.access_token
       }
     });
     
     if (error) {
       console.error("Error sending invitation:", error);
-      throw error;
+      throw new Error(`Failed to send invitation: ${error.message}`);
     }
     
     if (data?.error) {
@@ -106,10 +122,15 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
       throw new Error(data.error);
     }
     
+    if (!data?.success) {
+      console.error("Function did not return success:", data);
+      throw new Error("Failed to send invitation - no success response");
+    }
+    
     console.log("Invitation response:", data);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Invitation method failed:", error);
-    throw error;
+    throw new Error(error?.message || "Failed to send invitation email");
   }
 };

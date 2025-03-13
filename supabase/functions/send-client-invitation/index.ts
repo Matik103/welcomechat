@@ -3,8 +3,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS"
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-auth, x-client-info",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Max-Age": "86400"
 };
 
 interface InvitationRequest {
@@ -81,7 +82,9 @@ serve(async (req) => {
       data: {
         client_id: clientId,
         client_name: clientName,
-        origin: origin
+        origin: origin,
+        app_name: "Welcome.Chat",
+        invitation_url: `${origin}/client/view`
       },
       redirectTo: `${origin}/client/view`,
       // Do not include email template here as it's configured in Supabase dashboard
@@ -93,12 +96,24 @@ serve(async (req) => {
       clientId,
       clientName,
       redirectTo: emailOptions.redirectTo,
-      origin: origin
+      origin: origin,
+      env: {
+        hasResendKey: !!Deno.env.get('RESEND_API_KEY'),
+        hasSupabaseUrl: !!supabaseUrl,
+        hasServiceRoleKey: !!serviceRoleKey
+      }
     });
     
     try {
       // First check if user already exists
-      const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+      const { data: existingUser, error: userError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+      
+      if (userError) {
+        console.error("Error checking existing user:", {
+          error: userError.message,
+          email
+        });
+      }
       
       if (existingUser) {
         console.log("User already exists:", {
@@ -118,21 +133,27 @@ serve(async (req) => {
         );
       }
 
+      // Attempt to send invitation
       const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, emailOptions);
       
       if (inviteError) {
         console.error("Supabase invitation failed:", {
           error: inviteError.message,
           code: inviteError.status,
-          details: inviteError
+          details: inviteError,
+          emailOptions
         });
         throw inviteError;
       }
 
       // Verify the invite was created
       if (!inviteData) {
-        console.error("No invite data returned");
-        throw new Error("Failed to create invitation");
+        console.error("No invite data returned", {
+          email,
+          clientName,
+          emailOptions
+        });
+        throw new Error("Failed to create invitation - no data returned");
       }
       
       console.log("Supabase invitation sent successfully:", {
