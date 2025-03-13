@@ -1,5 +1,5 @@
-
-import { useState, useEffect } from "react";
+import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,10 +9,11 @@ import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
 import { Label } from "@/components/ui/label";
 
-interface ClientFormProps {
-  initialData?: Client | null;
-  onSubmit: (data: { client_name: string; email: string; agent_name: string }) => Promise<void>;
-  isLoading?: boolean;
+export interface ClientFormProps {
+  client?: Client;
+  isLoading: boolean;
+  error?: Error | null;
+  onSubmit: (data: { client_name: string; email: string; agent_name: string; }) => Promise<void>;
   isClientView?: boolean;
   onSendInvitation?: () => Promise<void>;
   isSendingInvitation?: boolean;
@@ -24,36 +25,49 @@ const clientFormSchema = z.object({
   agent_name: z.string().min(1, "Agent name is required"),
 });
 
-export const ClientForm = ({ 
-  initialData, 
-  onSubmit, 
-  isLoading = false, 
+export const ClientForm: React.FC<ClientFormProps> = ({
+  client,
+  isLoading,
+  error,
+  onSubmit,
   isClientView = false,
   onSendInvitation,
   isSendingInvitation = false
-}: ClientFormProps) => {
+}) => {
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      client_name: initialData?.client_name || "",
-      email: initialData?.email || "",
-      agent_name: initialData?.agent_name || "",
+      client_name: client?.name || '',
+      email: client?.email || '',
+      agent_name: client ? `${client.name} Agent` : '',
     },
   });
 
-  // Update form values when initialData changes
-  useEffect(() => {
-    if (initialData) {
-      reset({
-        client_name: initialData.client_name || "",
-        email: initialData.email || "",
-        agent_name: initialData.agent_name || "",
-      });
+  const handleSubmitForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLoading) return;
+
+    try {
+      await onSubmit(formState => ({
+        client_name: formState.client_name,
+        email: formState.email,
+        agent_name: formState.agent_name,
+      }));
+      if (!client) {
+        // Only reset form for new clients
+        reset({
+          client_name: '',
+          email: '',
+          agent_name: '',
+        });
+      }
+    } catch (err) {
+      toast.error('Failed to submit form');
     }
-  }, [initialData, reset]);
+  };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmitForm} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name
@@ -97,17 +111,23 @@ export const ClientForm = ({
         )}
       </div>
 
+      {error && (
+        <div className="text-red-600 text-sm">
+          {error.message}
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row gap-4 pt-4">
         <Button type="submit" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isClientView 
             ? "Save Changes"
-            : initialData 
+            : client 
               ? "Update Client" 
               : "Create Client"}
         </Button>
         
-        {initialData?.id && onSendInvitation && !isClientView && (
+        {client && onSendInvitation && !isClientView && (
           <Button
             type="button"
             variant="outline"

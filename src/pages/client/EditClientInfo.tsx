@@ -1,181 +1,164 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Client } from '@/types/supabase';
-import { toast } from 'sonner';
+import { supabase } from '../../lib/supabase';
+import { ClientForm } from '@/components/client/ClientForm';
+import { toast } from 'react-hot-toast';
+import { ClientResourceSections } from '@/components/client/ClientResourceSections';
+import { ExtendedActivityType, Json } from '@/types/supabase';
 
-// Simple spinner component
-function Spinner({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <div className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${className}`} />
-  );
+interface Client {
+  id: string;
+  name: string;
+  email: string;
+  ai_agent_id: string | null;
+  created_at: string;
+  updated_at: string;
+  client_name: string;
+  agent_name: string;
 }
 
-export default function EditClientInfo() {
+export const EditClientInfo: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const [client, setClient] = useState<Client | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    async function fetchClientData() {
-      if (!clientId) return;
-      
+    const fetchClient = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-        
-        console.log('Fetching client data for ID:', clientId);
         const { data, error } = await supabase
           .from('clients')
           .select(`
             *,
-            ai_agent (
+            ai_agents (
               id,
-              name,
+              agent_name,
               personality
             )
           `)
           .eq('id', clientId)
           .single();
 
-        if (error) {
-          console.error('Supabase error fetching client:', error);
-          throw error;
-        }
-        
-        console.log('Fetched client data:', data);
+        if (error) throw error;
         setClient(data);
       } catch (err) {
-        console.error('Error fetching client:', err);
-        setError('Failed to load client information');
+        setError(err instanceof Error ? err : new Error('Failed to fetch client'));
         toast.error('Failed to load client information');
-      } finally {
-        setIsLoading(false);
       }
-    }
+    };
 
-    fetchClientData();
+    if (clientId) {
+      fetchClient();
+    }
   }, [clientId]);
 
-  const handleUpdateClient = async (updates: Partial<Client>) => {
-    if (!clientId || !client) return;
+  const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
+    setIsLoading(true);
+    setError(null);
 
     try {
-      setIsSaving(true);
-      setError(null);
-
-      console.log('Updating client with data:', updates);
-      const { error } = await supabase
+      // Update client information
+      const { error: clientError } = await supabase
         .from('clients')
-        .update(updates)
+        .update({
+          name: data.client_name,
+          email: data.email,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', clientId);
 
-      if (error) {
-        console.error('Supabase error updating client:', error);
-        throw error;
+      if (clientError) throw clientError;
+
+      // Update AI agent information
+      if (client?.ai_agent_id) {
+        const { error: agentError } = await supabase
+          .from('ai_agents')
+          .update({
+            agent_name: data.agent_name,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', client.ai_agent_id);
+
+        if (agentError) throw agentError;
       }
 
-      console.log('Client updated successfully');
-      setClient(prev => prev ? { ...prev, ...updates } : null);
       toast.success('Client information updated successfully');
+      
+      // Refresh client data
+      const { data: updatedClient, error: fetchError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', clientId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      setClient(updatedClient);
+
     } catch (err) {
-      console.error('Error updating client:', err);
-      setError('Failed to update client information');
+      setError(err instanceof Error ? err : new Error('Failed to update client'));
       toast.error('Failed to update client information');
     } finally {
-      setIsSaving(false);
+      setIsLoading(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <Spinner />
-      </div>
-    );
-  }
+  const sendInvitation = async () => {
+    if (!client?.email) return;
 
-  if (error) {
-    return (
-      <div className="text-red-500 p-4">
-        {error}
-      </div>
-    );
-  }
+    try {
+      // Call your email service here
+      const response = await fetch('/api/send-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: client.email,
+          clientName: client.name,
+        }),
+      });
 
-  if (!client) {
-    return (
-      <div className="text-gray-500 p-4">
-        Client not found
-      </div>
-    );
+      if (!response.ok) throw new Error('Failed to send invitation');
+      
+      toast.success('Invitation sent successfully');
+    } catch (err) {
+      toast.error('Failed to send invitation');
+    }
+  };
+
+  if (!clientId) {
+    return <div>No client ID provided</div>;
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <h2 className="text-2xl font-bold">Edit Client Information</h2>
+    <div className="max-w-4xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">Edit Client Information</h1>
       
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Name</label>
-          <input
-            type="text"
-            value={client.client_name || ''}
-            onChange={(e) => handleUpdateClient({ client_name: e.target.value })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
-          <input
-            type="email"
-            value={client.email || ''}
-            onChange={(e) => handleUpdateClient({ email: e.target.value })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Website URL</label>
-          <input
-            type="url"
-            value={client.website_url || ''}
-            onChange={(e) => handleUpdateClient({ 
-              website_url: e.target.value,
-              website_url_added_at: new Date().toISOString()
-            })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </div>
-
-        {client.ai_agent && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">AI Agent Name</label>
-              <div className="text-gray-600 mt-1 px-3 py-2 bg-gray-50 rounded-md">
-                {client.ai_agent.name}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">AI Agent Personality</label>
-              <div className="text-gray-600 mt-1 px-3 py-2 bg-gray-50 rounded-md whitespace-pre-wrap">
-                {client.ai_agent.personality}
-              </div>
-            </div>
-          </>
-        )}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <ClientForm
+          client={client}
+          isLoading={isLoading}
+          error={error}
+          onSubmit={handleSubmit}
+          onSendInvitation={sendInvitation}
+        />
       </div>
 
-      {isSaving && (
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Spinner className="h-4 w-4" />
-          Saving changes...
-        </div>
-      )}
+      <ClientResourceSections
+        clientId={clientId}
+        isClientView={false}
+        logClientActivity={async (activity_type: ExtendedActivityType, description: string, metadata?: Json) => {
+          // Implement activity logging
+          console.log('Client activity:', { activity_type, description, metadata });
+          // Add your actual logging logic here
+          await supabase.from('client_activities').insert({
+            client_id: clientId,
+            activity_type,
+            description,
+            metadata
+          });
+        }}
+      />
     </div>
   );
-}
+};
