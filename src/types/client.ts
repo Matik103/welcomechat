@@ -29,24 +29,24 @@ export interface ClientFormData {
   description?: string;
 }
 
-export interface Client {
+export interface AIAgent {
   id: string;
+  client_id: string;
   name: string;
-  email: string;
-  ai_agent_id: string | null;
+  description?: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface AIAgent {
+export interface Client {
   id: string;
-  client_id: string;
-  agent_name: string;
-  personality: string;
+  name: string;
+  email: string;
+  ai_agents?: AIAgent;
   created_at: string;
   updated_at: string;
 }
 
 export interface ClientWithAgent extends Client {
-  ai_agents?: AIAgent;
+  ai_agents: AIAgent;
 }

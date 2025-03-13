@@ -1,31 +1,34 @@
-import { supabase } from '@/integrations/supabase/client';
-import type { ActivityLog } from '@/types/supabase';
+import { supabase } from '@/lib/supabase';
+import { ExtendedActivityType } from '@/types/activity';
+import { Json } from '@/types/supabase-types';
 
-export async function logActivity(
-  action_type: ActivityLog['action_type'],
-  entity_type: ActivityLog['entity_type'],
-  entity_id: string,
-  description: string,
-  metadata: Record<string, any> = {},
-  client_id?: string
-) {
+interface LogActivityParams {
+  client_id: string;
+  activity_type: ExtendedActivityType;
+  description: string;
+  metadata?: Json;
+}
+
+export async function logActivity({
+  client_id,
+  activity_type,
+  description,
+  metadata
+}: LogActivityParams) {
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { error } = await supabase.from('activity_logs').insert({
-      action_type,
-      entity_type,
-      entity_id,
-      description,
-      metadata,
-      user_id: user?.id,
-      client_id,
-    });
+    const { error } = await supabase
+      .from('client_activities')
+      .insert({
+        client_id,
+        activity_type,
+        description,
+        metadata,
+        created_at: new Date().toISOString()
+      });
 
     if (error) throw error;
-  } catch (error) {
-    console.error('Error logging activity:', error);
+  } catch (err) {
+    console.error('Failed to log activity:', err);
+    throw err;
   }
 } 
