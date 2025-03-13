@@ -77,7 +77,7 @@ const EditClientInfo = () => {
           {/* Pass the client data to the ClientForm component */}
           {client && (
             <ClientForm 
-              defaultValues={client}
+              initialData={client}
               isLoading={clientMutation.isPending}
               onSubmit={handleSubmit}
               isClientView={true}
