@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ExtendedActivityType } from "@/types/activity";
 import { ensureUserRole } from "@/services/clientActivityService";
-import { createAiAgentTable } from "@/services/aiAgentTableService";
 
 export const createClientAccount = async (
   clientId: string | null, 
@@ -83,12 +82,6 @@ export const createClientAccount = async (
     if (signUpData?.user) {
       // Use the ensureUserRole utility to handle role assignment with proper type
       await ensureUserRole(signUpData.user.id, "client", clientId);
-      
-      // Setup the AI agent table with the tweoo-like structure and permissions
-      if (clientData.agent_name) {
-        console.log("Creating AI agent table with tweoo-like permissions");
-        await createAiAgentTable(clientData.agent_name);
-      }
       
       // Set client ID in user metadata
       console.log("Setting client metadata");

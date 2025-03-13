@@ -30,6 +30,44 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agents: {
+        Row: {
+          agent_name: string | null
+          client_id: string | null
+          content: string | null
+          created_at: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          agent_name?: string | null
+          client_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          agent_name?: string | null
+          client_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       airtable: {
         Row: {
           content: string | null
@@ -519,6 +557,48 @@ export type Database = {
           },
         ]
       }
+      frenniy: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
+      g_g: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       gaiivo: {
         Row: {
           content: string | null
@@ -568,6 +648,7 @@ export type Database = {
           created_at: string | null
           id: number
           link: string
+          notified_at: string | null
           refresh_rate: number
         }
         Insert: {
@@ -576,6 +657,7 @@ export type Database = {
           created_at?: string | null
           id?: number
           link: string
+          notified_at?: string | null
           refresh_rate?: number
         }
         Update: {
@@ -584,6 +666,7 @@ export type Database = {
           created_at?: string | null
           id?: number
           link?: string
+          notified_at?: string | null
           refresh_rate?: number
         }
         Relationships: [
@@ -773,6 +856,27 @@ export type Database = {
           id?: number
           message?: Json
           session_id?: string
+        }
+        Relationships: []
+      }
+      n8n123: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
         }
         Relationships: []
       }
@@ -1013,27 +1117,6 @@ export type Database = {
         }
         Relationships: []
       }
-      tweoo: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
       upwork: {
         Row: {
           content: string | null
@@ -1197,6 +1280,7 @@ export type Database = {
           client_id: string | null
           created_at: string | null
           id: number
+          notified_at: string | null
           refresh_rate: number
           url: string
         }
@@ -1204,6 +1288,7 @@ export type Database = {
           client_id?: string | null
           created_at?: string | null
           id?: number
+          notified_at?: string | null
           refresh_rate?: number
           url: string
         }
@@ -1211,6 +1296,7 @@ export type Database = {
           client_id?: string | null
           created_at?: string | null
           id?: number
+          notified_at?: string | null
           refresh_rate?: number
           url?: string
         }
@@ -1270,6 +1356,10 @@ export type Database = {
             }
             Returns: unknown
           }
+      check_and_notify_new_urls: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       check_invitation_token: {
         Args: {
           token_param: string
@@ -1281,12 +1371,6 @@ export type Database = {
           allowed_roles: string[]
         }
         Returns: boolean
-      }
-      create_ai_agent_table: {
-        Args: {
-          agent_name: string
-        }
-        Returns: undefined
       }
       create_chatbot_embeddings_table: {
         Args: {
@@ -1431,6 +1515,23 @@ export type Database = {
         }
         Returns: {
           id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_ai_agents: {
+        Args: {
+          query_embedding: string
+          client_id_filter: string
+          agent_name_filter: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          client_id: string
+          agent_name: string
           content: string
           metadata: Json
           similarity: number
@@ -1618,6 +1719,32 @@ export type Database = {
           similarity: number
         }[]
       }
+      match_frenniy: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_g_g: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
       match_gaiivo: {
         Args: {
           query_embedding: string
@@ -1710,6 +1837,19 @@ export type Database = {
         }[]
       }
       match_n8n: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_n8n123: {
         Args: {
           query_embedding: string
           match_count?: number
