@@ -119,11 +119,16 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
   try {
     console.log("Sending invitation for client:", clientId, email, clientName);
     
+    // Add a timeout to ensure the request doesn't fail immediately
     const { data, error } = await supabase.functions.invoke("send-client-invitation", {
       body: {
         clientId,
         email,
         clientName
+      },
+      // Add a longer timeout as sending emails can take time
+      options: {
+        timeout: 15000 // 15 seconds
       }
     });
     

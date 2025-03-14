@@ -34,16 +34,18 @@ export const useClientMutation = (id: string | undefined) => {
           
           // Try to send invitation email
           try {
+            toast.info("Sending invitation email...");
             await sendClientInvitation(newClientId, updatedData.email, updatedData.client_name);
             toast.success("Invitation email sent successfully");
           } catch (inviteError) {
             console.error("Failed to send invitation email:", inviteError);
-            toast.error("Client created but failed to send invitation email: " + inviteError.message);
+            toast.error("Client created but failed to send invitation email. Please try sending it manually later.");
+            // Don't rethrow the error, as we still want to consider the client creation successful
           }
           
           return newClientId;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error in client mutation:", error);
         throw new Error(error.message || "Failed to save client");
       }
@@ -55,7 +57,7 @@ export const useClientMutation = (id: string | undefined) => {
         toast.success("Client created successfully");
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Error: ${error.message}`);
     },
   });
