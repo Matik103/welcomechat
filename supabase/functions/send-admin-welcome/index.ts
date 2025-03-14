@@ -10,10 +10,14 @@ serve(async (req) => {
   }
 
   try {
-    const { email, fullName } = await req.json()
+    const { email, fullName, temporaryPassword } = await req.json()
 
     if (!email) {
       throw new Error('Email is required')
+    }
+
+    if (!temporaryPassword) {
+      throw new Error('Temporary password is required')
     }
 
     // Send welcome email using Resend
@@ -31,6 +35,12 @@ serve(async (req) => {
           <h2>Welcome to Welcome.Chat!</h2>
           <p>Hello ${fullName || 'Admin'},</p>
           <p>Your admin account has been created successfully. You can now log in to the Welcome.Chat admin portal.</p>
+          <p>Here are your temporary login credentials:</p>
+          <ul>
+            <li>Email: ${email}</li>
+            <li>Temporary Password: ${temporaryPassword}</li>
+          </ul>
+          <p><strong>Important:</strong> For security reasons, you will be required to change your password when you first log in.</p>
           <p>Please verify your email address by clicking the verification link sent in a separate email.</p>
           <p>Best regards,<br>The Welcome.Chat Team</p>
         `,

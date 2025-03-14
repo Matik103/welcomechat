@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -110,6 +109,16 @@ const Auth = () => {
         if (error) {
           console.error("Sign up error:", error);
           throw error;
+        }
+        
+        // Send welcome email using our Edge Function
+        const { error: welcomeEmailError } = await supabase.functions.invoke("send-admin-welcome", {
+          body: { email, fullName }
+        });
+
+        if (welcomeEmailError) {
+          console.error("Error sending welcome email:", welcomeEmailError);
+          // Don't throw here as the account was created successfully
         }
         
         console.log("Sign up successful, verification email should be sent");
