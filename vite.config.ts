@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -21,6 +20,14 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    outDir: "dist"
+    outDir: "dist",
+    rollupOptions: {
+      external: [],
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'zod', '@hookform/resolvers'],
+        },
+      },
+    },
   }
 }));
