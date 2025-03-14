@@ -29,6 +29,7 @@ export const useClientMutation = (id: string | undefined) => {
           return clientId;
         } else {
           // Create new client
+          toast.info("Creating client...");
           const newClientId = await createClient(updatedData);
           
           // Try to send invitation email
@@ -37,7 +38,7 @@ export const useClientMutation = (id: string | undefined) => {
             toast.success("Invitation email sent successfully");
           } catch (inviteError) {
             console.error("Failed to send invitation email:", inviteError);
-            toast.error("Client created but failed to send invitation email");
+            toast.error("Client created but failed to send invitation email: " + inviteError.message);
           }
           
           return newClientId;
