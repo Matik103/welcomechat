@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,12 +79,12 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
 
       if (roleError) throw roleError;
 
-      // Log the setup completion
+      // Log the setup completion - using a valid activity_type
       const { error: activityError } = await supabase
         .from("client_activities")
         .insert({
           client_id: tokenData.clientId,
-          activity_type: "account_setup",
+          activity_type: "ai_agent_created", // Changed from "account_setup" to a valid enum value
           description: "completed account setup",
           metadata: {
             setup_method: "invitation"
