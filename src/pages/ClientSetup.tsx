@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,11 +49,9 @@ export default function ClientSetup() {
         }
 
         // Check if token is expired (24 hours)
-        const createdAt = new Date(invitation.created_at);
+        const expiresAt = new Date(invitation.expires_at);
         const now = new Date();
-        const hoursDiff = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-
-        if (hoursDiff > 24) {
+        if (now > expiresAt) {
           setTokenData({
             isValid: false,
             email: "",

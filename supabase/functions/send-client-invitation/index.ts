@@ -72,6 +72,34 @@ serve(async (req) => {
       }
     );
 
+    // Generate a temporary password for the client
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const tempPassword = `Welcome${randomDigits}!`;
+    
+    // Store the temporary password
+    try {
+      const { error: passwordError } = await supabaseAdmin
+        .from('client_temp_passwords')
+        .insert({
+          client_id: clientId,
+          email: email,
+          temp_password: tempPassword,
+          created_at: new Date().toISOString(),
+          used: false
+        });
+        
+      if (passwordError) {
+        console.error("Error storing temporary password:", passwordError);
+        // Continue despite error, as we still want to send the invitation
+        console.log("Continuing with invitation process despite password storage error");
+      } else {
+        console.log("Temporary password stored successfully");
+      }
+    } catch (tempPasswordError) {
+      console.error("Failed to store temporary password:", tempPasswordError);
+      // Continue despite error
+    }
+
     // Generate a unique token for the invitation
     const token = crypto.randomUUID();
     const expiresAt = new Date();
@@ -92,6 +120,7 @@ serve(async (req) => {
       console.error("Error storing invitation:", inviteError);
       throw new Error("Failed to create invitation record");
     }
+    console.log("Invitation record created successfully with token:", token);
 
     // Initialize Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -114,11 +143,15 @@ serve(async (req) => {
           
           <p>Hello${clientName ? ` ${clientName}` : ''},</p>
           
-          <p>You have been invited to create your Welcome.Chat account. To get started:</p>
+          <p>You have been invited to create your Welcome.Chat account.</p>
+          
+          <p><strong>Your temporary password is: ${tempPassword}</strong></p>
+          
+          <p>To complete your account setup:</p>
           
           <ol style="line-height: 1.6;">
             <li>Click the button below to set up your account</li>
-            <li>Create your password</li>
+            <li>Use your temporary password to sign in, then create a new password</li>
             <li>You'll be automatically signed in to your dashboard</li>
           </ol>
           
