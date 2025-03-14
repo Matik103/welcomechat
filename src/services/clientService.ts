@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, supabaseAdmin } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
 
@@ -60,8 +60,24 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating new client with Edge Function...");
     
-    // Call the create-client-user Edge Function
-    const { data: response, error: functionError } = await supabase.functions.invoke("create-client-user", {
+    // Check if email already exists in clients table
+    const { data: existingClient, error: checkError } = await supabase
+      .from("clients")
+      .select("id, email")
+      .eq("email", data.email)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Error checking existing client:", checkError);
+      throw checkError;
+    }
+
+    if (existingClient) {
+      throw new Error("A client with this email already exists");
+    }
+    
+    // Call the create-client-user Edge Function with admin client
+    const { data: response, error: functionError } = await supabaseAdmin.functions.invoke("create-client-user", {
       body: {
         email: data.email,
         clientName: data.client_name,
@@ -79,11 +95,12 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       throw new Error(response.error);
     }
 
-    // The function handles everything (user creation, AI agent creation, and email sending)
-    // We just need to return success
     return response.clientId || 'success';
   } catch (error) {
     console.error("Error in createClient:", error);
+    if (error.message.includes("duplicate key") || error.message.includes("already exists")) {
+      throw new Error("A client with this email already exists");
+    }
     throw error;
   }
 };
@@ -96,11 +113,8 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
     console.log("Starting client invitation process...");
     console.log("Parameters:", { clientId, email, clientName });
     
-    // Log the function URL for debugging
-    const functionUrl = `${supabase.functions.url}/send-client-invitation`;
-    console.log("Edge function URL:", functionUrl);
-    
-    const { data, error } = await supabase.functions.invoke("send-client-invitation", {
+    // Use admin client for Edge Function call
+    const { data, error } = await supabaseAdmin.functions.invoke("send-client-invitation", {
       body: {
         clientId,
         email,
@@ -117,7 +131,6 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
         message: error.message,
         status: error.status,
         stack: error.stack,
-        // Additional error properties that might be helpful
         code: error.code,
         details: error.details,
         hint: error.hint
@@ -149,7 +162,6 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
       name: error.name,
       message: error.message,
       stack: error.stack,
-      // Additional error properties
       code: error.code,
       details: error.details,
       hint: error.hint,
