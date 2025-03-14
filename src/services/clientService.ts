@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -59,53 +58,30 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
  */
 export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
-    // Create the client record
-    const { data: newClients, error } = await supabase
-      .from("clients")
-      .insert([{
-        client_name: data.client_name,
+    console.log("Creating new client with Edge Function...");
+    
+    // Call the create-client-user Edge Function
+    const { data: response, error: functionError } = await supabase.functions.invoke("create-client-user", {
+      body: {
         email: data.email,
-        agent_name: data.agent_name,
-        widget_settings: data.widget_settings || {},
-        status: 'active'
-      }])
-      .select('*');
-
-    if (error) {
-      console.error("Error creating client:", error);
-      throw error;
-    }
-
-    if (!newClients || newClients.length === 0) {
-      throw new Error("Failed to create client - no data returned");
-    }
-
-    const clientId = newClients[0].id;
-
-    // Add entry to ai_agents table
-    try {
-      const { error: aiAgentError } = await supabase
-        .from("ai_agents")
-        .insert([{
-          client_id: clientId,
-          agent_name: data.agent_name,
-          content: `AI Agent for ${data.client_name}`,
-          metadata: {
-            client_name: data.client_name,
-            created_at: new Date().toISOString()
-          }
-        }]);
-
-      if (aiAgentError) {
-        console.error("Error creating AI agent entry:", aiAgentError);
-        // Continue despite error, as client was created successfully
+        clientName: data.client_name,
+        aiAgentName: data.agent_name
       }
-    } catch (aiAgentError) {
-      console.error("Failed to create AI agent entry:", aiAgentError);
-      // Continue despite error, as client was created successfully
+    });
+
+    if (functionError) {
+      console.error("Edge function error:", functionError);
+      throw functionError;
     }
 
-    return clientId;
+    if (response?.error) {
+      console.error("Function returned error:", response.error);
+      throw new Error(response.error);
+    }
+
+    // The function handles everything (user creation, AI agent creation, and email sending)
+    // We just need to return success
+    return response.clientId || 'success';
   } catch (error) {
     console.error("Error in createClient:", error);
     throw error;
@@ -117,7 +93,12 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
  */
 export const sendClientInvitation = async (clientId: string, email: string, clientName: string): Promise<boolean> => {
   try {
-    console.log("Sending invitation for client:", clientId, email, clientName);
+    console.log("Starting client invitation process...");
+    console.log("Parameters:", { clientId, email, clientName });
+    
+    // Log the function URL for debugging
+    const functionUrl = `${supabase.functions.url}/send-client-invitation`;
+    console.log("Edge function URL:", functionUrl);
     
     const { data, error } = await supabase.functions.invoke("send-client-invitation", {
       body: {
@@ -127,20 +108,53 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
       }
     });
     
+    console.log("Edge function response:", { data, error });
+    
     if (error) {
-      console.error("Error sending invitation:", error);
+      console.error("Edge function error:", error);
+      console.error("Error details:", {
+        name: error.name,
+        message: error.message,
+        status: error.status,
+        stack: error.stack,
+        // Additional error properties that might be helpful
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       throw error;
     }
     
     if (data?.error) {
       console.error("Function returned error:", data.error);
+      console.error("Error context:", {
+        response: data,
+        statusCode: data.statusCode,
+        message: data.message,
+        details: data.details
+      });
       throw new Error(data.error);
     }
     
-    console.log("Invitation response:", data);
+    if (!data?.success) {
+      console.error("Function did not return success:", data);
+      throw new Error("Invitation failed without error");
+    }
+    
+    console.log("Invitation sent successfully:", data);
     return true;
   } catch (error) {
-    console.error("Invitation method failed:", error);
+    console.error("Invitation failed:", error);
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      // Additional error properties
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      response: error.response
+    });
     throw error;
   }
 };

@@ -1,4 +1,3 @@
-
 import { useMutation } from "@tanstack/react-query";
 import { ClientFormData } from "@/types/client";
 import { 
@@ -28,18 +27,8 @@ export const useClientMutation = (id: string | undefined) => {
           await logClientUpdateActivity(id);
           return clientId;
         } else {
-          // Create new client
+          // Create new client - this now handles everything including email
           const newClientId = await createClient(updatedData);
-          
-          // Try to send invitation email
-          try {
-            await sendClientInvitation(newClientId, updatedData.email, updatedData.client_name);
-            toast.success("Invitation email sent successfully");
-          } catch (inviteError) {
-            console.error("Failed to send invitation email:", inviteError);
-            toast.error("Client created but failed to send invitation email");
-          }
-          
           return newClientId;
         }
       } catch (error) {
@@ -51,7 +40,7 @@ export const useClientMutation = (id: string | undefined) => {
       if (id) {
         toast.success("Client updated successfully");
       } else {
-        toast.success("Client created successfully");
+        toast.success("Client created and invitation sent successfully");
       }
     },
     onError: (error) => {

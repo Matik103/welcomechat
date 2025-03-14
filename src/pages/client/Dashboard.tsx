@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { ErrorLog, QueryItem } from "@/types/client-dashboard";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SetupPasswordModal } from "@/components/client/SetupPasswordModal";
 
 export interface ClientDashboardProps {
   clientId?: string;
@@ -20,6 +20,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
+  const [showPasswordSetup, setShowPasswordSetup] = useState(false);
   
   // Set a timeout to ensure we don't get stuck in a loading state
   useEffect(() => {
@@ -65,6 +66,13 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     }
   }, [authError, signOut]);
 
+  useEffect(() => {
+    // Check if user needs to set up password
+    if (user?.user_metadata?.needs_password_setup) {
+      setShowPasswordSetup(true);
+    }
+  }, [user]);
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -86,55 +94,62 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   }
 
   return (
-    <div className="bg-[#F8F9FA] min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
-        {/* Refresh button */}
-        <div className="flex justify-end">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={refreshDashboard}
-            className="flex items-center gap-1 text-gray-600"
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Refreshing...</span>
-              </>
-            ) : (
-              <>
-                <RefreshCcw className="h-4 w-4" />
-                <span>Refresh</span>
-              </>
-            )}
-          </Button>
-        </div>
-        
-        {/* Stats section - with increased top spacing */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <InteractionStats 
-            stats={stats} 
-            isLoading={isLoadingStats && !loadTimeout} 
-          />
-        </div>
+    <>
+      <SetupPasswordModal 
+        isOpen={showPasswordSetup} 
+        onClose={() => setShowPasswordSetup(false)} 
+      />
+      
+      <div className="bg-[#F8F9FA] min-h-screen">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
+          {/* Refresh button */}
+          <div className="flex justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshDashboard}
+              className="flex items-center gap-1 text-gray-600"
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Refreshing...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCcw className="h-4 w-4" />
+                  <span>Refresh</span>
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {/* Stats section - with increased top spacing */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <InteractionStats 
+              stats={stats} 
+              isLoading={isLoadingStats && !loadTimeout} 
+            />
+          </div>
 
-        {/* Recent data section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Error logs card */}
-          <ErrorLogList 
-            logs={errorLogs as ErrorLog[]} 
-            isLoading={isLoadingErrorLogs && !loadTimeout || isRefreshing} 
-          />
+          {/* Recent data section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Error logs card */}
+            <ErrorLogList 
+              logs={errorLogs as ErrorLog[]} 
+              isLoading={isLoadingErrorLogs && !loadTimeout || isRefreshing} 
+            />
 
-          {/* Common queries card */}
-          <QueryList 
-            queries={queries as QueryItem[]} 
-            isLoading={isLoadingQueries && !loadTimeout || isRefreshing} 
-          />
+            {/* Common queries card */}
+            <QueryList 
+              queries={queries as QueryItem[]} 
+              isLoading={isLoadingQueries && !loadTimeout || isRefreshing} 
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

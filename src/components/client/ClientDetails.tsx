@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -22,7 +21,7 @@ export const ClientDetails = ({
 }: ClientDetailsProps) => {
   const navigate = useNavigate();
   // Use the clientId that was passed to the component
-  const { clientMutation, sendInvitation, isSending, refetchClient } = useClientData(clientId);
+  const { clientMutation, refetchClient } = useClientData(clientId);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
@@ -56,40 +55,13 @@ export const ClientDetails = ({
         toast.success("Client information updated successfully");
         navigate("/admin/clients");
       } else {
-        // Create new client
-        const newClientId = await clientMutation.mutateAsync(data);
-        
-        // Try to send invitation if we have a new client id
-        if (newClientId) {
-          try {
-            toast.info("Sending invitation email...");
-            await sendInvitation(newClientId, data.email, data.client_name);
-            toast.success("Invitation email sent to client");
-          } catch (inviteError) {
-            console.error("Failed to send invitation:", inviteError);
-            toast.error("Client created but failed to send invitation email");
-          }
-        }
-        
-        toast.success("Client created successfully");
+        // Create new client - this now handles everything including email
+        await clientMutation.mutateAsync(data);
         navigate("/admin/clients");
       }
     } catch (error) {
       console.error("Error submitting client form:", error);
       toast.error("Failed to save client information");
-    }
-  };
-
-  const handleSendInvitation = async () => {
-    if (!client || !clientId) {
-      toast.error("Cannot send invitation: missing client information");
-      return;
-    }
-
-    try {
-      await sendInvitation(clientId, client.email, client.client_name);
-    } catch (error) {
-      console.error("Error sending invitation:", error);
     }
   };
 
@@ -100,8 +72,6 @@ export const ClientDetails = ({
         onSubmit={handleSubmit}
         isLoading={clientMutation.isPending}
         isClientView={isClientView}
-        onSendInvitation={handleSendInvitation}
-        isSendingInvitation={isSending}
       />
     </div>
   );
