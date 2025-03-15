@@ -27,7 +27,7 @@ export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
 
   if (!userRole || !allowedRoles.includes(userRole)) {
     // Redirect admin to admin dashboard, clients to client dashboard
-    const redirectPath = userRole === 'admin' ? '/admin' : '/dashboard';
+    const redirectPath = userRole === 'admin' ? '/' : '/client/dashboard';
     return <Navigate to={redirectPath} replace />;
   }
 
