@@ -71,6 +71,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return 'admin';
   };
 
+  // Handle navigation after successful authentication
+  const handlePostAuthNavigation = (role: UserRole) => {
+    console.log("Handling post-auth navigation for role:", role);
+    
+    // Check if we're on an auth page or callback page
+    const isOnAuthPage = location.pathname === '/auth' || 
+                          location.pathname.startsWith('/auth/callback');
+    
+    if (isOnAuthPage) {
+      console.log("On auth page, redirecting based on role");
+      if (role === 'admin') {
+        navigate('/', { replace: true });
+      } else if (role === 'client') {
+        navigate('/client/dashboard', { replace: true });
+      }
+    }
+  };
+
   // Initialize auth state
   useEffect(() => {
     let mounted = true;
@@ -80,6 +98,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       try {
         setIsLoading(true);
+        console.log("Initializing auth state");
         
         // Get current session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -87,6 +106,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!mounted) return;
 
         if (currentSession?.user) {
+          console.log("Session found during init:", currentSession.user.email);
           // Set session and user info immediately
           setSession(currentSession);
           setUser(currentSession.user);
@@ -99,10 +119,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const role = await handleGoogleUser(currentSession.user);
             setUserRole(role);
             
-            // Redirect Google admin users to the admin dashboard
-            if (role === 'admin' && location.pathname.startsWith('/auth')) {
-              navigate('/', { replace: true });
-            }
+            // Handle navigation for Google users
+            handlePostAuthNavigation(role);
             
             setIsLoading(false);
           } else {
@@ -111,6 +129,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             if (existingRole) {
               setUserRole(existingRole);
+              handlePostAuthNavigation(existingRole);
               setIsLoading(false);
             } else if (currentSession.user.email) {
               // Check if user exists in clients table
@@ -127,11 +146,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (clientData?.id) {
                   await createUserRole(currentSession.user.id, 'client', clientData.id);
                   setUserRole('client');
+                  handlePostAuthNavigation('client');
                 }
               } else {
                 // Not a client, assign admin role
                 await createUserRole(currentSession.user.id, 'admin');
                 setUserRole('admin');
+                handlePostAuthNavigation('admin');
               }
               
               setIsLoading(false);
@@ -139,14 +160,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         } else {
           // No active session
+          console.log("No active session found during init");
           setSession(null);
           setUser(null);
           setUserRole(null);
           setIsLoading(false);
           
           // Only redirect to auth if not already on an auth-related page
-          if (!location.pathname.startsWith('/auth') && 
-              !location.pathname.startsWith('/client/setup')) {
+          const isAuthRelatedPage = 
+            location.pathname.startsWith('/auth') || 
+            location.pathname.startsWith('/client/setup');
+            
+          if (!isAuthRelatedPage) {
             navigate('/auth', { replace: true });
           }
         }
@@ -174,6 +199,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         try {
           if (event === 'SIGNED_IN') {
+            console.log("User signed in:", currentSession?.user.email);
             // Set session and user immediately to avoid loading states
             setSession(currentSession);
             setUser(currentSession!.user);
@@ -189,11 +215,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               const role = await handleGoogleUser(currentSession!.user);
               setUserRole(role);
               
-              // Always navigate Google users to admin dashboard
-              if (location.pathname.startsWith('/auth')) {
-                console.log("Redirecting Google user to admin dashboard");
-                navigate('/', { replace: true });
-              }
+              // Navigate based on role
+              handlePostAuthNavigation(role);
+              
               setIsLoading(false);
             } else {
               // For non-Google users, follow normal flow
@@ -208,14 +232,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 // Use existing role
                 setUserRole(existingRole);
                 
-                // Navigate based on role, minimal delay
-                if (location.pathname.startsWith('/auth')) {
-                  if (existingRole === 'client') {
-                    navigate('/client/dashboard', { replace: true });
-                  } else {
-                    navigate('/', { replace: true });
-                  }
-                }
+                // Navigate based on role
+                handlePostAuthNavigation(existingRole);
               } else {
                 // Assign role based on client check
                 if (isClient) {
@@ -229,26 +247,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   if (clientData?.id) {
                     await createUserRole(currentSession!.user.id, 'client', clientData.id);
                     setUserRole('client');
-                    
-                    // Navigate to client dashboard if on auth page
-                    if (location.pathname.startsWith('/auth')) {
-                      navigate('/client/dashboard', { replace: true });
-                    }
+                    handlePostAuthNavigation('client');
                   }
                 } else {
                   await createUserRole(currentSession!.user.id, 'admin');
                   setUserRole('admin');
-                  
-                  // Navigate to admin dashboard if on auth page
-                  if (location.pathname.startsWith('/auth')) {
-                    navigate('/', { replace: true });
-                  }
+                  handlePostAuthNavigation('admin');
                 }
               }
               
               setIsLoading(false);
             }
           } else if (event === 'SIGNED_OUT') {
+            console.log("User signed out");
             setSession(null);
             setUser(null);
             setUserRole(null);
