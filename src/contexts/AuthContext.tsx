@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
+  const [isGoogleSignIn, setIsGoogleSignIn] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -175,6 +176,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log("Auth state changed:", event, currentSession?.user?.email);
 
         try {
+          // Detect Google sign-in
+          if (event === 'SIGNED_IN' && 
+              currentSession?.user?.app_metadata?.provider === 'google') {
+            setIsGoogleSignIn(true);
+          }
+
           if (event === 'SIGNED_IN') {
             setIsLoading(true);
             
@@ -182,6 +189,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(currentSession);
             setUser(currentSession!.user);
             
+            // For Google sign-ins, always set admin role by default
+            if (currentSession?.user?.app_metadata?.provider === 'google') {
+              console.log("Google sign-in detected, setting admin role by default");
+              
+              // Check if role already exists
+              const existingRole = await checkUserRole(currentSession.user.id);
+              
+              if (!existingRole) {
+                await createUserRole(currentSession.user.id, 'admin');
+              }
+              
+              setUserRole('admin');
+              
+              // Navigate directly to admin dashboard with minimal delay
+              setTimeout(() => {
+                navigate('/', { replace: true });
+              }, 50);
+              
+              setIsLoading(false);
+              return;
+            }
+            
+            // For non-Google sign-ins, continue with existing logic
             // Check if the user email exists in the clients table
             const isClient = currentSession?.user.email ? 
               await checkIfClientExists(currentSession.user.email) : false;
@@ -247,6 +277,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(null);
             setUser(null);
             setUserRole(null);
+            setIsGoogleSignIn(false);
             if (!location.pathname.startsWith('/auth')) {
               navigate('/auth', { replace: true });
             }
@@ -289,6 +320,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       setUser(null);
       setUserRole(null);
+      setIsGoogleSignIn(false);
       navigate('/auth', { replace: true });
     } catch (error) {
       console.error("Sign out error:", error);
@@ -296,6 +328,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       setUser(null);
       setUserRole(null);
+      setIsGoogleSignIn(false);
       navigate('/auth', { replace: true });
       throw error;
     } finally {
@@ -304,7 +337,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signOut, isLoading, userRole }}>
+    <AuthContext.Provider value={{ session, user, signOut, isLoading: isLoading && !isGoogleSignIn, userRole }}>
       {children}
     </AuthContext.Provider>
   );

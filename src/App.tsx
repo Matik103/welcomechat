@@ -58,7 +58,7 @@ function App() {
   console.log("Auth state - isLoading:", isLoading, "user:", !!user, "userRole:", userRole);
   console.log("showLoader:", showLoader, "isOAuthRedirect:", isOAuthRedirect);
   
-  // Show loading spinner while authenticating, but with a time limit via showLoader
+  // Show loading spinner while authenticating, but only if not a Google sign-in
   if ((isLoading && showLoader) || (isOAuthRedirect && showLoader)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -69,7 +69,7 @@ function App() {
           </p>
           {showLoader && isOAuthRedirect && (
             <p className="text-xs text-gray-400 max-w-xs text-center">
-              Processing authentication. If this takes too long, try refreshing the page.
+              If this takes too long, try refreshing the page.
             </p>
           )}
         </div>
