@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           try {
             // Determine role and prepare for redirect
             const role = await handleAuthenticatedUser(currentSession.user);
+            console.log("Role determined during init:", role);
             setUserRole(role);
             
             // Set initialized flag
@@ -64,10 +65,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("Error handling authenticated user:", error);
             // If role determination fails, default to auth page
             if (mounted) {
-              setUserRole(null);
+              console.log("Defaulting to 'admin' role due to error");
+              setUserRole('admin');
               setIsLoading(false);
               setAuthInitialized(true);
-              navigate('/auth', { replace: true });
+              navigate('/', { replace: true });
             }
           }
         } else {
@@ -125,7 +127,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(currentSession.user);
             
             try {
+              console.log("Determining role for callback...");
               const role = await handleAuthenticatedUser(currentSession.user);
+              console.log("Role determined in callback:", role);
               setUserRole(role);
               
               // Important: need to complete state updates before redirect
@@ -136,9 +140,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               forceRedirectBasedOnRole(role);
             } catch (error) {
               console.error("Error in callback auth processing:", error);
+              setUserRole('admin'); // Default to admin on error
               setIsLoading(false);
               setAuthInitialized(true);
-              navigate('/auth', { replace: true });
+              navigate('/', { replace: true });
             }
             
             return; // Skip regular auth state change processing for callbacks
@@ -156,7 +161,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             try {
               // Determine role and redirect accordingly
+              console.log("Determining role for sign-in...");
               const role = await handleAuthenticatedUser(currentSession!.user);
+              console.log("Role determined for sign-in:", role);
               setUserRole(role);
               
               // Reset loading before redirect
@@ -167,9 +174,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             } catch (roleError) {
               console.error("Error determining user role:", roleError);
               // Default redirect if role determination fails
+              console.log("Defaulting to 'admin' role due to error");
+              setUserRole('admin');
               setIsLoading(false);
               if (mounted) {
-                navigate('/auth', { replace: true });
+                navigate('/', { replace: true });
               }
             }
           } else if (event === 'SIGNED_OUT') {

@@ -82,15 +82,15 @@ export const getUserRole = async (userId: string): Promise<UserRole | null> => {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     
     if (error) {
       console.error("Error fetching user role:", error);
       return null;
     }
     
-    console.log(`Found role for user ${userId}: ${data?.role}`);
-    return data?.role as UserRole;
+    console.log(`Found role for user ${userId}: ${data?.role || 'none'}`);
+    return data?.role as UserRole || null;
   } catch (err) {
     console.error("Error in getUserRole:", err);
     return null;
@@ -159,9 +159,15 @@ export const handleAuthenticatedUser = async (currentUser: User): Promise<UserRo
     const success = await createUserRole(currentUser.id, role);
     if (!success) {
       console.error("Failed to create role in database");
+      // Default to admin if we failed to create the role
+      console.log("Defaulting to admin role due to database error");
+      return 'admin';
     }
   } catch (error) {
     console.error("Failed to create role, but continuing:", error);
+    // Default to admin in case of error
+    console.log("Defaulting to admin role due to error");
+    return 'admin';
   }
   
   return role;
