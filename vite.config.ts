@@ -19,18 +19,13 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ['zod']
+  },
   build: {
     outDir: "dist",
     commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'zod': ['zod']
-        }
-      }
+      include: [/node_modules/]
     }
   }
 }));
