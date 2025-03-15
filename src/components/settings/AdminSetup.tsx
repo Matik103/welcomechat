@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { createUserRole } from "@/utils/authUtils";
 
 export const AdminSetup = () => {
   const { user } = useAuth();
@@ -19,14 +20,10 @@ export const AdminSetup = () => {
 
     try {
       setIsLoading(true);
-      const { error } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
-          role: 'admin'
-        });
+      const success = await createUserRole(user.id, 'admin');
 
-      if (error) throw error;
+      if (!success) throw new Error("Failed to create admin role");
+      
       toast.success("Admin role set up successfully");
       // Reload the page to refresh permissions
       window.location.reload();
