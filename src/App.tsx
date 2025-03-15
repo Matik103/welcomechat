@@ -26,11 +26,11 @@ function App() {
   const [showLoader, setShowLoader] = useState(true);
   
   useEffect(() => {
-    // Set a maximum wait time for loader display (3 seconds)
+    // Set a maximum wait time for loader display (1 second instead of 3)
     const timer = setTimeout(() => {
       setShowLoader(false);
       console.log("Loader timeout reached, hiding loader");
-    }, 3000);
+    }, 1000);
     
     // If auth completes before timeout, clear the timer and hide loader
     if (!isLoading) {

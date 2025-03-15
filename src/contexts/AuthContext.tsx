@@ -92,14 +92,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 !location.pathname.includes('/callback')) {
               console.log("User has role, redirecting from auth page");
               
-              // Add a slight delay to ensure state is updated before redirect
+              // Reduced delay from 100ms to 50ms
               setTimeout(() => {
                 if (existingRole === 'client') {
                   navigate('/client/dashboard', { replace: true });
                 } else {
                   navigate('/', { replace: true });
                 }
-              }, 100);
+              }, 50);
             }
           } else if (currentSession.user.email) {
             // Check if user exists in clients table
