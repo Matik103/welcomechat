@@ -6,6 +6,7 @@ import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { createClientUserAccount, sendClientInvitation } from "@/services/clientService";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -58,19 +59,6 @@ export const ClientDetails = ({
       } else {
         // Create new client
         const newClientId = await clientMutation.mutateAsync(data);
-        
-        // Try to send invitation if we have a new client id
-        if (newClientId) {
-          try {
-            toast.info("Sending invitation email...");
-            await sendInvitation(newClientId, data.email, data.client_name);
-            toast.success("Invitation email sent to client");
-          } catch (inviteError) {
-            console.error("Failed to send invitation:", inviteError);
-            toast.error("Client created but failed to send invitation email");
-          }
-        }
-        
         toast.success("Client created successfully");
         navigate("/admin/clients");
       }
@@ -93,6 +81,22 @@ export const ClientDetails = ({
     }
   };
 
+  const handleCreateClientAccount = async () => {
+    if (!client || !clientId) {
+      toast.error("Cannot create account: missing client information");
+      return;
+    }
+
+    try {
+      toast.info("Creating client user account with temporary password...");
+      await createClientUserAccount(clientId, client.email, client.client_name, client.agent_name);
+      toast.success("Client account created successfully");
+    } catch (error) {
+      console.error("Error creating client account:", error);
+      toast.error("Failed to create client account: " + error.message);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
       <ClientForm
@@ -101,6 +105,7 @@ export const ClientDetails = ({
         isLoading={clientMutation.isPending}
         isClientView={isClientView}
         onSendInvitation={handleSendInvitation}
+        onCreateClientAccount={handleCreateClientAccount}
         isSendingInvitation={isSending}
       />
     </div>

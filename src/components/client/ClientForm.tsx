@@ -15,6 +15,7 @@ interface ClientFormProps {
   isLoading?: boolean;
   isClientView?: boolean;
   onSendInvitation?: () => Promise<void>;
+  onCreateClientAccount?: () => Promise<void>;
   isSendingInvitation?: boolean;
 }
 
@@ -30,8 +31,10 @@ export const ClientForm = ({
   isLoading = false, 
   isClientView = false,
   onSendInvitation,
+  onCreateClientAccount,
   isSendingInvitation = false
 }: ClientFormProps) => {
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
@@ -51,6 +54,17 @@ export const ClientForm = ({
       });
     }
   }, [initialData, reset]);
+
+  const handleCreateAccount = async () => {
+    if (onCreateClientAccount) {
+      setIsCreatingAccount(true);
+      try {
+        await onCreateClientAccount();
+      } finally {
+        setIsCreatingAccount(false);
+      }
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -107,16 +121,32 @@ export const ClientForm = ({
               : "Create Client"}
         </Button>
         
-        {initialData?.id && onSendInvitation && !isClientView && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onSendInvitation}
-            disabled={isSendingInvitation}
-          >
-            {isSendingInvitation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Invitation Email
-          </Button>
+        {initialData?.id && !isClientView && (
+          <div className="flex flex-col md:flex-row gap-4">
+            {onCreateClientAccount && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleCreateAccount}
+                disabled={isCreatingAccount}
+              >
+                {isCreatingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Account with Temp Password
+              </Button>
+            )}
+            
+            {onSendInvitation && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onSendInvitation}
+                disabled={isSendingInvitation}
+              >
+                {isSendingInvitation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Send Invitation Email
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </form>
