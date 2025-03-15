@@ -1444,6 +1444,27 @@ export type Database = {
         }
         Relationships: []
       }
+      testagent5: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       testclient3: {
         Row: {
           content: string | null
@@ -2827,6 +2848,19 @@ export type Database = {
         }[]
       }
       match_testagent4: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_testagent5: {
         Args: {
           query_embedding: string
           match_count?: number

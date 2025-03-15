@@ -153,6 +153,7 @@ export const createClientUserAccount = async (clientId: string, email: string, c
     
     const { data, error } = await supabase.functions.invoke("create-client-user", {
       body: {
+        clientId,
         email,
         clientName,
         aiAgentName
