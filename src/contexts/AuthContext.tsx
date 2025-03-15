@@ -25,6 +25,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Check if user email exists in clients table
+  const checkIfClientExists = async (email: string) => {
+    try {
+      console.log("Checking if email exists in clients table:", email);
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error checking client email:", error);
+        return false;
+      }
+
+      return !!data; // Convert to boolean
+    } catch (error) {
+      console.error("Error in checkIfClientExists:", error);
+      return false;
+    }
+  };
+
+  // Check user role from the database
   const checkUserRole = async (userId: string) => {
     try {
       console.log("Checking user role for:", userId);
@@ -52,28 +75,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error("Error checking user role:", error);
       return null;
-    }
-  };
-
-  // Check if user email exists in clients table
-  const checkIfClientExists = async (email: string) => {
-    try {
-      console.log("Checking if email exists in clients table:", email);
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error checking client email:", error);
-        return false;
-      }
-
-      return data ? true : false;
-    } catch (error) {
-      console.error("Error in checkIfClientExists:", error);
-      return false;
     }
   };
 
@@ -112,8 +113,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Only process if we have hash parameters and are on the auth route
       if (window.location.hash && location.pathname.includes('/auth')) {
         console.log("Processing hash parameters from OAuth redirect");
+        setIsLoading(true);
+        
         try {
-          // First, exchange the OAuth code for a session
+          // Get the current session which should include the OAuth data
           const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
           
           if (sessionError) {
@@ -130,69 +133,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const isClient = sessionData.session.user.email ? 
               await checkIfClientExists(sessionData.session.user.email) : false;
             
-            // If not a client, assign admin role and redirect to admin dashboard
-            if (!isClient) {
-              console.log("Email not found in clients table, treating as admin");
-              // Check if user role is already set, if not set it to admin
-              const role = await checkUserRole(sessionData.session.user.id);
-              if (!role) {
-                // Add admin role for this user
-                await createUserRole(sessionData.session.user.id, 'admin');
-                setUserRole('admin');
-              } else {
-                setUserRole(role);
-              }
-              
-              setSession(sessionData.session);
-              setUser(sessionData.session.user);
-              
-              // Clear the hash to prevent processing it again
-              window.history.replaceState(null, "", window.location.pathname);
-              
-              navigate('/', { replace: true });
-              return;
-            }
-            
-            // Normal flow for clients
-            const role = await checkUserRole(sessionData.session.user.id);
+            // Set session and user first
             setSession(sessionData.session);
             setUser(sessionData.session.user);
             
-            // If no role found for a client, create a client role
-            if (!role && isClient) {
-              // Get client ID
-              const { data: clientData } = await supabase
-                .from('clients')
-                .select('id')
-                .eq('email', sessionData.session.user.email)
-                .maybeSingle();
+            // Check for existing role
+            const existingRole = await checkUserRole(sessionData.session.user.id);
+            
+            if (existingRole) {
+              // Use existing role
+              console.log("Using existing role:", existingRole);
+              setUserRole(existingRole);
+            } else {
+              // Assign role based on client check
+              if (isClient) {
+                console.log("User email found in clients table, assigning client role");
                 
-              if (clientData?.id) {
-                await createUserRole(sessionData.session.user.id, 'client', clientData.id);
-                setUserRole('client');
+                // Get client ID
+                const { data: clientData } = await supabase
+                  .from('clients')
+                  .select('id')
+                  .eq('email', sessionData.session.user.email)
+                  .maybeSingle();
+                  
+                if (clientData?.id) {
+                  await createUserRole(sessionData.session.user.id, 'client', clientData.id);
+                  setUserRole('client');
+                }
               } else {
-                // Fallback to admin if client record exists but no ID found (shouldn't happen)
+                console.log("Email not found in clients table, assigning admin role");
                 await createUserRole(sessionData.session.user.id, 'admin');
                 setUserRole('admin');
               }
-            } else {
-              setUserRole(role);
             }
             
             // Clear the hash to prevent processing it again
             window.history.replaceState(null, "", window.location.pathname);
             
             // Redirect based on role
-            if (userRole === 'client' || (isClient && !userRole)) {
+            if (userRole === 'client' || (isClient && !existingRole)) {
               navigate('/client/dashboard', { replace: true });
-            } else if (userRole === 'admin' || (!isClient && !userRole)) {
-              navigate('/', { replace: true });
             } else {
-              // Default redirect if no role found
               navigate('/', { replace: true });
             }
           } else {
-            console.log("No session found in URL, user might need to sign in");
+            console.log("No session found in URL");
             setIsLoading(false);
           }
         } catch (e) {
@@ -220,10 +205,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (currentSession?.user) {
           console.log("Found existing session:", currentSession.user.email);
-          const role = await checkUserRole(currentSession.user.id);
           
-          // If no role is found, check if the user is a client by email
-          if (!role && currentSession.user.email) {
+          // Set session and user info
+          setSession(currentSession);
+          setUser(currentSession.user);
+          
+          // Check for existing role first
+          const existingRole = await checkUserRole(currentSession.user.id);
+          
+          if (existingRole) {
+            setUserRole(existingRole);
+          } else if (currentSession.user.email) {
+            // Check if user exists in clients table
             const isClient = await checkIfClientExists(currentSession.user.email);
             
             if (isClient) {
@@ -239,65 +232,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setUserRole('client');
               }
             } else {
-              // Not a client, so assign admin role
+              // Not a client, assign admin role
               await createUserRole(currentSession.user.id, 'admin');
               setUserRole('admin');
             }
-          } else {
-            setUserRole(role);
           }
-          
-          setSession(currentSession);
-          setUser(currentSession.user);
         } else {
-          // Try to refresh the session
-          console.log("No session found, attempting refresh...");
-          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+          // No active session
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
           
-          if (!mounted) return;
-
-          if (refreshError) {
-            console.error("Session refresh failed:", refreshError);
-            setSession(null);
-            setUser(null);
-            setUserRole(null);
-            
-            // Only redirect to auth if not already on an auth-related page
-            if (!location.pathname.startsWith('/auth') && 
-                !location.pathname.startsWith('/client/setup')) {
-              navigate('/auth', { replace: true });
-            }
-          } else if (refreshedSession) {
-            console.log("Session refreshed successfully:", refreshedSession.user.email);
-            const role = await checkUserRole(refreshedSession.user.id);
-            
-            // If no role is found, check if the user is a client by email
-            if (!role && refreshedSession.user.email) {
-              const isClient = await checkIfClientExists(refreshedSession.user.email);
-              
-              if (isClient) {
-                // Get client ID
-                const { data: clientData } = await supabase
-                  .from('clients')
-                  .select('id')
-                  .eq('email', refreshedSession.user.email)
-                  .maybeSingle();
-                  
-                if (clientData?.id) {
-                  await createUserRole(refreshedSession.user.id, 'client', clientData.id);
-                  setUserRole('client');
-                }
-              } else {
-                // Not a client, so assign admin role
-                await createUserRole(refreshedSession.user.id, 'admin');
-                setUserRole('admin');
-              }
-            } else {
-              setUserRole(role);
-            }
-            
-            setSession(refreshedSession);
-            setUser(refreshedSession.user);
+          // Only redirect to auth if not already on an auth-related page
+          if (!location.pathname.startsWith('/auth') && 
+              !location.pathname.startsWith('/client/setup')) {
+            navigate('/auth', { replace: true });
           }
         }
       } catch (error) {
@@ -326,65 +275,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (event === 'SIGNED_IN') {
             setIsLoading(true);
             
+            // Set session and user first
+            setSession(currentSession);
+            setUser(currentSession!.user);
+            
             // Check if the user email exists in the clients table
             const isClient = currentSession?.user.email ? 
               await checkIfClientExists(currentSession.user.email) : false;
             
-            // If not a client, assign admin role and redirect to admin dashboard
-            if (!isClient) {
-              console.log("Email not found in clients table, treating as admin");
-              // Check if user role is already set, if not set it to admin
-              const role = await checkUserRole(currentSession!.user.id);
-              if (!role) {
-                // Add admin role for this user
-                await createUserRole(currentSession!.user.id, 'admin');
-                setUserRole('admin');
-              } else {
-                setUserRole(role);
-              }
-              
-              setSession(currentSession);
-              setUser(currentSession!.user);
-              
-              navigate('/', { replace: true });
-              return;
-            }
+            // Check for existing role
+            const existingRole = await checkUserRole(currentSession!.user.id);
             
-            // Normal flow for known clients
-            const role = await checkUserRole(currentSession!.user.id);
-            
-            // If no role found but is a client, create client role
-            if (!role && isClient) {
-              // Get client ID
-              const { data: clientData } = await supabase
-                .from('clients')
-                .select('id')
-                .eq('email', currentSession!.user.email)
-                .maybeSingle();
+            if (existingRole) {
+              // Use existing role
+              setUserRole(existingRole);
+            } else {
+              // Assign role based on client check
+              if (isClient) {
+                console.log("User email found in clients table, assigning client role");
                 
-              if (clientData?.id) {
-                await createUserRole(currentSession!.user.id, 'client', clientData.id);
-                setUserRole('client');
+                // Get client ID
+                const { data: clientData } = await supabase
+                  .from('clients')
+                  .select('id')
+                  .eq('email', currentSession!.user.email)
+                  .maybeSingle();
+                  
+                if (clientData?.id) {
+                  await createUserRole(currentSession!.user.id, 'client', clientData.id);
+                  setUserRole('client');
+                  
+                  // Navigate to client dashboard
+                  navigate('/client/dashboard', { replace: true });
+                }
               } else {
-                // Fallback to admin if client record exists but no ID found
+                console.log("Email not found in clients table, assigning admin role");
                 await createUserRole(currentSession!.user.id, 'admin');
                 setUserRole('admin');
+                
+                // Navigate to admin dashboard
+                navigate('/', { replace: true });
               }
-            } else {
-              setUserRole(role);
             }
             
-            setSession(currentSession);
-            setUser(currentSession!.user);
-            
-            if (userRole === 'client' || (isClient && !role)) {
-              navigate('/client/dashboard', { replace: true });
-            } else if (userRole === 'admin' || (!isClient && !role)) {
-              navigate('/', { replace: true });
-            } else {
-              // Default to admin view if no specific role found
-              navigate('/', { replace: true });
-            }
+            setIsLoading(false);
           } else if (event === 'SIGNED_OUT') {
             setIsLoading(true);
             setSession(null);
@@ -393,12 +327,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (!location.pathname.startsWith('/auth')) {
               navigate('/auth', { replace: true });
             }
+            setIsLoading(false);
           } else if (event === 'TOKEN_REFRESHED' && currentSession) {
             setIsLoading(true);
             const role = await checkUserRole(currentSession.user.id);
             setSession(currentSession);
             setUser(currentSession.user);
             setUserRole(role);
+            setIsLoading(false);
           } else if (event === 'USER_UPDATED' && currentSession) {
             setSession(currentSession);
             setUser(currentSession.user);
@@ -408,7 +344,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null);
           setUser(null);
           setUserRole(null);
-        } finally {
           setIsLoading(false);
         }
       }
@@ -418,7 +353,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, userRole]);
+  }, [navigate, location.pathname]);
 
   const signOut = async () => {
     try {
