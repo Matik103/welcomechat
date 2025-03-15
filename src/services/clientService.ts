@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -117,12 +118,11 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
   try {
     console.log("Sending invitation for client:", clientId, email, clientName);
     
-    const { data, error } = await supabase.functions.invoke("send-invitation", {
+    const { data, error } = await supabase.functions.invoke("send-client-invitation", {
       body: {
         clientId,
         email,
-        clientName,
-        timeout: 15000 // 15 seconds timeout
+        clientName
       }
     });
     

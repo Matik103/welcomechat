@@ -46,7 +46,7 @@ serve(async (req) => {
     // Use Resend for email
     try {
       const { data, error: emailError } = await resend.emails.send({
-        from: "AI Assistant <admin@welcome.chat>", // Updated from address
+        from: "Welcome.Chat <admin@welcome.chat>",
         to: email,
         subject: "Account Deletion Notice",
         html: `
@@ -57,7 +57,7 @@ serve(async (req) => {
               <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
               <p>If this was done in error, you can contact support to cancel the deletion process.</p>
               <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
-              <p>Best regards,<br>AI Assistant Team</p>
+              <p>Best regards,<br>TestBot Assistant Team</p>
             </body>
           </html>
         `
