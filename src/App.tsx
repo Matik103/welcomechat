@@ -26,11 +26,11 @@ function App() {
   const [showLoader, setShowLoader] = useState(true);
   
   useEffect(() => {
-    // Set a very short timeout for loader display (500ms instead of 1s)
+    // Set a very short timeout for loader display (1s instead of 500ms)
     const timer = setTimeout(() => {
       setShowLoader(false);
       console.log("Loader timeout reached, hiding loader");
-    }, 500);
+    }, 1000);
     
     // If auth completes before timeout, clear the timer and hide loader
     if (!isLoading) {
@@ -48,18 +48,13 @@ function App() {
     location.pathname.includes('/auth/callback') ||
     location.pathname.startsWith('/client/setup');
   
-  // Special case for OAuth redirect routes
-  const isOAuthRedirect = 
-    location.pathname.includes('/auth/callback') || 
-    (location.pathname === '/auth' && window.location.hash && window.location.hash.includes('access_token'));
-  
   console.log("Current path:", location.pathname);
   console.log("Public route:", isPublicRoute);
   console.log("Auth state - isLoading:", isLoading, "user:", !!user, "userRole:", userRole);
-  console.log("showLoader:", showLoader, "isOAuthRedirect:", isOAuthRedirect);
+  console.log("showLoader:", showLoader);
   
-  // Only show loader for non-OAuth auth cases, and only for a very short time
-  if (isLoading && showLoader && !isOAuthRedirect) {
+  // Only show loader for auth cases, and only for a very short time
+  if (isLoading && showLoader) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

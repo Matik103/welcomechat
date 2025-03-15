@@ -25,7 +25,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
-    }, 500); // Reduced from 1000ms to 500ms
+    }, 1000); // 1 second timeout
     
     return () => clearTimeout(timeout);
   }, []);
