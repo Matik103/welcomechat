@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
+import { determineUserRole } from "@/utils/authUtils";
 
 type AuthCallbackProps = {
   isCallbackUrl: boolean;
@@ -40,19 +41,27 @@ export const useAuthCallback = ({
             return;
           }
           
-          // Set session data - all authenticated users are admins
+          // Set session and user data
           setSession(callbackSession);
           setUser(callbackSession.user);
-          setUserRole('admin');
           
-          // Important: Navigate to admin dashboard BEFORE setting isLoading to false
-          // This prevents any flash of the login screen
-          navigate('/', { replace: true });
+          // Determine user role from database
+          const userRole = await determineUserRole(callbackSession.user);
+          setUserRole(userRole);
+          
+          console.log("User role determined:", userRole);
+          
+          // Navigate based on user role
+          const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+          console.log("Navigating to:", targetPath);
+          
+          // Important: Navigate BEFORE setting isLoading to false
+          navigate(targetPath, { replace: true });
           
           // Set isLoading to false after the navigation has had time to complete
           setTimeout(() => {
             setIsLoading(false);
-          }, 300); // Increased timeout to 300ms to ensure navigation fully completes
+          }, 300);
         } catch (error) {
           console.error("Error handling auth callback:", error);
           navigate('/auth', { replace: true });

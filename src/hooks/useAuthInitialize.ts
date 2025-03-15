@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
+import { determineUserRole } from "@/utils/authUtils";
 
 type AuthInitializeProps = {
   authInitialized: boolean;
@@ -47,20 +48,28 @@ export const useAuthInitialize = ({
           console.log("Session found during init:", currentSession.user.email);
           setSession(currentSession);
           setUser(currentSession.user);
-          setUserRole('admin');
+          
+          // Determine user role from database
+          const userRole = await determineUserRole(currentSession.user);
+          setUserRole(userRole);
+          
+          console.log("User role determined in init:", userRole);
           
           const isAuthPage = location.pathname === '/auth';
           
           if (!isCallbackUrl && isAuthPage) {
-            console.log("Redirecting from auth page to admin dashboard");
+            console.log("Redirecting from auth page to dashboard based on role");
+            // Determine where to navigate based on role
+            const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+            
             // Navigate first while keeping loading state true
-            navigate('/', { replace: true });
+            navigate(targetPath, { replace: true });
             
             // Longer timeout to ensure transition completes before changing loading state
             setTimeout(() => {
               setIsLoading(false);
               setAuthInitialized(true);
-            }, 300); // Increased timeout to 300ms for smoother transition
+            }, 300);
           } else {
             // For non-auth pages, just update the state
             setIsLoading(false);

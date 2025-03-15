@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 import { useNavigate, useLocation } from "react-router-dom";
+import { determineUserRole } from "@/utils/authUtils";
 
 type AuthStateChangeProps = {
   setSession: (session: Session | null) => void;
@@ -42,18 +43,27 @@ export const useAuthStateChange = ({
           
           setSession(currentSession);
           setUser(currentSession.user);
-          setUserRole('admin');
+          
+          // Determine user role from database
+          const userRole = await determineUserRole(currentSession.user);
+          setUserRole(userRole);
+          
+          console.log("User role determined:", userRole);
           
           // Only redirect if we're on the auth page to prevent refresh loops
           const isAuthPage = location.pathname === '/auth';
           if (isAuthPage) {
+            // Determine where to navigate based on role
+            const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+            console.log("Redirecting to:", targetPath);
+            
             // Start navigation before changing loading state
-            navigate('/', { replace: true });
+            navigate(targetPath, { replace: true });
             
             // Maintain loading state for longer to ensure no flash of login screen
             setTimeout(() => {
               setIsLoading(false);
-            }, 300); // Increased timeout to 300ms for smoother transition
+            }, 300);
           } else {
             setIsLoading(false);
           }
