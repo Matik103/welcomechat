@@ -94,24 +94,18 @@ export const createUserRole = async (
 
 /**
  * Handles post-authentication navigation based on user role
+ * Always redirects to the appropriate dashboard, regardless of current location
  */
 export const handlePostAuthNavigation = (
   role: UserRole, 
-  location: string,
   navigate: (path: string, options?: {replace: boolean}) => void
 ) => {
   console.log("Handling post-auth navigation for role:", role);
   
-  const isOnAuthPage = location === '/auth' || 
-                        location.startsWith('/auth/callback');
-  
-  if (isOnAuthPage) {
-    console.log("On auth page, redirecting based on role");
-    if (role === 'admin') {
-      navigate('/', { replace: true });
-    } else if (role === 'client') {
-      navigate('/client/dashboard', { replace: true });
-    }
+  if (role === 'admin') {
+    navigate('/', { replace: true });
+  } else if (role === 'client') {
+    navigate('/client/dashboard', { replace: true });
   }
 };
 
