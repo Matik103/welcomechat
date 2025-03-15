@@ -51,9 +51,11 @@ export const useClientMutation = (id: string | undefined) => {
       }
     },
     onSuccess: (clientId) => {
+      // Only display one success notification based on whether we're updating or creating
       if (id) {
         toast.success("Client updated successfully");
       } else {
+        // This is the only toast notification that will be shown when creating a client
         toast.success("Client created successfully");
       }
     },
