@@ -43,12 +43,18 @@ export const useAuthStateChange = ({
           setSession(currentSession);
           setUser(currentSession.user);
           setUserRole('admin');
-          setIsLoading(false);
           
           // Only redirect if we're on the auth page to prevent refresh loops
           const isAuthPage = location.pathname === '/auth';
           if (isAuthPage) {
+            // Start navigation before changing loading state
             navigate('/', { replace: true });
+            // Set isLoading to false after a brief delay to prevent flash of login screen
+            setTimeout(() => {
+              setIsLoading(false);
+            }, 50);
+          } else {
+            setIsLoading(false);
           }
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");

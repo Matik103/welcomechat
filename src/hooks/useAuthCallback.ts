@@ -44,10 +44,15 @@ export const useAuthCallback = ({
           setSession(callbackSession);
           setUser(callbackSession.user);
           setUserRole('admin');
-          setIsLoading(false);
           
-          // Redirect to admin dashboard using navigate instead of window.location
+          // Redirect directly to admin dashboard without first changing isLoading
+          // This prevents the brief flash of the login screen
           navigate('/', { replace: true });
+          
+          // Set isLoading to false after the navigation is initiated
+          setTimeout(() => {
+            setIsLoading(false);
+          }, 50);
         } catch (error) {
           console.error("Error handling auth callback:", error);
           navigate('/auth', { replace: true });
