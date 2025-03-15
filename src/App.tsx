@@ -26,15 +26,17 @@ function App() {
   const [showLoader, setShowLoader] = useState(true);
   
   useEffect(() => {
-    // Set a maximum wait time for loader display (5 seconds)
+    // Set a maximum wait time for loader display (3 seconds)
     const timer = setTimeout(() => {
       setShowLoader(false);
-    }, 5000);
+      console.log("Loader timeout reached, hiding loader");
+    }, 3000);
     
     // If auth completes before timeout, clear the timer and hide loader
     if (!isLoading) {
       clearTimeout(timer);
       setShowLoader(false);
+      console.log("Auth completed, hiding loader");
     }
     
     return () => clearTimeout(timer);
@@ -54,6 +56,7 @@ function App() {
   console.log("Current path:", location.pathname);
   console.log("Public route:", isPublicRoute);
   console.log("Auth state - isLoading:", isLoading, "user:", !!user, "userRole:", userRole);
+  console.log("showLoader:", showLoader, "isOAuthRedirect:", isOAuthRedirect);
   
   // Show loading spinner while authenticating, but with a time limit via showLoader
   if ((isLoading && showLoader) || (isOAuthRedirect && showLoader)) {
@@ -84,22 +87,30 @@ function App() {
     );
   }
 
-  // If we can't determine the user's role yet but they're authenticated,
-  // show a loading state for the role determination
+  // If authentication is no longer loading but we don't have a user or role AND we're not on a public route
+  // This prevents infinite redirects/loading issues
+  if (!isLoading && !user && !isPublicRoute) {
+    console.log("Not authenticated and not on public route, redirecting to auth");
+    return <Navigate to="/auth" replace />;
+  }
+
+  // If user is authenticated but we don't have a role yet
   if (!isLoading && user && !userRole && !isPublicRoute) {
+    console.log("User authenticated but no role determined yet, showing temporary loader");
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
           <p className="text-sm text-gray-500">Setting up your dashboard...</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="text-xs text-primary mt-4 underline"
+          >
+            Taking too long? Click to refresh
+          </button>
         </div>
       </div>
     );
-  }
-
-  // Redirect unauthenticated users to auth page, except for public routes
-  if ((!isLoading || !showLoader) && !user && !isPublicRoute) {
-    return <Navigate to="/auth" replace />;
   }
 
   // Determine if current route is a client-specific route
