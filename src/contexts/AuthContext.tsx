@@ -3,6 +3,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
+import { getAppUrls } from "@/config/urls";
 
 type UserRole = 'admin' | 'client';
 
@@ -27,31 +28,75 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const checkUserRole = async (userId: string) => {
     try {
       console.log("Checking user role for:", userId);
-      const { data, error } = await supabase
+      
+      // First check user_roles table for role and client_id
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role, client_id')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (error) {
-        console.error("Error checking user role:", error);
-        return null;
+      if (roleError) {
+        console.error("Error checking user_roles:", roleError);
+        return 'admin' as UserRole;
       }
 
-      // If user has client_id in user_roles, update user metadata
-      if (data?.client_id && data.role === 'client') {
-        console.log("Updating user metadata with client_id:", data.client_id);
-        await supabase.auth.updateUser({
-          data: { client_id: data.client_id }
-        });
+      if (roleData?.client_id) {
+        // If we have a client_id, verify it exists in ai_agents
+        const { data: agentData, error: agentError } = await supabase
+          .from('ai_agents')
+          .select('id')
+          .eq('client_id', roleData.client_id)
+          .maybeSingle();
+
+        if (agentError) {
+          console.error("Error checking ai_agents:", agentError);
+        } else if (agentData) {
+          console.log("Found matching AI agent - setting as client");
+          return 'client' as UserRole;
+        }
       }
 
-      console.log("User role found:", data?.role);
-      return data?.role as UserRole || null;
+      // Default to admin if no client role found
+      console.log("No client role found - setting as admin");
+      return 'admin' as UserRole;
     } catch (error) {
       console.error("Error checking user role:", error);
-      return null;
+      return 'admin' as UserRole;
     }
+  };
+
+  const handleClientRedirect = () => {
+    console.log("Handling client redirect");
+    // Always redirect clients to the client dashboard
+    const clientDashboardUrl = import.meta.env.PROD 
+      ? 'https://admin.welcome.chat/client/dashboard'
+      : '/client/dashboard';
+    
+    console.log("Redirecting client to:", clientDashboardUrl);
+    
+    if (import.meta.env.PROD) {
+      window.location.href = clientDashboardUrl;
+    } else {
+      navigate(clientDashboardUrl, { replace: true });
+    }
+  };
+
+  const handleAdminRedirect = () => {
+    const urls = getAppUrls();
+    console.log("Handling admin redirect");
+    console.log("Is production?", import.meta.env.PROD);
+    
+    // Force redirect to admin dashboard in production
+    if (import.meta.env.PROD) {
+      console.log("Production environment detected, redirecting to:", urls.adminDashboard);
+      window.location.href = urls.adminDashboard;
+      return;
+    }
+    
+    // In development, use internal navigation
+    console.log("Development environment detected, using internal navigation");
+    navigate('/', { replace: true });
   };
 
   useEffect(() => {
@@ -62,17 +107,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         console.log("Initializing auth...");
         
-        // Get current session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
         if (currentSession?.user) {
           console.log("Found existing session:", currentSession.user.email);
+          console.log("User metadata:", currentSession.user.user_metadata);
+          console.log("App metadata:", currentSession.user.app_metadata);
+          
           const role = await checkUserRole(currentSession.user.id);
+          console.log("Determined role:", role);
+          
           setSession(currentSession);
           setUser(currentSession.user);
           setUserRole(role);
+
+          // Check if user is a client
+          const isClient = role === 'client';
+          
+          if (isClient) {
+            console.log("Client user detected, handling redirect");
+            handleClientRedirect();
+          } else {
+            console.log("Admin user detected, redirecting to admin dashboard");
+            handleAdminRedirect();
+          }
         } else {
           // Try to refresh the session
           console.log("No session found, attempting refresh...");
@@ -122,15 +182,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           if (event === 'SIGNED_IN') {
             setIsLoading(true);
+            console.log("Sign in event detected");
+            console.log("User metadata:", currentSession?.user.user_metadata);
+            console.log("App metadata:", currentSession?.user.app_metadata);
+            
             const role = await checkUserRole(currentSession!.user.id);
+            console.log("Determined role after sign in:", role);
+            
             setSession(currentSession);
             setUser(currentSession!.user);
             setUserRole(role);
             
-            if (role === 'client') {
-              navigate('/client/dashboard', { replace: true });
-            } else if (role === 'admin') {
-              navigate('/', { replace: true });
+            // Check if user is a client
+            const isClient = role === 'client';
+            
+            if (isClient) {
+              console.log("Client user detected, handling redirect");
+              handleClientRedirect();
+            } else {
+              console.log("Admin user detected, redirecting to admin dashboard");
+              handleAdminRedirect();
             }
           } else if (event === 'SIGNED_OUT') {
             setIsLoading(true);
