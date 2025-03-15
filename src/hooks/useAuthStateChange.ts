@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 import { useNavigate, useLocation } from "react-router-dom";
+import { determineUserRole } from "@/utils/authUtils";
 
 type AuthStateChangeProps = {
   setSession: (session: Session | null) => void;
@@ -40,15 +41,23 @@ export const useAuthStateChange = ({
             return;
           }
           
+          // Set basic session and user data
           setSession(currentSession);
           setUser(currentSession.user);
-          setUserRole('admin');
+          
+          // Determine user role based on email/client check
+          const role = await determineUserRole(currentSession.user);
+          setUserRole(role);
+          console.log("Determined user role:", role);
+          
           setIsLoading(false);
           
           // Only redirect if we're on the auth page to prevent refresh loops
           const isAuthPage = location.pathname === '/auth';
           if (isAuthPage) {
-            navigate('/', { replace: true });
+            // Redirect based on role
+            const redirectPath = role === 'admin' ? '/' : '/client/dashboard';
+            navigate(redirectPath, { replace: true });
           }
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");
