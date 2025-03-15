@@ -29,23 +29,33 @@ function App() {
   useEffect(() => {
     if (location.pathname.includes('/auth/callback') && user && userRole) {
       console.log("Auth callback detected, redirecting based on role:", userRole);
-      // Immediate redirect based on role
+      // Force an immediate redirect based on role
       if (userRole === 'admin') {
-        navigate('/', { replace: true });
+        window.location.href = '/';
       } else {
-        navigate('/client/dashboard', { replace: true });
+        window.location.href = '/client/dashboard';
       }
     }
-  }, [location.pathname, user, userRole, navigate]);
+  }, [location.pathname, user, userRole]);
 
-  // Handle the case where we're still on the callback page but auth is still loading
+  // Handle the case where we're still on the callback page
   if (location.pathname.includes('/auth/callback')) {
-    // Don't show full loading screen, just continue auth process silently
-    // The redirect will happen automatically once user and userRole are available
+    // Don't render anything during the callback process to prevent blank screens
+    if (user && userRole) {
+      // We have user and role info but useEffect hasn't redirected yet
+      // Force immediate redirect here
+      if (userRole === 'admin') {
+        window.location.href = '/';
+      } else {
+        window.location.href = '/client/dashboard';
+      }
+      return null; // Return null to prevent any rendering during redirect
+    }
+    
+    // Show minimal loading while auth completes
     return (
-      <div className="min-h-screen bg-background">
-        <Toaster />
-        <div className="hidden">Processing auth...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }

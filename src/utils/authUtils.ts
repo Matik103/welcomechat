@@ -110,6 +110,18 @@ export const handlePostAuthNavigation = (
 };
 
 /**
+ * Force redirect to dashboard based on role, bypassing React Router
+ * This provides a faster and more reliable redirect for SSO flows
+ */
+export const forceRedirectToDashboard = (role: UserRole) => {
+  if (role === 'admin') {
+    window.location.href = '/';
+  } else if (role === 'client') {
+    window.location.href = '/client/dashboard';
+  }
+};
+
+/**
  * Handles a Google authenticated user
  */
 export const handleGoogleUser = async (currentUser: User): Promise<UserRole> => {
