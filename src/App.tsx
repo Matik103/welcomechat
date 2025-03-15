@@ -24,24 +24,20 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Immediate redirect from auth callback page as soon as we have user and role information
+  // Force immediate redirect from auth callback page as soon as we have user and role information
   useEffect(() => {
     if (location.pathname.includes('/auth/callback') && user && userRole) {
       console.log("Auth callback detected with user and role, redirecting instantly");
-      // Immediate redirect based on role with no delay
-      if (userRole === 'admin') {
-        navigate('/', { replace: true });
-      } else {
-        navigate('/client/dashboard', { replace: true });
-      }
+      // Immediate redirect based on role - force synchronous navigation
+      const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+      window.location.href = targetPath; // Force hard navigation for reliable redirect
     }
   }, [location.pathname, user, userRole, navigate]);
 
-  // Handle auth callback page - completely hidden while processing
+  // Completely skip rendering anything for callback route - just a blank page during auth
   if (location.pathname.includes('/auth/callback')) {
-    // Return an empty div to prevent any visual loading indicator
-    // The redirect will happen automatically via the effect above
-    return <div className="hidden" />;
+    // Return absolutely nothing visible during processing
+    return null;
   }
   
   // Show loading spinner during auth check, but only if not on a public route
