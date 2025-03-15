@@ -4,84 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
 
 /**
- * Checks if a user's email exists in the clients table
- * @param email The email to check
- */
-export const checkIfClientExists = async (email: string): Promise<boolean> => {
-  try {
-    if (!email) return false;
-    
-    const { data, error } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-      
-    if (error) {
-      console.error("Error checking client existence:", error);
-      return false;
-    }
-    
-    return !!data;
-  } catch (err) {
-    console.error("Error in checkIfClientExists:", err);
-    return false;
-  }
-};
-
-/**
- * Checks the role of a user in the database
- */
-export const checkUserRole = async (userId: string): Promise<UserRole | null> => {
-  try {
-    console.log("Checking user role for:", userId);
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role, client_id')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error checking user role:", error);
-      return null;
-    }
-
-    if (data?.client_id && data.role === 'client') {
-      console.log("Updating user with client_id:", data.client_id);
-      await supabase.auth.updateUser({
-        data: { client_id: data.client_id }
-      });
-    }
-
-    console.log("User role found:", data?.role);
-    return data?.role as UserRole || null;
-  } catch (error) {
-    console.error("Exception in checkUserRole:", error);
-    return null;
-  }
-};
-
-/**
  * Creates a role for a user in the database
  */
 export const createUserRole = async (
   userId: string, 
-  role: UserRole, 
-  clientId?: string
+  role: UserRole
 ): Promise<boolean> => {
   try {
-    const roleData: any = {
-      user_id: userId,
-      role: role
-    };
-    
-    if (clientId && role === 'client') {
-      roleData.client_id = clientId;
-    }
-    
     const { error } = await supabase
       .from('user_roles')
-      .insert(roleData);
+      .insert({
+        user_id: userId,
+        role: role
+      });
       
     if (error) {
       console.error("Error creating user role:", error);
@@ -96,18 +31,7 @@ export const createUserRole = async (
 };
 
 /**
- * Handles post-authentication navigation based on user role
- * Always redirects to the appropriate dashboard, regardless of current location
- */
-export const handlePostAuthNavigation = (
-  navigate: (path: string, options?: {replace: boolean}) => void
-) => {
-  console.log("Handling post-auth navigation - redirecting to admin dashboard");
-  navigate('/', { replace: true });
-};
-
-/**
- * Force redirect to dashboard based on role, bypassing React Router
+ * Force redirect to admin dashboard, bypassing React Router
  * This provides a faster and more reliable redirect for SSO flows
  */
 export const forceRedirectToDashboard = () => {
@@ -117,7 +41,7 @@ export const forceRedirectToDashboard = () => {
 
 /**
  * Handles a Google authenticated user
- * Returns a Promise that resolves with the user's role
+ * Creates admin role and returns 'admin'
  */
 export const handleGoogleUser = async (currentUser: User): Promise<UserRole> => {
   if (!currentUser) {
@@ -125,7 +49,7 @@ export const handleGoogleUser = async (currentUser: User): Promise<UserRole> => 
     throw new Error("No user provided");
   }
   
-  console.log("Handling Google user, redirecting to admin dashboard:", currentUser.email);
+  console.log("Handling Google user:", currentUser.email);
   
   // Always assign admin role, with no additional checks
   try {
