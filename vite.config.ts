@@ -7,7 +7,8 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 3000,
+    strictPort: true,
   },
   plugins: [
     react(),
@@ -25,11 +26,17 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",
     sourcemap: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+      },
+    },
     rollupOptions: {
       external: [],
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
+          vendor: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js', '@vercel/analytics'],
           ui: [
             '@radix-ui/react-avatar',
             '@radix-ui/react-label',
@@ -39,7 +46,7 @@ export default defineConfig(({ mode }) => ({
             'tailwind-merge'
           ],
           forms: ['react-hook-form', 'zod', '@hookform/resolvers/zod'],
-          state: ['@tanstack/react-query']
+          state: ['@tanstack/react-query', 'zustand']
         }
       }
     }
