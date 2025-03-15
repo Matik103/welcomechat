@@ -21,8 +21,8 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
     
     const usersWithRoles = new Set(existingRoles.map(r => r.user_id));
     
-    // Get all users
-    const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
+    // Get all users - fixed the incorrect API call
+    const { data, error: usersError } = await supabase.auth.admin.listUsers();
     
     if (usersError) {
       console.error("Error fetching users:", usersError);
@@ -31,20 +31,22 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
     
     let migratedCount = 0;
     
-    // Process users without roles
-    for (const user of users.users) {
-      if (!usersWithRoles.has(user.id)) {
-        // Check user metadata for role indicators
-        const role = user.app_metadata?.role || 'admin'; // Default to admin for existing users
-        
-        const success = await createUserRole(
-          user.id, 
-          role as UserRole,
-          user.user_metadata?.client_id
-        );
-        
-        if (success) {
-          migratedCount++;
+    // Process users without roles, ensuring they have the correct type
+    if (data && data.users) {
+      for (const user of data.users) {
+        if (!usersWithRoles.has(user.id)) {
+          // Check user metadata for role indicators
+          const role = user.app_metadata?.role || 'admin'; // Default to admin for existing users
+          
+          const success = await createUserRole(
+            user.id, 
+            role as UserRole,
+            user.user_metadata?.client_id
+          );
+          
+          if (success) {
+            migratedCount++;
+          }
         }
       }
     }
@@ -63,14 +65,19 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
 export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
   try {
     // Find the user by email
-    const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+    const { data, error: userError } = await supabase.auth.admin.listUsers();
     
     if (userError) {
       console.error("Error fetching users:", userError);
       return false;
     }
     
-    const user = userData.users.find(u => u.email === email);
+    if (!data || !data.users) {
+      console.error("No users data returned");
+      return false;
+    }
+    
+    const user = data.users.find(u => u.email === email);
     
     if (!user) {
       console.error(`User with email ${email} not found`);
