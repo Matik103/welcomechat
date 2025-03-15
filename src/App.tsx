@@ -29,14 +29,12 @@ function App() {
     // Set a very short timeout for loader display (1s instead of 500ms)
     const timer = setTimeout(() => {
       setShowLoader(false);
-      console.log("Loader timeout reached, hiding loader");
     }, 1000);
     
     // If auth completes before timeout, clear the timer and hide loader
     if (!isLoading) {
       clearTimeout(timer);
       setShowLoader(false);
-      console.log("Auth completed, hiding loader");
     }
     
     return () => clearTimeout(timer);
