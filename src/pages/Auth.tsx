@@ -7,9 +7,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
-import { isClientInDatabase } from "@/utils/authUtils";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -22,9 +21,8 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const { session, isLoading, userRole } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState(false);
+  const location = useLocation();
 
   const resetForm = () => {
     setEmail("");
@@ -46,18 +44,27 @@ const Auth = () => {
   }, []);
 
   useEffect(() => {
-    console.log("Auth page state:", { session, userRole, isLoading });
+    console.log("Auth page state:", { 
+      session: !!session, 
+      userRole, 
+      isLoading, 
+      pathname: location.pathname 
+    });
+  }, [session, userRole, isLoading, location]);
+
+  useEffect(() => {
     if (session && userRole && !isLoading) {
-      console.log("Redirecting from Auth page to proper dashboard");
+      console.log("Auth page: Detected authenticated session with role:", userRole);
+      
       if (userRole === 'client') {
-        console.log("Redirecting client to client dashboard");
+        console.log("Auth page: Redirecting client to client dashboard");
         window.location.href = '/client/dashboard';
-      } else if (userRole === 'admin') {
-        console.log("Redirecting admin to admin dashboard");
+      } else {
+        console.log("Auth page: Redirecting admin to admin dashboard");
         window.location.href = '/';
       }
     }
-  }, [session, userRole, isLoading, navigate]);
+  }, [session, userRole, isLoading]);
 
   if (isLoading && !loadTimeout) {
     return (
@@ -67,16 +74,12 @@ const Auth = () => {
     );
   }
 
-  if (session && userRole) {
-    console.log("Auth page - immediate redirect due to existing session");
+  if (session && userRole && !isLoading) {
+    console.log("Auth page - immediate redirect component for:", userRole);
     if (userRole === 'client') {
-      console.log("Redirecting to client dashboard with immediate Navigate");
-      window.location.href = '/client/dashboard';
-      return null;
+      return <Navigate to="/client/dashboard" replace />;
     } else {
-      console.log("Redirecting to admin dashboard with immediate Navigate");
-      window.location.href = '/';
-      return null;
+      return <Navigate to="/" replace />;
     }
   }
 
@@ -95,6 +98,7 @@ const Auth = () => {
       
       return data.exists;
     } catch (error: any) {
+      console.error("Error checking email:", error);
       return false;
     } finally {
       setIsCheckingEmail(false);
@@ -130,7 +134,7 @@ const Auth = () => {
           return;
         }
         
-        const { error, data } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -147,6 +151,8 @@ const Auth = () => {
         
         toast.success("Check your email for the confirmation link!");
       } else {
+        console.log("Starting email login for:", email);
+        
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -156,9 +162,12 @@ const Auth = () => {
           throw error;
         }
         
+        console.log("Email login successful for:", email);
         toast.success("Successfully signed in!");
       }
     } catch (error: any) {
+      console.error("Auth error:", error);
+      
       if (error.message?.includes("Invalid login credentials")) {
         setErrorMessage("Invalid email or password. Please try again.");
       } else if (error.message?.includes("already registered")) {
@@ -179,11 +188,9 @@ const Auth = () => {
       setIsGoogleLoading(true);
       setErrorMessage("");
       
-      // Use current window location for development flexibility
       const redirectUrl = `${window.location.origin}/auth/callback`;
       console.log("Starting Google Sign In with redirect to:", redirectUrl);
       
-      // Remove any existing auth_callback_attempted flag
       sessionStorage.removeItem('auth_callback_attempted');
       
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -205,9 +212,10 @@ const Auth = () => {
         throw new Error("Failed to get OAuth URL from Supabase");
       }
       
-      console.log("Redirecting to OAuth URL:", data.url);
+      console.log("Redirecting to Google auth URL:", data.url);
       
-      // Redirect to the Google auth URL
+      localStorage.setItem('google_auth_started', 'true');
+      
       window.location.href = data.url;
       
     } catch (error: any) {

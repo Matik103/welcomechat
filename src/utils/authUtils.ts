@@ -1,4 +1,3 @@
-
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
@@ -37,6 +36,52 @@ export const isClientInDatabase = async (email: string): Promise<boolean> => {
 };
 
 /**
+ * Handles role determination for authenticated users
+ */
+export const determineUserRole = async (user: User): Promise<UserRole> => {
+  if (!user || !user.email) {
+    console.error("determineUserRole called with no user or email");
+    return 'admin'; // Default to admin for safety
+  }
+  
+  try {
+    // Check if the user is using Google SSO
+    const isGoogleUser = user.app_metadata?.provider === 'google';
+    
+    // Google SSO users are ALWAYS admins, regardless of whether their email
+    // exists in the clients table
+    if (isGoogleUser) {
+      console.log(`User ${user.email} is using Google SSO, treating as admin`);
+      return 'admin';
+    }
+    
+    // For non-Google users, check if they're in clients table
+    const isClient = await isClientInDatabase(user.email);
+    
+    const role = isClient ? 'client' : 'admin';
+    console.log(`User ${user.email} role determined as: ${role}`);
+    return role;
+  } catch (error) {
+    console.error("Error determining user role:", error);
+    return 'admin'; // Default to admin in case of errors
+  }
+};
+
+/**
+ * Force redirect based on user role
+ */
+export const forceRedirectBasedOnRole = (role: UserRole) => {
+  console.log(`Force redirecting to ${role === 'admin' ? 'admin' : 'client'} dashboard`);
+  
+  // Use direct window location change to ensure a clean redirect
+  if (role === 'admin') {
+    window.location.href = '/';
+  } else {
+    window.location.href = '/client/dashboard';
+  }
+};
+
+/**
  * Checks if a user registered using Google SSO
  */
 export const isGoogleSSOUser = async (userId: string): Promise<boolean> => {
@@ -57,51 +102,6 @@ export const isGoogleSSOUser = async (userId: string): Promise<boolean> => {
   } catch (err) {
     console.error("Error in isGoogleSSOUser:", err);
     return false;
-  }
-};
-
-/**
- * Handles role determination for authenticated users
- */
-export const determineUserRole = async (user: User): Promise<UserRole> => {
-  if (!user || !user.email) {
-    console.error("determineUserRole called with no user or email");
-    return 'admin'; // Default to admin for safety
-  }
-  
-  try {
-    // Check if the user is using Google SSO
-    const isGoogleUser = user.app_metadata?.provider === 'google';
-    
-    // Google SSO users are ALWAYS admins, regardless of whether their email
-    // exists in the clients table
-    if (isGoogleUser) {
-      console.log(`User ${user.email} is using Google SSO, treating as admin regardless of client status`);
-      return 'admin';
-    }
-    
-    // For non-Google users, check if they're in clients table
-    const isClient = await isClientInDatabase(user.email);
-    
-    console.log(`User ${user.email} role determined as: ${isClient ? 'client' : 'admin'}`);
-    return isClient ? 'client' : 'admin';
-  } catch (error) {
-    console.error("Error determining user role:", error);
-    return 'admin'; // Default to admin in case of errors
-  }
-};
-
-/**
- * Force redirect based on user role
- */
-export const forceRedirectBasedOnRole = (role: UserRole) => {
-  console.log(`Force redirecting to ${role === 'admin' ? 'admin' : 'client'} dashboard`);
-  
-  // Use direct window location change to ensure a clean redirect
-  if (role === 'admin') {
-    window.location.href = '/';
-  } else {
-    window.location.href = '/client/dashboard';
   }
 };
 
