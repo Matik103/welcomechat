@@ -9,14 +9,12 @@ import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
-import { isClientInDatabase } from "@/utils/authUtils";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -52,7 +50,7 @@ const Auth = () => {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isAuthLoading || isCheckingEmail) return;
+    if (isAuthLoading) return;
     
     setIsAuthLoading(true);
     setErrorMessage("");
@@ -70,14 +68,6 @@ const Auth = () => {
         toast.success("Password reset email sent. Please check your inbox.");
         setIsForgotPassword(false);
       } else if (isSignUp) {
-        const emailExists = await isClientInDatabase(email);
-        if (emailExists) {
-          setErrorMessage("An account with this email already exists. Please sign in instead.");
-          setIsSignUp(false);
-          setIsAuthLoading(false);
-          return;
-        }
-        
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -262,7 +252,7 @@ const Auth = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required={isSignUp}
-                  disabled={isAuthLoading || isCheckingEmail}
+                  disabled={isAuthLoading}
                 />
               </div>
             )}
@@ -278,7 +268,7 @@ const Auth = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   required
-                  disabled={isAuthLoading || isCheckingEmail}
+                  disabled={isAuthLoading}
                 />
               </div>
             </div>
@@ -293,7 +283,7 @@ const Auth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
-                  disabled={isAuthLoading || isCheckingEmail}
+                  disabled={isAuthLoading}
                 />
               </div>
               {!isSignUp && (
@@ -309,7 +299,7 @@ const Auth = () => {
                       setPassword("");
                       setErrorMessage("");
                     }}
-                    disabled={isAuthLoading || isCheckingEmail}
+                    disabled={isAuthLoading}
                   >
                     Forgot password?
                   </Button>
@@ -327,7 +317,7 @@ const Auth = () => {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isAuthLoading || isCheckingEmail}
+              disabled={isAuthLoading}
               aria-label={isSignUp ? "Sign Up" : "Sign In"}
             >
               {isAuthLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -391,7 +381,7 @@ const Auth = () => {
                     setErrorMessage("");
                   }}
                   className="text-primary hover:underline"
-                  disabled={isAuthLoading || isCheckingEmail}
+                  disabled={isAuthLoading}
                 >
                   Sign in
                 </button>
@@ -406,7 +396,7 @@ const Auth = () => {
                     setErrorMessage("");
                   }}
                   className="text-primary hover:underline"
-                  disabled={isAuthLoading || isCheckingEmail}
+                  disabled={isAuthLoading}
                 >
                   Sign up
                 </button>
