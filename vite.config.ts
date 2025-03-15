@@ -21,11 +21,12 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: "dist",
-    target: 'esnext',
     rollupOptions: {
-      external: [],
+      external: ['zod'],
       output: {
-        format: 'es'
+        globals: {
+          'zod': 'zod'
+        }
       }
     }
   }
