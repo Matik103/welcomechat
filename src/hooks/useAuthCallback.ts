@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { isClientInDatabase } from "@/utils/authUtils";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 
@@ -30,6 +29,18 @@ export const useAuthCallback = ({
     if (isCallbackUrl) {
       const handleCallback = async () => {
         try {
+          // Set a flag to avoid infinite loops
+          const hasAttemptedAuth = sessionStorage.getItem('auth_callback_attempted');
+          if (hasAttemptedAuth) {
+            console.log("Auth callback already attempted, preventing loop");
+            navigate('/auth', { replace: true });
+            setIsLoading(false);
+            return;
+          }
+          
+          // Set the flag to prevent future loops in this session
+          sessionStorage.setItem('auth_callback_attempted', 'true');
+          
           // Get the session from the URL
           const { data: { session: callbackSession }, error: sessionError } = 
             await supabase.auth.getSession();
@@ -38,50 +49,34 @@ export const useAuthCallback = ({
             console.error("Error getting session from callback URL:", sessionError);
             toast.error("Authentication failed. Please try again.");
             navigate('/auth', { replace: true });
+            setIsLoading(false);
             return;
           }
           
           const user = callbackSession.user;
           
-          // Check if this is a Google login and if the user is a client
+          // For Google SSO, we always set admin role and redirect to admin dashboard
           const provider = user?.app_metadata?.provider;
           const isGoogleLogin = provider === 'google';
           
-          if (isGoogleLogin && user.email) {
-            // Check if this email belongs to a client
-            const isClient = await isClientInDatabase(user.email);
-            
-            if (isClient) {
-              // If client trying to use Google SSO, sign them out
-              console.log("Client attempted to use Google SSO, signing out:", user.email);
-              await supabase.auth.signOut();
-              toast.error("Clients must use email and password to sign in. Google sign-in is only available for administrators.");
-              navigate('/auth', { replace: true });
-              return;
-            }
-            
-            // Admin user with Google SSO is allowed to proceed
-            console.log("Admin authenticated with Google SSO:", user.email);
+          if (isGoogleLogin) {
+            // Set session and user
             setSession(callbackSession);
             setUser(user);
             
-            // Get user role and set it
-            const role = await determineUserRole(user);
-            setUserRole(role);
-            
-            console.log("Setting role for Google SSO user:", role);
+            // For Google SSO users, always set admin role
+            setUserRole('admin');
             setIsLoading(false);
+            console.log("Google SSO user authenticated, redirecting to admin dashboard");
             navigate('/', { replace: true });
           } else {
-            // Non-Google login, proceed normally
+            // Non-Google login, use role-based redirect
             setSession(callbackSession);
             setUser(user);
             
-            // Get user role and set it
+            // Get user role based on email presence in clients table
             const role = await determineUserRole(user);
             setUserRole(role);
-            
-            console.log("Setting role for regular user:", role);
             setIsLoading(false);
             
             // Redirect based on role
@@ -91,11 +86,17 @@ export const useAuthCallback = ({
               navigate('/', { replace: true });
             }
           }
+          
+          // Clear the auth attempt flag after successful login
+          setTimeout(() => {
+            sessionStorage.removeItem('auth_callback_attempted');
+          }, 5000);
+          
         } catch (error) {
           console.error("Error handling auth callback:", error);
           toast.error("Authentication failed. Please try again.");
+          sessionStorage.removeItem('auth_callback_attempted');
           navigate('/auth', { replace: true });
-        } finally {
           setIsLoading(false);
         }
       };

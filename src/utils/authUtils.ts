@@ -41,27 +41,16 @@ export const isClientInDatabase = async (email: string): Promise<boolean> => {
  */
 export const isGoogleSSOUser = async (userId: string): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    // Correct approach to check if a user is using Google SSO
+    const { data, error } = await supabase.auth.admin.getUserById(userId);
     
-    if (error) {
+    if (error || !data.user) {
       console.error("Error checking if user is Google SSO user:", error);
       return false;
     }
     
-    // Check the provider in user metadata instead of using the non-existent listIdentities
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
-    
-    if (userError || !userData?.user) {
-      console.error("Error fetching user data:", userError);
-      return false;
-    }
-    
-    // Check if Google is the provider in app_metadata
-    const isGoogleProvider = userData.user.app_metadata?.provider === 'google';
+    // Check provider in app_metadata
+    const isGoogleProvider = data.user.app_metadata?.provider === 'google';
     
     console.log(`User ${userId} ${isGoogleProvider ? 'is' : 'is not'} a Google SSO user`);
     return !!isGoogleProvider;
@@ -83,6 +72,15 @@ export const determineUserRole = async (user: User): Promise<UserRole> => {
   try {
     // Check if the user's email exists in the clients table
     const isClient = await isClientInDatabase(user.email);
+    
+    // If user is using Google SSO and is also in clients table, they should still be treated as admin
+    // This enforces the rule that clients can't use Google SSO
+    const isGoogleUser = user.app_metadata?.provider === 'google';
+    
+    if (isGoogleUser) {
+      console.log(`User ${user.email} is using Google SSO, treating as admin regardless of client status`);
+      return 'admin';
+    }
     
     console.log(`User ${user.email} role determined as: ${isClient ? 'client' : 'admin'}`);
     return isClient ? 'client' : 'admin';

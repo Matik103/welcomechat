@@ -22,7 +22,7 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
     
     const usersWithRoles = new Set(existingRoles.map(r => r.user_id));
     
-    // Get all users - fixed the incorrect API call
+    // Get all users
     const { data, error: usersError } = await supabase.auth.admin.listUsers();
     
     if (usersError) {
@@ -36,14 +36,14 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
     if (data && data.users) {
       for (const user of data.users) {
         if (!usersWithRoles.has(user.id)) {
-          // Check user metadata for role indicators
-          const role = user.app_metadata?.role || 'admin'; // Default to admin for existing users
+          // Check for Google SSO users
+          const isGoogleUser = user.app_metadata?.provider === 'google';
+          
+          // Google SSO users are always admins
+          const role = isGoogleUser ? 'admin' : (user.app_metadata?.role || 'admin');
           
           // Use the createUserRole function with the correct parameters
-          const success = await createUserRole(
-            user.id, 
-            role as UserRole
-          );
+          const success = await createUserRole(user.id, role as UserRole);
           
           if (success) {
             migratedCount++;
@@ -78,7 +78,7 @@ export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
       return false;
     }
     
-    // Explicitly type the user to ensure TypeScript recognizes the properties
+    // Find the user with the given email
     const user = data.users.find((u: User) => u.email === email);
     
     if (!user) {
@@ -99,7 +99,7 @@ export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
       return true;
     }
     
-    // Add admin role with the correct parameters
+    // Add admin role
     const success = await createUserRole(user.id, 'admin');
     
     if (success) {
