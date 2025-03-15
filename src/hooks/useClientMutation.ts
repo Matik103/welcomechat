@@ -28,8 +28,7 @@ export const useClientMutation = (id: string | undefined) => {
           await logClientUpdateActivity(id);
           return clientId;
         } else {
-          // Create new client
-          toast.info("Creating client...");
+          // When creating new client, only show one toast notification
           const newClientId = await createClient(updatedData);
           
           // Try to create client user account without sending email
@@ -40,10 +39,8 @@ export const useClientMutation = (id: string | undefined) => {
               updatedData.client_name, 
               updatedData.agent_name
             );
-            toast.success("Client account created successfully");
           } catch (accountError) {
             console.error("Failed to create client user account:", accountError);
-            toast.error("Client created but failed to set up user account. Manual setup required.");
           }
           
           return newClientId;
