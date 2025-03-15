@@ -1,4 +1,3 @@
-
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -25,11 +24,11 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Handle callback route - redirect immediately to home based on user role
+  // Immediate redirect from auth callback page as soon as we have user and role information
   useEffect(() => {
     if (location.pathname.includes('/auth/callback') && user && userRole) {
-      console.log("Auth callback detected, redirecting based on role:", userRole);
-      // Immediate redirect based on role
+      console.log("Auth callback detected with user and role, redirecting instantly");
+      // Immediate redirect based on role with no delay
       if (userRole === 'admin') {
         navigate('/', { replace: true });
       } else {
@@ -38,16 +37,11 @@ function App() {
     }
   }, [location.pathname, user, userRole, navigate]);
 
-  // Handle the case where we're still on the callback page but auth is still loading
+  // Handle auth callback page - completely hidden while processing
   if (location.pathname.includes('/auth/callback')) {
-    // Don't show full loading screen, just continue auth process silently
-    // The redirect will happen automatically once user and userRole are available
-    return (
-      <div className="min-h-screen bg-background">
-        <Toaster />
-        <div className="hidden">Processing auth...</div>
-      </div>
-    );
+    // Return an empty div to prevent any visual loading indicator
+    // The redirect will happen automatically via the effect above
+    return <div className="hidden" />;
   }
   
   // Show loading spinner during auth check, but only if not on a public route
