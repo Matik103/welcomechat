@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,6 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(null);
             setUserRole(null);
             
+            // Only redirect to auth if not already on an auth-related page
             if (!location.pathname.startsWith('/auth') && 
                 !location.pathname.startsWith('/client/setup')) {
               navigate('/auth', { replace: true });
@@ -114,6 +116,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initializeAuth();
 
+    // Handle auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
@@ -146,6 +149,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(currentSession);
             setUser(currentSession.user);
             setUserRole(role);
+          } else if (event === 'USER_UPDATED' && currentSession) {
+            setSession(currentSession);
+            setUser(currentSession.user);
           }
         } catch (error) {
           console.error("Error handling auth state change:", error);

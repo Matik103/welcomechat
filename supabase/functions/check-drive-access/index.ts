@@ -13,11 +13,11 @@ interface DriveAccessResponse {
 }
 
 const oauth2Client = new OAuth2Client({
-  clientId: Deno.env.get('GOOGLE_CLIENT_ID'),
-  clientSecret: Deno.env.get('GOOGLE_CLIENT_SECRET'),
+  clientId: Deno.env.get('GOOGLE_CLIENT_ID') || '',
+  clientSecret: Deno.env.get('GOOGLE_CLIENT_SECRET') || '',
   authorizationEndpointUri: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenUri: 'https://oauth2.googleapis.com/token',
-  redirectUri: `${Deno.env.get('SUPABASE_URL')}/functions/v1/check-drive-access/callback`,
+  redirectUri: `${Deno.env.get('SUPABASE_URL')}/functions/v1/check-drive-access/callback',
   defaults: {
     scope: ['https://www.googleapis.com/auth/drive.readonly']
   }

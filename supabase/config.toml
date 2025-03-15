@@ -42,7 +42,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.check-drive-access]
-verify_jwt = true
+verify_jwt = false
 
 [functions.check-url-access]
-verify_jwt = true
+verify_jwt = false
