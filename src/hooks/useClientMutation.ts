@@ -50,15 +50,15 @@ export const useClientMutation = (id: string | undefined) => {
             try {
               await sendClientInvitation(newClientId, updatedData.email, updatedData.client_name);
               toast.success("Invitation email sent as fallback");
-            } catch (inviteError) {
+            } catch (inviteError: any) {
               console.error("Failed to send invitation email:", inviteError);
-              toast.error("Also failed to send invitation email: " + inviteError.message);
+              toast.error("Also failed to send invitation email: " + (inviteError.message || "Unknown error"));
             }
           }
           
           return newClientId;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error in client mutation:", error);
         throw new Error(error.message || "Failed to save client");
       }
@@ -70,8 +70,8 @@ export const useClientMutation = (id: string | undefined) => {
         toast.success("Client created successfully");
       }
     },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
+    onError: (error: any) => {
+      toast.error(`Error: ${error.message || "Failed to perform operation"}`);
     },
   });
 
