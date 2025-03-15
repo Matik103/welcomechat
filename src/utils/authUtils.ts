@@ -100,29 +100,19 @@ export const createUserRole = async (
  * Always redirects to the appropriate dashboard, regardless of current location
  */
 export const handlePostAuthNavigation = (
-  role: UserRole, 
   navigate: (path: string, options?: {replace: boolean}) => void
 ) => {
-  console.log("Handling post-auth navigation for role:", role);
-  
-  if (role === 'admin') {
-    navigate('/', { replace: true });
-  } else if (role === 'client') {
-    navigate('/client/dashboard', { replace: true });
-  }
+  console.log("Handling post-auth navigation - redirecting to admin dashboard");
+  navigate('/', { replace: true });
 };
 
 /**
  * Force redirect to dashboard based on role, bypassing React Router
  * This provides a faster and more reliable redirect for SSO flows
  */
-export const forceRedirectToDashboard = (role: UserRole) => {
-  console.log("Force redirecting to dashboard for role:", role);
-  if (role === 'admin') {
-    window.location.href = '/';
-  } else if (role === 'client') {
-    window.location.href = '/client/dashboard';
-  }
+export const forceRedirectToDashboard = () => {
+  console.log("Force redirecting to admin dashboard");
+  window.location.href = '/';
 };
 
 /**
@@ -135,55 +125,14 @@ export const handleGoogleUser = async (currentUser: User): Promise<UserRole> => 
     throw new Error("No user provided");
   }
   
-  console.log("Handling Google user:", currentUser.email);
+  console.log("Handling Google user, redirecting to admin dashboard:", currentUser.email);
   
+  // Always assign admin role, with no additional checks
   try {
-    // First check if user already has a role
-    const existingRole = await checkUserRole(currentUser.id);
-    
-    if (existingRole) {
-      console.log("Existing role found for Google user:", existingRole);
-      return existingRole;
-    }
-    
-    console.log("Checking if Google user is a client");
-    if (currentUser.email) {
-      const isClient = await checkIfClientExists(currentUser.email);
-      
-      if (isClient) {
-        console.log("Google user is a client, fetching client ID");
-        const { data: clientData } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('email', currentUser.email)
-          .maybeSingle();
-          
-        if (clientData?.id) {
-          console.log("Creating client role for Google user with client ID:", clientData.id);
-          await createUserRole(currentUser.id, 'client', clientData.id);
-          
-          // Update user metadata with client ID
-          await supabase.auth.updateUser({
-            data: { client_id: clientData.id }
-          });
-          
-          return 'client';
-        }
-      }
-    }
-    
-    console.log("Assigning admin role to Google user");
     await createUserRole(currentUser.id, 'admin');
-    return 'admin';
   } catch (error) {
-    console.error("Error in handleGoogleUser:", error);
-    // Default to admin role if there's an error
-    console.log("Defaulting to admin role due to error");
-    try {
-      await createUserRole(currentUser.id, 'admin');
-    } catch (roleError) {
-      console.error("Failed to create admin role after error:", roleError);
-    }
-    return 'admin';
+    console.error("Failed to create admin role, but continuing:", error);
   }
+  
+  return 'admin';
 };
