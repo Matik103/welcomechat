@@ -57,11 +57,10 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
 
       if (signUpError) throw signUpError;
 
-      // Update invitation status
+      // Update invitation record - removing the 'status' field that doesn't exist in the type
       const { error: updateError } = await supabase
         .from("client_invitations")
         .update({ 
-          status: "accepted", 
           accepted_at: new Date().toISOString() 
         })
         .eq("token", token);
