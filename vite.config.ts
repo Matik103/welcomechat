@@ -17,15 +17,21 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-    },
-  },
-  optimizeDeps: {
-    include: ['zod']
+    }
   },
   build: {
     outDir: "dist",
-    commonjsOptions: {
-      include: [/node_modules/]
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('zod')) {
+              return 'vendor_zod';
+            }
+            return 'vendor';
+          }
+        }
+      }
     }
   }
 }));
