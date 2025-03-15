@@ -19,37 +19,32 @@ import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
 import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
+import { forceRedirectToDashboard } from "./utils/authUtils";
 
 function App() {
   const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Handle callback route - redirect immediately to home based on user role
+  // Handle Google SSO callback route with immediate redirect
   useEffect(() => {
-    if (location.pathname.includes('/auth/callback') && user && userRole) {
-      console.log("Auth callback detected, redirecting based on role:", userRole);
-      // Force an immediate redirect based on role
-      if (userRole === 'admin') {
-        window.location.href = '/';
-      } else {
-        window.location.href = '/client/dashboard';
+    if (location.pathname.includes('/auth/callback')) {
+      console.log("Auth callback detected, user:", !!user, "role:", userRole);
+      
+      // If we have both user and role, redirect immediately
+      if (user && userRole) {
+        console.log("User and role available, forcing immediate redirect");
+        forceRedirectToDashboard(userRole);
       }
     }
   }, [location.pathname, user, userRole]);
 
-  // Handle the case where we're still on the callback page
+  // If we're on the callback route, show minimal loading UI and prevent other rendering
   if (location.pathname.includes('/auth/callback')) {
-    // Don't render anything during the callback process to prevent blank screens
+    // If we have user and role info, we're about to redirect
     if (user && userRole) {
-      // We have user and role info but useEffect hasn't redirected yet
-      // Force immediate redirect here
-      if (userRole === 'admin') {
-        window.location.href = '/';
-      } else {
-        window.location.href = '/client/dashboard';
-      }
-      return null; // Return null to prevent any rendering during redirect
+      // Return null to prevent any rendering during redirect
+      return null;
     }
     
     // Show minimal loading while auth completes
@@ -60,13 +55,13 @@ function App() {
     );
   }
   
-  // Show loading spinner during auth check, but only if not on a public route
-  // Determine if current route is a public route (auth, setup, or callback)
+  // Determine if current route is a public route
   const isPublicRoute = 
     location.pathname === '/auth' || 
     location.pathname.includes('/auth/callback') ||
     location.pathname.startsWith('/client/setup');
     
+  // Show loading spinner during auth check, but only if not on a public route
   if (isLoading && !isPublicRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
