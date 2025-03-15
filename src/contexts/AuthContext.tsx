@@ -47,18 +47,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(currentSession);
           setUser(currentSession.user);
           
+          // Faster Google auth flow prioritization
           const isGoogleUser = currentSession.user.app_metadata.provider === 'google';
           
-          if (isGoogleUser) {
-            // Optimize Google auth flow by prioritizing role determination
+          if (isGoogleUser || isCallbackUrl) {
+            // Prioritize SSO role determination for quick redirect
             const role = await handleGoogleUser(currentSession.user);
             setUserRole(role);
+            setIsLoading(false);
             
-            // Only redirect if we're not on the callback page
+            // Skip navigation on callback page - App.tsx will handle it immediately once role is set
             if (!isCallbackUrl) {
               handlePostAuthNavigation(role, navigate);
             }
-            setIsLoading(false);
           } else {
             const existingRole = await checkUserRole(currentSession.user.id);
             
@@ -144,15 +145,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(currentSession);
             setUser(currentSession!.user);
             
-            setIsLoading(true);
-            
-            const isGoogleUser = currentSession?.user.app_metadata.provider === 'google';
-            
-            if (isGoogleUser) {
-              // Optimize for faster role determination for Google users
+            // Optimize for fast role determination, especially for callback paths
+            if (isCallbackUrl || currentSession?.user.app_metadata.provider === 'google') {
+              // Fast-path for Google users and callback URLs
               const role = await handleGoogleUser(currentSession!.user);
               setUserRole(role);
               setIsLoading(false);
+              
+              // App.tsx will handle navigation on callback page
             } else {
               const existingRole = await checkUserRole(currentSession!.user.id);
               
