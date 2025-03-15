@@ -57,11 +57,15 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
 
       if (signUpError) throw signUpError;
 
-      // Update invitation record - removing the 'status' field that doesn't exist in the type
+      // Update invitation record - since 'accepted_at' field is not in the type,
+      // we'll use a timestamp in metadata instead
       const { error: updateError } = await supabase
         .from("client_invitations")
         .update({ 
-          accepted_at: new Date().toISOString() 
+          // Store acceptance information in metadata
+          metadata: { 
+            accepted_at: new Date().toISOString() 
+          }
         })
         .eq("token", token);
 
@@ -83,7 +87,7 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
         .from("client_activities")
         .insert({
           client_id: tokenData.clientId,
-          activity_type: "ai_agent_created", // Changed from "account_setup" to a valid enum value
+          activity_type: "ai_agent_created",
           description: "completed account setup",
           metadata: {
             setup_method: "invitation"
