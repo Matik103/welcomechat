@@ -37,6 +37,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .maybeSingle();
 
       if (error) {
+        console.error("Error checking user role:", error);
         return null;
       }
 
@@ -49,8 +50,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       return data?.role as UserRole || null;
     } catch (error) {
+      console.error("Exception in checkUserRole:", error);
       return null;
     }
+  };
+
+  // Handle Google SSO user - Assign admin role if not already assigned
+  const handleGoogleUser = async (currentUser: User): Promise<UserRole> => {
+    const existingRole = await checkUserRole(currentUser.id);
+    
+    if (existingRole) {
+      return existingRole;
+    }
+    
+    // All Google SSO users are admins by default
+    await createUserRole(currentUser.id, 'admin');
+    return 'admin';
   };
 
   // Initialize auth state
@@ -73,35 +88,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Check for existing role first
-          const existingRole = await checkUserRole(currentSession.user.id);
+          // Check if user authenticated with Google
+          const isGoogleUser = currentSession.user.app_metadata.provider === 'google';
           
-          if (existingRole) {
-            setUserRole(existingRole);
+          if (isGoogleUser) {
+            // For Google users, assign admin role if they don't have a role
+            const role = await handleGoogleUser(currentSession.user);
+            setUserRole(role);
             setIsLoading(false);
-          } else if (currentSession.user.email) {
-            // Check if user exists in clients table
-            const isClient = await checkIfClientExists(currentSession.user.email);
+          } else {
+            // Check for existing role first for non-Google users
+            const existingRole = await checkUserRole(currentSession.user.id);
             
-            if (isClient) {
-              // Get client ID
-              const { data: clientData } = await supabase
-                .from('clients')
-                .select('id')
-                .eq('email', currentSession.user.email)
-                .maybeSingle();
-                
-              if (clientData?.id) {
-                await createUserRole(currentSession.user.id, 'client', clientData.id);
-                setUserRole('client');
+            if (existingRole) {
+              setUserRole(existingRole);
+              setIsLoading(false);
+            } else if (currentSession.user.email) {
+              // Check if user exists in clients table
+              const isClient = await checkIfClientExists(currentSession.user.email);
+              
+              if (isClient) {
+                // Get client ID
+                const { data: clientData } = await supabase
+                  .from('clients')
+                  .select('id')
+                  .eq('email', currentSession.user.email)
+                  .maybeSingle();
+                  
+                if (clientData?.id) {
+                  await createUserRole(currentSession.user.id, 'client', clientData.id);
+                  setUserRole('client');
+                }
+              } else {
+                // Not a client, assign admin role
+                await createUserRole(currentSession.user.id, 'admin');
+                setUserRole('admin');
               }
-            } else {
-              // Not a client, assign admin role
-              await createUserRole(currentSession.user.id, 'admin');
-              setUserRole('admin');
+              
+              setIsLoading(false);
             }
-            
-            setIsLoading(false);
           }
         } else {
           // No active session
@@ -119,6 +144,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         setAuthInitialized(true);
       } catch (error) {
+        console.error("Error in initializeAuth:", error);
         if (mounted) {
           setSession(null);
           setUser(null);
@@ -135,6 +161,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
+        console.log("Auth state changed:", event);
 
         try {
           if (event === 'SIGNED_IN') {
@@ -145,56 +172,72 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             // For sign-ins, continue with existing logic
             setIsLoading(true);
             
-            // Check if the user email exists in the clients table
-            const isClient = currentSession?.user.email ? 
-              await checkIfClientExists(currentSession.user.email) : false;
+            // Check if the user is a Google user
+            const isGoogleUser = currentSession?.user.app_metadata.provider === 'google';
             
-            // Check for existing role
-            const existingRole = await checkUserRole(currentSession!.user.id);
-            
-            if (existingRole) {
-              // Use existing role
-              setUserRole(existingRole);
+            if (isGoogleUser) {
+              // For Google users, assign admin role
+              const role = await handleGoogleUser(currentSession!.user);
+              setUserRole(role);
               
-              // Navigate based on role, minimal delay
+              // Always navigate Google users to admin dashboard
               if (location.pathname.startsWith('/auth')) {
-                if (existingRole === 'client') {
-                  navigate('/client/dashboard', { replace: true });
-                } else {
-                  navigate('/', { replace: true });
-                }
+                navigate('/', { replace: true });
               }
+              setIsLoading(false);
             } else {
-              // Assign role based on client check
-              if (isClient) {
-                // Get client ID
-                const { data: clientData } = await supabase
-                  .from('clients')
-                  .select('id')
-                  .eq('email', currentSession!.user.email)
-                  .maybeSingle();
-                  
-                if (clientData?.id) {
-                  await createUserRole(currentSession!.user.id, 'client', clientData.id);
-                  setUserRole('client');
-                  
-                  // Navigate to client dashboard if on auth page
-                  if (location.pathname.startsWith('/auth')) {
+              // For non-Google users, follow normal flow
+              // Check if the user email exists in the clients table
+              const isClient = currentSession?.user.email ? 
+                await checkIfClientExists(currentSession.user.email) : false;
+              
+              // Check for existing role
+              const existingRole = await checkUserRole(currentSession!.user.id);
+              
+              if (existingRole) {
+                // Use existing role
+                setUserRole(existingRole);
+                
+                // Navigate based on role, minimal delay
+                if (location.pathname.startsWith('/auth')) {
+                  if (existingRole === 'client') {
                     navigate('/client/dashboard', { replace: true });
+                  } else {
+                    navigate('/', { replace: true });
                   }
                 }
               } else {
-                await createUserRole(currentSession!.user.id, 'admin');
-                setUserRole('admin');
-                
-                // Navigate to admin dashboard if on auth page
-                if (location.pathname.startsWith('/auth')) {
-                  navigate('/', { replace: true });
+                // Assign role based on client check
+                if (isClient) {
+                  // Get client ID
+                  const { data: clientData } = await supabase
+                    .from('clients')
+                    .select('id')
+                    .eq('email', currentSession!.user.email)
+                    .maybeSingle();
+                    
+                  if (clientData?.id) {
+                    await createUserRole(currentSession!.user.id, 'client', clientData.id);
+                    setUserRole('client');
+                    
+                    // Navigate to client dashboard if on auth page
+                    if (location.pathname.startsWith('/auth')) {
+                      navigate('/client/dashboard', { replace: true });
+                    }
+                  }
+                } else {
+                  await createUserRole(currentSession!.user.id, 'admin');
+                  setUserRole('admin');
+                  
+                  // Navigate to admin dashboard if on auth page
+                  if (location.pathname.startsWith('/auth')) {
+                    navigate('/', { replace: true });
+                  }
                 }
               }
+              
+              setIsLoading(false);
             }
-            
-            setIsLoading(false);
           } else if (event === 'SIGNED_OUT') {
             setSession(null);
             setUser(null);
@@ -215,6 +258,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(currentSession.user);
           }
         } catch (error) {
+          console.error("Error in auth state change handler:", error);
           setSession(null);
           setUser(null);
           setUserRole(null);
@@ -231,6 +275,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
@@ -239,11 +284,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUserRole(null);
       navigate('/auth', { replace: true });
     } catch (error) {
+      console.error('Sign out error:', error);
       // Force state clear and navigation on error
       setSession(null);
       setUser(null);
       setUserRole(null);
       navigate('/auth', { replace: true });
+    } finally {
+      setIsLoading(false);
     }
   };
 
