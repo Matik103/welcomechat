@@ -9,6 +9,7 @@ import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
+import { isClientInDatabase } from "@/utils/authUtils";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);

@@ -46,7 +46,7 @@ export const useAuthCallback = ({
           setUserRole('admin');
           setIsLoading(false);
           
-          // Redirect to admin dashboard directly
+          // Redirect to admin dashboard using navigate instead of window.location
           navigate('/', { replace: true });
         } catch (error) {
           console.error("Error handling auth callback:", error);
