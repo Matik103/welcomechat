@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,6 @@ const Auth = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Define the resetForm function
   const resetForm = () => {
     setEmail("");
     setPassword("");
@@ -32,52 +30,35 @@ const Auth = () => {
     setErrorMessage("");
   };
 
-  // Enhanced redirection logic with safety checks
   useEffect(() => {
-    // Only attempt redirection if we have session AND userRole AND we're not loading
     if (session && userRole && !isLoading) {
       console.log("Ready to redirect with role:", userRole);
-      
-      // Add a small delay to ensure all state is properly updated
-      const redirectTimer = setTimeout(() => {
-        if (userRole === 'client') {
-          console.log("Redirecting to client dashboard");
-          navigate('/client/dashboard', { replace: true });
-        } else if (userRole === 'admin') {
-          console.log("Redirecting to admin dashboard");
-          navigate('/', { replace: true });
-        }
-      }, 100);
-      
-      return () => clearTimeout(redirectTimer);
+      if (userRole === 'client') {
+        console.log("Redirecting to client dashboard");
+        navigate('/client/dashboard', { replace: true });
+      } else if (userRole === 'admin') {
+        console.log("Redirecting to admin dashboard");
+        navigate('/', { replace: true });
+      }
     }
   }, [session, userRole, isLoading, navigate]);
 
-  // If we're checking auth, show loading spinner with a clear UI
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Checking authentication...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
 
-  // If user is authenticated but has no role yet, show a loading state
   if (session && !userRole) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Setting up your account...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
 
-  // Redirect authenticated users to the appropriate dashboard
   if (session && userRole) {
     if (userRole === 'client') {
       return <Navigate to="/client/dashboard" replace />;
@@ -86,12 +67,10 @@ const Auth = () => {
     }
   }
 
-  // Check if email already exists in Supabase
   const checkEmailExists = async (email: string) => {
     setIsCheckingEmail(true);
     try {
       console.log("Checking if email exists:", email);
-      // Call the auth.admin.getUserByEmail() through a secure edge function
       const { data, error } = await supabase.functions.invoke("check-email-exists", {
         body: { email }
       });
@@ -140,12 +119,11 @@ const Auth = () => {
     
     if (isAuthLoading || isCheckingEmail) return;
     setIsAuthLoading(true);
-    setErrorMessage(""); // Clear any previous error
+    setErrorMessage("");
 
     try {
       if (isForgotPassword) {
         console.log("Sending password reset email to:", email);
-        // Use Supabase's built-in password reset functionality
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth/reset-password`,
         });
@@ -160,12 +138,11 @@ const Auth = () => {
       } else if (isSignUp) {
         console.log("Starting sign up process for:", email);
         
-        // Check if email already exists
         const emailExists = await checkEmailExists(email);
         if (emailExists) {
           console.log("Email already exists:", email);
           setErrorMessage("An account with this email already exists. Please sign in instead.");
-          setIsSignUp(false); // Switch to sign in mode
+          setIsSignUp(false);
           setIsAuthLoading(false);
           return;
         }
@@ -190,7 +167,6 @@ const Auth = () => {
         console.log("Sign up successful, verification email should be sent");
         toast.success("Check your email for the confirmation link!");
         
-        // Log to help debug
         console.log("Auth sign up response:", data);
       } else {
         console.log("Attempting to sign in with email:", email);
@@ -210,12 +186,11 @@ const Auth = () => {
     } catch (error: any) {
       console.error('Auth error:', error);
       
-      // Set a user-friendly error message
       if (error.message?.includes("Invalid login credentials")) {
         setErrorMessage("Invalid email or password. Please try again.");
       } else if (error.message?.includes("already registered")) {
         setErrorMessage("An account with this email already exists. Please sign in instead.");
-        setIsSignUp(false); // Switch to sign in mode
+        setIsSignUp(false);
       } else {
         setErrorMessage(error.message || "Authentication failed");
       }
@@ -226,7 +201,6 @@ const Auth = () => {
     }
   };
 
-  // Reset password form
   if (isForgotPassword) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">

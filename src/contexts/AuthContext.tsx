@@ -78,30 +78,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (currentSession?.user) {
           console.log("Found existing session:", currentSession.user.email);
           
-          // Set session and user info
+          // Set session and user info immediately
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Check for existing role first
+          // Check if Google sign-in
+          if (currentSession.user.app_metadata?.provider === 'google') {
+            console.log("Detected Google auth in existing session");
+            setIsGoogleSignIn(true);
+            
+            // Check for existing role first
+            const existingRole = await checkUserRole(currentSession.user.id);
+            
+            if (existingRole) {
+              setUserRole(existingRole);
+              // Don't navigate - this happens silently in the background
+            } else {
+              // Set as admin for Google sign-in
+              await createUserRole(currentSession.user.id, 'admin');
+              setUserRole('admin');
+            }
+            
+            setIsLoading(false);
+            setAuthInitialized(true);
+            return;
+          }
+          
+          // For non-Google sign-ins, check for existing role first
           const existingRole = await checkUserRole(currentSession.user.id);
           
           if (existingRole) {
             setUserRole(existingRole);
-            
-            // Only redirect if we're on the auth page
-            if (location.pathname.startsWith('/auth') && 
-                !location.pathname.includes('/callback')) {
-              console.log("User has role, redirecting from auth page");
-              
-              // Reduced delay from 100ms to 50ms
-              setTimeout(() => {
-                if (existingRole === 'client') {
-                  navigate('/client/dashboard', { replace: true });
-                } else {
-                  navigate('/', { replace: true });
-                }
-              }, 50);
-            }
+            setIsLoading(false);
           } else if (currentSession.user.email) {
             // Check if user exists in clients table
             const isClient = await checkIfClientExists(currentSession.user.email);
@@ -117,32 +125,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               if (clientData?.id) {
                 await createUserRole(currentSession.user.id, 'client', clientData.id);
                 setUserRole('client');
-                
-                // Redirect to client dashboard if on auth page with a slight delay
-                if (location.pathname.startsWith('/auth')) {
-                  setTimeout(() => {
-                    navigate('/client/dashboard', { replace: true });
-                  }, 100);
-                }
               }
             } else {
               // Not a client, assign admin role
               await createUserRole(currentSession.user.id, 'admin');
               setUserRole('admin');
-              
-              // Redirect to admin dashboard if on auth page with a slight delay
-              if (location.pathname.startsWith('/auth')) {
-                setTimeout(() => {
-                  navigate('/', { replace: true });
-                }, 100);
-              }
             }
+            
+            setIsLoading(false);
           }
         } else {
           // No active session
           setSession(null);
           setUser(null);
           setUserRole(null);
+          setIsLoading(false);
           
           // Only redirect to auth if not already on an auth-related page
           if (!location.pathname.startsWith('/auth') && 
@@ -158,11 +155,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null);
           setUser(null);
           setUserRole(null);
-          setAuthInitialized(true);
-        }
-      } finally {
-        if (mounted) {
           setIsLoading(false);
+          setAuthInitialized(true);
         }
       }
     };
@@ -176,20 +170,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log("Auth state changed:", event, currentSession?.user?.email);
 
         try {
-          // Detect Google sign-in
+          // Detect Google sign-in immediately
           if (event === 'SIGNED_IN' && 
               currentSession?.user?.app_metadata?.provider === 'google') {
             setIsGoogleSignIn(true);
           }
 
           if (event === 'SIGNED_IN') {
-            setIsLoading(true);
-            
-            // Set session and user first
+            // Set session and user immediately to avoid loading states
             setSession(currentSession);
             setUser(currentSession!.user);
             
-            // For Google sign-ins, always set admin role by default
+            // Special handling for Google sign-ins - ultra fast path
             if (currentSession?.user?.app_metadata?.provider === 'google') {
               console.log("Google sign-in detected, setting admin role by default");
               
@@ -200,18 +192,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 await createUserRole(currentSession.user.id, 'admin');
               }
               
-              setUserRole('admin');
-              
-              // Navigate directly to admin dashboard with minimal delay
-              setTimeout(() => {
-                navigate('/', { replace: true });
-              }, 50);
-              
+              setUserRole(existingRole || 'admin');
               setIsLoading(false);
+              
+              // Immediate navigation with no delay for Google sign-ins
+              if (location.pathname.startsWith('/auth')) {
+                navigate('/', { replace: true });
+              }
+              
               return;
             }
             
             // For non-Google sign-ins, continue with existing logic
+            setIsLoading(true);
+            
             // Check if the user email exists in the clients table
             const isClient = currentSession?.user.email ? 
               await checkIfClientExists(currentSession.user.email) : false;
@@ -223,16 +217,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               // Use existing role
               setUserRole(existingRole);
               
-              // Navigate based on role, but only if we're on the auth page
+              // Navigate based on role, minimal delay
               if (location.pathname.startsWith('/auth')) {
-                console.log("Redirecting from auth page after sign in");
-                setTimeout(() => {
-                  if (existingRole === 'client') {
-                    navigate('/client/dashboard', { replace: true });
-                  } else {
-                    navigate('/', { replace: true });
-                  }
-                }, 100);
+                if (existingRole === 'client') {
+                  navigate('/client/dashboard', { replace: true });
+                } else {
+                  navigate('/', { replace: true });
+                }
               }
             } else {
               // Assign role based on client check
@@ -252,9 +243,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   
                   // Navigate to client dashboard if on auth page
                   if (location.pathname.startsWith('/auth')) {
-                    setTimeout(() => {
-                      navigate('/client/dashboard', { replace: true });
-                    }, 100);
+                    navigate('/client/dashboard', { replace: true });
                   }
                 }
               } else {
@@ -264,31 +253,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 
                 // Navigate to admin dashboard if on auth page
                 if (location.pathname.startsWith('/auth')) {
-                  setTimeout(() => {
-                    navigate('/', { replace: true });
-                  }, 100);
+                  navigate('/', { replace: true });
                 }
               }
             }
             
             setIsLoading(false);
           } else if (event === 'SIGNED_OUT') {
-            setIsLoading(true);
             setSession(null);
             setUser(null);
             setUserRole(null);
             setIsGoogleSignIn(false);
+            setIsLoading(false);
+            
             if (!location.pathname.startsWith('/auth')) {
               navigate('/auth', { replace: true });
             }
-            setIsLoading(false);
           } else if (event === 'TOKEN_REFRESHED' && currentSession) {
-            setIsLoading(true);
+            // Just update session - don't show loading states
             const role = await checkUserRole(currentSession.user.id);
             setSession(currentSession);
             setUser(currentSession.user);
             setUserRole(role);
-            setIsLoading(false);
           } else if (event === 'USER_UPDATED' && currentSession) {
             setSession(currentSession);
             setUser(currentSession.user);
@@ -311,7 +297,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      setIsLoading(true);
       console.log("Signing out user...");
       
       const { error } = await supabase.auth.signOut();
@@ -330,14 +315,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUserRole(null);
       setIsGoogleSignIn(false);
       navigate('/auth', { replace: true });
-      throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signOut, isLoading: isLoading && !isGoogleSignIn, userRole }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      signOut, 
+      // Only show loading state if not Google sign-in - makes Google sign-in ultra smooth
+      isLoading: isLoading && !isGoogleSignIn, 
+      userRole 
+    }}>
       {children}
     </AuthContext.Provider>
   );
