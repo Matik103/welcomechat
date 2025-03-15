@@ -62,21 +62,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (window.location.hash && location.pathname.includes('/auth')) {
         console.log("Processing hash parameters from OAuth redirect");
         try {
-          // Use the correct method for getting session from URL 
-          // (.getSessionFromUrl doesn't exist, need to use .getSession)
-          const { data, error } = await supabase.auth.getSession();
-          if (error) {
-            console.error("Error getting session from URL:", error);
+          // First, exchange the OAuth code for a session
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.error("Error getting session from URL:", sessionError);
             toast.error("Authentication failed. Please try again.");
             setIsLoading(false);
             return;
           }
           
-          if (data?.session) {
-            console.log("Session retrieved from URL, user:", data.session.user.email);
-            const role = await checkUserRole(data.session.user.id);
-            setSession(data.session);
-            setUser(data.session.user);
+          if (sessionData?.session) {
+            console.log("Session retrieved from URL, user:", sessionData.session.user.email);
+            const role = await checkUserRole(sessionData.session.user.id);
+            setSession(sessionData.session);
+            setUser(sessionData.session.user);
             setUserRole(role);
             
             // Clear the hash to prevent processing it again
@@ -91,10 +91,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               // Default redirect if no role found
               navigate('/', { replace: true });
             }
+          } else {
+            console.log("No session found in URL, user might need to sign in");
+            setIsLoading(false);
           }
         } catch (e) {
           console.error("Error processing auth redirect:", e);
-        } finally {
           setIsLoading(false);
         }
       }
