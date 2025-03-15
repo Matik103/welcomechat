@@ -42,14 +42,6 @@ const Auth = () => {
   if (session && userRole) {
     console.log("Auth page - immediate redirect for user with role:", userRole);
     
-    // Always take Google SSO users to admin dashboard regardless of role
-    const isGoogleUser = session.user?.app_metadata?.provider === 'google';
-    
-    if (isGoogleUser) {
-      console.log("Google SSO user detected, redirecting to admin dashboard");
-      return <Navigate to="/" replace />;
-    }
-    
     // For email/password users, route based on role
     if (userRole === 'client') {
       return <Navigate to="/client/dashboard" replace />;

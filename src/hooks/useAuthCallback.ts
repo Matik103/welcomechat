@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
-import { determineUserRole, isGoogleSSOUser } from "@/utils/authUtils";
+import { determineUserRole } from "@/utils/authUtils";
 
 type AuthCallbackProps = {
   isCallbackUrl: boolean;
@@ -44,25 +44,13 @@ export const useAuthCallback = ({
           setSession(callbackSession);
           setUser(callbackSession.user);
           
-          // Check if this is a Google SSO authentication
-          const isGoogleAuth = isGoogleSSOUser(callbackSession.user);
-          console.log("Is Google Auth?", isGoogleAuth);
+          // For email/password users, determine role from database
+          const userRole = await determineUserRole(callbackSession.user);
+          setUserRole(userRole);
           
-          if (isGoogleAuth) {
-            // Google SSO users are always assigned admin role
-            setUserRole('admin');
-            console.log("Google SSO login detected - navigating to admin dashboard");
-            // Always navigate to admin dashboard for Google SSO
-            navigate('/', { replace: true });
-          } else {
-            // For email/password users, determine role from database
-            const userRole = await determineUserRole(callbackSession.user);
-            setUserRole(userRole);
-            
-            // Navigate based on user role
-            const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-            navigate(targetPath, { replace: true });
-          }
+          // Navigate based on user role
+          const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+          navigate(targetPath, { replace: true });
           
           // Set isLoading to false after the navigation has had time to complete
           setTimeout(() => {
