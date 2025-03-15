@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
-import { toast } from "sonner";
 
 /**
  * Fetches a single client by ID
