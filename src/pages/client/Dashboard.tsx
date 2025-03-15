@@ -21,11 +21,11 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
   
-  // Set a very short timeout to ensure we don't get stuck in a loading state
+  // Set a short timeout to prevent getting stuck in loading state
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
-    }, 1000); // 1 second timeout
+    }, 1000);
     
     return () => clearTimeout(timeout);
   }, []);
@@ -33,7 +33,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   // Redirect if not authenticated
   useEffect(() => {
     if (!user) {
-      navigate("/auth");
+      navigate("/auth", { replace: true });
     }
   }, [user, navigate]);
 
@@ -59,7 +59,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
       // Give the toast time to display before signing out
       const timer = setTimeout(() => {
         signOut?.();
-      }, 2000);
+      }, 1500);
       
       return () => clearTimeout(timer);
     }
@@ -74,7 +74,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     );
   }
 
-  // Show loading spinner, but with a very short timeout to prevent stuck UIs
+  // Show loading spinner, but with a short timeout to prevent stuck UIs
   const isInitialLoading = (isLoadingStats || isLoadingErrorLogs || isLoadingQueries) && !loadTimeout;
 
   return (

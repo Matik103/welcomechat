@@ -28,9 +28,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
 
   // Check user role from the database
-  const checkUserRole = async (userId: string) => {
+  const checkUserRole = async (userId: string): Promise<UserRole | null> => {
     try {
-      console.log("Checking user role for:", userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, client_id')
@@ -38,22 +37,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .maybeSingle();
 
       if (error) {
-        console.error("Error checking user role:", error);
         return null;
       }
 
       // If user has client_id in user_roles, update user metadata
       if (data?.client_id && data.role === 'client') {
-        console.log("Updating user metadata with client_id:", data.client_id);
         await supabase.auth.updateUser({
           data: { client_id: data.client_id }
         });
       }
 
-      console.log("User role found:", data?.role);
       return data?.role as UserRole || null;
     } catch (error) {
-      console.error("Error checking user role:", error);
       return null;
     }
   };
@@ -67,7 +62,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       try {
         setIsLoading(true);
-        console.log("Initializing auth...");
         
         // Get current session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -75,8 +69,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!mounted) return;
 
         if (currentSession?.user) {
-          console.log("Found existing session:", currentSession.user.email);
-          
           // Set session and user info immediately
           setSession(currentSession);
           setUser(currentSession.user);
@@ -127,7 +119,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         setAuthInitialized(true);
       } catch (error) {
-        console.error("Error initializing auth:", error);
         if (mounted) {
           setSession(null);
           setUser(null);
@@ -144,7 +135,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
-        console.log("Auth state changed:", event, currentSession?.user?.email);
 
         try {
           if (event === 'SIGNED_IN') {
@@ -177,8 +167,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             } else {
               // Assign role based on client check
               if (isClient) {
-                console.log("User email found in clients table, assigning client role");
-                
                 // Get client ID
                 const { data: clientData } = await supabase
                   .from('clients')
@@ -196,7 +184,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   }
                 }
               } else {
-                console.log("Email not found in clients table, assigning admin role");
                 await createUserRole(currentSession!.user.id, 'admin');
                 setUserRole('admin');
                 
@@ -228,7 +215,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(currentSession.user);
           }
         } catch (error) {
-          console.error("Error handling auth state change:", error);
           setSession(null);
           setUser(null);
           setUserRole(null);
@@ -245,8 +231,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      console.log("Signing out user...");
-      
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
@@ -255,7 +239,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUserRole(null);
       navigate('/auth', { replace: true });
     } catch (error) {
-      console.error("Sign out error:", error);
       // Force state clear and navigation on error
       setSession(null);
       setUser(null);

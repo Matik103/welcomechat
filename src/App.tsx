@@ -26,12 +26,12 @@ function App() {
   const [showLoader, setShowLoader] = useState(true);
   
   useEffect(() => {
-    // Set a very short timeout for loader display (1s instead of 500ms)
+    // Short timeout for loader display (1s max)
     const timer = setTimeout(() => {
       setShowLoader(false);
     }, 1000);
     
-    // If auth completes before timeout, clear the timer and hide loader
+    // Clear timeout if auth completes before timeout
     if (!isLoading) {
       clearTimeout(timer);
       setShowLoader(false);
@@ -46,23 +46,18 @@ function App() {
     location.pathname.includes('/auth/callback') ||
     location.pathname.startsWith('/client/setup');
   
-  console.log("Current path:", location.pathname);
-  console.log("Public route:", isPublicRoute);
-  console.log("Auth state - isLoading:", isLoading, "user:", !!user, "userRole:", userRole);
-  console.log("showLoader:", showLoader);
-  
-  // Only show loader for auth cases, and only for a very short time
-  if (isLoading && showLoader) {
+  // Only show loader briefly during initial auth check
+  if (isLoading && showLoader && !isPublicRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
       </div>
     );
   }
 
-  // If we're on the auth page, render the Auth component directly without layout or checks
+  // Auth page doesn't need layout or role checks
   if (location.pathname === '/auth') {
     return (
       <div className="min-h-screen bg-background">
@@ -72,7 +67,7 @@ function App() {
     );
   }
 
-  // Quick bypass: If we have user and userRole, don't show any loading state
+  // Handle the case where we have user and role info
   if (user && userRole) {
     // Determine if current route is a client-specific route
     const isClientRoute = 
@@ -143,88 +138,24 @@ function App() {
     );
   }
 
-  // If authentication is no longer loading but we don't have a user or role AND we're not on a public route
-  // This prevents infinite redirects/loading issues
+  // If auth is no longer loading but we don't have a user and we're not on a public route
   if (!isLoading && !user && !isPublicRoute) {
-    console.log("Not authenticated and not on public route, redirecting to auth");
     return <Navigate to="/auth" replace />;
   }
 
-  // If user is authenticated but we don't have a role yet - show very minimal loader
-  if (!isLoading && user && !userRole && !isPublicRoute) {
-    console.log("User authenticated but no role determined yet, showing minimal loader");
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
-        </div>
-      </div>
-    );
-  }
-
-  // Determine if current route is a client-specific route
-  const isClientRoute = 
-    location.pathname.startsWith('/client') && 
-    !location.pathname.startsWith('/client/setup');
-
+  // Public routes or waiting for role determination with minimal loader
   return (
     <div className="min-h-screen bg-background">
-      {isClientRoute ? <ClientHeader /> : <Header />}
+      {location.pathname.startsWith('/client') && !location.pathname.startsWith('/client/setup') 
+        ? <ClientHeader /> 
+        : <Header />}
       <Routes>
         {/* Auth routes */}
         <Route path="/auth/*" element={<Auth />} />
         <Route path="/client/setup" element={<ClientSetup />} />
         
-        {/* Main routes with role-based routing */}
-        <Route path="/" element={
-          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <Index />
-        } />
-        
-        {/* Admin routes */}
-        <Route path="/admin/clients" element={
-          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <ClientList />
-        } />
-        <Route path="/settings" element={
-          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <Settings />
-        } />
-        <Route path="/admin/clients/new" element={
-          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <AddEditClient />
-        } />
-        <Route path="/admin/clients/:id" element={
-          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <ClientView />
-        } />
-        <Route path="/admin/clients/:id/edit" element={
-          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <AddEditClient />
-        } />
-        <Route path="/admin/clients/:id/widget-settings" element={
-          userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <WidgetSettings />
-        } />
-        
-        {/* Client routes */}
-        <Route path="/client/view" element={
-          <Navigate to="/client/dashboard" replace />
-        } />
-        <Route path="/client/dashboard" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <ClientDashboard />
-        } />
-        <Route path="/client/settings" element={
-          userRole === 'admin' ? <Navigate to="/settings" replace /> : <ClientSettings />
-        } />
-        <Route path="/client/widget-settings" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <WidgetSettings />
-        } />
-        <Route path="/client/account-settings" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <AccountSettings />
-        } />
-        <Route path="/client/resource-settings" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <ResourceSettings />
-        } />
-        <Route path="/client/edit-info" element={
-          userRole === 'admin' ? <Navigate to="/" replace /> : <EditClientInfo />
-        } />
-        
-        {/* 404 route */}
-        <Route path="*" element={<NotFound />} />
+        {/* If trying to access restricted routes without auth, redirect */}
+        <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
       <Toaster />
     </div>
