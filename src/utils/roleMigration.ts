@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
 import { createUserRole } from "./authUtils";
+import { User } from "@supabase/supabase-js";
 
 /**
  * Migrates existing admin users to the user_roles table
@@ -77,7 +78,8 @@ export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
       return false;
     }
     
-    const user = data.users.find(u => u.email === email);
+    // Explicitly type the user to ensure TypeScript recognizes the properties
+    const user = data.users.find((u: User) => u.email === email);
     
     if (!user) {
       console.error(`User with email ${email} not found`);
