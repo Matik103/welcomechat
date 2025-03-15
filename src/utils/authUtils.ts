@@ -96,22 +96,32 @@ export const getUserRole = async (userId: string): Promise<UserRole | null> => {
 };
 
 /**
- * Determine if a user email belongs to a client domain
- * This would be where you implement your domain-based role logic
+ * Check if email exists in clients table
  */
-export const isClientDomain = (email: string): boolean => {
-  // This is where you would implement your actual client domain detection logic
-  // For example, if all emails from domain clientcompany.com should be clients:
-  // return email.toLowerCase().endsWith('@clientcompany.com');
-  
-  // For now, let's make a simple demo rule
-  // Update this with your actual business logic to determine client vs admin roles
-  return email.toLowerCase().includes('client') || email.toLowerCase().includes('user');
-}
+export const isClientInDatabase = async (email: string): Promise<boolean> => {
+  try {
+    // Check if email exists in clients table
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+      
+    if (error) {
+      console.error("Error checking client in database:", error);
+      return false;
+    }
+    
+    return !!data; // Return true if client exists, false otherwise
+  } catch (err) {
+    console.error("Error in isClientInDatabase:", err);
+    return false;
+  }
+};
 
 /**
  * Handles an authenticated user
- * Fetches or creates role and returns it
+ * Determines role by checking clients table and returns it
  */
 export const handleAuthenticatedUser = async (currentUser: User): Promise<UserRole> => {
   if (!currentUser) {
@@ -128,8 +138,8 @@ export const handleAuthenticatedUser = async (currentUser: User): Promise<UserRo
     return existingRole;
   }
   
-  // If user doesn't have a role yet, determine it based on email domain or other logic
-  const isClient = currentUser.email ? isClientDomain(currentUser.email) : false;
+  // If user doesn't have a role yet, determine it based on whether they exist in the clients table
+  const isClient = currentUser.email ? await isClientInDatabase(currentUser.email) : false;
   const role: UserRole = isClient ? 'client' : 'admin';
   
   console.log(`Assigning role '${role}' to user with email: ${currentUser.email}`);
