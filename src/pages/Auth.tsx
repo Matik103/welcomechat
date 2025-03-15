@@ -53,6 +53,7 @@ const Auth = () => {
     }
   }, [session, userRole, isLoading, navigate]);
 
+  // Show loading state indicator when auth is still being checked
   if (isLoading && !loadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
@@ -61,6 +62,7 @@ const Auth = () => {
     );
   }
 
+  // If we have a session and role, redirect to appropriate dashboard
   if (session && userRole) {
     console.log("Auth page - immediate redirect due to existing session");
     if (userRole === 'client') {
