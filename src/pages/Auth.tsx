@@ -243,43 +243,6 @@ const Auth = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      console.log("Starting Google sign in process");
-      
-      // Clear any previous errors
-      setErrorMessage("");
-      setIsProcessingOAuth(true);
-      
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            prompt: 'select_account',
-            access_type: 'offline'
-          }
-        }
-      });
-      
-      if (error) {
-        console.error("Google sign in error:", error);
-        setErrorMessage(`Google sign in failed: ${error.message}`);
-        toast.error(`Google sign in failed: ${error.message}`);
-        setIsProcessingOAuth(false);
-        throw error;
-      }
-      
-      console.log("Google sign in initiated, redirecting to Google");
-      // We don't reset isProcessingOAuth here since we're redirecting to Google
-    } catch (error: any) {
-      console.error('Google sign in error:', error);
-      setErrorMessage(error.message || "Failed to sign in with Google");
-      toast.error(error.message || "Failed to sign in with Google");
-      setIsProcessingOAuth(false);
-    }
-  };
-
   // Reset password form
   if (isForgotPassword) {
     return (
@@ -432,32 +395,6 @@ const Auth = () => {
               )}
             </Button>
           </form>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or</span>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignIn}
-            disabled={isProcessingOAuth}
-          >
-            {isProcessingOAuth ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Connecting to Google...
-              </>
-            ) : (
-              "Continue with Google"
-            )}
-          </Button>
 
           <div className="mt-4 text-center text-sm">
             {isSignUp ? (
