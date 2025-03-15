@@ -154,24 +154,32 @@ const Auth = () => {
   const handleGoogleSignIn = async () => {
     try {
       console.log("Starting Google sign in process");
+      
+      // Clear any previous errors
+      setErrorMessage("");
+      
       const { error, data } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
-            prompt: 'select_account'
+            prompt: 'select_account',
+            access_type: 'offline'
           }
         }
       });
       
       if (error) {
         console.error("Google sign in error:", error);
+        setErrorMessage(`Google sign in failed: ${error.message}`);
+        toast.error(`Google sign in failed: ${error.message}`);
         throw error;
       }
       
       console.log("Google sign in initiated:", data);
     } catch (error: any) {
       console.error('Google sign in error:', error);
+      setErrorMessage(error.message || "Failed to sign in with Google");
       toast.error(error.message || "Failed to sign in with Google");
     }
   };
