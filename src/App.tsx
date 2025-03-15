@@ -31,18 +31,18 @@ function App() {
     if (location.pathname.includes('/auth/callback')) {
       console.log("Auth callback detected, user:", !!user, "role:", userRole);
       
-      // If we have both user and role, redirect immediately
-      if (user && userRole) {
-        console.log("User and role available, forcing immediate redirect");
-        forceRedirectToDashboard(userRole);
+      // If we have user, redirect immediately to admin dashboard
+      if (user) {
+        console.log("User available, forcing immediate redirect to admin dashboard");
+        forceRedirectToDashboard();
       }
     }
-  }, [location.pathname, user, userRole]);
+  }, [location.pathname, user]);
 
   // If we're on the callback route, show minimal loading UI and prevent other rendering
   if (location.pathname.includes('/auth/callback')) {
-    // If we have user and role info, we're about to redirect
-    if (user && userRole) {
+    // If we have user, we're about to redirect
+    if (user) {
       // Return null to prevent any rendering during redirect
       return null;
     }

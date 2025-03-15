@@ -4,10 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
-  checkUserRole, 
-  checkIfClientExists, 
-  createUserRole, 
-  handleGoogleUser, 
+  createUserRole,
+  handleGoogleUser,
   handlePostAuthNavigation,
   forceRedirectToDashboard
 } from "@/utils/authUtils";
@@ -48,99 +46,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(currentSession);
           setUser(currentSession.user);
           
-          const provider = currentSession.user.app_metadata.provider;
+          // Always set role to admin and redirect to admin dashboard
+          setUserRole('admin');
           
-          // Prioritize Google auth flow for faster experience
-          if (provider === 'google') {
-            console.log("Processing Google auth flow");
-            try {
-              // For Google users, use a more direct approach to determine role
-              const role = await handleGoogleUser(currentSession.user);
-              if (!mounted) return;
-              
-              setUserRole(role);
-              console.log("Role set for Google user:", role);
-              
-              // For callback routes, use a direct redirect method
-              if (isCallbackUrl) {
-                console.log("On callback URL, redirecting to dashboard");
-                forceRedirectToDashboard(role);
-              } else {
-                // For non-callback routes, use React Router navigation
-                handlePostAuthNavigation(role, navigate);
-              }
-            } catch (error) {
-              console.error("Error handling Google user:", error);
-              // Default to admin role if there's an error
-              setUserRole('admin');
-              if (isCallbackUrl) {
-                forceRedirectToDashboard('admin');
-              } else {
-                handlePostAuthNavigation('admin', navigate);
-              }
-            } finally {
-              if (mounted) {
-                setIsLoading(false);
-              }
-            }
+          // Create admin role in database if needed
+          try {
+            await createUserRole(currentSession.user.id, 'admin');
+          } catch (error) {
+            console.error("Error creating admin role, but continuing:", error);
+          }
+          
+          // Choose redirect method based on current route
+          if (isCallbackUrl) {
+            console.log("On callback URL, redirecting to admin dashboard");
+            forceRedirectToDashboard();
           } else {
-            // Handle non-Google auth flows
-            try {
-              const existingRole = await checkUserRole(currentSession.user.id);
-              
-              if (existingRole) {
-                setUserRole(existingRole);
-                
-                if (isCallbackUrl) {
-                  forceRedirectToDashboard(existingRole);
-                } else {
-                  handlePostAuthNavigation(existingRole, navigate);
-                }
-              } else if (currentSession.user.email) {
-                const isClient = await checkIfClientExists(currentSession.user.email);
-                
-                if (isClient) {
-                  const { data: clientData } = await supabase
-                    .from('clients')
-                    .select('id')
-                    .eq('email', currentSession.user.email)
-                    .maybeSingle();
-                    
-                  if (clientData?.id) {
-                    await createUserRole(currentSession.user.id, 'client', clientData.id);
-                    setUserRole('client');
-                    
-                    if (isCallbackUrl) {
-                      forceRedirectToDashboard('client');
-                    } else {
-                      handlePostAuthNavigation('client', navigate);
-                    }
-                  }
-                } else {
-                  await createUserRole(currentSession.user.id, 'admin');
-                  setUserRole('admin');
-                  
-                  if (isCallbackUrl) {
-                    forceRedirectToDashboard('admin');
-                  } else {
-                    handlePostAuthNavigation('admin', navigate);
-                  }
-                }
-              }
-            } catch (error) {
-              console.error("Error determining user role:", error);
-              // Default to admin role if there's an error
-              setUserRole('admin');
-              if (isCallbackUrl) {
-                forceRedirectToDashboard('admin');
-              } else {
-                handlePostAuthNavigation('admin', navigate);
-              }
-            } finally {
-              if (mounted) {
-                setIsLoading(false);
-              }
-            }
+            // For non-callback routes, use React Router navigation
+            handlePostAuthNavigation(navigate);
           }
         } else {
           console.log("No active session found during init");
@@ -148,7 +70,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(null);
             setUser(null);
             setUserRole(null);
-            setIsLoading(false);
             
             const isAuthRelatedPage = 
               location.pathname.startsWith('/auth') || 
@@ -162,6 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (mounted) {
           setAuthInitialized(true);
+          setIsLoading(false);
         }
       } catch (error) {
         console.error("Error in initializeAuth:", error);
@@ -196,79 +118,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             setIsLoading(true);
             
-            const provider = currentSession?.user.app_metadata.provider;
+            // Always set to admin role regardless of provider
+            setUserRole('admin');
             
-            if (provider === 'google') {
-              try {
-                // Optimize for faster role determination for Google users
-                console.log("Determining Google user role");
-                const role = await handleGoogleUser(currentSession!.user);
-                
-                if (!mounted) return;
-                setUserRole(role);
-                
-                // For callback routes from Google SSO, use direct redirection
-                if (isCallbackUrl) {
-                  console.log("On callback URL, redirecting to dashboard");
-                  forceRedirectToDashboard(role);
-                }
-              } catch (error) {
-                console.error("Error handling Google user:", error);
-                // Default to admin role on error
-                if (mounted) {
-                  setUserRole('admin');
-                  if (isCallbackUrl) {
-                    forceRedirectToDashboard('admin');
-                  }
-                }
-              } finally {
-                if (mounted) {
-                  setIsLoading(false);
-                }
-              }
-            } else {
-              // Handle other auth providers
-              try {
-                const existingRole = await checkUserRole(currentSession!.user.id);
-                
-                if (existingRole) {
-                  if (mounted) {
-                    setUserRole(existingRole);
-                  }
-                } else {
-                  const isClient = currentSession?.user.email ? 
-                    await checkIfClientExists(currentSession.user.email) : false;
-                  
-                  if (isClient && mounted) {
-                    const { data: clientData } = await supabase
-                      .from('clients')
-                      .select('id')
-                      .eq('email', currentSession!.user.email)
-                      .maybeSingle();
-                      
-                    if (clientData?.id) {
-                      await createUserRole(currentSession!.user.id, 'client', clientData.id);
-                      if (mounted) {
-                        setUserRole('client');
-                      }
-                    }
-                  } else if (mounted) {
-                    await createUserRole(currentSession!.user.id, 'admin');
-                    setUserRole('admin');
-                  }
-                }
-              } catch (error) {
-                console.error("Error determining user role:", error);
-                // Default to admin role on error
-                if (mounted) {
-                  setUserRole('admin');
-                }
-              } finally {
-                if (mounted) {
-                  setIsLoading(false);
-                }
-              }
+            // Create admin role in database
+            try {
+              await createUserRole(currentSession!.user.id, 'admin');
+            } catch (error) {
+              console.error("Error creating admin role, but continuing:", error);
             }
+            
+            // For callback routes, use direct redirection
+            if (isCallbackUrl) {
+              console.log("On callback URL, redirecting to admin dashboard");
+              forceRedirectToDashboard();
+            }
+            
+            setIsLoading(false);
           } else if (event === 'SIGNED_OUT') {
             console.log("User signed out");
             if (mounted) {
