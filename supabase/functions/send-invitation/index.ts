@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,12 +23,12 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("PROJECT_URL") || "",
-    Deno.env.get("SERVICE_ROLE_KEY") || ""
-  );
-
   try {
+    const supabase = createClient(
+      Deno.env.get("PROJECT_URL") || "",
+      Deno.env.get("SERVICE_ROLE_KEY") || ""
+    );
+
     // Verify admin permissions
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -62,21 +62,16 @@ const handler = async (req: Request): Promise<Response> => {
     const { email, role_type, url, clientName, clientId }: InvitationEmailRequest = await req.json();
     console.log(`Processing invitation for ${role_type}: ${clientName || email}, URL: ${url}`);
 
-    const client = new SmtpClient();
+    // Initialize Resend client
+    const resend = new Resend(Deno.env.get("RESEND_API_KEY") || "");
 
-    await client.connectTLS({
-      hostname: Deno.env.get("SMTP_HOST") || "mail.privateemail.com",
-      port: Number(Deno.env.get("SMTP_PORT") || 465),
-      username: Deno.env.get("SMTP_USER") || "",
-      password: Deno.env.get("SMTP_PASS") || "",
-    });
-
-    await client.send({
-      from: "admin@welcome.chat",
+    // Send the email with Resend
+    const { data: emailData, error: emailError } = await resend.emails.send({
+      from: "Welcome.Chat <admin@welcome.chat>",
       to: email,
-      replyTo: "admin@welcome.chat",
       subject: `You've been invited to Welcome.Chat as ${role_type}`,
-      content: `
+      reply_to: "admin@welcome.chat",
+      html: `
         <html>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #eee;">
@@ -92,11 +87,14 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
           </body>
         </html>
-      `,
-      html: true,
+      `
     });
 
-    await client.close();
+    if (emailError) {
+      console.error("Email sending failed:", emailError);
+      throw new Error(`Failed to send email: ${emailError.message}`);
+    }
+
     console.log("Email sent successfully to", email);
 
     // Log the email invitation
@@ -125,15 +123,6 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error) {
     console.error("Failed to send invitation:", error);
-
-    try {
-      // If there was an SMTP client initialized, close it
-      if (typeof client !== 'undefined') {
-        await client.close();
-      }
-    } catch (closeError) {
-      console.error("Error closing SMTP connection:", closeError);
-    }
 
     return new Response(
       JSON.stringify({
