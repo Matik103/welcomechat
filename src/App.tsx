@@ -18,6 +18,7 @@ import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
 import { Toaster } from "sonner";
+import NotFound from "@/pages/NotFound";
 
 function App() {
   const { isLoading, user, userRole } = useAuth();
@@ -162,10 +163,8 @@ function App() {
           userRole === 'admin' ? <Navigate to="/" replace /> : <EditClientInfo />
         } />
         
-        {/* Catch-all route for 404s */}
-        <Route path="*" element={
-          <Navigate to={userRole === 'admin' ? '/' : '/client/dashboard'} replace />
-        } />
+        {/* 404 route */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <Toaster />
     </div>
