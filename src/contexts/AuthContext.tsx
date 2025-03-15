@@ -34,14 +34,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     session
   });
 
-  // Handle Google SSO callback
+  // Handle OAuth callback
   useAuthCallback({
     isCallbackUrl,
     setSession,
     setUser,
     setUserRole,
-    setIsLoading,
-    determineUserRole
+    setIsLoading
   });
 
   // Initialize authentication state
@@ -52,8 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser,
     setUserRole,
     setIsLoading,
-    setAuthInitialized,
-    determineUserRole
+    setAuthInitialized
   });
 
   // Handle authentication state changes
@@ -61,21 +59,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSession,
     setUser,
     setUserRole,
-    setIsLoading,
-    determineUserRole
+    setIsLoading
   });
 
   const signOut = async () => {
     try {
-      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
       setSession(null);
       setUser(null);
       setUserRole(null);
-      
-      // Use navigate instead of window.location for better UX
       window.location.href = '/auth';
     } catch (error) {
       console.error('Sign out error:', error);
@@ -94,7 +88,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       session, 
       user, 
       signOut, 
-      isLoading: isCallbackUrl ? true : isLoading, // Only force loading if on callback URL
+      isLoading, 
       userRole 
     }}>
       {children}

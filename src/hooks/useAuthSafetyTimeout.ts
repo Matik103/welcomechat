@@ -23,11 +23,6 @@ export const useAuthSafetyTimeout = ({
     // Only set a timeout if we're in loading state
     if (!isLoading) return;
     
-    // Clear any existing auth callback attempted flag to prevent loops
-    if (isLoading && !session) {
-      sessionStorage.removeItem('auth_callback_attempted');
-    }
-    
     console.log("Setting up safety timeout for loading state");
     
     const safetyTimeout = setTimeout(() => {
@@ -41,7 +36,7 @@ export const useAuthSafetyTimeout = ({
           navigate('/auth', { replace: true });
         }
       }
-    }, 1500); // Reduced to 1.5-second safety timeout
+    }, 1000); // 1-second safety timeout
     
     return () => clearTimeout(safetyTimeout);
   }, [isLoading, navigate, isAuthPage, session, setIsLoading]);

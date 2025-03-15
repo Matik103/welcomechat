@@ -12,7 +12,6 @@ type AuthCallbackProps = {
   setUser: (user: User | null) => void;
   setUserRole: (role: UserRole | null) => void;
   setIsLoading: (isLoading: boolean) => void;
-  determineUserRole: (user: User) => Promise<UserRole>;
 };
 
 export const useAuthCallback = ({
@@ -20,8 +19,7 @@ export const useAuthCallback = ({
   setSession,
   setUser,
   setUserRole,
-  setIsLoading,
-  determineUserRole
+  setIsLoading
 }: AuthCallbackProps) => {
   const navigate = useNavigate();
 
@@ -30,7 +28,6 @@ export const useAuthCallback = ({
       const handleCallback = async () => {
         try {
           console.log("Auth callback processing started");
-          sessionStorage.setItem('auth_callback_attempted', 'true');
           
           // Get the session from the URL
           const { data: { session: callbackSession }, error: sessionError } = 
@@ -38,15 +35,6 @@ export const useAuthCallback = ({
             
           if (sessionError || !callbackSession) {
             console.error("Error getting session from callback URL:", sessionError);
-            toast.error("Authentication failed. Please try again.");
-            navigate('/auth', { replace: true });
-            setIsLoading(false);
-            return;
-          }
-          
-          const user = callbackSession.user;
-          if (!user) {
-            console.error("No user found in callback session");
             navigate('/auth', { replace: true });
             setIsLoading(false);
             return;
@@ -54,17 +42,14 @@ export const useAuthCallback = ({
           
           // Set session data - all authenticated users are admins
           setSession(callbackSession);
-          setUser(user);
+          setUser(callbackSession.user);
           setUserRole('admin');
           setIsLoading(false);
           
           // Redirect to admin dashboard directly
-          console.log("Redirecting user to admin dashboard");
           navigate('/', { replace: true });
-          return;
         } catch (error) {
           console.error("Error handling auth callback:", error);
-          toast.error("Authentication failed. Please try again.");
           navigate('/auth', { replace: true });
           setIsLoading(false);
         }
@@ -72,5 +57,5 @@ export const useAuthCallback = ({
       
       handleCallback();
     }
-  }, [isCallbackUrl, navigate, setSession, setUser, setUserRole, setIsLoading, determineUserRole]);
+  }, [isCallbackUrl, navigate, setSession, setUser, setUserRole, setIsLoading]);
 };

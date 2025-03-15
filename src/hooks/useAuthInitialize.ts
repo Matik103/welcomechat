@@ -13,7 +13,6 @@ type AuthInitializeProps = {
   setUserRole: (role: UserRole | null) => void;
   setIsLoading: (isLoading: boolean) => void;
   setAuthInitialized: (initialized: boolean) => void;
-  determineUserRole: (user: User) => Promise<UserRole>;
 };
 
 export const useAuthInitialize = ({
@@ -23,8 +22,7 @@ export const useAuthInitialize = ({
   setUser,
   setUserRole,
   setIsLoading,
-  setAuthInitialized,
-  determineUserRole
+  setAuthInitialized
 }: AuthInitializeProps) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,38 +44,31 @@ export const useAuthInitialize = ({
           console.log("Session found during init:", currentSession.user.email);
           setSession(currentSession);
           setUser(currentSession.user);
-          
-          // Set initialized flag
-          setAuthInitialized(true);
-          
-          // All authenticated users are admins
           setUserRole('admin');
           setIsLoading(false);
+          setAuthInitialized(true);
           
           const isAuthPage = location.pathname === '/auth';
           
           if (!isCallbackUrl && isAuthPage) {
-            console.log(`Redirecting from auth page to admin dashboard`);
-            window.location.href = '/';
+            console.log("Redirecting from auth page to admin dashboard");
+            navigate('/', { replace: true });
           }
         } else {
           console.log("No active session found during init");
-          if (mounted) {
-            setSession(null);
-            setUser(null);
-            setUserRole(null);
-            
-            const isAuthRelatedPage = location.pathname.startsWith('/auth') || 
-                                     location.pathname.startsWith('/client/setup');
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          
+          const isAuthPage = location.pathname === '/auth';
               
-            if (!isAuthRelatedPage) {
-              console.log("No session, redirecting to auth page");
-              navigate('/auth', { replace: true });
-            }
-            
-            setIsLoading(false);
-            setAuthInitialized(true);
+          if (!isAuthPage) {
+            console.log("No session, redirecting to auth page");
+            navigate('/auth', { replace: true });
           }
+          
+          setIsLoading(false);
+          setAuthInitialized(true);
         }
       } catch (error) {
         console.error("Error in initializeAuth:", error);
@@ -89,9 +80,8 @@ export const useAuthInitialize = ({
           setAuthInitialized(true);
           
           // Redirect to auth page on error
-          const isAuthPage = location.pathname.startsWith('/auth');
+          const isAuthPage = location.pathname === '/auth';
           if (!isAuthPage) {
-            console.log("Error occurred, redirecting to auth page");
             navigate('/auth', { replace: true });
           }
         }
@@ -112,7 +102,6 @@ export const useAuthInitialize = ({
     setUserRole, 
     setIsLoading, 
     setAuthInitialized, 
-    isCallbackUrl,
-    determineUserRole
+    isCallbackUrl
   ]);
 };

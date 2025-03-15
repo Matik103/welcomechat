@@ -4,30 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
 
 /**
- * Check if email exists in clients table
- * This function is kept for backward compatibility but simplified
- */
-export const isClientInDatabase = async (email: string): Promise<boolean> => {
-  // Simplified to always return false - skipping client check
-  return false;
-};
-
-/**
- * Handles role determination for authenticated users
- * Simplified to always return admin role
+ * Simply returns admin role for all authenticated users
  */
 export const determineUserRole = async (user: User): Promise<UserRole> => {
-  // All authenticated users are now admins
   return 'admin';
 };
 
 /**
- * Force redirect based on user role
+ * Redirects to home (admin dashboard)
  */
-export const forceRedirectBasedOnRole = (role: UserRole) => {
-  console.log(`Force redirecting to admin dashboard`);
-  
-  // Use direct window location change for clean redirect
+export const forceRedirectBasedOnRole = () => {
   window.location.href = '/';
 };
 
