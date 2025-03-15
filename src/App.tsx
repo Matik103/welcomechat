@@ -24,11 +24,11 @@ function App() {
   const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [showLoader, setShowLoader] = useState(false);
   
   // Handle callback route - redirect immediately to home based on user role
   useEffect(() => {
     if (location.pathname.includes('/auth/callback') && user && userRole) {
+      console.log("Auth callback detected, redirecting based on role:", userRole);
       if (userRole === 'admin') {
         navigate('/', { replace: true });
       } else {
@@ -37,25 +37,28 @@ function App() {
     }
   }, [location.pathname, user, userRole, navigate]);
 
-  // Determine if current route is a public route (auth, setup, or callback)
-  const isPublicRoute = 
-    location.pathname === '/auth' || 
-    location.pathname.includes('/auth/callback') ||
-    location.pathname.startsWith('/client/setup');
-  
-  // Special handling for callback route - show minimal loader
+  // Handle the case where we're on the callback page but auth is still loading
   if (location.pathname.includes('/auth/callback')) {
     return (
       <div className="min-h-screen bg-background">
         <Toaster />
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
+            <p className="text-sm text-muted-foreground">Completing authentication...</p>
+          </div>
         </div>
       </div>
     );
   }
   
   // Show loading spinner during auth check, but only if not on a public route
+  // Determine if current route is a public route (auth, setup, or callback)
+  const isPublicRoute = 
+    location.pathname === '/auth' || 
+    location.pathname.includes('/auth/callback') ||
+    location.pathname.startsWith('/client/setup');
+    
   if (isLoading && !isPublicRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
