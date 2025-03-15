@@ -1,151 +1,172 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Client, ClientFormData } from "@/types/client";
+import { Client, ClientAgent } from "@/types/client";
 import { toast } from "sonner";
 
-/**
- * Fetches a single client by ID
- */
-export const getClientById = async (id: string): Promise<Client | null> => {
-  if (!id) return null;
-  const { data, error } = await supabase
-    .from("clients")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw error;
-  return data as Client;
-};
-
-/**
- * Updates an existing client
- */
-export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
-  const { error } = await supabase
-    .from("clients")
-    .update({
-      client_name: data.client_name,
-      email: data.email,
-      agent_name: data.agent_name,
-      widget_settings: data.widget_settings,
-    })
-    .eq("id", id);
-  if (error) throw error;
-  return id;
-};
-
-/**
- * Logs client update activity
- */
-export const logClientUpdateActivity = async (id: string): Promise<void> => {
+// Function to create a client
+export const createClient = async (clientData: Omit<Client, 'id'>): Promise<{ client: Client | null; error: Error | null }> => {
   try {
-    const user = await supabase.auth.getUser();
-    const isClientUser = user.data.user?.user_metadata?.client_id === id;
-    if (isClientUser) {
-      await supabase.from("client_activities").insert({
-        client_id: id,
-        activity_type: "client_updated",
-        description: "updated their account information",
-        metadata: {}
-      });
-    }
-  } catch (activityError) {
-    console.error("Error logging activity:", activityError);
-  }
-};
+    const { data, error } = await supabase
+      .from('clients')
+      .insert([clientData])
+      .select()
+      .single();
 
-/**
- * Creates a new client
- */
-export const createClient = async (data: ClientFormData): Promise<string> => {
-  try {
-    // Create the client record
-    const { data: newClients, error } = await supabase
-      .from("clients")
-      .insert([{
-        client_name: data.client_name,
-        email: data.email,
-        agent_name: data.agent_name,
-        widget_settings: data.widget_settings || {},
-        status: 'active'
-      }])
-      .select('*');
-
-    if (error) {
-      console.error("Error creating client:", error);
-      throw error;
-    }
-
-    if (!newClients || newClients.length === 0) {
-      throw new Error("Failed to create client - no data returned");
-    }
-
-    const clientId = newClients[0].id;
-
-    // Add entry to ai_agents table
-    try {
-      const { error: aiAgentError } = await supabase
-        .from("ai_agents")
-        .insert([{
-          client_id: clientId,
-          agent_name: data.agent_name,
-          content: `AI Agent for ${data.client_name}`,
-          metadata: {
-            client_name: data.client_name,
-            created_at: new Date().toISOString()
-          }
-        }]);
-
-      if (aiAgentError) {
-        console.error("Error creating AI agent entry:", aiAgentError);
-        // Continue despite error, as client was created successfully
-      }
-    } catch (aiAgentError) {
-      console.error("Failed to create AI agent entry:", aiAgentError);
-      // Continue despite error, as client was created successfully
-    }
-
-    return clientId;
-  } catch (error) {
-    console.error("Error in createClient:", error);
-    throw error;
-  }
-};
-
-/**
- * Sends invitation email to a client
- */
-export const sendClientInvitation = async (clientId: string, email: string, clientName: string): Promise<boolean> => {
-  try {
-    console.log("Sending invitation for client:", clientId, email, clientName);
+    if (error) throw error;
     
-    // Add a timeout to ensure the request doesn't fail immediately
-    const { data, error } = await supabase.functions.invoke("send-client-invitation", {
-      body: {
-        clientId,
-        email,
-        clientName
+    // Return the created client
+    return { client: data as Client, error: null };
+  } catch (error) {
+    console.error('Error creating client:', error);
+    return { client: null, error: error as Error };
+  }
+};
+
+// Function to get all clients
+export const getClients = async (): Promise<{ clients: Client[] | null; error: Error | null }> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    return { clients: data as Client[], error: null };
+  } catch (error) {
+    console.error('Error getting clients:', error);
+    return { clients: null, error: error as Error };
+  }
+};
+
+// Function to get a client by ID
+export const getClientById = async (id: string): Promise<{ client: Client | null; error: Error | null }> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    
+    return { client: data as Client, error: null };
+  } catch (error) {
+    console.error('Error getting client by ID:', error);
+    return { client: null, error: error as Error };
+  }
+};
+
+// Function to update a client
+export const updateClient = async (id: string, clientData: Partial<Client>): Promise<{ client: Client | null; error: Error | null }> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .update(clientData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return { client: data as Client, error: null };
+  } catch (error) {
+    console.error('Error updating client:', error);
+    return { client: null, error: error as Error };
+  }
+};
+
+// Function to create an AI agent for a client
+export const createClientAgent = async (clientId: string, agentName: string, clientName: string): Promise<{ success: boolean; error: Error | null }> => {
+  try {
+    // Prepare the agent data according to the ai_agents table structure
+    const agentData = {
+      client_id: clientId,
+      name: agentName, // Use name instead of agent_name to match table columns
+      settings: {}, // Empty settings object
+    };
+
+    const { data, error } = await supabase
+      .from('ai_agents')
+      .insert([agentData]);
+
+    if (error) throw error;
+    
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Error creating client agent:', error);
+    return { success: false, error: error as Error };
+  }
+};
+
+// Function to delete a client
+export const deleteClient = async (id: string): Promise<{ success: boolean; error: Error | null }> => {
+  try {
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    return { success: false, error: error as Error };
+  }
+};
+
+// Function to send client invitation
+export const sendClientInvitation = async (clientId: string, clientEmail: string): Promise<{ success: boolean; error: any }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-client-invitation', {
+      body: { 
+        client_id: clientId,
+        email: clientEmail
       },
-      // Add a longer timeout as sending emails can take time
-      options: {
-        timeout: 15000 // 15 seconds
-      }
+      // Fix the timeout by removing the incorrect options property
+      timeout: 15000 // Use proper timeout parameter
     });
-    
+
     if (error) {
-      console.error("Error sending invitation:", error);
-      throw error;
+      console.error('Error sending client invitation:', error);
+      return { success: false, error };
     }
-    
-    if (data?.error) {
-      console.error("Function returned error:", data.error);
-      throw new Error(data.error);
-    }
-    
-    console.log("Invitation response:", data);
-    return true;
+
+    return { success: true, error: null };
   } catch (error) {
-    console.error("Invitation method failed:", error);
-    throw error;
+    console.error('Error in client invitation process:', error);
+    return { success: false, error };
+  }
+};
+
+// Get client by user ID (for client dashboard)
+export const getClientByUserId = async (userId: string): Promise<{ client: Client | null; error: Error | null }> => {
+  try {
+    const { data: userData, error: userError } = await supabase
+      .from('user_roles')
+      .select('client_id')
+      .eq('user_id', userId)
+      .eq('role', 'client')
+      .single();
+
+    if (userError) throw userError;
+    
+    if (!userData?.client_id) {
+      return { client: null, error: new Error('No client associated with this user') };
+    }
+
+    const { data: clientData, error: clientError } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', userData.client_id)
+      .single();
+
+    if (clientError) throw clientError;
+    
+    return { client: clientData as Client, error: null };
+  } catch (error) {
+    console.error('Error getting client by user ID:', error);
+    return { client: null, error: error as Error };
   }
 };

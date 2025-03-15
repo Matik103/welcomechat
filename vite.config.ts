@@ -24,6 +24,14 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist",
     rollupOptions: {
       external: [],
+      // Ensure necessary dependencies are properly bundled
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@radix-ui/react-label', '@radix-ui/react-dialog', '@radix-ui/react-slot'],
+          form: ['react-hook-form', 'zod', '@hookform/resolvers/zod'],
+        }
+      }
     }
   }
 }));
