@@ -69,6 +69,8 @@ const Auth = () => {
   }
 
   const checkEmailExists = async (email: string) => {
+    if (!email || isCheckingEmail) return false;
+    
     setIsCheckingEmail(true);
     try {
       const { data, error } = await supabase.functions.invoke("check-email-exists", {
@@ -91,6 +93,7 @@ const Auth = () => {
     e.preventDefault();
     
     if (isAuthLoading || isCheckingEmail) return;
+    
     setIsAuthLoading(true);
     setErrorMessage("");
 
@@ -159,6 +162,7 @@ const Auth = () => {
     }
   };
 
+  // Forgot password form
   if (isForgotPassword) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
@@ -183,6 +187,7 @@ const Auth = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
                     required
+                    disabled={isAuthLoading}
                   />
                 </div>
               </div>
@@ -193,7 +198,12 @@ const Auth = () => {
                 </div>
               )}
               
-              <Button type="submit" className="w-full" disabled={isAuthLoading}>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isAuthLoading}
+                aria-label="Send Reset Link"
+              >
                 {isAuthLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -209,6 +219,8 @@ const Auth = () => {
                   setIsForgotPassword(false);
                   resetForm();
                 }}
+                disabled={isAuthLoading}
+                aria-label="Back to Sign In"
               >
                 Back to Sign In
               </Button>
@@ -219,6 +231,7 @@ const Auth = () => {
     );
   }
 
+  // Sign in/sign up form
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -243,6 +256,7 @@ const Auth = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required={isSignUp}
+                  disabled={isAuthLoading || isCheckingEmail}
                 />
               </div>
             )}
@@ -258,6 +272,7 @@ const Auth = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={isAuthLoading || isCheckingEmail}
                 />
               </div>
             </div>
@@ -272,6 +287,7 @@ const Auth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={isAuthLoading || isCheckingEmail}
                 />
               </div>
               {!isSignUp && (
@@ -287,6 +303,7 @@ const Auth = () => {
                       setPassword("");
                       setErrorMessage("");
                     }}
+                    disabled={isAuthLoading || isCheckingEmail}
                   >
                     Forgot password?
                   </Button>
@@ -300,7 +317,12 @@ const Auth = () => {
               </div>
             )}
             
-            <Button type="submit" className="w-full" disabled={isAuthLoading || isCheckingEmail}>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isAuthLoading || isCheckingEmail}
+              aria-label={isSignUp ? "Sign Up" : "Sign In"}
+            >
               {isAuthLoading || isCheckingEmail ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : isSignUp ? (
@@ -322,6 +344,7 @@ const Auth = () => {
                     setErrorMessage("");
                   }}
                   className="text-primary hover:underline"
+                  disabled={isAuthLoading || isCheckingEmail}
                 >
                   Sign in
                 </button>
@@ -336,6 +359,7 @@ const Auth = () => {
                     setErrorMessage("");
                   }}
                   className="text-primary hover:underline"
+                  disabled={isAuthLoading || isCheckingEmail}
                 >
                   Sign up
                 </button>

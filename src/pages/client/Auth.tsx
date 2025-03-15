@@ -42,6 +42,9 @@ const ClientAuth = () => {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (loading) return; // Prevent multiple clicks while processing
+    
     setLoading(true);
 
     try {
@@ -58,6 +61,7 @@ const ClientAuth = () => {
     } catch (error: any) {
       toast.error(error.message || "Failed to sign in");
     } finally {
+      // Ensure loading state is cleared even if there's an error
       setLoading(false);
     }
   };
@@ -87,6 +91,7 @@ const ClientAuth = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -101,10 +106,16 @@ const ClientAuth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading}
+              aria-label="Sign In"
+            >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
