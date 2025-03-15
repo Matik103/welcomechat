@@ -121,6 +121,26 @@ export const handleGoogleUser = async (currentUser: User): Promise<UserRole> => 
     return existingRole;
   }
   
+  console.log("Checking if Google user is a client");
+  if (currentUser.email) {
+    const isClient = await checkIfClientExists(currentUser.email);
+    
+    if (isClient) {
+      console.log("Google user is a client, fetching client ID");
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('email', currentUser.email)
+        .maybeSingle();
+        
+      if (clientData?.id) {
+        console.log("Creating client role for Google user with client ID:", clientData.id);
+        await createUserRole(currentUser.id, 'client', clientData.id);
+        return 'client';
+      }
+    }
+  }
+  
   console.log("Assigning admin role to Google user");
   await createUserRole(currentUser.id, 'admin');
   return 'admin';

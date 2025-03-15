@@ -55,8 +55,8 @@ function App() {
     );
   }
   
-  // Skip loader unless truly necessary
-  if (isLoading && !isPublicRoute && false) {
+  // Show loading spinner during auth check, but only if not on a public route
+  if (isLoading && !isPublicRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center">
