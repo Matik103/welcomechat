@@ -88,9 +88,8 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         .from("ai_agents")
         .insert([{
           client_id: clientId,
-          agent_name: data.agent_name,
-          content: `AI Agent for ${data.client_name}`,
-          metadata: {
+          name: data.agent_name, // Use 'name' instead of 'agent_name'
+          settings: {  // Use 'settings' instead of 'metadata'
             client_name: data.client_name,
             created_at: new Date().toISOString()
           }

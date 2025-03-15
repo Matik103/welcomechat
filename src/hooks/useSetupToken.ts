@@ -30,7 +30,7 @@ export const useSetupToken = (token: string | null) => {
         // Check if token exists and is valid
         const { data: invitation, error } = await supabase
           .from("client_invitations")
-          .select("client_id, email, expires_at, status")
+          .select("client_id, email, expires_at")
           .eq("token", token)
           .single();
 
@@ -41,8 +41,8 @@ export const useSetupToken = (token: string | null) => {
         }
 
         // Check if token is expired
-        if (new Date(invitation.expires_at) < new Date() || invitation.status !== "pending") {
-          toast.error("This invitation has expired or already been used");
+        if (new Date(invitation.expires_at) < new Date()) {
+          toast.error("This invitation has expired");
           navigate("/auth");
           return;
         }

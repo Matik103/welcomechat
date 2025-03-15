@@ -23,8 +23,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",
     rollupOptions: {
-      // Ensure external packages like 'zod' are properly handled
-      external: [],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
@@ -37,6 +35,7 @@ export default defineConfig(({ mode }) => ({
             'tailwind-merge'
           ],
           forms: ['react-hook-form', 'zod', '@hookform/resolvers/zod'],
+          state: ['@tanstack/react-query']
         }
       }
     }

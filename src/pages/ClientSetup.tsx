@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordForm } from "@/components/client-setup/PasswordForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ interface TokenData {
 
 export default function ClientSetup() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const token = searchParams.get("token");
   const [isLoading, setIsLoading] = useState(true);
   const [tokenData, setTokenData] = useState<TokenData>({
@@ -33,9 +34,8 @@ export default function ClientSetup() {
         // Check if token exists and is valid
         const { data: invitation, error } = await supabase
           .from("client_invitations")
-          .select("*, clients(*)")
+          .select("client_id, email, expires_at, clients(*)")
           .eq("token", token)
-          .eq("status", "pending")
           .single();
 
         if (error || !invitation) {
