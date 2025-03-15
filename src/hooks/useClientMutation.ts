@@ -5,7 +5,8 @@ import {
   updateClient, 
   createClient, 
   logClientUpdateActivity,
-  sendClientInvitation
+  sendClientInvitation,
+  createClientUserAccount
 } from "@/services/clientService";
 import { toast } from "sonner";
 
@@ -32,13 +33,27 @@ export const useClientMutation = (id: string | undefined) => {
           toast.info("Creating client...");
           const newClientId = await createClient(updatedData);
           
-          // Try to send invitation email
+          // Try to create client user account with temporary password
           try {
-            await sendClientInvitation(newClientId, updatedData.email, updatedData.client_name);
-            toast.success("Invitation email sent successfully");
-          } catch (inviteError) {
-            console.error("Failed to send invitation email:", inviteError);
-            toast.error("Client created but failed to send invitation email: " + inviteError.message);
+            await createClientUserAccount(
+              newClientId, 
+              updatedData.email, 
+              updatedData.client_name, 
+              updatedData.agent_name
+            );
+            toast.success("Client account created successfully with temporary password");
+          } catch (accountError) {
+            console.error("Failed to create client user account:", accountError);
+            toast.error("Client created but failed to set up user account. Manual setup required.");
+            
+            // Fall back to sending invitation if account creation fails
+            try {
+              await sendClientInvitation(newClientId, updatedData.email, updatedData.client_name);
+              toast.success("Invitation email sent as fallback");
+            } catch (inviteError) {
+              console.error("Failed to send invitation email:", inviteError);
+              toast.error("Also failed to send invitation email: " + inviteError.message);
+            }
           }
           
           return newClientId;
