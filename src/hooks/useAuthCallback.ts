@@ -45,18 +45,27 @@ export const useAuthCallback = ({
           setSession(callbackSession);
           setUser(callbackSession.user);
           
-          // Determine user role from database
-          const userRole = await determineUserRole(callbackSession.user);
-          setUserRole(userRole);
+          // Check if this is a Google SSO authentication
+          const isGoogleAuth = callbackSession.user?.app_metadata?.provider === 'google';
           
-          console.log("User role determined:", userRole);
-          
-          // Navigate based on user role
-          const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-          console.log("Navigating to:", targetPath);
-          
-          // Important: Navigate BEFORE setting isLoading to false
-          navigate(targetPath, { replace: true });
+          if (isGoogleAuth) {
+            // Google SSO users are always assigned admin role
+            console.log("Google SSO login detected, assigning admin role");
+            setUserRole('admin');
+            
+            // Navigate to admin dashboard
+            console.log("Navigating to admin dashboard");
+            navigate('/', { replace: true });
+          } else {
+            // For email/password users, determine role from database
+            const userRole = await determineUserRole(callbackSession.user);
+            setUserRole(userRole);
+            
+            // Navigate based on user role
+            const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+            console.log("Navigating to:", targetPath);
+            navigate(targetPath, { replace: true });
+          }
           
           // Set isLoading to false after the navigation has had time to complete
           setTimeout(() => {

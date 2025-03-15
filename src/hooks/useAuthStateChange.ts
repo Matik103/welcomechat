@@ -44,28 +44,49 @@ export const useAuthStateChange = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Determine user role from database
-          const userRole = await determineUserRole(currentSession.user);
-          setUserRole(userRole);
+          // Check if Google SSO authentication
+          const isGoogleAuth = currentSession.user?.app_metadata?.provider === 'google';
           
-          console.log("User role determined:", userRole);
-          
-          // Only redirect if we're on the auth page to prevent refresh loops
-          const isAuthPage = location.pathname === '/auth';
-          if (isAuthPage) {
-            // Determine where to navigate based on role
-            const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-            console.log("Redirecting to:", targetPath);
+          if (isGoogleAuth) {
+            // Google SSO users are always assigned admin role
+            console.log("Google SSO login detected, assigning admin role");
+            setUserRole('admin');
             
-            // Start navigation before changing loading state
-            navigate(targetPath, { replace: true });
-            
-            // Maintain loading state for longer to ensure no flash of login screen
-            setTimeout(() => {
+            // Only redirect if we're on the auth page to prevent refresh loops
+            const isAuthPage = location.pathname === '/auth';
+            if (isAuthPage) {
+              console.log("Redirecting Google user to admin dashboard");
+              navigate('/', { replace: true });
+              
+              // Maintain loading state for longer to ensure no flash of login screen
+              setTimeout(() => {
+                setIsLoading(false);
+              }, 300);
+            } else {
               setIsLoading(false);
-            }, 300);
+            }
           } else {
-            setIsLoading(false);
+            // For email/password users, determine role from database
+            const userRole = await determineUserRole(currentSession.user);
+            setUserRole(userRole);
+            
+            // Only redirect if we're on the auth page to prevent refresh loops
+            const isAuthPage = location.pathname === '/auth';
+            if (isAuthPage) {
+              // Determine where to navigate based on role
+              const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+              console.log("Redirecting to:", targetPath);
+              
+              // Start navigation before changing loading state
+              navigate(targetPath, { replace: true });
+              
+              // Maintain loading state for longer to ensure no flash of login screen
+              setTimeout(() => {
+                setIsLoading(false);
+              }, 300);
+            } else {
+              setIsLoading(false);
+            }
           }
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");

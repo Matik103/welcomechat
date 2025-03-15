@@ -49,31 +49,59 @@ export const useAuthInitialize = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Determine user role from database
-          const userRole = await determineUserRole(currentSession.user);
-          setUserRole(userRole);
+          // Check if Google SSO authentication
+          const isGoogleAuth = currentSession.user?.app_metadata?.provider === 'google';
           
-          console.log("User role determined in init:", userRole);
-          
-          const isAuthPage = location.pathname === '/auth';
-          
-          if (!isCallbackUrl && isAuthPage) {
-            console.log("Redirecting from auth page to dashboard based on role");
-            // Determine where to navigate based on role
-            const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+          if (isGoogleAuth) {
+            // Google SSO users are always assigned admin role
+            console.log("Google SSO login detected, assigning admin role");
+            setUserRole('admin');
             
-            // Navigate first while keeping loading state true
-            navigate(targetPath, { replace: true });
+            const isAuthPage = location.pathname === '/auth';
             
-            // Longer timeout to ensure transition completes before changing loading state
-            setTimeout(() => {
+            if (!isCallbackUrl && isAuthPage) {
+              console.log("Redirecting from auth page to admin dashboard");
+              
+              // Navigate first while keeping loading state true
+              navigate('/', { replace: true });
+              
+              // Longer timeout to ensure transition completes before changing loading state
+              setTimeout(() => {
+                setIsLoading(false);
+                setAuthInitialized(true);
+              }, 300);
+            } else {
+              // For non-auth pages, just update the state
               setIsLoading(false);
               setAuthInitialized(true);
-            }, 300);
+            }
           } else {
-            // For non-auth pages, just update the state
-            setIsLoading(false);
-            setAuthInitialized(true);
+            // For email/password users, determine role from database
+            const userRole = await determineUserRole(currentSession.user);
+            setUserRole(userRole);
+            
+            console.log("User role determined in init:", userRole);
+            
+            const isAuthPage = location.pathname === '/auth';
+            
+            if (!isCallbackUrl && isAuthPage) {
+              console.log("Redirecting from auth page to dashboard based on role");
+              // Determine where to navigate based on role
+              const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+              
+              // Navigate first while keeping loading state true
+              navigate(targetPath, { replace: true });
+              
+              // Longer timeout to ensure transition completes before changing loading state
+              setTimeout(() => {
+                setIsLoading(false);
+                setAuthInitialized(true);
+              }, 300);
+            } else {
+              // For non-auth pages, just update the state
+              setIsLoading(false);
+              setAuthInitialized(true);
+            }
           }
         } else {
           console.log("No active session found during init");
