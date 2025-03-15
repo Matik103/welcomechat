@@ -21,6 +21,24 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    outDir: "dist"
+    outDir: "dist",
+    rollupOptions: {
+      // Ensure external packages like 'zod' are properly handled
+      external: [],
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: [
+            '@radix-ui/react-avatar',
+            '@radix-ui/react-label',
+            '@radix-ui/react-slot',
+            'class-variance-authority',
+            'clsx',
+            'tailwind-merge'
+          ],
+          forms: ['react-hook-form', 'zod', '@hookform/resolvers/zod'],
+        }
+      }
+    }
   }
 }));
