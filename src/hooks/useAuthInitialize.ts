@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
+import { determineUserRole } from "@/utils/authUtils";
 
 type AuthInitializeProps = {
   authInitialized: boolean;
@@ -44,15 +45,21 @@ export const useAuthInitialize = ({
           console.log("Session found during init:", currentSession.user.email);
           setSession(currentSession);
           setUser(currentSession.user);
-          setUserRole('admin');
+          
+          // Determine role based on email/client check
+          const role = await determineUserRole(currentSession.user);
+          setUserRole(role);
+          console.log("Determined user role during init:", role);
+          
           setIsLoading(false);
           setAuthInitialized(true);
           
           const isAuthPage = location.pathname === '/auth';
           
           if (!isCallbackUrl && isAuthPage) {
-            console.log("Redirecting from auth page to admin dashboard");
-            navigate('/', { replace: true });
+            console.log("Redirecting from auth page based on role");
+            const redirectPath = role === 'admin' ? '/' : '/client/dashboard';
+            navigate(redirectPath, { replace: true });
           }
         } else {
           console.log("No active session found during init");
