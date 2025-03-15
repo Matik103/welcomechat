@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,24 +8,41 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const { session, isLoading } = useAuth();
+  const location = useLocation();
 
-  // Show loading spinner while checking auth state
-  if (isLoading) {
+  // Check if we're in the middle of an OAuth callback
+  useEffect(() => {
+    const checkOAuthRedirect = async () => {
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        setIsProcessingOAuth(true);
+        // The actual processing happens in AuthContext
+      }
+    };
+    
+    checkOAuthRedirect();
+  }, []);
+
+  // If we're processing OAuth or checking auth, show loading spinner
+  if (isLoading || isProcessingOAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Authenticating...</p>
+        </div>
       </div>
     );
   }
@@ -184,12 +201,6 @@ const Auth = () => {
     }
   };
 
-  const resetForm = () => {
-    setEmail("");
-    setPassword("");
-    setErrorMessage("");
-  };
-
   // Reset password form
   if (isForgotPassword) {
     return (
@@ -315,7 +326,9 @@ const Auth = () => {
                     className="px-0 text-sm"
                     onClick={() => {
                       setIsForgotPassword(true);
-                      resetForm();
+                      setEmail("");
+                      setPassword("");
+                      setErrorMessage("");
                     }}
                   >
                     Forgot password?

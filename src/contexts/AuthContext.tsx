@@ -56,6 +56,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    // Process hash parameters from OAuth redirect
+    const handleHashParameters = async () => {
+      // Only process if we have hash parameters and are on the auth route
+      if (window.location.hash && location.pathname.includes('/auth')) {
+        console.log("Processing hash parameters from OAuth redirect");
+        try {
+          const { data, error } = await supabase.auth.getSessionFromUrl();
+          if (error) {
+            console.error("Error getting session from URL:", error);
+            toast.error("Authentication failed. Please try again.");
+            setIsLoading(false);
+            return;
+          }
+          
+          if (data?.session) {
+            console.log("Session retrieved from URL, user:", data.session.user.email);
+            const role = await checkUserRole(data.session.user.id);
+            setSession(data.session);
+            setUser(data.session.user);
+            setUserRole(role);
+            
+            // Clear the hash to prevent processing it again
+            window.history.replaceState(null, "", window.location.pathname);
+            
+            // Redirect based on role
+            if (role === 'client') {
+              navigate('/client/dashboard', { replace: true });
+            } else if (role === 'admin') {
+              navigate('/', { replace: true });
+            } else {
+              // Default redirect if no role found
+              navigate('/', { replace: true });
+            }
+          }
+        } catch (e) {
+          console.error("Error processing auth redirect:", e);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    handleHashParameters();
+  }, [navigate, location.pathname]);
+
+  useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
