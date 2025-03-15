@@ -61,7 +61,6 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
       const { error: updateError } = await supabase
         .from("client_invitations")
         .update({ 
-          status: "accepted", 
           accepted_at: new Date().toISOString() 
         })
         .eq("token", token);
