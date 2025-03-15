@@ -1,14 +1,22 @@
-
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
 
 /**
  * Determines user role by checking if they exist in the clients table
+ * or if they're using Google SSO (which is always admin)
  */
 export const determineUserRole = async (user: User): Promise<UserRole> => {
   if (!user?.email) return 'admin';
   
+  // Check if the user is using Google SSO
+  const isGoogleUser = user.app_metadata?.provider === 'google';
+  if (isGoogleUser) {
+    console.log("User authenticated with Google SSO - assigning admin role");
+    return 'admin';
+  }
+  
+  // Otherwise check if they're a client in the database
   const isClient = await isClientInDatabase(user.email);
   return isClient ? 'client' : 'admin';
 };

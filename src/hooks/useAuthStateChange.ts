@@ -45,11 +45,20 @@ export const useAuthStateChange = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Determine user role based on email/client check
-          const role = await determineUserRole(currentSession.user);
-          setUserRole(role);
-          console.log("Determined user role:", role);
+          // Check if this is a Google SSO login
+          const isGoogleUser = currentSession.user?.app_metadata?.provider === 'google';
           
+          // Determine user role based on Google SSO or email/client check
+          let role: UserRole;
+          if (isGoogleUser) {
+            console.log("Google SSO user detected - setting admin role");
+            role = 'admin';
+          } else {
+            role = await determineUserRole(currentSession.user);
+            console.log("Determined user role:", role);
+          }
+          
+          setUserRole(role);
           setIsLoading(false);
           
           // Only redirect if we're on the auth page to prevent refresh loops
