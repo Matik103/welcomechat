@@ -1,10 +1,9 @@
 
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
+import { isClientInDatabase } from "@/utils/authUtils";
 
 type AuthStateChangeProps = {
   setSession: (session: Session | null) => void;
@@ -21,8 +20,6 @@ export const useAuthStateChange = ({
   setIsLoading,
   determineUserRole
 }: AuthStateChangeProps) => {
-  const navigate = useNavigate();
-
   useEffect(() => {
     let mounted = true;
 
@@ -33,8 +30,6 @@ export const useAuthStateChange = ({
         
         console.log("Auth state changed:", event);
         
-        setIsLoading(true);
-
         try {
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             console.log("User signed in or token refreshed:", currentSession?.user.email);
@@ -49,35 +44,47 @@ export const useAuthStateChange = ({
             setSession(currentSession);
             setUser(currentSession.user);
             
-            // Google SSO users always go to admin dashboard
             const provider = currentSession.user.app_metadata?.provider;
             const isGoogleSSO = provider === 'google';
             
             if (isGoogleSSO) {
+              // For Google SSO users, check if they're in the clients table
+              const isClientEmail = await isClientInDatabase(currentSession.user.email || '');
+              
+              if (isClientEmail) {
+                console.error("Google SSO user's email exists in clients table");
+                // Sign them out
+                await supabase.auth.signOut();
+                // Clear session data
+                setSession(null);
+                setUser(null);
+                setUserRole(null);
+                
+                // Redirect to auth page
+                window.location.href = '/auth';
+                return;
+              }
+              
               // Google SSO users are always admins
               setUserRole('admin');
-              console.log("Google SSO user, redirecting to admin dashboard");
-              
-              // Reset loading before redirect
               setIsLoading(false);
               
-              // Use direct window.location change for a clean redirect
+              // Redirect to admin dashboard
               window.location.href = '/';
               return;
             } else {
               // Get user role for non-Google users
               const role = await determineUserRole(currentSession.user);
               setUserRole(role);
-              console.log("User role set:", role);
-              
-              // Reset loading before redirect
               setIsLoading(false);
               
+              // Redirect based on role
               if (role === 'client') {
                 window.location.href = '/client/dashboard';
               } else {
                 window.location.href = '/';
               }
+              return;
             }
           } else if (event === 'SIGNED_OUT') {
             console.log("User signed out");
@@ -89,10 +96,6 @@ export const useAuthStateChange = ({
               
               window.location.href = '/auth';
             }
-          } else if (event === 'USER_UPDATED' && currentSession && mounted) {
-            setSession(currentSession);
-            setUser(currentSession.user);
-            setIsLoading(false);
           } else {
             // Handle other events
             setIsLoading(false);
@@ -116,5 +119,5 @@ export const useAuthStateChange = ({
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, setSession, setUser, setUserRole, setIsLoading, determineUserRole]);
+  }, [setSession, setUser, setUserRole, setIsLoading, determineUserRole]);
 };

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
+import { isClientInDatabase } from "@/utils/authUtils";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -21,8 +23,6 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const { session, isLoading, userRole } = useAuth();
-  const [loadTimeout, setLoadTimeout] = useState(false);
-  const location = useLocation();
 
   const resetForm = () => {
     setEmail("");
@@ -35,75 +35,22 @@ const Auth = () => {
     sessionStorage.removeItem('auth_callback_attempted');
   }, []);
 
+  // Clean up the session state when unmounting
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setLoadTimeout(true);
-    }, 1000);
-    
-    return () => clearTimeout(timeout);
+    return () => {
+      sessionStorage.removeItem('auth_callback_attempted');
+    };
   }, []);
 
-  useEffect(() => {
-    console.log("Auth page state:", { 
-      session: !!session, 
-      userRole, 
-      isLoading, 
-      pathname: location.pathname 
-    });
-  }, [session, userRole, isLoading, location]);
-
-  useEffect(() => {
-    if (session && userRole && !isLoading) {
-      console.log("Auth page: Detected authenticated session with role:", userRole);
-      
-      if (userRole === 'client') {
-        console.log("Auth page: Redirecting client to client dashboard");
-        window.location.href = '/client/dashboard';
-      } else {
-        console.log("Auth page: Redirecting admin to admin dashboard");
-        window.location.href = '/';
-      }
-    }
-  }, [session, userRole, isLoading]);
-
-  if (isLoading && !loadTimeout) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  if (session && userRole && !isLoading) {
-    console.log("Auth page - immediate redirect component for:", userRole);
+  // Immediate redirect if we have a session and role
+  if (session && userRole) {
+    console.log("Auth page - immediate redirect for user with role:", userRole);
     if (userRole === 'client') {
       return <Navigate to="/client/dashboard" replace />;
     } else {
       return <Navigate to="/" replace />;
     }
   }
-
-  const checkEmailExists = async (email: string) => {
-    if (!email || isCheckingEmail) return false;
-    
-    setIsCheckingEmail(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("check-email-exists", {
-        body: { email }
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      return data.exists;
-    } catch (error: any) {
-      console.error("Error checking email:", error);
-      return false;
-    } finally {
-      setIsCheckingEmail(false);
-    }
-  };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +73,8 @@ const Auth = () => {
         toast.success("Password reset email sent. Please check your inbox.");
         setIsForgotPassword(false);
       } else if (isSignUp) {
-        const emailExists = await checkEmailExists(email);
+        // Check if email exists in database
+        const emailExists = await isClientInDatabase(email);
         if (emailExists) {
           setErrorMessage("An account with this email already exists. Please sign in instead.");
           setIsSignUp(false);
@@ -191,6 +139,7 @@ const Auth = () => {
       const redirectUrl = `${window.location.origin}/auth/callback`;
       console.log("Starting Google Sign In with redirect to:", redirectUrl);
       
+      // Remove any existing auth_callback_attempted flag
       sessionStorage.removeItem('auth_callback_attempted');
       
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -214,8 +163,10 @@ const Auth = () => {
       
       console.log("Redirecting to Google auth URL:", data.url);
       
+      // Set a flag that we're starting the Google auth flow
       localStorage.setItem('google_auth_started', 'true');
       
+      // Redirect to the Google auth URL
       window.location.href = data.url;
       
     } catch (error: any) {

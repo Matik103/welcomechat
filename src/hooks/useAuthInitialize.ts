@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
+import { isClientInDatabase } from "@/utils/authUtils";
 
 type AuthInitializeProps = {
   authInitialized: boolean;
@@ -31,30 +32,12 @@ export const useAuthInitialize = ({
 
   useEffect(() => {
     let mounted = true;
-    let initTimeout: NodeJS.Timeout;
 
     const initializeAuth = async () => {
       if (authInitialized && !isCallbackUrl) return;
       
       try {
-        setIsLoading(true);
         console.log("Initializing auth state");
-        
-        // Set a timeout to prevent infinite loading
-        initTimeout = setTimeout(() => {
-          if (mounted && setIsLoading) {
-            console.log("Auth initialization timed out, resetting loading state");
-            setIsLoading(false);
-            setAuthInitialized(true);
-            
-            // If we're stuck on a non-auth page, redirect to auth
-            const isAuthPage = location.pathname === '/auth';
-            if (!isAuthPage) {
-              console.log("Redirecting to auth page due to timeout");
-              window.location.href = '/auth';
-            }
-          }
-        }, 5000);
         
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
@@ -72,8 +55,27 @@ export const useAuthInitialize = ({
           const isGoogleUser = currentSession.user.app_metadata?.provider === 'google';
           
           if (isGoogleUser) {
-            // Google SSO users are always admins and go to admin dashboard
-            console.log("Google SSO user detected during init, setting admin role");
+            // Check if Google user's email is in clients table
+            const isClientEmail = await isClientInDatabase(currentSession.user.email || '');
+            
+            if (isClientEmail) {
+              console.error("Google SSO user's email exists in clients table");
+              // Sign them out
+              await supabase.auth.signOut();
+              // Clear session data
+              setSession(null);
+              setUser(null);
+              setUserRole(null);
+              setIsLoading(false);
+              
+              if (!isCallbackUrl) {
+                navigate('/auth', { replace: true });
+              }
+              
+              return;
+            }
+            
+            // Google SSO users are always admins
             setUserRole('admin');
             setIsLoading(false);
             
@@ -87,20 +89,13 @@ export const useAuthInitialize = ({
             // Regular users get role based on email in clients table
             const role = await determineUserRole(currentSession.user);
             setUserRole(role);
-            console.log("User role determined:", role);
-            
-            // Reset loading state
             setIsLoading(false);
             
             const isAuthPage = location.pathname === '/auth';
             
             if (!isCallbackUrl && isAuthPage) {
               console.log(`Redirecting ${role} from auth page to appropriate dashboard`);
-              if (role === 'client') {
-                window.location.href = '/client/dashboard';
-              } else {
-                window.location.href = '/';
-              }
+              window.location.href = role === 'admin' ? '/' : '/client/dashboard';
             }
           }
         } else {
@@ -111,7 +106,7 @@ export const useAuthInitialize = ({
             setUserRole(null);
             
             const isAuthRelatedPage = location.pathname.startsWith('/auth') || 
-                                    location.pathname.startsWith('/client/setup');
+                                     location.pathname.startsWith('/client/setup');
               
             if (!isAuthRelatedPage) {
               console.log("No session, redirecting to auth page");
@@ -122,9 +117,6 @@ export const useAuthInitialize = ({
             setAuthInitialized(true);
           }
         }
-        
-        // Clear timeout since we've completed initialization
-        clearTimeout(initTimeout);
       } catch (error) {
         console.error("Error in initializeAuth:", error);
         if (mounted) {
@@ -141,9 +133,6 @@ export const useAuthInitialize = ({
             navigate('/auth', { replace: true });
           }
         }
-        
-        // Clear timeout on error
-        clearTimeout(initTimeout);
       }
     };
 
@@ -151,7 +140,6 @@ export const useAuthInitialize = ({
 
     return () => {
       mounted = false;
-      clearTimeout(initTimeout);
     };
   }, [
     navigate, 

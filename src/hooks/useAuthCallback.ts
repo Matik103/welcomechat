@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
+import { isClientInDatabase } from "@/utils/authUtils";
 
 type AuthCallbackProps = {
   isCallbackUrl: boolean;
@@ -31,18 +32,6 @@ export const useAuthCallback = ({
         try {
           console.log("Auth callback processing started");
           
-          // Set a flag to avoid infinite loops
-          const hasAttemptedAuth = sessionStorage.getItem('auth_callback_attempted');
-          if (hasAttemptedAuth) {
-            console.log("Auth callback already attempted, preventing loop");
-            navigate('/auth', { replace: true });
-            setIsLoading(false);
-            return;
-          }
-          
-          // Set the flag to prevent future loops in this session
-          sessionStorage.setItem('auth_callback_attempted', 'true');
-          
           // Get the session from the URL
           const { data: { session: callbackSession }, error: sessionError } = 
             await supabase.auth.getSession();
@@ -63,53 +52,63 @@ export const useAuthCallback = ({
             return;
           }
           
-          // For Google SSO, we always set admin role and redirect to admin dashboard
+          // Check if Google SSO
           const provider = user?.app_metadata?.provider;
           const isGoogleLogin = provider === 'google';
           
           console.log("Auth callback processing for user:", user.email, "Provider:", provider);
           
-          // Set session and user in auth context
-          setSession(callbackSession);
-          setUser(user);
-          
           if (isGoogleLogin) {
-            console.log("Google SSO detected, setting admin role");
-            // For Google SSO users, always set admin role
+            console.log("Google SSO detected");
+            
+            // For Google SSO users, check if they're in the clients table
+            // If they are, they should use email/password login instead
+            const isClientEmail = await isClientInDatabase(user.email || '');
+            
+            if (isClientEmail) {
+              console.error("Google SSO user's email exists in clients table");
+              // Sign them out
+              await supabase.auth.signOut();
+              // Clear session data
+              setSession(null);
+              setUser(null);
+              setUserRole(null);
+              
+              // Show error message
+              toast.error("This email is registered as a client. Please sign in with your email and password instead.");
+              navigate('/auth', { replace: true });
+              setIsLoading(false);
+              return;
+            }
+            
+            // Set session data
+            setSession(callbackSession);
+            setUser(user);
             setUserRole('admin');
+            setIsLoading(false);
             
-            // Clear the auth attempt flag after successful login
-            setTimeout(() => {
-              sessionStorage.removeItem('auth_callback_attempted');
-            }, 1000);
-            
+            // Redirect to admin dashboard
             console.log("Redirecting Google SSO user to admin dashboard");
-            // Force direct window location change for a clean redirect
             window.location.href = '/';
+            return;
           } else {
-            // Non-Google login, use role-based redirect
-            // Get user role based on email presence in clients table
+            // For non-Google users, determine role based on email
             const role = await determineUserRole(user);
+            
+            // Set session data
+            setSession(callbackSession);
+            setUser(user);
             setUserRole(role);
             setIsLoading(false);
             
-            // Clear the auth attempt flag after successful login
-            setTimeout(() => {
-              sessionStorage.removeItem('auth_callback_attempted');
-            }, 1000);
-            
-            console.log("Redirecting regular user based on role:", role);
-            // Use direct location change to ensure a clean state
-            if (role === 'client') {
-              window.location.href = '/client/dashboard';
-            } else {
-              window.location.href = '/';
-            }
+            // Redirect based on role
+            console.log(`Redirecting user to ${role} dashboard`);
+            window.location.href = role === 'admin' ? '/' : '/client/dashboard';
+            return;
           }
         } catch (error) {
           console.error("Error handling auth callback:", error);
           toast.error("Authentication failed. Please try again.");
-          sessionStorage.removeItem('auth_callback_attempted');
           navigate('/auth', { replace: true });
           setIsLoading(false);
         }

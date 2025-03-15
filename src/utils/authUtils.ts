@@ -1,3 +1,4 @@
+
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
@@ -48,9 +49,8 @@ export const determineUserRole = async (user: User): Promise<UserRole> => {
     // Check if the user is using Google SSO
     const isGoogleUser = user.app_metadata?.provider === 'google';
     
-    // Google SSO users are ALWAYS admins, regardless of whether their email
-    // exists in the clients table
     if (isGoogleUser) {
+      // Google SSO users are ALWAYS admins
       console.log(`User ${user.email} is using Google SSO, treating as admin`);
       return 'admin';
     }
@@ -78,30 +78,6 @@ export const forceRedirectBasedOnRole = (role: UserRole) => {
     window.location.href = '/';
   } else {
     window.location.href = '/client/dashboard';
-  }
-};
-
-/**
- * Checks if a user registered using Google SSO
- */
-export const isGoogleSSOUser = async (userId: string): Promise<boolean> => {
-  try {
-    // Getting user method is not available in client-side code, rely on app_metadata
-    const { data, error } = await supabase.auth.getUser();
-    
-    if (error || !data.user) {
-      console.error("Error checking if user is Google SSO user:", error);
-      return false;
-    }
-    
-    // Check provider in app_metadata
-    const isGoogleProvider = data.user.app_metadata?.provider === 'google';
-    
-    console.log(`User ${userId} ${isGoogleProvider ? 'is' : 'is not'} a Google SSO user`);
-    return !!isGoogleProvider;
-  } catch (err) {
-    console.error("Error in isGoogleSSOUser:", err);
-    return false;
   }
 };
 
