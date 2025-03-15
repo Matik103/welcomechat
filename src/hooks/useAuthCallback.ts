@@ -50,11 +50,11 @@ export const useAuthCallback = ({
           
           if (isGoogleAuth) {
             // Google SSO users are always assigned admin role
-            console.log("Google SSO login detected, assigning admin role");
+            console.log("Google SSO login detected in callback, assigning admin role");
             setUserRole('admin');
             
             // Navigate to admin dashboard
-            console.log("Navigating to admin dashboard");
+            console.log("Navigating to admin dashboard from callback");
             navigate('/', { replace: true });
           } else {
             // For email/password users, determine role from database

@@ -49,13 +49,13 @@ export const useAuthStateChange = ({
           
           if (isGoogleAuth) {
             // Google SSO users are always assigned admin role
-            console.log("Google SSO login detected, assigning admin role");
+            console.log("Google SSO login detected in state change, assigning admin role");
             setUserRole('admin');
             
             // Only redirect if we're on the auth page to prevent refresh loops
             const isAuthPage = location.pathname === '/auth';
             if (isAuthPage) {
-              console.log("Redirecting Google user to admin dashboard");
+              console.log("Redirecting Google user to admin dashboard from state change");
               navigate('/', { replace: true });
               
               // Maintain loading state for longer to ensure no flash of login screen

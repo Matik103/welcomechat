@@ -54,13 +54,13 @@ export const useAuthInitialize = ({
           
           if (isGoogleAuth) {
             // Google SSO users are always assigned admin role
-            console.log("Google SSO login detected, assigning admin role");
+            console.log("Google SSO login detected in init, assigning admin role");
             setUserRole('admin');
             
             const isAuthPage = location.pathname === '/auth';
             
             if (!isCallbackUrl && isAuthPage) {
-              console.log("Redirecting from auth page to admin dashboard");
+              console.log("Redirecting from auth page to admin dashboard in init");
               
               // Navigate first while keeping loading state true
               navigate('/', { replace: true });
@@ -85,7 +85,7 @@ export const useAuthInitialize = ({
             const isAuthPage = location.pathname === '/auth';
             
             if (!isCallbackUrl && isAuthPage) {
-              console.log("Redirecting from auth page to dashboard based on role");
+              console.log("Redirecting from auth page to dashboard based on role in init");
               // Determine where to navigate based on role
               const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
               
@@ -112,7 +112,7 @@ export const useAuthInitialize = ({
           const isAuthPage = location.pathname === '/auth';
               
           if (!isAuthPage && !isCallbackUrl) {
-            console.log("No session, redirecting to auth page");
+            console.log("No session, redirecting to auth page in init");
             navigate('/auth', { replace: true });
           }
           
