@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +26,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check user role from the database
   const checkUserRole = async (userId: string): Promise<UserRole | null> => {
     try {
       const { data, error } = await supabase
@@ -41,7 +39,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return null;
       }
 
-      // If user has client_id in user_roles, update user metadata
       if (data?.client_id && data.role === 'client') {
         await supabase.auth.updateUser({
           data: { client_id: data.client_id }
@@ -55,7 +52,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Handle Google SSO user - Assign admin role if not already assigned
   const handleGoogleUser = async (currentUser: User): Promise<UserRole> => {
     console.log("Handling Google user:", currentUser.email);
     const existingRole = await checkUserRole(currentUser.id);
@@ -65,17 +61,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return existingRole;
     }
     
-    // All Google SSO users are admins by default
     console.log("Assigning admin role to Google user");
     await createUserRole(currentUser.id, 'admin');
     return 'admin';
   };
 
-  // Handle navigation after successful authentication
   const handlePostAuthNavigation = (role: UserRole) => {
     console.log("Handling post-auth navigation for role:", role);
     
-    // Check if we're on an auth page or callback page
     const isOnAuthPage = location.pathname === '/auth' || 
                           location.pathname.startsWith('/auth/callback');
     
@@ -89,7 +82,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Initialize auth state
   useEffect(() => {
     let mounted = true;
 
@@ -100,31 +92,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(true);
         console.log("Initializing auth state");
         
-        // Get current session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
         if (currentSession?.user) {
           console.log("Session found during init:", currentSession.user.email);
-          // Set session and user info immediately
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Check if user authenticated with Google
           const isGoogleUser = currentSession.user.app_metadata.provider === 'google';
           
           if (isGoogleUser) {
-            // For Google users, assign admin role if they don't have a role
             const role = await handleGoogleUser(currentSession.user);
             setUserRole(role);
-            
-            // Handle navigation for Google users
             handlePostAuthNavigation(role);
-            
             setIsLoading(false);
           } else {
-            // Check for existing role first for non-Google users
             const existingRole = await checkUserRole(currentSession.user.id);
             
             if (existingRole) {
@@ -132,11 +116,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               handlePostAuthNavigation(existingRole);
               setIsLoading(false);
             } else if (currentSession.user.email) {
-              // Check if user exists in clients table
               const isClient = await checkIfClientExists(currentSession.user.email);
               
               if (isClient) {
-                // Get client ID
                 const { data: clientData } = await supabase
                   .from('clients')
                   .select('id')
@@ -149,7 +131,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   handlePostAuthNavigation('client');
                 }
               } else {
-                // Not a client, assign admin role
                 await createUserRole(currentSession.user.id, 'admin');
                 setUserRole('admin');
                 handlePostAuthNavigation('admin');
@@ -159,14 +140,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
           }
         } else {
-          // No active session
           console.log("No active session found during init");
           setSession(null);
           setUser(null);
           setUserRole(null);
           setIsLoading(false);
           
-          // Only redirect to auth if not already on an auth-related page
           const isAuthRelatedPage = 
             location.pathname.startsWith('/auth') || 
             location.pathname.startsWith('/client/setup');
@@ -191,7 +170,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initializeAuth();
 
-    // Handle auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
@@ -200,44 +178,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           if (event === 'SIGNED_IN') {
             console.log("User signed in:", currentSession?.user.email);
-            // Set session and user immediately to avoid loading states
             setSession(currentSession);
             setUser(currentSession!.user);
             
-            // For sign-ins, continue with existing logic
             setIsLoading(true);
             
-            // Check if the user is a Google user
             const isGoogleUser = currentSession?.user.app_metadata.provider === 'google';
             
             if (isGoogleUser) {
-              // For Google users, assign admin role
               const role = await handleGoogleUser(currentSession!.user);
               setUserRole(role);
               
-              // Navigate based on role
               handlePostAuthNavigation(role);
               
               setIsLoading(false);
             } else {
-              // For non-Google users, follow normal flow
-              // Check if the user email exists in the clients table
               const isClient = currentSession?.user.email ? 
                 await checkIfClientExists(currentSession.user.email) : false;
               
-              // Check for existing role
               const existingRole = await checkUserRole(currentSession!.user.id);
               
               if (existingRole) {
-                // Use existing role
                 setUserRole(existingRole);
                 
-                // Navigate based on role
                 handlePostAuthNavigation(existingRole);
               } else {
-                // Assign role based on client check
                 if (isClient) {
-                  // Get client ID
                   const { data: clientData } = await supabase
                     .from('clients')
                     .select('id')
@@ -300,7 +266,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       navigate('/auth', { replace: true });
     } catch (error) {
       console.error('Sign out error:', error);
-      // Force state clear and navigation on error
       setSession(null);
       setUser(null);
       setUserRole(null);
