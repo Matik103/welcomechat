@@ -62,7 +62,7 @@ const Auth = () => {
           window.history.replaceState(null, "", window.location.pathname);
         }
       }
-    }, 15000); // Increase timeout to 15 seconds
+    }, 15000); // 15 seconds timeout
     
     return () => clearTimeout(timeoutId);
   }, [isProcessingOAuth, location.pathname]);
@@ -70,7 +70,7 @@ const Auth = () => {
   // If we're processing OAuth or checking auth, show loading spinner
   if (isLoading || isProcessingOAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="text-muted-foreground">Authenticating...</p>
