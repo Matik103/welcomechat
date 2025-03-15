@@ -46,11 +46,20 @@ export const useAuthInitialize = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Determine role based on email/client check
-          const role = await determineUserRole(currentSession.user);
-          setUserRole(role);
-          console.log("Determined user role during init:", role);
+          // Check if this is a Google SSO user
+          const isGoogleUser = currentSession.user.app_metadata?.provider === 'google';
           
+          // Determine role based on Google SSO or email/client check
+          let role: UserRole;
+          if (isGoogleUser) {
+            console.log("Google SSO user detected during init - setting admin role");
+            role = 'admin';
+          } else {
+            role = await determineUserRole(currentSession.user);
+            console.log("Determined user role during init:", role);
+          }
+          
+          setUserRole(role);
           setIsLoading(false);
           setAuthInitialized(true);
           

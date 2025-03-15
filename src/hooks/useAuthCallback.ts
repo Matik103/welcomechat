@@ -45,15 +45,25 @@ export const useAuthCallback = ({
           setSession(callbackSession);
           setUser(callbackSession.user);
           
-          // Determine role based on email/client check
-          const role = await determineUserRole(callbackSession.user);
-          setUserRole(role);
-          console.log("Determined user role from callback:", role);
+          // Check if this is a Google SSO login
+          const isGoogleUser = callbackSession.user?.app_metadata?.provider === 'google';
           
+          // Determine role based on Google SSO or email/client check
+          let role: UserRole;
+          if (isGoogleUser) {
+            console.log("Google SSO user detected in callback - setting admin role");
+            role = 'admin';
+          } else {
+            role = await determineUserRole(callbackSession.user);
+            console.log("Determined user role from callback:", role);
+          }
+          
+          setUserRole(role);
           setIsLoading(false);
           
           // Redirect based on role
           const redirectPath = role === 'admin' ? '/' : '/client/dashboard';
+          console.log(`Redirecting user to ${redirectPath} based on role: ${role}`);
           navigate(redirectPath, { replace: true });
         } catch (error) {
           console.error("Error handling auth callback:", error);
