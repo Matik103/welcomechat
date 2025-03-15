@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -168,12 +169,14 @@ const Auth = () => {
       setIsGoogleLoading(true);
       setErrorMessage("");
       
-      console.log("Starting Google Sign In with redirect to:", `${window.location.origin}/auth/callback`);
+      // Use current window location for development flexibility
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      console.log("Starting Google Sign In with redirect to:", redirectUrl);
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -191,13 +194,13 @@ const Auth = () => {
       
       console.log("Redirecting to OAuth URL:", data.url);
       
+      // Redirect to the Google auth URL
       window.location.href = data.url;
       
     } catch (error: any) {
       console.error("Google sign in error:", error);
       setErrorMessage(error.message || "Failed to sign in with Google");
       toast.error(error.message || "Failed to sign in with Google");
-    } finally {
       setIsGoogleLoading(false);
     }
   };
