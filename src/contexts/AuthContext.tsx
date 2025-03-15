@@ -4,6 +4,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
+import { checkIfClientExists, createUserRole } from "@/services/authService";
 
 type UserRole = 'admin' | 'client';
 
@@ -24,28 +25,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Check if user email exists in clients table
-  const checkIfClientExists = async (email: string) => {
-    try {
-      console.log("Checking if email exists in clients table:", email);
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error checking client email:", error);
-        return false;
-      }
-
-      return !!data; // Convert to boolean
-    } catch (error) {
-      console.error("Error in checkIfClientExists:", error);
-      return false;
-    }
-  };
 
   // Check user role from the database
   const checkUserRole = async (userId: string) => {
@@ -78,37 +57,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Create a user role in the database
-  const createUserRole = async (userId: string, role: UserRole, clientId?: string) => {
-    try {
-      console.log(`Creating ${role} role for user:`, userId);
-      const roleData: any = {
-        user_id: userId,
-        role: role
-      };
-      
-      if (clientId && role === 'client') {
-        roleData.client_id = clientId;
-      }
-      
-      const { error } = await supabase
-        .from('user_roles')
-        .insert(roleData);
-        
-      if (error) {
-        console.error("Error creating user role:", error);
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("Error in createUserRole:", error);
-      return false;
-    }
-  };
-
+  // Process hash parameters from OAuth redirect
   useEffect(() => {
-    // Process hash parameters from OAuth redirect
     const handleHashParameters = async () => {
       // Only process if we have hash parameters and are on the auth route
       if (window.location.hash && location.pathname.includes('/auth')) {
@@ -144,6 +94,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               // Use existing role
               console.log("Using existing role:", existingRole);
               setUserRole(existingRole);
+              
+              // Redirect based on role
+              if (existingRole === 'client') {
+                navigate('/client/dashboard', { replace: true });
+              } else {
+                navigate('/', { replace: true });
+              }
             } else {
               // Assign role based on client check
               if (isClient) {
@@ -195,6 +152,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     handleHashParameters();
   }, [navigate, location.pathname]);
 
+  // Initialize auth state
   useEffect(() => {
     let mounted = true;
 
@@ -220,6 +178,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           if (existingRole) {
             setUserRole(existingRole);
+            
+            // Only redirect if we're on the auth page
+            if (location.pathname.startsWith('/auth') && 
+                !location.pathname.includes('/callback')) {
+              console.log("User has role, redirecting from auth page");
+              if (existingRole === 'client') {
+                navigate('/client/dashboard', { replace: true });
+              } else {
+                navigate('/', { replace: true });
+              }
+            }
           } else if (currentSession.user.email) {
             // Check if user exists in clients table
             const isClient = await checkIfClientExists(currentSession.user.email);
@@ -235,11 +204,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               if (clientData?.id) {
                 await createUserRole(currentSession.user.id, 'client', clientData.id);
                 setUserRole('client');
+                
+                // Redirect to client dashboard if on auth page
+                if (location.pathname.startsWith('/auth')) {
+                  navigate('/client/dashboard', { replace: true });
+                }
               }
             } else {
               // Not a client, assign admin role
               await createUserRole(currentSession.user.id, 'admin');
               setUserRole('admin');
+              
+              // Redirect to admin dashboard if on auth page
+              if (location.pathname.startsWith('/auth')) {
+                navigate('/', { replace: true });
+              }
             }
           }
         } else {
@@ -295,11 +274,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               // Use existing role
               setUserRole(existingRole);
               
-              // Navigate based on role
-              if (existingRole === 'client') {
-                navigate('/client/dashboard', { replace: true });
-              } else {
-                navigate('/', { replace: true });
+              // Navigate based on role, but only if we're on the auth page
+              if (location.pathname.startsWith('/auth')) {
+                console.log("Redirecting from auth page after sign in");
+                if (existingRole === 'client') {
+                  navigate('/client/dashboard', { replace: true });
+                } else {
+                  navigate('/', { replace: true });
+                }
               }
             } else {
               // Assign role based on client check
@@ -317,16 +299,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   await createUserRole(currentSession!.user.id, 'client', clientData.id);
                   setUserRole('client');
                   
-                  // Navigate to client dashboard
-                  navigate('/client/dashboard', { replace: true });
+                  // Navigate to client dashboard if on auth page
+                  if (location.pathname.startsWith('/auth')) {
+                    navigate('/client/dashboard', { replace: true });
+                  }
                 }
               } else {
                 console.log("Email not found in clients table, assigning admin role");
                 await createUserRole(currentSession!.user.id, 'admin');
                 setUserRole('admin');
                 
-                // Navigate to admin dashboard
-                navigate('/', { replace: true });
+                // Navigate to admin dashboard if on auth page
+                if (location.pathname.startsWith('/auth')) {
+                  navigate('/', { replace: true });
+                }
               }
             }
             
