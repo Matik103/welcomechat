@@ -67,7 +67,11 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         email: data.email,
         agent_name: data.agent_name,
         widget_settings: data.widget_settings || {},
-        status: 'active'
+        status: 'active',
+        website_url_refresh_rate: 60,
+        drive_link_refresh_rate: 60,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }])
       .select('*');
 
@@ -88,8 +92,8 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         .from("ai_agents")
         .insert([{
           client_id: clientId,
-          name: data.agent_name, // Use 'name' instead of 'agent_name'
-          settings: {  // Use 'settings' instead of 'metadata'
+          name: data.agent_name,
+          settings: {
             client_name: data.client_name,
             created_at: new Date().toISOString()
           }
@@ -118,11 +122,26 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
   try {
     console.log("Sending invitation for client:", clientId, email, clientName);
     
-    const { data, error } = await supabase.functions.invoke("send-client-invitation", {
+    // Get the auth token to include in the request
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.access_token) {
+      throw new Error("No access token available. Please log in to send invitations.");
+    }
+    
+    // Determine the invitation URL (add client setup route)
+    const baseUrl = window.location.origin;
+    const setupUrl = `${baseUrl}/client-setup?id=${clientId}`;
+    
+    const { data, error } = await supabase.functions.invoke("send-invitation", {
       body: {
-        clientId,
         email,
-        clientName
+        role_type: "client",
+        url: setupUrl,
+        clientName,
+        clientId
+      },
+      headers: {
+        Authorization: `Bearer ${sessionData.session.access_token}`
       }
     });
     
