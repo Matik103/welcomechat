@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -25,7 +26,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   const navigate = useNavigate();
   const location = useLocation();
-  const isCallbackUrl = location.pathname.includes('/auth/callback');
 
   useEffect(() => {
     let mounted = true;
@@ -46,68 +46,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Maximum priority for callback pages - no delay or async operations
-          if (isCallbackUrl) {
-            // Ultra fast path specifically for auth callbacks
+          const isGoogleUser = currentSession.user.app_metadata.provider === 'google';
+          
+          if (isGoogleUser) {
+            const role = await handleGoogleUser(currentSession.user);
+            setUserRole(role);
+            
+            // Only redirect if we're not on the callback page
+            if (!location.pathname.includes('/auth/callback')) {
+              handlePostAuthNavigation(role, navigate);
+            }
+            setIsLoading(false);
+          } else {
             const existingRole = await checkUserRole(currentSession.user.id);
+            
             if (existingRole) {
               setUserRole(existingRole);
-              setIsLoading(false);
-              // Do not navigate - App.tsx will handle immediate redirect
-            } else {
-              // If no role, determine it as fast as possible
-              const role = await handleGoogleUser(currentSession.user);
-              setUserRole(role);
-              setIsLoading(false);
-            }
-          } else {
-            // Regular path for non-callback pages
-            const isGoogleUser = currentSession.user.app_metadata.provider === 'google';
-            
-            if (isGoogleUser) {
-              // Prioritize SSO role determination for quick redirect
-              const role = await handleGoogleUser(currentSession.user);
-              setUserRole(role);
-              setIsLoading(false);
-              handlePostAuthNavigation(role, navigate);
-            } else {
-              const existingRole = await checkUserRole(currentSession.user.id);
               
-              if (existingRole) {
-                setUserRole(existingRole);
+              // Only redirect if we're not on the callback page
+              if (!location.pathname.includes('/auth/callback')) {
                 handlePostAuthNavigation(existingRole, navigate);
-                setIsLoading(false);
-              } else if (currentSession.user.email) {
-                const isClient = await checkIfClientExists(currentSession.user.email);
-                
-                if (isClient) {
-                  const { data: clientData } = await supabase
-                    .from('clients')
-                    .select('id')
-                    .eq('email', currentSession.user.email)
-                    .maybeSingle();
-                    
-                  if (clientData?.id) {
-                    await createUserRole(currentSession.user.id, 'client', clientData.id);
-                    setUserRole('client');
-                    
-                    // Only redirect if we're not on the callback page
-                    if (!isCallbackUrl) {
-                      handlePostAuthNavigation('client', navigate);
-                    }
-                  }
-                } else {
-                  await createUserRole(currentSession.user.id, 'admin');
-                  setUserRole('admin');
+              }
+              setIsLoading(false);
+            } else if (currentSession.user.email) {
+              const isClient = await checkIfClientExists(currentSession.user.email);
+              
+              if (isClient) {
+                const { data: clientData } = await supabase
+                  .from('clients')
+                  .select('id')
+                  .eq('email', currentSession.user.email)
+                  .maybeSingle();
+                  
+                if (clientData?.id) {
+                  await createUserRole(currentSession.user.id, 'client', clientData.id);
+                  setUserRole('client');
                   
                   // Only redirect if we're not on the callback page
-                  if (!isCallbackUrl) {
-                    handlePostAuthNavigation('admin', navigate);
+                  if (!location.pathname.includes('/auth/callback')) {
+                    handlePostAuthNavigation('client', navigate);
                   }
                 }
+              } else {
+                await createUserRole(currentSession.user.id, 'admin');
+                setUserRole('admin');
                 
-                setIsLoading(false);
+                // Only redirect if we're not on the callback page
+                if (!location.pathname.includes('/auth/callback')) {
+                  handlePostAuthNavigation('admin', navigate);
+                }
               }
+              
+              setIsLoading(false);
             }
           }
         } else {
@@ -152,30 +142,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(currentSession);
             setUser(currentSession!.user);
             
-            // Ultra-optimized path for callback pages
-            if (isCallbackUrl) {
-              const existingRole = await checkUserRole(currentSession!.user.id);
-              if (existingRole) {
-                setUserRole(existingRole);
-                setIsLoading(false);
-                // Don't navigate - let App.tsx handle it
-              } else {
-                // Fastest possible role determination
-                const role = await handleGoogleUser(currentSession!.user);
-                setUserRole(role);
-                setIsLoading(false);
+            setIsLoading(true);
+            
+            const isGoogleUser = currentSession?.user.app_metadata.provider === 'google';
+            
+            if (isGoogleUser) {
+              const role = await handleGoogleUser(currentSession!.user);
+              setUserRole(role);
+              
+              // Only redirect if we're not on the callback page
+              if (!location.pathname.includes('/auth/callback')) {
+                handlePostAuthNavigation(role, navigate);
               }
+              setIsLoading(false);
             } else {
-              // Regular path for non-callback pages
+              const isClient = currentSession?.user.email ? 
+                await checkIfClientExists(currentSession.user.email) : false;
+              
               const existingRole = await checkUserRole(currentSession!.user.id);
               
               if (existingRole) {
                 setUserRole(existingRole);
-                setIsLoading(false);
-              } else {
-                const isClient = currentSession?.user.email ? 
-                  await checkIfClientExists(currentSession.user.email) : false;
                 
+                // Only redirect if we're not on the callback page
+                if (!location.pathname.includes('/auth/callback')) {
+                  handlePostAuthNavigation(existingRole, navigate);
+                }
+              } else {
                 if (isClient) {
                   const { data: clientData } = await supabase
                     .from('clients')
@@ -186,14 +179,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   if (clientData?.id) {
                     await createUserRole(currentSession!.user.id, 'client', clientData.id);
                     setUserRole('client');
+                    
+                    // Only redirect if we're not on the callback page
+                    if (!location.pathname.includes('/auth/callback')) {
+                      handlePostAuthNavigation('client', navigate);
+                    }
                   }
                 } else {
                   await createUserRole(currentSession!.user.id, 'admin');
                   setUserRole('admin');
+                  
+                  // Only redirect if we're not on the callback page
+                  if (!location.pathname.includes('/auth/callback')) {
+                    handlePostAuthNavigation('admin', navigate);
+                  }
                 }
-                
-                setIsLoading(false);
               }
+              
+              setIsLoading(false);
             }
           } else if (event === 'SIGNED_OUT') {
             console.log("User signed out");

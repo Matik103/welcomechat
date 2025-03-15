@@ -1,3 +1,4 @@
+
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -12,7 +13,7 @@ import { useAuth } from "./contexts/AuthContext";
 import ClientSettings from "@/pages/client/Settings";
 import ClientDashboard from "@/pages/client/Dashboard";
 import ClientSetup from "@/pages/client/Setup";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
@@ -24,20 +25,31 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Force immediate redirect from auth callback page as soon as we have user and role information
+  // Handle callback route - redirect immediately to home based on user role
   useEffect(() => {
     if (location.pathname.includes('/auth/callback') && user && userRole) {
-      console.log("Auth callback detected with user and role, redirecting instantly");
-      // Immediate redirect based on role - force synchronous navigation
-      const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-      window.location.href = targetPath; // Force hard navigation for reliable redirect
+      console.log("Auth callback detected, redirecting based on role:", userRole);
+      if (userRole === 'admin') {
+        navigate('/', { replace: true });
+      } else {
+        navigate('/client/dashboard', { replace: true });
+      }
     }
   }, [location.pathname, user, userRole, navigate]);
 
-  // Completely skip rendering anything for callback route - just a blank page during auth
+  // Handle the case where we're on the callback page but auth is still loading
   if (location.pathname.includes('/auth/callback')) {
-    // Return absolutely nothing visible during processing
-    return null;
+    return (
+      <div className="min-h-screen bg-background">
+        <Toaster />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
+            <p className="text-sm text-muted-foreground">Completing authentication...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
   
   // Show loading spinner during auth check, but only if not on a public route
