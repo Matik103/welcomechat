@@ -49,11 +49,11 @@ export const useAuthCallback = ({
           const isGoogleAuth = callbackSession.user?.app_metadata?.provider === 'google';
           
           if (isGoogleAuth) {
-            // Google SSO users are always assigned admin role
             console.log("Google SSO login detected in callback, assigning admin role");
+            // Google SSO users are always assigned admin role
             setUserRole('admin');
             
-            // Navigate to admin dashboard
+            // ALWAYS navigate to admin dashboard for Google SSO users
             console.log("Navigating to admin dashboard from callback");
             navigate('/', { replace: true });
           } else {

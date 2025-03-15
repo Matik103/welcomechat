@@ -46,6 +46,7 @@ export const useAuthStateChange = ({
           
           // Check if Google SSO authentication
           const isGoogleAuth = currentSession.user?.app_metadata?.provider === 'google';
+          console.log("Auth provider:", currentSession.user?.app_metadata?.provider);
           
           if (isGoogleAuth) {
             // Google SSO users are always assigned admin role
@@ -56,6 +57,7 @@ export const useAuthStateChange = ({
             const isAuthPage = location.pathname === '/auth';
             if (isAuthPage) {
               console.log("Redirecting Google user to admin dashboard from state change");
+              // Always direct Google SSO users to admin dashboard
               navigate('/', { replace: true });
               
               // Maintain loading state for longer to ensure no flash of login screen
