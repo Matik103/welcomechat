@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
+import { useNavigate, useLocation } from "react-router-dom";
 
 type AuthStateChangeProps = {
   setSession: (session: Session | null) => void;
@@ -17,6 +18,9 @@ export const useAuthStateChange = ({
   setUserRole,
   setIsLoading
 }: AuthStateChangeProps) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   useEffect(() => {
     let mounted = true;
 
@@ -41,14 +45,23 @@ export const useAuthStateChange = ({
           setUserRole('admin');
           setIsLoading(false);
           
-          // Redirect to admin dashboard
-          window.location.href = '/';
+          // Only redirect if we're on the auth page to prevent refresh loops
+          const isAuthPage = location.pathname === '/auth';
+          if (isAuthPage) {
+            navigate('/', { replace: true });
+          }
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");
           setSession(null);
           setUser(null);
           setUserRole(null);
           setIsLoading(false);
+          
+          // Only redirect to auth page if not already there
+          const isAuthPage = location.pathname === '/auth';
+          if (!isAuthPage) {
+            navigate('/auth', { replace: true });
+          }
         } else {
           // Handle other events
           setIsLoading(false);
@@ -60,5 +73,5 @@ export const useAuthStateChange = ({
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [setSession, setUser, setUserRole, setIsLoading]);
+  }, [setSession, setUser, setUserRole, setIsLoading, navigate, location.pathname]);
 };

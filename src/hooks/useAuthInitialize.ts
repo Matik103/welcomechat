@@ -62,7 +62,7 @@ export const useAuthInitialize = ({
           
           const isAuthPage = location.pathname === '/auth';
               
-          if (!isAuthPage) {
+          if (!isAuthPage && !isCallbackUrl) {
             console.log("No session, redirecting to auth page");
             navigate('/auth', { replace: true });
           }
@@ -81,7 +81,7 @@ export const useAuthInitialize = ({
           
           // Redirect to auth page on error
           const isAuthPage = location.pathname === '/auth';
-          if (!isAuthPage) {
+          if (!isAuthPage && !isCallbackUrl) {
             navigate('/auth', { replace: true });
           }
         }
