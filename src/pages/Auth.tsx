@@ -63,25 +63,29 @@ const Auth = () => {
           window.history.replaceState(null, "", window.location.pathname);
         }
       }
-    }, 20000); // Increased to 20 seconds timeout
+    }, 20000); // 20 seconds timeout
     
     return () => clearTimeout(timeoutId);
   }, [isProcessingOAuth, location.pathname]);
 
-  // Redirect based on user role if authenticated
+  // Enhanced redirection logic - this is crucial for fixing the issue
   useEffect(() => {
-    if (session && !isLoading) {
-      console.log("User authenticated with role:", userRole);
+    // Only attempt redirection if we have session AND userRole AND we're not loading
+    if (session && userRole && !isLoading && !isProcessingOAuth) {
+      console.log("Ready to redirect with role:", userRole);
       
-      if (userRole === 'client') {
-        navigate('/client/dashboard', { replace: true });
-      } else if (userRole === 'admin') {
-        navigate('/', { replace: true });
-      } else {
-        console.log("User has no role assigned yet, waiting...");
-      }
+      // Add a small delay to ensure all state is properly updated
+      setTimeout(() => {
+        if (userRole === 'client') {
+          console.log("Redirecting to client dashboard");
+          navigate('/client/dashboard', { replace: true });
+        } else if (userRole === 'admin') {
+          console.log("Redirecting to admin dashboard");
+          navigate('/', { replace: true });
+        }
+      }, 100);
     }
-  }, [session, userRole, isLoading, navigate]);
+  }, [session, userRole, isLoading, isProcessingOAuth, navigate]);
 
   // If we're processing OAuth or checking auth, show loading spinner
   if (isLoading || isProcessingOAuth) {
@@ -90,7 +94,7 @@ const Auth = () => {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="text-muted-foreground">
-            {isProcessingOAuth ? "Processing your Google login..." : "Authenticating..."}
+            {isProcessingOAuth ? "Processing your login..." : "Authenticating..."}
           </p>
           {isProcessingOAuth && (
             <p className="text-sm text-muted-foreground max-w-md text-center">
@@ -247,7 +251,7 @@ const Auth = () => {
       setErrorMessage("");
       setIsProcessingOAuth(true);
       
-      const { error, data } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -266,8 +270,8 @@ const Auth = () => {
         throw error;
       }
       
-      console.log("Google sign in initiated:", data);
-      // Don't reset isProcessingOAuth here since we're redirecting to Google
+      console.log("Google sign in initiated, redirecting to Google");
+      // We don't reset isProcessingOAuth here since we're redirecting to Google
     } catch (error: any) {
       console.error('Google sign in error:', error);
       setErrorMessage(error.message || "Failed to sign in with Google");
