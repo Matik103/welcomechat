@@ -19,13 +19,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ['zod', '@hookform/resolvers/zod']
+  },
   build: {
     outDir: "dist",
     sourcemap: true,
     rollupOptions: {
+      external: [],
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
+          vendor: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
           ui: [
             '@radix-ui/react-avatar',
             '@radix-ui/react-label',
