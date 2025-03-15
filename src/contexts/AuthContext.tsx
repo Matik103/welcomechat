@@ -2,11 +2,6 @@
 import { createContext, useContext, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
-import { 
-  createUserRole,
-  forceRedirectBasedOnRole,
-  handleAuthenticatedUser
-} from "@/utils/authUtils";
 import { useAuthState } from "@/hooks/useAuthState";
 import { AuthContextType } from "@/types/auth";
 import { toast } from "sonner";
@@ -49,7 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let mounted = true;
 
     const initializeAuth = async () => {
-      if (authInitialized && !isCallbackUrl) return; // Prevent multiple initializations
+      if (authInitialized && !isCallbackUrl) return;
       
       try {
         setIsLoading(true);
@@ -64,40 +59,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(currentSession);
           setUser(currentSession.user);
           
-          try {
-            // Determine role and prepare for redirect
-            const role = await handleAuthenticatedUser(currentSession.user);
-            console.log("Role determined during init:", role);
-            setUserRole(role);
-            
-            // Set initialized flag
-            setAuthInitialized(true);
-            
-            // Reset loading state before redirect
-            setIsLoading(false);
-            
-            // Only redirect if not on callback page (let the callback handler do it) 
-            if (!isCallbackUrl && !isAuthPage) {
-              console.log(`Navigating to ${role} dashboard`);
-              navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
-            } else if (isAuthPage) {
-              // If on auth page but already logged in, redirect to appropriate dashboard
-              console.log(`On auth page but logged in, navigating to ${role} dashboard`);
-              navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
-            }
-          } catch (error) {
-            console.error("Error handling authenticated user:", error);
-            // If role determination fails, default to auth page
-            if (mounted) {
-              console.log("Defaulting to 'admin' role due to error");
-              setUserRole('admin');
-              setIsLoading(false);
-              setAuthInitialized(true);
-              
-              if (!isAuthPage) {
-                navigate('/', { replace: true });
-              }
-            }
+          // Set initialized flag
+          setAuthInitialized(true);
+          
+          // Reset loading state
+          setIsLoading(false);
+          
+          // Placeholder for new role determination logic
+          // Will be replaced with new Google SSO logic
+          setUserRole('admin'); // Default to admin for now
+          
+          if (!isCallbackUrl && !isAuthPage) {
+            navigate('/', { replace: true });
+          } else if (isAuthPage) {
+            navigate('/', { replace: true });
           }
         } else {
           console.log("No active session found during init");
@@ -144,46 +119,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         console.log("Auth state changed:", event);
         
-        // Special handling for callback URLs to avoid double loading/processing
-        if (isCallbackUrl && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-          console.log("Processing callback auth state change");
-          setIsLoading(true);
-          
-          if (currentSession?.user) {
-            setSession(currentSession);
-            setUser(currentSession.user);
-            
-            try {
-              console.log("Determining role for callback...");
-              const role = await handleAuthenticatedUser(currentSession.user);
-              console.log("Role determined in callback:", role);
-              setUserRole(role);
-              
-              // Important: need to complete state updates before redirect
-              setIsLoading(false);
-              setAuthInitialized(true);
-              
-              console.log("Callback processing complete, redirecting to dashboard with role:", role);
-              
-              // Use modified forceRedirect with longer timeout for callback
-              const redirectUrl = role === 'admin' ? '/' : '/client/dashboard';
-              toast.success(`Welcome! Redirecting to your dashboard...`);
-              setTimeout(() => {
-                navigate(redirectUrl, { replace: true });
-              }, 500);
-            } catch (error) {
-              console.error("Error in callback auth processing:", error);
-              setUserRole('admin'); // Default to admin on error
-              setIsLoading(false);
-              setAuthInitialized(true);
-              navigate('/', { replace: true });
-            }
-            
-            return; // Skip regular auth state change processing for callbacks
-          }
-        }
-        
-        // Handle regular auth state changes
         setIsLoading(true);
 
         try {
@@ -192,28 +127,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(currentSession);
             setUser(currentSession!.user);
             
-            try {
-              // Determine role and redirect accordingly
-              console.log("Determining role for sign-in...");
-              const role = await handleAuthenticatedUser(currentSession!.user);
-              console.log("Role determined for sign-in:", role);
-              setUserRole(role);
-              
-              // Reset loading before redirect
-              setIsLoading(false);
-              
-              console.log("Navigating with role:", role);
-              navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
-            } catch (roleError) {
-              console.error("Error determining user role:", roleError);
-              // Default redirect if role determination fails
-              console.log("Defaulting to 'admin' role due to error");
-              setUserRole('admin');
-              setIsLoading(false);
-              if (mounted) {
-                navigate('/', { replace: true });
-              }
-            }
+            // Placeholder for new role determination logic
+            // Will be replaced with new Google SSO logic
+            setUserRole('admin'); // Default to admin for now
+            
+            // Reset loading before redirect
+            setIsLoading(false);
+            
+            navigate('/', { replace: true });
           } else if (event === 'SIGNED_OUT') {
             console.log("User signed out");
             if (mounted) {
