@@ -49,10 +49,11 @@ export const useAuthStateChange = ({
           if (isAuthPage) {
             // Start navigation before changing loading state
             navigate('/', { replace: true });
-            // Set isLoading to false after a delay to prevent flash of login screen
+            
+            // Maintain loading state for longer to ensure no flash of login screen
             setTimeout(() => {
               setIsLoading(false);
-            }, 100); // Increased timeout to 100ms
+            }, 300); // Increased timeout to 300ms for smoother transition
           } else {
             setIsLoading(false);
           }
