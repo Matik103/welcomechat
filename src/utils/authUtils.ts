@@ -52,23 +52,19 @@ export const isGoogleSSOUser = async (userId: string): Promise<boolean> => {
       return false;
     }
     
-    // Fetch the identity providers for this user
-    const { data: identities, error: identitiesError } = await supabase.auth.admin.listIdentities({
-      userId: userId
-    });
+    // Check the provider in user metadata instead of using the non-existent listIdentities
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
     
-    if (identitiesError) {
-      console.error("Error fetching user identities:", identitiesError);
+    if (userError || !userData?.user) {
+      console.error("Error fetching user data:", userError);
       return false;
     }
     
-    // Check if Google is among the identity providers
-    const hasGoogleProvider = identities?.identities?.some(
-      identity => identity.provider === 'google'
-    );
+    // Check if Google is the provider in app_metadata
+    const isGoogleProvider = userData.user.app_metadata?.provider === 'google';
     
-    console.log(`User ${userId} ${hasGoogleProvider ? 'is' : 'is not'} a Google SSO user`);
-    return !!hasGoogleProvider;
+    console.log(`User ${userId} ${isGoogleProvider ? 'is' : 'is not'} a Google SSO user`);
+    return !!isGoogleProvider;
   } catch (err) {
     console.error("Error in isGoogleSSOUser:", err);
     return false;
@@ -122,4 +118,31 @@ export const forceRedirectBasedOnRole = (role: UserRole) => {
     console.log(`Performing actual redirect to: ${redirectUrl}`);
     window.location.href = redirectUrl;
   }, 500); // Increased timeout for more reliability
+};
+
+/**
+ * Creates a user role in the database
+ */
+export const createUserRole = async (
+  userId: string, 
+  role: UserRole
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role: role
+      });
+      
+    if (error) {
+      console.error("Error creating user role:", error);
+      return false;
+    }
+    
+    return true;
+  } catch (err) {
+    console.error("Error in createUserRole:", err);
+    return false;
+  }
 };
