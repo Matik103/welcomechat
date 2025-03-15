@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
-import { determineUserRole } from "@/utils/authUtils";
 
 type AuthCallbackProps = {
   isCallbackUrl: boolean;
@@ -41,30 +40,14 @@ export const useAuthCallback = ({
             return;
           }
           
-          // Set basic session and user data
+          // Set session data - all authenticated users are admins
           setSession(callbackSession);
           setUser(callbackSession.user);
-          
-          // Check if this is a Google SSO login
-          const isGoogleUser = callbackSession.user?.app_metadata?.provider === 'google';
-          
-          // Determine role based on Google SSO or email/client check
-          let role: UserRole;
-          if (isGoogleUser) {
-            console.log("Google SSO user detected in callback - setting admin role");
-            role = 'admin';
-          } else {
-            role = await determineUserRole(callbackSession.user);
-            console.log("Determined user role from callback:", role);
-          }
-          
-          setUserRole(role);
+          setUserRole('admin');
           setIsLoading(false);
           
-          // Redirect based on role
-          const redirectPath = role === 'admin' ? '/' : '/client/dashboard';
-          console.log(`Redirecting user to ${redirectPath} based on role: ${role}`);
-          navigate(redirectPath, { replace: true });
+          // Redirect to admin dashboard using navigate instead of window.location
+          navigate('/', { replace: true });
         } catch (error) {
           console.error("Error handling auth callback:", error);
           navigate('/auth', { replace: true });

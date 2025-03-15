@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 import { useNavigate, useLocation } from "react-router-dom";
-import { determineUserRole } from "@/utils/authUtils";
 
 type AuthStateChangeProps = {
   setSession: (session: Session | null) => void;
@@ -41,32 +40,15 @@ export const useAuthStateChange = ({
             return;
           }
           
-          // Set basic session and user data
           setSession(currentSession);
           setUser(currentSession.user);
-          
-          // Check if this is a Google SSO login
-          const isGoogleUser = currentSession.user?.app_metadata?.provider === 'google';
-          
-          // Determine user role based on Google SSO or email/client check
-          let role: UserRole;
-          if (isGoogleUser) {
-            console.log("Google SSO user detected - setting admin role");
-            role = 'admin';
-          } else {
-            role = await determineUserRole(currentSession.user);
-            console.log("Determined user role:", role);
-          }
-          
-          setUserRole(role);
+          setUserRole('admin');
           setIsLoading(false);
           
           // Only redirect if we're on the auth page to prevent refresh loops
           const isAuthPage = location.pathname === '/auth';
           if (isAuthPage) {
-            // Redirect based on role
-            const redirectPath = role === 'admin' ? '/' : '/client/dashboard';
-            navigate(redirectPath, { replace: true });
+            navigate('/', { replace: true });
           }
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");

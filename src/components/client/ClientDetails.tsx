@@ -6,7 +6,7 @@ import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { createClientUserAccount } from "@/services/clientService";
+import { createClientUserAccount, sendClientInvitation } from "@/services/clientService";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -88,7 +88,7 @@ export const ClientDetails = ({
     }
 
     try {
-      toast.info("Creating client user account...");
+      toast.info("Creating client user account with temporary password...");
       await createClientUserAccount(clientId, client.email, client.client_name, client.agent_name);
       toast.success("Client account created successfully");
     } catch (error: any) {

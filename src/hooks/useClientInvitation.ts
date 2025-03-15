@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { sendClientInvitation } from "@/services/clientService";
 import { toast } from "sonner";
 
 export const useClientInvitation = () => {
@@ -8,11 +9,14 @@ export const useClientInvitation = () => {
   const sendInvitation = async (clientId: string, email: string, clientName: string) => {
     try {
       setIsSending(true);
+      toast.info("Sending invitation email...");
       
-      // Email sending functionality has been removed as requested
-      console.log("Invitation email sending has been removed as requested");
+      console.log("Starting invitation process for:", { clientId, email, clientName });
       
-      toast.success("Invitation functionality removed as requested");
+      await sendClientInvitation(clientId, email, clientName);
+      
+      console.log("Invitation sent successfully");
+      toast.success("Invitation email sent to client");
       return true;
     } catch (error: any) {
       console.error("Invitation failed:", error);
