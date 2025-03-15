@@ -50,9 +50,9 @@ const Auth = () => {
     if (session && userRole && !isLoading) {
       console.log("Redirecting from Auth page to proper dashboard");
       if (userRole === 'client') {
-        navigate('/client/dashboard', { replace: true });
+        window.location.href = '/client/dashboard';
       } else if (userRole === 'admin') {
-        navigate('/', { replace: true });
+        window.location.href = '/';
       }
     }
   }, [session, userRole, isLoading, navigate]);
@@ -68,9 +68,11 @@ const Auth = () => {
   if (session && userRole) {
     console.log("Auth page - immediate redirect due to existing session");
     if (userRole === 'client') {
-      return <Navigate to="/client/dashboard" replace />;
+      window.location.href = '/client/dashboard';
+      return null;
     } else {
-      return <Navigate to="/" replace />;
+      window.location.href = '/';
+      return null;
     }
   }
 
@@ -469,3 +471,4 @@ const Auth = () => {
 };
 
 export default Auth;
+

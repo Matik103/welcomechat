@@ -61,10 +61,9 @@ export const useAuthStateChange = ({
               // Reset loading before redirect
               setIsLoading(false);
               
-              // Use a timeout to ensure state updates before navigation
-              setTimeout(() => {
-                navigate('/', { replace: true });
-              }, 100);
+              // Use direct window.location change for a clean redirect
+              window.location.href = '/';
+              return;
             } else {
               // Get user role for non-Google users
               const role = await determineUserRole(currentSession.user);
@@ -75,9 +74,9 @@ export const useAuthStateChange = ({
               setIsLoading(false);
               
               if (role === 'client') {
-                navigate('/client/dashboard', { replace: true });
+                window.location.href = '/client/dashboard';
               } else {
-                navigate('/', { replace: true });
+                window.location.href = '/';
               }
             }
           } else if (event === 'SIGNED_OUT') {
