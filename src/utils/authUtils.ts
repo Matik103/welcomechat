@@ -52,7 +52,7 @@ export const forceRedirectBasedOnRole = (role: UserRole) => {
   
   // Clear loading state by adding a feedback element
   const loadingFeedback = document.createElement('div');
-  loadingFeedback.textContent = 'Redirecting to dashboard...';
+  loadingFeedback.textContent = `Redirecting to ${role === 'admin' ? 'admin' : 'client'} dashboard...`;
   loadingFeedback.style.position = 'fixed';
   loadingFeedback.style.top = '50%';
   loadingFeedback.style.left = '50%';
@@ -66,7 +66,9 @@ export const forceRedirectBasedOnRole = (role: UserRole) => {
   
   // Use timeout to ensure state updates and rendering completes
   setTimeout(() => {
-    window.location.href = role === 'admin' ? '/' : '/client/dashboard';
+    const redirectUrl = role === 'admin' ? '/' : '/client/dashboard';
+    console.log(`Performing actual redirect to: ${redirectUrl}`);
+    window.location.href = redirectUrl;
   }, 100);
 };
 
@@ -100,6 +102,13 @@ export const getUserRole = async (userId: string): Promise<UserRole | null> => {
  */
 export const isClientInDatabase = async (email: string): Promise<boolean> => {
   try {
+    if (!email) {
+      console.log("No email provided to isClientInDatabase");
+      return false;
+    }
+    
+    console.log(`Checking if email exists in clients table: ${email}`);
+    
     // Check if email exists in clients table
     const { data, error } = await supabase
       .from('clients')
@@ -112,7 +121,9 @@ export const isClientInDatabase = async (email: string): Promise<boolean> => {
       return false;
     }
     
-    return !!data; // Return true if client exists, false otherwise
+    const exists = !!data;
+    console.log(`Email ${email} ${exists ? 'found' : 'not found'} in clients table`);
+    return exists; // Return true if client exists, false otherwise
   } catch (err) {
     console.error("Error in isClientInDatabase:", err);
     return false;
