@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
-import { isClientInDatabase } from "@/utils/authUtils";
 import { toast } from "sonner";
 
 type AuthStateChangeProps = {
@@ -48,28 +47,7 @@ export const useAuthStateChange = ({
             const isGoogleSSO = provider === 'google';
             
             if (isGoogleSSO) {
-              // For Google SSO users, check if they're in the clients table
-              const isClientEmail = await isClientInDatabase(currentSession.user.email || '');
-              
-              if (isClientEmail) {
-                console.error("Google SSO user's email exists in clients table");
-                // Sign them out
-                await supabase.auth.signOut();
-                // Clear session data
-                setSession(null);
-                setUser(null);
-                setUserRole(null);
-                setIsLoading(false);
-                
-                // Show error message
-                toast.error("This email is registered as a client. Please sign in with your email and password instead.");
-                
-                // Redirect to auth page
-                window.location.href = '/auth';
-                return;
-              }
-              
-              // Google SSO users are always admins
+              // Google SSO users are admins
               setUserRole('admin');
               setIsLoading(false);
               
@@ -77,17 +55,12 @@ export const useAuthStateChange = ({
               window.location.href = '/';
               return;
             } else {
-              // Get user role for non-Google users
-              const role = await determineUserRole(currentSession.user);
-              setUserRole(role);
+              // Simplified role logic - all authenticated users are admins
+              setUserRole('admin');
               setIsLoading(false);
               
-              // Redirect based on role
-              if (role === 'client') {
-                window.location.href = '/client/dashboard';
-              } else {
-                window.location.href = '/';
-              }
+              // Direct to admin dashboard
+              window.location.href = '/';
               return;
             }
           } else if (event === 'SIGNED_OUT') {
