@@ -21,6 +21,8 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const { session, isLoading, userRole } = useAuth();
+  const location = useLocation();
+  const isAuthCallback = location.hash && location.hash.includes('access_token');
 
   const resetForm = () => {
     setEmail("");
@@ -38,6 +40,32 @@ const Auth = () => {
       sessionStorage.removeItem('auth_callback_attempted');
     };
   }, []);
+
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      if (isAuthCallback && !sessionStorage.getItem('auth_callback_attempted')) {
+        sessionStorage.setItem('auth_callback_attempted', 'true');
+        console.log("Processing Google auth callback...");
+        
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error("Error processing auth callback:", error);
+            toast.error("Authentication failed. Please try again.");
+          } else if (data?.session) {
+            console.log("Auth callback successful, redirecting...");
+            toast.success("Successfully signed in!");
+          }
+        } catch (err) {
+          console.error("Exception during auth callback:", err);
+          toast.error("Authentication failed. Please try again.");
+        }
+      }
+    };
+
+    handleAuthCallback();
+  }, [isAuthCallback]);
 
   if (session && userRole) {
     console.log("Auth page - immediate redirect for user with role:", userRole);
@@ -125,6 +153,8 @@ const Auth = () => {
       setIsGoogleLoading(true);
       setErrorMessage("");
       
+      sessionStorage.removeItem('auth_callback_attempted');
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -136,7 +166,12 @@ const Auth = () => {
         throw error;
       }
       
-      window.location.href = data?.url || '/';
+      if (!data || !data.url) {
+        throw new Error("Failed to get OAuth URL from Supabase");
+      }
+      
+      console.log("Redirecting to Google auth URL");
+      window.location.href = data.url;
       
     } catch (error: any) {
       console.error("Google sign in error:", error);
