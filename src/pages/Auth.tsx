@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -125,8 +126,30 @@ const Auth = () => {
       setIsGoogleLoading(true);
       setErrorMessage("");
       
-      // Redirect directly to admin dashboard after Google sign in
-      window.location.href = "/";
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      console.log("Starting Google Sign In with redirect to:", redirectUrl);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!data || !data.url) {
+        throw new Error("Failed to get OAuth URL from Supabase");
+      }
+      
+      console.log("Redirecting to Google auth URL:", data.url);
+      window.location.href = data.url;
       
     } catch (error: any) {
       console.error("Google sign in error:", error);
