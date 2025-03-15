@@ -72,57 +72,34 @@ serve(async (req) => {
       }
     );
 
-    // Generate a temporary password for the client
-    const randomDigits = Math.floor(1000 + Math.random() * 9000);
-    const tempPassword = `Welcome${randomDigits}!`;
-    
-    // Store the temporary password
-    try {
-      const { error: passwordError } = await supabaseAdmin
-        .from('client_temp_passwords')
-        .insert({
-          client_id: clientId,
-          email: email,
-          temp_password: tempPassword,
-          created_at: new Date().toISOString(),
-          used: false
-        });
-        
-      if (passwordError) {
-        console.error("Error storing temporary password:", passwordError);
-        // Continue despite error, as we still want to send the invitation
-        console.log("Continuing with invitation process despite password storage error");
-      } else {
-        console.log("Temporary password stored successfully");
-      }
-    } catch (tempPasswordError) {
-      console.error("Failed to store temporary password:", tempPasswordError);
-      // Continue despite error
-    }
-
     // Generate a unique token for the invitation
     const token = crypto.randomUUID();
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour expiration
 
-    // Check if client_invitations table has the right structure
-    console.log("Creating invitation record...");
+    // Create invitation record
+    console.log("Creating invitation record in client_invitations table...");
     
-    // Store the invitation in the database
-    const { error: inviteError } = await supabaseAdmin
-      .from('client_invitations')
-      .insert({
-        client_id: clientId,
-        token: token,
-        email: email,
-        expires_at: expiresAt.toISOString()
-      });
+    try {
+      // Store the invitation in the database
+      const { error: inviteError } = await supabaseAdmin
+        .from('client_invitations')
+        .insert({
+          client_id: clientId,
+          token: token,
+          email: email,
+          expires_at: expiresAt.toISOString()
+        });
 
-    if (inviteError) {
-      console.error("Error storing invitation:", inviteError);
-      throw new Error(`Failed to create invitation record: ${inviteError.message}`);
+      if (inviteError) {
+        console.error("Error storing invitation:", inviteError);
+        throw new Error(`Failed to create invitation record: ${inviteError.message}`);
+      }
+      console.log("Invitation record created successfully with token:", token);
+    } catch (dbError) {
+      console.error("Database operation failed:", dbError);
+      throw new Error(`Database error: ${dbError.message}`);
     }
-    console.log("Invitation record created successfully with token:", token);
 
     // Initialize Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -133,68 +110,71 @@ serve(async (req) => {
     
     const resend = new Resend(resendApiKey);
     
-    // Setup URL path - create a complete path that does the right thing
+    // Setup URL path
     const setupUrl = `${origin}/client-setup?token=${token}`;
     console.log("Setup URL for email:", setupUrl);
     
-    const { data: emailData, error: emailError } = await resend.emails.send({
-      from: "Welcome.Chat <admin@welcome.chat>", // Make sure this matches your verified domain in Resend
-      to: email,
-      subject: "Welcome to TestBot Assistant!",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #333; margin-bottom: 20px;">Welcome to TestBot Assistant!</h2>
-          
-          <p>Hello ${clientName},</p>
-          
-          <p>You have been invited to create your account for TestBot Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
-          
-          <p><strong>Your temporary password is: ${tempPassword}</strong></p>
-          
-          <p>To complete your account setup:</p>
-          
-          <ol style="line-height: 1.6;">
-            <li>Click the button below to set up your account</li>
-            <li>Follow the instructions to set your password</li>
-            <li>You'll be automatically redirected to your client dashboard</li>
-            <li>Configure your AI assistant's settings in the dashboard</li>
-          </ol>
-          
-          <div style="margin: 30px 0;">
-            <a href="${setupUrl}" style="
-              background-color: #3b82f6;
-              color: white;
-              padding: 12px 24px;
-              text-decoration: none;
-              border-radius: 6px;
-              display: inline-block;
-            ">Set Up Your Account</a>
+    console.log("Sending email via Resend...");
+    try {
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: "Welcome.Chat <admin@welcome.chat>", // Make sure this matches your verified domain in Resend
+        to: email,
+        subject: "Welcome to TestBot Assistant!",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333; margin-bottom: 20px;">Welcome to TestBot Assistant!</h2>
+            
+            <p>Hello ${clientName},</p>
+            
+            <p>You have been invited to create your account for TestBot Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
+            
+            <p>To complete your account setup:</p>
+            
+            <ol style="line-height: 1.6;">
+              <li>Click the button below to set up your account</li>
+              <li>Follow the instructions to set your password</li>
+              <li>You'll be automatically redirected to your client dashboard</li>
+              <li>Configure your AI assistant's settings in the dashboard</li>
+            </ol>
+            
+            <div style="margin: 30px 0;">
+              <a href="${setupUrl}" style="
+                background-color: #3b82f6;
+                color: white;
+                padding: 12px 24px;
+                text-decoration: none;
+                border-radius: 6px;
+                display: inline-block;
+              ">Set Up Your Account</a>
+            </div>
+            
+            <p style="color: #666;">This invitation link will expire in 24 hours.</p>
+            
+            <p style="color: #666; font-size: 14px; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
+              If you didn't expect this invitation, you can safely ignore this email.
+            </p>
+            
+            <p>Best regards,<br>The TestBot Assistant Team</p>
           </div>
-          
-          <p style="color: #666;">This invitation link will expire in 24 hours.</p>
-          
-          <p style="color: #666; font-size: 14px; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
-            If you didn't expect this invitation, you can safely ignore this email.
-          </p>
-          
-          <p>Best regards,<br>The TestBot Assistant Team</p>
-        </div>
-      `
-    });
+        `
+      });
 
-    if (emailError) {
-      console.error("Error sending email with Resend:", emailError);
-      throw emailError;
+      if (emailError) {
+        console.error("Error sending email with Resend:", emailError);
+        throw emailError;
+      }
+
+      console.log("Email sent successfully with Resend:", emailData);
+    } catch (emailSendError) {
+      console.error("Failed to send email:", emailSendError);
+      throw new Error(`Email sending failed: ${emailSendError.message}`);
     }
-
-    console.log("Email sent successfully with Resend:", emailData);
     
     // Return success response
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: "Invitation email sent successfully",
-        data: emailData
+        message: "Invitation email sent successfully"
       }), 
       {
         status: 200,
