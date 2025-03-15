@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 import { useNavigate, useLocation } from "react-router-dom";
-import { determineUserRole } from "@/utils/authUtils";
+import { determineUserRole, isGoogleSSOUser } from "@/utils/authUtils";
 
 type AuthStateChangeProps = {
   setSession: (session: Session | null) => void;
@@ -45,7 +45,8 @@ export const useAuthStateChange = ({
           setUser(currentSession.user);
           
           // Check if Google SSO authentication
-          const isGoogleAuth = currentSession.user?.app_metadata?.provider === 'google';
+          const isGoogleAuth = isGoogleSSOUser(currentSession.user);
+          console.log("Is Google Auth?", isGoogleAuth);
           console.log("Auth provider:", currentSession.user?.app_metadata?.provider);
           
           if (isGoogleAuth) {
@@ -53,9 +54,19 @@ export const useAuthStateChange = ({
             console.log("Google SSO login detected in state change, assigning admin role");
             setUserRole('admin');
             
-            // Only redirect if we're on the auth page to prevent refresh loops
+            // Check if user is on a client route
+            const isClientRoute = location.pathname.startsWith('/client');
             const isAuthPage = location.pathname === '/auth';
-            if (isAuthPage) {
+            
+            if (isClientRoute) {
+              // Force redirect any Google SSO users away from client routes to admin dashboard
+              console.log("Google SSO user on client route - redirecting to admin dashboard");
+              navigate('/', { replace: true });
+              
+              setTimeout(() => {
+                setIsLoading(false);
+              }, 300);
+            } else if (isAuthPage) {
               console.log("Redirecting Google user to admin dashboard from state change");
               // Always direct Google SSO users to admin dashboard
               navigate('/', { replace: true });

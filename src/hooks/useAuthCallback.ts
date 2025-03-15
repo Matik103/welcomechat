@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
-import { determineUserRole } from "@/utils/authUtils";
+import { determineUserRole, isGoogleSSOUser } from "@/utils/authUtils";
 
 type AuthCallbackProps = {
   isCallbackUrl: boolean;
@@ -46,7 +46,9 @@ export const useAuthCallback = ({
           setUser(callbackSession.user);
           
           // Check if this is a Google SSO authentication
-          const isGoogleAuth = callbackSession.user?.app_metadata?.provider === 'google';
+          const isGoogleAuth = isGoogleSSOUser(callbackSession.user);
+          console.log("Is Google Auth?", isGoogleAuth);
+          console.log("Auth provider:", callbackSession.user?.app_metadata?.provider);
           
           if (isGoogleAuth) {
             console.log("Google SSO login detected in callback, assigning admin role");

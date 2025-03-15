@@ -1,3 +1,4 @@
+
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
@@ -103,4 +104,12 @@ export const createUserRole = async (
 export const isClientInDatabase = async (email: string): Promise<boolean> => {
   // Simplified implementation - we're not checking the clients table anymore
   return false;
+};
+
+/**
+ * Check if the user is a Google SSO user
+ */
+export const isGoogleSSOUser = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.app_metadata?.provider === 'google';
 };
