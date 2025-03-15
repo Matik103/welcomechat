@@ -150,7 +150,7 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
     });
     
     if (error) {
-      console.error("Error invoking send-client-invitation function:", error);
+      console.error("Error invoking sen d-client-invitation function:", error);
       throw error;
     }
     
@@ -163,6 +163,40 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
     return true;
   } catch (error) {
     console.error("Invitation method failed:", error);
+    throw error;
+  }
+};
+
+/**
+ * Test function to create a client and send invitation
+ */
+export const testClientInvitation = async () => {
+  try {
+    // Create a new client
+    const clientData: ClientFormData = {
+      client_name: "Test Client",
+      email: "testclient9@gmail.com",
+      agent_name: "TestBot Assistant",
+      widget_settings: {}
+    };
+
+    console.log("Creating test client:", clientData);
+    
+    // Create the client
+    const clientId = await createClient(clientData);
+    console.log("Client created with ID:", clientId);
+
+    // Send the invitation
+    const success = await sendClientInvitation(
+      clientId,
+      clientData.email,
+      clientData.client_name
+    );
+
+    console.log("Invitation sent:", success);
+    return { clientId, success };
+  } catch (error) {
+    console.error("Test invitation failed:", error);
     throw error;
   }
 };
