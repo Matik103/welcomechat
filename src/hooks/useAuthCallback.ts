@@ -49,10 +49,10 @@ export const useAuthCallback = ({
           // This prevents the brief flash of the login screen
           navigate('/', { replace: true });
           
-          // Set isLoading to false after the navigation is initiated
+          // Set isLoading to false after the navigation has had time to complete
           setTimeout(() => {
             setIsLoading(false);
-          }, 50);
+          }, 100); // Increased timeout to 100ms to ensure navigation completes
         } catch (error) {
           console.error("Error handling auth callback:", error);
           navigate('/auth', { replace: true });
