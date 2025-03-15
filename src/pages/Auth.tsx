@@ -23,10 +23,11 @@ const Auth = () => {
   const { session, isLoading } = useAuth();
   const location = useLocation();
 
-  // Define the resetForm function that was missing
+  // Define the resetForm function
   const resetForm = () => {
     setEmail("");
     setPassword("");
+    setFullName("");
     setErrorMessage("");
   };
 
