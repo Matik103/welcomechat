@@ -39,7 +39,7 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
           // Check user metadata for role indicators
           const role = user.app_metadata?.role || 'admin'; // Default to admin for existing users
           
-          // Fixed: Removed the third argument as createUserRole only accepts userId and role
+          // Fixed: Only pass the two required arguments
           const success = await createUserRole(
             user.id, 
             role as UserRole
@@ -112,4 +112,3 @@ export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
     return false;
   }
 };
-

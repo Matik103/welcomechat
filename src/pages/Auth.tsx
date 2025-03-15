@@ -32,7 +32,6 @@ const Auth = () => {
     setErrorMessage("");
   };
 
-  // Set a short timeout to prevent infinite loading state
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
@@ -53,7 +52,6 @@ const Auth = () => {
     }
   }, [session, userRole, isLoading, navigate]);
 
-  // Only show loading for a short period to prevent UI getting stuck
   if (isLoading && !loadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
@@ -62,7 +60,6 @@ const Auth = () => {
     );
   }
 
-  // If we have session and role, redirect
   if (session && userRole) {
     console.log("Auth page - immediate redirect due to existing session");
     if (userRole === 'client') {
@@ -173,7 +170,7 @@ const Auth = () => {
       
       console.log("Starting Google Sign In with redirect to:", `${window.location.origin}/auth/callback`);
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -187,6 +184,13 @@ const Auth = () => {
       if (error) {
         throw error;
       }
+      
+      if (!data || !data.url) {
+        throw new Error("Failed to get OAuth URL from Supabase");
+      }
+      
+      console.log("Redirecting to OAuth URL:", data.url);
+      
     } catch (error: any) {
       console.error("Google sign in error:", error);
       setErrorMessage(error.message || "Failed to sign in with Google");
@@ -196,7 +200,6 @@ const Auth = () => {
     }
   };
 
-  // Forgot password form
   if (isForgotPassword) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
@@ -265,7 +268,6 @@ const Auth = () => {
     );
   }
 
-  // Sign in/sign up form
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -448,3 +450,4 @@ const Auth = () => {
 };
 
 export default Auth;
+
