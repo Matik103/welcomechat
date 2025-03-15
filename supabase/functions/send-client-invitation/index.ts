@@ -106,12 +106,17 @@ serve(async (req) => {
       console.log("No temporary password found, using placeholder");
     }
     
-    // Generate password reset link
+    // Generate dashboard link (client will need to sign in first)
+    const siteUrl = Deno.env.get('PUBLIC_SITE_URL') || '';
+    const dashboardUrl = `${siteUrl}/client/dashboard`;
+    
+    // For new users, we need them to create their account first
+    // Generate password reset link that will allow them to sign in
     const { data: passwordResetData, error: passwordResetError } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
       email: email,
       options: {
-        redirectTo: `${Deno.env.get('PUBLIC_SITE_URL')}/client/setup`
+        redirectTo: `${siteUrl}/client/dashboard`
       }
     });
     
@@ -120,7 +125,7 @@ serve(async (req) => {
       throw passwordResetError;
     }
     
-    const resetLink = passwordResetData?.properties?.action_link || "";
+    const resetLink = passwordResetData?.properties?.action_link || dashboardUrl;
     console.log("Generated reset link");
 
     // Send email via Resend API
