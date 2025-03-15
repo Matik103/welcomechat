@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -117,17 +118,20 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
   try {
     console.log("Sending invitation for client:", clientId, email, clientName);
     
-    const { data, error } = await supabase.functions.invoke("send-invitation", {
+    // Add more debugging to help diagnose the issue
+    console.log("Making function call to send-client-invitation edge function");
+    
+    const { data, error } = await supabase.functions.invoke("send-client-invitation", {
       body: {
         clientId,
         email,
         clientName,
-        timeout: 15000 // 15 seconds timeout
+        timeout: 30000 // Increase timeout to 30 seconds
       }
     });
     
     if (error) {
-      console.error("Error sending invitation:", error);
+      console.error("Error invoking send-client-invitation function:", error);
       throw error;
     }
     
