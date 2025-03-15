@@ -23,6 +23,13 @@ const Auth = () => {
   const { session, isLoading } = useAuth();
   const location = useLocation();
 
+  // Define the resetForm function that was missing
+  const resetForm = () => {
+    setEmail("");
+    setPassword("");
+    setErrorMessage("");
+  };
+
   // Check if we're in the middle of an OAuth callback
   useEffect(() => {
     const checkOAuthRedirect = async () => {

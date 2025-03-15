@@ -62,7 +62,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (window.location.hash && location.pathname.includes('/auth')) {
         console.log("Processing hash parameters from OAuth redirect");
         try {
-          const { data, error } = await supabase.auth.getSessionFromUrl();
+          // Use the correct method for getting session from URL 
+          // (.getSessionFromUrl doesn't exist, need to use .getSession)
+          const { data, error } = await supabase.auth.getSession();
           if (error) {
             console.error("Error getting session from URL:", error);
             toast.error("Authentication failed. Please try again.");
