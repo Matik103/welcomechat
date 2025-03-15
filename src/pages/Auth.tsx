@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -35,14 +34,12 @@ const Auth = () => {
     sessionStorage.removeItem('auth_callback_attempted');
   }, []);
 
-  // Clean up the session state when unmounting
   useEffect(() => {
     return () => {
       sessionStorage.removeItem('auth_callback_attempted');
     };
   }, []);
 
-  // Immediate redirect if we have a session and role
   if (session && userRole) {
     console.log("Auth page - immediate redirect for user with role:", userRole);
     if (userRole === 'client') {
@@ -73,7 +70,6 @@ const Auth = () => {
         toast.success("Password reset email sent. Please check your inbox.");
         setIsForgotPassword(false);
       } else if (isSignUp) {
-        // Check if email exists in database
         const emailExists = await isClientInDatabase(email);
         if (emailExists) {
           setErrorMessage("An account with this email already exists. Please sign in instead.");
@@ -139,7 +135,6 @@ const Auth = () => {
       const redirectUrl = `${window.location.origin}/auth/callback`;
       console.log("Starting Google Sign In with redirect to:", redirectUrl);
       
-      // Remove any existing auth_callback_attempted flag
       sessionStorage.removeItem('auth_callback_attempted');
       
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -163,10 +158,8 @@ const Auth = () => {
       
       console.log("Redirecting to Google auth URL:", data.url);
       
-      // Set a flag that we're starting the Google auth flow
       localStorage.setItem('google_auth_started', 'true');
       
-      // Redirect to the Google auth URL
       window.location.href = data.url;
       
     } catch (error: any) {
