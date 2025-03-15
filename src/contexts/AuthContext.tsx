@@ -51,14 +51,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (isGoogleUser) {
             const role = await handleGoogleUser(currentSession.user);
             setUserRole(role);
-            handlePostAuthNavigation(role, location.pathname, navigate);
+            handlePostAuthNavigation(role, navigate);
             setIsLoading(false);
           } else {
             const existingRole = await checkUserRole(currentSession.user.id);
             
             if (existingRole) {
               setUserRole(existingRole);
-              handlePostAuthNavigation(existingRole, location.pathname, navigate);
+              handlePostAuthNavigation(existingRole, navigate);
               setIsLoading(false);
             } else if (currentSession.user.email) {
               const isClient = await checkIfClientExists(currentSession.user.email);
@@ -73,12 +73,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (clientData?.id) {
                   await createUserRole(currentSession.user.id, 'client', clientData.id);
                   setUserRole('client');
-                  handlePostAuthNavigation('client', location.pathname, navigate);
+                  handlePostAuthNavigation('client', navigate);
                 }
               } else {
                 await createUserRole(currentSession.user.id, 'admin');
                 setUserRole('admin');
-                handlePostAuthNavigation('admin', location.pathname, navigate);
+                handlePostAuthNavigation('admin', navigate);
               }
               
               setIsLoading(false);
@@ -133,9 +133,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (isGoogleUser) {
               const role = await handleGoogleUser(currentSession!.user);
               setUserRole(role);
-              
-              handlePostAuthNavigation(role, location.pathname, navigate);
-              
+              handlePostAuthNavigation(role, navigate);
               setIsLoading(false);
             } else {
               const isClient = currentSession?.user.email ? 
@@ -145,8 +143,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               
               if (existingRole) {
                 setUserRole(existingRole);
-                
-                handlePostAuthNavigation(existingRole, location.pathname, navigate);
+                handlePostAuthNavigation(existingRole, navigate);
               } else {
                 if (isClient) {
                   const { data: clientData } = await supabase
@@ -158,12 +155,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   if (clientData?.id) {
                     await createUserRole(currentSession!.user.id, 'client', clientData.id);
                     setUserRole('client');
-                    handlePostAuthNavigation('client', location.pathname, navigate);
+                    handlePostAuthNavigation('client', navigate);
                   }
                 } else {
                   await createUserRole(currentSession!.user.id, 'admin');
                   setUserRole('admin');
-                  handlePostAuthNavigation('admin', location.pathname, navigate);
+                  handlePostAuthNavigation('admin', navigate);
                 }
               }
               

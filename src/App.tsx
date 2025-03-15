@@ -1,7 +1,7 @@
 
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import ClientList from "@/pages/ClientList";
@@ -23,13 +23,14 @@ import NotFound from "@/pages/NotFound";
 function App() {
   const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [showLoader, setShowLoader] = useState(true);
   
   useEffect(() => {
-    // Short timeout for loader display (1s max)
+    // Short timeout for loader display (500ms max)
     const timer = setTimeout(() => {
       setShowLoader(false);
-    }, 1000);
+    }, 500);
     
     // Clear timeout if auth completes before timeout
     if (!isLoading) {
@@ -40,20 +41,30 @@ function App() {
     return () => clearTimeout(timer);
   }, [isLoading]);
 
+  // Handle callback route - redirect immediately to home based on user role
+  useEffect(() => {
+    if (location.pathname.includes('/auth/callback') && user && userRole) {
+      if (userRole === 'admin') {
+        navigate('/', { replace: true });
+      } else {
+        navigate('/client/dashboard', { replace: true });
+      }
+    }
+  }, [location.pathname, user, userRole, navigate]);
+
   // Determine if current route is a public route (auth, setup, or callback)
   const isPublicRoute = 
     location.pathname === '/auth' || 
     location.pathname.includes('/auth/callback') ||
     location.pathname.startsWith('/client/setup');
   
-  // Special handling for callback route
+  // Special handling for callback route - show minimal loader
   if (location.pathname.includes('/auth/callback')) {
     return (
       <div className="min-h-screen bg-background">
         <Toaster />
         <div className="min-h-screen flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          <p className="ml-3 text-sm text-muted-foreground">Authenticating...</p>
         </div>
       </div>
     );
@@ -92,7 +103,7 @@ function App() {
         {isClientRoute ? <ClientHeader /> : <Header />}
         <Routes>
           {/* Auth routes */}
-          <Route path="/auth/*" element={<Auth />} />
+          <Route path="/auth/*" element={<Navigate to="/" replace />} />
           <Route path="/client/setup" element={<ClientSetup />} />
           
           {/* Main routes with role-based routing */}
