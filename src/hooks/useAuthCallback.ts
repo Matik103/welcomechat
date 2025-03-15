@@ -65,6 +65,8 @@ export const useAuthCallback = ({
           const provider = user?.app_metadata?.provider;
           const isGoogleLogin = provider === 'google';
           
+          console.log("Auth callback processing for user:", user.email, "Provider:", provider);
+          
           if (isGoogleLogin) {
             console.log("Google SSO detected, setting admin role");
             // Set session and user
@@ -74,9 +76,14 @@ export const useAuthCallback = ({
             // For Google SSO users, always set admin role
             setUserRole('admin');
             
-            // Use window.location for direct navigation to ensure a clean redirect
+            // Clear the auth attempt flag after successful login
+            setTimeout(() => {
+              sessionStorage.removeItem('auth_callback_attempted');
+            }, 1000);
+            
+            console.log("Redirecting Google SSO user to admin dashboard");
+            // Force direct window location change for a clean redirect
             window.location.href = '/';
-            return;
           } else {
             // Non-Google login, use role-based redirect
             setSession(callbackSession);
@@ -92,6 +99,7 @@ export const useAuthCallback = ({
               sessionStorage.removeItem('auth_callback_attempted');
             }, 1000);
             
+            console.log("Redirecting regular user based on role:", role);
             // Use direct location change to ensure a clean state
             if (role === 'client') {
               window.location.href = '/client/dashboard';
