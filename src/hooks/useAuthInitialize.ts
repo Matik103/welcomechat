@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -50,13 +49,14 @@ export const useAuthInitialize = ({
           
           if (!isCallbackUrl && isAuthPage) {
             console.log("Redirecting from auth page to admin dashboard");
-            // Navigate first, then set loading state after a delay
+            // Navigate first while keeping loading state true
             navigate('/', { replace: true });
             
+            // Longer timeout to ensure transition completes before changing loading state
             setTimeout(() => {
               setIsLoading(false);
               setAuthInitialized(true);
-            }, 100); // Increased timeout to 100ms
+            }, 300); // Increased timeout to 300ms for smoother transition
           } else {
             setIsLoading(false);
             setAuthInitialized(true);
