@@ -31,6 +31,7 @@ export const useAuthInitialize = ({
 
   useEffect(() => {
     let mounted = true;
+    let initTimeout: NodeJS.Timeout;
 
     const initializeAuth = async () => {
       if (authInitialized && !isCallbackUrl) return;
@@ -38,6 +39,21 @@ export const useAuthInitialize = ({
       try {
         setIsLoading(true);
         console.log("Initializing auth state");
+        
+        // Set a timeout to prevent infinite loading
+        initTimeout = setTimeout(() => {
+          if (mounted && setIsLoading) {
+            console.log("Auth initialization timed out, resetting loading state");
+            setIsLoading(false);
+            setAuthInitialized(true);
+            
+            // If we're stuck on a non-auth page, redirect to auth
+            const isAuthPage = location.pathname === '/auth';
+            if (!isAuthPage) {
+              navigate('/auth', { replace: true });
+            }
+          }
+        }, 5000);
         
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
@@ -51,27 +67,40 @@ export const useAuthInitialize = ({
           // Set initialized flag
           setAuthInitialized(true);
           
-          // Get user role
-          const role = await determineUserRole(currentSession.user);
-          setUserRole(role);
-          console.log("User role determined:", role);
+          // Check if Google SSO user
+          const isGoogleUser = currentSession.user.app_metadata?.provider === 'google';
           
-          // Reset loading state
-          setIsLoading(false);
-          
-          const isAuthPage = location.pathname === '/auth';
-          
-          if (!isCallbackUrl && !isAuthPage) {
-            if (role === 'client') {
-              navigate('/client/dashboard', { replace: true });
-            } else {
+          if (isGoogleUser) {
+            // Google SSO users are always admins and go to admin dashboard
+            setUserRole('admin');
+            setIsLoading(false);
+            
+            if (!isCallbackUrl) {
               navigate('/', { replace: true });
             }
-          } else if (isAuthPage) {
-            if (role === 'client') {
-              navigate('/client/dashboard', { replace: true });
-            } else {
-              navigate('/', { replace: true });
+          } else {
+            // Regular users get role based on email in clients table
+            const role = await determineUserRole(currentSession.user);
+            setUserRole(role);
+            console.log("User role determined:", role);
+            
+            // Reset loading state
+            setIsLoading(false);
+            
+            const isAuthPage = location.pathname === '/auth';
+            
+            if (!isCallbackUrl && !isAuthPage) {
+              if (role === 'client') {
+                navigate('/client/dashboard', { replace: true });
+              } else {
+                navigate('/', { replace: true });
+              }
+            } else if (isAuthPage) {
+              if (role === 'client') {
+                navigate('/client/dashboard', { replace: true });
+              } else {
+                navigate('/', { replace: true });
+              }
             }
           }
         } else {
@@ -92,6 +121,9 @@ export const useAuthInitialize = ({
             setAuthInitialized(true);
           }
         }
+        
+        // Clear timeout since we've completed initialization
+        clearTimeout(initTimeout);
       } catch (error) {
         console.error("Error in initializeAuth:", error);
         if (mounted) {
@@ -101,12 +133,15 @@ export const useAuthInitialize = ({
           setIsLoading(false);
           setAuthInitialized(true);
           
-          // Redirect to auth page on error if not already there
+          // Redirect to auth page on error
           const isAuthPage = location.pathname.startsWith('/auth');
           if (!isAuthPage) {
             navigate('/auth', { replace: true });
           }
         }
+        
+        // Clear timeout on error
+        clearTimeout(initTimeout);
       }
     };
 
@@ -114,6 +149,7 @@ export const useAuthInitialize = ({
 
     return () => {
       mounted = false;
+      clearTimeout(initTimeout);
     };
   }, [
     navigate, 

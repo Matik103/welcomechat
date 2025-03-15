@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { isClientInDatabase } from "@/utils/authUtils";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 
@@ -40,38 +39,32 @@ export const useAuthStateChange = ({
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             console.log("User signed in or token refreshed:", currentSession?.user.email);
             
-            // Check if this is a Google login and if the user is a client
-            const user = currentSession?.user;
-            const provider = user?.app_metadata?.provider;
-            const isGoogleLogin = provider === 'google';
-            
-            if (isGoogleLogin && user?.email) {
-              // Check if this email belongs to a client
-              const isClient = await isClientInDatabase(user.email);
-              
-              if (isClient) {
-                // If client trying to use Google SSO, sign them out
-                console.log("Client attempted to use Google SSO, signing out:", user.email);
-                await supabase.auth.signOut();
-                toast.error("Clients must use email and password to sign in. Google sign-in is only available for administrators.");
-                navigate('/auth', { replace: true });
-                setIsLoading(false);
-                return;
-              }
+            if (!currentSession) {
+              console.error("No session found in SIGNED_IN event");
+              setIsLoading(false);
+              navigate('/auth', { replace: true });
+              return;
             }
             
             setSession(currentSession);
-            setUser(currentSession!.user);
+            setUser(currentSession.user);
             
-            // Get user role
-            const role = await determineUserRole(currentSession!.user);
+            // Get user role - this will always return 'admin' for Google SSO users
+            const role = await determineUserRole(currentSession.user);
             setUserRole(role);
             console.log("User role set:", role);
             
             // Reset loading before redirect
             setIsLoading(false);
             
-            if (role === 'client') {
+            // Google SSO users always go to admin dashboard, other users follow their role
+            const provider = currentSession.user.app_metadata?.provider;
+            const isGoogleSSO = provider === 'google';
+            
+            if (isGoogleSSO) {
+              console.log("Google SSO user, redirecting to admin dashboard");
+              navigate('/', { replace: true });
+            } else if (role === 'client') {
               navigate('/client/dashboard', { replace: true });
             } else {
               navigate('/', { replace: true });

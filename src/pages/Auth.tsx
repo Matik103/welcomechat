@@ -9,6 +9,7 @@ import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
+import { isClientInDatabase } from "@/utils/authUtils";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -31,6 +32,10 @@ const Auth = () => {
     setFullName("");
     setErrorMessage("");
   };
+
+  useEffect(() => {
+    sessionStorage.removeItem('auth_callback_attempted');
+  }, []);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -169,12 +174,15 @@ const Auth = () => {
       setErrorMessage("");
       
       // First check if the user's email is already in the clients table
-      // We can't actually do this yet because we don't have the email until after Google auth,
-      // so we'll handle this in the callback and AuthContext
-
+      // We can't do this yet because we don't have the email before Google auth
+      // But we'll enforce the rule in the callback
+      
       // Use current window location for development flexibility
       const redirectUrl = `${window.location.origin}/auth/callback`;
       console.log("Starting Google Sign In with redirect to:", redirectUrl);
+      
+      // Remove any existing auth_callback_attempted flag
+      sessionStorage.removeItem('auth_callback_attempted');
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

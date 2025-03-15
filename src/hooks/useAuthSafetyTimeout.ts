@@ -20,6 +20,16 @@ export const useAuthSafetyTimeout = ({
 
   // Safety timeout to prevent infinite loading
   useEffect(() => {
+    // Only set a timeout if we're in loading state
+    if (!isLoading) return;
+    
+    // Clear any existing auth callback attempted flag to prevent loops
+    if (isLoading && !session) {
+      sessionStorage.removeItem('auth_callback_attempted');
+    }
+    
+    console.log("Setting up safety timeout for loading state");
+    
     const safetyTimeout = setTimeout(() => {
       if (isLoading) {
         console.warn("Safety timeout triggered to prevent infinite loading");
@@ -31,7 +41,7 @@ export const useAuthSafetyTimeout = ({
           navigate('/auth', { replace: true });
         }
       }
-    }, 8000); // 8-second safety timeout
+    }, 6000); // 6-second safety timeout
     
     return () => clearTimeout(safetyTimeout);
   }, [isLoading, navigate, isAuthPage, session, setIsLoading]);
