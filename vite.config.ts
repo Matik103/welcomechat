@@ -20,6 +20,14 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    outDir: "dist"
+    outDir: "dist",
+    rollupOptions: {
+      external: ['zod'],
+      output: {
+        globals: {
+          'zod': 'zod'
+        }
+      }
+    }
   }
 }));
