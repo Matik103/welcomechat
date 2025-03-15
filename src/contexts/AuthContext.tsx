@@ -25,34 +25,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Function to clear all auth state and local storage
   const clearAuthState = async () => {
     try {
-      // Clear Supabase session
       await supabase.auth.signOut();
-      
-      // Clear local storage items related to auth
-      localStorage.removeItem('supabase.auth.token');
-      localStorage.removeItem('supabase.auth.expires_at');
-      localStorage.removeItem('supabase.auth.refresh_token');
-      
-      // Clear state
+      localStorage.clear();
+      sessionStorage.clear();
       setSession(null);
       setUser(null);
       setUserRole(null);
-      
-      // Clear any other potential caches
-      sessionStorage.clear();
-      
-      // Force clear service worker caches if they exist
-      if ('caches' in window) {
-        try {
-          const cacheNames = await caches.keys();
-          await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
-        } catch (error) {
-          console.error('Error clearing caches:', error);
-        }
-      }
     } catch (error) {
       console.error('Error clearing auth state:', error);
     }
@@ -60,37 +40,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkUserRole = async (userId: string) => {
     try {
-      // First check user_roles table for role and client_id
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role, client_id')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (roleError) {
-        console.error("Error checking user_roles:", roleError);
+      if (roleError || !roleData) {
+        console.error("Error or no data when checking user_roles:", roleError);
         return null;
       }
 
-      if (!roleData) {
-        console.log("No role found for user");
-        return null;
-      }
-
-      if (roleData?.client_id) {
-        // If we have a client_id, verify it exists in ai_agents
+      if (roleData.client_id) {
         const { data: agentData, error: agentError } = await supabase
           .from('ai_agents')
           .select('id')
           .eq('client_id', roleData.client_id)
           .maybeSingle();
 
-        if (agentError) {
-          console.error("Error checking ai_agents:", agentError);
-          return null;
-        }
-
-        if (agentData) {
+        if (!agentError && agentData) {
           return 'client' as UserRole;
         }
       }
@@ -110,22 +78,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const urls = getAppUrls();
+    const isAuthPage = location.pathname.startsWith('/auth') || 
+                      location.pathname.startsWith('/client/setup');
     
+    // Don't redirect if we're already on the correct page
     if (role === 'client') {
-      const clientDashboardUrl = import.meta.env.PROD 
-        ? urls.clientDashboard
-        : '/client/dashboard';
-        
-      if (import.meta.env.PROD) {
-        window.location.href = clientDashboardUrl;
-      } else {
-        navigate(clientDashboardUrl, { replace: true });
+      const clientPath = import.meta.env.PROD ? urls.clientDashboard : '/client/dashboard';
+      const isOnClientPath = location.pathname.startsWith('/client/dashboard');
+      
+      if (!isOnClientPath && !isAuthPage) {
+        if (import.meta.env.PROD) {
+          window.location.href = clientPath;
+        } else {
+          navigate(clientPath, { replace: true });
+        }
       }
     } else {
-      if (import.meta.env.PROD) {
-        window.location.href = urls.adminDashboard;
-      } else {
-        navigate('/', { replace: true });
+      const adminPath = import.meta.env.PROD ? urls.adminDashboard : '/';
+      const isOnAdminPath = location.pathname === '/';
+      
+      if (!isOnAdminPath && !isAuthPage) {
+        if (import.meta.env.PROD) {
+          window.location.href = adminPath;
+        } else {
+          navigate(adminPath, { replace: true });
+        }
       }
     }
   };
@@ -139,21 +116,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         setIsLoading(true);
         
-        // Clear any existing session and caches
-        await clearAuthState();
+        // Get the current session
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
         
-        // Check if we're on an auth page
-        const isAuthPage = location.pathname.startsWith('/auth') || 
-                         location.pathname.startsWith('/client/setup');
-        
-        if (!isAuthPage) {
-          navigate('/auth', { replace: true });
-          return;
+        if (sessionError) {
+          throw sessionError;
         }
-        
+
+        // If we have a session, verify it
+        if (currentSession?.user) {
+          const role = await checkUserRole(currentSession.user.id);
+          
+          if (role) {
+            setSession(currentSession);
+            setUser(currentSession.user);
+            setUserRole(role);
+            await handleRedirect(role);
+          } else {
+            await clearAuthState();
+            navigate('/auth', { replace: true });
+          }
+        } else {
+          // No session, clear everything
+          await clearAuthState();
+          
+          const isAuthPage = location.pathname.startsWith('/auth') || 
+                           location.pathname.startsWith('/client/setup');
+          
+          if (!isAuthPage) {
+            navigate('/auth', { replace: true });
+          }
+        }
       } catch (error) {
         console.error("Error in initializeAuth:", error);
-        toast.error('Error initializing authentication');
+        await clearAuthState();
+        navigate('/auth', { replace: true });
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -166,8 +163,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (!mounted) return;
 
-      console.log("Auth state changed:", event);
-
       try {
         switch (event) {
           case 'SIGNED_IN':
@@ -176,7 +171,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               
               if (!role) {
                 await clearAuthState();
-                toast.error('Error: Unable to determine user role');
+                toast.error('Unable to determine user role');
                 navigate('/auth', { replace: true });
                 return;
               }
@@ -199,16 +194,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setUser(currentSession.user);
             }
             break;
-            
-          case 'USER_UPDATED':
-            if (!currentSession) {
-              await clearAuthState();
-              navigate('/auth', { replace: true });
-            }
-            break;
 
           default:
-            // For any other events, verify the session
             if (!currentSession) {
               await clearAuthState();
               navigate('/auth', { replace: true });

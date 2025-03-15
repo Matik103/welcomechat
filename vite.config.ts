@@ -21,11 +21,14 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: "dist",
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true
+    },
     rollupOptions: {
-      external: ['zod'],
       output: {
-        globals: {
-          'zod': 'zod'
+        manualChunks: {
+          'zod': ['zod']
         }
       }
     }
