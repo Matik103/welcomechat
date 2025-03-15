@@ -62,11 +62,12 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
         .from("client_activities")
         .insert({
           client_id: tokenData.clientId,
-          activity_type: "invitation_accepted",
+          activity_type: "client_updated",
           description: "Client invitation accepted",
           metadata: {
             token: token,
-            accepted_at: new Date().toISOString()
+            accepted_at: new Date().toISOString(),
+            action_type: "invitation_accepted"
           }
         });
 
