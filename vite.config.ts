@@ -21,15 +21,17 @@ export default defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    include: ['zod', '@hookform/resolvers/zod']
+    include: ['zod', '@hookform/resolvers/zod'],
+    exclude: ['@vercel/analytics']
   },
   build: {
     outDir: "dist",
-    sourcemap: true,
+    sourcemap: mode === 'development',
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
+        drop_console: mode === 'production',
+        drop_debugger: true
       },
     },
     rollupOptions: {
@@ -47,7 +49,10 @@ export default defineConfig(({ mode }) => ({
           ],
           forms: ['react-hook-form', 'zod', '@hookform/resolvers/zod'],
           state: ['@tanstack/react-query', 'zustand']
-        }
+        },
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js'
       }
     }
   }
