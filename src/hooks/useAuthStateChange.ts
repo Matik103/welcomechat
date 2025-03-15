@@ -49,25 +49,36 @@ export const useAuthStateChange = ({
             setSession(currentSession);
             setUser(currentSession.user);
             
-            // Get user role - this will always return 'admin' for Google SSO users
-            const role = await determineUserRole(currentSession.user);
-            setUserRole(role);
-            console.log("User role set:", role);
-            
-            // Reset loading before redirect
-            setIsLoading(false);
-            
-            // Google SSO users always go to admin dashboard, other users follow their role
+            // Google SSO users always go to admin dashboard
             const provider = currentSession.user.app_metadata?.provider;
             const isGoogleSSO = provider === 'google';
             
             if (isGoogleSSO) {
+              // Google SSO users are always admins
+              setUserRole('admin');
               console.log("Google SSO user, redirecting to admin dashboard");
-              navigate('/', { replace: true });
-            } else if (role === 'client') {
-              navigate('/client/dashboard', { replace: true });
+              
+              // Reset loading before redirect
+              setIsLoading(false);
+              
+              // Use a timeout to ensure state updates before navigation
+              setTimeout(() => {
+                navigate('/', { replace: true });
+              }, 100);
             } else {
-              navigate('/', { replace: true });
+              // Get user role for non-Google users
+              const role = await determineUserRole(currentSession.user);
+              setUserRole(role);
+              console.log("User role set:", role);
+              
+              // Reset loading before redirect
+              setIsLoading(false);
+              
+              if (role === 'client') {
+                navigate('/client/dashboard', { replace: true });
+              } else {
+                navigate('/', { replace: true });
+              }
             }
           } else if (event === 'SIGNED_OUT') {
             console.log("User signed out");

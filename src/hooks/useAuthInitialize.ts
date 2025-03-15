@@ -75,9 +75,13 @@ export const useAuthInitialize = ({
             setUserRole('admin');
             setIsLoading(false);
             
-            if (!isCallbackUrl) {
-              navigate('/', { replace: true });
-            }
+            // Use a small timeout to ensure state updates before navigation
+            setTimeout(() => {
+              // Don't redirect if we're on the callback page, that's handled separately
+              if (!isCallbackUrl) {
+                navigate('/', { replace: true });
+              }
+            }, 100);
           } else {
             // Regular users get role based on email in clients table
             const role = await determineUserRole(currentSession.user);
@@ -87,21 +91,24 @@ export const useAuthInitialize = ({
             // Reset loading state
             setIsLoading(false);
             
-            const isAuthPage = location.pathname === '/auth';
-            
-            if (!isCallbackUrl && !isAuthPage) {
-              if (role === 'client') {
-                navigate('/client/dashboard', { replace: true });
-              } else {
-                navigate('/', { replace: true });
+            // Use a small timeout to ensure state updates before navigation
+            setTimeout(() => {
+              const isAuthPage = location.pathname === '/auth';
+              
+              if (!isCallbackUrl && !isAuthPage) {
+                if (role === 'client') {
+                  navigate('/client/dashboard', { replace: true });
+                } else {
+                  navigate('/', { replace: true });
+                }
+              } else if (isAuthPage) {
+                if (role === 'client') {
+                  navigate('/client/dashboard', { replace: true });
+                } else {
+                  navigate('/', { replace: true });
+                }
               }
-            } else if (isAuthPage) {
-              if (role === 'client') {
-                navigate('/client/dashboard', { replace: true });
-              } else {
-                navigate('/', { replace: true });
-              }
-            }
+            }, 100);
           }
         } else {
           console.log("No active session found during init");

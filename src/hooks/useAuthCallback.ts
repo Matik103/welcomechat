@@ -66,9 +66,20 @@ export const useAuthCallback = ({
             
             // For Google SSO users, always set admin role
             setUserRole('admin');
+            
+            // Important: make sure we clear loading state before redirect
             setIsLoading(false);
             console.log("Google SSO user authenticated, redirecting to admin dashboard");
-            navigate('/', { replace: true });
+            
+            // Clear the auth attempt flag after successful login
+            setTimeout(() => {
+              sessionStorage.removeItem('auth_callback_attempted');
+            }, 1000);
+            
+            // Use navigate with a delay to ensure state is updated
+            setTimeout(() => {
+              navigate('/', { replace: true });
+            }, 100);
           } else {
             // Non-Google login, use role-based redirect
             setSession(callbackSession);
@@ -79,6 +90,11 @@ export const useAuthCallback = ({
             setUserRole(role);
             setIsLoading(false);
             
+            // Clear the auth attempt flag after successful login
+            setTimeout(() => {
+              sessionStorage.removeItem('auth_callback_attempted');
+            }, 1000);
+            
             // Redirect based on role
             if (role === 'client') {
               navigate('/client/dashboard', { replace: true });
@@ -86,12 +102,6 @@ export const useAuthCallback = ({
               navigate('/', { replace: true });
             }
           }
-          
-          // Clear the auth attempt flag after successful login
-          setTimeout(() => {
-            sessionStorage.removeItem('auth_callback_attempted');
-          }, 5000);
-          
         } catch (error) {
           console.error("Error handling auth callback:", error);
           toast.error("Authentication failed. Please try again.");
