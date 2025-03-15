@@ -1,5 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
+import { toast } from "sonner";
 
 /**
  * Fetches a single client by ID
@@ -114,16 +116,80 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
 };
 
 /**
+ * Sends invitation email to a client
+ */
+export const sendClientInvitation = async (clientId: string, email: string, clientName: string): Promise<boolean> => {
+  try {
+    console.log("Sending invitation for client:", clientId, email, clientName);
+    
+    // Get the auth token to include in the request
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.access_token) {
+      throw new Error("No access token available. Please log in to send invitations.");
+    }
+    
+    // Determine the invitation URL (add client setup route)
+    const baseUrl = window.location.origin;
+    const setupUrl = `${baseUrl}/client-setup?id=${clientId}`;
+    
+    const { data, error } = await supabase.functions.invoke("send-invitation", {
+      body: {
+        email,
+        role_type: "client",
+        url: setupUrl,
+        clientName,
+        clientId
+      },
+      headers: {
+        Authorization: `Bearer ${sessionData.session.access_token}`
+      }
+    });
+    
+    if (error) {
+      console.error("Error sending invitation (function invoke error):", error);
+      throw new Error(`Failed to call invitation function: ${error.message}`);
+    }
+    
+    if (data?.error) {
+      console.error("Function returned error:", data.error);
+      throw new Error(`Invitation function error: ${data.error}`);
+    }
+    
+    console.log("Invitation response:", data);
+    return true;
+  } catch (error) {
+    console.error("Invitation method failed:", error);
+    throw error;
+  }
+};
+
+/**
  * Creates a client user account with temporary password
  */
 export const createClientUserAccount = async (clientId: string, email: string, clientName: string, aiAgentName: string): Promise<boolean> => {
   try {
     console.log("Creating client user account:", { clientId, email, clientName, aiAgentName });
     
-    // We're removing the actual email sending functionality as requested
-    // but keeping the function signature to prevent breaking other parts of the code
+    const { data, error } = await supabase.functions.invoke("create-client-user", {
+      body: {
+        clientId,
+        email,
+        clientName,
+        aiAgentName
+      }
+    });
     
-    console.log("Client user creation functionality has been removed as requested");
+    if (error) {
+      console.error("Error creating client user account:", error);
+      throw new Error(`Failed to create client user: ${error.message}`);
+    }
+    
+    if (data?.error) {
+      console.error("Function returned error:", data.error);
+      throw new Error(`Client user creation error: ${data.error}`);
+    }
+    
+    console.log("Client user creation response:", data);
     return true;
   } catch (error) {
     console.error("Client user creation failed:", error);
