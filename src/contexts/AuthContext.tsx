@@ -1,12 +1,9 @@
 
 import { createContext, useContext, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   createUserRole,
-  handleGoogleUser,
-  handlePostAuthNavigation,
   forceRedirectToDashboard
 } from "@/utils/authUtils";
 import { useAuthState } from "@/hooks/useAuthState";
@@ -45,8 +42,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log("Session found during init:", currentSession.user.email);
           setSession(currentSession);
           setUser(currentSession.user);
-          
-          // Always set role to admin and redirect to admin dashboard
           setUserRole('admin');
           
           // Create admin role in database if needed
@@ -58,11 +53,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           // Choose redirect method based on current route
           if (isCallbackUrl) {
-            console.log("On callback URL, redirecting to admin dashboard");
             forceRedirectToDashboard();
           } else {
-            // For non-callback routes, use React Router navigation
-            handlePostAuthNavigation(navigate);
+            navigate('/', { replace: true });
           }
         } else {
           console.log("No active session found during init");
@@ -71,9 +64,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(null);
             setUserRole(null);
             
-            const isAuthRelatedPage = 
-              location.pathname.startsWith('/auth') || 
-              location.pathname.startsWith('/client/setup');
+            const isAuthRelatedPage = location.pathname.startsWith('/auth');
               
             if (!isAuthRelatedPage) {
               navigate('/auth', { replace: true });
@@ -115,10 +106,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log("User signed in:", currentSession?.user.email);
             setSession(currentSession);
             setUser(currentSession!.user);
-            
-            setIsLoading(true);
-            
-            // Always set to admin role regardless of provider
             setUserRole('admin');
             
             // Create admin role in database
@@ -130,18 +117,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             // For callback routes, use direct redirection
             if (isCallbackUrl) {
-              console.log("On callback URL, redirecting to admin dashboard");
               forceRedirectToDashboard();
+            } else {
+              navigate('/', { replace: true });
             }
-            
-            setIsLoading(false);
           } else if (event === 'SIGNED_OUT') {
             console.log("User signed out");
             if (mounted) {
               setSession(null);
               setUser(null);
               setUserRole(null);
-              setIsLoading(false);
               
               if (!location.pathname.startsWith('/auth')) {
                 navigate('/auth', { replace: true });
@@ -157,7 +142,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(null);
             setUser(null);
             setUserRole(null);
-            setIsLoading(false);
             
             // Redirect to auth page on error
             navigate('/auth', { replace: true });
