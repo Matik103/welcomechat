@@ -109,34 +109,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Clear any existing session first
         await supabase.auth.signOut();
+        setSession(null);
+        setUser(null);
+        setUserRole(null);
         
-        // Only check for session if we're not on the auth pages
+        // Only proceed with auth check if not on auth pages
         if (!location.pathname.startsWith('/auth') && 
             !location.pathname.startsWith('/client/setup')) {
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
-          
-          if (!mounted) return;
-
-          if (currentSession?.user) {
-            console.log("Found existing session:", currentSession.user.email);
-            const role = await checkUserRole(currentSession.user.id);
-            
-            setSession(currentSession);
-            setUser(currentSession.user);
-            setUserRole(role);
-
-            // Only redirect if we're not already on the correct page
-            if (role === 'client' && !location.pathname.startsWith('/client')) {
-              handleClientRedirect();
-            } else if (role === 'admin' && location.pathname.startsWith('/client')) {
-              handleAdminRedirect();
-            }
-          }
-        } else {
-          // Clear session state on auth pages
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
+          navigate('/auth', { replace: true });
         }
       } catch (error) {
         console.error("Error in initializeAuth:", error);
@@ -155,24 +135,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("Auth state changed:", event);
       console.log("Current session:", currentSession?.user?.email);
 
-      if (currentSession?.user) {
+      if (currentSession?.user && event === 'SIGNED_IN') {
         const role = await checkUserRole(currentSession.user.id);
         
         setSession(currentSession);
         setUser(currentSession.user);
         setUserRole(role);
 
-        if (event === 'SIGNED_IN') {
-          if (role === 'client') {
-            handleClientRedirect();
-          } else {
-            handleAdminRedirect();
-          }
+        if (role === 'client') {
+          handleClientRedirect();
+        } else {
+          handleAdminRedirect();
         }
       } else {
         setSession(null);
         setUser(null);
         setUserRole(null);
+        
+        if (!location.pathname.startsWith('/auth')) {
+          navigate('/auth', { replace: true });
+        }
       }
     });
 
@@ -188,7 +170,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       setUser(null);
       setUserRole(null);
-      navigate('/auth');
+      navigate('/auth', { replace: true });
     } catch (error) {
       console.error('Error signing out:', error);
       toast.error('Error signing out');
