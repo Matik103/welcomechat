@@ -55,6 +55,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Check if user email exists in clients table
+  const checkIfClientExists = async (email: string) => {
+    try {
+      console.log("Checking if email exists in clients table:", email);
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error checking client email:", error);
+        return false;
+      }
+
+      return data ? true : false;
+    } catch (error) {
+      console.error("Error in checkIfClientExists:", error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     // Process hash parameters from OAuth redirect
     const handleHashParameters = async () => {
@@ -74,6 +96,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           if (sessionData?.session) {
             console.log("Session retrieved from URL, user:", sessionData.session.user.email);
+            
+            // Check if the user email exists in the clients table
+            const isClient = sessionData.session.user.email ? 
+              await checkIfClientExists(sessionData.session.user.email) : false;
+            
+            // If not a client, assign admin role and redirect to admin dashboard
+            if (!isClient) {
+              console.log("Email not found in clients table, treating as admin");
+              // Check if user role is already set, if not set it to admin
+              const role = await checkUserRole(sessionData.session.user.id);
+              if (!role) {
+                // Add admin role for this user
+                await supabase.from('user_roles').insert({
+                  user_id: sessionData.session.user.id,
+                  role: 'admin'
+                });
+                setUserRole('admin');
+              } else {
+                setUserRole(role);
+              }
+              
+              setSession(sessionData.session);
+              setUser(sessionData.session.user);
+              
+              // Clear the hash to prevent processing it again
+              window.history.replaceState(null, "", window.location.pathname);
+              
+              navigate('/', { replace: true });
+              return;
+            }
+            
+            // Normal flow for clients
             const role = await checkUserRole(sessionData.session.user.id);
             setSession(sessionData.session);
             setUser(sessionData.session.user);
@@ -175,6 +229,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           if (event === 'SIGNED_IN') {
             setIsLoading(true);
+            
+            // Check if the user email exists in the clients table
+            const isClient = currentSession?.user.email ? 
+              await checkIfClientExists(currentSession.user.email) : false;
+            
+            // If not a client, assign admin role and redirect to admin dashboard
+            if (!isClient) {
+              console.log("Email not found in clients table, treating as admin");
+              // Check if user role is already set, if not set it to admin
+              const role = await checkUserRole(currentSession!.user.id);
+              if (!role) {
+                // Add admin role for this user
+                await supabase.from('user_roles').insert({
+                  user_id: currentSession!.user.id,
+                  role: 'admin'
+                });
+                setUserRole('admin');
+              } else {
+                setUserRole(role);
+              }
+              
+              setSession(currentSession);
+              setUser(currentSession!.user);
+              
+              navigate('/', { replace: true });
+              return;
+            }
+            
+            // Normal flow for known clients
             const role = await checkUserRole(currentSession!.user.id);
             setSession(currentSession);
             setUser(currentSession!.user);
@@ -183,6 +266,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (role === 'client') {
               navigate('/client/dashboard', { replace: true });
             } else if (role === 'admin') {
+              navigate('/', { replace: true });
+            } else {
+              // Default to admin view if no specific role found
               navigate('/', { replace: true });
             }
           } else if (event === 'SIGNED_OUT') {

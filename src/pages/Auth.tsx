@@ -52,13 +52,20 @@ const Auth = () => {
     // to prevent users from being stuck at the loading screen if something goes wrong
     const timeoutId = setTimeout(() => {
       if (isProcessingOAuth) {
-        console.log("OAuth processing timeout reached");
+        console.log("OAuth processing timeout reached, resetting state");
         setIsProcessingOAuth(false);
+        
+        // Check if we're still on the auth page with hash params that might indicate a failure
+        if (location.pathname.includes('/auth') && window.location.hash) {
+          toast.error("Authentication process took too long. Please try again.");
+          // Clear the hash to allow retrying
+          window.history.replaceState(null, "", window.location.pathname);
+        }
       }
     }, 10000); // 10 seconds timeout
     
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [isProcessingOAuth, location.pathname]);
 
   // If we're processing OAuth or checking auth, show loading spinner
   if (isLoading || isProcessingOAuth) {
