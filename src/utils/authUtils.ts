@@ -43,3 +43,12 @@ export const createUserRole = async (
     return false;
   }
 };
+
+/**
+ * Check if email exists in clients table - always returns false since we're
+ * simplifying the auth flow to make all users admins
+ */
+export const isClientInDatabase = async (email: string): Promise<boolean> => {
+  // Simplified implementation - we're not checking the clients table anymore
+  return false;
+};
