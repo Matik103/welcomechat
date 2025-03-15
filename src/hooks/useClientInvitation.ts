@@ -11,17 +11,13 @@ export const useClientInvitation = () => {
       setIsSending(true);
       toast.info("Sending invitation email...");
       
-      console.log("Sending invitation for client:", { clientId, email, clientName });
-      
-      const result = await sendClientInvitation(clientId, email, clientName);
-      console.log("Invitation result:", result);
-      
+      await sendClientInvitation(clientId, email, clientName);
       toast.success("Invitation email sent to client");
       return true;
-    } catch (error: any) {
-      console.error("Invitation failed:", error);
+    } catch (error) {
+      console.error("Invitation method failed:", error);
       toast.error(`Error: ${error.message || "Failed to send invitation email"}`);
-      return false;
+      throw error;
     } finally {
       setIsSending(false);
     }

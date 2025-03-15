@@ -57,23 +57,16 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
 
       if (signUpError) throw signUpError;
 
-      // Since accepted_at field is not in the schema, we can log the acceptance in client_activities instead
-      const { error: activityError } = await supabase
-        .from("client_activities")
-        .insert({
-          client_id: tokenData.clientId,
-          activity_type: "client_updated",
-          description: "Client invitation accepted",
-          metadata: {
-            token: token,
-            accepted_at: new Date().toISOString(),
-            action_type: "invitation_accepted"
-          }
-        });
+      // Update invitation status
+      const { error: updateError } = await supabase
+        .from("client_invitations")
+        .update({ 
+          status: "accepted", 
+          accepted_at: new Date().toISOString() 
+        })
+        .eq("token", token);
 
-      if (activityError) {
-        console.error("Failed to log invitation acceptance:", activityError);
-      }
+      if (updateError) throw updateError;
 
       // Create user role for the client
       const { error: roleError } = await supabase
@@ -87,7 +80,7 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
       if (roleError) throw roleError;
 
       // Log the setup completion - using a valid activity_type
-      const { error: activityError2 } = await supabase
+      const { error: activityError } = await supabase
         .from("client_activities")
         .insert({
           client_id: tokenData.clientId,
@@ -98,8 +91,8 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
           }
         });
 
-      if (activityError2) {
-        console.error("Failed to log activity:", activityError2);
+      if (activityError) {
+        console.error("Failed to log activity:", activityError);
         // Don't throw, as the setup was successful
       }
 

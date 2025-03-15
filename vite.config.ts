@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -9,7 +8,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    strictPort: true,
   },
   plugins: [
     react(),
@@ -22,24 +20,16 @@ export default defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    include: ['zod', '@hookform/resolvers/zod'],
-    exclude: ['@vercel/analytics']
+    include: ['zod', '@hookform/resolvers/zod']
   },
   build: {
     outDir: "dist",
-    sourcemap: mode === 'development',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: mode === 'production',
-        drop_debugger: true
-      },
-    },
+    sourcemap: true,
     rollupOptions: {
       external: [],
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js', '@vercel/analytics'],
+          vendor: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
           ui: [
             '@radix-ui/react-avatar',
             '@radix-ui/react-label',
@@ -49,11 +39,8 @@ export default defineConfig(({ mode }) => ({
             'tailwind-merge'
           ],
           forms: ['react-hook-form', 'zod', '@hookform/resolvers/zod'],
-          state: ['@tanstack/react-query', 'zustand']
-        },
-        assetFileNames: 'assets/[name]-[hash][extname]',
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js'
+          state: ['@tanstack/react-query']
+        }
       }
     }
   }

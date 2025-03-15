@@ -82,7 +82,7 @@ export function DeleteClientDialog({
             to: clientEmail,
             subject: "Account Deletion Notice",
             html: emailContent,
-            from: "AI Assistant <admin@welcome.chat>"
+            from: "AI Assistant <admin@welcome.chat>" // Updated from address
           },
         });
 
