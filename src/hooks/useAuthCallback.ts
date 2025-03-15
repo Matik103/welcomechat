@@ -2,7 +2,6 @@
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 import { determineUserRole, isGoogleSSOUser } from "@/utils/authUtils";
@@ -48,15 +47,12 @@ export const useAuthCallback = ({
           // Check if this is a Google SSO authentication
           const isGoogleAuth = isGoogleSSOUser(callbackSession.user);
           console.log("Is Google Auth?", isGoogleAuth);
-          console.log("Auth provider:", callbackSession.user?.app_metadata?.provider);
           
           if (isGoogleAuth) {
-            console.log("Google SSO login detected in callback, assigning admin role");
             // Google SSO users are always assigned admin role
             setUserRole('admin');
-            
-            // ALWAYS navigate to admin dashboard for Google SSO users
-            console.log("Navigating to admin dashboard from callback");
+            console.log("Google SSO login detected - navigating to admin dashboard");
+            // Always navigate to admin dashboard for Google SSO
             navigate('/', { replace: true });
           } else {
             // For email/password users, determine role from database
@@ -65,7 +61,6 @@ export const useAuthCallback = ({
             
             // Navigate based on user role
             const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-            console.log("Navigating to:", targetPath);
             navigate(targetPath, { replace: true });
           }
           

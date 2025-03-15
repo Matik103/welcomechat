@@ -47,31 +47,20 @@ export const useAuthStateChange = ({
           // Check if Google SSO authentication
           const isGoogleAuth = isGoogleSSOUser(currentSession.user);
           console.log("Is Google Auth?", isGoogleAuth);
-          console.log("Auth provider:", currentSession.user?.app_metadata?.provider);
           
           if (isGoogleAuth) {
             // Google SSO users are always assigned admin role
-            console.log("Google SSO login detected in state change, assigning admin role");
+            console.log("Google SSO login detected - assigning admin role");
             setUserRole('admin');
             
-            // Check if user is on a client route
-            const isClientRoute = location.pathname.startsWith('/client');
+            // Check if user is on auth page
             const isAuthPage = location.pathname === '/auth';
+            const isClientRoute = location.pathname.startsWith('/client');
             
-            if (isClientRoute) {
-              // Force redirect any Google SSO users away from client routes to admin dashboard
-              console.log("Google SSO user on client route - redirecting to admin dashboard");
+            if (isClientRoute || isAuthPage) {
+              // For both client routes and auth page, redirect to admin dashboard
+              console.log("Redirecting Google SSO user to admin dashboard");
               navigate('/', { replace: true });
-              
-              setTimeout(() => {
-                setIsLoading(false);
-              }, 300);
-            } else if (isAuthPage) {
-              console.log("Redirecting Google user to admin dashboard from state change");
-              // Always direct Google SSO users to admin dashboard
-              navigate('/', { replace: true });
-              
-              // Maintain loading state for longer to ensure no flash of login screen
               setTimeout(() => {
                 setIsLoading(false);
               }, 300);
@@ -83,17 +72,12 @@ export const useAuthStateChange = ({
             const userRole = await determineUserRole(currentSession.user);
             setUserRole(userRole);
             
-            // Only redirect if we're on the auth page to prevent refresh loops
+            // Only redirect if we're on the auth page
             const isAuthPage = location.pathname === '/auth';
             if (isAuthPage) {
               // Determine where to navigate based on role
               const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-              console.log("Redirecting to:", targetPath);
-              
-              // Start navigation before changing loading state
               navigate(targetPath, { replace: true });
-              
-              // Maintain loading state for longer to ensure no flash of login screen
               setTimeout(() => {
                 setIsLoading(false);
               }, 300);
