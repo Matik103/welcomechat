@@ -44,15 +44,13 @@ export const useAuthCallback = ({
           setSession(callbackSession);
           setUser(callbackSession.user);
           
-          // For Google SSO users, determine role from database
-          const userRole = await determineUserRole(callbackSession.user);
-          setUserRole(userRole);
+          // For Google SSO, always set as admin (no role determination)
+          setUserRole('admin');
           
-          console.log("Role determined in callback:", userRole);
+          console.log("SSO user set as admin, redirecting to admin dashboard");
           
-          // Navigate based on user role
-          const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-          navigate(targetPath, { replace: true });
+          // Navigate to admin dashboard
+          navigate('/', { replace: true });
           
           // Set isLoading to false after the navigation has had time to complete
           setTimeout(() => {
