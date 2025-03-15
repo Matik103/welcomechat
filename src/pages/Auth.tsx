@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -43,7 +42,9 @@ const Auth = () => {
   }, []);
 
   useEffect(() => {
+    console.log("Auth page state:", { session, userRole, isLoading });
     if (session && userRole && !isLoading) {
+      console.log("Redirecting from Auth page to proper dashboard");
       if (userRole === 'client') {
         navigate('/client/dashboard', { replace: true });
       } else if (userRole === 'admin') {
@@ -63,6 +64,7 @@ const Auth = () => {
 
   // If we have session and role, redirect
   if (session && userRole) {
+    console.log("Auth page - immediate redirect due to existing session");
     if (userRole === 'client') {
       return <Navigate to="/client/dashboard" replace />;
     } else {
@@ -169,6 +171,8 @@ const Auth = () => {
       setIsGoogleLoading(true);
       setErrorMessage("");
       
+      console.log("Starting Google Sign In with redirect to:", `${window.location.origin}/auth/callback`);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -184,6 +188,7 @@ const Auth = () => {
         throw error;
       }
     } catch (error: any) {
+      console.error("Google sign in error:", error);
       setErrorMessage(error.message || "Failed to sign in with Google");
       toast.error(error.message || "Failed to sign in with Google");
     } finally {
@@ -353,13 +358,7 @@ const Auth = () => {
               disabled={isAuthLoading || isCheckingEmail}
               aria-label={isSignUp ? "Sign Up" : "Sign In"}
             >
-              {isAuthLoading || isCheckingEmail ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : isSignUp ? (
-                "Sign Up"
-              ) : (
-                "Sign In"
-              )}
+              {isAuthLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {isAuthLoading ? "Processing..." : isSignUp ? "Sign Up" : "Sign In"}
             </Button>
 
