@@ -21,11 +21,11 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
   
-  // Set a timeout to ensure we don't get stuck in a loading state - reduced from 5000 to 1000
+  // Set a very short timeout to ensure we don't get stuck in a loading state
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
-    }, 1000);
+    }, 500); // Reduced from 1000ms to 500ms
     
     return () => clearTimeout(timeout);
   }, []);
@@ -65,25 +65,17 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     }
   }, [authError, signOut]);
 
+  // Very minimal loading state - only show if we don't have a user yet
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
-  // Show fallback UI if we've been loading for too long
-  if ((isLoadingStats || isLoadingErrorLogs || isLoadingQueries) && !loadTimeout) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-2" />
-          <p className="text-sm text-gray-500">Loading dashboard data...</p>
-        </div>
-      </div>
-    );
-  }
+  // Show loading spinner, but with a very short timeout to prevent stuck UIs
+  const isInitialLoading = (isLoadingStats || isLoadingErrorLogs || isLoadingQueries) && !loadTimeout;
 
   return (
     <div className="bg-[#F8F9FA] min-h-screen">
@@ -111,11 +103,11 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           </Button>
         </div>
         
-        {/* Stats section - with increased top spacing */}
+        {/* Stats section */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <InteractionStats 
             stats={stats} 
-            isLoading={isLoadingStats && !loadTimeout} 
+            isLoading={isInitialLoading || isRefreshing} 
           />
         </div>
 
@@ -124,13 +116,13 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           {/* Error logs card */}
           <ErrorLogList 
             logs={errorLogs as ErrorLog[]} 
-            isLoading={isLoadingErrorLogs && !loadTimeout || isRefreshing} 
+            isLoading={isInitialLoading || isRefreshing} 
           />
 
           {/* Common queries card */}
           <QueryList 
             queries={queries as QueryItem[]} 
-            isLoading={isLoadingQueries && !loadTimeout || isRefreshing} 
+            isLoading={isInitialLoading || isRefreshing} 
           />
         </div>
       </div>
