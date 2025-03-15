@@ -74,6 +74,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       setUser(null);
       setUserRole(null);
+      
+      // Use navigate instead of window.location for better UX
       window.location.href = '/auth';
     } catch (error) {
       console.error('Sign out error:', error);
@@ -92,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       session, 
       user, 
       signOut, 
-      isLoading,
+      isLoading: isCallbackUrl ? true : isLoading, // Only force loading if on callback URL
       userRole 
     }}>
       {children}

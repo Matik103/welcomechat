@@ -42,10 +42,10 @@ export const useAuthSafetyTimeout = ({
         // If we've been stuck loading and not on auth page, redirect to auth
         if (!isAuthPage && !session) {
           console.log("Redirecting to auth page due to timeout");
-          window.location.href = '/auth';
+          navigate('/auth', { replace: true });
         }
       }
-    }, 6000); // 6-second safety timeout
+    }, 3000); // Reduced to 3-second safety timeout
     
     return () => clearTimeout(safetyTimeout);
   }, [isLoading, navigate, isAuthPage, session, setIsLoading]);

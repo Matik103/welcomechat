@@ -31,6 +31,7 @@ export const useAuthCallback = ({
       const handleCallback = async () => {
         try {
           console.log("Auth callback processing started");
+          sessionStorage.setItem('auth_callback_attempted', 'true');
           
           // Get the session from the URL
           const { data: { session: callbackSession }, error: sessionError } = 
@@ -73,11 +74,11 @@ export const useAuthCallback = ({
               setSession(null);
               setUser(null);
               setUserRole(null);
+              setIsLoading(false);
               
               // Show error message
               toast.error("This email is registered as a client. Please sign in with your email and password instead.");
               navigate('/auth', { replace: true });
-              setIsLoading(false);
               return;
             }
             
@@ -89,7 +90,7 @@ export const useAuthCallback = ({
             
             // Redirect to admin dashboard
             console.log("Redirecting Google SSO user to admin dashboard");
-            window.location.href = '/';
+            navigate('/', { replace: true });
             return;
           } else {
             // For non-Google users, determine role based on email
@@ -103,7 +104,7 @@ export const useAuthCallback = ({
             
             // Redirect based on role
             console.log(`Redirecting user to ${role} dashboard`);
-            window.location.href = role === 'admin' ? '/' : '/client/dashboard';
+            navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
             return;
           }
         } catch (error) {

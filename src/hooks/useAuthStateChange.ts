@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 import { isClientInDatabase } from "@/utils/authUtils";
+import { toast } from "sonner";
 
 type AuthStateChangeProps = {
   setSession: (session: Session | null) => void;
@@ -37,7 +38,6 @@ export const useAuthStateChange = ({
             if (!currentSession) {
               console.error("No session found in SIGNED_IN event");
               setIsLoading(false);
-              window.location.href = '/auth';
               return;
             }
             
@@ -59,6 +59,10 @@ export const useAuthStateChange = ({
                 setSession(null);
                 setUser(null);
                 setUserRole(null);
+                setIsLoading(false);
+                
+                // Show error message
+                toast.error("This email is registered as a client. Please sign in with your email and password instead.");
                 
                 // Redirect to auth page
                 window.location.href = '/auth';
@@ -93,8 +97,6 @@ export const useAuthStateChange = ({
               setUser(null);
               setUserRole(null);
               setIsLoading(false);
-              
-              window.location.href = '/auth';
             }
           } else {
             // Handle other events
@@ -107,9 +109,6 @@ export const useAuthStateChange = ({
             setUser(null);
             setUserRole(null);
             setIsLoading(false);
-            
-            // Redirect to auth page on error
-            window.location.href = '/auth';
           }
         }
       }
