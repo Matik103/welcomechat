@@ -57,10 +57,8 @@ export const PasswordForm = ({ tokenData, token }: PasswordFormProps) => {
 
       if (signUpError) throw signUpError;
 
-      // Update invitation record
-      // Instead of trying to update with metadata or accepted_at fields that don't exist,
-      // we'll just mark this invitation as used by updating a field that does exist
-      // For example, we could update the expires_at field to now (making it expired)
+      // Update invitation record by marking it as used
+      // We'll update the expires_at field to now (making it expired)
       const { error: updateError } = await supabase
         .from("client_invitations")
         .update({ 

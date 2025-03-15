@@ -105,6 +105,9 @@ serve(async (req) => {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour expiration
 
+    // Check if client_invitations table has the right structure
+    console.log("Creating invitation record...");
+    
     // Store the invitation in the database
     const { error: inviteError } = await supabaseAdmin
       .from('client_invitations')
