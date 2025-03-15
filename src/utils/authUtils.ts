@@ -90,16 +90,9 @@ export const isClientDomain = (email: string): boolean => {
   // For example, if all emails from domain clientcompany.com should be clients:
   // return email.toLowerCase().endsWith('@clientcompany.com');
   
-  console.log(`Checking if ${email} is a client domain`);
-  
   // For now, let's make a simple demo rule
   // Update this with your actual business logic to determine client vs admin roles
-  const isClient = email.toLowerCase().includes('client') || 
-                  email.toLowerCase().includes('user') || 
-                  !email.toLowerCase().includes('admin');
-  
-  console.log(`Email ${email} is determined to be a ${isClient ? 'client' : 'admin'}`);
-  return isClient;
+  return email.toLowerCase().includes('client') || email.toLowerCase().includes('user');
 }
 
 /**
@@ -130,10 +123,10 @@ export const handleAuthenticatedUser = async (currentUser: User): Promise<UserRo
   try {
     const success = await createUserRole(currentUser.id, role);
     if (!success) {
-      console.error("Failed to create role in database, but continuing with assigned role:", role);
+      console.error("Failed to create role in database");
     }
   } catch (error) {
-    console.error("Failed to create role, but continuing with assigned role:", role, error);
+    console.error("Failed to create role, but continuing:", error);
   }
   
   return role;

@@ -9,7 +9,6 @@ import {
 } from "@/utils/authUtils";
 import { useAuthState } from "@/hooks/useAuthState";
 import { AuthContextType } from "@/types/auth";
-import { toast } from "sonner";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -28,7 +27,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     let mounted = true;
-    let authTimeout: number | undefined;
 
     const initializeAuth = async () => {
       if (authInitialized) return; // Prevent multiple initializations
@@ -36,16 +34,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         setIsLoading(true);
         console.log("Initializing auth state");
-        
-        // Set a timeout to prevent getting stuck in loading state
-        authTimeout = window.setTimeout(() => {
-          if (mounted && isLoading) {
-            console.log("Auth initialization timeout - forcing completion");
-            setIsLoading(false);
-            setAuthInitialized(true);
-            navigate('/auth', { replace: true });
-          }
-        }, 10000); // 10 seconds timeout
         
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
@@ -59,10 +47,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           try {
             // Determine role and redirect accordingly
             const role = await handleAuthenticatedUser(currentSession.user);
-            console.log("Role determined:", role);
-            
-            if (!mounted) return;
-            
             setUserRole(role);
             
             // Choose redirect method based on current route
@@ -77,7 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("Error handling authenticated user:", error);
             // If role determination fails, default to auth page
             if (mounted) {
-              toast.error("Failed to determine user role. Please try again.");
               setUserRole(null);
               navigate('/auth', { replace: true });
             }
@@ -98,7 +81,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         
         if (mounted) {
-          clearTimeout(authTimeout);
           setAuthInitialized(true);
           setIsLoading(false);
         }
@@ -126,11 +108,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       async (event, currentSession) => {
         if (!mounted) return;
         console.log("Auth state changed:", event);
-        
-        // Clear any existing timeout when auth state changes
-        if (authTimeout) {
-          clearTimeout(authTimeout);
-        }
 
         try {
           if (event === 'SIGNED_IN') {
@@ -141,10 +118,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             try {
               // Determine role and redirect accordingly
               const role = await handleAuthenticatedUser(currentSession!.user);
-              console.log("Role determined after sign-in:", role);
-              
-              if (!mounted) return;
-              
               setUserRole(role);
               
               // For callback routes, use direct redirection
@@ -161,7 +134,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               console.error("Error determining user role:", roleError);
               // Default redirect if role determination fails
               if (mounted) {
-                toast.error("Failed to determine user role. Please try again.");
                 navigate('/auth', { replace: true });
               }
             }
@@ -183,7 +155,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (error) {
           console.error("Error in auth state change handler:", error);
           if (mounted) {
-            toast.error("Authentication error. Please try again.");
             setSession(null);
             setUser(null);
             setUserRole(null);
@@ -202,12 +173,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       mounted = false;
-      if (authTimeout) {
-        clearTimeout(authTimeout);
-      }
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, authInitialized, setSession, setUser, setUserRole, setIsLoading, setAuthInitialized, isCallbackUrl, isLoading]);
+  }, [navigate, location.pathname, authInitialized, setSession, setUser, setUserRole, setIsLoading, setAuthInitialized, isCallbackUrl]);
 
   const signOut = async () => {
     try {
@@ -221,7 +189,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       navigate('/auth', { replace: true });
     } catch (error) {
       console.error('Sign out error:', error);
-      toast.error("Failed to sign out. Please try again.");
       setSession(null);
       setUser(null);
       setUserRole(null);
