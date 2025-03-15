@@ -1,4 +1,3 @@
-
 import { useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -21,8 +20,8 @@ const ClientSetup = () => {
   const query = new URLSearchParams(location.search);
   const clientId = query.get("id");
   
-  // Initialize client activity logging with fixed parameter
-  const { logClientActivity } = useClientActivity(clientId || "");
+  // Initialize client activity logging
+  const { logClientActivity } = useClientActivity(clientId);
 
   // Check if the user is already logged in
   useEffect(() => {
@@ -40,11 +39,6 @@ const ClientSetup = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!clientId) {
-      console.error("No client ID provided");
-      return;
-    }
     
     setIsLoading(true);
     

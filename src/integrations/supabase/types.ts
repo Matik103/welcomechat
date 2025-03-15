@@ -32,30 +32,41 @@ export type Database = {
       }
       ai_agents: {
         Row: {
-          client_id: string
+          agent_name: string | null
+          client_id: string | null
+          content: string | null
           created_at: string | null
-          id: string
-          name: string
-          settings: Json | null
-          updated_at: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
         }
         Insert: {
-          client_id: string
+          agent_name?: string | null
+          client_id?: string | null
+          content?: string | null
           created_at?: string | null
-          id?: string
-          name: string
-          settings?: Json | null
-          updated_at?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
         }
         Update: {
-          client_id?: string
+          agent_name?: string | null
+          client_id?: string | null
+          content?: string | null
           created_at?: string | null
-          id?: string
-          name?: string
-          settings?: Json | null
-          updated_at?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_agents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       airtable: {
         Row: {
@@ -162,27 +173,6 @@ export type Database = {
         }
         Relationships: []
       }
-      client_3: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
       client_activities: {
         Row: {
           activity_type: Database["public"]["Enums"]["activity_type_enum"]
@@ -220,30 +210,44 @@ export type Database = {
       }
       client_invitations: {
         Row: {
-          client_id: string
+          accepted_at: string | null
+          client_id: string | null
           created_at: string | null
           email: string
           expires_at: string
           id: string
+          status: string
           token: string
         }
         Insert: {
-          client_id: string
+          accepted_at?: string | null
+          client_id?: string | null
           created_at?: string | null
           email: string
           expires_at: string
           id?: string
+          status?: string
           token: string
         }
         Update: {
-          client_id?: string
+          accepted_at?: string | null
+          client_id?: string | null
           created_at?: string | null
           email?: string
           expires_at?: string
           id?: string
+          status?: string
           token?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "client_invitations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_recovery_tokens: {
         Row: {
@@ -288,7 +292,6 @@ export type Database = {
           id: string
           temp_password: string
           used: boolean | null
-          used_at: string | null
         }
         Insert: {
           client_id: string
@@ -297,7 +300,6 @@ export type Database = {
           id?: string
           temp_password: string
           used?: boolean | null
-          used_at?: string | null
         }
         Update: {
           client_id?: string
@@ -306,9 +308,16 @@ export type Database = {
           id?: string
           temp_password?: string
           used?: boolean | null
-          used_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "client_temp_passwords_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clients: {
         Row: {
@@ -1413,48 +1422,6 @@ export type Database = {
         }
         Relationships: []
       }
-      value10: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
-      value11: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
       value2: {
         Row: {
           content: string | null
@@ -2057,19 +2024,6 @@ export type Database = {
           similarity: number
         }[]
       }
-      match_client_3: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
       match_coca_cola: {
         Args: {
           query_embedding: string
@@ -2591,32 +2545,6 @@ export type Database = {
         }[]
       }
       match_value1: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
-      match_value10: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
-      match_value11: {
         Args: {
           query_embedding: string
           match_count?: number
