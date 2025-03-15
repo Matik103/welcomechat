@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,15 +15,22 @@ const ClientAuth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { session, isLoading } = useAuth();
+  const [loadTimeout, setLoadTimeout] = useState(false);
+
+  // Set a short timeout to prevent infinite loading state
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setLoadTimeout(true);
+    }, 1000);
+    
+    return () => clearTimeout(timeout);
+  }, []);
 
   // Show loading state while authentication is being checked
-  if (isLoading) {
+  if (isLoading && !loadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Checking authentication...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
@@ -38,20 +45,17 @@ const ClientAuth = () => {
     setLoading(true);
 
     try {
-      console.log("Attempting to sign in with email:", email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
-        console.error("Sign in error:", error);
         throw error;
       }
       
       toast.success("Successfully signed in!");
     } catch (error: any) {
-      console.error("Auth error:", error);
       toast.error(error.message || "Failed to sign in");
     } finally {
       setLoading(false);

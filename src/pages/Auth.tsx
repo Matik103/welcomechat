@@ -22,6 +22,7 @@ const Auth = () => {
   const { session, isLoading, userRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [loadTimeout, setLoadTimeout] = useState(false);
 
   const resetForm = () => {
     setEmail("");
@@ -30,20 +31,27 @@ const Auth = () => {
     setErrorMessage("");
   };
 
+  // Set a short timeout to prevent infinite loading state
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setLoadTimeout(true);
+    }, 1000);
+    
+    return () => clearTimeout(timeout);
+  }, []);
+
   useEffect(() => {
     if (session && userRole && !isLoading) {
-      console.log("Ready to redirect with role:", userRole);
       if (userRole === 'client') {
-        console.log("Redirecting to client dashboard");
         navigate('/client/dashboard', { replace: true });
       } else if (userRole === 'admin') {
-        console.log("Redirecting to admin dashboard");
         navigate('/', { replace: true });
       }
     }
   }, [session, userRole, isLoading, navigate]);
 
-  if (isLoading) {
+  // Only show loading for a short period to prevent UI getting stuck
+  if (isLoading && !loadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
@@ -51,14 +59,7 @@ const Auth = () => {
     );
   }
 
-  if (session && !userRole) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
+  // If we have session and role, redirect
   if (session && userRole) {
     if (userRole === 'client') {
       return <Navigate to="/client/dashboard" replace />;
@@ -70,20 +71,16 @@ const Auth = () => {
   const checkEmailExists = async (email: string) => {
     setIsCheckingEmail(true);
     try {
-      console.log("Checking if email exists:", email);
       const { data, error } = await supabase.functions.invoke("check-email-exists", {
         body: { email }
       });
       
       if (error) {
-        console.error("Error from check-email-exists:", error);
         throw error;
       }
       
-      console.log("Email check result:", data);
       return data.exists;
     } catch (error: any) {
-      console.error("Error checking email:", error);
       return false;
     } finally {
       setIsCheckingEmail(false);
@@ -99,31 +96,25 @@ const Auth = () => {
 
     try {
       if (isForgotPassword) {
-        console.log("Sending password reset email to:", email);
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth/reset-password`,
         });
         
         if (error) {
-          console.error("Password reset error:", error);
           throw error;
         }
         
         toast.success("Password reset email sent. Please check your inbox.");
         setIsForgotPassword(false);
       } else if (isSignUp) {
-        console.log("Starting sign up process for:", email);
-        
         const emailExists = await checkEmailExists(email);
         if (emailExists) {
-          console.log("Email already exists:", email);
           setErrorMessage("An account with this email already exists. Please sign in instead.");
           setIsSignUp(false);
           setIsAuthLoading(false);
           return;
         }
         
-        console.log("Creating new account with email:", email);
         const { error, data } = await supabase.auth.signUp({
           email,
           password,
@@ -136,32 +127,23 @@ const Auth = () => {
         });
         
         if (error) {
-          console.error("Sign up error:", error);
           throw error;
         }
         
-        console.log("Sign up successful, verification email should be sent");
         toast.success("Check your email for the confirmation link!");
-        
-        console.log("Auth sign up response:", data);
       } else {
-        console.log("Attempting to sign in with email:", email);
-        const { error, data } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         
         if (error) {
-          console.error("Sign in error:", error);
           throw error;
         }
         
-        console.log("Sign in successful:", data);
         toast.success("Successfully signed in!");
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
-      
       if (error.message?.includes("Invalid login credentials")) {
         setErrorMessage("Invalid email or password. Please try again.");
       } else if (error.message?.includes("already registered")) {

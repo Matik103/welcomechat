@@ -6,13 +6,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from './App.tsx';
 import './index.css';
 
-// Create a client with sensible defaults
+// Create a client with optimized defaults
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
       staleTime: 30000,
+      cacheTime: 60000, // 1 minute
     },
   },
 });
