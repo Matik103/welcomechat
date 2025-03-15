@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { UserRole } from "@/types/auth";
 
 /**
  * Checks if the authentication session is valid and refreshes if needed
@@ -78,7 +79,7 @@ export const checkIfClientExists = async (email: string): Promise<boolean> => {
  */
 export const createUserRole = async (
   userId: string, 
-  role: 'admin' | 'client', 
+  role: UserRole, 
   clientId?: string
 ): Promise<boolean> => {
   try {

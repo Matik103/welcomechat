@@ -1,86 +1,31 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { Session, User } from "@supabase/supabase-js";
+
+import { createContext, useContext, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
-import { checkIfClientExists, createUserRole } from "@/services/authService";
-
-type UserRole = 'admin' | 'client';
-
-type AuthContextType = {
-  session: Session | null;
-  user: User | null;
-  signOut: () => Promise<void>;
-  isLoading: boolean;
-  userRole: UserRole | null;
-};
+import { 
+  checkUserRole, 
+  checkIfClientExists, 
+  createUserRole, 
+  handleGoogleUser, 
+  handlePostAuthNavigation 
+} from "@/utils/authUtils";
+import { useAuthState } from "@/hooks/useAuthState";
+import { AuthContextType } from "@/types/auth";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [authInitialized, setAuthInitialized] = useState(false);
+  const { 
+    session, setSession,
+    user, setUser,
+    userRole, setUserRole,
+    isLoading, setIsLoading,
+    authInitialized, setAuthInitialized
+  } = useAuthState();
+  
   const navigate = useNavigate();
   const location = useLocation();
-
-  const checkUserRole = async (userId: string): Promise<UserRole | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role, client_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error checking user role:", error);
-        return null;
-      }
-
-      if (data?.client_id && data.role === 'client') {
-        await supabase.auth.updateUser({
-          data: { client_id: data.client_id }
-        });
-      }
-
-      return data?.role as UserRole || null;
-    } catch (error) {
-      console.error("Exception in checkUserRole:", error);
-      return null;
-    }
-  };
-
-  const handleGoogleUser = async (currentUser: User): Promise<UserRole> => {
-    console.log("Handling Google user:", currentUser.email);
-    const existingRole = await checkUserRole(currentUser.id);
-    
-    if (existingRole) {
-      console.log("Existing role found for Google user:", existingRole);
-      return existingRole;
-    }
-    
-    console.log("Assigning admin role to Google user");
-    await createUserRole(currentUser.id, 'admin');
-    return 'admin';
-  };
-
-  const handlePostAuthNavigation = (role: UserRole) => {
-    console.log("Handling post-auth navigation for role:", role);
-    
-    const isOnAuthPage = location.pathname === '/auth' || 
-                          location.pathname.startsWith('/auth/callback');
-    
-    if (isOnAuthPage) {
-      console.log("On auth page, redirecting based on role");
-      if (role === 'admin') {
-        navigate('/', { replace: true });
-      } else if (role === 'client') {
-        navigate('/client/dashboard', { replace: true });
-      }
-    }
-  };
 
   useEffect(() => {
     let mounted = true;
@@ -106,14 +51,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (isGoogleUser) {
             const role = await handleGoogleUser(currentSession.user);
             setUserRole(role);
-            handlePostAuthNavigation(role);
+            handlePostAuthNavigation(role, location.pathname, navigate);
             setIsLoading(false);
           } else {
             const existingRole = await checkUserRole(currentSession.user.id);
             
             if (existingRole) {
               setUserRole(existingRole);
-              handlePostAuthNavigation(existingRole);
+              handlePostAuthNavigation(existingRole, location.pathname, navigate);
               setIsLoading(false);
             } else if (currentSession.user.email) {
               const isClient = await checkIfClientExists(currentSession.user.email);
@@ -128,12 +73,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (clientData?.id) {
                   await createUserRole(currentSession.user.id, 'client', clientData.id);
                   setUserRole('client');
-                  handlePostAuthNavigation('client');
+                  handlePostAuthNavigation('client', location.pathname, navigate);
                 }
               } else {
                 await createUserRole(currentSession.user.id, 'admin');
                 setUserRole('admin');
-                handlePostAuthNavigation('admin');
+                handlePostAuthNavigation('admin', location.pathname, navigate);
               }
               
               setIsLoading(false);
@@ -189,7 +134,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               const role = await handleGoogleUser(currentSession!.user);
               setUserRole(role);
               
-              handlePostAuthNavigation(role);
+              handlePostAuthNavigation(role, location.pathname, navigate);
               
               setIsLoading(false);
             } else {
@@ -201,7 +146,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               if (existingRole) {
                 setUserRole(existingRole);
                 
-                handlePostAuthNavigation(existingRole);
+                handlePostAuthNavigation(existingRole, location.pathname, navigate);
               } else {
                 if (isClient) {
                   const { data: clientData } = await supabase
@@ -213,12 +158,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   if (clientData?.id) {
                     await createUserRole(currentSession!.user.id, 'client', clientData.id);
                     setUserRole('client');
-                    handlePostAuthNavigation('client');
+                    handlePostAuthNavigation('client', location.pathname, navigate);
                   }
                 } else {
                   await createUserRole(currentSession!.user.id, 'admin');
                   setUserRole('admin');
-                  handlePostAuthNavigation('admin');
+                  handlePostAuthNavigation('admin', location.pathname, navigate);
                 }
               }
               
@@ -252,7 +197,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, authInitialized]);
+  }, [navigate, location.pathname, authInitialized, setSession, setUser, setUserRole, setIsLoading, setAuthInitialized]);
 
   const signOut = async () => {
     try {

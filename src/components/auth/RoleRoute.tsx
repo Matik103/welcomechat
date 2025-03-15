@@ -2,10 +2,11 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { UserRole } from "@/types/auth";
 
 type RoleRouteProps = {
   children: React.ReactNode;
-  allowedRoles: ('admin' | 'client')[];
+  allowedRoles: UserRole[];
 };
 
 export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
