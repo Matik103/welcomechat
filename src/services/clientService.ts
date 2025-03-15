@@ -128,7 +128,7 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
     
     if (error) {
       console.error("Error sending invitation:", error);
-      throw error;
+      throw new Error(`Failed to send invitation: ${error.message}`);
     }
     
     if (data?.error) {

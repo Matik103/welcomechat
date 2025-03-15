@@ -112,13 +112,12 @@ serve(async (req) => {
         client_id: clientId,
         token: token,
         email: email,
-        expires_at: expiresAt.toISOString(),
-        status: 'pending'
+        expires_at: expiresAt.toISOString()
       });
 
     if (inviteError) {
       console.error("Error storing invitation:", inviteError);
-      throw new Error("Failed to create invitation record");
+      throw new Error(`Failed to create invitation record: ${inviteError.message}`);
     }
     console.log("Invitation record created successfully with token:", token);
 
@@ -131,10 +130,12 @@ serve(async (req) => {
     
     const resend = new Resend(resendApiKey);
     
-    // Sign in URL - use client dashboard directly
-    const signInUrl = `${origin}/client/dashboard`;
+    // Setup URL path - create a complete path that does the right thing
+    const setupUrl = `${origin}/client-setup?token=${token}`;
+    console.log("Setup URL for email:", setupUrl);
+    
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: "Welcome.Chat <admin@welcome.chat>",
+      from: "Welcome.Chat <admin@welcome.chat>", // Make sure this matches your verified domain in Resend
       to: email,
       subject: "Welcome to TestBot Assistant!",
       html: `
@@ -150,21 +151,21 @@ serve(async (req) => {
           <p>To complete your account setup:</p>
           
           <ol style="line-height: 1.6;">
-            <li>Click the button below to sign in</li>
-            <li>Use your email (${email}) and temporary password to log in</li>
+            <li>Click the button below to set up your account</li>
+            <li>Follow the instructions to set your password</li>
             <li>You'll be automatically redirected to your client dashboard</li>
             <li>Configure your AI assistant's settings in the dashboard</li>
           </ol>
           
           <div style="margin: 30px 0;">
-            <a href="${signInUrl}" style="
+            <a href="${setupUrl}" style="
               background-color: #3b82f6;
               color: white;
               padding: 12px 24px;
               text-decoration: none;
               border-radius: 6px;
               display: inline-block;
-            ">Sign In</a>
+            ">Set Up Your Account</a>
           </div>
           
           <p style="color: #666;">This invitation link will expire in 24 hours.</p>
