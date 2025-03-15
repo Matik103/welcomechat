@@ -91,9 +91,9 @@ export const ClientDetails = ({
       toast.info("Creating client user account with temporary password...");
       await createClientUserAccount(clientId, client.email, client.client_name, client.agent_name);
       toast.success("Client account created successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating client account:", error);
-      toast.error("Failed to create client account: " + error.message);
+      toast.error("Failed to create client account: " + (error.message || "Unknown error"));
     }
   };
 
