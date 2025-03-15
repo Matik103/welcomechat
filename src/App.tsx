@@ -20,10 +20,10 @@ import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
 
 function App() {
-  const { isLoading, user, userRole } = useAuth();
+  const { user, userRole } = useAuth();
   const location = useLocation();
   
-  // If we're on the callback route, show improved loading UI with feedback
+  // If we're on the callback route, show minimal loading UI with feedback
   if (location.pathname.includes('/auth/callback')) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
@@ -38,18 +38,6 @@ function App() {
   const isPublicRoute = location.pathname === '/auth' || 
                         location.pathname.includes('/auth/callback') ||
                         location.pathname.startsWith('/client/setup');
-    
-  // Show loading spinner during auth check, but only if not on a public route
-  if (isLoading && !isPublicRoute) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          <div className="mt-4 text-sm text-gray-500">Loading your dashboard...</div>
-        </div>
-      </div>
-    );
-  }
 
   // Auth page doesn't need layout or role checks
   if (location.pathname === '/auth') {
@@ -120,7 +108,7 @@ function App() {
   }
 
   // If auth is no longer loading but we don't have a user and we're not on a public route
-  if (!isLoading && !user && !isPublicRoute) {
+  if (!isPublicRoute) {
     return <Navigate to="/auth" replace />;
   }
 
