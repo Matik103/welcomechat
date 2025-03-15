@@ -54,12 +54,19 @@ export const useAuthCallback = ({
           }
           
           const user = callbackSession.user;
+          if (!user) {
+            console.error("No user found in callback session");
+            navigate('/auth', { replace: true });
+            setIsLoading(false);
+            return;
+          }
           
           // For Google SSO, we always set admin role and redirect to admin dashboard
           const provider = user?.app_metadata?.provider;
           const isGoogleLogin = provider === 'google';
           
           if (isGoogleLogin) {
+            console.log("Google SSO detected, setting admin role");
             // Set session and user
             setSession(callbackSession);
             setUser(user);
@@ -67,19 +74,9 @@ export const useAuthCallback = ({
             // For Google SSO users, always set admin role
             setUserRole('admin');
             
-            // Important: make sure we clear loading state before redirect
-            setIsLoading(false);
-            console.log("Google SSO user authenticated, redirecting to admin dashboard");
-            
-            // Clear the auth attempt flag after successful login
-            setTimeout(() => {
-              sessionStorage.removeItem('auth_callback_attempted');
-            }, 1000);
-            
-            // Use navigate with a delay to ensure state is updated
-            setTimeout(() => {
-              navigate('/', { replace: true });
-            }, 100);
+            // Use window.location for direct navigation to ensure a clean redirect
+            window.location.href = '/';
+            return;
           } else {
             // Non-Google login, use role-based redirect
             setSession(callbackSession);
@@ -95,11 +92,11 @@ export const useAuthCallback = ({
               sessionStorage.removeItem('auth_callback_attempted');
             }, 1000);
             
-            // Redirect based on role
+            // Use direct location change to ensure a clean state
             if (role === 'client') {
-              navigate('/client/dashboard', { replace: true });
+              window.location.href = '/client/dashboard';
             } else {
-              navigate('/', { replace: true });
+              window.location.href = '/';
             }
           }
         } catch (error) {

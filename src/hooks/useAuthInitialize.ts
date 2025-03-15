@@ -75,13 +75,11 @@ export const useAuthInitialize = ({
             setUserRole('admin');
             setIsLoading(false);
             
-            // Use a small timeout to ensure state updates before navigation
-            setTimeout(() => {
-              // Don't redirect if we're on the callback page, that's handled separately
-              if (!isCallbackUrl) {
-                navigate('/', { replace: true });
-              }
-            }, 100);
+            if (!isCallbackUrl && location.pathname !== '/') {
+              // Use direct window location for clean redirect
+              window.location.href = '/';
+              return;
+            }
           } else {
             // Regular users get role based on email in clients table
             const role = await determineUserRole(currentSession.user);
@@ -91,24 +89,15 @@ export const useAuthInitialize = ({
             // Reset loading state
             setIsLoading(false);
             
-            // Use a small timeout to ensure state updates before navigation
-            setTimeout(() => {
-              const isAuthPage = location.pathname === '/auth';
-              
-              if (!isCallbackUrl && !isAuthPage) {
-                if (role === 'client') {
-                  navigate('/client/dashboard', { replace: true });
-                } else {
-                  navigate('/', { replace: true });
-                }
-              } else if (isAuthPage) {
-                if (role === 'client') {
-                  navigate('/client/dashboard', { replace: true });
-                } else {
-                  navigate('/', { replace: true });
-                }
+            const isAuthPage = location.pathname === '/auth';
+            
+            if (!isCallbackUrl && isAuthPage) {
+              if (role === 'client') {
+                window.location.href = '/client/dashboard';
+              } else {
+                window.location.href = '/';
               }
-            }, 100);
+            }
           }
         } else {
           console.log("No active session found during init");

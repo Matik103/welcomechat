@@ -41,8 +41,8 @@ export const isClientInDatabase = async (email: string): Promise<boolean> => {
  */
 export const isGoogleSSOUser = async (userId: string): Promise<boolean> => {
   try {
-    // Correct approach to check if a user is using Google SSO
-    const { data, error } = await supabase.auth.admin.getUserById(userId);
+    // Getting user method is not available in client-side code, rely on app_metadata
+    const { data, error } = await supabase.auth.getUser();
     
     if (error || !data.user) {
       console.error("Error checking if user is Google SSO user:", error);
@@ -97,26 +97,12 @@ export const determineUserRole = async (user: User): Promise<UserRole> => {
 export const forceRedirectBasedOnRole = (role: UserRole) => {
   console.log(`Force redirecting to ${role === 'admin' ? 'admin' : 'client'} dashboard`);
   
-  // Clear loading state by adding a feedback element
-  const loadingFeedback = document.createElement('div');
-  loadingFeedback.textContent = `Redirecting to ${role === 'admin' ? 'admin' : 'client'} dashboard...`;
-  loadingFeedback.style.position = 'fixed';
-  loadingFeedback.style.top = '50%';
-  loadingFeedback.style.left = '50%';
-  loadingFeedback.style.transform = 'translate(-50%, -50%)';
-  loadingFeedback.style.backgroundColor = 'white';
-  loadingFeedback.style.padding = '20px';
-  loadingFeedback.style.borderRadius = '5px';
-  loadingFeedback.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
-  loadingFeedback.style.zIndex = '9999';
-  document.body.appendChild(loadingFeedback);
-  
-  // Use timeout to ensure state updates and rendering completes
-  setTimeout(() => {
-    const redirectUrl = role === 'admin' ? '/' : '/client/dashboard';
-    console.log(`Performing actual redirect to: ${redirectUrl}`);
-    window.location.href = redirectUrl;
-  }, 500); // Increased timeout for more reliability
+  // Use direct window location change to ensure a clean redirect
+  if (role === 'admin') {
+    window.location.href = '/';
+  } else {
+    window.location.href = '/client/dashboard';
+  }
 };
 
 /**
