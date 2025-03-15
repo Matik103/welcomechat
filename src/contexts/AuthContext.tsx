@@ -77,6 +77,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Create a user role in the database
+  const createUserRole = async (userId: string, role: UserRole, clientId?: string) => {
+    try {
+      console.log(`Creating ${role} role for user:`, userId);
+      const roleData: any = {
+        user_id: userId,
+        role: role
+      };
+      
+      if (clientId && role === 'client') {
+        roleData.client_id = clientId;
+      }
+      
+      const { error } = await supabase
+        .from('user_roles')
+        .insert(roleData);
+        
+      if (error) {
+        console.error("Error creating user role:", error);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error in createUserRole:", error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     // Process hash parameters from OAuth redirect
     const handleHashParameters = async () => {
@@ -108,10 +137,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               const role = await checkUserRole(sessionData.session.user.id);
               if (!role) {
                 // Add admin role for this user
-                await supabase.from('user_roles').insert({
-                  user_id: sessionData.session.user.id,
-                  role: 'admin'
-                });
+                await createUserRole(sessionData.session.user.id, 'admin');
                 setUserRole('admin');
               } else {
                 setUserRole(role);
@@ -131,15 +157,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const role = await checkUserRole(sessionData.session.user.id);
             setSession(sessionData.session);
             setUser(sessionData.session.user);
-            setUserRole(role);
+            
+            // If no role found for a client, create a client role
+            if (!role && isClient) {
+              // Get client ID
+              const { data: clientData } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('email', sessionData.session.user.email)
+                .maybeSingle();
+                
+              if (clientData?.id) {
+                await createUserRole(sessionData.session.user.id, 'client', clientData.id);
+                setUserRole('client');
+              } else {
+                // Fallback to admin if client record exists but no ID found (shouldn't happen)
+                await createUserRole(sessionData.session.user.id, 'admin');
+                setUserRole('admin');
+              }
+            } else {
+              setUserRole(role);
+            }
             
             // Clear the hash to prevent processing it again
             window.history.replaceState(null, "", window.location.pathname);
             
             // Redirect based on role
-            if (role === 'client') {
+            if (userRole === 'client' || (isClient && !userRole)) {
               navigate('/client/dashboard', { replace: true });
-            } else if (role === 'admin') {
+            } else if (userRole === 'admin' || (!isClient && !userRole)) {
               navigate('/', { replace: true });
             } else {
               // Default redirect if no role found
@@ -157,7 +203,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     handleHashParameters();
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, userRole]);
 
   useEffect(() => {
     let mounted = true;
@@ -175,9 +221,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (currentSession?.user) {
           console.log("Found existing session:", currentSession.user.email);
           const role = await checkUserRole(currentSession.user.id);
+          
+          // If no role is found, check if the user is a client by email
+          if (!role && currentSession.user.email) {
+            const isClient = await checkIfClientExists(currentSession.user.email);
+            
+            if (isClient) {
+              // Get client ID
+              const { data: clientData } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('email', currentSession.user.email)
+                .maybeSingle();
+                
+              if (clientData?.id) {
+                await createUserRole(currentSession.user.id, 'client', clientData.id);
+                setUserRole('client');
+              }
+            } else {
+              // Not a client, so assign admin role
+              await createUserRole(currentSession.user.id, 'admin');
+              setUserRole('admin');
+            }
+          } else {
+            setUserRole(role);
+          }
+          
           setSession(currentSession);
           setUser(currentSession.user);
-          setUserRole(role);
         } else {
           // Try to refresh the session
           console.log("No session found, attempting refresh...");
@@ -199,9 +270,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           } else if (refreshedSession) {
             console.log("Session refreshed successfully:", refreshedSession.user.email);
             const role = await checkUserRole(refreshedSession.user.id);
+            
+            // If no role is found, check if the user is a client by email
+            if (!role && refreshedSession.user.email) {
+              const isClient = await checkIfClientExists(refreshedSession.user.email);
+              
+              if (isClient) {
+                // Get client ID
+                const { data: clientData } = await supabase
+                  .from('clients')
+                  .select('id')
+                  .eq('email', refreshedSession.user.email)
+                  .maybeSingle();
+                  
+                if (clientData?.id) {
+                  await createUserRole(refreshedSession.user.id, 'client', clientData.id);
+                  setUserRole('client');
+                }
+              } else {
+                // Not a client, so assign admin role
+                await createUserRole(refreshedSession.user.id, 'admin');
+                setUserRole('admin');
+              }
+            } else {
+              setUserRole(role);
+            }
+            
             setSession(refreshedSession);
             setUser(refreshedSession.user);
-            setUserRole(role);
           }
         }
       } catch (error) {
@@ -241,10 +337,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               const role = await checkUserRole(currentSession!.user.id);
               if (!role) {
                 // Add admin role for this user
-                await supabase.from('user_roles').insert({
-                  user_id: currentSession!.user.id,
-                  role: 'admin'
-                });
+                await createUserRole(currentSession!.user.id, 'admin');
                 setUserRole('admin');
               } else {
                 setUserRole(role);
@@ -259,13 +352,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             // Normal flow for known clients
             const role = await checkUserRole(currentSession!.user.id);
+            
+            // If no role found but is a client, create client role
+            if (!role && isClient) {
+              // Get client ID
+              const { data: clientData } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('email', currentSession!.user.email)
+                .maybeSingle();
+                
+              if (clientData?.id) {
+                await createUserRole(currentSession!.user.id, 'client', clientData.id);
+                setUserRole('client');
+              } else {
+                // Fallback to admin if client record exists but no ID found
+                await createUserRole(currentSession!.user.id, 'admin');
+                setUserRole('admin');
+              }
+            } else {
+              setUserRole(role);
+            }
+            
             setSession(currentSession);
             setUser(currentSession!.user);
-            setUserRole(role);
             
-            if (role === 'client') {
+            if (userRole === 'client' || (isClient && !role)) {
               navigate('/client/dashboard', { replace: true });
-            } else if (role === 'admin') {
+            } else if (userRole === 'admin' || (!isClient && !role)) {
               navigate('/', { replace: true });
             } else {
               // Default to admin view if no specific role found
@@ -304,7 +418,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, userRole]);
 
   const signOut = async () => {
     try {
