@@ -33,13 +33,30 @@ const Auth = () => {
   // Check if we're in the middle of an OAuth callback
   useEffect(() => {
     const checkOAuthRedirect = async () => {
-      if (window.location.hash && window.location.hash.includes('access_token')) {
+      // If URL contains a hash that might be from OAuth
+      if (window.location.hash && (
+          window.location.hash.includes('access_token') ||
+          window.location.hash.includes('error') ||
+          window.location.hash.includes('type=recovery')
+      )) {
+        console.log("Detected OAuth redirect hash parameters");
         setIsProcessingOAuth(true);
         // The actual processing happens in AuthContext
       }
     };
     
     checkOAuthRedirect();
+    
+    // Set a timeout to clear the processing state after a reasonable amount of time
+    // to prevent users from being stuck at the loading screen if something goes wrong
+    const timeoutId = setTimeout(() => {
+      if (isProcessingOAuth) {
+        console.log("OAuth processing timeout reached");
+        setIsProcessingOAuth(false);
+      }
+    }, 10000); // 10 seconds timeout
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // If we're processing OAuth or checking auth, show loading spinner
@@ -49,6 +66,11 @@ const Auth = () => {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="text-muted-foreground">Authenticating...</p>
+          {isProcessingOAuth && (
+            <p className="text-sm text-muted-foreground max-w-md text-center">
+              Processing your login. If this takes more than a few seconds, you may need to refresh the page.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -181,6 +203,7 @@ const Auth = () => {
       
       // Clear any previous errors
       setErrorMessage("");
+      setIsProcessingOAuth(true);
       
       const { error, data } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -197,14 +220,17 @@ const Auth = () => {
         console.error("Google sign in error:", error);
         setErrorMessage(`Google sign in failed: ${error.message}`);
         toast.error(`Google sign in failed: ${error.message}`);
+        setIsProcessingOAuth(false);
         throw error;
       }
       
       console.log("Google sign in initiated:", data);
+      // Don't reset isProcessingOAuth here since we're redirecting to Google
     } catch (error: any) {
       console.error('Google sign in error:', error);
       setErrorMessage(error.message || "Failed to sign in with Google");
       toast.error(error.message || "Failed to sign in with Google");
+      setIsProcessingOAuth(false);
     }
   };
 
@@ -375,8 +401,16 @@ const Auth = () => {
             variant="outline"
             className="w-full"
             onClick={handleGoogleSignIn}
+            disabled={isProcessingOAuth}
           >
-            Continue with Google
+            {isProcessingOAuth ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Connecting to Google...
+              </>
+            ) : (
+              "Continue with Google"
+            )}
           </Button>
 
           <div className="mt-4 text-center text-sm">

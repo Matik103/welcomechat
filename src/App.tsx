@@ -1,3 +1,4 @@
+
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -24,10 +25,12 @@ function App() {
   const [showLoader, setShowLoader] = useState(true);
   
   useEffect(() => {
+    // Set a maximum wait time for loader display (5 seconds)
     const timer = setTimeout(() => {
       setShowLoader(false);
-    }, 3000);
+    }, 5000);
     
+    // If auth completes before timeout, clear the timer and hide loader
     if (!isLoading) {
       clearTimeout(timer);
       setShowLoader(false);
@@ -36,25 +39,40 @@ function App() {
     return () => clearTimeout(timer);
   }, [isLoading]);
 
+  // Determine if current route is a public route (auth, setup, or callback)
   const isPublicRoute = 
     location.pathname === '/auth' || 
+    location.pathname.includes('/auth/callback') ||
     location.pathname.startsWith('/client/setup');
   
-  if (isLoading && showLoader) {
+  // Special case for OAuth redirect routes
+  const isOAuthRedirect = 
+    location.pathname.includes('/auth/callback') || 
+    (location.pathname === '/auth' && window.location.hash && window.location.hash.includes('access_token'));
+  
+  // Show loading spinner while authenticating, but with a time limit via showLoader
+  if ((isLoading && showLoader) || (isOAuthRedirect && showLoader)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
           <p className="text-sm text-gray-500">Loading your application...</p>
+          {showLoader && isOAuthRedirect && (
+            <p className="text-xs text-gray-400 max-w-xs text-center">
+              Processing authentication. If this takes too long, try refreshing the page.
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
+  // Redirect unauthenticated users to auth page, except for public routes
   if ((!isLoading || !showLoader) && !user && !isPublicRoute) {
     return <Navigate to="/auth" replace />;
   }
 
+  // Determine if current route is a client-specific route
   const isClientRoute = 
     location.pathname.startsWith('/client') && 
     !location.pathname.startsWith('/client/setup');
@@ -63,12 +81,16 @@ function App() {
     <div className="min-h-screen bg-background">
       {isClientRoute ? <ClientHeader /> : <Header />}
       <Routes>
-        <Route path="/auth" element={<Auth />} />
+        {/* Auth routes */}
+        <Route path="/auth/*" element={<Auth />} />
         <Route path="/client/setup" element={<ClientSetup />} />
         
+        {/* Main routes with role-based routing */}
         <Route path="/" element={
           userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <Index />
         } />
+        
+        {/* Admin routes */}
         <Route path="/admin/clients" element={
           userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <ClientList />
         } />
@@ -88,6 +110,7 @@ function App() {
           userRole === 'client' ? <Navigate to="/client/dashboard" replace /> : <WidgetSettings />
         } />
         
+        {/* Client routes */}
         <Route path="/client/view" element={
           <Navigate to="/client/dashboard" replace />
         } />
