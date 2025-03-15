@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   createUserRole,
-  forceRedirectToDashboard
+  forceRedirectBasedOnRole,
+  handleAuthenticatedUser
 } from "@/utils/authUtils";
 import { useAuthState } from "@/hooks/useAuthState";
 import { AuthContextType } from "@/types/auth";
@@ -42,20 +43,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log("Session found during init:", currentSession.user.email);
           setSession(currentSession);
           setUser(currentSession.user);
-          setUserRole('admin');
           
-          // Create admin role in database if needed
-          try {
-            await createUserRole(currentSession.user.id, 'admin');
-          } catch (error) {
-            console.error("Error creating admin role, but continuing:", error);
-          }
+          // Determine role and redirect accordingly
+          const role = await handleAuthenticatedUser(currentSession.user);
+          setUserRole(role);
           
           // Choose redirect method based on current route
           if (isCallbackUrl) {
-            forceRedirectToDashboard();
+            forceRedirectBasedOnRole(role);
           } else {
-            navigate('/', { replace: true });
+            navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
           }
         } else {
           console.log("No active session found during init");
@@ -106,20 +103,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log("User signed in:", currentSession?.user.email);
             setSession(currentSession);
             setUser(currentSession!.user);
-            setUserRole('admin');
             
-            // Create admin role in database
-            try {
-              await createUserRole(currentSession!.user.id, 'admin');
-            } catch (error) {
-              console.error("Error creating admin role, but continuing:", error);
-            }
+            // Determine role and redirect accordingly
+            const role = await handleAuthenticatedUser(currentSession!.user);
+            setUserRole(role);
             
             // For callback routes, use direct redirection
             if (isCallbackUrl) {
-              forceRedirectToDashboard();
+              forceRedirectBasedOnRole(role);
             } else {
-              navigate('/', { replace: true });
+              navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
             }
           } else if (event === 'SIGNED_OUT') {
             console.log("User signed out");
