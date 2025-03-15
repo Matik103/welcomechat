@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -20,26 +21,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    outDir: "dist",
-    sourcemap: true,
-    commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor': [
-            'react',
-            'react-dom',
-            'react-router-dom',
-            '@supabase/supabase-js',
-            'zod',
-            '@hookform/resolvers/zod',
-            'react-hook-form'
-          ]
-        }
-      }
-    }
+    outDir: "dist"
   }
 }));
