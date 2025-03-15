@@ -30,10 +30,14 @@ export const useAuthInitialize = ({
     let mounted = true;
 
     const initializeAuth = async () => {
+      // Skip init if already initialized or handling callback
       if (authInitialized && !isCallbackUrl) return;
       
       try {
         console.log("Initializing auth state");
+        
+        // Keep loading state true until we've completed all checks
+        setIsLoading(true);
         
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
@@ -58,6 +62,7 @@ export const useAuthInitialize = ({
               setAuthInitialized(true);
             }, 300); // Increased timeout to 300ms for smoother transition
           } else {
+            // For non-auth pages, just update the state
             setIsLoading(false);
             setAuthInitialized(true);
           }
