@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -46,6 +47,8 @@ export const useAuthInitialize = ({
 
         if (currentSession?.user) {
           console.log("Session found during init:", currentSession.user.email);
+          console.log("Auth provider:", currentSession.user?.app_metadata?.provider);
+          
           setSession(currentSession);
           setUser(currentSession.user);
           
@@ -66,6 +69,15 @@ export const useAuthInitialize = ({
               navigate('/', { replace: true });
               
               // Longer timeout to ensure transition completes before changing loading state
+              setTimeout(() => {
+                setIsLoading(false);
+                setAuthInitialized(true);
+              }, 300);
+            } else if (!isCallbackUrl && location.pathname.startsWith('/client')) {
+              // Force redirect any Google SSO users away from client routes to admin dashboard
+              console.log("Google SSO user on client route - redirecting to admin dashboard");
+              navigate('/', { replace: true });
+              
               setTimeout(() => {
                 setIsLoading(false);
                 setAuthInitialized(true);
