@@ -2,8 +2,6 @@
 {
   "imports": {
     "std/": "https://deno.land/std@0.190.0/",
-    "std/server": "https://deno.land/std@0.190.0/http/server.ts",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.38.4",
-    "resend": "npm:resend@2.0.0"
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.38.4"
   }
 }
