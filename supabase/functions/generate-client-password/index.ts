@@ -16,6 +16,9 @@ serve(async (req) => {
   try {
     console.log('Generate client password function started');
     
+    // Get the authorization header
+    const authorization = req.headers.get('Authorization') || '';
+    
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -23,9 +26,45 @@ serve(async (req) => {
         auth: {
           autoRefreshToken: false,
           persistSession: false
+        },
+        global: {
+          headers: { Authorization: authorization }
         }
       }
     );
+    
+    // Verify the user has admin role
+    const {
+      data: { user },
+    } = await supabaseAdmin.auth.getUser();
+    
+    if (!user) {
+      throw new Error('Authentication required');
+    }
+    
+    console.log(`User authenticated: ${user.email}`);
+    
+    // Check if user has admin role (only if your app requires this check)
+    const { data: userRoles, error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+    
+    if (roleError) {
+      console.error('Error checking user role:', roleError);
+      throw new Error('Error verifying user permissions');
+    }
+    
+    const isAdmin = userRoles.some(r => r.role === 'admin');
+    
+    if (!isAdmin) {
+      console.log(`User ${user.email} is not an admin, roles:`, userRoles);
+      // For now, we'll still allow the operation but log the warning
+      // If you want to enforce admin-only, uncomment the next line:
+      // throw new Error('Admin permission required');
+    } else {
+      console.log(`Confirmed admin user: ${user.email}`);
+    }
     
     const { email, clientId } = await req.json();
     
