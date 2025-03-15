@@ -21,11 +21,11 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
   
-  // Set a timeout to ensure we don't get stuck in a loading state
+  // Set a timeout to ensure we don't get stuck in a loading state - reduced from 5000 to 1000
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
-    }, 5000);
+    }, 1000);
     
     return () => clearTimeout(timeout);
   }, []);

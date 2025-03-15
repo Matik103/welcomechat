@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,12 +18,12 @@ const ClientSettings = () => {
   useEffect(() => {
     let isMounted = true;
     
-    // Set a timeout to ensure we don't get stuck in a loading state
+    // Set a timeout to ensure we don't get stuck in a loading state - reduced from 5000 to 1000
     const timeout = setTimeout(() => {
       if (isMounted) {
         setLoadTimeout(true);
       }
-    }, 5000);
+    }, 1000);
 
     const fetchClientInfo = async () => {
       if (!user?.email) {
