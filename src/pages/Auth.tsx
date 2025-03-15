@@ -62,7 +62,7 @@ const Auth = () => {
           window.history.replaceState(null, "", window.location.pathname);
         }
       }
-    }, 10000); // 10 seconds timeout
+    }, 15000); // Increase timeout to 15 seconds
     
     return () => clearTimeout(timeoutId);
   }, [isProcessingOAuth, location.pathname]);
