@@ -19,7 +19,7 @@ serve(async (req) => {
     const { clientName, email } = await req.json();
 
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: "AI Chatbot Admin <onboarding@resend.dev>",
+      from: "Welcome.Chat <admin@welcome.chat>",
       to: email,
       subject: "Your Client Account Has Been Recovered",
       html: `
@@ -27,7 +27,7 @@ serve(async (req) => {
         <p>Hello,</p>
         <p>Your client account "${clientName}" has been successfully recovered and is now active again.</p>
         <p>You can access your account through the Client Management page.</p>
-        <p>Best regards,<br>AI Chatbot Admin Team</p>
+        <p>Best regards,<br>TestBot Assistant Team</p>
       `,
     });
 

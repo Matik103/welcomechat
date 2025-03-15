@@ -131,39 +131,40 @@ serve(async (req) => {
     
     const resend = new Resend(resendApiKey);
     
-    // Send invitation email using Resend
-    const setupUrl = `${origin}/client/setup?token=${token}`;
+    // Sign in URL - use client dashboard directly
+    const signInUrl = `${origin}/client/dashboard`;
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: "Welcome.Chat <onboarding@resend.dev>",
+      from: "Welcome.Chat <admin@welcome.chat>",
       to: email,
-      subject: "Welcome to Welcome.Chat - Your Account Invitation",
+      subject: "Welcome to TestBot Assistant!",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #333; margin-bottom: 20px;">Welcome to Welcome.Chat!</h2>
+          <h2 style="color: #333; margin-bottom: 20px;">Welcome to TestBot Assistant!</h2>
           
-          <p>Hello${clientName ? ` ${clientName}` : ''},</p>
+          <p>Hello ${clientName},</p>
           
-          <p>You have been invited to create your Welcome.Chat account.</p>
+          <p>You have been invited to create your account for TestBot Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
           
           <p><strong>Your temporary password is: ${tempPassword}</strong></p>
           
           <p>To complete your account setup:</p>
           
           <ol style="line-height: 1.6;">
-            <li>Click the button below to set up your account</li>
-            <li>Use your temporary password to sign in, then create a new password</li>
-            <li>You'll be automatically signed in to your dashboard</li>
+            <li>Click the button below to sign in</li>
+            <li>Use your email (${email}) and temporary password to log in</li>
+            <li>You'll be automatically redirected to your client dashboard</li>
+            <li>Configure your AI assistant's settings in the dashboard</li>
           </ol>
           
           <div style="margin: 30px 0;">
-            <a href="${setupUrl}" style="
+            <a href="${signInUrl}" style="
               background-color: #3b82f6;
               color: white;
               padding: 12px 24px;
               text-decoration: none;
               border-radius: 6px;
               display: inline-block;
-            ">Set Up Your Account</a>
+            ">Sign In</a>
           </div>
           
           <p style="color: #666;">This invitation link will expire in 24 hours.</p>
@@ -172,7 +173,7 @@ serve(async (req) => {
             If you didn't expect this invitation, you can safely ignore this email.
           </p>
           
-          <p>Best regards,<br>The Welcome.Chat Team</p>
+          <p>Best regards,<br>The TestBot Assistant Team</p>
         </div>
       `
     });
