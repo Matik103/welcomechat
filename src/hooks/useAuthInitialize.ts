@@ -45,14 +45,21 @@ export const useAuthInitialize = ({
           setSession(currentSession);
           setUser(currentSession.user);
           setUserRole('admin');
-          setIsLoading(false);
-          setAuthInitialized(true);
           
           const isAuthPage = location.pathname === '/auth';
           
           if (!isCallbackUrl && isAuthPage) {
             console.log("Redirecting from auth page to admin dashboard");
+            // Navigate first, then set loading state after a delay
             navigate('/', { replace: true });
+            
+            setTimeout(() => {
+              setIsLoading(false);
+              setAuthInitialized(true);
+            }, 100); // Increased timeout to 100ms
+          } else {
+            setIsLoading(false);
+            setAuthInitialized(true);
           }
         } else {
           console.log("No active session found during init");
