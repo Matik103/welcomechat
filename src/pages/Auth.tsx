@@ -15,7 +15,6 @@ const Auth = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
-  const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -32,46 +31,10 @@ const Auth = () => {
     setErrorMessage("");
   };
 
-  // Check if we're in the middle of an OAuth callback
-  useEffect(() => {
-    const checkOAuthRedirect = async () => {
-      // If URL contains a hash that might be from OAuth
-      if (window.location.hash && (
-          window.location.hash.includes('access_token') ||
-          window.location.hash.includes('error') ||
-          window.location.hash.includes('type=recovery')
-      )) {
-        console.log("Detected OAuth redirect hash parameters");
-        setIsProcessingOAuth(true);
-        // The actual processing happens in AuthContext
-      }
-    };
-    
-    checkOAuthRedirect();
-    
-    // Set a timeout to clear the processing state after a reasonable amount of time
-    // to prevent users from being stuck at the loading screen if something goes wrong
-    const timeoutId = setTimeout(() => {
-      if (isProcessingOAuth) {
-        console.log("OAuth processing timeout reached, resetting state");
-        setIsProcessingOAuth(false);
-        
-        // Check if we're still on the auth page with hash params that might indicate a failure
-        if (location.pathname.includes('/auth') && window.location.hash) {
-          toast.error("Authentication process took too long. Please try again.");
-          // Clear the hash to allow retrying
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-      }
-    }, 20000); // 20 seconds timeout
-    
-    return () => clearTimeout(timeoutId);
-  }, [isProcessingOAuth, location.pathname]);
-
   // Enhanced redirection logic - this is crucial for fixing the issue
   useEffect(() => {
     // Only attempt redirection if we have session AND userRole AND we're not loading
-    if (session && userRole && !isLoading && !isProcessingOAuth) {
+    if (session && userRole && !isLoading) {
       console.log("Ready to redirect with role:", userRole);
       
       // Add a small delay to ensure all state is properly updated
@@ -85,22 +48,15 @@ const Auth = () => {
         }
       }, 100);
     }
-  }, [session, userRole, isLoading, isProcessingOAuth, navigate]);
+  }, [session, userRole, isLoading, navigate]);
 
-  // If we're processing OAuth or checking auth, show loading spinner
-  if (isLoading || isProcessingOAuth) {
+  // If we're checking auth, show loading spinner
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">
-            {isProcessingOAuth ? "Processing your login..." : "Authenticating..."}
-          </p>
-          {isProcessingOAuth && (
-            <p className="text-sm text-muted-foreground max-w-md text-center">
-              Processing your login. If this takes more than a few seconds, you may need to refresh the page.
-            </p>
-          )}
+          <p className="text-muted-foreground">Authenticating...</p>
         </div>
       </div>
     );
