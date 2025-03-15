@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -47,7 +46,6 @@ export const useAuthInitialize = ({
 
         if (currentSession?.user) {
           console.log("Session found during init:", currentSession.user.email);
-          console.log("Auth provider:", currentSession.user?.app_metadata?.provider);
           
           setSession(currentSession);
           setUser(currentSession.user);
@@ -58,34 +56,21 @@ export const useAuthInitialize = ({
           
           if (isGoogleAuth) {
             // Google SSO users are always assigned admin role
-            console.log("Google SSO login detected in init, assigning admin role");
+            console.log("Google SSO login detected - assigning admin role");
             setUserRole('admin');
             
             const isAuthPage = location.pathname === '/auth';
             const isClientRoute = location.pathname.startsWith('/client');
             
-            if (!isCallbackUrl && isClientRoute) {
-              // Force redirect any Google SSO users away from client routes to admin dashboard
-              console.log("Google SSO user on client route - redirecting to admin dashboard");
+            if (!isCallbackUrl && (isClientRoute || isAuthPage)) {
+              // Always redirect Google SSO users to admin dashboard
+              console.log("Redirecting Google SSO user to admin dashboard");
               navigate('/', { replace: true });
-              
-              setTimeout(() => {
-                setIsLoading(false);
-                setAuthInitialized(true);
-              }, 300);
-            } else if (!isCallbackUrl && isAuthPage) {
-              console.log("Redirecting from auth page to admin dashboard in init");
-              
-              // Navigate first while keeping loading state true
-              navigate('/', { replace: true });
-              
-              // Longer timeout to ensure transition completes before changing loading state
               setTimeout(() => {
                 setIsLoading(false);
                 setAuthInitialized(true);
               }, 300);
             } else {
-              // For non-auth pages, just update the state
               setIsLoading(false);
               setAuthInitialized(true);
             }
@@ -94,25 +79,17 @@ export const useAuthInitialize = ({
             const userRole = await determineUserRole(currentSession.user);
             setUserRole(userRole);
             
-            console.log("User role determined in init:", userRole);
-            
             const isAuthPage = location.pathname === '/auth';
             
             if (!isCallbackUrl && isAuthPage) {
-              console.log("Redirecting from auth page to dashboard based on role in init");
               // Determine where to navigate based on role
               const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-              
-              // Navigate first while keeping loading state true
               navigate(targetPath, { replace: true });
-              
-              // Longer timeout to ensure transition completes before changing loading state
               setTimeout(() => {
                 setIsLoading(false);
                 setAuthInitialized(true);
               }, 300);
             } else {
-              // For non-auth pages, just update the state
               setIsLoading(false);
               setAuthInitialized(true);
             }
