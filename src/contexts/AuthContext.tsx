@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   const navigate = useNavigate();
   const location = useLocation();
+  const isCallbackUrl = location.pathname.includes('/auth/callback');
 
   useEffect(() => {
     let mounted = true;
@@ -49,16 +50,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const isGoogleUser = currentSession.user.app_metadata.provider === 'google';
           
           if (isGoogleUser) {
+            // Optimize Google auth flow by prioritizing role determination
             const role = await handleGoogleUser(currentSession.user);
             setUserRole(role);
-            handlePostAuthNavigation(role, navigate);
+            
+            // Only redirect if we're not on the callback page
+            if (!isCallbackUrl) {
+              handlePostAuthNavigation(role, navigate);
+            }
             setIsLoading(false);
           } else {
             const existingRole = await checkUserRole(currentSession.user.id);
             
             if (existingRole) {
               setUserRole(existingRole);
-              handlePostAuthNavigation(existingRole, navigate);
+              
+              // Only redirect if we're not on the callback page
+              if (!isCallbackUrl) {
+                handlePostAuthNavigation(existingRole, navigate);
+              }
               setIsLoading(false);
             } else if (currentSession.user.email) {
               const isClient = await checkIfClientExists(currentSession.user.email);
@@ -73,12 +83,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (clientData?.id) {
                   await createUserRole(currentSession.user.id, 'client', clientData.id);
                   setUserRole('client');
-                  handlePostAuthNavigation('client', navigate);
+                  
+                  // Only redirect if we're not on the callback page
+                  if (!isCallbackUrl) {
+                    handlePostAuthNavigation('client', navigate);
+                  }
                 }
               } else {
                 await createUserRole(currentSession.user.id, 'admin');
                 setUserRole('admin');
-                handlePostAuthNavigation('admin', navigate);
+                
+                // Only redirect if we're not on the callback page
+                if (!isCallbackUrl) {
+                  handlePostAuthNavigation('admin', navigate);
+                }
               }
               
               setIsLoading(false);
@@ -131,20 +149,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const isGoogleUser = currentSession?.user.app_metadata.provider === 'google';
             
             if (isGoogleUser) {
+              // Optimize for faster role determination for Google users
               const role = await handleGoogleUser(currentSession!.user);
               setUserRole(role);
-              handlePostAuthNavigation(role, navigate);
               setIsLoading(false);
             } else {
-              const isClient = currentSession?.user.email ? 
-                await checkIfClientExists(currentSession.user.email) : false;
-              
               const existingRole = await checkUserRole(currentSession!.user.id);
               
               if (existingRole) {
                 setUserRole(existingRole);
-                handlePostAuthNavigation(existingRole, navigate);
+                setIsLoading(false);
               } else {
+                const isClient = currentSession?.user.email ? 
+                  await checkIfClientExists(currentSession.user.email) : false;
+                
                 if (isClient) {
                   const { data: clientData } = await supabase
                     .from('clients')
@@ -155,16 +173,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   if (clientData?.id) {
                     await createUserRole(currentSession!.user.id, 'client', clientData.id);
                     setUserRole('client');
-                    handlePostAuthNavigation('client', navigate);
                   }
                 } else {
                   await createUserRole(currentSession!.user.id, 'admin');
                   setUserRole('admin');
-                  handlePostAuthNavigation('admin', navigate);
                 }
+                
+                setIsLoading(false);
               }
-              
-              setIsLoading(false);
             }
           } else if (event === 'SIGNED_OUT') {
             console.log("User signed out");

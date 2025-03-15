@@ -13,7 +13,7 @@ import { useAuth } from "./contexts/AuthContext";
 import ClientSettings from "@/pages/client/Settings";
 import ClientDashboard from "@/pages/client/Dashboard";
 import ClientSetup from "@/pages/client/Setup";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
@@ -24,11 +24,12 @@ function App() {
   const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [showLoader, setShowLoader] = useState(false);
   
   // Handle callback route - redirect immediately to home based on user role
   useEffect(() => {
     if (location.pathname.includes('/auth/callback') && user && userRole) {
+      console.log("Auth callback detected, redirecting based on role:", userRole);
+      // Immediate redirect based on role
       if (userRole === 'admin') {
         navigate('/', { replace: true });
       } else {
@@ -37,25 +38,25 @@ function App() {
     }
   }, [location.pathname, user, userRole, navigate]);
 
-  // Determine if current route is a public route (auth, setup, or callback)
-  const isPublicRoute = 
-    location.pathname === '/auth' || 
-    location.pathname.includes('/auth/callback') ||
-    location.pathname.startsWith('/client/setup');
-  
-  // Special handling for callback route - show minimal loader
+  // Handle the case where we're still on the callback page but auth is still loading
   if (location.pathname.includes('/auth/callback')) {
+    // Don't show full loading screen, just continue auth process silently
+    // The redirect will happen automatically once user and userRole are available
     return (
       <div className="min-h-screen bg-background">
         <Toaster />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
+        <div className="hidden">Processing auth...</div>
       </div>
     );
   }
   
   // Show loading spinner during auth check, but only if not on a public route
+  // Determine if current route is a public route (auth, setup, or callback)
+  const isPublicRoute = 
+    location.pathname === '/auth' || 
+    location.pathname.includes('/auth/callback') ||
+    location.pathname.startsWith('/client/setup');
+    
   if (isLoading && !isPublicRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
