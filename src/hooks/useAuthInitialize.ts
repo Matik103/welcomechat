@@ -50,7 +50,8 @@ export const useAuthInitialize = ({
             // If we're stuck on a non-auth page, redirect to auth
             const isAuthPage = location.pathname === '/auth';
             if (!isAuthPage) {
-              navigate('/auth', { replace: true });
+              console.log("Redirecting to auth page due to timeout");
+              window.location.href = '/auth';
             }
           }
         }, 5000);
@@ -72,10 +73,12 @@ export const useAuthInitialize = ({
           
           if (isGoogleUser) {
             // Google SSO users are always admins and go to admin dashboard
+            console.log("Google SSO user detected during init, setting admin role");
             setUserRole('admin');
             setIsLoading(false);
             
             if (!isCallbackUrl && location.pathname !== '/') {
+              console.log("Redirecting Google SSO user to admin dashboard");
               // Use direct window location for clean redirect
               window.location.href = '/';
               return;
@@ -92,6 +95,7 @@ export const useAuthInitialize = ({
             const isAuthPage = location.pathname === '/auth';
             
             if (!isCallbackUrl && isAuthPage) {
+              console.log(`Redirecting ${role} from auth page to appropriate dashboard`);
               if (role === 'client') {
                 window.location.href = '/client/dashboard';
               } else {
@@ -110,6 +114,7 @@ export const useAuthInitialize = ({
                                     location.pathname.startsWith('/client/setup');
               
             if (!isAuthRelatedPage) {
+              console.log("No session, redirecting to auth page");
               navigate('/auth', { replace: true });
             }
             
@@ -132,6 +137,7 @@ export const useAuthInitialize = ({
           // Redirect to auth page on error
           const isAuthPage = location.pathname.startsWith('/auth');
           if (!isAuthPage) {
+            console.log("Error occurred, redirecting to auth page");
             navigate('/auth', { replace: true });
           }
         }

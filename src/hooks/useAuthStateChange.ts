@@ -42,7 +42,7 @@ export const useAuthStateChange = ({
             if (!currentSession) {
               console.error("No session found in SIGNED_IN event");
               setIsLoading(false);
-              navigate('/auth', { replace: true });
+              window.location.href = '/auth';
               return;
             }
             
@@ -87,7 +87,7 @@ export const useAuthStateChange = ({
               setUserRole(null);
               setIsLoading(false);
               
-              navigate('/auth', { replace: true });
+              window.location.href = '/auth';
             }
           } else if (event === 'USER_UPDATED' && currentSession && mounted) {
             setSession(currentSession);
@@ -106,7 +106,7 @@ export const useAuthStateChange = ({
             setIsLoading(false);
             
             // Redirect to auth page on error
-            navigate('/auth', { replace: true });
+            window.location.href = '/auth';
           }
         }
       }

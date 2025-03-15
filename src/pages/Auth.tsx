@@ -50,8 +50,10 @@ const Auth = () => {
     if (session && userRole && !isLoading) {
       console.log("Redirecting from Auth page to proper dashboard");
       if (userRole === 'client') {
+        console.log("Redirecting client to client dashboard");
         window.location.href = '/client/dashboard';
       } else if (userRole === 'admin') {
+        console.log("Redirecting admin to admin dashboard");
         window.location.href = '/';
       }
     }
@@ -68,9 +70,11 @@ const Auth = () => {
   if (session && userRole) {
     console.log("Auth page - immediate redirect due to existing session");
     if (userRole === 'client') {
+      console.log("Redirecting to client dashboard with immediate Navigate");
       window.location.href = '/client/dashboard';
       return null;
     } else {
+      console.log("Redirecting to admin dashboard with immediate Navigate");
       window.location.href = '/';
       return null;
     }
@@ -175,10 +179,6 @@ const Auth = () => {
       setIsGoogleLoading(true);
       setErrorMessage("");
       
-      // First check if the user's email is already in the clients table
-      // We can't do this yet because we don't have the email before Google auth
-      // But we'll enforce the rule in the callback
-      
       // Use current window location for development flexibility
       const redirectUrl = `${window.location.origin}/auth/callback`;
       console.log("Starting Google Sign In with redirect to:", redirectUrl);
@@ -206,9 +206,6 @@ const Auth = () => {
       }
       
       console.log("Redirecting to OAuth URL:", data.url);
-      
-      // Set a flag that we're starting the Google auth flow
-      localStorage.setItem('google_auth_started', 'true');
       
       // Redirect to the Google auth URL
       window.location.href = data.url;
@@ -471,4 +468,3 @@ const Auth = () => {
 };
 
 export default Auth;
-
