@@ -44,9 +44,11 @@ export const useAuthCallback = ({
           setSession(callbackSession);
           setUser(callbackSession.user);
           
-          // For email/password users, determine role from database
+          // For Google SSO users, determine role from database
           const userRole = await determineUserRole(callbackSession.user);
           setUserRole(userRole);
+          
+          console.log("Role determined in callback:", userRole);
           
           // Navigate based on user role
           const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
