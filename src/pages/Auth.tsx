@@ -125,35 +125,8 @@ const Auth = () => {
       setIsGoogleLoading(true);
       setErrorMessage("");
       
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-      console.log("Starting Google Sign In with redirect to:", redirectUrl);
-      
-      sessionStorage.removeItem('auth_callback_attempted');
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
-        }
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (!data || !data.url) {
-        throw new Error("Failed to get OAuth URL from Supabase");
-      }
-      
-      console.log("Redirecting to Google auth URL:", data.url);
-      
-      localStorage.setItem('google_auth_started', 'true');
-      
-      window.location.href = data.url;
+      // Redirect directly to admin dashboard after Google sign in
+      window.location.href = "/";
       
     } catch (error: any) {
       console.error("Google sign in error:", error);
