@@ -88,8 +88,8 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         .from("ai_agents")
         .insert([{
           client_id: clientId,
-          name: data.agent_name, // Use 'name' instead of 'agent_name'
-          settings: {  // Use 'settings' instead of 'metadata'
+          name: data.agent_name, 
+          settings: {
             client_name: data.client_name,
             created_at: new Date().toISOString()
           }
@@ -118,15 +118,34 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
   try {
     console.log("Sending invitation for client:", clientId, email, clientName);
     
-    // Add more debugging to help diagnose the issue
+    // Generate password first using the generate-client-password function
+    try {
+      const { data: passwordData, error: passwordError } = await supabase.functions.invoke("generate-client-password", {
+        body: { 
+          email, 
+          clientId 
+        }
+      });
+      
+      if (passwordError) {
+        console.error("Error generating password:", passwordError);
+        // Continue anyway to try the main invitation function
+      } else {
+        console.log("Password generated successfully:", passwordData?.password ? "Password created" : "No password needed");
+      }
+    } catch (passwordError) {
+      console.error("Failed to generate password:", passwordError);
+      // Continue with invitation process
+    }
+    
+    // Now call the invitation function
     console.log("Making function call to send-client-invitation edge function");
     
     const { data, error } = await supabase.functions.invoke("send-client-invitation", {
       body: {
         clientId,
         email,
-        clientName,
-        timeout: 30000 // Increase timeout to 30 seconds
+        clientName
       }
     });
     

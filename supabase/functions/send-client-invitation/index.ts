@@ -90,7 +90,6 @@ serve(async (req) => {
         
       if (passwordError) {
         console.error("Error storing temporary password:", passwordError);
-        // Continue despite error, as we still want to send the invitation
         console.log("Continuing with invitation process despite password storage error");
       } else {
         console.log("Temporary password stored successfully");
@@ -112,8 +111,7 @@ serve(async (req) => {
         client_id: clientId,
         token: token,
         email: email,
-        expires_at: expiresAt.toISOString(),
-        status: 'pending'
+        expires_at: expiresAt.toISOString()
       });
 
     if (inviteError) {
@@ -131,19 +129,36 @@ serve(async (req) => {
     
     const resend = new Resend(resendApiKey);
     
+    // Get the client's agent name
+    let agentName = "Your AI Assistant";
+    try {
+      const { data: clientData } = await supabaseAdmin
+        .from('clients')
+        .select('agent_name')
+        .eq('id', clientId)
+        .single();
+      
+      if (clientData && clientData.agent_name) {
+        agentName = clientData.agent_name;
+      }
+    } catch (error) {
+      console.error("Error getting agent name:", error);
+      // Continue with default agent name
+    }
+    
     // Send invitation email using Resend
     const setupUrl = `${origin}/client/setup?token=${token}`;
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: "Welcome.Chat <onboarding@resend.dev>",
       to: email,
-      subject: "Welcome to Welcome.Chat - Your Account Invitation",
+      subject: `Welcome to ${agentName} - Your Account Invitation`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #333; margin-bottom: 20px;">Welcome to Welcome.Chat!</h2>
+          <h2 style="color: #333; margin-bottom: 20px;">Welcome to ${agentName}!</h2>
           
           <p>Hello${clientName ? ` ${clientName}` : ''},</p>
           
-          <p>You have been invited to create your Welcome.Chat account.</p>
+          <p>You have been invited to create your account for ${agentName}. Your AI assistant has been set up and is ready for you to configure.</p>
           
           <p><strong>Your temporary password is: ${tempPassword}</strong></p>
           
@@ -151,8 +166,9 @@ serve(async (req) => {
           
           <ol style="line-height: 1.6;">
             <li>Click the button below to set up your account</li>
-            <li>Use your temporary password to sign in, then create a new password</li>
-            <li>You'll be automatically signed in to your dashboard</li>
+            <li>Use your email (${email}) and temporary password to sign in</li>
+            <li>You'll be automatically redirected to your client dashboard</li>
+            <li>Configure your AI assistant's settings in the dashboard</li>
           </ol>
           
           <div style="margin: 30px 0;">
@@ -163,7 +179,7 @@ serve(async (req) => {
               text-decoration: none;
               border-radius: 6px;
               display: inline-block;
-            ">Set Up Your Account</a>
+            ">Sign In</a>
           </div>
           
           <p style="color: #666;">This invitation link will expire in 24 hours.</p>
@@ -172,7 +188,7 @@ serve(async (req) => {
             If you didn't expect this invitation, you can safely ignore this email.
           </p>
           
-          <p>Best regards,<br>The Welcome.Chat Team</p>
+          <p>Best regards,<br>The ${agentName} Team</p>
         </div>
       `
     });
@@ -204,7 +220,7 @@ serve(async (req) => {
       stack: error.stack
     });
     
-    // Return error response
+    // Return error response, but use status 200 to avoid CORS issues
     return new Response(
       JSON.stringify({ 
         error: error.message || "Failed to send invitation",
@@ -212,7 +228,7 @@ serve(async (req) => {
         success: false
       }), 
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
