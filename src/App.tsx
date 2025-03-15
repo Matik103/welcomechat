@@ -46,6 +46,19 @@ function App() {
     location.pathname.includes('/auth/callback') ||
     location.pathname.startsWith('/client/setup');
   
+  // Special handling for callback route
+  if (location.pathname.includes('/auth/callback')) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Toaster />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          <p className="ml-3 text-sm text-muted-foreground">Authenticating...</p>
+        </div>
+      </div>
+    );
+  }
+  
   // Only show loader briefly during initial auth check
   if (isLoading && showLoader && !isPublicRoute) {
     return (
