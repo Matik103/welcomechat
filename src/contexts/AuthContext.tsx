@@ -157,38 +157,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   .maybeSingle();
                   
                 if (clientData?.id) {
-                  await createUserRole(sessionData.session.user.id, 'client', clientData.id);
-                  setUserRole('client');
+                  const success = await createUserRole(sessionData.session.user.id, 'client', clientData.id);
+                  if (success) {
+                    setUserRole('client');
+                    
+                    // Navigate to client dashboard
+                    console.log("Redirecting to client dashboard");
+                    navigate('/client/dashboard', { replace: true });
+                  }
                 }
               } else {
                 console.log("Email not found in clients table, assigning admin role");
-                await createUserRole(sessionData.session.user.id, 'admin');
-                setUserRole('admin');
+                const success = await createUserRole(sessionData.session.user.id, 'admin');
+                if (success) {
+                  setUserRole('admin');
+                  
+                  // Navigate to admin dashboard
+                  console.log("Redirecting to admin dashboard");
+                  navigate('/', { replace: true });
+                }
               }
             }
             
             // Clear the hash to prevent processing it again
             window.history.replaceState(null, "", window.location.pathname);
-            
-            // Redirect based on role
-            if (userRole === 'client' || (isClient && !existingRole)) {
-              navigate('/client/dashboard', { replace: true });
-            } else {
-              navigate('/', { replace: true });
-            }
           } else {
             console.log("No session found in URL");
-            setIsLoading(false);
           }
         } catch (e) {
           console.error("Error processing auth redirect:", e);
+        } finally {
           setIsLoading(false);
         }
       }
     };
 
     handleHashParameters();
-  }, [navigate, location.pathname, userRole]);
+  }, [navigate, location.pathname]);
 
   useEffect(() => {
     let mounted = true;
@@ -289,6 +294,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (existingRole) {
               // Use existing role
               setUserRole(existingRole);
+              
+              // Navigate based on role
+              if (existingRole === 'client') {
+                navigate('/client/dashboard', { replace: true });
+              } else {
+                navigate('/', { replace: true });
+              }
             } else {
               // Assign role based on client check
               if (isClient) {

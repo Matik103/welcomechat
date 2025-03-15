@@ -25,10 +25,10 @@ function App() {
   const [showLoader, setShowLoader] = useState(true);
   
   useEffect(() => {
-    // Set a maximum wait time for loader display (5 seconds)
+    // Set a maximum wait time for loader display (8 seconds)
     const timer = setTimeout(() => {
       setShowLoader(false);
-    }, 5000);
+    }, 8000);
     
     // If auth completes before timeout, clear the timer and hide loader
     if (!isLoading) {
@@ -56,12 +56,27 @@ function App() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
-          <p className="text-sm text-gray-500">Loading your application...</p>
+          <p className="text-sm text-gray-500">
+            {isOAuthRedirect ? "Processing your login..." : "Loading your application..."}
+          </p>
           {showLoader && isOAuthRedirect && (
             <p className="text-xs text-gray-400 max-w-xs text-center">
               Processing authentication. If this takes too long, try refreshing the page.
             </p>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // If we can't determine the user's role yet but they're authenticated,
+  // show a loading state for the role determination
+  if (!isLoading && user && !userRole && !isPublicRoute) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
+          <p className="text-sm text-gray-500">Setting up your dashboard...</p>
         </div>
       </div>
     );

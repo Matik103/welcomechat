@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -20,8 +20,9 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, userRole } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Define the resetForm function
   const resetForm = () => {
@@ -62,10 +63,25 @@ const Auth = () => {
           window.history.replaceState(null, "", window.location.pathname);
         }
       }
-    }, 15000); // 15 seconds timeout
+    }, 20000); // Increased to 20 seconds timeout
     
     return () => clearTimeout(timeoutId);
   }, [isProcessingOAuth, location.pathname]);
+
+  // Redirect based on user role if authenticated
+  useEffect(() => {
+    if (session && !isLoading) {
+      console.log("User authenticated with role:", userRole);
+      
+      if (userRole === 'client') {
+        navigate('/client/dashboard', { replace: true });
+      } else if (userRole === 'admin') {
+        navigate('/', { replace: true });
+      } else {
+        console.log("User has no role assigned yet, waiting...");
+      }
+    }
+  }, [session, userRole, isLoading, navigate]);
 
   // If we're processing OAuth or checking auth, show loading spinner
   if (isLoading || isProcessingOAuth) {
@@ -73,7 +89,9 @@ const Auth = () => {
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Authenticating...</p>
+          <p className="text-muted-foreground">
+            {isProcessingOAuth ? "Processing your Google login..." : "Authenticating..."}
+          </p>
           {isProcessingOAuth && (
             <p className="text-sm text-muted-foreground max-w-md text-center">
               Processing your login. If this takes more than a few seconds, you may need to refresh the page.
@@ -84,9 +102,25 @@ const Auth = () => {
     );
   }
 
-  // Redirect authenticated users to the main dashboard
-  if (session) {
-    return <Navigate to="/" replace />;
+  // If user is authenticated but has no role yet, show a loading state
+  if (session && !userRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Setting up your account...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect authenticated users to the appropriate dashboard
+  if (session && userRole) {
+    if (userRole === 'client') {
+      return <Navigate to="/client/dashboard" replace />;
+    } else {
+      return <Navigate to="/" replace />;
+    }
   }
 
   // Check if email already exists in Supabase
