@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { OAuth2Client } from "https://deno.land/x/oauth2_client@v1.0.2/mod.ts";
 
@@ -17,7 +18,7 @@ const oauth2Client = new OAuth2Client({
   clientSecret: Deno.env.get('GOOGLE_CLIENT_SECRET') || '',
   authorizationEndpointUri: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenUri: 'https://oauth2.googleapis.com/token',
-  redirectUri: `${Deno.env.get('SUPABASE_URL')}/functions/v1/check-drive-access/callback',
+  redirectUri: `${Deno.env.get('SUPABASE_URL')}/functions/v1/check-drive-access/callback`,
   defaults: {
     scope: ['https://www.googleapis.com/auth/drive.readonly']
   }
