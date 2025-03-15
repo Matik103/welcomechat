@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
-import { determineUserRole } from "@/utils/authUtils";
+import { determineUserRole, isGoogleSSOUser } from "@/utils/authUtils";
 
 type AuthInitializeProps = {
   authInitialized: boolean;
@@ -53,7 +53,8 @@ export const useAuthInitialize = ({
           setUser(currentSession.user);
           
           // Check if Google SSO authentication
-          const isGoogleAuth = currentSession.user?.app_metadata?.provider === 'google';
+          const isGoogleAuth = isGoogleSSOUser(currentSession.user);
+          console.log("Is Google Auth?", isGoogleAuth);
           
           if (isGoogleAuth) {
             // Google SSO users are always assigned admin role
@@ -61,23 +62,24 @@ export const useAuthInitialize = ({
             setUserRole('admin');
             
             const isAuthPage = location.pathname === '/auth';
+            const isClientRoute = location.pathname.startsWith('/client');
             
-            if (!isCallbackUrl && isAuthPage) {
+            if (!isCallbackUrl && isClientRoute) {
+              // Force redirect any Google SSO users away from client routes to admin dashboard
+              console.log("Google SSO user on client route - redirecting to admin dashboard");
+              navigate('/', { replace: true });
+              
+              setTimeout(() => {
+                setIsLoading(false);
+                setAuthInitialized(true);
+              }, 300);
+            } else if (!isCallbackUrl && isAuthPage) {
               console.log("Redirecting from auth page to admin dashboard in init");
               
               // Navigate first while keeping loading state true
               navigate('/', { replace: true });
               
               // Longer timeout to ensure transition completes before changing loading state
-              setTimeout(() => {
-                setIsLoading(false);
-                setAuthInitialized(true);
-              }, 300);
-            } else if (!isCallbackUrl && location.pathname.startsWith('/client')) {
-              // Force redirect any Google SSO users away from client routes to admin dashboard
-              console.log("Google SSO user on client route - redirecting to admin dashboard");
-              navigate('/', { replace: true });
-              
               setTimeout(() => {
                 setIsLoading(false);
                 setAuthInitialized(true);
