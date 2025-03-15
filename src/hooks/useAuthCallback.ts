@@ -29,6 +29,8 @@ export const useAuthCallback = ({
     if (isCallbackUrl) {
       const handleCallback = async () => {
         try {
+          console.log("Auth callback processing started");
+          
           // Set a flag to avoid infinite loops
           const hasAttemptedAuth = sessionStorage.getItem('auth_callback_attempted');
           if (hasAttemptedAuth) {
@@ -67,12 +69,12 @@ export const useAuthCallback = ({
           
           console.log("Auth callback processing for user:", user.email, "Provider:", provider);
           
+          // Set session and user in auth context
+          setSession(callbackSession);
+          setUser(user);
+          
           if (isGoogleLogin) {
             console.log("Google SSO detected, setting admin role");
-            // Set session and user
-            setSession(callbackSession);
-            setUser(user);
-            
             // For Google SSO users, always set admin role
             setUserRole('admin');
             
@@ -86,9 +88,6 @@ export const useAuthCallback = ({
             window.location.href = '/';
           } else {
             // Non-Google login, use role-based redirect
-            setSession(callbackSession);
-            setUser(user);
-            
             // Get user role based on email presence in clients table
             const role = await determineUserRole(user);
             setUserRole(role);
