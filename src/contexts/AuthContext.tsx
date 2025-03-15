@@ -49,6 +49,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const role = await handleAuthenticatedUser(currentSession.user);
             setUserRole(role);
             
+            // Reset loading state before redirect to prevent stale UI
+            setIsLoading(false);
+            setAuthInitialized(true);
+            
             // Choose redirect method based on current route
             if (isCallbackUrl) {
               console.log(`Redirecting from callback to ${role} dashboard`);
@@ -62,6 +66,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             // If role determination fails, default to auth page
             if (mounted) {
               setUserRole(null);
+              setIsLoading(false);
+              setAuthInitialized(true);
               navigate('/auth', { replace: true });
             }
           }
@@ -77,12 +83,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (!isAuthRelatedPage) {
               navigate('/auth', { replace: true });
             }
+            
+            setIsLoading(false);
+            setAuthInitialized(true);
           }
-        }
-        
-        if (mounted) {
-          setAuthInitialized(true);
-          setIsLoading(false);
         }
       } catch (error) {
         console.error("Error in initializeAuth:", error);
@@ -104,14 +108,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initializeAuth();
 
+    // Auth state change listener subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
+        
         console.log("Auth state changed:", event);
+        setIsLoading(true);
 
         try {
-          if (event === 'SIGNED_IN') {
-            console.log("User signed in:", currentSession?.user.email);
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            console.log("User signed in or token refreshed:", currentSession?.user.email);
             setSession(currentSession);
             setUser(currentSession!.user);
             
@@ -120,12 +127,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               const role = await handleAuthenticatedUser(currentSession!.user);
               setUserRole(role);
               
+              // Reset loading before redirect
+              setIsLoading(false);
+              
               // For callback routes, use direct redirection
               if (isCallbackUrl) {
                 console.log("Redirecting from callback with role:", role);
-                setTimeout(() => {
-                  forceRedirectBasedOnRole(role);
-                }, 500); // Small delay to ensure state updates properly
+                forceRedirectBasedOnRole(role);
               } else {
                 console.log("Navigating with role:", role);
                 navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
@@ -133,6 +141,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             } catch (roleError) {
               console.error("Error determining user role:", roleError);
               // Default redirect if role determination fails
+              setIsLoading(false);
               if (mounted) {
                 navigate('/auth', { replace: true });
               }
@@ -143,6 +152,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setSession(null);
               setUser(null);
               setUserRole(null);
+              setIsLoading(false);
               
               if (!location.pathname.startsWith('/auth')) {
                 navigate('/auth', { replace: true });
@@ -151,6 +161,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           } else if (event === 'USER_UPDATED' && currentSession && mounted) {
             setSession(currentSession);
             setUser(currentSession.user);
+            setIsLoading(false);
+          } else {
+            // Handle other events
+            setIsLoading(false);
           }
         } catch (error) {
           console.error("Error in auth state change handler:", error);
@@ -158,14 +172,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(null);
             setUser(null);
             setUserRole(null);
+            setIsLoading(false);
             
             // Redirect to auth page on error
             navigate('/auth', { replace: true });
-          }
-        } finally {
-          // Always ensure loading state is cleared after auth state changes
-          if (mounted) {
-            setIsLoading(false);
           }
         }
       }
