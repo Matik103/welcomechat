@@ -44,15 +44,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Determine role and redirect accordingly
-          const role = await handleAuthenticatedUser(currentSession.user);
-          setUserRole(role);
-          
-          // Choose redirect method based on current route
-          if (isCallbackUrl) {
-            forceRedirectBasedOnRole(role);
-          } else {
-            navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
+          try {
+            // Determine role and redirect accordingly
+            const role = await handleAuthenticatedUser(currentSession.user);
+            setUserRole(role);
+            
+            // Choose redirect method based on current route
+            if (isCallbackUrl) {
+              console.log(`Redirecting from callback to ${role} dashboard`);
+              forceRedirectBasedOnRole(role);
+            } else {
+              console.log(`Navigating to ${role} dashboard`);
+              navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
+            }
+          } catch (error) {
+            console.error("Error handling authenticated user:", error);
+            // If role determination fails, default to auth page
+            if (mounted) {
+              setUserRole(null);
+              navigate('/auth', { replace: true });
+            }
           }
         } else {
           console.log("No active session found during init");
@@ -104,15 +115,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(currentSession);
             setUser(currentSession!.user);
             
-            // Determine role and redirect accordingly
-            const role = await handleAuthenticatedUser(currentSession!.user);
-            setUserRole(role);
-            
-            // For callback routes, use direct redirection
-            if (isCallbackUrl) {
-              forceRedirectBasedOnRole(role);
-            } else {
-              navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
+            try {
+              // Determine role and redirect accordingly
+              const role = await handleAuthenticatedUser(currentSession!.user);
+              setUserRole(role);
+              
+              // For callback routes, use direct redirection
+              if (isCallbackUrl) {
+                console.log("Redirecting from callback with role:", role);
+                setTimeout(() => {
+                  forceRedirectBasedOnRole(role);
+                }, 500); // Small delay to ensure state updates properly
+              } else {
+                console.log("Navigating with role:", role);
+                navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
+              }
+            } catch (roleError) {
+              console.error("Error determining user role:", roleError);
+              // Default redirect if role determination fails
+              if (mounted) {
+                navigate('/auth', { replace: true });
+              }
             }
           } else if (event === 'SIGNED_OUT') {
             console.log("User signed out");
@@ -138,6 +161,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             // Redirect to auth page on error
             navigate('/auth', { replace: true });
+          }
+        } finally {
+          // Always ensure loading state is cleared after auth state changes
+          if (mounted) {
+            setIsLoading(false);
           }
         }
       }

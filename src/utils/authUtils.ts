@@ -11,6 +11,19 @@ export const createUserRole = async (
   role: UserRole
 ): Promise<boolean> => {
   try {
+    // Check if role already exists
+    const { data: existingRole } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle();
+      
+    if (existingRole) {
+      console.log(`User role already exists: ${existingRole.role}`);
+      return true;
+    }
+    
+    console.log(`Creating role for user ${userId}: ${role}`);
     const { error } = await supabase
       .from('user_roles')
       .insert({
@@ -23,6 +36,7 @@ export const createUserRole = async (
       return false;
     }
     
+    console.log(`Successfully created ${role} role for user ${userId}`);
     return true;
   } catch (err) {
     console.error("Error in createUserRole:", err);
@@ -35,7 +49,11 @@ export const createUserRole = async (
  */
 export const forceRedirectBasedOnRole = (role: UserRole) => {
   console.log(`Force redirecting to ${role === 'admin' ? 'admin' : 'client'} dashboard`);
-  window.location.href = role === 'admin' ? '/' : '/client/dashboard';
+  
+  // Small delay to ensure state updates and rendering completes
+  setTimeout(() => {
+    window.location.href = role === 'admin' ? '/' : '/client/dashboard';
+  }, 100);
 };
 
 /**
@@ -43,6 +61,7 @@ export const forceRedirectBasedOnRole = (role: UserRole) => {
  */
 export const getUserRole = async (userId: string): Promise<UserRole | null> => {
   try {
+    console.log(`Getting role for user ${userId}`);
     const { data, error } = await supabase
       .from('user_roles')
       .select('role')
@@ -54,6 +73,7 @@ export const getUserRole = async (userId: string): Promise<UserRole | null> => {
       return null;
     }
     
+    console.log(`Found role for user ${userId}: ${data?.role}`);
     return data?.role as UserRole;
   } catch (err) {
     console.error("Error in getUserRole:", err);
