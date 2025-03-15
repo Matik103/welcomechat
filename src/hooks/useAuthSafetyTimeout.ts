@@ -25,7 +25,11 @@ export const useAuthSafetyTimeout = ({
     
     // Clear any existing auth callback attempted flag to prevent loops
     if (isLoading && !session) {
-      sessionStorage.removeItem('auth_callback_attempted');
+      const hasAttempted = sessionStorage.getItem('auth_callback_attempted');
+      if (hasAttempted && isAuthPage) {
+        console.log("Previous auth callback attempt detected on auth page, clearing flag");
+        sessionStorage.removeItem('auth_callback_attempted');
+      }
     }
     
     console.log("Setting up safety timeout for loading state");

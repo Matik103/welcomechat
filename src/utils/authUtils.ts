@@ -70,17 +70,18 @@ export const determineUserRole = async (user: User): Promise<UserRole> => {
   }
   
   try {
-    // Check if the user's email exists in the clients table
-    const isClient = await isClientInDatabase(user.email);
-    
-    // If user is using Google SSO and is also in clients table, they should still be treated as admin
-    // This enforces the rule that clients can't use Google SSO
+    // Check if the user is using Google SSO
     const isGoogleUser = user.app_metadata?.provider === 'google';
     
+    // Google SSO users are ALWAYS admins, regardless of whether their email
+    // exists in the clients table
     if (isGoogleUser) {
       console.log(`User ${user.email} is using Google SSO, treating as admin regardless of client status`);
       return 'admin';
     }
+    
+    // For non-Google users, check if they're in clients table
+    const isClient = await isClientInDatabase(user.email);
     
     console.log(`User ${user.email} role determined as: ${isClient ? 'client' : 'admin'}`);
     return isClient ? 'client' : 'admin';

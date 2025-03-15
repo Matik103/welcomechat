@@ -205,6 +205,9 @@ const Auth = () => {
       
       console.log("Redirecting to OAuth URL:", data.url);
       
+      // Set a flag that we're starting the Google auth flow
+      localStorage.setItem('google_auth_started', 'true');
+      
       // Redirect to the Google auth URL
       window.location.href = data.url;
       
