@@ -191,6 +191,8 @@ const Auth = () => {
       
       console.log("Redirecting to OAuth URL:", data.url);
       
+      window.location.href = data.url;
+      
     } catch (error: any) {
       console.error("Google sign in error:", error);
       setErrorMessage(error.message || "Failed to sign in with Google");
@@ -450,4 +452,3 @@ const Auth = () => {
 };
 
 export default Auth;
-
