@@ -1,220 +1,218 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
+
+interface InvitationRequest {
+  clientId: string;
+  email: string;
+  clientName: string;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
-
+  
   try {
-    console.log("send-client-invitation function started");
-
-    // Get the authorization header
-    const authorization = req.headers.get('Authorization') || '';
+    console.log("Send client invitation function started");
+    
+    // Parse request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log("Request body received:", JSON.stringify(requestBody));
+    } catch (parseError) {
+      console.error("Failed to parse request body:", parseError);
+      throw new Error("Invalid request format");
+    }
+    
+    const { clientId, email, clientName } = requestBody as InvitationRequest;
+    
+    if (!clientId || !email) {
+      console.error("Missing required parameters:", { clientId, email });
+      throw new Error("Missing required parameters: clientId and email are required");
+    }
+    
+    console.log(`Sending invitation to client: ${clientName || 'Unknown'} (${email}), ID: ${clientId}`);
+    
+    // Get the origin from request headers or use default
+    const origin = req.headers.get("origin") || "https://welcome.chat";
+    console.log("Using origin:", origin);
+    
+    // Initialize Supabase admin client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables");
+      throw new Error("Server configuration error: Missing Supabase credentials");
+    }
+    
+    console.log("Initializing Supabase admin client with URL:", supabaseUrl);
     
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+      supabaseUrl,
+      supabaseServiceRoleKey,
       {
         auth: {
           autoRefreshToken: false,
           persistSession: false
-        },
-        global: {
-          headers: { Authorization: authorization }
         }
       }
     );
-    
-    // Verify the user
-    const { data: { user }, error: getUserError } = await supabaseAdmin.auth.getUser();
-    
-    if (getUserError || !user) {
-      console.error("Error getting user:", getUserError);
-      throw new Error("Authentication required");
-    }
-    
-    console.log(`Request made by user: ${user.email}`);
-    
-    // Check if the user is an admin (if required by your app)
-    const { data: userRoles, error: roleError } = await supabaseAdmin
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id);
-    
-    if (roleError) {
-      console.error("Error checking user role:", roleError);
-      // Continue anyway, but log the warning
-    } else {
-      const isAdmin = userRoles.some(r => r.role === 'admin');
-      if (!isAdmin) {
-        console.warn(`Warning: Non-admin user ${user.email} attempted to send invitation`);
-        // For now, we'll allow the operation but log the warning
-        // If you want to enforce admin-only, uncomment the next line:
-        // throw new Error("Admin permission required");
-      } else {
-        console.log(`Confirmed admin user: ${user.email}`);
-      }
-    }
 
-    // Parse request body
-    const { clientId, email, clientName } = await req.json();
+    // Generate a temporary password for the client
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const tempPassword = `Welcome${randomDigits}!`;
     
-    console.log("Processing invitation for:", { email, clientName, clientId });
-    
-    if (!email || !clientName || !clientId) {
-      throw new Error("Missing required parameters: email, clientName, and clientId are required");
-    }
-    
-    // Check if client exists
-    const { data: clientData, error: clientError } = await supabaseAdmin
-      .from("clients")
-      .select("*")
-      .eq("id", clientId)
-      .single();
-    
-    if (clientError || !clientData) {
-      console.error("Client not found:", clientError);
-      throw new Error(`Client with ID ${clientId} not found`);
-    }
-    
-    // Get the temporary password (if available)
-    const { data: tempPasswordData, error: tempPasswordError } = await supabaseAdmin
-      .from("client_temp_passwords")
-      .select("temp_password")
-      .eq("client_id", clientId)
-      .eq("email", email)
-      .eq("used", false)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
-    
-    let tempPassword = "your temporary password";
-    
-    if (!tempPasswordError && tempPasswordData) {
-      tempPassword = tempPasswordData.temp_password;
-    } else {
-      console.log("No temporary password found, using placeholder");
-    }
-    
-    // Generate dashboard link (client will need to sign in first)
-    const siteUrl = Deno.env.get('PUBLIC_SITE_URL') || '';
-    const dashboardUrl = `${siteUrl}/client/dashboard`;
-    
-    // For new users, we need them to create their account first
-    // Generate password reset link that will allow them to sign in
-    const { data: passwordResetData, error: passwordResetError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "recovery",
-      email: email,
-      options: {
-        redirectTo: `${siteUrl}/client/dashboard`
-      }
-    });
-    
-    if (passwordResetError) {
-      console.error("Error generating password reset link:", passwordResetError);
-      throw passwordResetError;
-    }
-    
-    const resetLink = passwordResetData?.properties?.action_link || dashboardUrl;
-    console.log("Generated reset link");
-
-    // Send email via Resend API
+    // Store the temporary password
     try {
-      console.log("Attempting to send email via Resend API");
-      const resendApiKey = Deno.env.get('RESEND_API_KEY');
-      
-      if (!resendApiKey) {
-        throw new Error("RESEND_API_KEY is not set");
+      const { error: passwordError } = await supabaseAdmin
+        .from('client_temp_passwords')
+        .insert({
+          client_id: clientId,
+          email: email,
+          temp_password: tempPassword,
+          created_at: new Date().toISOString(),
+          used: false
+        });
+        
+      if (passwordError) {
+        console.error("Error storing temporary password:", passwordError);
+        // Continue despite error, as we still want to send the invitation
+        console.log("Continuing with invitation process despite password storage error");
+      } else {
+        console.log("Temporary password stored successfully");
       }
-      
-      const resend = new Resend(resendApiKey);
-      const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "Welcome.Chat <admin@welcome.chat>",
-        to: [email],
-        subject: `Welcome to TestBot Assistant!`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-            <h1 style="color: #333;">Welcome to TestBot Assistant!</h1>
-            <p>Hello ${clientName},</p>
-            <p>You have been invited to create your account for TestBot Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
-            <p><strong>Your temporary password is: ${tempPassword}</strong></p>
-            <p>To complete your account setup:</p>
-            <ol>
-              <li>Click the button below to sign in</li>
-              <li>Use your email (${email}) and temporary password to log in</li>
-              <li>You'll be automatically redirected to your client dashboard</li>
-              <li>Configure your AI assistant's settings in the dashboard</li>
-            </ol>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetLink}" style="background-color: #4CAF50; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Sign In</a>
-            </div>
-            <p>This invitation link will expire in 24 hours.</p>
-            <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-            <p>Best regards,<br>The TestBot Assistant Team</p>
-          </div>
-        `
-      });
-      
-      if (emailError) {
-        console.error("Resend API error:", emailError);
-        throw new Error(`Resend API error: ${JSON.stringify(emailError)}`);
-      }
-      
-      console.log("Email sent successfully via Resend API");
-      
-    } catch (resendError) {
-      console.error("Failed to send email via Resend:", resendError);
-      throw resendError;
+    } catch (tempPasswordError) {
+      console.error("Failed to store temporary password:", tempPasswordError);
+      // Continue despite error
     }
-    
-    // Log client activity
-    const { error: activityError } = await supabaseAdmin
-      .from("client_activities")
+
+    // Generate a unique token for the invitation
+    const token = crypto.randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour expiration
+
+    // Store the invitation in the database
+    const { error: inviteError } = await supabaseAdmin
+      .from('client_invitations')
       .insert({
         client_id: clientId,
-        activity_type: "invitation_sent",
-        description: `Invitation email sent to ${email}`,
-        metadata: {
-          email,
-          sent_by: user.email
-        }
+        token: token,
+        email: email,
+        expires_at: expiresAt.toISOString(),
+        status: 'pending'
       });
+
+    if (inviteError) {
+      console.error("Error storing invitation:", inviteError);
+      throw new Error("Failed to create invitation record");
+    }
+    console.log("Invitation record created successfully with token:", token);
+
+    // Initialize Resend
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      console.error("Missing RESEND_API_KEY environment variable");
+      throw new Error("Server configuration error: Missing Resend API key");
+    }
     
-    if (activityError) {
-      console.error("Error logging client activity:", activityError);
-      // Continue anyway, as the email was sent successfully
+    const resend = new Resend(resendApiKey);
+    
+    // Send invitation email using Resend
+    const setupUrl = `${origin}/client/setup?token=${token}`;
+    const { data: emailData, error: emailError } = await resend.emails.send({
+      from: "Welcome.Chat <onboarding@resend.dev>",
+      to: email,
+      subject: "Welcome to Welcome.Chat - Your Account Invitation",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333; margin-bottom: 20px;">Welcome to Welcome.Chat!</h2>
+          
+          <p>Hello${clientName ? ` ${clientName}` : ''},</p>
+          
+          <p>You have been invited to create your Welcome.Chat account.</p>
+          
+          <p><strong>Your temporary password is: ${tempPassword}</strong></p>
+          
+          <p>To complete your account setup:</p>
+          
+          <ol style="line-height: 1.6;">
+            <li>Click the button below to set up your account</li>
+            <li>Use your temporary password to sign in, then create a new password</li>
+            <li>You'll be automatically signed in to your dashboard</li>
+          </ol>
+          
+          <div style="margin: 30px 0;">
+            <a href="${setupUrl}" style="
+              background-color: #3b82f6;
+              color: white;
+              padding: 12px 24px;
+              text-decoration: none;
+              border-radius: 6px;
+              display: inline-block;
+            ">Set Up Your Account</a>
+          </div>
+          
+          <p style="color: #666;">This invitation link will expire in 24 hours.</p>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
+            If you didn't expect this invitation, you can safely ignore this email.
+          </p>
+          
+          <p>Best regards,<br>The Welcome.Chat Team</p>
+        </div>
+      `
+    });
+
+    if (emailError) {
+      console.error("Error sending email with Resend:", emailError);
+      throw emailError;
     }
 
-    console.log("Invitation process completed successfully");
+    console.log("Email sent successfully with Resend:", emailData);
+    
+    // Return success response
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: "Invitation email sent successfully" 
-      }),
-      { 
+        message: "Invitation email sent successfully",
+        data: emailData
+      }), 
+      {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
   } catch (error) {
     console.error("Error in send-client-invitation function:", error);
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // Return error response
     return new Response(
       JSON.stringify({ 
-        success: false,
-        error: error.message || "Failed to send invitation email"
-      }),
-      { 
-        status: 200, // Using 200 to avoid CORS issues
+        error: error.message || "Failed to send invitation",
+        details: error.stack,
+        success: false
+      }), 
+      {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
