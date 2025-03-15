@@ -15,8 +15,21 @@ const ClientAuth = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { session } = useAuth();
+  const { session, isLoading } = useAuth();
 
+  // Show loading state while authentication is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if already authenticated
   if (session) {
     return <Navigate to="/client/dashboard" replace />;
   }
@@ -24,6 +37,8 @@ const ClientAuth = () => {
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
+      console.log("Starting Google sign-in from client Auth page");
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -31,9 +46,14 @@ const ClientAuth = () => {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Google sign-in error:", error);
+        throw error;
+      }
+      
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Google sign-in error:", error);
+      toast.error(error.message || "Google sign-in failed");
     } finally {
       setGoogleLoading(false);
     }
@@ -44,14 +64,21 @@ const ClientAuth = () => {
     setLoading(true);
 
     try {
+      console.log("Attempting to sign in with email:", email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Sign in error:", error);
+        throw error;
+      }
+      
       toast.success("Successfully signed in!");
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Auth error:", error);
+      toast.error(error.message || "Failed to sign in");
     } finally {
       setLoading(false);
     }
