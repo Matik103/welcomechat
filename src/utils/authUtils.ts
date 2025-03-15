@@ -1,3 +1,4 @@
+
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
@@ -68,13 +69,18 @@ export const forceRedirectBasedOnRole = (role: UserRole) => {
     const redirectUrl = role === 'admin' ? '/' : '/client/dashboard';
     console.log(`Performing actual redirect to: ${redirectUrl}`);
     window.location.href = redirectUrl;
-  }, 100);
+  }, 500); // Increased timeout for more reliability
 };
 
 /**
  * Get user role from database
  */
 export const getUserRole = async (userId: string): Promise<UserRole | null> => {
+  if (!userId) {
+    console.error("getUserRole called with no userId");
+    return null;
+  }
+
   try {
     console.log(`Getting role for user ${userId}`);
     const { data, error } = await supabase
@@ -89,6 +95,13 @@ export const getUserRole = async (userId: string): Promise<UserRole | null> => {
     }
     
     console.log(`Found role for user ${userId}: ${data?.role || 'none'}`);
+    
+    // If we got data but no role, this is unexpected but we'll handle it
+    if (data && !data.role) {
+      console.warn("Role record exists but has no role value, treating as null");
+      return null;
+    }
+    
     return data?.role as UserRole || null;
   } catch (err) {
     console.error("Error in getUserRole:", err);
@@ -136,7 +149,8 @@ export const isClientInDatabase = async (email: string): Promise<boolean> => {
 export const handleAuthenticatedUser = async (currentUser: User): Promise<UserRole> => {
   if (!currentUser) {
     console.error("handleAuthenticatedUser called with no user");
-    throw new Error("No user provided");
+    console.log("Defaulting to admin role due to missing user");
+    return 'admin'; // Default to admin instead of throwing
   }
   
   console.log("Handling authenticated user:", currentUser.email);
@@ -149,25 +163,31 @@ export const handleAuthenticatedUser = async (currentUser: User): Promise<UserRo
   }
   
   // If user doesn't have a role yet, determine it based on whether they exist in the clients table
-  const isClient = currentUser.email ? await isClientInDatabase(currentUser.email) : false;
-  const role: UserRole = isClient ? 'client' : 'admin';
-  
-  console.log(`Assigning role '${role}' to user with email: ${currentUser.email}`);
-  
   try {
-    const success = await createUserRole(currentUser.id, role);
-    if (!success) {
-      console.error("Failed to create role in database");
-      // Default to admin if we failed to create the role
-      console.log("Defaulting to admin role due to database error");
+    const isClient = currentUser.email ? await isClientInDatabase(currentUser.email) : false;
+    const role: UserRole = isClient ? 'client' : 'admin';
+    
+    console.log(`Assigning role '${role}' to user with email: ${currentUser.email}`);
+    
+    try {
+      const success = await createUserRole(currentUser.id, role);
+      if (!success) {
+        console.error("Failed to create role in database");
+        // Default to admin if we failed to create the role
+        console.log("Defaulting to admin role due to database error");
+        return 'admin';
+      }
+    } catch (error) {
+      console.error("Failed to create role, but continuing:", error);
+      // Default to admin in case of error
+      console.log("Defaulting to admin role due to error");
       return 'admin';
     }
-  } catch (error) {
-    console.error("Failed to create role, but continuing:", error);
-    // Default to admin in case of error
-    console.log("Defaulting to admin role due to error");
+    
+    return role;
+  } catch (err) {
+    console.error("Error determining role:", err);
+    console.log("Defaulting to admin role due to error in role determination");
     return 'admin';
   }
-  
-  return role;
 };

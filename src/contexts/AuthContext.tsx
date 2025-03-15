@@ -9,6 +9,7 @@ import {
 } from "@/utils/authUtils";
 import { useAuthState } from "@/hooks/useAuthState";
 import { AuthContextType } from "@/types/auth";
+import { toast } from "sonner";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -24,6 +25,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isCallbackUrl = location.pathname.includes('/auth/callback');
+  const isAuthPage = location.pathname === '/auth';
+
+  // Safety timeout to prevent infinite loading
+  useEffect(() => {
+    const safetyTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn("Safety timeout triggered to prevent infinite loading");
+        setIsLoading(false);
+        
+        // If we've been stuck loading and not on auth page, redirect to auth
+        if (!isAuthPage && !session) {
+          console.log("Redirecting to auth page due to timeout");
+          navigate('/auth', { replace: true });
+        }
+      }
+    }, 8000); // 8-second safety timeout
+    
+    return () => clearTimeout(safetyTimeout);
+  }, [isLoading, navigate, isAuthPage, session]);
 
   useEffect(() => {
     let mounted = true;
@@ -57,8 +77,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setIsLoading(false);
             
             // Only redirect if not on callback page (let the callback handler do it) 
-            if (!isCallbackUrl) {
+            if (!isCallbackUrl && !isAuthPage) {
               console.log(`Navigating to ${role} dashboard`);
+              navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
+            } else if (isAuthPage) {
+              // If on auth page but already logged in, redirect to appropriate dashboard
+              console.log(`On auth page but logged in, navigating to ${role} dashboard`);
               navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
             }
           } catch (error) {
@@ -69,7 +93,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setUserRole('admin');
               setIsLoading(false);
               setAuthInitialized(true);
-              navigate('/', { replace: true });
+              
+              if (!isAuthPage) {
+                navigate('/', { replace: true });
+              }
             }
           }
         } else {
@@ -137,7 +164,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setAuthInitialized(true);
               
               console.log("Callback processing complete, redirecting to dashboard with role:", role);
-              forceRedirectBasedOnRole(role);
+              
+              // Use modified forceRedirect with longer timeout for callback
+              const redirectUrl = role === 'admin' ? '/' : '/client/dashboard';
+              toast.success(`Welcome! Redirecting to your dashboard...`);
+              setTimeout(() => {
+                navigate(redirectUrl, { replace: true });
+              }, 500);
             } catch (error) {
               console.error("Error in callback auth processing:", error);
               setUserRole('admin'); // Default to admin on error
@@ -234,6 +267,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       navigate('/auth', { replace: true });
     } catch (error) {
       console.error('Sign out error:', error);
+      toast.error('Sign out error. Please try again.');
       setSession(null);
       setUser(null);
       setUserRole(null);
