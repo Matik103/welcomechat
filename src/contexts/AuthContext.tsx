@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authInitialized, setAuthInitialized] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -62,6 +63,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let mounted = true;
 
     const initializeAuth = async () => {
+      if (authInitialized) return; // Prevent multiple initializations
+      
       try {
         setIsLoading(true);
         console.log("Initializing auth...");
@@ -88,11 +91,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (location.pathname.startsWith('/auth') && 
                 !location.pathname.includes('/callback')) {
               console.log("User has role, redirecting from auth page");
-              if (existingRole === 'client') {
-                navigate('/client/dashboard', { replace: true });
-              } else {
-                navigate('/', { replace: true });
-              }
+              
+              // Add a slight delay to ensure state is updated before redirect
+              setTimeout(() => {
+                if (existingRole === 'client') {
+                  navigate('/client/dashboard', { replace: true });
+                } else {
+                  navigate('/', { replace: true });
+                }
+              }, 100);
             }
           } else if (currentSession.user.email) {
             // Check if user exists in clients table
@@ -110,9 +117,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 await createUserRole(currentSession.user.id, 'client', clientData.id);
                 setUserRole('client');
                 
-                // Redirect to client dashboard if on auth page
+                // Redirect to client dashboard if on auth page with a slight delay
                 if (location.pathname.startsWith('/auth')) {
-                  navigate('/client/dashboard', { replace: true });
+                  setTimeout(() => {
+                    navigate('/client/dashboard', { replace: true });
+                  }, 100);
                 }
               }
             } else {
@@ -120,9 +129,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               await createUserRole(currentSession.user.id, 'admin');
               setUserRole('admin');
               
-              // Redirect to admin dashboard if on auth page
+              // Redirect to admin dashboard if on auth page with a slight delay
               if (location.pathname.startsWith('/auth')) {
-                navigate('/', { replace: true });
+                setTimeout(() => {
+                  navigate('/', { replace: true });
+                }, 100);
               }
             }
           }
@@ -138,12 +149,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             navigate('/auth', { replace: true });
           }
         }
+        
+        setAuthInitialized(true);
       } catch (error) {
         console.error("Error initializing auth:", error);
         if (mounted) {
           setSession(null);
           setUser(null);
           setUserRole(null);
+          setAuthInitialized(true);
         }
       } finally {
         if (mounted) {
@@ -182,11 +196,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               // Navigate based on role, but only if we're on the auth page
               if (location.pathname.startsWith('/auth')) {
                 console.log("Redirecting from auth page after sign in");
-                if (existingRole === 'client') {
-                  navigate('/client/dashboard', { replace: true });
-                } else {
-                  navigate('/', { replace: true });
-                }
+                setTimeout(() => {
+                  if (existingRole === 'client') {
+                    navigate('/client/dashboard', { replace: true });
+                  } else {
+                    navigate('/', { replace: true });
+                  }
+                }, 100);
               }
             } else {
               // Assign role based on client check
@@ -206,7 +222,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   
                   // Navigate to client dashboard if on auth page
                   if (location.pathname.startsWith('/auth')) {
-                    navigate('/client/dashboard', { replace: true });
+                    setTimeout(() => {
+                      navigate('/client/dashboard', { replace: true });
+                    }, 100);
                   }
                 }
               } else {
@@ -216,7 +234,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 
                 // Navigate to admin dashboard if on auth page
                 if (location.pathname.startsWith('/auth')) {
-                  navigate('/', { replace: true });
+                  setTimeout(() => {
+                    navigate('/', { replace: true });
+                  }, 100);
                 }
               }
             }
@@ -256,7 +276,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, authInitialized]);
 
   const signOut = async () => {
     try {
