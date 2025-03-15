@@ -25,10 +25,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Function to clear all auth state and local storage
+  const clearAuthState = async () => {
+    try {
+      // Clear Supabase session
+      await supabase.auth.signOut();
+      
+      // Clear local storage items related to auth
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('supabase.auth.expires_at');
+      localStorage.removeItem('supabase.auth.refresh_token');
+      
+      // Clear state
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
+      
+      // Clear any other potential caches
+      sessionStorage.clear();
+      
+      // Force clear service worker caches if they exist
+      if ('caches' in window) {
+        try {
+          const cacheNames = await caches.keys();
+          await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+        } catch (error) {
+          console.error('Error clearing caches:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error clearing auth state:', error);
+    }
+  };
+
   const checkUserRole = async (userId: string) => {
     try {
-      console.log("Checking user role for:", userId);
-      
       // First check user_roles table for role and client_id
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
@@ -38,7 +69,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (roleError) {
         console.error("Error checking user_roles:", roleError);
-        return 'admin' as UserRole;
+        return null;
+      }
+
+      if (!roleData) {
+        console.log("No role found for user");
+        return null;
       }
 
       if (roleData?.client_id) {
@@ -51,52 +87,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (agentError) {
           console.error("Error checking ai_agents:", agentError);
-        } else if (agentData) {
-          console.log("Found matching AI agent - setting as client");
+          return null;
+        }
+
+        if (agentData) {
           return 'client' as UserRole;
         }
       }
 
-      // Default to admin if no client role found
-      console.log("No client role found - setting as admin");
-      return 'admin' as UserRole;
+      return roleData.role as UserRole || 'admin';
     } catch (error) {
       console.error("Error checking user role:", error);
-      return 'admin' as UserRole;
+      return null;
     }
   };
 
-  const handleClientRedirect = () => {
-    console.log("Handling client redirect");
-    // Always redirect clients to the client dashboard
-    const clientDashboardUrl = import.meta.env.PROD 
-      ? 'https://admin.welcome.chat/client/dashboard'
-      : '/client/dashboard';
-    
-    console.log("Redirecting client to:", clientDashboardUrl);
-    
-    if (import.meta.env.PROD) {
-      window.location.href = clientDashboardUrl;
-    } else {
-      navigate(clientDashboardUrl, { replace: true });
-    }
-  };
-
-  const handleAdminRedirect = () => {
-    const urls = getAppUrls();
-    console.log("Handling admin redirect");
-    console.log("Is production?", import.meta.env.PROD);
-    
-    // Force redirect to admin dashboard in production
-    if (import.meta.env.PROD) {
-      console.log("Production environment detected, redirecting to:", urls.adminDashboard);
-      window.location.href = urls.adminDashboard;
+  const handleRedirect = async (role: UserRole | null) => {
+    if (!role) {
+      await clearAuthState();
+      navigate('/auth', { replace: true });
       return;
     }
+
+    const urls = getAppUrls();
     
-    // In development, use internal navigation
-    console.log("Development environment detected, using internal navigation");
-    navigate('/', { replace: true });
+    if (role === 'client') {
+      const clientDashboardUrl = import.meta.env.PROD 
+        ? urls.clientDashboard
+        : '/client/dashboard';
+        
+      if (import.meta.env.PROD) {
+        window.location.href = clientDashboardUrl;
+      } else {
+        navigate(clientDashboardUrl, { replace: true });
+      }
+    } else {
+      if (import.meta.env.PROD) {
+        window.location.href = urls.adminDashboard;
+      } else {
+        navigate('/', { replace: true });
+      }
+    }
   };
 
   useEffect(() => {
@@ -104,22 +135,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
+        if (!mounted) return;
+        
         setIsLoading(true);
-        console.log("Initializing auth...");
         
-        // Clear any existing session first
-        await supabase.auth.signOut();
-        setSession(null);
-        setUser(null);
-        setUserRole(null);
+        // Clear any existing session and caches
+        await clearAuthState();
         
-        // Only proceed with auth check if not on auth pages
-        if (!location.pathname.startsWith('/auth') && 
-            !location.pathname.startsWith('/client/setup')) {
+        // Check if we're on an auth page
+        const isAuthPage = location.pathname.startsWith('/auth') || 
+                         location.pathname.startsWith('/client/setup');
+        
+        if (!isAuthPage) {
           navigate('/auth', { replace: true });
+          return;
         }
+        
       } catch (error) {
         console.error("Error in initializeAuth:", error);
+        toast.error('Error initializing authentication');
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -133,28 +167,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!mounted) return;
 
       console.log("Auth state changed:", event);
-      console.log("Current session:", currentSession?.user?.email);
 
-      if (currentSession?.user && event === 'SIGNED_IN') {
-        const role = await checkUserRole(currentSession.user.id);
-        
-        setSession(currentSession);
-        setUser(currentSession.user);
-        setUserRole(role);
+      try {
+        switch (event) {
+          case 'SIGNED_IN':
+            if (currentSession?.user) {
+              const role = await checkUserRole(currentSession.user.id);
+              
+              if (!role) {
+                await clearAuthState();
+                toast.error('Error: Unable to determine user role');
+                navigate('/auth', { replace: true });
+                return;
+              }
+              
+              setSession(currentSession);
+              setUser(currentSession.user);
+              setUserRole(role);
+              await handleRedirect(role);
+            }
+            break;
+            
+          case 'SIGNED_OUT':
+            await clearAuthState();
+            navigate('/auth', { replace: true });
+            break;
+            
+          case 'TOKEN_REFRESHED':
+            if (currentSession) {
+              setSession(currentSession);
+              setUser(currentSession.user);
+            }
+            break;
+            
+          case 'USER_UPDATED':
+            if (!currentSession) {
+              await clearAuthState();
+              navigate('/auth', { replace: true });
+            }
+            break;
 
-        if (role === 'client') {
-          handleClientRedirect();
-        } else {
-          handleAdminRedirect();
+          default:
+            // For any other events, verify the session
+            if (!currentSession) {
+              await clearAuthState();
+              navigate('/auth', { replace: true });
+            }
         }
-      } else {
-        setSession(null);
-        setUser(null);
-        setUserRole(null);
-        
-        if (!location.pathname.startsWith('/auth')) {
-          navigate('/auth', { replace: true });
-        }
+      } catch (error) {
+        console.error('Error handling auth state change:', error);
+        await clearAuthState();
+        toast.error('Error processing authentication');
+        navigate('/auth', { replace: true });
       }
     });
 
@@ -166,10 +230,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-      setUserRole(null);
+      await clearAuthState();
       navigate('/auth', { replace: true });
     } catch (error) {
       console.error('Error signing out:', error);
