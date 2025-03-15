@@ -13,7 +13,7 @@ import { useAuth } from "./contexts/AuthContext";
 import ClientSettings from "@/pages/client/Settings";
 import ClientDashboard from "@/pages/client/Dashboard";
 import ClientSetup from "@/pages/client/Setup";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
@@ -29,6 +29,7 @@ function App() {
   useEffect(() => {
     if (location.pathname.includes('/auth/callback') && user && userRole) {
       console.log("Auth callback detected, redirecting based on role:", userRole);
+      // Immediate redirect based on role
       if (userRole === 'admin') {
         navigate('/', { replace: true });
       } else {
@@ -37,17 +38,14 @@ function App() {
     }
   }, [location.pathname, user, userRole, navigate]);
 
-  // Handle the case where we're on the callback page but auth is still loading
+  // Handle the case where we're still on the callback page but auth is still loading
   if (location.pathname.includes('/auth/callback')) {
+    // Don't show full loading screen, just continue auth process silently
+    // The redirect will happen automatically once user and userRole are available
     return (
       <div className="min-h-screen bg-background">
         <Toaster />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
-            <p className="text-sm text-muted-foreground">Completing authentication...</p>
-          </div>
-        </div>
+        <div className="hidden">Processing auth...</div>
       </div>
     );
   }
