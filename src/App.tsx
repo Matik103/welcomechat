@@ -24,23 +24,8 @@ function App() {
   const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [showLoader, setShowLoader] = useState(true);
+  const [showLoader, setShowLoader] = useState(false);
   
-  useEffect(() => {
-    // Short timeout for loader display (500ms max)
-    const timer = setTimeout(() => {
-      setShowLoader(false);
-    }, 500);
-    
-    // Clear timeout if auth completes before timeout
-    if (!isLoading) {
-      clearTimeout(timer);
-      setShowLoader(false);
-    }
-    
-    return () => clearTimeout(timer);
-  }, [isLoading]);
-
   // Handle callback route - redirect immediately to home based on user role
   useEffect(() => {
     if (location.pathname.includes('/auth/callback') && user && userRole) {
@@ -70,8 +55,8 @@ function App() {
     );
   }
   
-  // Only show loader briefly during initial auth check
-  if (isLoading && showLoader && !isPublicRoute) {
+  // Skip loader unless truly necessary
+  if (isLoading && !isPublicRoute && false) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center">
