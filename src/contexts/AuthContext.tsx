@@ -8,7 +8,8 @@ import {
   checkIfClientExists, 
   createUserRole, 
   handleGoogleUser, 
-  handlePostAuthNavigation 
+  handlePostAuthNavigation,
+  forceRedirectToDashboard
 } from "@/utils/authUtils";
 import { useAuthState } from "@/hooks/useAuthState";
 import { AuthContextType } from "@/types/auth";
@@ -47,26 +48,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(currentSession);
           setUser(currentSession.user);
           
-          const isGoogleUser = currentSession.user.app_metadata.provider === 'google';
+          const provider = currentSession.user.app_metadata.provider;
           
-          if (isGoogleUser) {
-            // Optimize Google auth flow by prioritizing role determination
+          // Prioritize and optimize the Google auth flow
+          if (provider === 'google') {
+            console.log("Optimizing Google auth flow");
+            // For Google users, use a more direct approach to determine role
             const role = await handleGoogleUser(currentSession.user);
             setUserRole(role);
             
-            // Only redirect if we're not on the callback page
-            if (!isCallbackUrl) {
+            // For callback routes, use a more direct redirection method
+            if (isCallbackUrl) {
+              forceRedirectToDashboard(role);
+            } else {
+              // For non-callback routes, use React Router navigation
               handlePostAuthNavigation(role, navigate);
             }
             setIsLoading(false);
           } else {
+            // Handle non-Google auth flows
             const existingRole = await checkUserRole(currentSession.user.id);
             
             if (existingRole) {
               setUserRole(existingRole);
               
-              // Only redirect if we're not on the callback page
-              if (!isCallbackUrl) {
+              if (isCallbackUrl) {
+                forceRedirectToDashboard(existingRole);
+              } else {
                 handlePostAuthNavigation(existingRole, navigate);
               }
               setIsLoading(false);
@@ -84,8 +92,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   await createUserRole(currentSession.user.id, 'client', clientData.id);
                   setUserRole('client');
                   
-                  // Only redirect if we're not on the callback page
-                  if (!isCallbackUrl) {
+                  if (isCallbackUrl) {
+                    forceRedirectToDashboard('client');
+                  } else {
                     handlePostAuthNavigation('client', navigate);
                   }
                 }
@@ -93,8 +102,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 await createUserRole(currentSession.user.id, 'admin');
                 setUserRole('admin');
                 
-                // Only redirect if we're not on the callback page
-                if (!isCallbackUrl) {
+                if (isCallbackUrl) {
+                  forceRedirectToDashboard('admin');
+                } else {
                   handlePostAuthNavigation('admin', navigate);
                 }
               }
@@ -127,6 +137,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUserRole(null);
           setIsLoading(false);
           setAuthInitialized(true);
+          
+          // Redirect to auth page on error if not already there
+          const isAuthPage = location.pathname.startsWith('/auth');
+          if (!isAuthPage) {
+            navigate('/auth', { replace: true });
+          }
         }
       }
     };
@@ -146,14 +162,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             setIsLoading(true);
             
-            const isGoogleUser = currentSession?.user.app_metadata.provider === 'google';
+            const provider = currentSession?.user.app_metadata.provider;
             
-            if (isGoogleUser) {
+            if (provider === 'google') {
               // Optimize for faster role determination for Google users
+              console.log("Fast-tracking Google user role determination");
               const role = await handleGoogleUser(currentSession!.user);
               setUserRole(role);
+              
+              // For callback routes from Google SSO, use direct redirection
+              if (isCallbackUrl) {
+                forceRedirectToDashboard(role);
+              }
+              
               setIsLoading(false);
             } else {
+              // Handle other auth providers
               const existingRole = await checkUserRole(currentSession!.user.id);
               
               if (existingRole) {
@@ -202,6 +226,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(null);
           setUserRole(null);
           setIsLoading(false);
+          
+          // Redirect to auth page on error
+          navigate('/auth', { replace: true });
         }
       }
     );
@@ -210,7 +237,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname, authInitialized, setSession, setUser, setUserRole, setIsLoading, setAuthInitialized]);
+  }, [navigate, location.pathname, authInitialized, setSession, setUser, setUserRole, setIsLoading, setAuthInitialized, isCallbackUrl]);
 
   const signOut = async () => {
     try {
