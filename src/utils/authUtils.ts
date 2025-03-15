@@ -62,6 +62,19 @@ export const getUserRole = async (userId: string): Promise<UserRole | null> => {
 };
 
 /**
+ * Determine if a user email belongs to a client domain
+ * This would be where you implement your domain-based role logic
+ */
+export const isClientDomain = (email: string): boolean => {
+  // This is a placeholder. Implement your actual client domain detection logic here.
+  // For example, if all @clientcompany.com emails should be clients:
+  // return email.endsWith('@clientcompany.com');
+  
+  // For now, return false to make all users admins by default
+  return false;
+}
+
+/**
  * Handles an authenticated user
  * Fetches or creates role and returns it
  */
@@ -80,12 +93,16 @@ export const handleAuthenticatedUser = async (currentUser: User): Promise<UserRo
     return existingRole;
   }
   
-  // Check if user is from a client domain (this is an example, implement based on your logic)
-  // For now, we'll default to admin role
-  const role: UserRole = 'admin';
+  // If user doesn't have a role yet, determine it based on email domain or other logic
+  // This example gives different roles based on email domain
+  const isClient = currentUser.email ? isClientDomain(currentUser.email) : false;
+  const role: UserRole = isClient ? 'client' : 'admin';
   
   try {
-    await createUserRole(currentUser.id, role);
+    const success = await createUserRole(currentUser.id, role);
+    if (!success) {
+      console.error("Failed to create role in database");
+    }
   } catch (error) {
     console.error("Failed to create role, but continuing:", error);
   }
