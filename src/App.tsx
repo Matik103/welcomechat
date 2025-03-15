@@ -20,7 +20,7 @@ import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
 
 function App() {
-  const { isLoading, user } = useAuth();
+  const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
   
   // If we're on the callback route, show minimal loading UI
@@ -65,25 +65,48 @@ function App() {
       location.pathname.startsWith('/client') && 
       !location.pathname.startsWith('/client/setup');
 
+    // Determine whether to show admin or client UI based on role
+    const isAdminUser = userRole === 'admin';
+    
+    // Use the appropriate header based on role and route
+    const shouldUseClientHeader = isClientRoute || !isAdminUser;
+
     return (
       <div className="min-h-screen bg-background">
-        {isClientRoute ? <ClientHeader /> : <Header />}
+        {shouldUseClientHeader ? <ClientHeader /> : <Header />}
         <Routes>
           {/* Auth routes */}
           <Route path="/auth/*" element={<Navigate to="/" replace />} />
           <Route path="/client/setup" element={<ClientSetup />} />
           
-          {/* All routes - users always get admin view */}
-          <Route path="/" element={<Index />} />
-          <Route path="/admin/clients" element={<ClientList />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/admin/clients/new" element={<AddEditClient />} />
-          <Route path="/admin/clients/:id" element={<ClientView />} />
-          <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
-          <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
-          
-          {/* Client routes - redirect to admin dashboard */}
-          <Route path="/client/*" element={<Navigate to="/" replace />} />
+          {/* Admin routes - only accessible by admin users */}
+          {isAdminUser ? (
+            <>
+              <Route path="/" element={<Index />} />
+              <Route path="/admin/clients" element={<ClientList />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/admin/clients/new" element={<AddEditClient />} />
+              <Route path="/admin/clients/:id" element={<ClientView />} />
+              <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
+              <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
+              
+              {/* Redirect client routes to admin dashboard for admin users */}
+              <Route path="/client/*" element={<Navigate to="/" replace />} />
+            </>
+          ) : (
+            <>
+              {/* Client routes - only accessible by client users */}
+              <Route path="/client/dashboard" element={<ClientDashboard />} />
+              <Route path="/client/settings" element={<ClientSettings />} />
+              <Route path="/client/account-settings" element={<AccountSettings />} />
+              <Route path="/client/resource-settings" element={<ResourceSettings />} />
+              <Route path="/client/edit-info" element={<EditClientInfo />} />
+              
+              {/* Redirect admin routes to client dashboard for client users */}
+              <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
+              <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
+            </>
+          )}
           
           {/* 404 route */}
           <Route path="*" element={<NotFound />} />
