@@ -21,23 +21,23 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: "dist",
+    sourcemap: true,
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true
     },
     rollupOptions: {
-      external: ['zod'],
       output: {
-        globals: {
-          'zod': 'zod'
-        },
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('zod')) {
-              return 'zod';
-            }
-            return 'vendor';
-          }
+        manualChunks: {
+          'vendor': [
+            'react',
+            'react-dom',
+            'react-router-dom',
+            '@supabase/supabase-js',
+            'zod',
+            '@hookform/resolvers/zod',
+            'react-hook-form'
+          ]
         }
       }
     }
