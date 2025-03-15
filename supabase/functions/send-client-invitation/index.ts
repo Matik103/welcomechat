@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { createClient } from "@supabase/supabase-js";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -132,95 +132,44 @@ serve(async (req) => {
         throw new Error("RESEND_API_KEY is not set");
       }
       
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${resendApiKey}`
-        },
-        body: JSON.stringify({
-          from: "TestBot Assistant <onboarding@resend.dev>",
-          to: [email],
-          subject: `Welcome to TestBot Assistant!`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-              <h1 style="color: #333;">Welcome to TestBot Assistant!</h1>
-              <p>Hello ${clientName},</p>
-              <p>You have been invited to create your account for TestBot Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
-              <p><strong>Your temporary password is: ${tempPassword}</strong></p>
-              <p>To complete your account setup:</p>
-              <ol>
-                <li>Click the button below to sign in</li>
-                <li>Use your email (${email}) and temporary password to log in</li>
-                <li>You'll be automatically redirected to your client dashboard</li>
-                <li>Configure your AI assistant's settings in the dashboard</li>
-              </ol>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetLink}" style="background-color: #4CAF50; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Sign In</a>
-              </div>
-              <p>This invitation link will expire in 24 hours.</p>
-              <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-              <p>Best regards,<br>The TestBot Assistant Team</p>
+      const resend = new Resend(resendApiKey);
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: "Welcome.Chat <admin@welcome.chat>",
+        to: [email],
+        subject: `Welcome to TestBot Assistant!`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+            <h1 style="color: #333;">Welcome to TestBot Assistant!</h1>
+            <p>Hello ${clientName},</p>
+            <p>You have been invited to create your account for TestBot Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
+            <p><strong>Your temporary password is: ${tempPassword}</strong></p>
+            <p>To complete your account setup:</p>
+            <ol>
+              <li>Click the button below to sign in</li>
+              <li>Use your email (${email}) and temporary password to log in</li>
+              <li>You'll be automatically redirected to your client dashboard</li>
+              <li>Configure your AI assistant's settings in the dashboard</li>
+            </ol>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" style="background-color: #4CAF50; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Sign In</a>
             </div>
-          `
-        })
+            <p>This invitation link will expire in 24 hours.</p>
+            <p>If you didn't expect this invitation, you can safely ignore this email.</p>
+            <p>Best regards,<br>The TestBot Assistant Team</p>
+          </div>
+        `
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Resend API error:", errorData);
-        throw new Error(`Resend API error: ${JSON.stringify(errorData)}`);
+      if (emailError) {
+        console.error("Resend API error:", emailError);
+        throw new Error(`Resend API error: ${JSON.stringify(emailError)}`);
       }
       
       console.log("Email sent successfully via Resend API");
+      
     } catch (resendError) {
       console.error("Failed to send email via Resend:", resendError);
-      
-      // Fall back to SMTP if Resend fails
-      try {
-        console.log("Falling back to SMTP email sending");
-        const client = new SmtpClient();
-        
-        await client.connectTLS({
-          hostname: Deno.env.get("SMTP_HOST") || "",
-          port: Number(Deno.env.get("SMTP_PORT") || 587),
-          username: Deno.env.get("SMTP_USER") || "",
-          password: Deno.env.get("SMTP_PASS") || "",
-        });
-        
-        await client.send({
-          from: Deno.env.get("SMTP_SENDER") || "",
-          to: email,
-          subject: `Welcome to TestBot Assistant!`,
-          content: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-              <h1 style="color: #333;">Welcome to TestBot Assistant!</h1>
-              <p>Hello ${clientName},</p>
-              <p>You have been invited to create your account for TestBot Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
-              <p><strong>Your temporary password is: ${tempPassword}</strong></p>
-              <p>To complete your account setup:</p>
-              <ol>
-                <li>Click the button below to sign in</li>
-                <li>Use your email (${email}) and temporary password to log in</li>
-                <li>You'll be automatically redirected to your client dashboard</li>
-                <li>Configure your AI assistant's settings in the dashboard</li>
-              </ol>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetLink}" style="background-color: #4CAF50; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Sign In</a>
-              </div>
-              <p>This invitation link will expire in 24 hours.</p>
-              <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-              <p>Best regards,<br>The TestBot Assistant Team</p>
-            </div>
-          `,
-        });
-        
-        await client.close();
-        console.log("Email sent successfully via SMTP");
-      } catch (smtpError) {
-        console.error("SMTP email sending also failed:", smtpError);
-        throw new Error(`Failed to send email: ${resendError.message}. SMTP fallback also failed: ${smtpError.message}`);
-      }
+      throw resendError;
     }
     
     // Log client activity

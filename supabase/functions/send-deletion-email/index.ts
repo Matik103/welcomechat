@@ -46,7 +46,7 @@ serve(async (req) => {
     // Use Resend for email
     try {
       const { data, error: emailError } = await resend.emails.send({
-        from: "AI Assistant <admin@welcome.chat>", // Updated from address
+        from: "Welcome.Chat <admin@welcome.chat>",
         to: email,
         subject: "Account Deletion Notice",
         html: `
