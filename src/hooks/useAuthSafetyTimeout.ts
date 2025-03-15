@@ -25,18 +25,14 @@ export const useAuthSafetyTimeout = ({
     
     // Clear any existing auth callback attempted flag to prevent loops
     if (isLoading && !session) {
-      const hasAttempted = sessionStorage.getItem('auth_callback_attempted');
-      if (hasAttempted && isAuthPage) {
-        console.log("Previous auth callback attempt detected on auth page, clearing flag");
-        sessionStorage.removeItem('auth_callback_attempted');
-      }
+      sessionStorage.removeItem('auth_callback_attempted');
     }
     
     console.log("Setting up safety timeout for loading state");
     
     const safetyTimeout = setTimeout(() => {
       if (isLoading) {
-        console.warn("Safety timeout triggered to prevent infinite loading");
+        console.warn("Safety timeout triggered - forcing loading state to complete");
         setIsLoading(false);
         
         // If we've been stuck loading and not on auth page, redirect to auth
@@ -45,7 +41,7 @@ export const useAuthSafetyTimeout = ({
           navigate('/auth', { replace: true });
         }
       }
-    }, 3000); // Reduced to 3-second safety timeout
+    }, 1500); // Reduced to 1.5-second safety timeout
     
     return () => clearTimeout(safetyTimeout);
   }, [isLoading, navigate, isAuthPage, session, setIsLoading]);

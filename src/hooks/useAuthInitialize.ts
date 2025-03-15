@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
-import { isClientInDatabase } from "@/utils/authUtils";
 
 type AuthInitializeProps = {
   authInitialized: boolean;
@@ -51,52 +50,15 @@ export const useAuthInitialize = ({
           // Set initialized flag
           setAuthInitialized(true);
           
-          // Check if Google SSO user
-          const isGoogleUser = currentSession.user.app_metadata?.provider === 'google';
+          // All authenticated users are admins
+          setUserRole('admin');
+          setIsLoading(false);
           
-          if (isGoogleUser) {
-            // Check if Google user's email is in clients table
-            const isClientEmail = await isClientInDatabase(currentSession.user.email || '');
-            
-            if (isClientEmail) {
-              console.error("Google SSO user's email exists in clients table");
-              // Sign them out
-              await supabase.auth.signOut();
-              // Clear session data
-              setSession(null);
-              setUser(null);
-              setUserRole(null);
-              setIsLoading(false);
-              
-              if (!isCallbackUrl) {
-                navigate('/auth', { replace: true });
-              }
-              
-              return;
-            }
-            
-            // Google SSO users are always admins
-            setUserRole('admin');
-            setIsLoading(false);
-            
-            if (!isCallbackUrl && location.pathname !== '/') {
-              console.log("Redirecting Google SSO user to admin dashboard");
-              // Use direct window location for clean redirect
-              window.location.href = '/';
-              return;
-            }
-          } else {
-            // Regular users get role based on email in clients table
-            const role = await determineUserRole(currentSession.user);
-            setUserRole(role);
-            setIsLoading(false);
-            
-            const isAuthPage = location.pathname === '/auth';
-            
-            if (!isCallbackUrl && isAuthPage) {
-              console.log(`Redirecting ${role} from auth page to appropriate dashboard`);
-              window.location.href = role === 'admin' ? '/' : '/client/dashboard';
-            }
+          const isAuthPage = location.pathname === '/auth';
+          
+          if (!isCallbackUrl && isAuthPage) {
+            console.log(`Redirecting from auth page to admin dashboard`);
+            window.location.href = '/';
           }
         } else {
           console.log("No active session found during init");

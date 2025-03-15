@@ -5,80 +5,30 @@ import { UserRole } from "@/types/auth";
 
 /**
  * Check if email exists in clients table
+ * This function is kept for backward compatibility but simplified
  */
 export const isClientInDatabase = async (email: string): Promise<boolean> => {
-  try {
-    if (!email) {
-      console.log("No email provided to isClientInDatabase");
-      return false;
-    }
-    
-    console.log(`Checking if email exists in clients table: ${email}`);
-    
-    // Check if email exists in clients table
-    const { data, error } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .maybeSingle();
-      
-    if (error) {
-      console.error("Error checking client in database:", error);
-      return false;
-    }
-    
-    const exists = !!data;
-    console.log(`Email ${email} ${exists ? 'found' : 'not found'} in clients table`);
-    return exists; // Return true if client exists, false otherwise
-  } catch (err) {
-    console.error("Error in isClientInDatabase:", err);
-    return false;
-  }
+  // Simplified to always return false - skipping client check
+  return false;
 };
 
 /**
  * Handles role determination for authenticated users
+ * Simplified to always return admin role
  */
 export const determineUserRole = async (user: User): Promise<UserRole> => {
-  if (!user || !user.email) {
-    console.error("determineUserRole called with no user or email");
-    return 'admin'; // Default to admin for safety
-  }
-  
-  try {
-    // Check if the user is using Google SSO
-    const isGoogleUser = user.app_metadata?.provider === 'google';
-    
-    if (isGoogleUser) {
-      // Google SSO users are ALWAYS admins
-      console.log(`User ${user.email} is using Google SSO, treating as admin`);
-      return 'admin';
-    }
-    
-    // For non-Google users, check if they're in clients table
-    const isClient = await isClientInDatabase(user.email);
-    
-    const role = isClient ? 'client' : 'admin';
-    console.log(`User ${user.email} role determined as: ${role}`);
-    return role;
-  } catch (error) {
-    console.error("Error determining user role:", error);
-    return 'admin'; // Default to admin in case of errors
-  }
+  // All authenticated users are now admins
+  return 'admin';
 };
 
 /**
  * Force redirect based on user role
  */
 export const forceRedirectBasedOnRole = (role: UserRole) => {
-  console.log(`Force redirecting to ${role === 'admin' ? 'admin' : 'client'} dashboard`);
+  console.log(`Force redirecting to admin dashboard`);
   
-  // Use direct window location change to ensure a clean redirect
-  if (role === 'admin') {
-    window.location.href = '/';
-  } else {
-    window.location.href = '/client/dashboard';
-  }
+  // Use direct window location change for clean redirect
+  window.location.href = '/';
 };
 
 /**
