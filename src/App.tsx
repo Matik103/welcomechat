@@ -25,10 +25,10 @@ function App() {
   const [showLoader, setShowLoader] = useState(true);
   
   useEffect(() => {
-    // Set a maximum wait time for loader display (8 seconds)
+    // Set a maximum wait time for loader display (5 seconds)
     const timer = setTimeout(() => {
       setShowLoader(false);
-    }, 8000);
+    }, 5000);
     
     // If auth completes before timeout, clear the timer and hide loader
     if (!isLoading) {
@@ -50,6 +50,10 @@ function App() {
     location.pathname.includes('/auth/callback') || 
     (location.pathname === '/auth' && window.location.hash && window.location.hash.includes('access_token'));
   
+  console.log("Current path:", location.pathname);
+  console.log("Public route:", isPublicRoute);
+  console.log("Auth state - isLoading:", isLoading, "user:", !!user, "userRole:", userRole);
+  
   // Show loading spinner while authenticating, but with a time limit via showLoader
   if ((isLoading && showLoader) || (isOAuthRedirect && showLoader)) {
     return (
@@ -65,6 +69,16 @@ function App() {
             </p>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // If we're on the auth page, render the Auth component directly without layout or checks
+  if (location.pathname === '/auth') {
+    return (
+      <div className="min-h-screen bg-background">
+        <Toaster />
+        <Auth />
       </div>
     );
   }

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Mail, Lock, Loader2, Github } from "lucide-react";
+import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
@@ -32,14 +32,14 @@ const Auth = () => {
     setErrorMessage("");
   };
 
-  // Enhanced redirection logic - this is crucial for fixing the issue
+  // Enhanced redirection logic with safety checks
   useEffect(() => {
     // Only attempt redirection if we have session AND userRole AND we're not loading
     if (session && userRole && !isLoading) {
       console.log("Ready to redirect with role:", userRole);
       
       // Add a small delay to ensure all state is properly updated
-      setTimeout(() => {
+      const redirectTimer = setTimeout(() => {
         if (userRole === 'client') {
           console.log("Redirecting to client dashboard");
           navigate('/client/dashboard', { replace: true });
@@ -48,16 +48,18 @@ const Auth = () => {
           navigate('/', { replace: true });
         }
       }, 100);
+      
+      return () => clearTimeout(redirectTimer);
     }
   }, [session, userRole, isLoading, navigate]);
 
-  // If we're checking auth, show loading spinner
+  // If we're checking auth, show loading spinner with a clear UI
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Authenticating...</p>
+          <p className="text-muted-foreground">Checking authentication...</p>
         </div>
       </div>
     );
@@ -129,7 +131,6 @@ const Auth = () => {
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       toast.error(error.message || "Google sign-in failed");
-    } finally {
       setIsGoogleLoading(false);
     }
   };
