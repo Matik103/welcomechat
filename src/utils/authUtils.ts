@@ -50,7 +50,21 @@ export const createUserRole = async (
 export const forceRedirectBasedOnRole = (role: UserRole) => {
   console.log(`Force redirecting to ${role === 'admin' ? 'admin' : 'client'} dashboard`);
   
-  // Small delay to ensure state updates and rendering completes
+  // Clear loading state by adding a feedback element
+  const loadingFeedback = document.createElement('div');
+  loadingFeedback.textContent = 'Redirecting to dashboard...';
+  loadingFeedback.style.position = 'fixed';
+  loadingFeedback.style.top = '50%';
+  loadingFeedback.style.left = '50%';
+  loadingFeedback.style.transform = 'translate(-50%, -50%)';
+  loadingFeedback.style.backgroundColor = 'white';
+  loadingFeedback.style.padding = '20px';
+  loadingFeedback.style.borderRadius = '5px';
+  loadingFeedback.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
+  loadingFeedback.style.zIndex = '9999';
+  document.body.appendChild(loadingFeedback);
+  
+  // Use timeout to ensure state updates and rendering completes
   setTimeout(() => {
     window.location.href = role === 'admin' ? '/' : '/client/dashboard';
   }, 100);

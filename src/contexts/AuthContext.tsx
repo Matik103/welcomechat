@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let mounted = true;
 
     const initializeAuth = async () => {
-      if (authInitialized) return; // Prevent multiple initializations
+      if (authInitialized && !isCallbackUrl) return; // Prevent multiple initializations
       
       try {
         setIsLoading(true);
@@ -45,19 +45,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(currentSession.user);
           
           try {
-            // Determine role and redirect accordingly
+            // Determine role and prepare for redirect
             const role = await handleAuthenticatedUser(currentSession.user);
             setUserRole(role);
             
-            // Reset loading state before redirect to prevent stale UI
-            setIsLoading(false);
+            // Set initialized flag
             setAuthInitialized(true);
             
-            // Choose redirect method based on current route
-            if (isCallbackUrl) {
-              console.log(`Redirecting from callback to ${role} dashboard`);
-              forceRedirectBasedOnRole(role);
-            } else {
+            // Reset loading state before redirect
+            setIsLoading(false);
+            
+            // Only redirect if not on callback page (let the callback handler do it) 
+            if (!isCallbackUrl) {
               console.log(`Navigating to ${role} dashboard`);
               navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
             }
@@ -78,7 +77,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(null);
             setUserRole(null);
             
-            const isAuthRelatedPage = location.pathname.startsWith('/auth');
+            const isAuthRelatedPage = location.pathname.startsWith('/auth') || 
+                                      location.pathname.startsWith('/client/setup');
               
             if (!isAuthRelatedPage) {
               navigate('/auth', { replace: true });
@@ -114,6 +114,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!mounted) return;
         
         console.log("Auth state changed:", event);
+        
+        // Special handling for callback URLs to avoid double loading/processing
+        if (isCallbackUrl && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          console.log("Processing callback auth state change");
+          setIsLoading(true);
+          
+          if (currentSession?.user) {
+            setSession(currentSession);
+            setUser(currentSession.user);
+            
+            try {
+              const role = await handleAuthenticatedUser(currentSession.user);
+              setUserRole(role);
+              
+              // Important: need to complete state updates before redirect
+              setIsLoading(false);
+              setAuthInitialized(true);
+              
+              console.log("Callback processing complete, redirecting to dashboard with role:", role);
+              forceRedirectBasedOnRole(role);
+            } catch (error) {
+              console.error("Error in callback auth processing:", error);
+              setIsLoading(false);
+              setAuthInitialized(true);
+              navigate('/auth', { replace: true });
+            }
+            
+            return; // Skip regular auth state change processing for callbacks
+          }
+        }
+        
+        // Handle regular auth state changes
         setIsLoading(true);
 
         try {
@@ -130,14 +162,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               // Reset loading before redirect
               setIsLoading(false);
               
-              // For callback routes, use direct redirection
-              if (isCallbackUrl) {
-                console.log("Redirecting from callback with role:", role);
-                forceRedirectBasedOnRole(role);
-              } else {
-                console.log("Navigating with role:", role);
-                navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
-              }
+              console.log("Navigating with role:", role);
+              navigate(role === 'admin' ? '/' : '/client/dashboard', { replace: true });
             } catch (roleError) {
               console.error("Error determining user role:", roleError);
               // Default redirect if role determination fails

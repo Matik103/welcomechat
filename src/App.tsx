@@ -23,12 +23,13 @@ function App() {
   const { isLoading, user, userRole } = useAuth();
   const location = useLocation();
   
-  // If we're on the callback route, show minimal loading UI
+  // If we're on the callback route, show improved loading UI with feedback
   if (location.pathname.includes('/auth/callback')) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        <div className="ml-3 text-sm">Authenticating...</div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4" />
+        <div className="text-lg font-medium mb-2">Authenticating...</div>
+        <div className="text-sm text-gray-500">Please wait while we complete your login</div>
       </div>
     );
   }
