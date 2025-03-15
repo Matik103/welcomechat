@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -169,6 +168,10 @@ const Auth = () => {
       setIsGoogleLoading(true);
       setErrorMessage("");
       
+      // First check if the user's email is already in the clients table
+      // We can't actually do this yet because we don't have the email until after Google auth,
+      // so we'll handle this in the callback and AuthContext
+
       // Use current window location for development flexibility
       const redirectUrl = `${window.location.origin}/auth/callback`;
       console.log("Starting Google Sign In with redirect to:", redirectUrl);
