@@ -57,13 +57,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Handle Google SSO user - Assign admin role if not already assigned
   const handleGoogleUser = async (currentUser: User): Promise<UserRole> => {
+    console.log("Handling Google user:", currentUser.email);
     const existingRole = await checkUserRole(currentUser.id);
     
     if (existingRole) {
+      console.log("Existing role found for Google user:", existingRole);
       return existingRole;
     }
     
     // All Google SSO users are admins by default
+    console.log("Assigning admin role to Google user");
     await createUserRole(currentUser.id, 'admin');
     return 'admin';
   };
@@ -95,6 +98,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             // For Google users, assign admin role if they don't have a role
             const role = await handleGoogleUser(currentSession.user);
             setUserRole(role);
+            
+            // Redirect Google admin users to the admin dashboard
+            if (role === 'admin' && location.pathname.startsWith('/auth')) {
+              navigate('/', { replace: true });
+            }
+            
             setIsLoading(false);
           } else {
             // Check for existing role first for non-Google users
@@ -182,6 +191,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               
               // Always navigate Google users to admin dashboard
               if (location.pathname.startsWith('/auth')) {
+                console.log("Redirecting Google user to admin dashboard");
                 navigate('/', { replace: true });
               }
               setIsLoading(false);
@@ -247,12 +257,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (!location.pathname.startsWith('/auth')) {
               navigate('/auth', { replace: true });
             }
-          } else if (event === 'TOKEN_REFRESHED' && currentSession) {
-            // Just update session - don't show loading states
-            const role = await checkUserRole(currentSession.user.id);
-            setSession(currentSession);
-            setUser(currentSession.user);
-            setUserRole(role);
           } else if (event === 'USER_UPDATED' && currentSession) {
             setSession(currentSession);
             setUser(currentSession.user);
