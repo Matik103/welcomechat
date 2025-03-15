@@ -103,7 +103,7 @@ serve(async (req) => {
         success: false
       }),
       { 
-        status: 200, // Changed from 500 to 200 to avoid non-2xx error
+        status: 200, // Changed from 500 to 200 to avoid CORS issues
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
