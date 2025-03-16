@@ -20,9 +20,6 @@ verify_jwt = false
 [functions.send-deletion-email]
 verify_jwt = false
 
-[functions.send-invitation]
-verify_jwt = false
-
 [functions.send-recovery-confirmation]
 verify_jwt = false
 

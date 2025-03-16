@@ -29,8 +29,4 @@ supabase functions deploy get_client_agent_data --no-verify-jwt
 echo "Deploying get_client_agent_names function..."
 supabase functions deploy get_client_agent_names --no-verify-jwt
 
-# Deploy send-invitation function (deprecated but kept for compatibility)
-echo "Deploying send-invitation function..."
-supabase functions deploy send-invitation --no-verify-jwt
-
 echo "Deployment complete!" 

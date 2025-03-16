@@ -1,10 +1,15 @@
+
 import { useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientActivity } from "@/hooks/useClientActivity";
-import SetupForm from "@/components/client-setup/SetupForm";
 import { createClientAccount } from "@/utils/setupUtils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 const ClientSetup = () => {
   const navigate = useNavigate();
@@ -59,15 +64,57 @@ const ClientSetup = () => {
   };
 
   return (
-    <SetupForm
-      isLoading={isLoading}
-      setupComplete={setupComplete}
-      password={password}
-      confirmPassword={confirmPassword}
-      setPassword={setPassword}
-      setConfirmPassword={setConfirmPassword}
-      handleSubmit={handleSubmit}
-    />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <Card className="max-w-md w-full">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Complete Your Setup</CardTitle>
+          <CardDescription>
+            Create a password to access your AI Assistant dashboard
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="password">Create Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isLoading || setupComplete}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={isLoading || setupComplete}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading || setupComplete}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Setting up...
+                </>
+              ) : setupComplete ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Redirecting...
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
