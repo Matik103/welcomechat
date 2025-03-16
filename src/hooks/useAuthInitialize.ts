@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
-import { determineUserRole } from "@/utils/authUtils";
+import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
 
 type AuthInitializeProps = {
   authInitialized: boolean;
@@ -69,14 +69,16 @@ export const useAuthInitialize = ({
           // Handle redirects if on auth page or at root
           const isAuthPage = location.pathname === '/auth';
           const isRootPage = location.pathname === '/';
+          const isOldAdminPage = !location.pathname.startsWith('/admin/') && 
+                               !location.pathname.startsWith('/client/') && 
+                               location.pathname !== '/auth';
           
-          if (!isCallbackUrl && (isAuthPage || (isRootPage && determinedUserRole === 'client'))) {
-            // Redirect based on role to the appropriate dashboard
-            const targetPath = determinedUserRole === 'client' 
-              ? '/client/dashboard' 
-              : '/';
-              
-            navigate(targetPath, { replace: true });
+          if (!isCallbackUrl && (isAuthPage || isRootPage || isOldAdminPage)) {
+            // Get the appropriate dashboard route
+            const dashboardRoute = getDashboardRoute(determinedUserRole);
+            
+            // Navigate to the appropriate dashboard
+            navigate(dashboardRoute, { replace: true });
             setTimeout(() => {
               setIsLoading(false);
               setAuthInitialized(true);

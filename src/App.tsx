@@ -70,21 +70,25 @@ function App() {
       <div className="min-h-screen bg-background">
         <Header />
         <Routes>
-          {/* Admin routes */}
-          <Route path="/" element={<Index />} />
+          {/* Admin routes with clearer naming structure */}
+          <Route path="/admin/dashboard" element={<Index />} />
           <Route path="/admin/clients" element={<ClientList />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/clients/new" element={<AddEditClient />} />
           <Route path="/admin/clients/:id" element={<ClientView />} />
           <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
           <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
           
+          {/* Redirect old admin routes to new structure */}
+          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+          
           {/* Auth callbacks and redirects */}
-          <Route path="/auth" element={<Navigate to="/" replace />} />
-          <Route path="/auth/callback" element={<Navigate to="/" replace />} />
+          <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/auth/callback" element={<Navigate to="/admin/dashboard" replace />} />
           
           {/* Prevent access to client routes */}
-          <Route path="/client/*" element={<Navigate to="/" replace />} />
+          <Route path="/client/*" element={<Navigate to="/admin/dashboard" replace />} />
           
           {/* 404 for admin routes */}
           <Route path="*" element={<NotFound />} />
@@ -99,20 +103,20 @@ function App() {
     <div className="min-h-screen bg-background">
       <ClientHeader />
       <Routes>
-        {/* Client routes */}
+        {/* Client routes - already well-structured */}
         <Route path="/client/dashboard" element={<ClientDashboard />} />
         <Route path="/client/settings" element={<ClientSettings />} />
         <Route path="/client/account-settings" element={<AccountSettings />} />
         <Route path="/client/resource-settings" element={<ResourceSettings />} />
         <Route path="/client/edit-info" element={<EditClientInfo />} />
         <Route path="/client/widget-settings" element={<WidgetSettings />} />
+        <Route path="/client/setup" element={<ClientSetup />} />
         
         {/* Auth callbacks and redirects */}
         <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
         <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
-        <Route path="/client/setup" element={<ClientSetup />} />
         
-        {/* Redirect admin routes to client dashboard */}
+        {/* Redirect root and admin routes to client dashboard */}
         <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
         <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
         
