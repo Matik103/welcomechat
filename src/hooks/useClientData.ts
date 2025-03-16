@@ -1,7 +1,6 @@
 
 import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
-import { useClientInvitation } from "./useClientInvitation";
 import { ClientFormData } from "@/types/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -24,15 +23,12 @@ export const useClientData = (id: string | undefined) => {
   
   const { client, isLoadingClient, error, refetchClient } = useClient(clientId);
   const clientMutation = useClientMutation(clientId);
-  const { sendInvitation, isSending } = useClientInvitation();
 
   return {
     client,
     isLoadingClient,
     error,
     clientMutation,
-    sendInvitation,
-    isSending,
     clientId,
     refetchClient
   };
