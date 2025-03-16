@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 type UserWithRole = {
   id: string;
@@ -17,97 +19,107 @@ export const UserRolesView = () => {
   const [clients, setClients] = useState<UserWithRole[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUserRoles = async () => {
-      try {
-        setLoading(true);
-        
-        // First, get all user roles from the user_roles table
-        const { data: rolesData, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('user_id, role');
+  const fetchUserRoles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // First, get all user roles from the user_roles table
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
           
-        if (rolesError) throw rolesError;
-        
-        if (!rolesData || rolesData.length === 0) {
-          setAdmins([]);
-          setClients([]);
-          setLoading(false);
-          return;
-        }
-        
-        // Get the current session for authentication
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session?.access_token) {
-          throw new Error("No authentication token available");
-        }
-        
-        // We need to query auth.users table which requires the execute_sql Edge Function
-        // This SQL query will join user_roles with auth.users to get emails
-        const sqlQuery = `
-          SELECT au.id, au.email, ur.role 
-          FROM auth.users au
-          JOIN public.user_roles ur ON au.id = ur.user_id
-        `;
-        
-        // Call the execute_sql Edge Function with our SQL query
-        // Include the auth token in the request
-        const { data: usersData, error: usersError } = await supabase.functions.invoke('execute_sql', {
-          body: { sql: sqlQuery },
-          headers: {
-            Authorization: `Bearer ${sessionData.session.access_token}`
-          }
-        });
-        
-        if (usersError) {
-          console.error("Edge function error:", usersError);
-          throw new Error(`Failed to fetch user data: ${usersError.message}`);
-        }
-        
-        // Process the returned data
-        const userData = usersData?.result || [];
-        
-        if (!Array.isArray(userData)) {
-          console.warn("Unexpected response format:", userData);
-          setAdmins([]);
-          setClients([]);
-          setLoading(false);
-          return;
-        }
-        
-        // Process users data into admin and client arrays
-        const adminUsers: UserWithRole[] = [];
-        const clientUsers: UserWithRole[] = [];
-        
-        userData.forEach((user: any) => {
-          if (!user || typeof user !== 'object') return;
-          
-          const userWithRole: UserWithRole = {
-            id: user.id || 'Unknown ID',
-            email: user.email || 'Unknown email',
-            role: user.role || 'Unknown role'
-          };
-          
-          if (user.role === 'admin') {
-            adminUsers.push(userWithRole);
-          } else if (user.role === 'client') {
-            clientUsers.push(userWithRole);
-          }
-        });
-        
-        setAdmins(adminUsers);
-        setClients(clientUsers);
-      } catch (err: any) {
-        console.error("Error fetching user roles:", err);
-        setError(err.message || "Failed to fetch user roles");
-        toast.error("Failed to load user roles: " + (err.message || "Unknown error"));
-      } finally {
+      if (rolesError) throw rolesError;
+      
+      if (!rolesData || rolesData.length === 0) {
+        setAdmins([]);
+        setClients([]);
         setLoading(false);
+        return;
       }
-    };
-    
+      
+      // Get the current session for authentication
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error("Session error:", sessionError);
+        throw new Error("Authentication error: " + sessionError.message);
+      }
+      
+      if (!sessionData.session?.access_token) {
+        throw new Error("No authentication token available. Please sign in again.");
+      }
+      
+      // We need to query auth.users table which requires the execute_sql Edge Function
+      // This SQL query will join user_roles with auth.users to get emails
+      const sqlQuery = `
+        SELECT au.id, au.email, ur.role 
+        FROM auth.users au
+        JOIN public.user_roles ur ON au.id = ur.user_id
+      `;
+      
+      // Call the execute_sql Edge Function with our SQL query
+      // Include the auth token in the request
+      const { data: usersData, error: usersError } = await supabase.functions.invoke('execute_sql', {
+        body: { sql: sqlQuery },
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`
+        }
+      });
+      
+      if (usersError) {
+        console.error("Edge function error:", usersError);
+        throw new Error(`Failed to fetch user data: ${usersError.message}`);
+      }
+      
+      // Process the returned data
+      const userData = usersData?.result || [];
+      
+      if (!Array.isArray(userData)) {
+        console.warn("Unexpected response format:", userData);
+        setAdmins([]);
+        setClients([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Process users data into admin and client arrays
+      const adminUsers: UserWithRole[] = [];
+      const clientUsers: UserWithRole[] = [];
+      
+      userData.forEach((user: any) => {
+        if (!user || typeof user !== 'object') return;
+        
+        const userWithRole: UserWithRole = {
+          id: user.id || 'Unknown ID',
+          email: user.email || 'Unknown email',
+          role: user.role || 'Unknown role'
+        };
+        
+        if (user.role === 'admin') {
+          adminUsers.push(userWithRole);
+        } else if (user.role === 'client') {
+          clientUsers.push(userWithRole);
+        }
+      });
+      
+      setAdmins(adminUsers);
+      setClients(clientUsers);
+    } catch (err: any) {
+      console.error("Error fetching user roles:", err);
+      setError(err.message || "Failed to fetch user roles");
+      toast.error("Failed to load user roles: " + (err.message || "Unknown error"));
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
     fetchUserRoles();
   }, []);
+
+  const handleRetry = () => {
+    fetchUserRoles();
+  };
 
   if (loading) {
     return (
@@ -120,8 +132,12 @@ export const UserRolesView = () => {
 
   if (error) {
     return (
-      <div className="p-4 border border-red-300 bg-red-50 text-red-800 rounded-md">
-        <p>Error: {error}</p>
+      <div className="p-6 border border-red-200 bg-red-50 text-red-800 rounded-md flex flex-col items-center">
+        <p className="mb-4">Error: {error}</p>
+        <Button onClick={handleRetry} variant="outline" className="flex items-center gap-2">
+          <RefreshCcw className="h-4 w-4" />
+          Retry
+        </Button>
       </div>
     );
   }
@@ -129,11 +145,17 @@ export const UserRolesView = () => {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>Admin Users ({admins.length})</CardTitle>
-          <CardDescription>
-            Users with administrator privileges
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Admin Users ({admins.length})</CardTitle>
+            <CardDescription>
+              Users with administrator privileges
+            </CardDescription>
+          </div>
+          <Button onClick={handleRetry} variant="outline" size="sm" className="h-8">
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
