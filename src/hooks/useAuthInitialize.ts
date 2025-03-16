@@ -50,43 +50,33 @@ export const useAuthInitialize = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Check if this is a Google SSO user (from callback)
+          // Check if we have a stored role
           const storedRole = sessionStorage.getItem('user_role_set');
-          if (storedRole === 'admin') {
-            console.log("Using stored admin role from session");
-            setUserRole('admin');
-            
-            // For SSO users on auth page, always redirect to admin dashboard
-            const isAuthPage = location.pathname === '/auth';
-            if (!isCallbackUrl && isAuthPage) {
-              navigate('/', { replace: true });
-              setTimeout(() => {
-                setIsLoading(false);
-                setAuthInitialized(true);
-              }, 300);
-            } else {
-              setIsLoading(false);
-              setAuthInitialized(true);
-            }
+          if (storedRole && (storedRole === 'admin' || storedRole === 'client')) {
+            console.log("Using stored role from session:", storedRole);
+            setUserRole(storedRole as UserRole);
           } else {
-            // For regular users, determine role from database
+            // Determine role from database
             const userRole = await determineUserRole(currentSession.user);
             setUserRole(userRole);
             sessionStorage.setItem('user_role_set', userRole);
-            
-            const isAuthPage = location.pathname === '/auth';
-            if (!isCallbackUrl && isAuthPage) {
-              // Determine where to navigate based on role for non-SSO users
-              const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-              navigate(targetPath, { replace: true });
-              setTimeout(() => {
-                setIsLoading(false);
-                setAuthInitialized(true);
-              }, 300);
-            } else {
+          }
+          
+          // Handle redirects if on auth page
+          const isAuthPage = location.pathname === '/auth';
+          if (!isCallbackUrl && isAuthPage) {
+            // Redirect based on role
+            const targetPath = userRole === 'client' || storedRole === 'client' 
+              ? '/client/dashboard' 
+              : '/';
+            navigate(targetPath, { replace: true });
+            setTimeout(() => {
               setIsLoading(false);
               setAuthInitialized(true);
-            }
+            }, 300);
+          } else {
+            setIsLoading(false);
+            setAuthInitialized(true);
           }
         } else {
           console.log("No active session found during init");

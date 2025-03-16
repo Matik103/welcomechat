@@ -44,41 +44,30 @@ export const useAuthStateChange = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Check if this is a Google SSO user (from callback handler)
+          // Check if we have a stored role
           const storedRole = sessionStorage.getItem('user_role_set');
-          if (storedRole === 'admin') {
-            // For Google SSO, maintain the admin role
-            setUserRole('admin');
-            
-            // Only redirect if we're on the auth page
-            const isAuthPage = location.pathname === '/auth';
-            if (isAuthPage) {
-              // Always to admin dashboard for SSO users
-              navigate('/', { replace: true });
-              setTimeout(() => {
-                setIsLoading(false);
-              }, 300);
-            } else {
-              setIsLoading(false);
-            }
+          if (storedRole && (storedRole === 'admin' || storedRole === 'client')) {
+            setUserRole(storedRole as UserRole);
           } else {
-            // For regular users, determine role from database
+            // Determine role from database
             const userRole = await determineUserRole(currentSession.user);
             setUserRole(userRole);
             sessionStorage.setItem('user_role_set', userRole);
-            
-            // Only redirect if we're on the auth page
-            const isAuthPage = location.pathname === '/auth';
-            if (isAuthPage) {
-              // Determine where to navigate based on role for non-SSO users
-              const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
-              navigate(targetPath, { replace: true });
-              setTimeout(() => {
-                setIsLoading(false);
-              }, 300);
-            } else {
+          }
+          
+          // Only redirect if we're on the auth page
+          const isAuthPage = location.pathname === '/auth';
+          if (isAuthPage) {
+            // Determine where to navigate based on role
+            const targetPath = (userRole === 'client' || storedRole === 'client') 
+              ? '/client/dashboard' 
+              : '/';
+            navigate(targetPath, { replace: true });
+            setTimeout(() => {
               setIsLoading(false);
-            }
+            }, 300);
+          } else {
+            setIsLoading(false);
           }
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");
