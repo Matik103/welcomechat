@@ -10,8 +10,8 @@ import { ErrorLog, InteractionStats, QueryItem } from "@/types/client-dashboard"
 // Import services
 import { fetchErrorLogs, subscribeToErrorLogs } from "@/services/errorLogService";
 import { fetchQueries, subscribeToQueries } from "@/services/queryService";
-import { fetchDashboardStats, subscribeToAgentData, subscribeToActivities } from "@/services/statsService";
 import { getAgentDashboardStats } from "@/services/agentQueryService";
+import { subscribeToActivities } from "@/services/activitySubscriptionService";
 
 export type { ErrorLog, InteractionStats, QueryItem };
 
@@ -98,11 +98,28 @@ export const useClientDashboard = (clientId: string | undefined) => {
         }
       }
       
-      // Fall back to the original stats function if the above fails
-      console.log("Falling back to general stats function");
-      const statsData = await fetchDashboardStats(clientId);
-      setStats(statsData);
-      setAuthError(false);
+      // If we don't have the agent name or the above request failed,
+      // try to get it from the client record
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('agent_name')
+        .eq('id', clientId)
+        .single();
+        
+      if (clientError) {
+        console.error("Error fetching client data:", clientError);
+        throw clientError;
+      }
+      
+      if (clientData?.agent_name) {
+        // Use the agent name from the client record
+        console.log("Using agent name from client record:", clientData.agent_name);
+        const statsData = await getAgentDashboardStats(clientId, clientData.agent_name);
+        setStats(statsData);
+        setAuthError(false);
+      } else {
+        throw new Error("No agent name found for this client");
+      }
     } catch (err: any) {
       console.error("Error fetching stats:", err);
       if (err.message === "Authentication failed" || err.code === "PGRST301" || err.message?.includes("JWT")) {
@@ -139,15 +156,30 @@ export const useClientDashboard = (clientId: string | undefined) => {
   useEffect(() => {
     if (!clientId) return;
     
-    let agentChannel: any = null;
+    let aiAgentsChannel: any = null;
     let errorLogsChannel: any = null;
     let queriesChannel: any = null;
     let activitiesChannel: any = null;
     
     // Setup subscriptions
     const setupSubscriptions = async () => {
-      // Subscribe to the AI agent table
-      agentChannel = await subscribeToAgentData(clientId, fetchStats);
+      // Subscribe to the AI agents table for this client
+      aiAgentsChannel = supabase
+        .channel(`ai-agents-${clientId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'ai_agents',
+            filter: `client_id=eq.${clientId}`
+          },
+          (payload) => {
+            console.log("AI agent data change detected:", payload);
+            fetchStats();
+          }
+        )
+        .subscribe();
       
       // Setup other channels
       errorLogsChannel = subscribeToErrorLogs(clientId, refetchErrorLogs);
@@ -159,7 +191,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     
     return () => {
       // Clean up all channels
-      if (agentChannel) supabase.removeChannel(agentChannel);
+      if (aiAgentsChannel) supabase.removeChannel(aiAgentsChannel);
       if (errorLogsChannel) supabase.removeChannel(errorLogsChannel);
       if (queriesChannel) supabase.removeChannel(queriesChannel);
       if (activitiesChannel) supabase.removeChannel(activitiesChannel);

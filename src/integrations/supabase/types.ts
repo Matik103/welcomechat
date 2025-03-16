@@ -3488,6 +3488,10 @@ export type Database = {
           similarity: number
         }[]
       }
+      migrate_agent_tables_to_ai_agents: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       search_similar_content: {
         Args: {
           query_embedding: string

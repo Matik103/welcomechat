@@ -1,60 +1,95 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { QueryItem } from "@/types/client-dashboard";
-import { checkAndRefreshAuth } from "./authService";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 /**
- * Fetches common queries for a specific client
+ * Fetches common queries for a specific client using the ai_agents table
  */
 export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
-  if (!clientId) return [];
-  
-  // Try to ensure auth is valid before making the request
-  const isAuthValid = await checkAndRefreshAuth();
-  if (!isAuthValid) {
-    return [];
-  }
-  
-  const { data, error } = await supabase
-    .from("common_queries")
-    .select("*")
-    .eq("client_id", clientId)
-    .order("frequency", { ascending: false })
-    .limit(10);
+  try {
+    // This query gets the most frequent queries from ai_agents table
+    const { data, error } = await supabase.rpc('get_common_queries', {
+      client_id_param: clientId,
+      agent_name_param: null,  // Will get for all agent names for this client
+      limit_param: 10
+    });
 
-  if (error) {
-    console.error("Error fetching queries:", error);
-    throw error;
+    if (error) throw error;
+    
+    // Transform the data to match the QueryItem interface
+    return (data || []).map((item: any) => ({
+      id: crypto.randomUUID(), // Generate a random UUID since we don't have an ID from the group by
+      query_text: item.query_text,
+      frequency: item.frequency,
+      client_id: clientId,
+      created_at: new Date().toISOString() // We don't have a created_at from the group by
+    }));
+  } catch (err) {
+    console.error("Error fetching common queries:", err);
+    
+    // Try a fallback approach with direct SQL if the RPC fails
+    try {
+      const { data, error } = await supabase
+        .from('ai_agents')
+        .select('query_text')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'chat_interaction')
+        .not('query_text', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(10);
+        
+      if (error) throw error;
+      
+      // Count frequency of each query text
+      const countMap = new Map<string, number>();
+      data.forEach(item => {
+        if (item.query_text) {
+          const count = countMap.get(item.query_text) || 0;
+          countMap.set(item.query_text, count + 1);
+        }
+      });
+      
+      // Convert to QueryItem[] format
+      const result: QueryItem[] = Array.from(countMap).map(([queryText, frequency]) => ({
+        id: crypto.randomUUID(),
+        query_text: queryText,
+        frequency,
+        client_id: clientId,
+        created_at: new Date().toISOString()
+      }));
+      
+      return result;
+    } catch (fallbackErr) {
+      console.error("Fallback query also failed:", fallbackErr);
+      throw fallbackErr;
+    }
   }
-  
-  return (data || []).map((item: any) => ({
-    id: item.id,
-    query_text: item.query_text,
-    frequency: item.frequency,
-    last_asked: item.updated_at
-  })) as QueryItem[];
 };
 
 /**
- * Sets up a real-time subscription for common queries
+ * Sets up a realtime subscription for new queries
  */
-export const subscribeToQueries = (clientId: string, onUpdate: () => void) => {
+export const subscribeToQueries = (
+  clientId: string,
+  onUpdate: () => void
+): RealtimeChannel => {
   const channel = supabase
-    .channel('queries-changes')
+    .channel(`queries-${clientId}`)
     .on(
-      'postgres_changes',
+      "postgres_changes",
       {
-        event: '*',
-        schema: 'public',
-        table: 'common_queries',
-        filter: `client_id=eq.${clientId}`
+        event: "INSERT",
+        schema: "public",
+        table: "ai_agents",
+        filter: `client_id=eq.${clientId} AND interaction_type=eq.chat_interaction`
       },
       (payload) => {
-        console.log('Common queries changed:', payload);
+        console.log("New query detected:", payload);
         onUpdate();
       }
     )
     .subscribe();
-    
+
   return channel;
 };

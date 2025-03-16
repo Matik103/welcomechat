@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { Database } from "@/integrations/supabase/types";
+import { mapActivityType } from "@/utils/activityTypeUtils";
 
 // Define the proper role type based on the database schema
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -31,6 +32,74 @@ export const createClientActivity = async (
     }
   } catch (error) {
     console.error("Error creating client activity:", error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a record in ai_agents table for chat interactions
+ */
+export const logChatInteraction = async (
+  clientId: string,
+  agentName: string,
+  queryText: string,
+  responseText: string,
+  responseTimeMs: number = 0,
+  metadata: Json = {}
+): Promise<void> => {
+  try {
+    const { error } = await supabase.from("ai_agents").insert({
+      client_id: clientId,
+      name: agentName,
+      content: responseText,
+      query_text: queryText,
+      interaction_type: 'chat_interaction',
+      response_time_ms: responseTimeMs,
+      settings: metadata,
+      is_error: false
+    });
+    
+    if (error) {
+      console.error("Failed to log chat interaction:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error logging chat interaction:", error);
+    throw error;
+  }
+};
+
+/**
+ * Logs an error in the AI agent
+ */
+export const logAgentError = async (
+  clientId: string,
+  agentName: string,
+  errorType: string,
+  errorMessage: string,
+  queryText?: string,
+  metadata: Json = {}
+): Promise<void> => {
+  try {
+    const { error } = await supabase.from("ai_agents").insert({
+      client_id: clientId,
+      name: agentName,
+      content: errorMessage,
+      query_text: queryText || '',
+      interaction_type: 'error',
+      error_type: errorType,
+      error_message: errorMessage,
+      error_status: 'pending',
+      settings: metadata,
+      is_error: true
+    });
+    
+    if (error) {
+      console.error("Failed to log agent error:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error logging agent error:", error);
     throw error;
   }
 };
