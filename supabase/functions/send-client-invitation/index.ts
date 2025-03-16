@@ -1,204 +1,155 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS"
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-interface InvitationRequest {
-  clientId: string;
+interface ClientInvitationRequest {
   email: string;
   clientName: string;
+  clientId: string;
+  setupUrl: string;
 }
 
-serve(async (req) => {
+serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
-  
+
   try {
-    console.log("Send client invitation function started");
+    console.log("Initializing client invitation process");
+    
+    // Initialize Supabase client with service role
+    const supabaseUrl = Deno.env.get("PROJECT_URL") || "";
+    const supabaseServiceKey = Deno.env.get("SERVICE_ROLE_KEY") || "";
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing required environment variables: PROJECT_URL or SERVICE_ROLE_KEY");
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Verify admin permissions
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
+    
+    // Get user from auth header and verify admin role
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      console.error("Authentication error:", userError);
+      throw new Error('Authentication failed');
+    }
+    
+    // Verify the user has admin role
+    const { data: roles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .single();
+      
+    if (rolesError || !roles) {
+      console.error("Admin verification error:", rolesError);
+      throw new Error('Unauthorized: Admin role required');
+    }
     
     // Parse request body
-    let requestBody;
-    try {
-      requestBody = await req.json();
-      console.log("Request body received:", JSON.stringify(requestBody));
-    } catch (parseError) {
-      console.error("Failed to parse request body:", parseError);
-      throw new Error("Invalid request format");
+    const { email, clientName, clientId, setupUrl }: ClientInvitationRequest = await req.json();
+    
+    if (!email || !clientName || !clientId || !setupUrl) {
+      throw new Error("Missing required fields: email, clientName, clientId, or setupUrl");
     }
     
-    const { clientId, email, clientName } = requestBody as InvitationRequest;
+    console.log(`Processing client invitation for: ${clientName} (${email})`);
     
-    if (!clientId || !email) {
-      console.error("Missing required parameters:", { clientId, email });
-      throw new Error("Missing required parameters: clientId and email are required");
-    }
-    
-    console.log(`Sending invitation to client: ${clientName || 'Unknown'} (${email}), ID: ${clientId}`);
-    
-    // Get the origin from request headers or use default
-    const origin = req.headers.get("origin") || "https://welcome.chat";
-    console.log("Using origin:", origin);
-    
-    // Initialize Supabase admin client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-      console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables");
-      throw new Error("Server configuration error: Missing Supabase credentials");
-    }
-    
-    console.log("Initializing Supabase admin client with URL:", supabaseUrl);
-    
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      supabaseServiceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-
-    // Generate a unique token for the invitation
-    const token = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour expiration
-
-    // Create invitation record
-    console.log("Creating invitation record in client_invitations table...");
-    
-    try {
-      // Store the invitation in the database
-      const { error: inviteError } = await supabaseAdmin
-        .from('client_invitations')
-        .insert({
-          client_id: clientId,
-          token: token,
-          email: email,
-          expires_at: expiresAt.toISOString()
-        });
-
-      if (inviteError) {
-        console.error("Error storing invitation:", inviteError);
-        throw new Error(`Failed to create invitation record: ${inviteError.message}`);
-      }
-      console.log("Invitation record created successfully with token:", token);
-    } catch (dbError) {
-      console.error("Database operation failed:", dbError);
-      throw new Error(`Database error: ${dbError.message}`);
-    }
-
-    // Initialize Resend
+    // Initialize Resend client
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
-      console.error("Missing RESEND_API_KEY environment variable");
-      throw new Error("Server configuration error: Missing Resend API key");
+      throw new Error("Missing RESEND_API_KEY environment variable");
     }
     
     const resend = new Resend(resendApiKey);
     
-    // Setup URL path
-    const setupUrl = `${origin}/client-setup?token=${token}`;
-    console.log("Setup URL for email:", setupUrl);
-    
-    console.log("Sending email via Resend...");
-    try {
-      const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "Welcome.Chat <admin@welcome.chat>", // Make sure this matches your verified domain in Resend
-        to: email,
-        subject: "Welcome to TestBot Assistant!",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #333; margin-bottom: 20px;">Welcome to TestBot Assistant!</h2>
-            
-            <p>Hello ${clientName},</p>
-            
-            <p>You have been invited to create your account for TestBot Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
-            
-            <p>To complete your account setup:</p>
-            
-            <ol style="line-height: 1.6;">
-              <li>Click the button below to set up your account</li>
-              <li>Follow the instructions to set your password</li>
-              <li>You'll be automatically redirected to your client dashboard</li>
-              <li>Configure your AI assistant's settings in the dashboard</li>
-            </ol>
-            
-            <div style="margin: 30px 0;">
-              <a href="${setupUrl}" style="
-                background-color: #3b82f6;
-                color: white;
-                padding: 12px 24px;
-                text-decoration: none;
-                border-radius: 6px;
-                display: inline-block;
-              ">Set Up Your Account</a>
+    // Send the email with Resend
+    const { data: emailData, error: emailError } = await resend.emails.send({
+      from: "Welcome.Chat <admin@welcome.chat>",
+      to: email,
+      subject: `Welcome to ${clientName}'s AI Assistant Dashboard`,
+      reply_to: "admin@welcome.chat",
+      html: `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #eee;">
+              <h1 style="color: #4F46E5; margin-top: 0;">Welcome to Your AI Assistant Dashboard!</h1>
+              <p>Hello,</p>
+              <p>Your AI Assistant Dashboard for <strong>${clientName}</strong> has been set up.</p>
+              <p>Click the link below to complete your account setup:</p>
+              <a href="${setupUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 16px 0; font-weight: bold;">Complete Setup</a>
+              <p style="color: #666; font-size: 14px;">This setup link will expire in 48 hours. If you did not expect this invitation, please ignore this email.</p>
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #888;">
+                <p>&copy; 2024 Welcome.Chat. All rights reserved.</p>
+              </div>
             </div>
-            
-            <p style="color: #666;">This invitation link will expire in 24 hours.</p>
-            
-            <p style="color: #666; font-size: 14px; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
-              If you didn't expect this invitation, you can safely ignore this email.
-            </p>
-            
-            <p>Best regards,<br>The TestBot Assistant Team</p>
-          </div>
-        `
-      });
+          </body>
+        </html>
+      `
+    });
 
-      if (emailError) {
-        console.error("Error sending email with Resend:", emailError);
-        throw emailError;
-      }
-
-      console.log("Email sent successfully with Resend:", emailData);
-    } catch (emailSendError) {
-      console.error("Failed to send email:", emailSendError);
-      throw new Error(`Email sending failed: ${emailSendError.message}`);
+    if (emailError) {
+      console.error("Email sending failed:", emailError);
+      throw new Error(`Failed to send email: ${emailError.message}`);
     }
-    
-    // Return success response
+
+    console.log("Client invitation email sent successfully to", email);
+
+    // Log the email invitation
+    await supabase.from('email_logs').insert({
+      sent_by: user.email,
+      sent_to: email,
+      type: 'client_invitation',
+      status: 'sent',
+      role_type: 'client',
+      client_id: clientId,
+      metadata: {
+        url: setupUrl,
+        clientName: clientName
+      }
+    });
+
     return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: "Invitation email sent successfully"
-      }), 
+      JSON.stringify({ success: true }),
       {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
       }
     );
   } catch (error) {
-    console.error("Error in send-client-invitation function:", error);
-    console.error("Error details:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-    
-    // Return error response
+    console.error("Failed to send client invitation:", error);
+
     return new Response(
-      JSON.stringify({ 
-        error: error.message || "Failed to send invitation",
-        details: error.stack,
-        success: false
-      }), 
+      JSON.stringify({
+        error: "Failed to send client invitation email",
+        details: error.message
+      }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
       }
     );
   }
