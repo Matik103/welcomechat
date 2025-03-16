@@ -155,7 +155,7 @@ export const getAgentDashboardStats = async (
     console.log(`Fetching dashboard stats for client: ${clientId}, agent: ${agentName}`);
     
     // First, check if the get_agent_dashboard_stats function exists
-    const { data: funcExists, error: funcError } = await supabase.rpc(
+    const { data: funcExistsData, error: funcError } = await supabase.rpc(
       'exec_sql',
       {
         sql_query: `
@@ -168,8 +168,16 @@ export const getAgentDashboardStats = async (
       }
     );
     
+    // Safely check if the function exists
+    const funcExists = Array.isArray(funcExistsData) && 
+                      funcExistsData.length > 0 && 
+                      typeof funcExistsData[0] === 'object' && 
+                      funcExistsData[0] !== null &&
+                      'exists' in funcExistsData[0] && 
+                      funcExistsData[0].exists === true;
+    
     // If the function exists, use it
-    if (funcExists && funcExists.exists) {
+    if (funcExists) {
       // Use the database function for the stats
       const { data, error } = await supabase.rpc(
         'get_agent_dashboard_stats',
@@ -265,11 +273,27 @@ export const getAgentDashboardStats = async (
         throw topQueriesError;
       }
       
+      // Parse active days value safely
+      const activeDays = Array.isArray(activeDaysData) && 
+                        activeDaysData.length > 0 && 
+                        typeof activeDaysData[0] === 'object' &&
+                        activeDaysData[0] !== null &&
+                        'active_days' in activeDaysData[0] ? 
+                        Number(activeDaysData[0].active_days) : 0;
+      
+      // Parse average response time safely
+      const avgResponseTime = Array.isArray(avgResponseData) && 
+                            avgResponseData.length > 0 && 
+                            typeof avgResponseData[0] === 'object' &&
+                            avgResponseData[0] !== null &&
+                            'avg_response_time' in avgResponseData[0] ? 
+                            Number(avgResponseData[0].avg_response_time) : 0;
+      
       // Construct the stats object
       const stats = {
         total_interactions: totalInteractions?.length || 0,
-        active_days: activeDaysData?.[0]?.active_days || 0,
-        average_response_time: avgResponseData?.[0]?.avg_response_time || 0,
+        active_days: activeDays,
+        average_response_time: avgResponseTime,
         top_queries: topQueriesData || []
       };
       

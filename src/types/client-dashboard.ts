@@ -3,7 +3,7 @@ export interface InteractionStats {
   total_interactions: number;
   active_days: number;
   average_response_time: number;
-  top_queries: string[];
+  top_queries: Array<{query_text: string; frequency: number}>;
 }
 
 export interface ErrorLog {
