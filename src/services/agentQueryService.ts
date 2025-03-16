@@ -65,12 +65,39 @@ SELECT * FROM match_client_agent_data(
 
 /**
  * Get dashboard statistics for a specific agent
+ * This function can use either direct database function or edge function API
  */
 export const getAgentDashboardStats = async (
   clientId: string,
   agentName: string
 ) => {
   try {
+    console.log(`Fetching dashboard stats for client: ${clientId}, agent: ${agentName}`);
+    
+    // Try using the Edge Function first as it's more reliable across environments
+    try {
+      const response = await fetch(
+        `${supabase.supabaseUrl}/functions/v1/get_agent_dashboard_stats?client_id=${clientId}&agent_name=${agentName}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${supabase.supabaseKey}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Edge function stats:", result);
+        return result.data;
+      } else {
+        console.warn("Edge function failed, falling back to RPC:", await response.text());
+      }
+    } catch (edgeFnError) {
+      console.warn("Edge function error, falling back to RPC:", edgeFnError);
+    }
+    
+    // Fallback to direct RPC if edge function fails
     const { data, error } = await supabase.rpc(
       'get_agent_dashboard_stats' as any, // Type assertion needed until DB types are updated
       { 
@@ -84,6 +111,7 @@ export const getAgentDashboardStats = async (
       throw error;
     }
 
+    console.log("RPC stats result:", data);
     return data;
     
   } catch (err) {
