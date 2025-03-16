@@ -66,14 +66,16 @@ export const useAuthInitialize = ({
             sessionStorage.setItem('user_role_set', determinedUserRole);
           }
           
-          // Handle redirects if on auth page
+          // Handle redirects if on auth page or at root
           const isAuthPage = location.pathname === '/auth';
-          if (!isCallbackUrl && isAuthPage) {
-            // Redirect based on role
-            const storedRole = sessionStorage.getItem('user_role_set');
-            const targetPath = (determinedUserRole === 'client' || storedRole === 'client') 
+          const isRootPage = location.pathname === '/';
+          
+          if (!isCallbackUrl && (isAuthPage || (isRootPage && determinedUserRole === 'client'))) {
+            // Redirect based on role to the appropriate dashboard
+            const targetPath = determinedUserRole === 'client' 
               ? '/client/dashboard' 
               : '/';
+              
             navigate(targetPath, { replace: true });
             setTimeout(() => {
               setIsLoading(false);
@@ -91,8 +93,9 @@ export const useAuthInitialize = ({
           sessionStorage.removeItem('user_role_set');
           
           const isAuthPage = location.pathname === '/auth';
+          const isSetupPage = location.pathname.startsWith('/client/setup');
               
-          if (!isAuthPage && !isCallbackUrl) {
+          if (!isAuthPage && !isCallbackUrl && !isSetupPage) {
             console.log("No session, redirecting to auth page in init");
             navigate('/auth', { replace: true });
           }
@@ -112,7 +115,9 @@ export const useAuthInitialize = ({
           
           // Redirect to auth page on error
           const isAuthPage = location.pathname === '/auth';
-          if (!isAuthPage && !isCallbackUrl) {
+          const isSetupPage = location.pathname.startsWith('/client/setup');
+          
+          if (!isAuthPage && !isCallbackUrl && !isSetupPage) {
             navigate('/auth', { replace: true });
           }
         }

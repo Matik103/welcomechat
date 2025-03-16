@@ -23,14 +23,12 @@ function App() {
   const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
   
-  // Handle callback routes
+  // Handle special routes
   const isAuthCallback = location.pathname.startsWith('/auth/callback');
-  
-  // Determine if current route is a public route
   const isPublicRoute = location.pathname === '/auth' || 
                         isAuthCallback ||
                         location.pathname.startsWith('/client/setup');
-
+  
   // Show loading state if auth is initializing
   if (isLoading && !isAuthCallback) {
     return (
@@ -40,69 +38,55 @@ function App() {
     );
   }
 
-  // Auth page doesn't need layout or role checks
-  if (location.pathname === '/auth') {
+  // Guest view - only public routes
+  if (!user) {
     return (
       <div className="min-h-screen bg-background">
+        <Routes>
+          {/* Public routes */}
+          <Route path="/auth/*" element={<Auth />} />
+          <Route path="/client/setup" element={<ClientSetup />} />
+          
+          {/* Redirect any other path to auth */}
+          <Route path="*" element={<Navigate to="/auth" replace />} />
+        </Routes>
         <Toaster />
-        <Auth />
       </div>
     );
   }
 
-  // Handle the case where we have user
-  if (user) {
-    // Determine if current route is a client-specific route
-    const isClientRoute = 
-      location.pathname.startsWith('/client') && 
-      !location.pathname.startsWith('/client/setup');
+  // User authenticated but roles not determined yet
+  if (!userRole) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
-    // Determine whether to show admin or client UI based on role
-    const isAdminUser = userRole === 'admin';
-    
-    // Use the appropriate header based on role and route
-    const shouldUseClientHeader = isClientRoute || !isAdminUser;
-
+  // Admin view with admin routes
+  if (userRole === 'admin') {
     return (
       <div className="min-h-screen bg-background">
-        {shouldUseClientHeader ? <ClientHeader /> : <Header />}
+        <Header />
         <Routes>
-          {/* Auth routes */}
-          <Route path="/auth" element={<Navigate to={isAdminUser ? "/" : "/client/dashboard"} replace />} />
-          <Route path="/auth/callback" element={<Navigate to={isAdminUser ? "/" : "/client/dashboard"} replace />} />
-          <Route path="/client/setup" element={<ClientSetup />} />
+          {/* Admin routes */}
+          <Route path="/" element={<Index />} />
+          <Route path="/admin/clients" element={<ClientList />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/admin/clients/new" element={<AddEditClient />} />
+          <Route path="/admin/clients/:id" element={<ClientView />} />
+          <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
+          <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
           
-          {/* Admin routes - only accessible by admin users */}
-          {isAdminUser ? (
-            <>
-              <Route path="/" element={<Index />} />
-              <Route path="/admin/clients" element={<ClientList />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/admin/clients/new" element={<AddEditClient />} />
-              <Route path="/admin/clients/:id" element={<ClientView />} />
-              <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
-              <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
-              
-              {/* Redirect client routes to admin dashboard for admin users */}
-              <Route path="/client/*" element={<Navigate to="/" replace />} />
-            </>
-          ) : (
-            <>
-              {/* Client routes - only accessible by client users */}
-              <Route path="/client/dashboard" element={<ClientDashboard />} />
-              <Route path="/client/settings" element={<ClientSettings />} />
-              <Route path="/client/account-settings" element={<AccountSettings />} />
-              <Route path="/client/resource-settings" element={<ResourceSettings />} />
-              <Route path="/client/edit-info" element={<EditClientInfo />} />
-              <Route path="/client/widget-settings" element={<WidgetSettings />} />
-              
-              {/* Redirect admin routes to client dashboard for client users */}
-              <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
-              <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
-            </>
-          )}
+          {/* Auth callbacks and redirects */}
+          <Route path="/auth" element={<Navigate to="/" replace />} />
+          <Route path="/auth/callback" element={<Navigate to="/" replace />} />
           
-          {/* 404 route */}
+          {/* Prevent access to client routes */}
+          <Route path="/client/*" element={<Navigate to="/" replace />} />
+          
+          {/* 404 for admin routes */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />
@@ -110,21 +94,30 @@ function App() {
     );
   }
 
-  // If auth is no longer loading but we don't have a user and we're not on a public route
-  if (!isPublicRoute) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Public routes with minimal loader
+  // Client view with client routes
   return (
     <div className="min-h-screen bg-background">
+      <ClientHeader />
       <Routes>
-        {/* Auth routes */}
-        <Route path="/auth/*" element={<Auth />} />
+        {/* Client routes */}
+        <Route path="/client/dashboard" element={<ClientDashboard />} />
+        <Route path="/client/settings" element={<ClientSettings />} />
+        <Route path="/client/account-settings" element={<AccountSettings />} />
+        <Route path="/client/resource-settings" element={<ResourceSettings />} />
+        <Route path="/client/edit-info" element={<EditClientInfo />} />
+        <Route path="/client/widget-settings" element={<WidgetSettings />} />
+        
+        {/* Auth callbacks and redirects */}
+        <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
+        <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
         <Route path="/client/setup" element={<ClientSetup />} />
         
-        {/* If trying to access restricted routes without auth, redirect */}
-        <Route path="*" element={<Navigate to="/auth" replace />} />
+        {/* Redirect admin routes to client dashboard */}
+        <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
+        <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
+        
+        {/* 404 for client routes */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <Toaster />
     </div>
