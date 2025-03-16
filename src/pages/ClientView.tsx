@@ -99,7 +99,7 @@ const ClientView = () => {
         <div className="max-w-5xl mx-auto text-center">
           <h1 className="text-2xl font-bold text-gray-900">Client not found</h1>
           <Link 
-            to="/clients"
+            to="/admin/clients"
             className="text-primary hover:underline mt-4 inline-block"
           >
             Return to client list
@@ -115,7 +115,7 @@ const ClientView = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link 
-              to="/clients"
+              to="/admin/clients"
               className="text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
