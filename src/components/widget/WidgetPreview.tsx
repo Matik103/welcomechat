@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { X, Send, Bot, User } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -44,10 +45,87 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     
     try {
       let responseText = "";
-      // Use the webhook URL directly if provided, otherwise fallback to Supabase edge function
+      const startTime = Date.now();
+
+      // Try to query the ai_agents table first using similarity search if available
+      if (settings.agent_name) {
+        try {
+          // Get the client ID - we need to work with the current auth session
+          const { data: { session } } = await supabase.auth.getSession();
+          const clientId = session?.user?.id || session?.user?.user_metadata?.client_id;
+          
+          if (clientId) {
+            console.log(`Searching ai_agents for client: ${clientId}, agent: ${settings.agent_name}`);
+            
+            // First check if the agent has any entries
+            const { count, error: countError } = await supabase
+              .from('ai_agents')
+              .select('*', { count: 'exact', head: true })
+              .eq('client_id', clientId)
+              .eq('name', settings.agent_name);
+              
+            if (countError) {
+              console.error("Error checking ai_agents:", countError);
+            } else if (count && count > 0) {
+              // If we have entries in ai_agents, query those first
+              console.log(`Found ${count} entries in ai_agents, performing similarity search`);
+              
+              // Execute the match_ai_agents RPC with the current message
+              const { data: matches, error: matchError } = await supabase.rpc(
+                'match_ai_agents',
+                {
+                  client_id_param: clientId,
+                  agent_name_param: settings.agent_name,
+                  query_embedding: await generateEmbedding(currentMessage),
+                  match_count: 5
+                }
+              );
+              
+              if (matchError) {
+                console.error("Error searching ai_agents:", matchError);
+              } else if (matches && matches.length > 0) {
+                console.log("AI agent matches:", matches);
+                
+                // Format context from matches
+                const context = matches
+                  .map(match => match.content)
+                  .join("\n\n");
+                
+                // Use context to enhance response
+                responseText = await generateAIResponse(currentMessage, context, settings.agent_name);
+                
+                // Log the interaction to ai_agents
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                await supabase.rpc('log_chat_interaction', {
+                  client_id_param: clientId,
+                  agent_name_param: settings.agent_name,
+                  query_text_param: currentMessage,
+                  response_text_param: responseText,
+                  response_time_ms_param: responseTime,
+                  settings_json: {
+                    source: 'widget_preview',
+                    similarity_matches: matches.length
+                  }
+                });
+                
+                // If we got a response, add it to chat and return
+                setChatMessages(prev => [...prev, { type: 'bot', text: responseText }]);
+                setIsLoading(false);
+                return;
+              }
+            }
+          }
+        } catch (searchError) {
+          console.error("Error during ai_agents search:", searchError);
+        }
+      }
+      
+      // Fall back to webhook or edge function if ai_agents search fails or has no results
       const endpointUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
       
-      console.log(`Sending message to endpoint: ${endpointUrl}`);
+      console.log(`Falling back to endpoint: ${endpointUrl}`);
       console.log("Payload:", { 
         prompt: currentMessage,
         agent_name: settings.agent_name || "AI Assistant",
@@ -72,15 +150,15 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
         console.log("API response:", data);
         
         responseText = data.generatedText || data.response || data.message || 
-                      "I'm your AI assistant. How can I help you today?";
+                    "I'm your AI assistant. How can I help you today?";
+                    
+        // Add bot response
+        setChatMessages(prev => [...prev, { type: 'bot', text: responseText }]);
       } else {
         const errorData = await response.text();
         console.error(`API error (${response.status}):`, errorData);
         throw new Error(`Error ${response.status}: ${errorData}`);
       }
-      
-      // Add bot response
-      setChatMessages(prev => [...prev, { type: 'bot', text: responseText }]);
     } catch (error) {
       console.error("Error sending message:", error);
       setChatMessages(prev => [...prev, { 
@@ -89,6 +167,63 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
       }]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Generate embeddings for the query text
+  const generateEmbedding = async (text: string): Promise<number[]> => {
+    try {
+      const response = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY || ''}`
+        },
+        body: JSON.stringify({
+          input: text,
+          model: "text-embedding-ada-002"
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Embedding API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.data[0].embedding;
+    } catch (error) {
+      console.error("Error generating embedding:", error);
+      // Return a zero vector as fallback
+      return Array(1536).fill(0);
+    }
+  };
+
+  // Generate AI response using the context
+  const generateAIResponse = async (query: string, context: string, agentName: string): Promise<string> => {
+    try {
+      // Use the chat endpoint from Supabase function
+      const response = await fetch(`https://${projectRef}.supabase.co/functions/v1/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: query,
+          agent_name: agentName,
+          context: context
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`AI response error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.generatedText || data.response || data.message || 
+            "I'm your AI assistant. How can I help you today?";
+    } catch (error) {
+      console.error("Error generating AI response:", error);
+      return "I'm having trouble accessing my knowledge base right now. Could you try again later?";
     }
   };
 
