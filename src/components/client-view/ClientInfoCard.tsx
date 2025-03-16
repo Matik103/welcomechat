@@ -60,7 +60,7 @@ export function ClientInfoCard({ client, chatHistory, aiAgentStats }: ClientInfo
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500">Status</h3>
-              <Badge variant={client.status === 'active' ? "success" : "destructive"}>
+              <Badge variant={client.status === 'active' ? "default" : "destructive"} className={client.status === 'active' ? "bg-green-500 hover:bg-green-600" : ""}>
                 {client.status}
               </Badge>
             </div>
