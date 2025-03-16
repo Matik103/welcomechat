@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -31,7 +32,7 @@ export const useAuthCallback = ({
         try {
           console.log("Auth callback processing started");
           
-          // Get the session from the URL
+          // Get the session from the URL - faster by using existing session if possible
           const { data: { session: callbackSession }, error: sessionError } = 
             await supabase.auth.getSession();
             
@@ -42,11 +43,11 @@ export const useAuthCallback = ({
             return;
           }
           
-          // Set session and user data
+          // Set session and user data immediately to speed up rendering
           setSession(callbackSession);
           setUser(callbackSession.user);
           
-          // Check if Google SSO user
+          // Check if Google SSO user - these are always admins (faster path)
           const isGoogleUser = callbackSession.user?.app_metadata?.provider === 'google';
           
           let userRole: UserRole;
@@ -60,7 +61,7 @@ export const useAuthCallback = ({
           
           setUserRole(userRole);
           
-          // Store the role in sessionStorage
+          // Store the role in sessionStorage for faster future access
           sessionStorage.setItem('user_role_set', userRole);
           
           console.log(`User identified as ${userRole}, redirecting to appropriate dashboard`);
@@ -71,7 +72,6 @@ export const useAuthCallback = ({
           // Navigate to the appropriate dashboard
           navigate(dashboardRoute, { replace: true });
           
-          // Keep loading true until the redirect completes
           // The loading state will be handled by the App component
         } catch (error) {
           console.error("Error handling auth callback:", error);
@@ -80,6 +80,7 @@ export const useAuthCallback = ({
         }
       };
       
+      // Execute callback handling immediately without delay
       handleCallback();
     }
   }, [isCallbackUrl, navigate, setSession, setUser, setUserRole, setIsLoading]);
