@@ -9,10 +9,18 @@ import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 const WidgetSettings = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
 
-  const isClientView = !id;
-  const clientId = id || user?.user_metadata?.client_id;
+  // Determine if this is a client view or admin view
+  const isClientView = userRole === 'client';
+  
+  // Get the appropriate client ID
+  const clientId = id || (isClientView ? user?.user_metadata?.client_id : undefined);
+  
+  console.log("WidgetSettings: Using client ID:", clientId);
+  console.log("WidgetSettings: User role:", userRole);
+  console.log("WidgetSettings: Is client view:", isClientView);
+  
   const { logClientActivity } = useClientActivity(clientId);
 
   const { 
@@ -26,8 +34,11 @@ const WidgetSettings = () => {
   const handleBack = () => {
     if (isClientView) {
       navigate('/client/dashboard');
+    } else if (id) {
+      // Admin is viewing a specific client's widget settings
+      navigate(`/admin/clients/${id}`);
     } else {
-      navigate(-1);
+      navigate('/admin/clients');
     }
   };
 
@@ -35,6 +46,20 @@ const WidgetSettings = () => {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!clientId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <h1 className="text-2xl font-bold mb-4">Client not found</h1>
+        <button
+          onClick={handleBack}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Go Back
+        </button>
       </div>
     );
   }
