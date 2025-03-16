@@ -48,7 +48,15 @@ export const useAuthStateChange = ({
           const storedRole = sessionStorage.getItem('user_role_set');
           let determinedUserRole: UserRole;
           
-          if (storedRole && (storedRole === 'admin' || storedRole === 'client')) {
+          // Check if Google SSO user
+          const isGoogleUser = currentSession.user?.app_metadata?.provider === 'google';
+          
+          if (isGoogleUser) {
+            console.log("Google SSO user detected in state change");
+            determinedUserRole = 'admin';
+            setUserRole('admin');
+            sessionStorage.setItem('user_role_set', 'admin');
+          } else if (storedRole && (storedRole === 'admin' || storedRole === 'client')) {
             setUserRole(storedRole as UserRole);
             determinedUserRole = storedRole as UserRole;
           } else {
