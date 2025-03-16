@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,6 @@ import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
-import { isClientInDatabase } from "@/utils/authUtils";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -22,7 +22,6 @@ const Auth = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const { session, isLoading, userRole } = useAuth();
   const location = useLocation();
-  const isAuthCallback = location.hash && location.hash.includes('access_token');
 
   const resetForm = () => {
     setEmail("");
@@ -31,46 +30,10 @@ const Auth = () => {
     setErrorMessage("");
   };
 
-  useEffect(() => {
-    sessionStorage.removeItem('auth_callback_attempted');
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      sessionStorage.removeItem('auth_callback_attempted');
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleAuthCallback = async () => {
-      if (isAuthCallback && !sessionStorage.getItem('auth_callback_attempted')) {
-        sessionStorage.setItem('auth_callback_attempted', 'true');
-        console.log("Processing Google auth callback...");
-        
-        try {
-          const { data, error } = await supabase.auth.getSession();
-          
-          if (error) {
-            console.error("Error processing auth callback:", error);
-            toast.error("Authentication failed. Please try again.");
-          } else if (data?.session) {
-            console.log("Auth callback successful, redirecting...");
-            toast.success("Successfully signed in!");
-          }
-        } catch (err) {
-          console.error("Exception during auth callback:", err);
-          toast.error("Authentication failed. Please try again.");
-        }
-      }
-    };
-
-    handleAuthCallback();
-  }, [isAuthCallback]);
-
+  // If we have a session and user role, redirect to appropriate dashboard
   if (session && userRole) {
-    console.log("Auth page - immediate redirect for user with role:", userRole);
+    console.log("Auth page - redirecting for user with role:", userRole);
     
-    // For email/password users, route based on role
     if (userRole === 'client') {
       return <Navigate to="/client/dashboard" replace />;
     } else {
@@ -89,7 +52,7 @@ const Auth = () => {
     try {
       if (isForgotPassword) {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/reset-password`,
+          redirectTo: `${window.location.origin}/auth`,
         });
         
         if (error) {
@@ -106,7 +69,6 @@ const Auth = () => {
             data: {
               full_name: fullName,
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
         
@@ -152,8 +114,6 @@ const Auth = () => {
     try {
       setIsGoogleLoading(true);
       setErrorMessage("");
-      
-      sessionStorage.removeItem('auth_callback_attempted');
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

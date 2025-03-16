@@ -88,12 +88,26 @@ export const createUserRole = async (
 };
 
 /**
- * Check if email exists in clients table - always returns false since we're
- * simplifying the auth flow to make all users admins
+ * Check if email exists in clients table
  */
 export const isClientInDatabase = async (email: string): Promise<boolean> => {
-  // Simplified implementation - we're not checking the clients table anymore
-  return false;
+  if (!email) return false;
+  
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+      
+    if (error) {
+      console.error("Error checking client existence:", error);
+      return false;
+    }
+    
+    return !!data;
+  } catch (err) {
+    console.error("Error in isClientInDatabase:", err);
+    return false;
+  }
 };
-
-// Removed isGoogleSSOUser function

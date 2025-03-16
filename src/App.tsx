@@ -20,13 +20,25 @@ import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
 
 function App() {
-  const { user, userRole } = useAuth();
+  const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
+  
+  // Handle callback routes
+  const isAuthCallback = location.pathname.startsWith('/auth/callback');
   
   // Determine if current route is a public route
   const isPublicRoute = location.pathname === '/auth' || 
-                        location.pathname.includes('/auth/callback') ||
+                        isAuthCallback ||
                         location.pathname.startsWith('/client/setup');
+
+  // Show loading state if auth is initializing
+  if (isLoading && !isAuthCallback) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   // Auth page doesn't need layout or role checks
   if (location.pathname === '/auth') {
@@ -56,7 +68,8 @@ function App() {
         {shouldUseClientHeader ? <ClientHeader /> : <Header />}
         <Routes>
           {/* Auth routes */}
-          <Route path="/auth/*" element={<Navigate to="/" replace />} />
+          <Route path="/auth" element={<Navigate to={isAdminUser ? "/" : "/client/dashboard"} replace />} />
+          <Route path="/auth/callback" element={<Navigate to={isAdminUser ? "/" : "/client/dashboard"} replace />} />
           <Route path="/client/setup" element={<ClientSetup />} />
           
           {/* Admin routes - only accessible by admin users */}
