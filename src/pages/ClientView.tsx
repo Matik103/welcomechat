@@ -604,7 +604,7 @@ const ClientView = () => {
               </Button>
             </Link>
             
-            <Link to={`/widget-settings/${id}`}>
+            <Link to={`/admin/clients/${id}/widget-settings`}>
               <Button variant="outline" size="sm" className="flex items-center gap-1">
                 Widget Settings
               </Button>
@@ -661,7 +661,6 @@ const ClientView = () => {
           <ErrorLogsCard errorLogs={errorLogs} />
         </div>
 
-        {/* Recent Activities Section */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-semibold mb-4">Recent Activities</h2>
           <div className="space-y-4">
