@@ -3,9 +3,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2, RefreshCcw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type UserWithRole = {
   id: string;
@@ -18,6 +19,7 @@ export const UserRolesView = () => {
   const [admins, setAdmins] = useState<UserWithRole[]>([]);
   const [clients, setClients] = useState<UserWithRole[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const fetchUserRoles = async () => {
     try {
@@ -29,9 +31,13 @@ export const UserRolesView = () => {
         .from('user_roles')
         .select('user_id, role');
           
-      if (rolesError) throw rolesError;
+      if (rolesError) {
+        console.error("Role fetching error:", rolesError);
+        throw new Error(`Failed to fetch user roles: ${rolesError.message}`);
+      }
       
       if (!rolesData || rolesData.length === 0) {
+        console.log("No roles found");
         setAdmins([]);
         setClients([]);
         setLoading(false);
@@ -42,10 +48,11 @@ export const UserRolesView = () => {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
         console.error("Session error:", sessionError);
-        throw new Error("Authentication error: " + sessionError.message);
+        throw new Error(`Authentication error: ${sessionError.message}`);
       }
       
       if (!sessionData.session?.access_token) {
+        toast.error("Your session has expired. Please sign in again.");
         throw new Error("No authentication token available. Please sign in again.");
       }
       
@@ -56,6 +63,8 @@ export const UserRolesView = () => {
         FROM auth.users au
         JOIN public.user_roles ur ON au.id = ur.user_id
       `;
+      
+      console.log("Calling execute_sql edge function...");
       
       // Call the execute_sql Edge Function with our SQL query
       // Include the auth token in the request
@@ -71,16 +80,20 @@ export const UserRolesView = () => {
         throw new Error(`Failed to fetch user data: ${usersError.message}`);
       }
       
+      if (!usersData) {
+        console.error("No data returned from edge function");
+        throw new Error("No data returned from server");
+      }
+      
       // Process the returned data
       const userData = usersData?.result || [];
       
       if (!Array.isArray(userData)) {
         console.warn("Unexpected response format:", userData);
-        setAdmins([]);
-        setClients([]);
-        setLoading(false);
-        return;
+        throw new Error(`Unexpected response format: ${JSON.stringify(userData).substring(0, 100)}`);
       }
+      
+      console.log(`Received ${userData.length} user records`);
       
       // Process users data into admin and client arrays
       const adminUsers: UserWithRole[] = [];
@@ -104,6 +117,7 @@ export const UserRolesView = () => {
       
       setAdmins(adminUsers);
       setClients(clientUsers);
+      console.log(`Processed ${adminUsers.length} admins and ${clientUsers.length} clients`);
     } catch (err: any) {
       console.error("Error fetching user roles:", err);
       setError(err.message || "Failed to fetch user roles");
@@ -115,30 +129,49 @@ export const UserRolesView = () => {
   
   useEffect(() => {
     fetchUserRoles();
-  }, []);
+  }, [retryCount]);
 
   const handleRetry = () => {
-    fetchUserRoles();
+    setRetryCount(prev => prev + 1);
+    toast.info("Retrying to fetch user roles...");
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading user roles...</span>
-      </div>
+      <Card className="mt-6">
+        <CardContent className="pt-6">
+          <div className="flex justify-center items-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+            <span>Loading user roles...</span>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 border border-red-200 bg-red-50 text-red-800 rounded-md flex flex-col items-center">
-        <p className="mb-4">Error: {error}</p>
-        <Button onClick={handleRetry} variant="outline" className="flex items-center gap-2">
-          <RefreshCcw className="h-4 w-4" />
-          Retry
-        </Button>
-      </div>
+      <Card className="mt-6 border-red-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-red-700 flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            Error Loading User Roles
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive" className="mb-4">
+            <AlertTitle>Failed to load user roles</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <p className="mb-4 text-sm text-gray-700">
+            This could be due to network issues or authentication problems. If the issue persists, try logging out and back in.
+          </p>
+          <Button onClick={handleRetry} variant="outline" className="flex items-center gap-2">
+            <RefreshCcw className="h-4 w-4" />
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
