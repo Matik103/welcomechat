@@ -3,7 +3,7 @@ import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatInteraction } from "@/types/agent";
-import { InteractionStats } from "@/types/client-dashboard";
+import { InteractionStats, QueryItem } from "@/types/client-dashboard";
 import { getAgentDashboardStats } from "@/services/agentQueryService";
 
 /**
@@ -36,12 +36,37 @@ export const validateStats = (data: any): InteractionStats => {
     return defaultStats;
   }
 
+  // Process top queries to ensure they match the required format
+  const processedQueries: QueryItem[] = Array.isArray(data.top_queries) 
+    ? data.top_queries.map((query: any, index: number) => {
+        // Handle different possible formats
+        if (typeof query === 'object' && query !== null) {
+          return {
+            id: `query-${index}`,
+            query_text: query.query_text || 'Unknown query',
+            frequency: typeof query.frequency === 'number' ? query.frequency : 1
+          };
+        } else if (typeof query === 'string') {
+          return {
+            id: `query-${index}`,
+            query_text: query,
+            frequency: 1
+          };
+        }
+        return {
+          id: `query-${index}`,
+          query_text: 'Unknown query',
+          frequency: 1
+        };
+      })
+    : [];
+
   // Create a properly typed object
   return {
     total_interactions: data.total_interactions,
     active_days: data.active_days,
     average_response_time: data.average_response_time,
-    top_queries: data.top_queries
+    top_queries: processedQueries
   };
 };
 
@@ -124,8 +149,12 @@ export const useAgentStats = (clientId?: string, agentName?: string) => {
             }
           });
           
-          const topQueries = Object.entries(queryCounts)
-            .map(([query_text, frequency]) => ({ query_text, frequency }))
+          const topQueries: QueryItem[] = Object.entries(queryCounts)
+            .map(([query_text, frequency]) => ({ 
+              id: `query-${query_text.substring(0, 10)}`,
+              query_text, 
+              frequency 
+            }))
             .sort((a, b) => b.frequency - a.frequency)
             .slice(0, 5);
           

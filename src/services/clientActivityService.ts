@@ -48,6 +48,15 @@ export const logChatInteraction = async (
   metadata: Json = {}
 ): Promise<void> => {
   try {
+    // Enhance metadata
+    const enhancedMetadata = {
+      ...metadata,
+      type: 'chat_interaction',
+      query: queryText,
+      response_time_ms: responseTimeMs,
+      timestamp: new Date().toISOString()
+    };
+
     const { error } = await supabase.from("ai_agents").insert({
       client_id: clientId,
       name: agentName,
@@ -55,7 +64,7 @@ export const logChatInteraction = async (
       query_text: queryText,
       interaction_type: 'chat_interaction',
       response_time_ms: responseTimeMs,
-      settings: metadata,
+      settings: enhancedMetadata,
       is_error: false
     });
     
@@ -81,6 +90,14 @@ export const logAgentError = async (
   metadata: Json = {}
 ): Promise<void> => {
   try {
+    // Enhance metadata
+    const enhancedMetadata = {
+      ...metadata,
+      type: 'error',
+      error_type: errorType,
+      timestamp: new Date().toISOString()
+    };
+
     const { error } = await supabase.from("ai_agents").insert({
       client_id: clientId,
       name: agentName,
@@ -90,7 +107,7 @@ export const logAgentError = async (
       error_type: errorType,
       error_message: errorMessage,
       error_status: 'pending',
-      settings: metadata,
+      settings: enhancedMetadata,
       is_error: true
     });
     
