@@ -51,7 +51,7 @@ export const useAuthCallback = ({
           // Store the role in sessionStorage
           sessionStorage.setItem('user_role_set', userRole);
           
-          console.log(`SSO user identified as ${userRole}`);
+          console.log(`User identified as ${userRole}`);
           
           // Navigate based on role
           if (userRole === 'client') {
