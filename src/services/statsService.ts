@@ -19,7 +19,7 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
   }
 
   try {
-    // Get the client details to find the agent table name
+    // Get the client details to find the agent name
     const { data: client, error: clientError } = await supabase
       .from("clients")
       .select("agent_name")
@@ -31,65 +31,53 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
       throw new Error("Could not determine AI agent name");
     }
 
-    // Sanitize agent name to get the table name format (matches the convention in function create_ai_agent_table)
-    const agentTableName = client.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    
-    // Use a raw SQL query to fetch data from the dynamic table name
-    // We need to use any type here because exec_sql is not in the TypeScript definitions
-    const { data, error } = await supabase.rpc(
-      'exec_sql' as any, 
-      {
-        sql_query: `SELECT metadata, created_at FROM "${agentTableName}" WHERE metadata->>'type' = 'chat_interaction'`
-      }
-    );
+    // Use the ai_agents table to get statistics
+    const { data, error } = await supabase
+      .from("ai_agents")
+      .select("id, response_time_ms, query_text, created_at, settings")
+      .eq("client_id", clientId)
+      .eq("name", client.agent_name)
+      .eq("interaction_type", "chat_interaction")
+      .eq("is_error", false);
 
     if (error) {
-      console.error(`Error fetching data from ${agentTableName}:`, error);
+      console.error(`Error fetching data from ai_agents:`, error);
       throw error;
     }
 
-    // Ensure the data is an array and process it
-    const interactions = Array.isArray(data) ? data : [];
-
     // Calculate total interactions
-    const totalInteractions = interactions.length;
+    const totalInteractions = data?.length || 0;
 
     // Calculate active days (unique days when interactions occurred)
     const uniqueDates = new Set();
-    interactions.forEach((interaction: { created_at?: string, metadata?: Json }) => {
-      if (interaction.created_at) {
-        const dateStr = new Date(interaction.created_at).toDateString();
-        uniqueDates.add(dateStr);
-      } else if (interaction.metadata && typeof interaction.metadata === 'object' && 'timestamp' in interaction.metadata) {
-        const timestamp = interaction.metadata.timestamp;
-        if (timestamp && typeof timestamp === 'string') {
-          const dateStr = new Date(timestamp).toDateString();
+    if (data && data.length > 0) {
+      data.forEach((interaction) => {
+        if (interaction.created_at) {
+          const dateStr = new Date(interaction.created_at).toDateString();
           uniqueDates.add(dateStr);
         }
-      }
-    });
+      });
+    }
     const activeDays = uniqueDates.size;
 
     // Calculate average response time
     let totalResponseTime = 0;
     let responsesWithTime = 0;
     
-    interactions.forEach((interaction: { metadata?: Json }) => {
-      const metadata = interaction.metadata;
-      if (metadata && typeof metadata === 'object' && 'response_time_ms' in metadata) {
-        const responseTime = metadata.response_time_ms;
-        if (typeof responseTime === 'number' || (typeof responseTime === 'string' && !isNaN(Number(responseTime)))) {
-          totalResponseTime += Number(responseTime);
+    if (data && data.length > 0) {
+      data.forEach((interaction) => {
+        if (interaction.response_time_ms) {
+          totalResponseTime += interaction.response_time_ms;
           responsesWithTime++;
         }
-      }
-    });
+      });
+    }
     
     const avgResponseTime = responsesWithTime > 0 
       ? Number((totalResponseTime / responsesWithTime / 1000).toFixed(2)) 
       : 0;
 
-    // Fetch top queries - this now returns objects with the correct format
+    // Fetch top queries
     const topQueriesList = await fetchTopQueries(clientId);
 
     // Return the combined stats
