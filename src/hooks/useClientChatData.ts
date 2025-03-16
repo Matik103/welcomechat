@@ -55,6 +55,44 @@ const transformStats = (data: any): InteractionStats => {
   };
 };
 
+/**
+ * Validates and ensures the stats object has proper values
+ */
+export const validateStats = (stats: InteractionStats): InteractionStats => {
+  return {
+    total_interactions: stats.total_interactions || 0,
+    active_days: stats.active_days || 0,
+    average_response_time: stats.average_response_time || 0,
+    top_queries: Array.isArray(stats.top_queries) ? stats.top_queries : []
+  };
+};
+
+/**
+ * Hook to get agent name for a client
+ */
+export const useAgentName = (clientId: string | undefined) => {
+  return useQuery({
+    queryKey: ['agent-name', clientId],
+    queryFn: async () => {
+      if (!clientId) return null;
+      
+      const { data, error } = await supabase
+        .from('clients')
+        .select('agent_name')
+        .eq('id', clientId)
+        .single();
+        
+      if (error) {
+        console.error("Error fetching agent name:", error);
+        return null;
+      }
+      
+      return data?.agent_name || null;
+    },
+    enabled: !!clientId
+  });
+};
+
 // Hook for fetching client dashboard statistics
 export const useClientDashboardStats = (clientId: string | undefined) => {
   return useQuery({
@@ -74,8 +112,44 @@ export const useClientDashboardStats = (clientId: string | undefined) => {
   });
 };
 
+/**
+ * Hook for agent stats with refresh capability
+ */
+export const useAgentStats = (clientId: string | undefined, agentName: string | undefined) => {
+  const { 
+    data: stats = {
+      total_interactions: 0,
+      active_days: 0,
+      average_response_time: 0,
+      top_queries: []
+    }, 
+    isLoading: isLoadingStats,
+    refetch
+  } = useQuery({
+    queryKey: ['agent-stats', clientId, agentName],
+    queryFn: async () => {
+      if (!clientId || !agentName) return transformStats(null);
+      
+      try {
+        const stats = await getAgentDashboardStats(clientId);
+        return transformStats(stats);
+      } catch (error) {
+        console.error("Error fetching agent stats:", error);
+        return transformStats(null);
+      }
+    },
+    enabled: !!clientId && !!agentName
+  });
+
+  return {
+    stats,
+    isLoadingStats,
+    refreshStats: refetch
+  };
+};
+
 // Hook for fetching client chat history
-export const useClientChatHistory = (clientId: string | undefined, limit: number = 10) => {
+export const useChatHistory = (clientId: string | undefined, limit: number = 10) => {
   return useQuery({
     queryKey: ['client-chat-history', clientId, limit],
     queryFn: async () => {
@@ -117,7 +191,9 @@ export const useClientChatHistory = (clientId: string | undefined, limit: number
           response: item.content || '',
           timestamp: item.created_at || new Date().toISOString(),
           clientId: item.client_id,
-          responseTimeMs: item.response_time_ms || 0
+          responseTimeMs: item.response_time_ms || 0,
+          content: item.content || '',
+          metadata: item.settings || {}
         }));
       } catch (error) {
         console.error("Error in useClientChatHistory:", error);
@@ -179,7 +255,6 @@ export const useLocalDashboardStats = (chatHistory: ChatInteraction[]): Interact
         
       // Calculate top queries
       const queryCountMap: Record<string, number> = {};
-      const queryCounts: Record<string, number> = {};
       
       chatHistory.forEach(interaction => {
         if (interaction.query) {
@@ -192,7 +267,7 @@ export const useLocalDashboardStats = (chatHistory: ChatInteraction[]): Interact
       });
       
       // Convert to array and sort
-      const topQueries: QueryItem[] = Object.entries(queryCounts)
+      const topQueries: QueryItem[] = Object.entries(queryCountMap)
         .map(([query_text, frequency]) => ({ 
           id: `query-${query_text.substring(0, 10)}`,
           query_text, 

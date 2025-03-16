@@ -49,8 +49,9 @@ export const logChatInteraction = async (
 ): Promise<void> => {
   try {
     // Enhance metadata
+    const metadataObj = typeof metadata === 'object' ? metadata : {};
     const enhancedMetadata = {
-      ...metadata,
+      ...metadataObj,
       type: 'chat_interaction',
       query: queryText,
       response_time_ms: responseTimeMs,
@@ -91,8 +92,9 @@ export const logAgentError = async (
 ): Promise<void> => {
   try {
     // Enhance metadata
+    const metadataObj = typeof metadata === 'object' ? metadata : {};
     const enhancedMetadata = {
-      ...metadata,
+      ...metadataObj,
       type: 'error',
       error_type: errorType,
       timestamp: new Date().toISOString()

@@ -42,10 +42,10 @@ export const ChatHistoryCard = ({ chatHistory }: ChatHistoryCardProps) => {
               {chatHistory.map((chat) => (
                 <TableRow key={chat.id}>
                   <TableCell>
-                    {format(new Date(chat.metadata.timestamp), 'PP')}
+                    {format(new Date(chat.timestamp), 'PP')}
                   </TableCell>
-                  <TableCell>{chat.metadata.user_message}</TableCell>
-                  <TableCell>{chat.content}</TableCell>
+                  <TableCell>{chat.query}</TableCell>
+                  <TableCell>{chat.response}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
