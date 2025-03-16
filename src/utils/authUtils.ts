@@ -1,4 +1,3 @@
-
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
@@ -65,8 +64,15 @@ export const forceRedirectBasedOnRole = (role: UserRole) => {
   if (role === 'client') {
     window.location.href = '/client/dashboard';
   } else {
-    window.location.href = '/';
+    window.location.href = '/admin/dashboard';
   }
+};
+
+/**
+ * Get dashboard route based on user role
+ */
+export const getDashboardRoute = (role: UserRole): string => {
+  return role === 'client' ? '/client/dashboard' : '/admin/dashboard';
 };
 
 /**

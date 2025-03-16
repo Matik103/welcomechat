@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 import { useNavigate, useLocation } from "react-router-dom";
-import { determineUserRole } from "@/utils/authUtils";
+import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
 
 type AuthStateChangeProps = {
   setSession: (session: Session | null) => void;
@@ -61,11 +61,10 @@ export const useAuthStateChange = ({
           // Only redirect if we're on the auth page
           const isAuthPage = location.pathname === '/auth';
           if (isAuthPage) {
-            // Determine where to navigate based on role
-            const targetPath = (determinedUserRole === 'client' || storedRole === 'client') 
-              ? '/client/dashboard' 
-              : '/';
-            navigate(targetPath, { replace: true });
+            // Get the appropriate dashboard route
+            const dashboardRoute = getDashboardRoute(determinedUserRole);
+            
+            navigate(dashboardRoute, { replace: true });
             setTimeout(() => {
               setIsLoading(false);
             }, 300);

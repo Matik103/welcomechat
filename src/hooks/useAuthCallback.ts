@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
-import { determineUserRole } from "@/utils/authUtils";
+import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
 
 type AuthCallbackProps = {
   isCallbackUrl: boolean;
@@ -53,13 +53,11 @@ export const useAuthCallback = ({
           
           console.log(`User identified as ${userRole}, redirecting to appropriate dashboard`);
           
-          // Navigate based on role
-          if (userRole === 'client') {
-            navigate('/client/dashboard', { replace: true });
-          } else {
-            // Explicitly navigate to admin dashboard
-            navigate('/', { replace: true });
-          }
+          // Get the appropriate dashboard route based on role
+          const dashboardRoute = getDashboardRoute(userRole);
+          
+          // Navigate to the appropriate dashboard
+          navigate(dashboardRoute, { replace: true });
           
           // Set isLoading to false after the navigation has had time to complete
           setTimeout(() => {
