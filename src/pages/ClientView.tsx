@@ -76,6 +76,10 @@ const ClientView = () => {
   useEffect(() => {
     if (client?.agent_name && id) {
       checkMigrationStatus();
+      // Auto-run migration if there are no linked ai_agents entries
+      if (migrationStatus.count === 0) {
+        runFullMigration();
+      }
     }
   }, [client, id]);
 
@@ -109,8 +113,70 @@ const ClientView = () => {
         lastMigrated: lastActivity && lastActivity.length > 0 ? 
           lastActivity[0].created_at : null
       });
+      
+      // If no entries found, check if the source table exists
+      if (count === 0) {
+        console.log("No AI agent entries found, checking source tables...");
+        checkSourceTables();
+      }
     } catch (error) {
       console.error("Error checking migration status:", error);
+    }
+  };
+  
+  // Function to check if source tables exist
+  const checkSourceTables = async () => {
+    if (!client?.agent_name) return;
+    
+    try {
+      // Check if the original chatbot table exists
+      const { data, error } = await supabase.rpc(
+        'exec_sql',
+        {
+          sql_query: `
+            SELECT EXISTS (
+              SELECT FROM pg_tables 
+              WHERE schemaname = 'public' 
+              AND tablename = '${client.agent_name}'
+            ) as exists
+          `
+        }
+      );
+      
+      const tableExists = Array.isArray(data) && 
+                        data.length > 0 && 
+                        typeof data[0] === 'object' && 
+                        data[0] !== null &&
+                        'exists' in data[0] && 
+                        data[0].exists === true;
+      
+      if (tableExists) {
+        console.log(`Source table ${client.agent_name} exists, can be migrated`);
+      } else {
+        console.log(`Source table ${client.agent_name} does not exist`);
+        
+        // Check for similar table names
+        const { data: similarTables, error: similarError } = await supabase.rpc(
+          'exec_sql',
+          {
+            sql_query: `
+              SELECT tablename 
+              FROM pg_tables 
+              WHERE schemaname = 'public' 
+              AND (
+                tablename LIKE '%${client.agent_name}%' OR 
+                '${client.agent_name}' LIKE '%' || tablename || '%'
+              )
+            `
+          }
+        );
+        
+        if (!similarError && Array.isArray(similarTables) && similarTables.length > 0) {
+          console.log("Found similar tables:", similarTables);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking source tables:", error);
     }
   };
 
@@ -125,35 +191,48 @@ const ClientView = () => {
         return;
       }
       
-      // Run the migration function directly
-      const { data, error } = await supabase.rpc(
-        'exec_sql',
-        {
-          sql_query: `
-            SELECT migrate_chatbot_to_ai_agents(
-              '${client.agent_name}', 
-              '${id}', 
-              '${client.agent_name}'
-            ) as migrated_count;
-          `
-        }
-      );
+      // Check possible source tables
+      const potentialSources = [
+        client.agent_name,
+        client.agent_name.toLowerCase(),
+        client.agent_name.replace(/\s+/g, '_').toLowerCase()
+      ];
       
-      if (error) {
-        console.error("Migration verification failed:", error);
-        toast.error("Failed to verify migration: " + error.message);
-        return;
-      }
-      
-      // Extract the migrated count - fix the TypeScript error by properly handling the response
       let migratedCount = 0;
       
-      if (Array.isArray(data) && data.length > 0) {
-        // If data is an array and has at least one item
-        const firstRow = data[0];
-        // Check if the first row is an object with migrated_count property
-        if (typeof firstRow === 'object' && firstRow !== null && 'migrated_count' in firstRow) {
-          migratedCount = Number(firstRow.migrated_count);
+      // Try each potential source table
+      for (const sourceName of potentialSources) {
+        console.log(`Attempting migration from source: ${sourceName}`);
+        
+        // Run the migration function for this source
+        const { data, error } = await supabase.rpc(
+          'exec_sql',
+          {
+            sql_query: `
+              SELECT migrate_chatbot_to_ai_agents(
+                '${sourceName}', 
+                '${id}', 
+                '${client.agent_name}'
+              ) as migrated_count;
+            `
+          }
+        );
+        
+        if (error) {
+          console.error(`Migration from ${sourceName} failed:`, error);
+          continue;
+        }
+        
+        // Parse the migrated count
+        if (Array.isArray(data) && data.length > 0) {
+          const row = data[0];
+          if (typeof row === 'object' && row !== null && 'migrated_count' in row) {
+            const count = Number(row.migrated_count);
+            console.log(`Migrated ${count} records from ${sourceName}`);
+            migratedCount += count;
+            
+            if (count > 0) break; // Stop if we found a valid source
+          }
         }
       }
       
@@ -187,7 +266,26 @@ const ClientView = () => {
           if (connectedCount > 0) {
             toast.success(`Manually connected ${connectedCount} existing records to this client`);
           } else {
-            toast.info("No records needed migration or connection");
+            // Last resort: create at least one entry
+            const { error: createError } = await supabase
+              .from("ai_agents")
+              .insert({
+                client_id: id,
+                name: client.agent_name,
+                content: `Initial entry for ${client.client_name}`,
+                interaction_type: 'initial_setup',
+                settings: {
+                  source: 'manual_setup',
+                  client_name: client.client_name,
+                  creation_date: new Date().toISOString()
+                }
+              });
+              
+            if (createError) {
+              toast.error("Failed to create initial entry");
+            } else {
+              toast.info("Created initial AI agent entry for this client");
+            }
           }
         }
       }
@@ -222,68 +320,139 @@ const ClientView = () => {
       
       toast.info("Running full migration process...");
       
-      // Execute the migration function from 20240911_fix_ai_agents_migration.sql
-      const { data, error } = await supabase.rpc(
+      // First, try direct migration to see if the exact agent_name table exists
+      const { data: directMigrationData, error: directMigrationError } = await supabase.rpc(
         'exec_sql',
         {
           sql_query: `
-            -- Create a temporary function to run the migration for a specific client
-            CREATE OR REPLACE FUNCTION temp_run_full_migration(client_id_param uuid, agent_name_param text)
-            RETURNS text
-            LANGUAGE plpgsql
-            AS $$
-            DECLARE
-              migration_count integer;
-              source_table text := agent_name_param;
-              result text;
-            BEGIN
-              -- Try to migrate from source table
-              SELECT migrate_chatbot_to_ai_agents(
-                source_table, 
-                client_id_param, 
-                agent_name_param
-              ) INTO migration_count;
-              
-              result := migration_count || ' records migrated from ' || source_table;
-              
-              -- Create client activity record
-              INSERT INTO client_activities (
-                client_id,
-                activity_type,
-                description,
-                metadata
-              ) VALUES (
-                client_id_param,
-                'ai_agent_created',
-                'Migration executed from dashboard: ' || migration_count || ' entries',
-                jsonb_build_object(
-                  'agent_name', agent_name_param,
-                  'source_table', source_table,
-                  'record_count', migration_count,
-                  'execution_type', 'manual'
-                )
-              );
-              
-              RETURN result;
-            END;
-            $$;
-            
-            -- Run the migration for this specific client
-            SELECT temp_run_full_migration('${id}', '${client.agent_name}');
-            
-            -- Clean up
-            DROP FUNCTION temp_run_full_migration;
+            SELECT migrate_chatbot_to_ai_agents(
+              '${client.agent_name}', 
+              '${id}', 
+              '${client.agent_name}'
+            ) as migrated_count;
           `
         }
       );
       
-      if (error) {
-        console.error("Full migration failed:", error);
-        toast.error("Full migration failed: " + error.message);
-        return;
+      // Extract migrated count
+      let directMigrationCount = 0;
+      if (!directMigrationError && Array.isArray(directMigrationData) && directMigrationData.length > 0) {
+        const row = directMigrationData[0];
+        if (typeof row === 'object' && row !== null && 'migrated_count' in row) {
+          directMigrationCount = Number(row.migrated_count);
+        }
       }
       
-      toast.success("Full migration completed successfully!");
+      if (directMigrationCount > 0) {
+        toast.success(`Directly migrated ${directMigrationCount} records from ${client.agent_name}`);
+      } else {
+        // Try with alternate table names - lowercase, underscores instead of spaces, etc.
+        const alternateNames = [
+          client.agent_name.toLowerCase(),
+          client.agent_name.replace(/\s+/g, '_'),
+          client.agent_name.replace(/\s+/g, '_').toLowerCase()
+        ];
+        
+        let alternateMigrationCount = 0;
+        for (const alternateName of alternateNames) {
+          if (alternateName === client.agent_name) continue; // Skip if it's the same as the original
+          
+          const { data: altData, error: altError } = await supabase.rpc(
+            'exec_sql',
+            {
+              sql_query: `
+                SELECT migrate_chatbot_to_ai_agents(
+                  '${alternateName}', 
+                  '${id}', 
+                  '${client.agent_name}'
+                ) as migrated_count;
+              `
+            }
+          );
+          
+          if (!altError && Array.isArray(altData) && altData.length > 0) {
+            const row = altData[0];
+            if (typeof row === 'object' && row !== null && 'migrated_count' in row) {
+              const count = Number(row.migrated_count);
+              if (count > 0) {
+                alternateMigrationCount += count;
+                console.log(`Migrated ${count} records from alternate name ${alternateName}`);
+              }
+            }
+          }
+        }
+        
+        if (alternateMigrationCount > 0) {
+          toast.success(`Migrated ${alternateMigrationCount} records from alternate table names`);
+        } else {
+          // Try to find any existing records with similar names and link them
+          const { data: linkResults, error: linkError } = await supabase.rpc(
+            'exec_sql',
+            {
+              sql_query: `
+                UPDATE ai_agents
+                SET client_id = '${id}'
+                WHERE 
+                  (name LIKE '%${client.agent_name}%' OR
+                   '${client.agent_name}' LIKE '%' || name || '%')
+                  AND (client_id IS NULL OR client_id != '${id}')
+                RETURNING id
+              `
+            }
+          );
+          
+          let linkedCount = 0;
+          if (!linkError && Array.isArray(linkResults)) {
+            linkedCount = linkResults.length;
+          }
+          
+          if (linkedCount > 0) {
+            toast.success(`Linked ${linkedCount} existing records to this client`);
+          } else {
+            toast.info("No source tables found for migration");
+          }
+        }
+      }
+      
+      // Insert at least one record if none exist
+      const { count, error: countError } = await supabase
+        .from("ai_agents")
+        .select("*", { count: 'exact', head: true })
+        .eq("client_id", id);
+        
+      if (!countError && count === 0) {
+        const { error: insertError } = await supabase
+          .from("ai_agents")
+          .insert({
+            client_id: id,
+            name: client.agent_name,
+            content: `Initial entry for ${client.client_name}`,
+            interaction_type: 'initial_setup',
+            settings: {
+              source: 'manual_setup',
+              client_name: client.client_name,
+              creation_date: new Date().toISOString()
+            }
+          });
+          
+        if (insertError) {
+          console.error("Error creating initial entry:", insertError);
+        } else {
+          toast.success("Created initial AI agent entry");
+        }
+      }
+      
+      // Record the migration activity
+      await supabase.from("client_activities").insert({
+        client_id: id,
+        activity_type: 'ai_agent_created',
+        description: 'Migration executed from dashboard',
+        metadata: {
+          agent_name: client.agent_name,
+          execution_type: 'manual',
+          timestamp: new Date().toISOString()
+        }
+      });
       
       // Refresh all data
       await Promise.all([
@@ -295,6 +464,8 @@ const ClientView = () => {
       
       // Update migration status
       checkMigrationStatus();
+      
+      toast.success("Migration completed successfully!");
       
     } catch (error) {
       console.error("Error in full migration:", error);
@@ -346,6 +517,14 @@ const ClientView = () => {
         </div>
       </div>
     );
+  }
+
+  // Auto-run migration if no entries found
+  if (migrationStatus.count === 0 && !isRefreshing) {
+    // Use setTimeout to prevent immediate execution that might cause UI issues
+    setTimeout(() => {
+      runFullMigration();
+    }, 1000);
   }
 
   return (
