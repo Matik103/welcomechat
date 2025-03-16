@@ -44,28 +44,41 @@ export const useAuthStateChange = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Don't override role if it's already set (from callback handler)
-          // This preserves the admin role set for Google SSO users
-          if (!sessionStorage.getItem('user_role_set')) {
-            // For non-SSO users, determine role from database
+          // Check if this is a Google SSO user (from callback handler)
+          const storedRole = sessionStorage.getItem('user_role_set');
+          if (storedRole === 'admin') {
+            // For Google SSO, maintain the admin role
+            setUserRole('admin');
+            
+            // Only redirect if we're on the auth page
+            const isAuthPage = location.pathname === '/auth';
+            if (isAuthPage) {
+              // Always to admin dashboard for SSO users
+              navigate('/', { replace: true });
+              setTimeout(() => {
+                setIsLoading(false);
+              }, 300);
+            } else {
+              setIsLoading(false);
+            }
+          } else {
+            // For regular users, determine role from database
             const userRole = await determineUserRole(currentSession.user);
             setUserRole(userRole);
             sessionStorage.setItem('user_role_set', userRole);
-          }
-          
-          // Only redirect if we're on the auth page
-          const isAuthPage = location.pathname === '/auth';
-          if (isAuthPage) {
-            // Get current role from storage or use admin as default (consistent with SSO behavior)
-            const role = sessionStorage.getItem('user_role_set') || 'admin';
-            // Determine where to navigate based on role
-            const targetPath = role === 'admin' ? '/' : '/client/dashboard';
-            navigate(targetPath, { replace: true });
-            setTimeout(() => {
+            
+            // Only redirect if we're on the auth page
+            const isAuthPage = location.pathname === '/auth';
+            if (isAuthPage) {
+              // Determine where to navigate based on role for non-SSO users
+              const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+              navigate(targetPath, { replace: true });
+              setTimeout(() => {
+                setIsLoading(false);
+              }, 300);
+            } else {
               setIsLoading(false);
-            }, 300);
-          } else {
-            setIsLoading(false);
+            }
           }
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");
