@@ -33,27 +33,63 @@ export type Database = {
       ai_agents: {
         Row: {
           client_id: string
+          content: string | null
           created_at: string | null
+          embedding: string | null
+          error_message: string | null
+          error_status: string | null
+          error_type: string | null
           id: string
+          interaction_type: string | null
+          is_error: boolean | null
           name: string
+          query_text: string | null
+          response_time_ms: number | null
+          sentiment: string | null
           settings: Json | null
+          topic: string | null
           updated_at: string | null
+          url: string | null
         }
         Insert: {
           client_id: string
+          content?: string | null
           created_at?: string | null
+          embedding?: string | null
+          error_message?: string | null
+          error_status?: string | null
+          error_type?: string | null
           id?: string
+          interaction_type?: string | null
+          is_error?: boolean | null
           name: string
+          query_text?: string | null
+          response_time_ms?: number | null
+          sentiment?: string | null
           settings?: Json | null
+          topic?: string | null
           updated_at?: string | null
+          url?: string | null
         }
         Update: {
           client_id?: string
+          content?: string | null
           created_at?: string | null
+          embedding?: string | null
+          error_message?: string | null
+          error_status?: string | null
+          error_type?: string | null
           id?: string
+          interaction_type?: string | null
+          is_error?: boolean | null
           name?: string
+          query_text?: string | null
+          response_time_ms?: number | null
+          sentiment?: string | null
           settings?: Json | null
+          topic?: string | null
           updated_at?: string | null
+          url?: string | null
         }
         Relationships: []
       }
@@ -2131,15 +2167,75 @@ export type Database = {
         }
         Returns: undefined
       }
+      exec_sql: {
+        Args: {
+          sql_query: string
+        }
+        Returns: Json[]
+      }
       extract_google_drive_links: {
         Args: {
           content: string
         }
         Returns: string[]
       }
+      get_active_days: {
+        Args: {
+          client_id_param: string
+          agent_name_param: string
+        }
+        Returns: number
+      }
       get_active_days_count: {
         Args: {
           client_id_param: string
+        }
+        Returns: number
+      }
+      get_agent_dashboard_stats: {
+        Args: {
+          client_id_param: string
+          agent_name_param: string
+        }
+        Returns: Json
+      }
+      get_average_response_time: {
+        Args: {
+          client_id_param: string
+          agent_name_param: string
+        }
+        Returns: number
+      }
+      get_common_queries: {
+        Args: {
+          client_id_param: string
+          agent_name_param: string
+          limit_param?: number
+        }
+        Returns: {
+          query_text: string
+          frequency: number
+        }[]
+      }
+      get_recent_error_logs: {
+        Args: {
+          client_id_param: string
+          agent_name_param: string
+          limit_param?: number
+        }
+        Returns: {
+          id: string
+          error_type: string
+          error_message: string
+          error_status: string
+          query_text: string
+          created_at: string
+        }[]
+      }
+      get_total_interactions: {
+        Args: {
+          client_id_param: string
+          agent_name_param: string
         }
         Returns: number
       }
@@ -2254,6 +2350,30 @@ export type Database = {
             }
             Returns: unknown
           }
+      log_agent_error: {
+        Args: {
+          client_id_param: string
+          agent_name_param: string
+          error_type_param: string
+          error_message_param: string
+          query_text_param?: string
+          settings_json?: Json
+        }
+        Returns: string
+      }
+      log_chat_interaction: {
+        Args: {
+          client_id_param: string
+          agent_name_param: string
+          query_text_param: string
+          response_text_param: string
+          response_time_ms_param: number
+          topic_param?: string
+          sentiment_param?: string
+          settings_json?: Json
+        }
+        Returns: string
+      }
       match_ai_agent: {
         Args: {
           query_embedding: string
@@ -2267,23 +2387,41 @@ export type Database = {
           similarity: number
         }[]
       }
-      match_ai_agents: {
-        Args: {
-          query_embedding: string
-          client_id_filter: string
-          agent_name_filter: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          client_id: string
-          agent_name: string
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
+      match_ai_agents:
+        | {
+            Args: {
+              client_id_param: string
+              agent_name_param: string
+              query_embedding: string
+              match_count?: number
+              additional_filter?: Json
+            }
+            Returns: {
+              id: string
+              name: string
+              content: string
+              settings: Json
+              similarity: number
+              url: string
+            }[]
+          }
+        | {
+            Args: {
+              query_embedding: string
+              client_id_filter: string
+              agent_name_filter: string
+              match_count?: number
+              filter?: Json
+            }
+            Returns: {
+              id: number
+              client_id: string
+              agent_name: string
+              content: string
+              metadata: Json
+              similarity: number
+            }[]
+          }
       match_airtable: {
         Args: {
           query_embedding: string
