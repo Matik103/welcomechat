@@ -1,11 +1,16 @@
 
 export interface ChatInteraction {
   id: string | number;
-  content: string;
-  metadata: {
-    timestamp: string;
-    user_message: string;
+  query: string;
+  response: string;
+  timestamp: string;
+  clientId: string;
+  responseTimeMs: number;
+  metadata?: {
+    timestamp?: string;
+    user_message?: string;
     type?: string;
-    [key: string]: any; // Allow for additional metadata fields
+    [key: string]: any;
   };
+  content?: string;
 }
