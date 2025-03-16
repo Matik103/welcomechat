@@ -9,6 +9,7 @@ import { AdminSetup } from "@/components/settings/AdminSetup";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
 import { UserRolesView } from "@/components/settings/UserRolesView";
 import { RoleMigration } from "@/components/settings/RoleMigration";
+import { UserRoleCheck } from "@/components/settings/UserRoleCheck";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -49,6 +50,7 @@ const Settings = () => {
 
         {isAdmin && (
           <>
+            <UserRoleCheck />
             <RoleMigration />
             <UserRolesView />
           </>
