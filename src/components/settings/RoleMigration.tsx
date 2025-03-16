@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,9 +23,9 @@ export const RoleMigration = () => {
       } else {
         toast.error("Failed to migrate users");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in migration:", error);
-      toast.error("An error occurred during migration");
+      toast.error("An error occurred during migration: " + (error?.message || "Unknown error"));
     } finally {
       setIsLoading(false);
     }
@@ -50,9 +49,9 @@ export const RoleMigration = () => {
       } else {
         toast.error(`Failed to add admin role to ${adminEmail}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding admin:", error);
-      toast.error("An error occurred while adding admin role");
+      toast.error("Error adding admin role: " + (error?.message || "Unknown error"));
     } finally {
       setIsLoading(false);
     }

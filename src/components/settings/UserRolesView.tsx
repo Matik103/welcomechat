@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 type UserWithRole = {
   id: string;
@@ -36,6 +36,12 @@ export const UserRolesView = () => {
           return;
         }
         
+        // Get the current session for authentication
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session?.access_token) {
+          throw new Error("No authentication token available");
+        }
+        
         // We need to query auth.users table which requires the execute_sql Edge Function
         // This SQL query will join user_roles with auth.users to get emails
         const sqlQuery = `
@@ -45,24 +51,41 @@ export const UserRolesView = () => {
         `;
         
         // Call the execute_sql Edge Function with our SQL query
+        // Include the auth token in the request
         const { data: usersData, error: usersError } = await supabase.functions.invoke('execute_sql', {
-          body: { sql: sqlQuery }
+          body: { sql: sqlQuery },
+          headers: {
+            Authorization: `Bearer ${sessionData.session.access_token}`
+          }
         });
         
-        if (usersError) throw usersError;
+        if (usersError) {
+          console.error("Edge function error:", usersError);
+          throw new Error(`Failed to fetch user data: ${usersError.message}`);
+        }
         
         // Process the returned data
         const userData = usersData?.result || [];
+        
+        if (!Array.isArray(userData)) {
+          console.warn("Unexpected response format:", userData);
+          setAdmins([]);
+          setClients([]);
+          setLoading(false);
+          return;
+        }
         
         // Process users data into admin and client arrays
         const adminUsers: UserWithRole[] = [];
         const clientUsers: UserWithRole[] = [];
         
         userData.forEach((user: any) => {
+          if (!user || typeof user !== 'object') return;
+          
           const userWithRole: UserWithRole = {
-            id: user.id,
+            id: user.id || 'Unknown ID',
             email: user.email || 'Unknown email',
-            role: user.role
+            role: user.role || 'Unknown role'
           };
           
           if (user.role === 'admin') {
@@ -77,6 +100,7 @@ export const UserRolesView = () => {
       } catch (err: any) {
         console.error("Error fetching user roles:", err);
         setError(err.message || "Failed to fetch user roles");
+        toast.error("Failed to load user roles: " + (err.message || "Unknown error"));
       } finally {
         setLoading(false);
       }
