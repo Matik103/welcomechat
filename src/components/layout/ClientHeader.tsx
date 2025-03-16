@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Settings, Palette, UserCog, Edit } from "lucide-react";
