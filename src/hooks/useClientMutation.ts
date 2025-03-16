@@ -4,8 +4,7 @@ import { ClientFormData } from "@/types/client";
 import { 
   updateClient, 
   createClient, 
-  logClientUpdateActivity,
-  createClientUserAccount
+  logClientUpdateActivity
 } from "@/services/clientService";
 import { toast } from "sonner";
 
@@ -35,21 +34,6 @@ export const useClientMutation = (id: string | undefined) => {
           // Create new client
           toast.info("Creating client...");
           const newClientId = await createClient(updatedData);
-          
-          // Try to create client user account with temporary password
-          try {
-            await createClientUserAccount(
-              newClientId, 
-              updatedData.email, 
-              updatedData.client_name, 
-              updatedData.agent_name
-            );
-            toast.success("Client account created successfully with temporary password");
-          } catch (accountError) {
-            console.error("Failed to create client user account:", accountError);
-            toast.error("Client created but failed to set up user account");
-          }
-          
           return newClientId;
         }
       } catch (error: any) {

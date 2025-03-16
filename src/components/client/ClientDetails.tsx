@@ -6,7 +6,6 @@ import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { createClientUserAccount } from "@/services/clientService";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -65,22 +64,6 @@ export const ClientDetails = ({
     } catch (error) {
       console.error("Error submitting client form:", error);
       toast.error("Failed to save client information");
-    }
-  };
-
-  const handleCreateClientAccount = async () => {
-    if (!client || !clientId) {
-      toast.error("Cannot create account: missing client information");
-      return;
-    }
-
-    try {
-      toast.info("Creating client user account with temporary password...");
-      await createClientUserAccount(clientId, client.email, client.client_name, client.agent_name);
-      toast.success("Client account created successfully");
-    } catch (error: any) {
-      console.error("Error creating client account:", error);
-      toast.error("Failed to create client account: " + (error.message || "Unknown error"));
     }
   };
 

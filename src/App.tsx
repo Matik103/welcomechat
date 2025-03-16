@@ -12,7 +12,6 @@ import WidgetSettings from "@/pages/WidgetSettings";
 import { useAuth } from "./contexts/AuthContext";
 import ClientSettings from "@/pages/client/Settings";
 import ClientDashboard from "@/pages/client/Dashboard";
-import ClientSetup from "@/pages/client/Setup";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
@@ -26,9 +25,7 @@ function App() {
   
   // Handle special routes
   const isAuthCallback = location.pathname.startsWith('/auth/callback');
-  const isPublicRoute = location.pathname === '/auth' || 
-                        isAuthCallback ||
-                        location.pathname.startsWith('/client/setup');
+  const isPublicRoute = location.pathname === '/auth' || isAuthCallback;
   
   // Clear callback processed flag when not on callback page
   useEffect(() => {
@@ -60,7 +57,6 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/auth/*" element={<Auth />} />
-          <Route path="/client/setup" element={<ClientSetup />} />
           
           {/* Redirect any other path to auth */}
           <Route path="*" element={<Navigate to="/auth" replace />} />
@@ -128,7 +124,6 @@ function App() {
         <Route path="/client/resource-settings" element={<ResourceSettings />} />
         <Route path="/client/edit-info" element={<EditClientInfo />} />
         <Route path="/client/widget-settings" element={<WidgetSettings />} />
-        <Route path="/client/setup" element={<ClientSetup />} />
         
         {/* Auth callbacks and redirects */}
         <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
