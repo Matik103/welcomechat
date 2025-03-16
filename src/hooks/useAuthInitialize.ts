@@ -58,9 +58,9 @@ export const useAuthInitialize = ({
             setUserRole(storedRole as UserRole);
           } else {
             // Determine role from database
-            const role = await determineUserRole(currentSession.user);
-            setUserRole(role);
-            sessionStorage.setItem('user_role_set', role);
+            const userRole = await determineUserRole(currentSession.user);
+            setUserRole(userRole);
+            sessionStorage.setItem('user_role_set', userRole);
           }
           
           // Handle redirects if on auth page
@@ -68,7 +68,7 @@ export const useAuthInitialize = ({
           if (!isCallbackUrl && isAuthPage) {
             // Redirect based on role
             const storedRole = sessionStorage.getItem('user_role_set');
-            const targetPath = (role === 'client' || storedRole === 'client') 
+            const targetPath = (userRole === 'client' || storedRole === 'client') 
               ? '/client/dashboard' 
               : '/';
             navigate(targetPath, { replace: true });
