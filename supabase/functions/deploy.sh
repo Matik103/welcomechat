@@ -9,10 +9,6 @@ supabase functions deploy check-drive-access --no-verify-jwt
 echo "Deploying check-url-access function..."
 supabase functions deploy check-url-access --no-verify-jwt
 
-# Deploy send-invitation function
-echo "Deploying send-invitation function..."
-supabase functions deploy send-invitation --no-verify-jwt
-
 # Deploy check-email-exists function
 echo "Deploying check-email-exists function..."
 supabase functions deploy check-email-exists --no-verify-jwt
