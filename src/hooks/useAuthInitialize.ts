@@ -53,14 +53,17 @@ export const useAuthInitialize = ({
           
           // Check if we have a stored role
           const storedRole = sessionStorage.getItem('user_role_set');
+          let determinedUserRole: UserRole;
+          
           if (storedRole && (storedRole === 'admin' || storedRole === 'client')) {
             console.log("Using stored role from session:", storedRole);
             setUserRole(storedRole as UserRole);
+            determinedUserRole = storedRole as UserRole;
           } else {
             // Determine role from database
-            const userRole = await determineUserRole(currentSession.user);
-            setUserRole(userRole);
-            sessionStorage.setItem('user_role_set', userRole);
+            determinedUserRole = await determineUserRole(currentSession.user);
+            setUserRole(determinedUserRole);
+            sessionStorage.setItem('user_role_set', determinedUserRole);
           }
           
           // Handle redirects if on auth page
@@ -68,7 +71,7 @@ export const useAuthInitialize = ({
           if (!isCallbackUrl && isAuthPage) {
             // Redirect based on role
             const storedRole = sessionStorage.getItem('user_role_set');
-            const targetPath = (userRole === 'client' || storedRole === 'client') 
+            const targetPath = (determinedUserRole === 'client' || storedRole === 'client') 
               ? '/client/dashboard' 
               : '/';
             navigate(targetPath, { replace: true });
