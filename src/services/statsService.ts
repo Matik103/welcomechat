@@ -1,3 +1,4 @@
+
 import { InteractionStats } from "@/types/client-dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchTopQueries } from "./topQueriesService";
@@ -139,10 +140,8 @@ export const subscribeToAgentData = async (
       return null;
     }
 
-    // Sanitize agent name to get the table name format
-    const agentTableName = client.agent_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    
-    console.log(`Setting up subscription for AI agent table: ${agentTableName}`);
+    // Set up subscription for the ai_agents table filtered by client_id
+    console.log(`Setting up subscription for AI agent with client ID: ${clientId}`);
     
     const channel = supabase
       .channel(`agent-data-${clientId}`)
@@ -151,7 +150,8 @@ export const subscribeToAgentData = async (
         {
           event: '*',
           schema: 'public',
-          table: agentTableName,
+          table: 'ai_agents',
+          filter: `client_id=eq.${clientId}`
         },
         (payload) => {
           console.log("AI agent data change detected:", payload);
@@ -159,7 +159,7 @@ export const subscribeToAgentData = async (
         }
       )
       .subscribe((status) => {
-        console.log(`Subscription to ${agentTableName} status:`, status);
+        console.log(`Subscription to ai_agents for client ${clientId} status:`, status);
       });
       
     return channel;
