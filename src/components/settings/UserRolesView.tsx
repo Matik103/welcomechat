@@ -22,46 +22,57 @@ export const UserRolesView = () => {
       try {
         setLoading(true);
         
-        // Query for users with admin role
-        const { data: adminData, error: adminError } = await supabase
+        // First, get all user roles
+        const { data: rolesData, error: rolesError } = await supabase
           .from('user_roles')
-          .select(`
-            user_id,
-            role,
-            users:user_id(email)
-          `)
-          .eq('role', 'admin');
+          .select('user_id, role');
           
-        if (adminError) throw adminError;
+        if (rolesError) throw rolesError;
         
-        // Query for users with client role
-        const { data: clientData, error: clientError } = await supabase
-          .from('user_roles')
-          .select(`
-            user_id,
-            role,
-            users:user_id(email)
-          `)
-          .eq('role', 'client');
+        if (!rolesData || rolesData.length === 0) {
+          setAdmins([]);
+          setClients([]);
+          return;
+        }
+        
+        // Extract user IDs to get their emails
+        const userIds = rolesData.map(item => item.user_id);
+        
+        // Get user emails from auth.users via a Supabase function or separate query
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, email')
+          .in('id', userIds);
           
-        if (clientError) throw clientError;
+        if (userError) throw userError;
         
-        // Format admin data
-        const formattedAdmins = adminData.map(item => ({
-          id: item.user_id,
-          email: item.users?.email || 'Unknown email',
-          role: item.role
-        }));
+        // Create a map of user IDs to emails for easy lookup
+        const userEmailMap = new Map();
+        userData?.forEach(user => {
+          userEmailMap.set(user.id, user.email);
+        });
         
-        // Format client data
-        const formattedClients = clientData.map(item => ({
-          id: item.user_id,
-          email: item.users?.email || 'Unknown email',
-          role: item.role
-        }));
+        // Format data for admins and clients
+        const adminUsers: UserWithRole[] = [];
+        const clientUsers: UserWithRole[] = [];
         
-        setAdmins(formattedAdmins);
-        setClients(formattedClients);
+        rolesData.forEach(roleItem => {
+          const userEmail = userEmailMap.get(roleItem.user_id) || 'Unknown email';
+          const userWithRole: UserWithRole = {
+            id: roleItem.user_id,
+            email: userEmail,
+            role: roleItem.role
+          };
+          
+          if (roleItem.role === 'admin') {
+            adminUsers.push(userWithRole);
+          } else if (roleItem.role === 'client') {
+            clientUsers.push(userWithRole);
+          }
+        });
+        
+        setAdmins(adminUsers);
+        setClients(clientUsers);
       } catch (err: any) {
         console.error("Error fetching user roles:", err);
         setError(err.message || "Failed to fetch user roles");
