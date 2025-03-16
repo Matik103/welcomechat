@@ -1,8 +1,7 @@
 
 {
   "imports": {
-    "std/http/server": "https://deno.land/std@0.168.0/http/server.ts",
-    "oauth2_client": "https://deno.land/x/oauth2_client@v1.0.2/mod.ts"
+    "std/http/server": "https://deno.land/std@0.168.0/http/server.ts"
   },
   "tasks": {
     "start": "deno run --allow-net --allow-env --watch index.ts"

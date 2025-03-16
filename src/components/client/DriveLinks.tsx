@@ -1,11 +1,11 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trash2, Lock, Globe, AlertTriangle } from "lucide-react";
-import { DriveLink, AccessStatus } from "@/types/client";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { DriveLink } from "@/types/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DriveLinksProps {
   driveLinks: DriveLink[];
@@ -78,51 +78,6 @@ export const DriveLinks = ({
     }
   };
 
-  const getAccessStatusIcon = (status?: AccessStatus) => {
-    switch (status) {
-      case "public":
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Globe className="w-4 h-4 text-green-500" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Public access</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      case "restricted":
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Lock className="w-4 h-4 text-amber-500" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Restricted access - AI cannot access this content</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      case "unknown":
-      default:
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AlertTriangle className="w-4 h-4 text-gray-400" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Access status unknown</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-    }
-  };
-
   return (
     <div className="space-y-4">
       {driveLinks.length > 0 ? (
@@ -130,20 +85,10 @@ export const DriveLinks = ({
           {driveLinks.map((link) => (
             <div 
               key={link.id} 
-              className={`flex items-center gap-2 p-3 rounded-md border ${
-                link.access_status === "restricted" 
-                  ? "bg-amber-50 border-amber-200" 
-                  : "bg-gray-50 border-gray-200"
-              }`}
+              className="flex items-center gap-2 p-3 rounded-md border bg-gray-50 border-gray-200"
             >
-              <div className="flex-1 flex items-center gap-2">
-                {getAccessStatusIcon(link.access_status)}
-                <span className="truncate text-sm">{link.link}</span>
-                {link.access_status === "restricted" && (
-                  <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full whitespace-nowrap">
-                    Restricted access
-                  </span>
-                )}
+              <div className="flex-1 truncate text-sm">
+                {link.link}
               </div>
               <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
               <Button
