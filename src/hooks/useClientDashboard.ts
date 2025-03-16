@@ -72,6 +72,43 @@ export const useClientDashboard = (clientId: string | undefined) => {
     retry: 3, // Increase retries
   });
 
+  // Helper function to validate and convert to InteractionStats
+  const validateAndConvertStats = (data: any): InteractionStats => {
+    // Default stats object to return if validation fails
+    const defaultStats: InteractionStats = {
+      total_interactions: 0,
+      active_days: 0,
+      average_response_time: 0,
+      top_queries: []
+    };
+
+    // If data is not an object or is null/array, return default stats
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+      console.error("Invalid stats data type:", data);
+      return defaultStats;
+    }
+
+    // Check if all required properties exist and have the correct types
+    const hasValidProperties = 
+      'total_interactions' in data && typeof data.total_interactions === 'number' &&
+      'active_days' in data && typeof data.active_days === 'number' &&
+      'average_response_time' in data && typeof data.average_response_time === 'number' &&
+      'top_queries' in data && Array.isArray(data.top_queries);
+
+    if (!hasValidProperties) {
+      console.error("Stats data missing required properties:", data);
+      return defaultStats;
+    }
+
+    // Create a properly typed object
+    return {
+      total_interactions: data.total_interactions,
+      active_days: data.active_days,
+      average_response_time: data.average_response_time,
+      top_queries: data.top_queries
+    };
+  };
+
   // Function to fetch dashboard stats
   const fetchStats = useCallback(async () => {
     if (!clientId) {
@@ -90,29 +127,13 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.log("Getting agent stats using dedicated function");
         const statsData = await getAgentDashboardStats(clientId, agentName);
         if (statsData) {
-          // Make sure we're dealing with a proper InteractionStats object
-          // Use type guard to ensure statsData has the right structure
-          if (typeof statsData === 'object' && statsData !== null && !Array.isArray(statsData) &&
-              'total_interactions' in statsData && 
-              'active_days' in statsData && 
-              'average_response_time' in statsData && 
-              'top_queries' in statsData) {
-            
-            setStats(statsData as InteractionStats);
-            setAuthError(false);
-            setIsLoadingStats(false);
-            setIsRefreshing(false);
-            return;
-          } else {
-            console.error("Received invalid stats data structure:", statsData);
-            // If invalid structure, use default stats
-            setStats({
-              total_interactions: 0,
-              active_days: 0,
-              average_response_time: 0,
-              top_queries: []
-            });
-          }
+          // Convert and validate the stats data
+          const validStats = validateAndConvertStats(statsData);
+          setStats(validStats);
+          setAuthError(false);
+          setIsLoadingStats(false);
+          setIsRefreshing(false);
+          return;
         }
       }
       
@@ -134,25 +155,10 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.log("Using agent name from client record:", clientData.agent_name);
         const statsData = await getAgentDashboardStats(clientId, clientData.agent_name);
         
-        // Use type guard to ensure statsData has the right structure
-        if (typeof statsData === 'object' && statsData !== null && !Array.isArray(statsData) &&
-            'total_interactions' in statsData && 
-            'active_days' in statsData && 
-            'average_response_time' in statsData && 
-            'top_queries' in statsData) {
-          
-          setStats(statsData as InteractionStats);
-          setAuthError(false);
-        } else {
-          console.error("Received invalid stats data structure:", statsData);
-          // If invalid structure, use default stats
-          setStats({
-            total_interactions: 0,
-            active_days: 0,
-            average_response_time: 0,
-            top_queries: []
-          });
-        }
+        // Convert and validate the stats data
+        const validStats = validateAndConvertStats(statsData);
+        setStats(validStats);
+        setAuthError(false);
       } else {
         throw new Error("No agent name found for this client");
       }
