@@ -3,56 +3,38 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatInteraction } from "@/types/agent";
 
-export const useClientChatHistory = (agentName: string | undefined) => {
-  return useQuery<ChatInteraction[]>({
-    queryKey: ["chat-history", agentName],
-    queryFn: async (): Promise<ChatInteraction[]> => {
+/**
+ * Hook to fetch chat history for a specific client's AI agent
+ */
+export const useClientChatHistory = (agentName?: string) => {
+  return useQuery({
+    queryKey: ["chatHistory", agentName],
+    queryFn: async () => {
       if (!agentName) return [];
       
-      try {
-        // Use table select based on agent name
-        let query;
-        switch (agentName.toLowerCase()) {
-          case 'coca cola':
-            query = supabase.from('coca_cola');
-            break;
-          case 'the agent':
-            query = supabase.from('the_agent');
-            break;
-          case 'ai agent':
-            query = supabase.from('ai_agent');
-            break;
-          default:
-            console.error('Unknown agent type:', agentName);
-            return [];
-        }
+      const { data, error } = await supabase
+        .from("ai_agents")
+        .select("id, content, query_text, created_at, settings")
+        .eq("name", agentName)
+        .eq("interaction_type", "chat_interaction")
+        .eq("is_error", false)
+        .order("created_at", { ascending: false })
+        .limit(10);
         
-        const { data: chatData, error } = await query
-          .select('id, content, metadata')
-          .eq('metadata->>type', 'chat_interaction')
-          .order('id', { ascending: false })
-          .limit(10);
-
-        if (error) {
-          console.error("Error fetching chat history:", error);
-          return [];
+      if (error) throw error;
+      
+      // Transform to match the ChatInteraction interface
+      return (data || []).map(item => ({
+        id: item.id,
+        content: item.content || "",
+        metadata: {
+          user_message: item.query_text || "",
+          timestamp: item.created_at,
+          ...item.settings
         }
-
-        // Transform and validate the data
-        return (chatData || []).map(row => ({
-          id: Number(row.id),
-          content: row.content || '',
-          metadata: {
-            timestamp: row.metadata?.timestamp || new Date().toISOString(),
-            user_message: row.metadata?.user_message || '',
-            type: row.metadata?.type || 'chat_interaction'
-          }
-        }));
-      } catch (error) {
-        console.error("Error in chat history query:", error);
-        return [];
-      }
+      })) as ChatInteraction[];
     },
     enabled: !!agentName,
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 };
