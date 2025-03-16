@@ -44,8 +44,18 @@ export const useAuthCallback = ({
           setSession(callbackSession);
           setUser(callbackSession.user);
           
-          // Check if user is in clients table
-          const userRole = await determineUserRole(callbackSession.user);
+          // Check if Google SSO user
+          const isGoogleUser = callbackSession.user?.app_metadata?.provider === 'google';
+          
+          let userRole: UserRole;
+          if (isGoogleUser) {
+            console.log("Google SSO user detected in callback");
+            userRole = 'admin';
+          } else {
+            // For non-Google users, check client status
+            userRole = await determineUserRole(callbackSession.user);
+          }
+          
           setUserRole(userRole);
           
           // Store the role in sessionStorage
