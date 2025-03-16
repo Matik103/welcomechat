@@ -10,21 +10,26 @@ import { ErrorLog, InteractionStats, QueryItem } from "@/types/client-dashboard"
 // Import services
 import { fetchErrorLogs, subscribeToErrorLogs } from "@/services/errorLogService";
 import { fetchQueries, subscribeToQueries } from "@/services/queryService";
-import { getAgentDashboardStats } from "@/services/agentQueryService";
 import { subscribeToActivities } from "@/services/activitySubscriptionService";
+
+// Import the new utility functions
+import { useAgentName, useAgentStats, validateStats } from "./useClientChatData";
 
 export type { ErrorLog, InteractionStats, QueryItem };
 
 export const useClientDashboard = (clientId: string | undefined) => {
-  const [stats, setStats] = useState<InteractionStats>({
-    total_interactions: 0,
-    active_days: 0,
-    average_response_time: 0,
-    top_queries: []
-  });
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [authError, setAuthError] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<boolean>(false);
+  
+  // Get agent name for this client
+  const { data: agentName } = useAgentName(clientId);
+  
+  // Get the stats directly from our new hook
+  const { 
+    stats, 
+    isLoadingStats,
+    refreshStats 
+  } = useAgentStats(clientId, agentName || undefined);
 
   // Query error logs for this client
   const { 
@@ -72,107 +77,6 @@ export const useClientDashboard = (clientId: string | undefined) => {
     retry: 3, // Increase retries
   });
 
-  // Helper function to validate and convert to InteractionStats
-  const validateAndConvertStats = (data: any): InteractionStats => {
-    // Default stats object to return if validation fails
-    const defaultStats: InteractionStats = {
-      total_interactions: 0,
-      active_days: 0,
-      average_response_time: 0,
-      top_queries: []
-    };
-
-    // If data is not an object or is null/array, return default stats
-    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
-      console.error("Invalid stats data type:", data);
-      return defaultStats;
-    }
-
-    // Check if all required properties exist and have the correct types
-    const hasValidProperties = 
-      'total_interactions' in data && typeof data.total_interactions === 'number' &&
-      'active_days' in data && typeof data.active_days === 'number' &&
-      'average_response_time' in data && typeof data.average_response_time === 'number' &&
-      'top_queries' in data && Array.isArray(data.top_queries);
-
-    if (!hasValidProperties) {
-      console.error("Stats data missing required properties:", data);
-      return defaultStats;
-    }
-
-    // Create a properly typed object
-    return {
-      total_interactions: data.total_interactions,
-      active_days: data.active_days,
-      average_response_time: data.average_response_time,
-      top_queries: data.top_queries
-    };
-  };
-
-  // Function to fetch dashboard stats
-  const fetchStats = useCallback(async () => {
-    if (!clientId) {
-      setIsLoadingStats(false);
-      return;
-    }
-
-    setIsLoadingStats(true);
-    try {
-      // First try to get agent name from user metadata
-      const { data: userData } = await supabase.auth.getUser();
-      const agentName = userData.user?.user_metadata?.agent_name;
-      
-      if (clientId && agentName) {
-        // Use the new dedicated function if we have both client ID and agent name
-        console.log("Getting agent stats using dedicated function");
-        const statsData = await getAgentDashboardStats(clientId, agentName);
-        if (statsData) {
-          // Convert and validate the stats data
-          const validStats = validateAndConvertStats(statsData);
-          setStats(validStats);
-          setAuthError(false);
-          setIsLoadingStats(false);
-          setIsRefreshing(false);
-          return;
-        }
-      }
-      
-      // If we don't have the agent name or the above request failed,
-      // try to get it from the client record
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('agent_name')
-        .eq('id', clientId)
-        .single();
-        
-      if (clientError) {
-        console.error("Error fetching client data:", clientError);
-        throw clientError;
-      }
-      
-      if (clientData?.agent_name) {
-        // Use the agent name from the client record
-        console.log("Using agent name from client record:", clientData.agent_name);
-        const statsData = await getAgentDashboardStats(clientId, clientData.agent_name);
-        
-        // Convert and validate the stats data
-        const validStats = validateAndConvertStats(statsData);
-        setStats(validStats);
-        setAuthError(false);
-      } else {
-        throw new Error("No agent name found for this client");
-      }
-    } catch (err: any) {
-      console.error("Error fetching stats:", err);
-      if (err.message === "Authentication failed" || err.code === "PGRST301" || err.message?.includes("JWT")) {
-        setAuthError(true);
-      }
-    } finally {
-      setIsLoadingStats(false);
-      setIsRefreshing(false);
-    }
-  }, [clientId]);
-
   // Function to handle manual refresh
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -180,7 +84,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     try {
       // Refresh all data in parallel
       await Promise.all([
-        fetchStats(),
+        refreshStats(),
         refetchErrorLogs(),
         refetchQueries()
       ]);
@@ -192,7 +96,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [fetchStats, refetchErrorLogs, refetchQueries]);
+  }, [refreshStats, refetchErrorLogs, refetchQueries]);
 
   // Set up real-time subscriptions
   useEffect(() => {
@@ -218,7 +122,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
           },
           (payload) => {
             console.log("AI agent data change detected:", payload);
-            fetchStats();
+            refreshStats();
           }
         )
         .subscribe();
@@ -226,7 +130,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
       // Setup other channels
       errorLogsChannel = subscribeToErrorLogs(clientId, refetchErrorLogs);
       queriesChannel = subscribeToQueries(clientId, refetchQueries);
-      activitiesChannel = subscribeToActivities(clientId, fetchStats);
+      activitiesChannel = subscribeToActivities(clientId, refreshStats);
     };
     
     setupSubscriptions();
@@ -238,12 +142,7 @@ export const useClientDashboard = (clientId: string | undefined) => {
       if (queriesChannel) supabase.removeChannel(queriesChannel);
       if (activitiesChannel) supabase.removeChannel(activitiesChannel);
     };
-  }, [clientId, fetchStats, refetchErrorLogs, refetchQueries]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+  }, [clientId, refreshStats, refetchErrorLogs, refetchQueries]);
 
   return {
     stats,
