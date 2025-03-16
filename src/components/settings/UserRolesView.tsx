@@ -22,7 +22,7 @@ export const UserRolesView = () => {
       try {
         setLoading(true);
         
-        // First, get all user roles
+        // First, get all user roles from the user_roles table
         const { data: rolesData, error: rolesError } = await supabase
           .from('user_roles')
           .select('user_id, role');
@@ -32,41 +32,42 @@ export const UserRolesView = () => {
         if (!rolesData || rolesData.length === 0) {
           setAdmins([]);
           setClients([]);
+          setLoading(false);
           return;
         }
         
-        // Extract user IDs to get their emails
-        const userIds = rolesData.map(item => item.user_id);
+        // We need to query auth.users table which requires the execute_sql Edge Function
+        // This SQL query will join user_roles with auth.users to get emails
+        const sqlQuery = `
+          SELECT au.id, au.email, ur.role 
+          FROM auth.users au
+          JOIN public.user_roles ur ON au.id = ur.user_id
+        `;
         
-        // Get user emails from auth.users via a Supabase function or separate query
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id, email')
-          .in('id', userIds);
-          
-        if (userError) throw userError;
-        
-        // Create a map of user IDs to emails for easy lookup
-        const userEmailMap = new Map();
-        userData?.forEach(user => {
-          userEmailMap.set(user.id, user.email);
+        // Call the execute_sql Edge Function with our SQL query
+        const { data: usersData, error: usersError } = await supabase.functions.invoke('execute_sql', {
+          body: { sql: sqlQuery }
         });
         
-        // Format data for admins and clients
+        if (usersError) throw usersError;
+        
+        // Process the returned data
+        const userData = usersData?.result || [];
+        
+        // Process users data into admin and client arrays
         const adminUsers: UserWithRole[] = [];
         const clientUsers: UserWithRole[] = [];
         
-        rolesData.forEach(roleItem => {
-          const userEmail = userEmailMap.get(roleItem.user_id) || 'Unknown email';
+        userData.forEach((user: any) => {
           const userWithRole: UserWithRole = {
-            id: roleItem.user_id,
-            email: userEmail,
-            role: roleItem.role
+            id: user.id,
+            email: user.email || 'Unknown email',
+            role: user.role
           };
           
-          if (roleItem.role === 'admin') {
+          if (user.role === 'admin') {
             adminUsers.push(userWithRole);
-          } else if (roleItem.role === 'client') {
+          } else if (user.role === 'client') {
             clientUsers.push(userWithRole);
           }
         });
