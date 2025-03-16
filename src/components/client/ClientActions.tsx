@@ -25,7 +25,7 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
         <MessageSquare className="w-4 h-4" />
       </Link>
       <Link
-        to={`/admin/clients/edit/${clientId}`}
+        to={`/admin/clients/${clientId}/edit`}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
         title="Edit"
       >
