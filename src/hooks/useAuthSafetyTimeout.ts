@@ -28,16 +28,19 @@ export const useAuthSafetyTimeout = ({
     // Check if we're in the callback process
     const inCallbackProcess = sessionStorage.getItem('auth_callback_processing') === 'true';
     
-    // We'll use a longer timeout for callback processing
-    const timeoutDuration = inCallbackProcess ? 8000 : 5000;
+    // Use different timeouts based on context
+    // Longer timeout for callback process, shorter for regular auth
+    const timeoutDuration = inCallbackProcess ? 12000 : 5000;
     
     const safetyTimeout = setTimeout(() => {
       // Double-check we're still loading before forcing completion
       if (isLoading) {
         console.warn("Safety timeout triggered - forcing loading state to complete");
+        
+        // Clear loading state
         setIsLoading(false);
         
-        // Clear callback processing flag
+        // Clear callback processing flags
         sessionStorage.removeItem('auth_callback_processing');
         sessionStorage.removeItem('auth_callback_processed');
         

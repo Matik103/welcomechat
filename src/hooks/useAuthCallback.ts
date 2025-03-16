@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +30,7 @@ export const useAuthCallback = ({
     const callbackProcessed = sessionStorage.getItem('auth_callback_processed');
     if (callbackProcessed === 'true') {
       console.log("Auth callback already processed, skipping");
+      setIsLoading(false); // Ensure loading state is cleared
       return;
     }
     
@@ -99,6 +101,13 @@ export const useAuthCallback = ({
       }
     };
     
-    handleCallback();
+    // Add a small delay to allow other auth processes to settle
+    const timeoutId = setTimeout(() => {
+      handleCallback();
+    }, 300);
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [isCallbackUrl, navigate, setSession, setUser, setUserRole, setIsLoading]);
 };
