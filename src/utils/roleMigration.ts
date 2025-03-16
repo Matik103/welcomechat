@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
 import { createUserRole } from "./authUtils";
+import { toast } from "sonner";
 
 /**
  * Migrates existing admin users to the user_roles table
@@ -23,8 +24,14 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
     
     // Get auth session for use with Edge Function
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !sessionData.session?.access_token) {
+    if (sessionError) {
       console.error("Error getting auth session:", sessionError);
+      toast.error("Authentication error: " + sessionError.message);
+      throw new Error("Authentication required. Please log in again.");
+    }
+    
+    if (!sessionData.session?.access_token) {
+      toast.error("No authentication token available. Please sign in again.");
       throw new Error("Authentication required. Please log in again.");
     }
     
@@ -40,15 +47,18 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
     
     if (usersError) {
       console.error("Error fetching users:", usersError);
+      toast.error("Failed to access user data: " + usersError.message);
       throw new Error(`Failed to fetch users: ${usersError.message}`);
     }
     
     if (!usersData || !usersData.result || !Array.isArray(usersData.result)) {
       console.error("Unexpected response format:", usersData);
+      toast.error("Unexpected data format received from server");
       return { success: false, count: 0 };
     }
     
     let migratedCount = 0;
+    let errorCount = 0;
     
     // Process users without roles
     for (const user of usersData.result) {
@@ -70,18 +80,30 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
         // Google SSO users are always admins
         const role = isGoogleUser ? 'admin' : (appMetadata?.role || 'admin');
         
-        // Use the createUserRole function with the correct parameters
-        const success = await createUserRole(user.id, role as UserRole);
-        
-        if (success) {
-          migratedCount++;
+        try {
+          // Use the createUserRole function with the correct parameters
+          const success = await createUserRole(user.id, role as UserRole);
+          
+          if (success) {
+            migratedCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          console.error(`Error migrating user ${user.email}:`, error);
+          errorCount++;
         }
       }
     }
     
-    console.log(`Successfully migrated ${migratedCount} users to the user_roles table`);
+    if (errorCount > 0) {
+      toast.warning(`Migration completed with ${errorCount} errors. ${migratedCount} users were successfully migrated.`);
+    } else {
+      console.log(`Successfully migrated ${migratedCount} users to the user_roles table`);
+    }
+    
     return { success: true, count: migratedCount };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in migrateExistingAdmins:", error);
     throw error;
   }
@@ -93,13 +115,20 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
 export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
   try {
     if (!email) {
+      toast.error("Email is required");
       throw new Error("Email is required");
     }
     
     // Get auth session for use with Edge Function
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !sessionData.session?.access_token) {
+    if (sessionError) {
       console.error("Error getting auth session:", sessionError);
+      toast.error("Authentication error: " + sessionError.message);
+      throw new Error("Authentication required. Please log in again.");
+    }
+    
+    if (!sessionData.session?.access_token) {
+      toast.error("No authentication token available. Please sign in again.");
       throw new Error("Authentication required. Please log in again.");
     }
     
@@ -148,7 +177,7 @@ export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
     }
     
     return success;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in addAdminRoleToUser:", error);
     throw error;
   }

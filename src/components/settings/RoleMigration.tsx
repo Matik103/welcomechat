@@ -1,7 +1,8 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { migrateExistingAdmins, addAdminRoleToUser } from "@/utils/roleMigration";
@@ -9,12 +10,15 @@ import { toast } from "sonner";
 
 export const RoleMigration = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isAdminLoading, setIsAdminLoading] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
   const [migrationCount, setMigrationCount] = useState<number | null>(null);
   
   const handleMigration = async () => {
     try {
       setIsLoading(true);
+      toast.info("Starting user migration...");
+      
       const result = await migrateExistingAdmins();
       
       if (result.success) {
@@ -40,7 +44,9 @@ export const RoleMigration = () => {
     }
     
     try {
-      setIsLoading(true);
+      setIsAdminLoading(true);
+      toast.info(`Attempting to add admin role to ${adminEmail}...`);
+      
       const success = await addAdminRoleToUser(adminEmail);
       
       if (success) {
@@ -53,7 +59,7 @@ export const RoleMigration = () => {
       console.error("Error adding admin:", error);
       toast.error("Error adding admin role: " + (error?.message || "Unknown error"));
     } finally {
-      setIsLoading(false);
+      setIsAdminLoading(false);
     }
   };
   
@@ -74,7 +80,10 @@ export const RoleMigration = () => {
                 Migrating...
               </>
             ) : (
-              "Migrate Existing Users"
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Migrate Existing Users
+              </>
             )}
           </Button>
           
@@ -103,12 +112,12 @@ export const RoleMigration = () => {
                 placeholder="admin@example.com"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                disabled={isLoading}
+                disabled={isAdminLoading}
               />
             </div>
             
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
+            <Button type="submit" disabled={isAdminLoading}>
+              {isAdminLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Adding...
