@@ -7,8 +7,6 @@ import { SecuritySection } from "@/components/settings/SecuritySection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
 import { AdminSetup } from "@/components/settings/AdminSetup";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
-import { UserRolesView } from "@/components/settings/UserRolesView";
-import { RoleMigration } from "@/components/settings/RoleMigration";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -46,13 +44,6 @@ const Settings = () => {
         />
 
         <SecuritySection />
-
-        {isAdmin && (
-          <>
-            <RoleMigration />
-            <UserRolesView />
-          </>
-        )}
 
         <SignOutSection />
       </div>

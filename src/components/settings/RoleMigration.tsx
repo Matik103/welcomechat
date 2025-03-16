@@ -2,26 +2,20 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, AlertTriangle, UserPlus } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { migrateExistingAdmins, addAdminRoleToUser } from "@/utils/roleMigration";
 import { toast } from "sonner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const RoleMigration = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isAdminLoading, setIsAdminLoading] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
   const [migrationCount, setMigrationCount] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
   
   const handleMigration = async () => {
     try {
       setIsLoading(true);
-      setError(null);
-      toast.info("Starting user migration...");
-      
       const result = await migrateExistingAdmins();
       
       if (result.success) {
@@ -29,12 +23,10 @@ export const RoleMigration = () => {
         setMigrationCount(result.count);
       } else {
         toast.error("Failed to migrate users");
-        setError(result.message || "Failed to migrate users. Please check the console for more details.");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error in migration:", error);
-      setError(error?.message || "An unknown error occurred");
-      toast.error("An error occurred during migration: " + (error?.message || "Unknown error"));
+      toast.error("An error occurred during migration");
     } finally {
       setIsLoading(false);
     }
@@ -42,52 +34,32 @@ export const RoleMigration = () => {
   
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     
     if (!adminEmail) {
       toast.error("Please enter an email address");
       return;
     }
     
-    // Simple email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(adminEmail)) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
-    
     try {
-      setIsAdminLoading(true);
-      toast.info(`Attempting to add admin role to ${adminEmail}...`);
-      
-      const { success, message } = await addAdminRoleToUser(adminEmail);
+      setIsLoading(true);
+      const success = await addAdminRoleToUser(adminEmail);
       
       if (success) {
         toast.success(`Successfully added admin role to ${adminEmail}`);
         setAdminEmail("");
       } else {
-        setError(`Failed to add admin role to ${adminEmail}${message ? `: ${message}` : ''}`);
         toast.error(`Failed to add admin role to ${adminEmail}`);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error adding admin:", error);
-      setError(error?.message || "An unknown error occurred");
-      toast.error("Error adding admin role: " + (error?.message || "Unknown error"));
+      toast.error("An error occurred while adding admin role");
     } finally {
-      setIsAdminLoading(false);
+      setIsLoading(false);
     }
   };
   
   return (
     <div className="space-y-6">
-      {error && (
-        <Alert variant="destructive" className="my-4">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Migrate Existing Admins</CardTitle>
@@ -103,10 +75,7 @@ export const RoleMigration = () => {
                 Migrating...
               </>
             ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Migrate Existing Users
-              </>
+              "Migrate Existing Users"
             )}
           </Button>
           
@@ -135,21 +104,18 @@ export const RoleMigration = () => {
                 placeholder="admin@example.com"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                disabled={isAdminLoading}
+                disabled={isLoading}
               />
             </div>
             
-            <Button type="submit" disabled={isAdminLoading}>
-              {isAdminLoading ? (
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Adding...
                 </>
               ) : (
-                <>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add Admin Role
-                </>
+                "Add Admin Role"
               )}
             </Button>
           </form>
