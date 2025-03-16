@@ -14,17 +14,21 @@ export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       try {
+        // Sanitize agent name to ensure it's valid
         const sanitizedAgentName = data.agent_name
           .trim()
           .toLowerCase()
           .replace(/[^a-z0-9]/g, '_');
+        
         const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+        
         const updatedData = {
           ...data,
           agent_name: finalAgentName,
         };
 
         if (id) {
+          // Update existing client
           const clientId = await updateClient(id, updatedData);
           await logClientUpdateActivity(id);
           return clientId;

@@ -59,13 +59,25 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
  */
 export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
+    console.log("Creating client with data:", data);
+
+    // Ensure agent_name is properly formatted (sanitized)
+    const sanitizedAgentName = data.agent_name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_');
+    
+    const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+    
+    console.log("Using sanitized agent name:", finalAgentName);
+
     // Create the client record
     const { data: newClients, error } = await supabase
       .from("clients")
       .insert([{
         client_name: data.client_name,
         email: data.email,
-        agent_name: data.agent_name,
+        agent_name: finalAgentName, // Use the sanitized name
         widget_settings: data.widget_settings || {},
         status: 'active',
         website_url_refresh_rate: 60,
@@ -85,14 +97,16 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     }
 
     const clientId = newClients[0].id;
+    console.log("Created client with ID:", clientId);
 
     // Add entry to ai_agents table
     try {
+      console.log("Creating AI agent entry for client:", clientId);
       const { error: aiAgentError } = await supabase
         .from("ai_agents")
         .insert([{
           client_id: clientId,
-          name: data.agent_name,
+          name: finalAgentName,
           settings: {
             client_name: data.client_name,
             created_at: new Date().toISOString()
@@ -102,6 +116,8 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       if (aiAgentError) {
         console.error("Error creating AI agent entry:", aiAgentError);
         // Continue despite error, as client was created successfully
+      } else {
+        console.log("AI agent entry created successfully");
       }
     } catch (aiAgentError) {
       console.error("Failed to create AI agent entry:", aiAgentError);
