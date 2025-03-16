@@ -31,8 +31,8 @@ const ClientView = () => {
     },
   });
 
-  // Use the custom hook for chat history
-  const { data: chatHistory, refetch: refetchChatHistory } = useClientChatHistory(client?.agent_name);
+  // Use the custom hook for chat history with updated structure
+  const { chatHistory, refetchChatHistory } = useClientChatHistory(id);
 
   // Query common end-user questions
   const { data: commonQueries, refetch: refetchQueries } = useQuery({

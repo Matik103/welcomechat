@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -101,7 +100,19 @@ export const useClientDashboardStats = (clientId: string | undefined) => {
       if (!clientId) return transformStats(null);
       
       try {
-        const stats = await getAgentDashboardStats(clientId);
+        // Need to get agent name first to call getAgentDashboardStats with both parameters
+        const { data: clientData, error: clientError } = await supabase
+          .from('clients')
+          .select('agent_name')
+          .eq('id', clientId)
+          .single();
+          
+        if (clientError || !clientData?.agent_name) {
+          console.error("Error fetching client agent name:", clientError);
+          return transformStats(null);
+        }
+        
+        const stats = await getAgentDashboardStats(clientId, clientData.agent_name);
         return transformStats(stats);
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
