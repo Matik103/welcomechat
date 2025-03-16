@@ -9,6 +9,15 @@ import { UserRole } from "@/types/auth";
 export const determineUserRole = async (user: User): Promise<UserRole> => {
   if (!user) return 'admin'; // Default fallback
   
+  // Check if the user authenticated via Google SSO
+  const isGoogleUser = user.app_metadata?.provider === 'google';
+  
+  // All Google SSO users are automatically assigned admin role
+  if (isGoogleUser) {
+    console.log("Google SSO user detected - assigning admin role:", user.email);
+    return 'admin';
+  }
+  
   try {
     // For email/password users, check if they are clients
     const { data: clientData, error: clientError } = await supabase
