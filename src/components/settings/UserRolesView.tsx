@@ -22,14 +22,25 @@ export const UserRolesView = () => {
       try {
         setLoading(true);
         
+        // First get all users with their emails
+        const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+        
+        if (userError) {
+          throw new Error(`Error fetching users: ${userError.message}`);
+        }
+        
+        // Create a map of user IDs to emails for quick lookup
+        const userEmailMap: Record<string, string> = {};
+        if (userData && userData.users) {
+          userData.users.forEach(user => {
+            userEmailMap[user.id] = user.email || 'Unknown email';
+          });
+        }
+        
         // Query for users with admin role
         const { data: adminData, error: adminError } = await supabase
           .from('user_roles')
-          .select(`
-            user_id,
-            role,
-            users:user_id(email)
-          `)
+          .select('user_id, role')
           .eq('role', 'admin');
           
         if (adminError) throw adminError;
@@ -37,26 +48,22 @@ export const UserRolesView = () => {
         // Query for users with client role
         const { data: clientData, error: clientError } = await supabase
           .from('user_roles')
-          .select(`
-            user_id,
-            role,
-            users:user_id(email)
-          `)
+          .select('user_id, role, client_id')
           .eq('role', 'client');
           
         if (clientError) throw clientError;
         
-        // Format admin data
+        // Format admin data with emails from the map
         const formattedAdmins = adminData.map(item => ({
           id: item.user_id,
-          email: item.users?.email || 'Unknown email',
+          email: userEmailMap[item.user_id] || 'Unknown email',
           role: item.role
         }));
         
-        // Format client data
+        // Format client data with emails from the map
         const formattedClients = clientData.map(item => ({
           id: item.user_id,
-          email: item.users?.email || 'Unknown email',
+          email: userEmailMap[item.user_id] || 'Unknown email',
           role: item.role
         }));
         
