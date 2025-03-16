@@ -59,3 +59,5 @@ verify_jwt = false
 [functions.execute_sql]
 verify_jwt = false
 
+[functions.get_client_agent_data]
+verify_jwt = false

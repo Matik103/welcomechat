@@ -25,4 +25,8 @@ supabase functions deploy get_agent_dashboard_stats --no-verify-jwt
 echo "Deploying execute_sql function..."
 supabase functions deploy execute_sql --no-verify-jwt
 
+# Deploy get_client_agent_data function
+echo "Deploying get_client_agent_data function..."
+supabase functions deploy get_client_agent_data --no-verify-jwt
+
 echo "Deployment complete!" 
