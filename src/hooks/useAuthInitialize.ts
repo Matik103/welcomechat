@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -51,33 +50,43 @@ export const useAuthInitialize = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Check if role was already set (from callback)
+          // Check if this is a Google SSO user (from callback)
           const storedRole = sessionStorage.getItem('user_role_set');
-          if (storedRole) {
-            console.log("Using stored role from session:", storedRole);
-            setUserRole(storedRole as UserRole);
+          if (storedRole === 'admin') {
+            console.log("Using stored admin role from session");
+            setUserRole('admin');
+            
+            // For SSO users on auth page, always redirect to admin dashboard
+            const isAuthPage = location.pathname === '/auth';
+            if (!isCallbackUrl && isAuthPage) {
+              navigate('/', { replace: true });
+              setTimeout(() => {
+                setIsLoading(false);
+                setAuthInitialized(true);
+              }, 300);
+            } else {
+              setIsLoading(false);
+              setAuthInitialized(true);
+            }
           } else {
-            // For users without stored role, determine role from database
+            // For regular users, determine role from database
             const userRole = await determineUserRole(currentSession.user);
             setUserRole(userRole);
             sessionStorage.setItem('user_role_set', userRole);
-          }
-          
-          const isAuthPage = location.pathname === '/auth';
-          
-          if (!isCallbackUrl && isAuthPage) {
-            // Get current role to determine redirect
-            const role = sessionStorage.getItem('user_role_set') || 'admin';
-            // Determine where to navigate based on role
-            const targetPath = role === 'admin' ? '/' : '/client/dashboard';
-            navigate(targetPath, { replace: true });
-            setTimeout(() => {
+            
+            const isAuthPage = location.pathname === '/auth';
+            if (!isCallbackUrl && isAuthPage) {
+              // Determine where to navigate based on role for non-SSO users
+              const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+              navigate(targetPath, { replace: true });
+              setTimeout(() => {
+                setIsLoading(false);
+                setAuthInitialized(true);
+              }, 300);
+            } else {
               setIsLoading(false);
               setAuthInitialized(true);
-            }, 300);
-          } else {
-            setIsLoading(false);
-            setAuthInitialized(true);
+            }
           }
         } else {
           console.log("No active session found during init");
