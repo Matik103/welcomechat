@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -25,6 +24,9 @@ export const useAuthCallback = ({
 
   useEffect(() => {
     if (isCallbackUrl) {
+      // Keep the loading state true while processing callback
+      setIsLoading(true);
+      
       const handleCallback = async () => {
         try {
           console.log("Auth callback processing started");
@@ -69,10 +71,8 @@ export const useAuthCallback = ({
           // Navigate to the appropriate dashboard
           navigate(dashboardRoute, { replace: true });
           
-          // Set isLoading to false after the navigation has had time to complete
-          setTimeout(() => {
-            setIsLoading(false);
-          }, 300);
+          // Keep loading true until the redirect completes
+          // The loading state will be handled by the App component
         } catch (error) {
           console.error("Error handling auth callback:", error);
           navigate('/auth', { replace: true });
