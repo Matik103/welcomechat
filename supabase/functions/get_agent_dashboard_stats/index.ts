@@ -14,10 +14,21 @@ serve(async (req) => {
   }
 
   try {
-    // Get client_id and agent_name parameters from request
-    const params = new URL(req.url).searchParams
-    const clientId = params.get('client_id')
-    const agentName = params.get('agent_name')
+    // Check if we're dealing with a POST request with JSON body
+    let clientId;
+    let agentName;
+    
+    if (req.method === 'POST') {
+      // Parse the JSON body
+      const body = await req.json();
+      clientId = body.client_id;
+      agentName = body.agent_name;
+    } else {
+      // Get client_id and agent_name parameters from URL query
+      const params = new URL(req.url).searchParams
+      clientId = params.get('client_id')
+      agentName = params.get('agent_name')
+    }
 
     if (!clientId || !agentName) {
       return new Response(

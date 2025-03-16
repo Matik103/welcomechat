@@ -76,22 +76,19 @@ export const getAgentDashboardStats = async (
     
     // Try using the Edge Function first as it's more reliable across environments
     try {
-      const response = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/get_agent_dashboard_stats?client_id=${clientId}&agent_name=${agentName}`,
+      // Use Supabase's built-in function invoker instead of direct fetch
+      const { data: edgeFunctionData, error: edgeFunctionError } = await supabase.functions.invoke(
+        'get_agent_dashboard_stats',
         {
-          headers: {
-            "Authorization": `Bearer ${supabase.supabaseKey}`,
-            "Content-Type": "application/json"
-          }
+          body: { client_id: clientId, agent_name: agentName }
         }
       );
       
-      if (response.ok) {
-        const result = await response.json();
-        console.log("Edge function stats:", result);
-        return result.data;
+      if (!edgeFunctionError && edgeFunctionData) {
+        console.log("Edge function stats:", edgeFunctionData);
+        return edgeFunctionData.data;
       } else {
-        console.warn("Edge function failed, falling back to RPC:", await response.text());
+        console.warn("Edge function failed, falling back to RPC:", edgeFunctionError);
       }
     } catch (edgeFnError) {
       console.warn("Edge function error, falling back to RPC:", edgeFnError);
