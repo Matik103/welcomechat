@@ -25,7 +25,7 @@ const WidgetSettings = () => {
 
   const handleBack = () => {
     if (isClientView) {
-      navigate('/client/view');
+      navigate('/client/dashboard');
     } else {
       navigate(-1);
     }

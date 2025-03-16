@@ -94,6 +94,7 @@ function App() {
               <Route path="/client/account-settings" element={<AccountSettings />} />
               <Route path="/client/resource-settings" element={<ResourceSettings />} />
               <Route path="/client/edit-info" element={<EditClientInfo />} />
+              <Route path="/client/widget-settings" element={<WidgetSettings />} />
               
               {/* Redirect admin routes to client dashboard for client users */}
               <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
