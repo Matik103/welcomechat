@@ -1,3 +1,4 @@
+
 import { useMutation } from "@tanstack/react-query";
 import { ClientFormData } from "@/types/client";
 import { 
@@ -47,15 +48,15 @@ export const useClientMutation = (id: string | undefined) => {
             toast.success("Client account created successfully with temporary password");
           } catch (accountError) {
             console.error("Failed to create client user account:", accountError);
-            toast.error("Client created but failed to set up user account. Manual setup required.");
+            toast.error("Client created but failed to set up user account. Sending invitation email as fallback.");
             
             // Fall back to sending invitation if account creation fails
             try {
               await sendClientInvitation(newClientId, updatedData.email, updatedData.client_name);
-              toast.success("Invitation email sent as fallback");
+              toast.success("Invitation email sent successfully");
             } catch (inviteError: any) {
               console.error("Failed to send invitation email:", inviteError);
-              toast.error("Also failed to send invitation email: " + (inviteError.message || "Unknown error"));
+              toast.error("Failed to send invitation email: " + (inviteError.message || "Unknown error"));
             }
           }
           

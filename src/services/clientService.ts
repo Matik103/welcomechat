@@ -148,13 +148,13 @@ export const sendClientInvitation = async (clientId: string, email: string, clie
     const baseUrl = window.location.origin;
     const setupUrl = `${baseUrl}/client-setup?id=${clientId}`;
     
-    const { data, error } = await supabase.functions.invoke("send-invitation", {
+    // Use the specific send-client-invitation function instead of send-invitation
+    const { data, error } = await supabase.functions.invoke("send-client-invitation", {
       body: {
         email,
-        role_type: "client",
-        url: setupUrl,
         clientName,
-        clientId
+        clientId, 
+        setupUrl
       },
       headers: {
         Authorization: `Bearer ${sessionData.session.access_token}`
