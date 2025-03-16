@@ -17,4 +17,12 @@ supabase functions deploy send-invitation --no-verify-jwt
 echo "Deploying check-email-exists function..."
 supabase functions deploy check-email-exists --no-verify-jwt
 
+# Deploy get_agent_dashboard_stats function
+echo "Deploying get_agent_dashboard_stats function..."
+supabase functions deploy get_agent_dashboard_stats --no-verify-jwt
+
+# Deploy execute_sql function
+echo "Deploying execute_sql function..."
+supabase functions deploy execute_sql --no-verify-jwt
+
 echo "Deployment complete!" 
