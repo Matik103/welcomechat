@@ -11,6 +11,7 @@ import { ErrorLog, InteractionStats, QueryItem } from "@/types/client-dashboard"
 import { fetchErrorLogs, subscribeToErrorLogs } from "@/services/errorLogService";
 import { fetchQueries, subscribeToQueries } from "@/services/queryService";
 import { fetchDashboardStats, subscribeToAgentData, subscribeToActivities } from "@/services/statsService";
+import { getAgentDashboardStats } from "@/services/agentQueryService";
 
 export type { ErrorLog, InteractionStats, QueryItem };
 
@@ -80,12 +81,31 @@ export const useClientDashboard = (clientId: string | undefined) => {
 
     setIsLoadingStats(true);
     try {
+      // First try to get agent name from user metadata
+      const { data: userData } = await supabase.auth.getUser();
+      const agentName = userData.user?.user_metadata?.agent_name;
+      
+      if (clientId && agentName) {
+        // Use the new dedicated function if we have both client ID and agent name
+        console.log("Getting agent stats using dedicated function");
+        const statsData = await getAgentDashboardStats(clientId, agentName);
+        if (statsData) {
+          setStats(statsData);
+          setAuthError(false);
+          setIsLoadingStats(false);
+          setIsRefreshing(false);
+          return;
+        }
+      }
+      
+      // Fall back to the original stats function if the above fails
+      console.log("Falling back to general stats function");
       const statsData = await fetchDashboardStats(clientId);
       setStats(statsData);
       setAuthError(false);
     } catch (err: any) {
       console.error("Error fetching stats:", err);
-      if (err.message === "Authentication failed") {
+      if (err.message === "Authentication failed" || err.code === "PGRST301" || err.message?.includes("JWT")) {
         setAuthError(true);
       }
     } finally {

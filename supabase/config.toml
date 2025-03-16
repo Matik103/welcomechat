@@ -46,3 +46,6 @@ verify_jwt = false
 
 [functions.check-url-access]
 verify_jwt = false
+
+[functions.get_agent_dashboard_stats]
+verify_jwt = false
