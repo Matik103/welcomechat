@@ -47,6 +47,9 @@ export const useAuthCallback = ({
           // For Google SSO, always set as admin (no role determination)
           setUserRole('admin');
           
+          // Store the role in sessionStorage to persist it
+          sessionStorage.setItem('user_role_set', 'admin');
+          
           console.log("SSO user set as admin, redirecting to admin dashboard");
           
           // Navigate to admin dashboard

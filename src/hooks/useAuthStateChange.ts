@@ -44,15 +44,22 @@ export const useAuthStateChange = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // For email/password users, determine role from database
-          const userRole = await determineUserRole(currentSession.user);
-          setUserRole(userRole);
+          // Don't override role if it's already set (from callback handler)
+          // This preserves the admin role set for Google SSO users
+          if (!sessionStorage.getItem('user_role_set')) {
+            // For non-SSO users, determine role from database
+            const userRole = await determineUserRole(currentSession.user);
+            setUserRole(userRole);
+            sessionStorage.setItem('user_role_set', userRole);
+          }
           
           // Only redirect if we're on the auth page
           const isAuthPage = location.pathname === '/auth';
           if (isAuthPage) {
+            // Get current role from storage or use admin as default (consistent with SSO behavior)
+            const role = sessionStorage.getItem('user_role_set') || 'admin';
             // Determine where to navigate based on role
-            const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+            const targetPath = role === 'admin' ? '/' : '/client/dashboard';
             navigate(targetPath, { replace: true });
             setTimeout(() => {
               setIsLoading(false);
@@ -66,6 +73,7 @@ export const useAuthStateChange = ({
           setUser(null);
           setUserRole(null);
           setIsLoading(false);
+          sessionStorage.removeItem('user_role_set');
           
           // Only redirect to auth page if not already there
           const isAuthPage = location.pathname === '/auth';

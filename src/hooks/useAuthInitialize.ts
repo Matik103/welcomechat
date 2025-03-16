@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -50,15 +51,25 @@ export const useAuthInitialize = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // For email/password users, determine role from database
-          const userRole = await determineUserRole(currentSession.user);
-          setUserRole(userRole);
+          // Check if role was already set (from callback)
+          const storedRole = sessionStorage.getItem('user_role_set');
+          if (storedRole) {
+            console.log("Using stored role from session:", storedRole);
+            setUserRole(storedRole as UserRole);
+          } else {
+            // For users without stored role, determine role from database
+            const userRole = await determineUserRole(currentSession.user);
+            setUserRole(userRole);
+            sessionStorage.setItem('user_role_set', userRole);
+          }
           
           const isAuthPage = location.pathname === '/auth';
           
           if (!isCallbackUrl && isAuthPage) {
+            // Get current role to determine redirect
+            const role = sessionStorage.getItem('user_role_set') || 'admin';
             // Determine where to navigate based on role
-            const targetPath = userRole === 'admin' ? '/' : '/client/dashboard';
+            const targetPath = role === 'admin' ? '/' : '/client/dashboard';
             navigate(targetPath, { replace: true });
             setTimeout(() => {
               setIsLoading(false);
@@ -73,6 +84,7 @@ export const useAuthInitialize = ({
           setSession(null);
           setUser(null);
           setUserRole(null);
+          sessionStorage.removeItem('user_role_set');
           
           const isAuthPage = location.pathname === '/auth';
               
@@ -92,6 +104,7 @@ export const useAuthInitialize = ({
           setUserRole(null);
           setIsLoading(false);
           setAuthInitialized(true);
+          sessionStorage.removeItem('user_role_set');
           
           // Redirect to auth page on error
           const isAuthPage = location.pathname === '/auth';
