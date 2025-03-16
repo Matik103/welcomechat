@@ -68,6 +68,7 @@ export const ClientDetails = ({
     }
   };
 
+  // The backend functions are kept but not exposed via buttons
   const handleSendInvitation = async () => {
     if (!client || !clientId) {
       toast.error("Cannot send invitation: missing client information");
@@ -104,9 +105,6 @@ export const ClientDetails = ({
         onSubmit={handleSubmit}
         isLoading={clientMutation.isPending}
         isClientView={isClientView}
-        onSendInvitation={handleSendInvitation}
-        onCreateClientAccount={handleCreateClientAccount}
-        isSendingInvitation={isSending}
       />
     </div>
   );
