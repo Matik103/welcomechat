@@ -51,12 +51,13 @@ export const useAuthCallback = ({
           // Store the role in sessionStorage
           sessionStorage.setItem('user_role_set', userRole);
           
-          console.log(`User identified as ${userRole}`);
+          console.log(`User identified as ${userRole}, redirecting to appropriate dashboard`);
           
           // Navigate based on role
           if (userRole === 'client') {
             navigate('/client/dashboard', { replace: true });
           } else {
+            // Explicitly navigate to admin dashboard
             navigate('/', { replace: true });
           }
           
