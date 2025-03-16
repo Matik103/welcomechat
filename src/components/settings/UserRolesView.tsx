@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +8,12 @@ type UserWithRole = {
   id: string;
   email: string;
   role: string;
+}
+
+type SupabaseUser = {
+  id: string;
+  email?: string;
+  [key: string]: any;
 }
 
 export const UserRolesView = () => {
@@ -22,22 +27,20 @@ export const UserRolesView = () => {
       try {
         setLoading(true);
         
-        // First get all users with their emails
         const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
         
         if (userError) {
           throw new Error(`Error fetching users: ${userError.message}`);
         }
         
-        // Create a map of user IDs to emails for quick lookup
         const userEmailMap: Record<string, string> = {};
         if (userData && userData.users) {
-          userData.users.forEach(user => {
+          const users = userData.users as SupabaseUser[];
+          users.forEach(user => {
             userEmailMap[user.id] = user.email || 'Unknown email';
           });
         }
         
-        // Query for users with admin role
         const { data: adminData, error: adminError } = await supabase
           .from('user_roles')
           .select('user_id, role')
@@ -45,7 +48,6 @@ export const UserRolesView = () => {
           
         if (adminError) throw adminError;
         
-        // Query for users with client role
         const { data: clientData, error: clientError } = await supabase
           .from('user_roles')
           .select('user_id, role, client_id')
@@ -53,14 +55,12 @@ export const UserRolesView = () => {
           
         if (clientError) throw clientError;
         
-        // Format admin data with emails from the map
         const formattedAdmins = adminData.map(item => ({
           id: item.user_id,
           email: userEmailMap[item.user_id] || 'Unknown email',
           role: item.role
         }));
         
-        // Format client data with emails from the map
         const formattedClients = clientData.map(item => ({
           id: item.user_id,
           email: userEmailMap[item.user_id] || 'Unknown email',
