@@ -70,13 +70,19 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
               // If we have entries in ai_agents, query those first
               console.log(`Found ${count} entries in ai_agents, performing similarity search`);
               
+              // Generate the embedding for current message
+              const embedding = await generateEmbedding(currentMessage);
+              
+              // Convert embedding array to string for Supabase RPC call
+              const embeddingString = JSON.stringify(embedding);
+              
               // Execute the match_ai_agents RPC with the current message
               const { data: matches, error: matchError } = await supabase.rpc(
                 'match_ai_agents',
                 {
                   client_id_param: clientId,
                   agent_name_param: settings.agent_name,
-                  query_embedding: await generateEmbedding(currentMessage),
+                  query_embedding: embeddingString,
                   match_count: 5
                 }
               );
