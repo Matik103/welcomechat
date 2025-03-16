@@ -598,7 +598,7 @@ const ClientView = () => {
               <span>Debug Info</span>
             </Button>
             
-            <Link to={`/admin/clients/edit/${id}`}>
+            <Link to={`/admin/clients/${id}/edit`}>
               <Button variant="outline" size="sm" className="flex items-center gap-1">
                 Edit Client
               </Button>
