@@ -6,7 +6,7 @@ import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { createClientUserAccount, sendClientInvitation } from "@/services/clientService";
+import { createClientUserAccount } from "@/services/clientService";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -23,7 +23,7 @@ export const ClientDetails = ({
 }: ClientDetailsProps) => {
   const navigate = useNavigate();
   // Use the clientId that was passed to the component
-  const { clientMutation, sendInvitation, isSending, refetchClient } = useClientData(clientId);
+  const { clientMutation, refetchClient } = useClientData(clientId);
 
   const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
     try {
@@ -65,20 +65,6 @@ export const ClientDetails = ({
     } catch (error) {
       console.error("Error submitting client form:", error);
       toast.error("Failed to save client information");
-    }
-  };
-
-  // The backend functions are kept but not exposed via buttons
-  const handleSendInvitation = async () => {
-    if (!client || !clientId) {
-      toast.error("Cannot send invitation: missing client information");
-      return;
-    }
-
-    try {
-      await sendInvitation(clientId, client.email, client.client_name);
-    } catch (error) {
-      console.error("Error sending invitation:", error);
     }
   };
 

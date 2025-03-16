@@ -132,54 +132,6 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
 };
 
 /**
- * Sends invitation email to a client
- */
-export const sendClientInvitation = async (clientId: string, email: string, clientName: string): Promise<boolean> => {
-  try {
-    console.log("Sending invitation for client:", clientId, email, clientName);
-    
-    // Get the auth token to include in the request
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session?.access_token) {
-      throw new Error("No access token available. Please log in to send invitations.");
-    }
-    
-    // Determine the invitation URL (add client setup route)
-    const baseUrl = window.location.origin;
-    const setupUrl = `${baseUrl}/client-setup?id=${clientId}`;
-    
-    // Use the specific send-client-invitation function instead of send-invitation
-    const { data, error } = await supabase.functions.invoke("send-client-invitation", {
-      body: {
-        email,
-        clientName,
-        clientId, 
-        setupUrl
-      },
-      headers: {
-        Authorization: `Bearer ${sessionData.session.access_token}`
-      }
-    });
-    
-    if (error) {
-      console.error("Error sending invitation (function invoke error):", error);
-      throw new Error(`Failed to call invitation function: ${error.message}`);
-    }
-    
-    if (data?.error) {
-      console.error("Function returned error:", data.error);
-      throw new Error(`Invitation function error: ${data.error}`);
-    }
-    
-    console.log("Invitation response:", data);
-    return true;
-  } catch (error) {
-    console.error("Invitation method failed:", error);
-    throw error;
-  }
-};
-
-/**
  * Creates a client user account with temporary password
  */
 export const createClientUserAccount = async (clientId: string, email: string, clientName: string, aiAgentName: string): Promise<boolean> => {

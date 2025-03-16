@@ -13,10 +13,6 @@ supabase functions deploy check-url-access --no-verify-jwt
 echo "Deploying send-invitation function..."
 supabase functions deploy send-invitation --no-verify-jwt
 
-# Deploy send-client-invitation function
-echo "Deploying send-client-invitation function..."
-supabase functions deploy send-client-invitation --no-verify-jwt
-
 # Deploy check-email-exists function
 echo "Deploying check-email-exists function..."
 supabase functions deploy check-email-exists --no-verify-jwt
