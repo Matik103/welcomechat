@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { migrateExistingAdmins, addAdminRoleToUser } from "@/utils/roleMigration";
 import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const RoleMigration = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -28,8 +28,8 @@ export const RoleMigration = () => {
         toast.success(`Successfully migrated ${result.count} users to the user_roles table`);
         setMigrationCount(result.count);
       } else {
-        setError("Failed to migrate users. Please check your network connection and try again.");
         toast.error("Failed to migrate users");
+        setError(result.message || "Failed to migrate users. Please check the console for more details.");
       }
     } catch (error: any) {
       console.error("Error in migration:", error);
@@ -60,13 +60,13 @@ export const RoleMigration = () => {
       setIsAdminLoading(true);
       toast.info(`Attempting to add admin role to ${adminEmail}...`);
       
-      const success = await addAdminRoleToUser(adminEmail);
+      const { success, message } = await addAdminRoleToUser(adminEmail);
       
       if (success) {
         toast.success(`Successfully added admin role to ${adminEmail}`);
         setAdminEmail("");
       } else {
-        setError(`Failed to add admin role to ${adminEmail}`);
+        setError(`Failed to add admin role to ${adminEmail}${message ? `: ${message}` : ''}`);
         toast.error(`Failed to add admin role to ${adminEmail}`);
       }
     } catch (error: any) {
@@ -83,6 +83,7 @@ export const RoleMigration = () => {
       {error && (
         <Alert variant="destructive" className="my-4">
           <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
