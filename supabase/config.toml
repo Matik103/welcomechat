@@ -11,34 +11,13 @@ project_id = "mgjodiqecnnltsgorife"
 [functions.chat]
 verify_jwt = false
 
-[functions.create-client-user]
-verify_jwt = false
-
 [functions.send-email]
-verify_jwt = false
-
-[functions.send-deletion-email]
-verify_jwt = false
-
-[functions.send-recovery-confirmation]
-verify_jwt = false
-
-[functions.setup-2fa]
-verify_jwt = false
-
-[functions.verify-recovery-token]
 verify_jwt = false
 
 [functions.check-table-exists]
 verify_jwt = false
 
 [functions.check-email-exists]
-verify_jwt = false
-
-[functions.generate-client-password]
-verify_jwt = false
-
-[functions.reset-password]
 verify_jwt = false
 
 [functions.check-drive-access]

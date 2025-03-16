@@ -130,37 +130,3 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     throw error;
   }
 };
-
-/**
- * Creates a client user account with temporary password
- */
-export const createClientUserAccount = async (clientId: string, email: string, clientName: string, aiAgentName: string): Promise<boolean> => {
-  try {
-    console.log("Creating client user account:", { clientId, email, clientName, aiAgentName });
-    
-    const { data, error } = await supabase.functions.invoke("create-client-user", {
-      body: {
-        clientId,
-        email,
-        clientName,
-        aiAgentName
-      }
-    });
-    
-    if (error) {
-      console.error("Error creating client user account:", error);
-      throw new Error(`Failed to create client user: ${error.message}`);
-    }
-    
-    if (data?.error) {
-      console.error("Function returned error:", data.error);
-      throw new Error(`Client user creation error: ${data.error}`);
-    }
-    
-    console.log("Client user creation response:", data);
-    return true;
-  } catch (error) {
-    console.error("Client user creation failed:", error);
-    throw error;
-  }
-};
