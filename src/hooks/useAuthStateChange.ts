@@ -50,16 +50,16 @@ export const useAuthStateChange = ({
             setUserRole(storedRole as UserRole);
           } else {
             // Determine role from database
-            const userRole = await determineUserRole(currentSession.user);
-            setUserRole(userRole);
-            sessionStorage.setItem('user_role_set', userRole);
+            const role = await determineUserRole(currentSession.user);
+            setUserRole(role);
+            sessionStorage.setItem('user_role_set', role);
           }
           
           // Only redirect if we're on the auth page
           const isAuthPage = location.pathname === '/auth';
           if (isAuthPage) {
             // Determine where to navigate based on role
-            const targetPath = (userRole === 'client' || storedRole === 'client') 
+            const targetPath = (role === 'client' || storedRole === 'client') 
               ? '/client/dashboard' 
               : '/';
             navigate(targetPath, { replace: true });

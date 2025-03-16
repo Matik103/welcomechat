@@ -65,7 +65,3 @@ verify_jwt = false
 [functions.get_client_agent_names]
 verify_jwt = false
 
-[auth.external.google]
-enabled = true
-client_id = env(GOOGLE_CLIENT_ID)
-secret = env(GOOGLE_CLIENT_SECRET)

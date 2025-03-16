@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -57,16 +58,17 @@ export const useAuthInitialize = ({
             setUserRole(storedRole as UserRole);
           } else {
             // Determine role from database
-            const userRole = await determineUserRole(currentSession.user);
-            setUserRole(userRole);
-            sessionStorage.setItem('user_role_set', userRole);
+            const role = await determineUserRole(currentSession.user);
+            setUserRole(role);
+            sessionStorage.setItem('user_role_set', role);
           }
           
           // Handle redirects if on auth page
           const isAuthPage = location.pathname === '/auth';
           if (!isCallbackUrl && isAuthPage) {
             // Redirect based on role
-            const targetPath = userRole === 'client' || storedRole === 'client' 
+            const storedRole = sessionStorage.getItem('user_role_set');
+            const targetPath = (role === 'client' || storedRole === 'client') 
               ? '/client/dashboard' 
               : '/';
             navigate(targetPath, { replace: true });
