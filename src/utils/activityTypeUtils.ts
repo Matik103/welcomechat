@@ -22,6 +22,22 @@ export const mapActivityType = (
       dbActivityType = "ai_agent_created";
       break;
       
+    // Map ai_agent_updated to a valid enum value that exists in the database
+    case "ai_agent_updated":
+      // Map to client_updated instead of ai_agent_updated since the latter isn't in the enum
+      dbActivityType = "client_updated";
+      
+      // Store the original activity type in metadata for reference
+      const agentMetadataObj = typeof metadata === 'object' && metadata !== null 
+        ? metadata 
+        : {};
+        
+      enhancedMetadata = {
+        ...agentMetadataObj,
+        original_activity_type: activity_type
+      } as Json;
+      break;
+      
     // Handle signed_out activity
     case "signed_out":
       dbActivityType = "client_updated";
@@ -38,7 +54,6 @@ export const mapActivityType = (
       break;
       
     // These still need to be mapped
-    case "ai_agent_updated":
     case "logo_uploaded":
     case "embed_code_copied":
     case "widget_previewed":
