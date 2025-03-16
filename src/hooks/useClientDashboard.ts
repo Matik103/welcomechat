@@ -91,18 +91,28 @@ export const useClientDashboard = (clientId: string | undefined) => {
         const statsData = await getAgentDashboardStats(clientId, agentName);
         if (statsData) {
           // Make sure we're dealing with a proper InteractionStats object
-          const typedStatsData = typeof statsData === 'object' ? statsData as InteractionStats : {
-            total_interactions: 0,
-            active_days: 0,
-            average_response_time: 0,
-            top_queries: []
-          };
-          
-          setStats(typedStatsData);
-          setAuthError(false);
-          setIsLoadingStats(false);
-          setIsRefreshing(false);
-          return;
+          // Use type guard to ensure statsData has the right structure
+          if (typeof statsData === 'object' && statsData !== null && !Array.isArray(statsData) &&
+              'total_interactions' in statsData && 
+              'active_days' in statsData && 
+              'average_response_time' in statsData && 
+              'top_queries' in statsData) {
+            
+            setStats(statsData as InteractionStats);
+            setAuthError(false);
+            setIsLoadingStats(false);
+            setIsRefreshing(false);
+            return;
+          } else {
+            console.error("Received invalid stats data structure:", statsData);
+            // If invalid structure, use default stats
+            setStats({
+              total_interactions: 0,
+              active_days: 0,
+              average_response_time: 0,
+              top_queries: []
+            });
+          }
         }
       }
       
@@ -124,16 +134,25 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.log("Using agent name from client record:", clientData.agent_name);
         const statsData = await getAgentDashboardStats(clientId, clientData.agent_name);
         
-        // Make sure we're dealing with a proper InteractionStats object
-        const typedStatsData = typeof statsData === 'object' ? statsData as InteractionStats : {
-          total_interactions: 0,
-          active_days: 0,
-          average_response_time: 0,
-          top_queries: []
-        };
-        
-        setStats(typedStatsData);
-        setAuthError(false);
+        // Use type guard to ensure statsData has the right structure
+        if (typeof statsData === 'object' && statsData !== null && !Array.isArray(statsData) &&
+            'total_interactions' in statsData && 
+            'active_days' in statsData && 
+            'average_response_time' in statsData && 
+            'top_queries' in statsData) {
+          
+          setStats(statsData as InteractionStats);
+          setAuthError(false);
+        } else {
+          console.error("Received invalid stats data structure:", statsData);
+          // If invalid structure, use default stats
+          setStats({
+            total_interactions: 0,
+            active_days: 0,
+            average_response_time: 0,
+            top_queries: []
+          });
+        }
       } else {
         throw new Error("No agent name found for this client");
       }

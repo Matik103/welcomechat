@@ -30,7 +30,8 @@ export const useClientChatHistory = (agentName?: string) => {
         metadata: {
           user_message: item.query_text || "",
           timestamp: item.created_at,
-          ...(item.settings || {})
+          // Safely handle settings - ensure it's an object before trying to spread
+          ...(item.settings && typeof item.settings === 'object' ? item.settings : {})
         }
       })) as ChatInteraction[];
     },
