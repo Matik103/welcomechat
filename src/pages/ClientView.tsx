@@ -1,4 +1,3 @@
-
 import { ArrowLeft, Loader2, Info } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -24,14 +23,20 @@ const ClientView = () => {
     count: number | null;
   }>({ lastMigrated: null, count: null });
 
+  // Fetch client data with complete information including widget_settings
   const { data: client, isLoading: isLoadingClient, refetch: refetchClient } = useQuery({
-    queryKey: ["client", id],
+    queryKey: ["client", id, "detailed"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("*")
+        .select(`
+          *,
+          website_urls(*),
+          google_drive_links(*)
+        `)
         .eq("id", id)
         .single();
+
       if (error) throw error;
       return data;
     },
@@ -72,14 +77,54 @@ const ClientView = () => {
     enabled: !!id,
   });
 
+  // Fetch AI agent statistics
+  const { data: aiAgentStats, refetch: refetchAiAgentStats } = useQuery({
+    queryKey: ["ai-agent-stats", id, client?.agent_name],
+    queryFn: async () => {
+      if (!id || !client?.agent_name) {
+        return null;
+      }
+      
+      try {
+        const { data, error } = await supabase.rpc(
+          'get_agent_dashboard_stats',
+          {
+            client_id_param: id,
+            agent_name_param: client.agent_name
+          }
+        );
+        
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error("Error fetching AI agent stats:", error);
+        return null;
+      }
+    },
+    enabled: !!(id && client?.agent_name),
+  });
+
+  // Fetch recent client activities
+  const { data: recentActivities, refetch: refetchActivities } = useQuery({
+    queryKey: ["client-activities", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq("client_id", id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+        
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
   // Check migration status on load
   useEffect(() => {
     if (client?.agent_name && id) {
       checkMigrationStatus();
-      // Auto-run migration if there are no linked ai_agents entries
-      if (migrationStatus.count === 0) {
-        runFullMigration();
-      }
     }
   }, [client, id]);
 
@@ -90,8 +135,8 @@ const ClientView = () => {
     try {
       // Count AI agent entries for this client
       const { count, error } = await supabase
-        .from("ai_agents")
-        .select("*", { count: 'exact', head: true })
+        .from('ai_agents')
+        .select('*', { count: 'exact', head: true })
         .eq("client_id", id);
         
       if (error) {
@@ -294,7 +339,9 @@ const ClientView = () => {
         refetchClient(),
         refetchChatHistory(),
         refetchQueries(),
-        refetchErrorLogs()
+        refetchErrorLogs(),
+        refetchAiAgentStats(),
+        refetchActivities()
       ]);
       
       // Update migration status after changes
@@ -459,7 +506,9 @@ const ClientView = () => {
         refetchClient(),
         refetchChatHistory(),
         refetchQueries(),
-        refetchErrorLogs()
+        refetchErrorLogs(),
+        refetchAiAgentStats(),
+        refetchActivities()
       ]);
       
       // Update migration status
@@ -475,7 +524,7 @@ const ClientView = () => {
     }
   };
 
-  // Handle refresh
+  // Handle refresh - updated to fetch all data sources
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -483,7 +532,9 @@ const ClientView = () => {
         refetchClient(),
         refetchChatHistory(),
         refetchQueries(),
-        refetchErrorLogs()
+        refetchErrorLogs(),
+        refetchAiAgentStats(),
+        refetchActivities()
       ]);
       checkMigrationStatus();
       toast.success("Dashboard data refreshed");
@@ -519,14 +570,6 @@ const ClientView = () => {
     );
   }
 
-  // Auto-run migration if no entries found
-  if (migrationStatus.count === 0 && !isRefreshing) {
-    // Use setTimeout to prevent immediate execution that might cause UI issues
-    setTimeout(() => {
-      runFullMigration();
-    }, 1000);
-  }
-
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -555,43 +598,17 @@ const ClientView = () => {
               <span>Debug Info</span>
             </Button>
             
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={verifyAgentMigration}
-              disabled={isRefreshing}
-              className="flex items-center gap-1"
-            >
-              {isRefreshing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Running...</span>
-                </>
-              ) : (
-                <>
-                  <span>Verify Migration</span>
-                </>
-              )}
-            </Button>
+            <Link to={`/admin/clients/edit/${id}`}>
+              <Button variant="outline" size="sm" className="flex items-center gap-1">
+                Edit Client
+              </Button>
+            </Link>
             
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={runFullMigration}
-              disabled={isRefreshing}
-              className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100"
-            >
-              {isRefreshing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Running...</span>
-                </>
-              ) : (
-                <>
-                  <span>Run Full Migration</span>
-                </>
-              )}
-            </Button>
+            <Link to={`/widget-settings/${id}`}>
+              <Button variant="outline" size="sm" className="flex items-center gap-1">
+                Widget Settings
+              </Button>
+            </Link>
             
             <Button 
               variant="outline" 
@@ -624,6 +641,11 @@ const ClientView = () => {
                 <p><strong>Agent Name:</strong> {client.agent_name || 'Not set'}</p>
                 <p><strong>AI Agent Entries:</strong> {migrationStatus.count !== null ? migrationStatus.count : (debug.count !== null ? debug.count : 'Checking...')}</p>
                 <p><strong>Chat History Entries:</strong> {chatHistory.length}</p>
+                <p><strong>Website URLs:</strong> {client.website_urls?.length || 0}</p>
+                <p><strong>Google Drive Links:</strong> {client.google_drive_links?.length || 0}</p>
+                {client.widget_settings && (
+                  <p><strong>Widget Settings:</strong> Configured</p>
+                )}
                 {migrationStatus.lastMigrated && (
                   <p><strong>Last Migration:</strong> {new Date(migrationStatus.lastMigrated).toLocaleString()}</p>
                 )}
@@ -633,10 +655,34 @@ const ClientView = () => {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ClientInfoCard client={client} chatHistory={chatHistory} />
+          <ClientInfoCard client={client} chatHistory={chatHistory} aiAgentStats={aiAgentStats} />
           <QueriesCard queries={commonQueries} />
           <ChatHistoryCard chatHistory={chatHistory} />
           <ErrorLogsCard errorLogs={errorLogs} />
+        </div>
+
+        {/* Recent Activities Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold mb-4">Recent Activities</h2>
+          <div className="space-y-4">
+            {recentActivities && recentActivities.length > 0 ? (
+              <div className="space-y-2">
+                {recentActivities.map((activity) => (
+                  <div key={activity.id} className="p-3 bg-gray-50 rounded-md border border-gray-100">
+                    <div className="flex justify-between">
+                      <span className="font-medium">{activity.activity_type.replace(/_/g, ' ')}</span>
+                      <span className="text-sm text-gray-500">
+                        {new Date(activity.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-gray-700 mt-1">{activity.description}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No recent activities found.</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
