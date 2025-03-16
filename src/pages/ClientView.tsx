@@ -1,5 +1,5 @@
 
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Info } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,10 +13,12 @@ import { useClientChatHistory } from "@/hooks/useClientChatHistory";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const ClientView = () => {
   const { id } = useParams();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   const { data: client, isLoading: isLoadingClient, refetch: refetchClient } = useQuery({
     queryKey: ["client", id],
@@ -32,7 +34,7 @@ const ClientView = () => {
   });
 
   // Use the custom hook for chat history with updated structure
-  const { chatHistory, refetchChatHistory } = useClientChatHistory(id);
+  const { chatHistory, refetchChatHistory, debug } = useClientChatHistory(id);
 
   // Query common end-user questions
   const { data: commonQueries, refetch: refetchQueries } = useQuery({
@@ -65,6 +67,62 @@ const ClientView = () => {
     },
     enabled: !!id,
   });
+
+  // Function to verify AI agent migration
+  const verifyAgentMigration = async () => {
+    try {
+      setIsRefreshing(true);
+      console.log("Verifying AI agent migration for client:", id);
+      
+      if (!client?.agent_name) {
+        toast.error("Client has no agent name defined");
+        return;
+      }
+      
+      // Run the migration function directly
+      const { data, error } = await supabase.rpc(
+        'exec_sql',
+        {
+          sql_query: `
+            SELECT migrate_chatbot_to_ai_agents(
+              '${client.agent_name}', 
+              '${id}', 
+              '${client.agent_name}'
+            ) as migrated_count;
+          `
+        }
+      );
+      
+      if (error) {
+        console.error("Migration verification failed:", error);
+        toast.error("Failed to verify migration: " + error.message);
+        return;
+      }
+      
+      // Extract the migrated count
+      const migratedCount = Array.isArray(data) && data.length > 0 ? 
+        data[0].migrated_count : 0;
+      
+      if (migratedCount > 0) {
+        toast.success(`Migrated ${migratedCount} records for ${client.agent_name}`);
+      } else {
+        toast.info("No new records to migrate");
+      }
+      
+      await Promise.all([
+        refetchClient(),
+        refetchChatHistory(),
+        refetchQueries(),
+        refetchErrorLogs()
+      ]);
+      
+    } catch (error) {
+      console.error("Error in verify migration:", error);
+      toast.error("Migration verification failed");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Handle refresh
   const handleRefresh = async () => {
@@ -126,25 +184,71 @@ const ClientView = () => {
             </div>
           </div>
           
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-1"
-          >
-            {isRefreshing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Refreshing...</span>
-              </>
-            ) : (
-              <>
-                <span>Refresh Data</span>
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowDebugInfo(!showDebugInfo)}
+              className="flex items-center gap-1"
+            >
+              <Info className="h-4 w-4" />
+              <span>Debug Info</span>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={verifyAgentMigration}
+              disabled={isRefreshing}
+              className="flex items-center gap-1"
+            >
+              {isRefreshing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Running...</span>
+                </>
+              ) : (
+                <>
+                  <span>Verify Migration</span>
+                </>
+              )}
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-1"
+            >
+              {isRefreshing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Refreshing...</span>
+                </>
+              ) : (
+                <>
+                  <span>Refresh Data</span>
+                </>
+              )}
+            </Button>
+          </div>
         </div>
+
+        {showDebugInfo && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Debug Information</AlertTitle>
+            <AlertDescription>
+              <div className="mt-2 text-sm">
+                <p><strong>Client ID:</strong> {id}</p>
+                <p><strong>Agent Name:</strong> {client.agent_name || 'Not set'}</p>
+                <p><strong>AI Agent Entries:</strong> {debug.count !== null ? debug.count : 'Checking...'}</p>
+                <p><strong>Chat History Entries:</strong> {chatHistory.length}</p>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <ClientInfoCard client={client} chatHistory={chatHistory} />
