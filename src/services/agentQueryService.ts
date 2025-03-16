@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -153,25 +154,150 @@ export const getAgentDashboardStats = async (
   try {
     console.log(`Fetching dashboard stats for client: ${clientId}, agent: ${agentName}`);
     
-    // Use the database function for the stats
-    const { data, error } = await supabase.rpc(
-      'get_agent_dashboard_stats',
-      { 
-        client_id_param: clientId,
-        agent_name_param: agentName
+    // First, check if the get_agent_dashboard_stats function exists
+    const { data: funcExists, error: funcError } = await supabase.rpc(
+      'exec_sql',
+      {
+        sql_query: `
+          SELECT EXISTS (
+            SELECT 1 
+            FROM pg_proc 
+            WHERE proname = 'get_agent_dashboard_stats'
+          ) as exists
+        `
       }
     );
-
-    if (error) {
-      console.error("Error retrieving agent stats:", error);
-      throw error;
-    }
-
-    console.log("Agent stats result:", data);
-    return data;
     
+    // If the function exists, use it
+    if (funcExists && funcExists.exists) {
+      // Use the database function for the stats
+      const { data, error } = await supabase.rpc(
+        'get_agent_dashboard_stats',
+        { 
+          client_id_param: clientId,
+          agent_name_param: agentName
+        }
+      );
+
+      if (error) {
+        console.error("Error retrieving agent stats using function:", error);
+        throw error;
+      }
+
+      console.log("Agent stats result from function:", data);
+      return data;
+    } else {
+      // If function doesn't exist, query directly from ai_agents table
+      console.log("get_agent_dashboard_stats function not found, querying directly");
+      
+      // Get total interactions
+      const { data: totalInteractions, error: countError } = await supabase
+        .from('ai_agents')
+        .select('id', { count: 'exact' })
+        .eq('client_id', clientId)
+        .eq('name', agentName)
+        .eq('interaction_type', 'chat_interaction');
+        
+      if (countError) {
+        console.error("Error counting interactions:", countError);
+        throw countError;
+      }
+      
+      // Get active days
+      const { data: activeDaysData, error: daysError } = await supabase.rpc(
+        'exec_sql',
+        {
+          sql_query: `
+            SELECT COUNT(DISTINCT DATE(created_at)) as active_days
+            FROM ai_agents
+            WHERE client_id = '${clientId}'
+              AND name = '${agentName}'
+              AND interaction_type = 'chat_interaction'
+          `
+        }
+      );
+      
+      if (daysError) {
+        console.error("Error calculating active days:", daysError);
+        throw daysError;
+      }
+      
+      // Get average response time
+      const { data: avgResponseData, error: avgError } = await supabase.rpc(
+        'exec_sql',
+        {
+          sql_query: `
+            SELECT COALESCE(AVG(response_time_ms)::numeric / 1000, 0) as avg_response_time
+            FROM ai_agents
+            WHERE client_id = '${clientId}'
+              AND name = '${agentName}'
+              AND interaction_type = 'chat_interaction'
+              AND response_time_ms IS NOT NULL
+          `
+        }
+      );
+      
+      if (avgError) {
+        console.error("Error calculating average response time:", avgError);
+        throw avgError;
+      }
+      
+      // Get top queries
+      const { data: topQueriesData, error: topQueriesError } = await supabase.rpc(
+        'exec_sql',
+        {
+          sql_query: `
+            SELECT query_text, COUNT(*) as frequency
+            FROM ai_agents
+            WHERE client_id = '${clientId}'
+              AND name = '${agentName}'
+              AND interaction_type = 'chat_interaction'
+              AND query_text IS NOT NULL
+            GROUP BY query_text
+            ORDER BY frequency DESC
+            LIMIT 5
+          `
+        }
+      );
+      
+      if (topQueriesError) {
+        console.error("Error fetching top queries:", topQueriesError);
+        throw topQueriesError;
+      }
+      
+      // Construct the stats object
+      const stats = {
+        total_interactions: totalInteractions?.length || 0,
+        active_days: activeDaysData?.[0]?.active_days || 0,
+        average_response_time: avgResponseData?.[0]?.avg_response_time || 0,
+        top_queries: topQueriesData || []
+      };
+      
+      console.log("Agent stats result from direct query:", stats);
+      return stats;
+    }
   } catch (err) {
     console.error("Failed to get agent dashboard stats:", err);
+    throw err;
+  }
+};
+
+/**
+ * Direct query to get all AI agent data for a client, used for debugging
+ */
+export const debugGetAllAgentData = async (clientId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('ai_agents')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+      
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error("Error in debug query:", err);
     throw err;
   }
 };

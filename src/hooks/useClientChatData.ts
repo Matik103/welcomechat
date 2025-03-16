@@ -77,7 +77,67 @@ export const useAgentStats = (clientId?: string, agentName?: string) => {
         setStats(validStats);
         setAuthError(false);
       } else {
-        throw new Error("No stats data returned");
+        // Fallback for no stats returned - directly query the ai_agents table
+        const { data: aiAgents, error: aiError } = await supabase
+          .from("ai_agents")
+          .select("id, content, query_text, response_time_ms, created_at")
+          .eq("client_id", clientId)
+          .eq("name", agentName)
+          .eq("interaction_type", "chat_interaction");
+          
+        if (aiError) {
+          console.error("Fallback query error:", aiError);
+          throw aiError;
+        }
+        
+        if (aiAgents && aiAgents.length > 0) {
+          // Calculate basic stats manually
+          const totalInteractions = aiAgents.length;
+          
+          // Calculate unique days
+          const uniqueDays = new Set();
+          aiAgents.forEach(item => {
+            if (item.created_at) {
+              uniqueDays.add(new Date(item.created_at).toDateString());
+            }
+          });
+          
+          // Calculate average response time
+          let totalResponseTime = 0;
+          let responsesWithTime = 0;
+          aiAgents.forEach(item => {
+            if (item.response_time_ms) {
+              totalResponseTime += item.response_time_ms;
+              responsesWithTime++;
+            }
+          });
+          
+          const avgResponseTime = responsesWithTime > 0 
+            ? Number((totalResponseTime / responsesWithTime / 1000).toFixed(2)) 
+            : 0;
+          
+          // Calculate top queries
+          const queryCounts: Record<string, number> = {};
+          aiAgents.forEach(item => {
+            if (item.query_text) {
+              queryCounts[item.query_text] = (queryCounts[item.query_text] || 0) + 1;
+            }
+          });
+          
+          const topQueries = Object.entries(queryCounts)
+            .map(([query_text, frequency]) => ({ query_text, frequency }))
+            .sort((a, b) => b.frequency - a.frequency)
+            .slice(0, 5);
+          
+          setStats({
+            total_interactions: totalInteractions,
+            active_days: uniqueDays.size,
+            average_response_time: avgResponseTime,
+            top_queries: topQueries
+          });
+        } else {
+          throw new Error("No stats data returned and no AI agents found");
+        }
       }
     } catch (err: any) {
       console.error("Error fetching agent stats:", err);
@@ -114,6 +174,8 @@ export const useChatHistory = (agentName?: string, limit: number = 10) => {
     queryFn: async () => {
       if (!agentName) return [];
       
+      console.log(`Fetching chat history for agent: ${agentName}, limit: ${limit}`);
+      
       const { data, error } = await supabase
         .from("ai_agents")
         .select("id, content, query_text, created_at, settings")
@@ -123,7 +185,12 @@ export const useChatHistory = (agentName?: string, limit: number = 10) => {
         .order("created_at", { ascending: false })
         .limit(limit);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching chat history:", error);
+        throw error;
+      }
+      
+      console.log(`Retrieved ${data?.length || 0} chat history entries`);
       
       // Transform to match the ChatInteraction interface
       return (data || []).map(item => ({
