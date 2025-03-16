@@ -48,10 +48,12 @@ export const logChatInteraction = async (
   metadata: Json = {}
 ): Promise<void> => {
   try {
+    // Ensure metadata is an object
+    const metadataObj = typeof metadata === 'object' && metadata !== null ? metadata : {};
+    
     // Enhance metadata
-    const metadataObj = typeof metadata === 'object' ? metadata : {};
     const enhancedMetadata = {
-      ...metadataObj,
+      ...(metadataObj as Record<string, any>),
       type: 'chat_interaction',
       query: queryText,
       response_time_ms: responseTimeMs,
@@ -91,10 +93,12 @@ export const logAgentError = async (
   metadata: Json = {}
 ): Promise<void> => {
   try {
+    // Ensure metadata is an object
+    const metadataObj = typeof metadata === 'object' && metadata !== null ? metadata : {};
+    
     // Enhance metadata
-    const metadataObj = typeof metadata === 'object' ? metadata : {};
     const enhancedMetadata = {
-      ...metadataObj,
+      ...(metadataObj as Record<string, any>),
       type: 'error',
       error_type: errorType,
       timestamp: new Date().toISOString()

@@ -1,10 +1,17 @@
 
+import { ChatInteraction } from "@/types/agent";
 import { useChatHistory } from "./useClientChatData";
 
 /**
- * Hook to fetch chat history for a specific client's AI agent
- * This is a wrapper around the useChatHistory hook for backward compatibility
+ * A simple wrapper around useChatHistory for better organization
  */
-export const useClientChatHistory = (agentName?: string, limit: number = 10) => {
-  return useChatHistory(agentName, limit);
+export const useClientChatHistory = (clientId: string | undefined, limit: number = 10) => {
+  const { data: chatHistory = [], isLoading, error, refetch } = useChatHistory(clientId, limit);
+  
+  return {
+    chatHistory,
+    isLoading,
+    error,
+    refetchChatHistory: refetch
+  };
 };

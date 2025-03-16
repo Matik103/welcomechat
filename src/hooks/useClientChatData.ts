@@ -131,7 +131,7 @@ export const useAgentStats = (clientId: string | undefined, agentName: string | 
       if (!clientId || !agentName) return transformStats(null);
       
       try {
-        const stats = await getAgentDashboardStats(clientId);
+        const stats = await getAgentDashboardStats(clientId, agentName);
         return transformStats(stats);
       } catch (error) {
         console.error("Error fetching agent stats:", error);
@@ -193,7 +193,16 @@ export const useChatHistory = (clientId: string | undefined, limit: number = 10)
           clientId: item.client_id,
           responseTimeMs: item.response_time_ms || 0,
           content: item.content || '',
-          metadata: item.settings || {}
+          metadata: typeof item.settings === 'object' ? 
+            {
+              ...(item.settings as Record<string, any>),
+              timestamp: item.created_at || new Date().toISOString(),
+              type: 'chat_interaction'
+            } : 
+            {
+              timestamp: item.created_at || new Date().toISOString(),
+              type: 'chat_interaction'
+            }
         }));
       } catch (error) {
         console.error("Error in useClientChatHistory:", error);
