@@ -32,6 +32,9 @@ export const useAuthCallback = ({
       return;
     }
     
+    // Set a processing flag to indicate we're handling the callback
+    sessionStorage.setItem('auth_callback_processing', 'true');
+    
     // Keep the loading state true while processing callback
     setIsLoading(true);
     
@@ -45,12 +48,13 @@ export const useAuthCallback = ({
           
         if (sessionError || !callbackSession) {
           console.error("Error getting session from callback URL:", sessionError);
+          sessionStorage.removeItem('auth_callback_processing');
           navigate('/auth', { replace: true });
           setIsLoading(false);
           return;
         }
         
-        // Set session and user data
+        // Set session and user data immediately
         setSession(callbackSession);
         setUser(callbackSession.user);
         
@@ -79,13 +83,17 @@ export const useAuthCallback = ({
         // Get the appropriate dashboard route based on role
         const dashboardRoute = getDashboardRoute(userRole);
         
+        // Clear processing flag before navigation
+        sessionStorage.removeItem('auth_callback_processing');
+        
         // Navigate to the appropriate dashboard
         navigate(dashboardRoute, { replace: true });
         
-        // Set loading to false after navigation
+        // Set loading to false after navigation is queued
         setIsLoading(false);
       } catch (error) {
         console.error("Error handling auth callback:", error);
+        sessionStorage.removeItem('auth_callback_processing');
         navigate('/auth', { replace: true });
         setIsLoading(false);
       }
