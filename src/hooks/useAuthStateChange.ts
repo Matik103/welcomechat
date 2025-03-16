@@ -32,10 +32,14 @@ export const useAuthStateChange = ({
         
         console.log("Auth state changed:", event);
         
-        // Skip processing if we're on the callback URL
+        // Skip processing if we're on the callback URL or if callback is being processed
         // This prevents double processing with useAuthCallback
-        if (location.pathname.includes('/auth/callback')) {
-          console.log("Skipping auth state change on callback URL");
+        const inCallbackProcess = 
+          location.pathname.includes('/auth/callback') || 
+          sessionStorage.getItem('auth_callback_processing') === 'true';
+          
+        if (inCallbackProcess) {
+          console.log("Skipping auth state change - callback is being processed");
           return;
         }
         
@@ -92,6 +96,7 @@ export const useAuthStateChange = ({
           setIsLoading(false);
           sessionStorage.removeItem('user_role_set');
           sessionStorage.removeItem('auth_callback_processed');
+          sessionStorage.removeItem('auth_callback_processing');
           
           // Only redirect to auth page if not already there
           const isAuthPage = location.pathname === '/auth';
