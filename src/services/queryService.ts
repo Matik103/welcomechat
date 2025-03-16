@@ -23,7 +23,8 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
       query_text: item.query_text,
       frequency: item.frequency,
       client_id: clientId,
-      created_at: new Date().toISOString() // We don't have a created_at from the group by
+      created_at: new Date().toISOString(), // We don't have a created_at from the group by
+      last_asked: new Date().toISOString() // Use current date since we don't have the actual last date
     }));
   } catch (err) {
     console.error("Error fetching common queries:", err);
@@ -32,7 +33,7 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
     try {
       const { data, error } = await supabase
         .from('ai_agents')
-        .select('query_text')
+        .select('query_text, created_at')
         .eq('client_id', clientId)
         .eq('interaction_type', 'chat_interaction')
         .not('query_text', 'is', null)
@@ -41,12 +42,21 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
         
       if (error) throw error;
       
-      // Count frequency of each query text
+      // Count frequency of each query text and track last asked date
       const countMap = new Map<string, number>();
+      const lastAskedMap = new Map<string, string>();
+      
       data.forEach(item => {
         if (item.query_text) {
+          // Increment count
           const count = countMap.get(item.query_text) || 0;
           countMap.set(item.query_text, count + 1);
+          
+          // Track the most recent date for this query
+          const currentLastAsked = lastAskedMap.get(item.query_text);
+          if (!currentLastAsked || new Date(item.created_at) > new Date(currentLastAsked)) {
+            lastAskedMap.set(item.query_text, item.created_at);
+          }
         }
       });
       
@@ -56,7 +66,8 @@ export const fetchQueries = async (clientId: string): Promise<QueryItem[]> => {
         query_text: queryText,
         frequency,
         client_id: clientId,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        last_asked: lastAskedMap.get(queryText) || new Date().toISOString()
       }));
       
       return result;

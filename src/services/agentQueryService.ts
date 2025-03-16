@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -47,22 +46,25 @@ export const getAgentsByClientId = async (
   try {
     console.log(`Querying all agent data for client: ${clientId}`);
     
-    // Get distinct agent names first
-    const { data: agentNames, error: namesError } = await supabase
+    // First get all unique agent names
+    const { data: namesData, error: namesError } = await supabase
       .from('ai_agents')
       .select('name')
       .eq('client_id', clientId)
-      .order('name')
-      .distinct();
+      .order('name');
 
     if (namesError) {
       console.error("Error querying client agents:", namesError);
       throw namesError;
     }
+    
+    // Extract unique agent names
+    const uniqueNames = Array.from(new Set(namesData?.map(item => item.name) || []));
+    console.log(`Found ${uniqueNames.length} unique agent names`);
 
     // For each agent name, get the most recent record
     const agentRecords = [];
-    for (const { name } of agentNames || []) {
+    for (const name of uniqueNames) {
       const { data, error } = await supabase
         .from('ai_agents')
         .select('*')
@@ -98,17 +100,17 @@ export const getAgentNamesByClientId = async (
     const { data, error } = await supabase
       .from('ai_agents')
       .select('name')
-      .eq('client_id', clientId)
-      .order('name')
-      .distinct();
+      .eq('client_id', clientId);
 
     if (error) {
       console.error("Error querying agent names:", error);
       throw error;
     }
-
-    console.log(`Successfully retrieved ${data?.length || 0} agent names`);
-    return data?.map(record => record.name) || [];
+    
+    // Extract unique agent names
+    const uniqueNames = Array.from(new Set(data?.map(record => record.name) || []));
+    console.log(`Successfully retrieved ${uniqueNames.length} unique agent names`);
+    return uniqueNames;
     
   } catch (err) {
     console.error("Failed to execute agent names query:", err);

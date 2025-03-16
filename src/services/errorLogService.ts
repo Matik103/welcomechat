@@ -10,7 +10,7 @@ export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
   try {
     const { data, error } = await supabase
       .from("ai_agents")
-      .select("id, error_type, error_message as message, error_status as status, created_at, query_text")
+      .select("id, error_type, error_message, error_status, created_at, query_text")
       .eq("client_id", clientId)
       .eq("is_error", true)
       .order("created_at", { ascending: false })
@@ -18,7 +18,16 @@ export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
 
     if (error) throw error;
     
-    return (data || []) as ErrorLog[];
+    // Transform the data to match the ErrorLog interface
+    return (data || []).map(item => ({
+      id: item.id.toString(),
+      error_type: item.error_type || "unknown",
+      message: item.error_message || "Unknown error",
+      status: item.error_status || "pending",
+      created_at: item.created_at,
+      client_id: clientId,
+      query_text: item.query_text
+    })) as ErrorLog[];
   } catch (err) {
     console.error("Error fetching error logs:", err);
     throw err;
