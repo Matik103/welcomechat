@@ -36,7 +36,7 @@ export const useAuthSafetyTimeout = ({
           navigate('/auth', { replace: true });
         }
       }
-    }, 5000); // Extend to 5 seconds to allow for slow connections
+    }, 3000); // Reduced from 5 seconds to 3 seconds as a better compromise
     
     return () => clearTimeout(safetyTimeout);
   }, [isLoading, navigate, isAuthPage, session, setIsLoading]);

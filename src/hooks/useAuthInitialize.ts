@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -40,6 +41,7 @@ export const useAuthInitialize = ({
         // Keep loading state true until we've completed all checks
         setIsLoading(true);
         
+        // Use faster getSession() API call
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -47,10 +49,11 @@ export const useAuthInitialize = ({
         if (currentSession?.user) {
           console.log("Session found during init:", currentSession.user.email);
           
+          // Set session and user immediately to begin rendering appropriate components
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Check if we have a stored role
+          // Check if we have a stored role - this is much faster than determining role again
           const storedRole = sessionStorage.getItem('user_role_set');
           let determinedUserRole: UserRole;
           
@@ -59,7 +62,7 @@ export const useAuthInitialize = ({
             setUserRole(storedRole as UserRole);
             determinedUserRole = storedRole as UserRole;
           } else {
-            // Determine role from database
+            // Determine role from database - this is slower
             determinedUserRole = await determineUserRole(currentSession.user);
             setUserRole(determinedUserRole);
             sessionStorage.setItem('user_role_set', determinedUserRole);
@@ -80,11 +83,9 @@ export const useAuthInitialize = ({
             navigate(dashboardRoute, { replace: true });
           }
           
-          // Set initialized first, then clear loading state to prevent flicker
+          // Set initialized first, then clear loading state immediately
           setAuthInitialized(true);
-          setTimeout(() => {
-            if (mounted) setIsLoading(false);
-          }, 300);
+          setIsLoading(false);
         } else {
           console.log("No active session found during init");
           setSession(null);
@@ -124,6 +125,7 @@ export const useAuthInitialize = ({
       }
     };
 
+    // Start initialization immediately
     initializeAuth();
 
     return () => {
