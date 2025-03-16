@@ -32,6 +32,13 @@ export const useAuthStateChange = ({
         
         console.log("Auth state changed:", event);
         
+        // Skip processing if we're on the callback URL
+        // This prevents double processing with useAuthCallback
+        if (location.pathname.includes('/auth/callback')) {
+          console.log("Skipping auth state change on callback URL");
+          return;
+        }
+        
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           console.log("User signed in or token refreshed");
           
@@ -73,12 +80,10 @@ export const useAuthStateChange = ({
             const dashboardRoute = getDashboardRoute(determinedUserRole);
             
             navigate(dashboardRoute, { replace: true });
-            setTimeout(() => {
-              setIsLoading(false);
-            }, 300);
-          } else {
-            setIsLoading(false);
           }
+          
+          // Set loading to false immediately
+          setIsLoading(false);
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");
           setSession(null);
@@ -86,6 +91,7 @@ export const useAuthStateChange = ({
           setUserRole(null);
           setIsLoading(false);
           sessionStorage.removeItem('user_role_set');
+          sessionStorage.removeItem('auth_callback_processed');
           
           // Only redirect to auth page if not already there
           const isAuthPage = location.pathname === '/auth';

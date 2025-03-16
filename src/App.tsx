@@ -18,6 +18,7 @@ import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/client/EditClientInfo";
 import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
+import { useEffect } from "react";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
@@ -28,6 +29,13 @@ function App() {
   const isPublicRoute = location.pathname === '/auth' || 
                         isAuthCallback ||
                         location.pathname.startsWith('/client/setup');
+  
+  // Clear callback processed flag when not on callback page
+  useEffect(() => {
+    if (!isAuthCallback) {
+      sessionStorage.removeItem('auth_callback_processed');
+    }
+  }, [isAuthCallback]);
   
   // Show loading state if auth is initializing
   if (isLoading || isAuthCallback) {

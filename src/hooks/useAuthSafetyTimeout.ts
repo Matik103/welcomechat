@@ -30,13 +30,27 @@ export const useAuthSafetyTimeout = ({
         console.warn("Safety timeout triggered - forcing loading state to complete");
         setIsLoading(false);
         
+        // Clear callback processed flag
+        sessionStorage.removeItem('auth_callback_processed');
+        
         // If we've been stuck loading and not on auth page, redirect to auth
         if (!isAuthPage && !session) {
           console.log("Redirecting to auth page due to timeout");
           navigate('/auth', { replace: true });
+        } else if (session) {
+          // If we have a session, check role in session storage
+          const userRole = sessionStorage.getItem('user_role_set');
+          if (userRole === 'admin') {
+            navigate('/admin/dashboard', { replace: true });
+          } else if (userRole === 'client') {
+            navigate('/client/dashboard', { replace: true });
+          } else {
+            // Default to admin dashboard if no role found
+            navigate('/admin/dashboard', { replace: true });
+          }
         }
       }
-    }, 5000); // Extend to 5 seconds to allow for slow connections
+    }, 3000); // Use 3 seconds as safety timeout
     
     return () => clearTimeout(safetyTimeout);
   }, [isLoading, navigate, isAuthPage, session, setIsLoading]);
