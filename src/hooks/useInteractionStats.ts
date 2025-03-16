@@ -9,6 +9,7 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       const now = new Date();
       let startDate = new Date();
 
+      // Calculate the start date based on the selected time range
       switch (timeRange) {
         case "1d":
           startDate.setDate(now.getDate() - 1);
@@ -20,7 +21,8 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
           startDate.setFullYear(now.getFullYear() - 1);
           break;
         default:
-          startDate = new Date(0);
+          // For "all", set a very old date
+          startDate = new Date(0); // January 1, 1970
       }
 
       // Get interactions for the selected time period
@@ -43,10 +45,12 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       if (clientsError) throw clientsError;
       
       const totalClientCount = allClients?.length ?? 0;
-      const avgInteractions = totalClientCount ? Math.round(totalInteractions / totalClientCount) : 0;
+      const avgInteractions = totalClientCount > 0 ? Math.round(totalInteractions / totalClientCount) : 0;
 
-      // Get previous period interactions for comparison
+      // Calculate previous period for comparison
+      // For example, if timeRange is 1 month, previous period is the month before that
       const previousStartDate = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()));
+      
       const { data: previousInteractions, error: prevError } = await supabase
         .from("client_activities")
         .select("*")
@@ -57,8 +61,11 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       if (prevError) throw prevError;
 
       const prevTotalInteractions = previousInteractions?.length ?? 0;
-      const prevAvgInteractions = totalClientCount ? Math.round(prevTotalInteractions / totalClientCount) : 0;
+      
+      // Calculate average interactions for previous period
+      const prevAvgInteractions = totalClientCount > 0 ? Math.round(prevTotalInteractions / totalClientCount) : 0;
 
+      // Calculate percentage change, handling edge cases (like division by zero)
       const avgInteractionsChange = prevAvgInteractions === 0
         ? avgInteractions > 0 ? 100 : 0
         : ((avgInteractions - prevAvgInteractions) / prevAvgInteractions * 100);
@@ -67,6 +74,9 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
         avgInteractions,
         avgInteractionsChange: avgInteractionsChange.toFixed(1),
         totalInteractions,
+        // Adding previous period data for potential future UI enhancements
+        prevTotalInteractions,
+        prevAvgInteractions,
       };
     },
     staleTime: 30000, // Data stays fresh for 30 seconds
