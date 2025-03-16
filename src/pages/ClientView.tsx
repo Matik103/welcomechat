@@ -1,4 +1,3 @@
-
 import { ArrowLeft, Loader2, Info } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -99,9 +98,17 @@ const ClientView = () => {
         return;
       }
       
-      // Extract the migrated count
-      const migratedCount = Array.isArray(data) && data.length > 0 ? 
-        data[0].migrated_count : 0;
+      // Extract the migrated count - fix the TypeScript error by properly handling the response
+      let migratedCount = 0;
+      
+      if (Array.isArray(data) && data.length > 0) {
+        // If data is an array and has at least one item
+        const firstRow = data[0];
+        // Check if the first row is an object with migrated_count property
+        if (typeof firstRow === 'object' && firstRow !== null && 'migrated_count' in firstRow) {
+          migratedCount = Number(firstRow.migrated_count);
+        }
+      }
       
       if (migratedCount > 0) {
         toast.success(`Migrated ${migratedCount} records for ${client.agent_name}`);
