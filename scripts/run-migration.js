@@ -2,6 +2,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
 // Function to run SQL file against Supabase database
 function runMigration(sqlFilePath) {
@@ -10,7 +11,10 @@ function runMigration(sqlFilePath) {
     process.exit(1);
   }
 
-  const dbUrl = process.env.SUPABASE_DB_URL;
+  // Try to get DB URL from different possible environment variables
+  const dbUrl = process.env.SUPABASE_DB_URL || 
+                process.env.DATABASE_URL || 
+                process.env.DB_URL;
   
   if (!dbUrl) {
     console.error('SUPABASE_DB_URL environment variable not set!');
@@ -21,7 +25,6 @@ function runMigration(sqlFilePath) {
 
   try {
     console.log(`Running migration: ${path.basename(sqlFilePath)}`);
-    const sql = fs.readFileSync(sqlFilePath, 'utf8');
     
     // Using psql to run the SQL
     const command = `psql "${dbUrl}" -f "${sqlFilePath}"`;
@@ -36,3 +39,4 @@ function runMigration(sqlFilePath) {
 
 // Run the fix migration
 runMigration(path.join(__dirname, '../supabase/migrations/20240911_fix_ai_agents_migration.sql'));
+console.log("Migration process complete. Check the Supabase Dashboard to verify the data has been properly linked.");
