@@ -33,6 +33,8 @@ function App() {
   // Clear callback processed flag when not on callback page
   useEffect(() => {
     if (!isAuthCallback) {
+      // Only clear the processed flag, not the processing flag
+      // This ensures we don't interfere with an ongoing auth process
       sessionStorage.removeItem('auth_callback_processed');
     }
   }, [isAuthCallback]);
@@ -41,7 +43,12 @@ function App() {
   if (isLoading || isAuthCallback) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+          <p className="text-sm text-muted-foreground">
+            {isAuthCallback ? "Completing authentication..." : "Loading..."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -67,7 +74,10 @@ function App() {
   if (!userRole) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+          <p className="text-sm text-muted-foreground">Loading user profile...</p>
+        </div>
       </div>
     );
   }
