@@ -90,7 +90,15 @@ export const useClientDashboard = (clientId: string | undefined) => {
         console.log("Getting agent stats using dedicated function");
         const statsData = await getAgentDashboardStats(clientId, agentName);
         if (statsData) {
-          setStats(statsData);
+          // Make sure we're dealing with a proper InteractionStats object
+          const typedStatsData = typeof statsData === 'object' ? statsData as InteractionStats : {
+            total_interactions: 0,
+            active_days: 0,
+            average_response_time: 0,
+            top_queries: []
+          };
+          
+          setStats(typedStatsData);
           setAuthError(false);
           setIsLoadingStats(false);
           setIsRefreshing(false);
@@ -115,7 +123,16 @@ export const useClientDashboard = (clientId: string | undefined) => {
         // Use the agent name from the client record
         console.log("Using agent name from client record:", clientData.agent_name);
         const statsData = await getAgentDashboardStats(clientId, clientData.agent_name);
-        setStats(statsData);
+        
+        // Make sure we're dealing with a proper InteractionStats object
+        const typedStatsData = typeof statsData === 'object' ? statsData as InteractionStats : {
+          total_interactions: 0,
+          active_days: 0,
+          average_response_time: 0,
+          top_queries: []
+        };
+        
+        setStats(typedStatsData);
         setAuthError(false);
       } else {
         throw new Error("No agent name found for this client");

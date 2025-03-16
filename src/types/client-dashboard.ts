@@ -12,12 +12,15 @@ export interface ErrorLog {
   message: string;
   created_at: string;
   status: string;
-  client_id: string;
+  client_id?: string;
+  query_text?: string;
 }
 
 export interface QueryItem {
   id: string;
   query_text: string;
   frequency: number;
-  last_asked: string;
+  last_asked?: string;
+  client_id?: string;
+  created_at?: string;
 }
