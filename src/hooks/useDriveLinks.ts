@@ -67,123 +67,13 @@ export function useDriveLinks(clientId: string | undefined) {
     }
   };
 
+  // Simplified checkDriveLinkAccess that doesn't use Google OAuth
   const checkDriveLinkAccess = async (link: string): Promise<AccessStatus> => {
     try {
-      const fileId = extractDriveFileId(link);
-      console.log("Extracted file ID:", fileId);
-      
-      // Build the unauthenticated access check URL
-      const accessCheckUrl = `https://drive.google.com/uc?id=${fileId}`;
-      console.log("Checking access with URL:", accessCheckUrl);
-      
-      let accessStatus: AccessStatus = "unknown";
-      
-      try {
-        // Attempt to fetch the resource without authentication
-        const response = await fetch(accessCheckUrl, {
-          method: 'HEAD',
-          headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml',
-            'User-Agent': 'Mozilla/5.0' // Simple user agent to look like a regular browser
-          },
-          redirect: 'manual', // Important: don't follow redirects automatically
-          cache: 'no-cache'
-        });
-
-        console.log("Drive link access check response status:", response.status);
-        
-        // Check the response status
-        if (response.status === 200) {
-          // 200 OK means public access is granted
-          accessStatus = "public";
-        } else if (response.status === 302 || response.status === 303) {
-          // Check where the redirect is pointing
-          const location = response.headers.get('location');
-          console.log("Redirect location:", location);
-          
-          if (location && (
-              location.includes('accounts.google.com/signin') || 
-              location.includes('accounts.google.com/ServiceLogin') ||
-              location.includes('accounts.google.com/v3/signin') ||
-              location.includes('accounts.google.com/AccountChooser') ||
-              location.includes('accounts.google.com')
-          )) {
-            // Redirecting to Google login means restricted access
-            accessStatus = "restricted";
-          } else if (location && location.includes('drive.google.com/file/d/')) {
-            // It might be redirecting to the file viewer, try a secondary check
-            try {
-              const secondResponse = await fetch(location, {
-                method: 'HEAD',
-                headers: {
-                  'Accept': 'text/html,application/xhtml+xml,application/xml',
-                  'User-Agent': 'Mozilla/5.0'
-                },
-                redirect: 'manual'
-              });
-              
-              if (secondResponse.status === 200) {
-                accessStatus = "public";
-              } else if (secondResponse.status === 302 || secondResponse.status === 303) {
-                const secondLocation = secondResponse.headers.get('location');
-                if (secondLocation && secondLocation.includes('accounts.google.com')) {
-                  accessStatus = "restricted";
-                }
-              }
-            } catch (secondFetchError) {
-              console.log("Second fetch error:", secondFetchError);
-            }
-          }
-        } else if (response.status === 401 || response.status === 403) {
-          // Explicit permission denied
-          accessStatus = "restricted";
-        }
-      } catch (fetchError) {
-        console.log("Fetch error during access check:", fetchError);
-        // If there's a network error, default to unknown rather than failing
-        accessStatus = "unknown";
-      }
-      
-      // Special handling for folders, which may need a different check
-      if (link.includes('drive.google.com/drive/folders/') && accessStatus === "unknown") {
-        try {
-          // For folders, try to access the folder URL directly
-          const folderResponse = await fetch(link, {
-            method: 'HEAD',
-            headers: {
-              'Accept': 'text/html,application/xhtml+xml,application/xml',
-              'User-Agent': 'Mozilla/5.0'
-            },
-            redirect: 'manual'
-          });
-          
-          if (folderResponse.status === 200) {
-            accessStatus = "public";
-          } else if (folderResponse.status === 302 || folderResponse.status === 303) {
-            const location = folderResponse.headers.get('location');
-            if (location && location.includes('accounts.google.com')) {
-              accessStatus = "restricted";
-            }
-          }
-        } catch (folderFetchError) {
-          console.log("Folder fetch error:", folderFetchError);
-        }
-      }
-      
-      console.log("Final access status determined:", accessStatus);
-      return accessStatus;
+      // Since we've removed OAuth, we'll just set access status to unknown
+      return "unknown";
     } catch (error: any) {
       console.error("Drive access check error:", error);
-      
-      if (clientId) {
-        await supabase.from("error_logs").insert({
-          client_id: clientId,
-          error_type: "drive_link_access",
-          message: error.message,
-          status: "error"
-        });
-      }
-      
       return "unknown";
     }
   };
@@ -197,22 +87,8 @@ export function useDriveLinks(clientId: string | undefined) {
     console.log("Adding drive link with client ID:", clientId);
     console.log("Input data:", input);
     
-    // Check the access status of the drive link
-    let accessStatus: AccessStatus;
-    try {
-      accessStatus = await checkDriveLinkAccess(input.link);
-      console.log("Drive link access status:", accessStatus);
-      
-      if (accessStatus === "restricted") {
-        toast.warning("This Google Drive link has restricted access. The AI agent will not be able to access this content.", {
-          duration: 5000,
-          description: "Please change sharing settings to 'Anyone with the link' in Google Drive."
-        });
-      }
-    } catch (error) {
-      console.error("Drive link access check failed:", error);
-      accessStatus = "unknown";
-    }
+    // Set default access status to unknown since we can't check anymore
+    const accessStatus: AccessStatus = "unknown";
     
     // Insert the drive link with access status
     try {
@@ -282,14 +158,7 @@ export function useDriveLinks(clientId: string | undefined) {
     onSuccess: (data) => {
       console.log("Drive link added successfully:", data);
       queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
-      
-      if (data.access_status === "public") {
-        toast.success("Drive link added successfully - Public access detected");
-      } else if (data.access_status === "restricted") {
-        toast.warning("Drive link added with restricted access - AI may not be able to access all content");
-      } else {
-        toast.success("Drive link added successfully");
-      }
+      toast.success("Drive link added successfully");
     },
     onError: (error: Error) => {
       console.error("Drive link mutation error:", error);

@@ -64,4 +64,3 @@ verify_jwt = false
 
 [functions.get_client_agent_names]
 verify_jwt = false
-
