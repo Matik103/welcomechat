@@ -1,4 +1,3 @@
-
 import { useMutation } from "@tanstack/react-query";
 import { ClientFormData } from "@/types/client";
 import { 
@@ -70,8 +69,6 @@ export const useClientMutation = (id: string | undefined) => {
     onSuccess: (clientId) => {
       if (id) {
         toast.success("Client updated successfully");
-      } else {
-        toast.success("Client created successfully");
       }
     },
     onError: (error: any) => {
