@@ -3492,6 +3492,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      migrate_all_agent_tables_to_ai_agents: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       migrate_chatbot_to_ai_agents: {
         Args: {
           source_table_name: string
