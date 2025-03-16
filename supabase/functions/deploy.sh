@@ -29,4 +29,8 @@ supabase functions deploy execute_sql --no-verify-jwt
 echo "Deploying get_client_agent_data function..."
 supabase functions deploy get_client_agent_data --no-verify-jwt
 
+# Deploy get_client_agent_names function (for n8n integration)
+echo "Deploying get_client_agent_names function..."
+supabase functions deploy get_client_agent_names --no-verify-jwt
+
 echo "Deployment complete!" 

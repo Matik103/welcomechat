@@ -38,6 +38,72 @@ export const getAgentDataByClientAndName = async (
 };
 
 /**
+ * Get all AI agents for a specific client
+ * This is useful for n8n when selecting which agent to query
+ */
+export const getAgentsByClientId = async (
+  clientId: string,
+  limit: number = 100
+) => {
+  try {
+    console.log(`Querying all agent data for client: ${clientId}`);
+    
+    // Use the specialized function for all client agents
+    const { data, error } = await supabase.rpc(
+      'match_agent_client' as any, 
+      { 
+        client_id_param: clientId,
+        limit_param: limit
+      }
+    );
+
+    if (error) {
+      console.error("Error querying client agents:", error);
+      throw error;
+    }
+
+    console.log(`Successfully retrieved ${data?.length || 0} agent records for client`);
+    return data || [];
+    
+  } catch (err) {
+    console.error("Failed to execute client agents query:", err);
+    throw err;
+  }
+};
+
+/**
+ * Get distinct agent names for a specific client
+ * This is useful for n8n when selecting which agent to query
+ */
+export const getAgentNamesByClientId = async (
+  clientId: string
+) => {
+  try {
+    console.log(`Querying agent names for client: ${clientId}`);
+    
+    // Use the specialized function for agent names
+    const { data, error } = await supabase.rpc(
+      'get_client_agent_names' as any,
+      { 
+        client_id_param: clientId
+      }
+    );
+
+    if (error) {
+      console.error("Error querying agent names:", error);
+      throw error;
+    }
+
+    console.log(`Successfully retrieved ${data?.length || 0} agent names`);
+    return data || [];
+    
+  } catch (err) {
+    console.error("Failed to execute agent names query:", err);
+    throw err;
+  }
+};
+
+/**
  * Helper to generate the exact SQL query for n8n to use directly
  * This creates an SQL template that can be copied into n8n PostgreSQL nodes
  */
@@ -54,12 +120,16 @@ SELECT * FROM match_client_agent_data(
   ${limit}             -- limit
 );
 
--- Alternatively, you can use this direct query if you prefer:
--- SELECT *
--- FROM ai_agents
--- WHERE client_id = '${clientId}'::uuid AND name = '${agentName}'
--- ORDER BY created_at DESC
--- LIMIT ${limit};
+-- Alternatively, query all agents for a client:
+-- SELECT * FROM match_agent_client(
+--   '${clientId}'::uuid, -- client_id
+--   ${limit}             -- limit
+-- );
+
+-- Get just the agent names for a client:
+-- SELECT * FROM get_client_agent_names(
+--   '${clientId}'::uuid  -- client_id
+-- );
   `.trim();
 };
 
