@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -33,7 +32,7 @@ export const useAuthInitialize = ({
 
     const initializeAuth = async () => {
       // Skip init if already initialized or handling callback
-      if (authInitialized && !isCallbackUrl) return;
+      if (authInitialized || isCallbackUrl) return;
       
       try {
         console.log("Initializing auth state");
@@ -73,20 +72,19 @@ export const useAuthInitialize = ({
                                !location.pathname.startsWith('/client/') && 
                                location.pathname !== '/auth';
           
-          if (!isCallbackUrl && (isAuthPage || isRootPage || isOldAdminPage)) {
+          if (isAuthPage || isRootPage || isOldAdminPage) {
             // Get the appropriate dashboard route
             const dashboardRoute = getDashboardRoute(determinedUserRole);
             
             // Navigate to the appropriate dashboard
             navigate(dashboardRoute, { replace: true });
-            setTimeout(() => {
-              setIsLoading(false);
-              setAuthInitialized(true);
-            }, 300);
-          } else {
-            setIsLoading(false);
-            setAuthInitialized(true);
           }
+          
+          // Set initialized first, then clear loading state to prevent flicker
+          setAuthInitialized(true);
+          setTimeout(() => {
+            if (mounted) setIsLoading(false);
+          }, 300);
         } else {
           console.log("No active session found during init");
           setSession(null);
@@ -97,13 +95,13 @@ export const useAuthInitialize = ({
           const isAuthPage = location.pathname === '/auth';
           const isSetupPage = location.pathname.startsWith('/client/setup');
               
-          if (!isAuthPage && !isCallbackUrl && !isSetupPage) {
+          if (!isAuthPage && !isSetupPage) {
             console.log("No session, redirecting to auth page in init");
             navigate('/auth', { replace: true });
           }
           
-          setIsLoading(false);
           setAuthInitialized(true);
+          setIsLoading(false);
         }
       } catch (error) {
         console.error("Error in initializeAuth:", error);
@@ -111,15 +109,15 @@ export const useAuthInitialize = ({
           setSession(null);
           setUser(null);
           setUserRole(null);
-          setIsLoading(false);
           setAuthInitialized(true);
+          setIsLoading(false);
           sessionStorage.removeItem('user_role_set');
           
           // Redirect to auth page on error
           const isAuthPage = location.pathname === '/auth';
           const isSetupPage = location.pathname.startsWith('/client/setup');
           
-          if (!isAuthPage && !isCallbackUrl && !isSetupPage) {
+          if (!isAuthPage && !isSetupPage) {
             navigate('/auth', { replace: true });
           }
         }
