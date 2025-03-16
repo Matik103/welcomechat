@@ -15,7 +15,7 @@ export const getAgentDataByClientAndName = async (
     
     // Use the specialized function for precise querying
     const { data, error } = await supabase.rpc(
-      'match_client_agent_data',
+      'match_client_agent_data' as any, // Type assertion needed until DB types are updated
       { 
         client_id_param: clientId,
         agent_name_param: agentName,
@@ -72,7 +72,7 @@ export const getAgentDashboardStats = async (
 ) => {
   try {
     const { data, error } = await supabase.rpc(
-      'get_agent_dashboard_stats',
+      'get_agent_dashboard_stats' as any, // Type assertion needed until DB types are updated
       { 
         client_id_param: clientId,
         agent_name_param: agentName
