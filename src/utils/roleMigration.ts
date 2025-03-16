@@ -9,13 +9,13 @@ import { checkAndRefreshAuth } from "@/services/authService";
  * Migrates existing admin users to the user_roles table
  * This is a one-time migration utility
  */
-export const migrateExistingAdmins = async (): Promise<{ success: boolean, count: number }> => {
+export const migrateExistingAdmins = async (): Promise<{ success: boolean, count: number, message?: string }> => {
   try {
     // First ensure we have a valid auth session
     const isAuthValid = await checkAndRefreshAuth();
     if (!isAuthValid) {
       toast.error("Authentication error. Please sign in again.");
-      throw new Error("Authentication required. Please log in again.");
+      return { success: false, count: 0, message: "Authentication required. Please log in again." };
     }
     
     // First, check which users already have roles assigned
@@ -25,7 +25,7 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
     
     if (rolesError) {
       console.error("Error fetching existing roles:", rolesError);
-      return { success: false, count: 0 };
+      return { success: false, count: 0, message: `Error fetching existing roles: ${rolesError.message}` };
     }
     
     const usersWithRoles = new Set(existingRoles.map(r => r.user_id));
@@ -35,12 +35,12 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
     if (sessionError) {
       console.error("Error getting auth session:", sessionError);
       toast.error("Authentication error: " + sessionError.message);
-      throw new Error("Authentication required. Please log in again.");
+      return { success: false, count: 0, message: `Authentication required: ${sessionError.message}` };
     }
     
     if (!sessionData.session?.access_token) {
       toast.error("No authentication token available. Please sign in again.");
-      throw new Error("Authentication required. Please log in again.");
+      return { success: false, count: 0, message: "Authentication required. Please sign in again." };
     }
     
     // Call execute_sql Edge Function to list users
@@ -60,13 +60,13 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
       if (usersError) {
         console.error("Error fetching users:", usersError);
         toast.error("Failed to access user data: " + usersError.message);
-        throw new Error(`Failed to fetch users: ${usersError.message}`);
+        return { success: false, count: 0, message: `Failed to fetch users: ${usersError.message}` };
       }
       
       if (!usersData || !usersData.result || !Array.isArray(usersData.result)) {
         console.error("Unexpected response format:", usersData);
         toast.error("Unexpected data format received from server");
-        return { success: false, count: 0 };
+        return { success: false, count: 0, message: "Unexpected response format from server" };
       }
       
       let migratedCount = 0;
@@ -118,29 +118,29 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
     } catch (innerError) {
       console.error("Error calling Edge Function:", innerError);
       toast.error("Failed to fetch users: " + (innerError.message || "Network error"));
-      throw new Error(`Edge Function error: ${innerError.message}`);
+      return { success: false, count: 0, message: `Edge Function error: ${innerError.message}` };
     }
   } catch (error: any) {
     console.error("Error in migrateExistingAdmins:", error);
-    throw error;
+    return { success: false, count: 0, message: error.message || "Unknown error occurred" };
   }
 };
 
 /**
  * A function to manually add an admin role to a specific user by email
  */
-export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
+export const addAdminRoleToUser = async (email: string): Promise<{ success: boolean, message?: string }> => {
   try {
     if (!email) {
       toast.error("Email is required");
-      throw new Error("Email is required");
+      return { success: false, message: "Email is required" };
     }
     
     // Ensure we have a valid auth session
     const isAuthValid = await checkAndRefreshAuth();
     if (!isAuthValid) {
       toast.error("Authentication error. Please sign in again.");
-      throw new Error("Authentication required. Please log in again.");
+      return { success: false, message: "Authentication required. Please log in again." };
     }
     
     // Get auth session for use with Edge Function
@@ -148,12 +148,12 @@ export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
     if (sessionError) {
       console.error("Error getting auth session:", sessionError);
       toast.error("Authentication error: " + sessionError.message);
-      throw new Error("Authentication required. Please log in again.");
+      return { success: false, message: "Authentication required. Please log in again." };
     }
     
     if (!sessionData.session?.access_token) {
       toast.error("No authentication token available. Please sign in again.");
-      throw new Error("Authentication required. Please log in again.");
+      return { success: false, message: "Authentication required. Please log in again." };
     }
     
     console.log(`Searching for user with email: ${email}`);
@@ -172,12 +172,12 @@ export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
       
       if (userError) {
         console.error("Error fetching user:", userError);
-        throw new Error(`Failed to fetch user: ${userError.message}`);
+        return { success: false, message: `Failed to fetch user: ${userError.message}` };
       }
       
       if (!userData || !userData.result || !Array.isArray(userData.result) || userData.result.length === 0) {
         console.error(`User with email ${email} not found`);
-        throw new Error(`User with email ${email} not found`);
+        return { success: false, message: `User with email ${email} not found` };
       }
       
       const user = userData.result[0];
@@ -192,7 +192,7 @@ export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
       
       if (existingRole) {
         console.log(`User ${email} already has admin role`);
-        return true;
+        return { success: true, message: `User ${email} already has admin role` };
       }
       
       // Add admin role
@@ -200,17 +200,16 @@ export const addAdminRoleToUser = async (email: string): Promise<boolean> => {
       
       if (success) {
         console.log(`Successfully added admin role to user ${email}`);
+        return { success: true };
       } else {
-        throw new Error(`Failed to create admin role for ${email}`);
+        return { success: false, message: `Failed to create admin role for ${email}` };
       }
-      
-      return success;
     } catch (innerError) {
       console.error("Error in Edge Function call:", innerError);
-      throw innerError;
+      return { success: false, message: `Edge Function error: ${innerError.message || "Unknown error"}` };
     }
   } catch (error: any) {
     console.error("Error in addAdminRoleToUser:", error);
-    throw error;
+    return { success: false, message: error.message || "Unknown error occurred" };
   }
 };

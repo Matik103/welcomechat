@@ -5,6 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
@@ -16,10 +17,36 @@ serve(async (req) => {
   try {
     console.log("Execute SQL function called");
     
+    // Log request headers for debugging (omitting sensitive parts)
+    console.log("Request headers present:", Object.keys(req.headers).join(", "));
+    console.log("Authorization header exists:", !!req.headers.get('Authorization'));
+    
+    if (!req.headers.get('Authorization')) {
+      console.error("No Authorization header provided");
+      return new Response(
+        JSON.stringify({ error: 'Missing Authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
     // Create a Supabase client with the service role key (required for direct SQL execution)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing environment variables:", {
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseServiceKey
+      });
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error: Missing environment variables' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      supabaseUrl,
+      supabaseServiceKey,
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
@@ -81,10 +108,21 @@ serve(async (req) => {
     console.log(`Admin verified: ${user.email}`);
 
     // Get the SQL to execute from the request
-    const requestData = await req.json();
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch (jsonError) {
+      console.error("Error parsing request JSON:", jsonError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
     const { sql } = requestData;
 
     if (!sql) {
+      console.error("Missing SQL query in request");
       return new Response(
         JSON.stringify({ error: 'Missing SQL query' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
