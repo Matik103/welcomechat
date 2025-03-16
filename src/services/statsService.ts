@@ -1,4 +1,3 @@
-
 import { InteractionStats } from "@/types/client-dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchTopQueries } from "./topQueriesService";
@@ -89,7 +88,7 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
       ? Number((totalResponseTime / responsesWithTime / 1000).toFixed(2)) 
       : 0;
 
-    // Fetch top queries
+    // Fetch top queries - this now returns objects with the correct format
     const topQueriesList = await fetchTopQueries(clientId);
 
     // Return the combined stats

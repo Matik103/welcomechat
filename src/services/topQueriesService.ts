@@ -1,11 +1,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { checkAndRefreshAuth } from "./authService";
+import { QueryItem } from "@/types/client-dashboard";
 
 /**
  * Fetches the top queries for a client
  */
-export const fetchTopQueries = async (clientId: string): Promise<string[]> => {
+export const fetchTopQueries = async (clientId: string): Promise<QueryItem[]> => {
   if (!clientId) return [];
   
   try {
@@ -17,7 +18,7 @@ export const fetchTopQueries = async (clientId: string): Promise<string[]> => {
     
     const { data, error } = await supabase
       .from("common_queries")
-      .select("query_text")
+      .select("query_text, frequency")
       .eq("client_id", clientId)
       .order("frequency", { ascending: false })
       .limit(5);
@@ -27,7 +28,12 @@ export const fetchTopQueries = async (clientId: string): Promise<string[]> => {
       return [];
     }
     
-    return data.map(q => q.query_text);
+    // Return the data directly as it already has the correct structure
+    return data.map(item => ({
+      id: `query-${item.query_text.substring(0, 10)}`,
+      query_text: item.query_text,
+      frequency: item.frequency || 1
+    }));
   } catch (err) {
     console.error("Error fetching top queries:", err);
     return [];
