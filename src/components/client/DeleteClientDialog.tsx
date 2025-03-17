@@ -50,7 +50,7 @@ export function DeleteClientDialog({
       const deletionDate = new Date();
       deletionDate.setDate(deletionDate.getDate() + 30);
 
-      // First update the client's deletion_scheduled_at in database
+      // Update the client's deletion_scheduled_at in database
       const { error: updateError } = await supabase
         .from("clients")
         .update({
@@ -60,30 +60,7 @@ export function DeleteClientDialog({
 
       if (updateError) throw updateError;
       
-      // Use the dedicated send-deletion-email function instead of the generic send-email function
-      try {
-        console.log("Sending deletion email to:", clientEmail);
-        const { data, error: emailError } = await supabase.functions.invoke("send-deletion-email", {
-          body: {
-            clientId,
-            clientName,
-            email: clientEmail,
-            agentName: "" // Optional parameter
-          },
-        });
-
-        if (emailError || (data && data.error)) {
-          console.error("Email error details:", emailError || data?.error);
-          toast.warning("Client scheduled for deletion but email notification failed to send");
-        } else {
-          toast.success("Client scheduled for deletion and notification email sent");
-        }
-      } catch (emailError) {
-        console.error("Exception sending email:", emailError);
-        toast.warning("Client scheduled for deletion but email notification failed to send");
-      }
-      
-      // Even if email fails, we still successfully scheduled deletion
+      toast.success("Client scheduled for deletion");
       onDeleted();
       onClose();
     } catch (error: any) {
@@ -101,8 +78,7 @@ export function DeleteClientDialog({
           <AlertDialogTitle>Delete Client</AlertDialogTitle>
           <AlertDialogDescription className="space-y-4">
             <p>
-              This action will schedule the client for deletion in 30 days. 
-              The client will receive an email with instructions to recover their account if needed.
+              This action will schedule the client for deletion in 30 days.
             </p>
             <p>
               Please type <strong>delete {clientName.toLowerCase()}</strong> to
