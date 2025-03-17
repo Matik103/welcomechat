@@ -55,16 +55,33 @@ export const ClientDetails = ({
         await clientMutation.mutateAsync(data);
         navigate("/admin/clients");
       } else {
-        // Create new client
-        toast.loading("Creating client and sending invitation...", { id: "client-creation" });
+        // Create new client - show loading toast
+        const toastId = "client-creation";
+        toast.loading("Creating client account...", { id: toastId });
         
         try {
-          await clientMutation.mutateAsync(data);
-          toast.dismiss("client-creation");
-          toast.success("Client created and invitation sent successfully");
+          // Create the client and attempt to send invitation
+          const result = await clientMutation.mutateAsync(data);
+          
+          // Check if result contains emailSent flag
+          if (typeof result === 'object' && 'clientId' in result) {
+            if (result.emailSent) {
+              toast.dismiss(toastId);
+              toast.success("Client created and invitation email sent successfully");
+            } else {
+              toast.dismiss(toastId);
+              toast.warning("Client created but failed to send invitation email. Please try sending it manually later.");
+            }
+          } else {
+            // Handle legacy return format (just clientId)
+            toast.dismiss(toastId);
+            toast.success("Client created successfully");
+          }
+          
+          // Navigate back to client list
           navigate("/admin/clients");
         } catch (createError) {
-          toast.dismiss("client-creation");
+          toast.dismiss(toastId);
           console.error("Error creating client:", createError);
           toast.error("Failed to create client. Please try again.");
         }
