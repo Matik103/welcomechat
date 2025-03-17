@@ -1,11 +1,13 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toast as sonnerToast } from "sonner";
 import { DriveLink, AccessStatus } from "@/types/client";
+import { useState } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 
 export function useDriveLinks(clientId: string | undefined) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   const query = useQuery({
     queryKey: ["driveLinks", clientId],
@@ -158,11 +160,11 @@ export function useDriveLinks(clientId: string | undefined) {
     onSuccess: (data) => {
       console.log("Drive link added successfully:", data);
       queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
-      toast.success("Drive link added successfully");
+      sonnerToast.success("Drive link added successfully");
     },
     onError: (error: Error) => {
       console.error("Drive link mutation error:", error);
-      toast.error(`Error adding drive link: ${error.message}`);
+      sonnerToast.error(`Error adding drive link: ${error.message}`);
     }
   });
 
@@ -171,20 +173,134 @@ export function useDriveLinks(clientId: string | undefined) {
     onSuccess: (id) => {
       console.log("Drive link deleted successfully, ID:", id);
       queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
-      toast.success("Drive link removed successfully");
+      sonnerToast.success("Drive link removed successfully");
     },
     onError: (error: Error) => {
       console.error("Drive link deletion error:", error);
-      toast.error(`Error removing drive link: ${error.message}`);
+      sonnerToast.error(`Error removing drive link: ${error.message}`);
     }
   });
+
+  const [links, setLinks] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLinks = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('google_drive_links')
+        .select('link')
+        .eq('client_id', clientId);
+
+      if (error) throw error;
+      setLinks(data.map(item => item.link));
+    } catch (err) {
+      setError(err.message);
+      toast({
+        title: "Error fetching links",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addLink = async (link: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Validate URL format
+      new URL(link);
+
+      // Call the validate-urls function
+      const { data: validationResult, error: validationError } = await supabase.functions.invoke('validate-urls', {
+        body: { url: link, type: 'drive' }
+      });
+
+      if (validationError) throw validationError;
+
+      if (!validationResult.isAccessible) {
+        // Show warning but still allow adding the link
+        toast({
+          title: "Google Drive Accessibility Warning",
+          description: `The Google Drive link might have accessibility issues: ${validationResult.error || 'Unknown error'}
+            Please ensure the file or folder is shared with the correct permissions:
+            1. Right-click the file/folder in Google Drive
+            2. Click "Share"
+            3. Click "Change to anyone with the link"
+            4. Set access to "Viewer" or "Commenter"
+            5. Click "Done"`,
+          variant: "default"
+        });
+      }
+
+      const { error: insertError } = await supabase
+        .from('google_drive_links')
+        .insert([{ client_id: clientId, link }]);
+
+      if (insertError) throw insertError;
+
+      setLinks([...links, link]);
+      toast({
+        title: "Link Added",
+        description: "The Google Drive link has been added successfully.",
+      });
+    } catch (err) {
+      setError(err.message);
+      toast({
+        title: "Error adding link",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteLink = async (link: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase
+        .from('google_drive_links')
+        .delete()
+        .eq('client_id', clientId)
+        .eq('link', link);
+
+      if (error) throw error;
+
+      setLinks(links.filter(l => l !== link));
+      toast({
+        title: "Link Deleted",
+        description: "The Google Drive link has been removed successfully.",
+      });
+    } catch (err) {
+      setError(err.message);
+      toast({
+        title: "Error deleting link",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return {
     driveLinks: query.data || [],
     refetchDriveLinks: query.refetch,
     addDriveLinkMutation,
     deleteDriveLinkMutation,
-    isLoading: query.isLoading,
-    isError: query.isError
+    queryLoading: query.isLoading,
+    isError: query.isError,
+    links,
+    isLoading,
+    error,
+    fetchLinks,
+    addLink,
+    deleteLink
   };
 }
