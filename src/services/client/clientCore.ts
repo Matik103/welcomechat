@@ -3,54 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 
 /**
- * Checks and refreshes token if needed
- */
-async function ensureValidToken() {
-  try {
-    // Check the current session
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      console.error("Session error:", error);
-      throw error;
-    }
-    
-    if (!session) {
-      console.error("No session found");
-      throw new Error("Authentication required");
-    }
-    
-    // If session is about to expire (within 5 minutes), refresh it
-    const expiresAt = session.expires_at;
-    const isExpiringSoon = expiresAt && (expiresAt * 1000 - Date.now() < 300000); // 5 minutes
-    
-    if (isExpiringSoon) {
-      console.log("Token expiring soon, refreshing...");
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      
-      if (refreshError) {
-        console.error("Failed to refresh token:", refreshError);
-        throw refreshError;
-      }
-      
-      console.log("Token refreshed successfully");
-    }
-    
-    return session.access_token;
-  } catch (err) {
-    console.error("Token validation failed:", err);
-    throw new Error("Authentication failed, please sign in again");
-  }
-}
-
-/**
  * Fetches a single client by ID
  */
 export const getClientById = async (id: string): Promise<Client | null> => {
   if (!id) return null;
-  
-  await ensureValidToken();
-  
   const { data, error } = await supabase
     .from("clients")
     .select("*")
@@ -64,8 +20,6 @@ export const getClientById = async (id: string): Promise<Client | null> => {
  * Updates an existing client
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
-  await ensureValidToken();
-  
   const { error } = await supabase
     .from("clients")
     .update({
@@ -84,8 +38,6 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
  */
 export const logClientUpdateActivity = async (id: string): Promise<void> => {
   try {
-    await ensureValidToken();
-    
     const user = await supabase.auth.getUser();
     const isClientUser = user.data.user?.user_metadata?.client_id === id;
     if (isClientUser) {
@@ -107,9 +59,6 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
 export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
-    
-    // Ensure token is valid before proceeding
-    await ensureValidToken();
 
     // Ensure agent_name is properly formatted (sanitized)
     const sanitizedAgentName = data.agent_name

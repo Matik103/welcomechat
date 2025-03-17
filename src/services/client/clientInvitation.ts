@@ -1,47 +1,5 @@
 
 import { generateTempPassword } from './passwordUtils';
-import { supabase } from "@/integrations/supabase/client";
-
-/**
- * Ensures the auth token is valid before making requests
- */
-async function ensureValidToken() {
-  try {
-    // Check the current session
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      console.error("Session error:", error);
-      throw error;
-    }
-    
-    if (!session) {
-      console.error("No session found");
-      throw new Error("Authentication required");
-    }
-    
-    // If session is about to expire (within 5 minutes), refresh it
-    const expiresAt = session.expires_at;
-    const isExpiringSoon = expiresAt && (expiresAt * 1000 - Date.now() < 300000); // 5 minutes
-    
-    if (isExpiringSoon) {
-      console.log("Token expiring soon, refreshing...");
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      
-      if (refreshError) {
-        console.error("Failed to refresh token:", refreshError);
-        throw refreshError;
-      }
-      
-      console.log("Token refreshed successfully");
-    }
-    
-    return session.access_token;
-  } catch (err) {
-    console.error("Token validation failed:", err);
-    throw new Error("Authentication failed, please sign in again");
-  }
-}
 
 /**
  * Sends an invitation email to a new client
@@ -60,36 +18,44 @@ export const sendClientInvitationEmail = async (params: {
   try {
     console.log("Creating client auth user account...");
     
-    // Ensure we have a valid token before proceeding
-    const accessToken = await ensureValidToken();
+    // Get the session token
+    const sessionResponse = await supabase.auth.getSession();
+    const accessToken = sessionResponse.data.session?.access_token;
     
     if (!accessToken) {
       throw new Error("No auth session found - please log in again");
     }
     
-    console.log("Invoking create-client-user function");
-    const { data: userData, error: userError } = await supabase.functions.invoke('create-client-user', {
+    // Call the edge function using the proper URL construction
+    const createUserResponse = await fetch(`${window.location.origin}/api/create-client-user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`
       },
-      body: {
+      body: JSON.stringify({
         email: email,
         password: tempPassword,
         client_id: clientId,
         client_name: clientName,
         agent_name: agentName
-      }
+      })
     });
     
     // Check if the response is valid
-    if (userError) {
-      console.error("Error creating user account:", userError);
-      throw new Error(`Failed to create user account: ${userError.message || userError}`);
+    if (!createUserResponse.ok) {
+      let errorMessage = '';
+      try {
+        const errorData = await createUserResponse.json();
+        errorMessage = errorData.error || createUserResponse.statusText;
+      } catch (parseError) {
+        // If response is not JSON, use status text
+        errorMessage = `Status ${createUserResponse.status}: ${createUserResponse.statusText}`;
+      }
+      throw new Error(`Failed to create user account: ${errorMessage}`);
     }
     
-    console.log("Created auth user for client successfully:", userData);
+    console.log("Created auth user for client successfully");
     
     // Then send the welcome email
     console.log("Preparing to send welcome email...");
@@ -131,38 +97,64 @@ export const sendClientInvitationEmail = async (params: {
     
     console.log("Sending invitation email...");
     
-    // Re-fetch the token to ensure it's still valid
-    const emailToken = await ensureValidToken();
+    // Use fetch for send-email function to avoid CORS issues
+    const emailResponse = await fetch(`${window.location.origin}/api/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        to: email,
+        subject: emailSubject,
+        html: emailHtml,
+        from: "Welcome.Chat <admin@welcome.chat>"
+      })
+    });
     
-    // Call the send-email function with proper error handling for JSON responses
-    try {
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${emailToken}`
-        },
-        body: {
-          to: email,
-          subject: emailSubject,
-          html: emailHtml,
-          from: "Welcome.Chat <admin@welcome.chat>"
-        }
-      });
+    // Handle email response
+    if (!emailResponse.ok) {
+      let errorMessage = '';
+      const contentType = emailResponse.headers.get('content-type');
       
-      if (emailError) {
-        console.error("Email sending failed:", emailError);
-        throw new Error(`Failed to send invitation email: ${emailError.message || emailError}`);
+      try {
+        // Try to parse as JSON first
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await emailResponse.json();
+          errorMessage = errorData.error || errorData.message || emailResponse.statusText;
+        } else {
+          // If not JSON, get text content
+          const textContent = await emailResponse.text();
+          // Truncate text if too long
+          errorMessage = textContent.length > 100 
+            ? `${textContent.substring(0, 100)}... (non-JSON response)` 
+            : textContent;
+        }
+      } catch (parseError) {
+        // If parsing fails, use status
+        errorMessage = `Status ${emailResponse.status}: ${emailResponse.statusText}`;
       }
       
-      console.log("Invitation email sent successfully:", emailData);
-      return;
-    } catch (sendError) {
-      console.error("Error in email sending request:", sendError);
-      throw new Error(`Failed to send email: ${sendError.message}`);
+      console.error("Email sending failed:", errorMessage);
+      throw new Error(`Failed to send invitation email: ${errorMessage}`);
     }
+    
+    // Parse successful response
+    let emailResult;
+    try {
+      emailResult = await emailResponse.json();
+      console.log("Invitation email response:", emailResult);
+    } catch (parseError) {
+      // Consider this a success if the response was OK but not JSON
+      console.log("Could not parse email response as JSON, but request was successful");
+    }
+    
+    return;
   } catch (error: any) {
     console.error("Error sending invitation:", error);
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
+
+// Import supabase at the top
+import { supabase } from "@/integrations/supabase/client";
