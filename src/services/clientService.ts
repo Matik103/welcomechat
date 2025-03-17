@@ -167,13 +167,25 @@ export const sendClientInvitationEmail = async (params: {
       })
     });
     
+    // Check if the raw response is valid before parsing as JSON
+    const createUserResponseText = await createUserResponse.text();
+    let createUserResponseData;
+    
+    try {
+      if (createUserResponseText.trim()) {
+        createUserResponseData = JSON.parse(createUserResponseText);
+      }
+    } catch (jsonError) {
+      console.error("Could not parse create-user response as JSON:", jsonError);
+      console.log("Raw create-user response:", createUserResponseText);
+      // Continue despite parsing error
+    }
+    
     if (!createUserResponse.ok) {
       let errorMsg = "Failed to create user account";
-      try {
-        const errorData = await createUserResponse.json();
-        errorMsg = `${errorMsg}: ${errorData.error || createUserResponse.statusText}`;
-      } catch (jsonError) {
-        // If we can't parse the JSON, use the status text
+      if (createUserResponseData?.error) {
+        errorMsg = `${errorMsg}: ${createUserResponseData.error}`;
+      } else {
         errorMsg = `${errorMsg}: ${createUserResponse.status} ${createUserResponse.statusText}`;
       }
       throw new Error(errorMsg);
@@ -186,15 +198,15 @@ export const sendClientInvitationEmail = async (params: {
     const loginUrl = `${window.location.origin}/client/auth`;
     
     // Prepare email content with agent name
-    const emailSubject = `Welcome to Welcome.Chat - ${agentName} AI Assistant Setup`;
+    const emailSubject = `Welcome to ${agentName} Assistant!`;
     
     const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <h1 style="color: #4a5568; text-align: center;">Welcome to Welcome.Chat!</h1>
+      <h1 style="color: #4a5568; text-align: center;">Welcome to ${agentName} Assistant!</h1>
       
       <p>Hello ${clientName},</p>
       
-      <p>You have been invited to create your account for Welcome.Chat. Your AI assistant "${agentName}" has been set up and is ready for you to configure.</p>
+      <p>You have been invited to create your account for ${agentName} Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
       
       <p><strong>Your temporary password is: ${tempPassword}</strong></p>
       
@@ -215,7 +227,7 @@ export const sendClientInvitationEmail = async (params: {
       
       <p>If you didn't expect this invitation, you can safely ignore this email.</p>
       
-      <p>Best regards,<br>The Welcome.Chat Team</p>
+      <p>Best regards,<br>The ${agentName} Assistant Team</p>
     </div>
     `;
     
@@ -232,24 +244,33 @@ export const sendClientInvitationEmail = async (params: {
         to: [email], // Make sure to is an array as expected by Resend API
         subject: emailSubject,
         html: emailHtml,
-        from: "Welcome.Chat <onboarding@resend.dev>" // Updated to use the Resend domain
+        from: "Welcome.Chat <admin@welcome.chat>" // Use the requested from address
       })
     });
     
+    // Get the raw response text before trying to parse as JSON
+    const responseText = await emailResponse.text();
+    console.log("Raw email API response:", responseText);
+    
+    // Try to parse as JSON if possible
+    let emailResponseData;
+    try {
+      if (responseText.trim()) {
+        emailResponseData = JSON.parse(responseText);
+      }
+    } catch (parseError) {
+      console.warn("Could not parse email response as JSON:", parseError);
+      // Continue despite parsing error since we already have the text response
+    }
+    
     // Check if the response is OK
     if (!emailResponse.ok) {
-      // Get the raw response content before trying to parse as JSON
-      const responseText = await emailResponse.text();
-      console.error("Raw email API response:", responseText);
-      
       let errorMessage = "Failed to send invitation email";
       
-      // Try to parse as JSON if possible
-      try {
-        const errorData = JSON.parse(responseText);
-        errorMessage = `${errorMessage}: ${errorData.error || emailResponse.statusText}`;
-      } catch (parseError) {
-        // If not JSON, include part of the raw response
+      if (emailResponseData?.error) {
+        errorMessage = `${errorMessage}: ${emailResponseData.error}`;
+      } else {
+        // If no parsed error data, include part of the raw response
         const truncatedResponse = responseText.substring(0, 100) + (responseText.length > 100 ? '...' : '');
         errorMessage = `${errorMessage}: Non-JSON response (${emailResponse.status}): ${truncatedResponse}`;
       }
@@ -257,28 +278,7 @@ export const sendClientInvitationEmail = async (params: {
       throw new Error(errorMessage);
     }
     
-    // Parse successful response
-    try {
-      const responseText = await emailResponse.text();
-      
-      // Only try to parse as JSON if there's actual content
-      if (responseText.trim()) {
-        try {
-          const emailResponseJson = JSON.parse(responseText);
-          console.log("Invitation email response:", emailResponseJson);
-        } catch (parseError) {
-          console.warn("Could not parse email response as JSON:", parseError);
-          console.log("Raw response text:", responseText);
-          // This is not a critical error if the status was ok
-        }
-      } else {
-        console.log("Email response was empty but status OK");
-      }
-    } catch (readError) {
-      console.warn("Error reading response body:", readError);
-      // This is not a critical error if the status was ok
-    }
-    
+    console.log("Invitation email sent successfully");
     return;
   } catch (error: any) {
     console.error("Error sending invitation:", error);

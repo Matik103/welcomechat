@@ -57,6 +57,7 @@ export const useClientMutation = (id: string | undefined) => {
             console.error("Failed to send invitation email:", emailError);
             errorMessage = emailError.message || "Unknown email sending error";
             // Continue with client creation even if email fails
+            toast.warning(`Client created but couldn't send invitation email. The client can still access their account with the credentials you provide them manually.`);
           }
         } catch (error: any) {
           console.error("Error in client creation process:", error);
@@ -66,7 +67,6 @@ export const useClientMutation = (id: string | undefined) => {
         if (!emailSent && errorMessage) {
           // If client was created but email failed, still return client ID but with error info
           console.log(`Client created but email failed: ${errorMessage}`);
-          toast.warning(`Client created but couldn't send invitation email. The client can still access their account with the credentials you provide them manually.`);
         }
         
         return {

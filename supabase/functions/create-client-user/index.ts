@@ -23,6 +23,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SERVICE_ROLE_KEY") as string;
     
     if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing environment variables for Supabase client");
       throw new Error("Missing environment variables for Supabase client");
     }
     
@@ -56,6 +57,11 @@ serve(async (req) => {
     const { email, password, client_id, client_name, agent_name } = body;
     
     if (!email || !password || !client_id) {
+      console.error("Missing required fields:", { 
+        hasEmail: !!email, 
+        hasPassword: !!password, 
+        hasClientId: !!client_id 
+      });
       return new Response(
         JSON.stringify({ error: "Email, password, and client_id are required" }),
         { 
