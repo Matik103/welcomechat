@@ -67,13 +67,16 @@ const ClientAuth = () => {
       reactivateAccount();
     }
     
-    // Ensure client users are directed to client dashboard, not admin dashboard
+    // Based on user role, redirect to the appropriate dashboard
     if (userRole === 'client') {
+      console.log("Redirecting client to client dashboard");
       return <Navigate to="/client/dashboard" replace />;
     } else if (userRole === 'admin') {
-      return <Navigate to="/admin/dashboard"replace />;
+      console.log("Redirecting admin to admin dashboard");
+      return <Navigate to="/admin/dashboard" replace />;
     } else {
       // If role is not determined yet, wait for it
+      console.log("User role not yet determined, showing loading");
       return (
         <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
