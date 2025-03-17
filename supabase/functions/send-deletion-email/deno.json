@@ -1,0 +1,17 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --watch index.ts",
+    "deploy": "deployctl deploy --project=welcomechat --prod index.ts"
+  },
+  "imports": {
+    "http/": "https://deno.land/std@0.208.0/http/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3",
+    "resend": "npm:resend@2.1.0"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window", "deno.ns", "esnext"],
+    "strict": true,
+    "noImplicitAny": true
+  }
+} 
