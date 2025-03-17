@@ -224,7 +224,7 @@ export const sendClientInvitationEmail = async (params: {
         to: email,
         subject: emailSubject,
         html: emailHtml,
-        from: "Welcome.Chat <admin@welcome.chat>"
+        from: "Welcome.Chat <onboarding@resend.dev>" // Updated to use the Resend domain
       })
     });
     
@@ -233,7 +233,9 @@ export const sendClientInvitationEmail = async (params: {
       throw new Error(`Failed to send invitation email: ${errorData.error || emailResponse.statusText}`);
     }
     
-    console.log("Invitation email sent successfully");
+    const emailResponseJson = await emailResponse.json();
+    console.log("Invitation email response:", emailResponseJson);
+    
     return;
   } catch (error: any) {
     console.error("Error sending invitation:", error);

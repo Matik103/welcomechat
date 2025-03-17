@@ -34,17 +34,18 @@ serve(async (req) => {
       throw new Error("Resend API key not configured");
     }
     
-    console.log("Initializing Resend client");
+    console.log("Initializing Resend client with API key length:", resendApiKey.length);
     const resend = new Resend(resendApiKey);
     
     // Parse request body
     let body: EmailRequest;
     try {
       body = await req.json();
-      console.log("Request body parsed:", { 
+      console.log("Request body parsed successfully:", { 
         to: body.to, 
         subject: body.subject,
-        fromProvided: !!body.from 
+        fromProvided: !!body.from,
+        htmlLength: body.html?.length || 0
       });
     } catch (e) {
       console.error("Error parsing JSON:", e);
@@ -72,32 +73,37 @@ serve(async (req) => {
     
     // Send the email
     const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
-    console.log(`Sending email to ${to} from ${fromAddress} with subject "${subject}"`);
+    console.log(`Attempting to send email to ${to} from ${fromAddress} with subject "${subject}"`);
     
-    const { data, error } = await resend.emails.send({
-      from: fromAddress,
-      to: to,
-      subject: subject,
-      html: html
-    });
-    
-    if (error) {
-      console.error("Error from Resend API:", error);
-      throw error;
-    }
-    
-    console.log("Email sent successfully:", data);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        data: data
-      }), 
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+    try {
+      const { data, error } = await resend.emails.send({
+        from: fromAddress,
+        to: [to],
+        subject: subject,
+        html: html
+      });
+      
+      if (error) {
+        console.error("Error from Resend API:", error);
+        throw error;
       }
-    );
+      
+      console.log("Email sent successfully:", data);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          data: data
+        }), 
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    } catch (sendError) {
+      console.error("Resend API error details:", sendError);
+      throw new Error(`Resend API error: ${sendError.message || "Unknown error"}`);
+    }
   } catch (error: any) {
     console.error("Error in send-email function:", error);
     
