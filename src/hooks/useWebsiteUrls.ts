@@ -36,7 +36,10 @@ export function useWebsiteUrls(clientId: string | undefined) {
     setValidationError(null);
     try {
       // Validate URL format
-      new URL(url);
+      const urlObj = new URL(url);
+      
+      // Determine URL type
+      const type = urlObj.hostname.includes('drive.google.com') ? 'google_drive' : 'website';
 
       // Get the current session
       const session = await supabase.auth.getSession();
@@ -46,7 +49,7 @@ export function useWebsiteUrls(clientId: string | undefined) {
 
       // Call the validate-urls function
       const { data: validationResult, error: validationError } = await supabase.functions.invoke('validate-urls', {
-        body: { url, type: 'website' },
+        body: { url, type },
         headers: {
           Authorization: `Bearer ${session.data.session.access_token}`
         }
@@ -57,10 +60,10 @@ export function useWebsiteUrls(clientId: string | undefined) {
       if (!validationResult.isAccessible) {
         // Show warning but still allow adding the URL
         toast.warning(
-          `The website might have accessibility issues: ${validationResult.error || 'Unknown error'}. 
-          ${validationResult.details?.robotsTxtAllows === false ? 'The website\'s robots.txt disallows crawling.' : ''}
-          ${validationResult.details?.isSecure === false ? 'The website is not using HTTPS.' : ''}
-          Please ensure the website is properly configured for crawling.`
+          `The ${type === 'google_drive' ? 'Google Drive file' : 'website'} might have accessibility issues: ${validationResult.error || 'Unknown error'}. 
+          ${type === 'website' && validationResult.details?.robotsTxtAllows === false ? 'The website\'s robots.txt disallows crawling.' : ''}
+          ${type === 'website' && validationResult.details?.isSecure === false ? 'The website is not using HTTPS.' : ''}
+          Please ensure the ${type === 'google_drive' ? 'file is properly shared and accessible' : 'website is properly configured for crawling'}.`
         );
       }
 
