@@ -133,7 +133,8 @@ serve(async (req) => {
           client_name,
           agent_name,
           user_type: "client"
-        }
+        },
+        email_confirm_sent: false // Disable automatic confirmation email
       });
       
       if (createError) {
