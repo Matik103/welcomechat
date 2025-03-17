@@ -78,6 +78,8 @@ function App() {
     );
   }
 
+  console.log("Rendering with user role:", userRole);
+
   // Admin view with admin routes
   if (userRole === 'admin') {
     return (

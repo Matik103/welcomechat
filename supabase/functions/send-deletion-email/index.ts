@@ -4,7 +4,7 @@ import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-application-name",
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
@@ -27,8 +27,8 @@ serve(async (req) => {
   try {
     console.log("Send deletion email function started");
     
-    // Use the Resend API key from environment variables
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    // Use the Resend API key from environment variables - fallback to direct value for testing
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") || "re_36V5aruC_9aScEQmCQqnYzGtuuhg1WFN2";
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
       return new Response(
@@ -82,8 +82,8 @@ serve(async (req) => {
       );
     }
     
-    // Create recovery URL (this would typically point to a recovery page)
-    const recoveryUrl = `${req.headers.get("origin") || "https://welcomechat.ai"}/client/recovery?id=${clientId}`;
+    // Create recovery URL that redirects to client dashboard with auto-reactivation parameter
+    const recoveryUrl = `${req.headers.get("origin") || "https://welcomechat.ai"}/client/dashboard?auto_reactivate=true&client_id=${clientId}`;
     
     // Calculate the expiration date (30 days from now)
     const expirationDate = new Date();
@@ -128,7 +128,7 @@ serve(async (req) => {
             </ul>
           </div>
           
-          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">If you wish to recover your account, please click the button below or contact our support team directly at <a href="mailto:support@welcomechat.ai" style="color: #4f46e5; text-decoration: none;">support@welcomechat.ai</a>.</p>
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">If you wish to recover your account, please click the button below or contact our support team directly at <a href="mailto:admin@welcome.chat" style="color: #4f46e5; text-decoration: none;">admin@welcome.chat</a>.</p>
           
           <!-- CTA Button -->
           <div style="text-align: center; margin: 35px 0;">

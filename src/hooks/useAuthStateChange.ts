@@ -67,21 +67,19 @@ export const useAuthStateChange = ({
             determinedUserRole = 'admin';
             setUserRole('admin');
             sessionStorage.setItem('user_role_set', 'admin');
-          } else if (storedRole && (storedRole === 'admin' || storedRole === 'client')) {
-            setUserRole(storedRole as UserRole);
-            determinedUserRole = storedRole as UserRole;
           } else {
-            // Determine role from database
+            // Determine role from database - always check for client record first
             determinedUserRole = await determineUserRole(currentSession.user);
             setUserRole(determinedUserRole);
             sessionStorage.setItem('user_role_set', determinedUserRole);
           }
           
           // Only redirect if we're on the auth page
-          const isAuthPage = location.pathname === '/auth';
+          const isAuthPage = location.pathname === '/auth' || location.pathname === '/';
           if (isAuthPage) {
             // Get the appropriate dashboard route
             const dashboardRoute = getDashboardRoute(determinedUserRole);
+            console.log("Redirecting to dashboard:", dashboardRoute);
             
             navigate(dashboardRoute, { replace: true });
           }

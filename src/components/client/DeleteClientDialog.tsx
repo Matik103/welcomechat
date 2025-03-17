@@ -63,22 +63,21 @@ export function DeleteClientDialog({
       // Send deletion email notification
       try {
         console.log("Sending deletion email to:", clientEmail);
-        const { data, error: emailError } = await supabase.functions.invoke("send-deletion-email", {
+        const response = await supabase.functions.invoke("send-deletion-email", {
           body: {
             clientId,
             clientName,
             email: clientEmail,
-            agentName: "" // Optional parameter
           },
         });
-
-        console.log("Email function response:", data);
         
-        if (emailError) {
-          console.error("Email error details:", emailError);
+        console.log("Email function response:", response.data);
+        
+        if (response.error) {
+          console.error("Email error details:", response.error);
           toast.warning("Client scheduled for deletion but email notification failed to send");
-        } else if (data && data.error) {
-          console.error("Email function error:", data.error);
+        } else if (response.data && response.data.error) {
+          console.error("Email function error:", response.data.error);
           toast.warning("Client scheduled for deletion but email notification failed to send");
         } else {
           toast.success("Client scheduled for deletion and notification email sent");
