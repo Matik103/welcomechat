@@ -224,7 +224,7 @@ export const sendClientInvitationEmail = async (params: {
         to: email,
         subject: emailSubject,
         html: emailHtml,
-        from: "Welcome.Chat <onboarding@resend.dev>" // Updated to use the Resend domain
+        from: "Welcome.Chat <admin@welcome.chat>"  // Updated to use admin@welcome.chat
       })
     });
     
