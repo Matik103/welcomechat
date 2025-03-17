@@ -116,6 +116,28 @@ serve(async (req) => {
       console.warn("Error creating user role:", roleError);
     }
     
+    // Create AI agent entry for this client
+    try {
+      const { error: agentError } = await supabase
+        .from("ai_agents")
+        .insert([{
+          client_id: client_id,
+          name: agent_name,
+          settings: {
+            client_name: client_name,
+            created_at: new Date().toISOString()
+          }
+        }]);
+      
+      if (agentError) {
+        console.warn("Could not create AI agent entry:", agentError.message);
+        // Continue despite error
+      }
+    } catch (agentError) {
+      console.warn("Error creating AI agent:", agentError);
+      // Continue despite error
+    }
+    
     return new Response(
       JSON.stringify({ 
         success: true,

@@ -32,32 +32,38 @@ export const useClientMutation = (id: string | undefined) => {
         return clientId;
       } else {
         // Create new client
-        const newClientId = await createClient(updatedData);
-        
-        // Track client creation outcome
+        let clientId;
         let emailSent = false;
-        let emailError = null;
+        let errorMessage = null;
         
-        // Send invitation email - but don't let email failure prevent client creation
         try {
-          await sendClientInvitationEmail({
-            clientId: newClientId,
-            clientName: data.client_name,
-            email: data.email,
-            agentName: finalAgentName
-          });
+          // Step 1: Create the client record first
+          clientId = await createClient(updatedData);
           
-          emailSent = true;
+          // Step 2: Try to send the invitation email
+          try {
+            await sendClientInvitationEmail({
+              clientId: clientId,
+              clientName: data.client_name,
+              email: data.email,
+              agentName: finalAgentName
+            });
+            
+            emailSent = true;
+          } catch (emailError: any) {
+            console.error("Failed to send invitation email:", emailError);
+            errorMessage = emailError.message;
+            // Continue with client creation even if email fails
+          }
         } catch (error: any) {
-          console.error("Failed to send invitation email:", error);
-          emailError = error.message || "Unknown error";
-          // Continue with client creation even if email fails
+          console.error("Error in client creation process:", error);
+          throw error; // Rethrow to trigger the mutation's error handling
         }
         
         return {
-          clientId: newClientId,
+          clientId,
           emailSent,
-          emailError
+          errorMessage
         };
       }
     }

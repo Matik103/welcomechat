@@ -71,7 +71,7 @@ export const ClientDetails = ({
             } else {
               toast.dismiss(toastId);
               // Show a more detailed error message if we have one
-              const errorDetail = result.emailError ? `: ${result.emailError}` : "";
+              const errorDetail = result.errorMessage ? `: ${result.errorMessage}` : "";
               toast.warning(`Client created but failed to send invitation email${errorDetail}. Please try sending it manually later.`);
             }
             
@@ -83,10 +83,10 @@ export const ClientDetails = ({
             toast.success("Client created successfully");
             navigate("/admin/clients");
           }
-        } catch (createError) {
+        } catch (createError: any) {
           toast.dismiss(toastId);
           console.error("Error creating client:", createError);
-          toast.error("Failed to create client. Please try again.");
+          toast.error(`Failed to create client: ${createError.message}`);
         }
       }
     } catch (error) {
