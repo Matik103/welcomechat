@@ -40,7 +40,7 @@ serve(async (req) => {
       );
     }
     
-    console.log("Initializing Resend client with API key length:", resendApiKey.length);
+    console.log("Initializing Resend client with API key");
     const resend = new Resend(resendApiKey);
     
     // Parse request body
@@ -83,14 +83,19 @@ serve(async (req) => {
       );
     }
     
+    // Ensure to is always an array
+    const toArray = Array.isArray(to) ? to : [to];
+    
     // Send the email
     const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
-    console.log(`Attempting to send email to ${Array.isArray(to) ? to.join(', ') : to} from ${fromAddress} with subject "${subject}"`);
+    console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
     
     try {
+      console.log("Sending email with Resend API...");
+      
       const { data, error } = await resend.emails.send({
         from: fromAddress,
-        to: Array.isArray(to) ? to : [to], // Ensure to is always an array
+        to: toArray,
         subject: subject,
         html: html
       });
