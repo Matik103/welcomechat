@@ -5,8 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 interface UrlCheckResult {
   isAccessible: boolean;
   hasScrapingRestrictions: boolean;
+  canScrape?: boolean;
   statusCode?: number;
   contentType?: string;
+  robotsRestrictions?: string[];
+  metaRestrictions?: string[];
   error?: string;
 }
 
@@ -50,6 +53,7 @@ export function useUrlAccessCheck() {
           const fallbackResult: UrlCheckResult = {
             isAccessible: true,
             hasScrapingRestrictions: false,
+            canScrape: true,
             statusCode: 200,
             error: "URL format is valid, but full accessibility check failed. The URL was added without complete validation."
           };
@@ -61,6 +65,7 @@ export function useUrlAccessCheck() {
           const invalidUrlResult: UrlCheckResult = {
             isAccessible: false,
             hasScrapingRestrictions: true,
+            canScrape: false,
             error: "Invalid URL format"
           };
           setLastResult(invalidUrlResult);
@@ -71,7 +76,8 @@ export function useUrlAccessCheck() {
       console.error("Error in URL access check:", error);
       const result = { 
         isAccessible: false, 
-        hasScrapingRestrictions: true, 
+        hasScrapingRestrictions: true,
+        canScrape: false,
         error: error instanceof Error ? error.message : "Unknown error" 
       };
       setLastResult(result);
