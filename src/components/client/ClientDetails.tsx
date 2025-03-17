@@ -70,16 +70,19 @@ export const ClientDetails = ({
               toast.success("Client created and invitation email sent successfully");
             } else {
               toast.dismiss(toastId);
-              toast.warning("Client created but failed to send invitation email. Please try sending it manually later.");
+              // Show a more detailed error message if we have one
+              const errorDetail = result.emailError ? `: ${result.emailError}` : "";
+              toast.warning(`Client created but failed to send invitation email${errorDetail}. Please try sending it manually later.`);
             }
+            
+            // Navigate back to client list regardless of email status
+            navigate("/admin/clients");
           } else {
             // Handle legacy return format (just clientId)
             toast.dismiss(toastId);
             toast.success("Client created successfully");
+            navigate("/admin/clients");
           }
-          
-          // Navigate back to client list
-          navigate("/admin/clients");
         } catch (createError) {
           toast.dismiss(toastId);
           console.error("Error creating client:", createError);
