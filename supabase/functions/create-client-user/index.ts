@@ -81,18 +81,28 @@ serve(async (req) => {
     const existingUser = existingUsers?.find(u => u.email === email);
     console.log("Existing user check result:", existingUser ? "Found" : "Not found");
     
+    // Generate a secure temporary password that meets Supabase requirements
+    const generateSecurePassword = () => {
+      const year = new Date().getFullYear();
+      const randomDigits = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      return `Welcome${year}#${randomDigits}`;
+    };
+
     let userId: string;
-    let userPassword: string | undefined;
+    let userPassword: string;
+    const tempPassword = generateSecurePassword();
+    console.log("Generated temporary password");
     
-    // If user exists, update their metadata
+    // If user exists, update their metadata and password
     if (existingUser) {
-      console.log("User already exists, updating metadata:", email);
+      console.log("User already exists, updating metadata and password:", email);
       userId = existingUser.id;
       
-      // Update user metadata
+      // Update user metadata and password
       const { error: updateError } = await supabase.auth.admin.updateUserById(
         userId,
         {
+          password: tempPassword,
           user_metadata: { 
             client_id,
             client_name,
@@ -103,22 +113,15 @@ serve(async (req) => {
       );
       
       if (updateError) {
-        console.error("Failed to update user metadata:", updateError);
-        throw new Error(`Failed to update user metadata: ${updateError.message}`);
+        console.error("Failed to update user:", updateError);
+        throw new Error(`Failed to update user: ${updateError.message}`);
       }
+
+      userPassword = tempPassword;
+      console.log("User updated successfully with new password");
     } else {
       // Create a new user with Supabase's built-in user management
       console.log("Creating new user:", email);
-      
-      // Generate a secure temporary password that meets Supabase requirements
-      const generateSecurePassword = () => {
-        const year = new Date().getFullYear();
-        const randomDigits = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        return `Welcome${year}#${randomDigits}`;
-      };
-      
-      const tempPassword = generateSecurePassword();
-      console.log("Generated temporary password for new user");
       
       // Create user with admin API to ensure proper auth setup
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
@@ -144,9 +147,8 @@ serve(async (req) => {
       }
       
       userId = newUser.user.id;
-      console.log("User created successfully with ID:", userId);
       userPassword = tempPassword;
-      console.log("Temporary password stored for response");
+      console.log("User created successfully with ID:", userId);
     }
     
     // Create client role for this user
