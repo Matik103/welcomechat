@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { WebsiteUrl } from "@/types/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
@@ -61,11 +61,6 @@ export const WebsiteUrls = ({
         return false;
       }
       
-      if (result.hasScrapingRestrictions) {
-        setError("This website has crawling restrictions in its robots.txt file. Your AI agent may have limited access to its content.");
-        // Still allow it but with a warning
-      }
-      
       setIsValidated(true);
       return true;
     } catch (e) {
@@ -112,6 +107,59 @@ export const WebsiteUrls = ({
       console.error("Error deleting URL:", error);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // Function to render scrapability details
+  const renderScrapabilityInfo = () => {
+    if (!lastResult || !isValidated) return null;
+    
+    // Display different info based on scrapability
+    if (lastResult.canScrape === false) {
+      return (
+        <Alert variant="warning" className="bg-amber-50 border-amber-200 mt-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800">Scraping Restrictions Detected</AlertTitle>
+          <AlertDescription className="text-amber-700">
+            <p>This website has restrictions that may limit scraping:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              {lastResult.robotsRestrictions?.map((restriction, i) => (
+                <li key={`robot-${i}`}>{restriction}</li>
+              ))}
+              {lastResult.metaRestrictions?.map((restriction, i) => (
+                <li key={`meta-${i}`}>{restriction}</li>
+              ))}
+              {!lastResult.robotsRestrictions?.length && !lastResult.metaRestrictions?.length && 
+                <li>General restrictions detected</li>
+              }
+            </ul>
+            <p className="mt-2">
+              Your AI agent may have limited access to this website's content.
+            </p>
+          </AlertDescription>
+        </Alert>
+      );
+    } else if (lastResult.hasScrapingRestrictions) {
+      return (
+        <Alert variant="warning" className="bg-amber-50 border-amber-200 mt-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800">Partial Scraping Restrictions</AlertTitle>
+          <AlertDescription className="text-amber-700">
+            This website has some scraping restrictions in its robots.txt file, but 
+            your AI agent should still be able to access most content.
+          </AlertDescription>
+        </Alert>
+      );
+    } else {
+      return (
+        <Alert variant="success" className="bg-green-50 border-green-200 mt-2">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">Fully Scrapable</AlertTitle>
+          <AlertDescription className="text-green-700">
+            This website is accessible and can be scraped without restrictions.
+          </AlertDescription>
+        </Alert>
+      );
     }
   };
 
@@ -162,7 +210,7 @@ export const WebsiteUrls = ({
               </Alert>
             )}
             
-            {isValidated && !error && (
+            {isValidated && !error && lastResult && (
               <Alert variant="success" className="bg-green-50 border-green-200">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                 <AlertTitle className="text-green-800">URL Validated</AlertTitle>
@@ -171,6 +219,8 @@ export const WebsiteUrls = ({
                 </AlertDescription>
               </Alert>
             )}
+            
+            {renderScrapabilityInfo()}
             
             <div className="space-y-2">
               <Label htmlFor="website-url">Website URL</Label>

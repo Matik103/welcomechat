@@ -11,6 +11,9 @@ interface URLAccessResponse {
   hasScrapingRestrictions: boolean;
   statusCode?: number;
   contentType?: string;
+  robotsRestrictions?: string[];
+  metaRestrictions?: string[];
+  canScrape: boolean;
   error?: string;
 }
 
@@ -37,7 +40,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           isAccessible: false, 
-          hasScrapingRestrictions: true, 
+          hasScrapingRestrictions: true,
+          canScrape: false,
           error: 'Invalid URL format' 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -66,9 +70,12 @@ serve(async (req) => {
         console.log(`Response status: ${statusCode}, Content-Type: ${contentType}`);
 
         if (response.ok) {
-          // Check robots.txt with proper error handling
+          // Check for restrictions that might affect scrapability
           let hasScrapingRestrictions = false;
+          const robotsRestrictions: string[] = [];
+          const metaRestrictions: string[] = [];
           
+          // Check robots.txt
           try {
             const urlObj = new URL(url);
             const robotsUrl = `${urlObj.protocol}//${urlObj.hostname}/robots.txt`;
@@ -82,19 +89,61 @@ serve(async (req) => {
 
             if (robotsResponse.ok) {
               const robotsText = await robotsResponse.text();
-              hasScrapingRestrictions = robotsText.toLowerCase().includes('disallow: /');
+              
+              // Check for generic disallow rules
+              if (robotsText.toLowerCase().includes('disallow: /')) {
+                hasScrapingRestrictions = true;
+                robotsRestrictions.push('Site has crawling restrictions in robots.txt');
+              }
+              
+              // Check for specific bot restrictions
+              const botSpecificLines = robotsText.split('\n').filter(line => 
+                line.toLowerCase().includes('user-agent:') && 
+                line.toLowerCase().includes('bot')
+              );
+              
+              if (botSpecificLines.length > 0) {
+                robotsRestrictions.push('Site has bot-specific rules in robots.txt');
+              }
+              
               console.log(`Robots.txt found, has restrictions: ${hasScrapingRestrictions}`);
             }
           } catch (robotsError) {
             console.error('Error checking robots.txt:', robotsError);
             // If we can't check robots.txt, assume no restrictions but log the error
           }
+          
+          // Check for meta tags that might restrict scraping
+          try {
+            if (contentType.includes('text/html')) {
+              const pageText = await response.text();
+              
+              // Check for noindex, nofollow meta tags
+              if (pageText.toLowerCase().includes('name="robots" content="noindex') || 
+                  pageText.toLowerCase().includes('name="robots" content="none') ||
+                  pageText.toLowerCase().includes('name="robots" content="nofollow')) {
+                hasScrapingRestrictions = true;
+                metaRestrictions.push('Page has noindex or nofollow meta tags');
+              }
+              
+              // Check for other potential scraping obstacles
+              if (pageText.toLowerCase().includes('captcha') || 
+                  pageText.toLowerCase().includes('recaptcha')) {
+                metaRestrictions.push('Page might use CAPTCHA which could hinder scraping');
+              }
+            }
+          } catch (metaError) {
+            console.error('Error checking meta tags:', metaError);
+          }
 
           const result: URLAccessResponse = {
             isAccessible: true,
             hasScrapingRestrictions,
+            robotsRestrictions: robotsRestrictions.length > 0 ? robotsRestrictions : undefined,
+            metaRestrictions: metaRestrictions.length > 0 ? metaRestrictions : undefined,
             statusCode,
-            contentType
+            contentType,
+            canScrape: !hasScrapingRestrictions && metaRestrictions.length === 0
           };
 
           return new Response(
@@ -120,7 +169,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         isAccessible: false, 
-        hasScrapingRestrictions: true, 
+        hasScrapingRestrictions: true,
+        canScrape: false,
         error: `Failed to access URL after ${maxRetries} attempts. Last error: ${lastError}` 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -131,7 +181,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         isAccessible: false, 
-        hasScrapingRestrictions: true, 
+        hasScrapingRestrictions: true,
+        canScrape: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
