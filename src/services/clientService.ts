@@ -143,13 +143,20 @@ export const sendClientInvitationEmail = async (params: {
   try {
     console.log("Creating client auth user account...");
     
-    // Call the edge function without the x-application-name header
-    const functionUrl = `${supabase.functions.url}/create-client-user`;
-    const response = await fetch(functionUrl, {
+    // Get the session token
+    const sessionResponse = await supabase.auth.getSession();
+    const accessToken = sessionResponse.data.session?.access_token;
+    
+    if (!accessToken) {
+      throw new Error("No auth session found - please log in again");
+    }
+    
+    // Call the edge function using the proper URL construction
+    const createUserResponse = await fetch(`${window.location.origin}/api/create-client-user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
         email: email,
@@ -160,9 +167,9 @@ export const sendClientInvitationEmail = async (params: {
       })
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to create user account: ${errorData.error || response.statusText}`);
+    if (!createUserResponse.ok) {
+      const errorData = await createUserResponse.json();
+      throw new Error(`Failed to create user account: ${errorData.error || createUserResponse.statusText}`);
     }
     
     console.log("Created auth user for client successfully");
@@ -206,13 +213,12 @@ export const sendClientInvitationEmail = async (params: {
     `;
     
     console.log("Sending invitation email...");
-    // Use fetch for send-email function too to avoid CORS issues
-    const emailFunctionUrl = `${supabase.functions.url}/send-email`;
-    const emailResponse = await fetch(emailFunctionUrl, {
+    // Use fetch for send-email function to avoid CORS issues
+    const emailResponse = await fetch(`${window.location.origin}/api/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
         to: email,
