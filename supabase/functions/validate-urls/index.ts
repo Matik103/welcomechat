@@ -171,52 +171,65 @@ async function validateGoogleDriveUrl(url: string): Promise<ValidationResult> {
       return result;
     }
 
-    // Extract file ID
-    let fileId = '';
+    // Extract resource ID and type
+    let resourceId = '';
+    let resourceType = 'file';
+    
     if (url.includes('/file/d/')) {
-      fileId = url.split('/file/d/')[1].split('/')[0];
+      resourceId = url.split('/file/d/')[1].split('/')[0];
+      resourceType = 'file';
+    } else if (url.includes('/folders/')) {
+      resourceId = url.split('/folders/')[1].split('/')[0];
+      resourceType = 'folder';
     } else if (url.includes('id=')) {
-      fileId = new URLSearchParams(urlObj.search).get('id') || '';
+      resourceId = new URLSearchParams(urlObj.search).get('id') || '';
+      resourceType = url.includes('/folders/') ? 'folder' : 'file';
     }
 
-    if (!fileId) {
+    if (!resourceId) {
       result.isAccessible = false;
-      result.error = 'Could not extract file ID from URL';
+      result.error = 'Could not extract resource ID from URL';
       return result;
     }
 
-    // Check if file is accessible
+    // Check if resource is accessible
     try {
-      const response = await fetch(`https://drive.google.com/uc?export=view&id=${fileId}`, {
+      const response = await fetch(`https://drive.google.com/uc?export=view&id=${resourceId}`, {
         method: 'HEAD',
+        headers: {
+          'User-Agent': 'Welcome.chat URL Validator',
+          'Accept': '*/*',
+        },
       });
 
       result.details.contentType = response.headers.get('content-type') || undefined;
 
       if (!response.ok) {
         result.isAccessible = false;
-        result.error = `File is not accessible (status ${response.status})`;
+        result.error = `${resourceType === 'folder' ? 'Folder' : 'File'} is not accessible (status ${response.status})`;
         return result;
       }
 
-      // Check if content type is supported
-      const supportedTypes = [
-        'application/pdf',
-        'text/plain',
-        'text/html',
-        'text/csv',
-        'application/vnd.openxmlformats-officedocument',
-        'application/vnd.google-apps',
-      ];
+      // For files, check if content type is supported
+      if (resourceType === 'file') {
+        const supportedTypes = [
+          'application/pdf',
+          'text/plain',
+          'text/html',
+          'text/csv',
+          'application/vnd.openxmlformats-officedocument',
+          'application/vnd.google-apps',
+        ];
 
-      const contentType = result.details.contentType || '';
-      if (!supportedTypes.some(type => contentType.includes(type))) {
-        result.isAccessible = false;
-        result.error = 'Unsupported file type';
+        const contentType = result.details.contentType || '';
+        if (!supportedTypes.some(type => contentType.includes(type))) {
+          result.isAccessible = false;
+          result.error = 'Unsupported file type';
+        }
       }
     } catch (fetchError) {
       result.isAccessible = false;
-      result.error = fetchError instanceof Error ? fetchError.message : 'Failed to check file accessibility';
+      result.error = fetchError instanceof Error ? fetchError.message : 'Failed to check resource accessibility';
     }
 
     return result;
