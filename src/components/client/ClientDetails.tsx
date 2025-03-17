@@ -53,12 +53,10 @@ export const ClientDetails = ({
       } else if (clientId) {
         // Admin updating client
         await clientMutation.mutateAsync(data);
-        toast.success("Client information updated successfully");
         navigate("/admin/clients");
       } else {
         // Create new client
-        const newClientId = await clientMutation.mutateAsync(data);
-        toast.success("Client created successfully");
+        await clientMutation.mutateAsync(data);
         navigate("/admin/clients");
       }
     } catch (error) {
