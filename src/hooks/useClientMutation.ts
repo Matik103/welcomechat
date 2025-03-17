@@ -6,7 +6,7 @@ import {
   createClient,
   logClientUpdateActivity,
   sendClientInvitationEmail
-} from "@/services/clientService";
+} from "@/services/client";
 import { toast } from "sonner";
 
 export const useClientMutation = (id: string | undefined) => {
