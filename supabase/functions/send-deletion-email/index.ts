@@ -153,7 +153,7 @@ serve(async (req) => {
     
     // Send the email
     try {
-      console.log("Sending deletion email to:", email);
+      console.log("Attempting to send email via Resend to:", email);
       
       const { data, error } = await resend.emails.send({
         from: "Welcome.Chat <admin@welcome.chat>",
