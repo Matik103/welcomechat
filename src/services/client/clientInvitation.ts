@@ -1,6 +1,7 @@
 
 import { generateTempPassword } from './passwordUtils';
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /**
  * Sends an invitation email to a new client
@@ -10,11 +11,14 @@ export const sendClientInvitationEmail = async (params: {
   clientName: string, 
   email: string,
   agentName: string
-}): Promise<void> => {
+}): Promise<{ success: boolean, emailSent: boolean, error?: string }> => {
   const { clientId, clientName, email, agentName } = params;
   
   // Generate a secure temporary password
   const tempPassword = generateTempPassword();
+  let userCreated = false;
+  let emailSent = false;
+  let errorMessage = '';
   
   try {
     console.log("Creating client auth user account...");
@@ -33,18 +37,23 @@ export const sendClientInvitationEmail = async (params: {
     // Enhanced error handling for user creation
     if (createUserError) {
       console.error("Error creating client user:", createUserError);
-      throw new Error(`Failed to create user account: ${createUserError.message}`);
+      errorMessage = `Failed to create user account: ${createUserError.message}`;
+      // If error already happened here, we'll return early
+      return { success: false, emailSent: false, error: errorMessage };
     }
     
     // Check if the response data contains an error
     if (createUserData && createUserData.error) {
       console.error("Error response from create-client-user:", createUserData.error);
-      throw new Error(`Failed to create user account: ${createUserData.error}`);
+      errorMessage = `Failed to create user account: ${createUserData.error}`;
+      // If error already happened here, we'll return early
+      return { success: false, emailSent: false, error: errorMessage };
     }
     
     console.log("Created auth user for client successfully");
+    userCreated = true;
     
-    // Then send the welcome email
+    // Then try to send the welcome email
     console.log("Preparing to send welcome email...");
     const loginUrl = `${window.location.origin}/client/auth`;
     
@@ -98,27 +107,38 @@ export const sendClientInvitationEmail = async (params: {
       // Check if there was an error
       if (emailError) {
         console.error("Error sending invitation email:", emailError);
-        throw new Error(`Failed to send invitation email: ${emailError.message}`);
+        errorMessage = `Failed to send invitation email: ${emailError.message}`;
+        // Continue with account creation even if email fails
       }
       
       // Check if the response data contains an error
-      if (emailData && emailData.error) {
+      else if (emailData && emailData.error) {
         console.error("Error response from send-email:", emailData.error);
-        throw new Error(`Failed to send invitation email: ${emailData.error}`);
+        errorMessage = `Failed to send invitation email: ${emailData.error}`;
+        // Continue with account creation even if email fails
       }
-      
-      console.log("Invitation email sent successfully:", emailData);
-    } catch (emailSendError) {
-      // Continue with account creation even if email fails, but throw with detailed error
+      else {
+        console.log("Invitation email sent successfully:", emailData);
+        emailSent = true;
+      }
+    } catch (emailSendError: any) {
+      // Continue with account creation even if email fails, but track error
       console.error("Email sending failed:", emailSendError);
-      
-      // Return object with success status for account creation but failed email
-      throw new Error(`Email sending failed: ${emailSendError.message}`);
+      errorMessage = `Email sending failed: ${emailSendError.message || "Unknown error"}`;
     }
     
-    return;
+    // Even if email fails, we still created the user account
+    return { 
+      success: userCreated, 
+      emailSent,
+      error: errorMessage || undefined 
+    };
   } catch (error: any) {
     console.error("Error sending invitation:", error);
-    throw new Error(`Failed to send invitation: ${error.message}`);
+    return { 
+      success: userCreated, 
+      emailSent,
+      error: `Error during client invitation: ${error.message}` 
+    };
   }
 };

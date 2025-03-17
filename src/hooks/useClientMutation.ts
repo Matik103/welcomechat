@@ -42,14 +42,21 @@ export const useClientMutation = (id: string | undefined) => {
           
           // Step 2: Try to send the invitation email
           try {
-            await sendClientInvitationEmail({
+            const inviteResult = await sendClientInvitationEmail({
               clientId: clientId,
               clientName: data.client_name,
               email: data.email,
               agentName: finalAgentName
             });
             
-            emailSent = true;
+            emailSent = inviteResult.emailSent;
+            errorMessage = inviteResult.error;
+            
+            if (!inviteResult.success && !inviteResult.emailSent) {
+              console.error("Failed to create user account:", inviteResult.error);
+            } else if (!inviteResult.emailSent && inviteResult.error) {
+              console.warn("Client account created but email failed:", inviteResult.error);
+            }
           } catch (emailError: any) {
             console.error("Failed to send invitation email:", emailError);
             errorMessage = emailError.message;

@@ -98,7 +98,10 @@ serve(async (req) => {
       if (error) {
         console.error("Error from Resend API:", error);
         return new Response(
-          JSON.stringify({ error: `Resend API error: ${error.message || JSON.stringify(error)}` }),
+          JSON.stringify({ 
+            error: `Resend API error: ${error.message || JSON.stringify(error)}`,
+            details: error
+          }),
           { 
             status: 500, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -121,7 +124,10 @@ serve(async (req) => {
     } catch (sendError) {
       console.error("Resend API error details:", sendError);
       return new Response(
-        JSON.stringify({ error: `Resend API error: ${sendError.message || "Unknown error"}` }),
+        JSON.stringify({ 
+          error: `Resend API error: ${sendError.message || "Unknown error"}`,
+          details: sendError.toString()
+        }),
         { 
           status: 500, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
