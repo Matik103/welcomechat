@@ -57,30 +57,7 @@ const ClientAuth = () => {
         throw error;
       }
       
-      // Check if this client has a scheduled deletion and cancel it
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('id, deletion_scheduled_at')
-        .eq('email', email)
-        .single();
-      
-      if (clientError) {
-        console.error("Error checking client deletion status:", clientError);
-      } else if (clientData?.deletion_scheduled_at) {
-        // Client had a scheduled deletion - cancel it
-        const { error: updateError } = await supabase
-          .from('clients')
-          .update({ deletion_scheduled_at: null })
-          .eq('id', clientData.id);
-        
-        if (updateError) {
-          console.error("Error canceling scheduled deletion:", updateError);
-        } else {
-          toast.success("Your account has been successfully reactivated!");
-        }
-      } else {
-        toast.success("Successfully signed in!");
-      }
+      toast.success("Successfully signed in!");
     } catch (error: any) {
       toast.error(error.message || "Failed to sign in");
     } finally {
