@@ -56,15 +56,15 @@ export const ClientDetails = ({
         navigate("/admin/clients");
       } else {
         // Create new client
-        toast.loading("Creating client and sending invitation...", { duration: 10000 });
+        toast.loading("Creating client and sending invitation...", { id: "client-creation" });
         
         try {
           await clientMutation.mutateAsync(data);
-          toast.dismiss();
+          toast.dismiss("client-creation");
           toast.success("Client created and invitation sent successfully");
           navigate("/admin/clients");
         } catch (createError) {
-          toast.dismiss();
+          toast.dismiss("client-creation");
           console.error("Error creating client:", createError);
           toast.error("Failed to create client. Please try again.");
         }
