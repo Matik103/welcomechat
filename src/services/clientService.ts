@@ -180,10 +180,10 @@ export const sendClientInvitationEmail = async (params: {
   
   try {
     console.log("Preparing to send welcome email...");
-    const loginUrl = `${window.location.origin}/client/auth`;
+    const loginUrl = `${window.location.origin}/client/dashboard`;
     
-    // Prepare email content with agent name
-    const emailSubject = `Welcome to ${agentName} Assistant!`;
+    // Prepare email content
+    const emailSubject = `Welcome to Welcome.Chat!`;
     
     const emailHtml = `
     <!DOCTYPE html>
@@ -196,7 +196,7 @@ export const sendClientInvitationEmail = async (params: {
       <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
         <!-- Header -->
         <div style="background-color: #4299e1; padding: 30px 40px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Welcome to ${agentName} Assistant!</h1>
+          <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Welcome to Welcome.Chat!</h1>
         </div>
         
         <!-- Content -->
@@ -219,27 +219,27 @@ export const sendClientInvitationEmail = async (params: {
           <ol style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 30px; padding-left: 20px;">
             <li style="margin-bottom: 10px;">Click the "Sign In" button below</li>
             <li style="margin-bottom: 10px;">Enter your email and temporary password exactly as shown above</li>
-            <li style="margin-bottom: 10px;">You'll be redirected to your dashboard</li>
+            <li style="margin-bottom: 10px;">You'll be taken to your client dashboard</li>
             <li style="margin-bottom: 10px;">Configure your AI assistant's settings</li>
           </ol>
           
           <!-- CTA Button -->
           <div style="text-align: center; margin: 35px 0;">
-            <a href="${loginUrl}" style="display: inline-block; background-color: #4299e1; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">Sign In to Your Account</a>
+            <a href="${loginUrl}" style="display: inline-block; background-color: #4299e1; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">Go to Dashboard</a>
           </div>
           
           <!-- Security Notice -->
           <div style="border-left: 4px solid #f6ad55; background-color: #fffaf0; padding: 15px; margin: 30px 0; color: #744210; font-size: 14px; line-height: 1.6;">
             <p style="margin: 0 0 10px;"><strong>Security Notice:</strong></p>
-            <p style="margin: 0;">This invitation will expire in 24 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
+            <p style="margin: 0;">This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
           </div>
           
-          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 30px 0 0;">Best regards,<br>The ${agentName} Assistant Team</p>
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 30px 0 0;">Best regards,<br>The Welcome.Chat Team</p>
         </div>
         
         <!-- Footer -->
         <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-          <p style="color: #718096; font-size: 14px; margin: 0;">© ${new Date().getFullYear()} ${agentName} Assistant. All rights reserved.</p>
+          <p style="color: #718096; font-size: 14px; margin: 0;">© ${new Date().getFullYear()} Welcome.Chat. All rights reserved.</p>
         </div>
       </div>
     </body>
