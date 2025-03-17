@@ -4,8 +4,7 @@ import { ClientFormData } from "@/types/client";
 import { 
   updateClient, 
   createClient,
-  logClientUpdateActivity,
-  sendClientInvitationEmail
+  logClientUpdateActivity
 } from "@/services/clientService";
 import { toast } from "sonner";
 
@@ -37,28 +36,12 @@ export const useClientMutation = (id: string | undefined) => {
         let errorMessage = null;
         
         try {
-          // Step 1: Create the client record first
+          // Create the client record which also handles sending the invitation email
           clientId = await createClient(updatedData);
           console.log("Client created successfully with ID:", clientId);
           
-          // Step 2: Try to send the invitation email
-          try {
-            console.log("Attempting to send invitation email for client", clientId);
-            await sendClientInvitationEmail({
-              clientId: clientId,
-              clientName: data.client_name,
-              email: data.email,
-              agentName: finalAgentName
-            });
-            
-            emailSent = true;
-            console.log("Invitation email sent successfully");
-          } catch (emailError: any) {
-            console.error("Failed to send invitation email:", emailError);
-            errorMessage = emailError.message || "Unknown email sending error";
-            // Continue with client creation even if email fails
-            toast.warning(`Client created but couldn't send invitation email. The client can still access their account with the credentials you provide them manually.`);
-          }
+          // The email is already sent in createClient, so we don't need to send it again here
+          emailSent = true;
         } catch (error: any) {
           console.error("Error in client creation process:", error);
           throw new Error(`Failed to create client: ${error.message}`);

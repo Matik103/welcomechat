@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -231,7 +232,7 @@ export const sendClientInvitationEmail = async (params: {
           
           <!-- CTA Button -->
           <div style="text-align: center; margin: 35px 0;">
-            <a href="${loginUrl}" style="display: inline-block; background-color: #4299e1; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">Go to Dashboard</a>
+            <a href="${loginUrl}" style="display: inline-block; background-color: #4299e1; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">Sign In</a>
           </div>
           
           <!-- Security Notice -->
@@ -285,3 +286,4 @@ export const sendClientInvitationEmail = async (params: {
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
+
