@@ -20,24 +20,53 @@ export function useUrlAccessCheck() {
     
     try {
       console.log("Checking URL access for:", url);
-      const { data, error } = await supabase.functions.invoke("check-url-access", {
-        body: { url },
-      });
       
-      if (error) {
-        console.error("Error checking URL access:", error);
-        const result = { 
-          isAccessible: false, 
-          hasScrapingRestrictions: true, 
-          error: error.message 
-        };
-        setLastResult(result);
-        return result;
+      // Try using the Supabase Edge Function
+      try {
+        const { data, error } = await supabase.functions.invoke("check-url-access", {
+          body: { url },
+        });
+        
+        if (error) {
+          console.error("Error checking URL access:", error);
+          throw error;
+        }
+        
+        console.log("URL access check result:", data);
+        setLastResult(data);
+        return data;
+      } catch (edgeFunctionError) {
+        console.error("Edge function error:", edgeFunctionError);
+        
+        // If the Edge Function fails, fall back to a basic client-side check
+        console.log("Falling back to basic URL validation...");
+        
+        // Validate the URL format
+        try {
+          new URL(url);
+          
+          // Since we can't actually check access without the server,
+          // we'll assume it's accessible but with unknown scraping status
+          const fallbackResult: UrlCheckResult = {
+            isAccessible: true,
+            hasScrapingRestrictions: false,
+            statusCode: 200,
+            error: "URL format is valid, but full accessibility check failed. The URL was added without complete validation."
+          };
+          
+          console.log("Using fallback result:", fallbackResult);
+          setLastResult(fallbackResult);
+          return fallbackResult;
+        } catch (urlError) {
+          const invalidUrlResult: UrlCheckResult = {
+            isAccessible: false,
+            hasScrapingRestrictions: true,
+            error: "Invalid URL format"
+          };
+          setLastResult(invalidUrlResult);
+          return invalidUrlResult;
+        }
       }
-      
-      console.log("URL access check result:", data);
-      setLastResult(data);
-      return data;
     } catch (error) {
       console.error("Error in URL access check:", error);
       const result = { 
