@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { extract } from "https://deno.land/x/extract@v0.0.9/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +16,29 @@ interface URLAccessResponse {
   canScrape: boolean;
   content?: string;
   error?: string;
+}
+
+// Simple HTML content extractor function
+function extractContent(html: string): string {
+  try {
+    // Remove scripts
+    let content = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ');
+    // Remove styles
+    content = content.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ');
+    // Remove HTML comments
+    content = content.replace(/<!--[\s\S]*?-->/g, ' ');
+    // Replace all html tags with spaces
+    content = content.replace(/<[^>]*>/g, ' ');
+    // Replace multiple spaces with single space
+    content = content.replace(/\s+/g, ' ');
+    // Remove leading/trailing whitespace
+    content = content.trim();
+    
+    return content;
+  } catch (error) {
+    console.error("Error extracting content:", error);
+    return "";
+  }
 }
 
 serve(async (req) => {
@@ -134,23 +156,11 @@ serve(async (req) => {
               metaRestrictions.push('Page might use CAPTCHA which could hinder scraping');
             }
 
-            // Extract content from HTML
-            try {
-              const extracted = await extract(pageText);
-              content = extracted.text || '';
-              
-              // If extraction failed, use a simple backup approach
-              if (!content) {
-                // Basic extraction: remove scripts, styles, and HTML tags
-                content = pageText
-                  .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
-                  .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
-                  .replace(/<[^>]*>/g, ' ')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-              }
-            } catch (extractError) {
-              console.error('Error extracting content:', extractError);
+            // Extract content from HTML using our custom function
+            content = extractContent(pageText);
+            
+            // If extraction didn't yield meaningful content, try a simpler approach
+            if (!content || content.length < 100) {
               // Basic extraction as fallback
               content = pageText
                 .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
