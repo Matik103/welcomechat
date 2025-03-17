@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   from?: string;
@@ -48,7 +48,7 @@ serve(async (req) => {
     try {
       body = await req.json();
       console.log("Request body parsed successfully:", { 
-        to: body.to, 
+        to: Array.isArray(body.to) ? body.to : [body.to], 
         subject: body.subject,
         fromProvided: !!body.from,
         htmlLength: body.html?.length || 0
@@ -85,12 +85,12 @@ serve(async (req) => {
     
     // Send the email
     const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
-    console.log(`Attempting to send email to ${to} from ${fromAddress} with subject "${subject}"`);
+    console.log(`Attempting to send email to ${Array.isArray(to) ? to.join(', ') : to} from ${fromAddress} with subject "${subject}"`);
     
     try {
       const { data, error } = await resend.emails.send({
         from: fromAddress,
-        to: [to],
+        to: Array.isArray(to) ? to : [to], // Ensure to is always an array
         subject: subject,
         html: html
       });

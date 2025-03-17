@@ -220,6 +220,7 @@ export const sendClientInvitationEmail = async (params: {
     `;
     
     console.log("Sending invitation email...");
+    
     // Use fetch for send-email function to avoid CORS issues
     const emailResponse = await fetch(`${window.location.origin}/api/send-email`, {
       method: 'POST',
@@ -228,7 +229,7 @@ export const sendClientInvitationEmail = async (params: {
         'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
-        to: email,
+        to: [email], // Make sure to is an array as expected by Resend API
         subject: emailSubject,
         html: emailHtml,
         from: "Welcome.Chat <onboarding@resend.dev>" // Updated to use the Resend domain
@@ -237,17 +238,20 @@ export const sendClientInvitationEmail = async (params: {
     
     // Check if the response is OK
     if (!emailResponse.ok) {
+      // Get the raw response content before trying to parse as JSON
+      const responseText = await emailResponse.text();
+      console.error("Raw email API response:", responseText);
+      
       let errorMessage = "Failed to send invitation email";
       
-      // Try to get JSON error info, but handle case where response is not JSON
+      // Try to parse as JSON if possible
       try {
-        const errorData = await emailResponse.json();
+        const errorData = JSON.parse(responseText);
         errorMessage = `${errorMessage}: ${errorData.error || emailResponse.statusText}`;
       } catch (parseError) {
-        // If response is not JSON (e.g., HTML error page), use status text and log response text
-        const responseText = await emailResponse.text();
-        console.error("Non-JSON error response:", responseText);
-        errorMessage = `${errorMessage}: ${emailResponse.status} ${emailResponse.statusText}`;
+        // If not JSON, include part of the raw response
+        const truncatedResponse = responseText.substring(0, 100) + (responseText.length > 100 ? '...' : '');
+        errorMessage = `${errorMessage}: Non-JSON response (${emailResponse.status}): ${truncatedResponse}`;
       }
       
       throw new Error(errorMessage);
@@ -255,10 +259,23 @@ export const sendClientInvitationEmail = async (params: {
     
     // Parse successful response
     try {
-      const emailResponseJson = await emailResponse.json();
-      console.log("Invitation email response:", emailResponseJson);
-    } catch (parseError) {
-      console.warn("Could not parse email response as JSON:", parseError);
+      const responseText = await emailResponse.text();
+      
+      // Only try to parse as JSON if there's actual content
+      if (responseText.trim()) {
+        try {
+          const emailResponseJson = JSON.parse(responseText);
+          console.log("Invitation email response:", emailResponseJson);
+        } catch (parseError) {
+          console.warn("Could not parse email response as JSON:", parseError);
+          console.log("Raw response text:", responseText);
+          // This is not a critical error if the status was ok
+        }
+      } else {
+        console.log("Email response was empty but status OK");
+      }
+    } catch (readError) {
+      console.warn("Error reading response body:", readError);
       // This is not a critical error if the status was ok
     }
     
