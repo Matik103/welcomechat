@@ -1,23 +1,22 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
+
+// Use the updated API key directly
+const resend = new Resend("re_36V5aruC_9aScEQmCQqnYzGtuuhg1WFN2");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY is not configured");
-    }
-    const resend = new Resend(resendApiKey);
-
     const { clientName, email, agentName } = await req.json();
     
     const agentInfo = agentName ? ` with AI assistant "${agentName}"` : '';

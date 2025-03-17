@@ -1,11 +1,11 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { WebsiteUrl } from "@/types/client";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
-import { useUrlValidation } from "@/hooks/useUrlValidation";
 
 interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
@@ -28,94 +28,19 @@ export const WebsiteUrls = ({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [validationWarning, setValidationWarning] = useState<string | null>(null);
-  const { validateUrl, isValidating } = useUrlValidation();
-
-  const validateRefreshRate = (rate: number): string | null => {
-    if (rate < 1) {
-      return "Refresh rate must be at least 1 day";
-    }
-    if (rate > 365) {
-      return "Refresh rate cannot exceed 365 days";
-    }
-    return null;
-  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("handleAdd called with URL:", newUrl);
     setError(null);
-    setValidationWarning(null);
     
     if (!newUrl) {
       setError("Please enter a URL");
       return;
     }
-
-    // Validate refresh rate
-    const refreshRateError = validateRefreshRate(newRefreshRate);
-    if (refreshRateError) {
-      setError(refreshRateError);
-      return;
-    }
     
     try {
       setIsSubmitting(true);
-      
-      // Validate the URL first
-      const validationResult = await validateUrl(newUrl, 'website');
-      
-      if (!validationResult.isAccessible) {
-        setError(validationResult.error || 'Website is not accessible');
-        setValidationWarning(`
-          To fix this:
-          1. Check if the website is online and accessible
-          2. Ensure you have the correct URL
-          3. Check if the website requires authentication
-        `);
-        return;
-      }
-
-      if (validationResult.details?.robotsTxtAllows === false) {
-        setValidationWarning(`
-          This website currently blocks scraping. You can still add it, but to enable scraping:
-          1. Contact the website administrator
-          2. Request permission to scrape the content
-          3. Ask them to update their robots.txt file to allow your bot
-          4. Alternatively, look for an official API if available
-        `);
-      }
-
-      // Add additional warnings based on validation details
-      if (validationResult.details) {
-        const warnings: string[] = [];
-        
-        if (!validationResult.details.isSecure) {
-          warnings.push(`
-            This website does not use HTTPS. To ensure security:
-            1. Check if an HTTPS version is available
-            2. Contact the website administrator
-            3. Consider using a different source
-          `);
-        }
-
-        const contentType = validationResult.details.contentType?.toLowerCase() || '';
-        if (!contentType.includes('text/html') && 
-            !contentType.includes('application/json') && 
-            !contentType.includes('text/plain')) {
-          warnings.push(`
-            This content type (${contentType}) may not be suitable for scraping.
-            Consider finding an alternative source with HTML or JSON content.
-          `);
-        }
-
-        if (warnings.length > 0) {
-          setValidationWarning((prev) => 
-            prev ? `${prev}\n\n${warnings.join('\n')}` : warnings.join('\n')
-          );
-        }
-      }
-      
       console.log("Submitting website URL:", newUrl, newRefreshRate);
       await onAdd({
         url: newUrl,
@@ -187,21 +112,6 @@ export const WebsiteUrls = ({
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
-                {validationWarning && (
-                  <div className="mt-2 text-sm whitespace-pre-line">
-                    {validationWarning}
-                  </div>
-                )}
-              </Alert>
-            )}
-            
-            {!error && validationWarning && (
-              <Alert variant="warning" className="border-amber-300 bg-amber-50">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertTitle className="text-amber-800">Access Warning</AlertTitle>
-                <AlertDescription className="text-amber-700">
-                  <div className="whitespace-pre-line">{validationWarning}</div>
-                </AlertDescription>
               </Alert>
             )}
             
@@ -214,7 +124,6 @@ export const WebsiteUrls = ({
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
                 required
-                disabled={isSubmitting || isValidating}
               />
             </div>
             
@@ -227,20 +136,32 @@ export const WebsiteUrls = ({
                 value={newRefreshRate}
                 onChange={(e) => setNewRefreshRate(parseInt(e.target.value))}
                 required
-                disabled={isSubmitting || isValidating}
               />
             </div>
-
-            <Button
-              type="submit"
-              disabled={isSubmitting || isValidating}
-              className="w-full"
-            >
-              {(isSubmitting || isValidating) && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              {isValidating ? 'Validating URL...' : isSubmitting ? 'Adding URL...' : 'Add URL'}
-            </Button>
+            
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setShowNewForm(false);
+                  setError(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={isAddLoading || isSubmitting || !newUrl}
+              >
+                {(isAddLoading || isSubmitting) ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Add URL
+              </Button>
+            </div>
           </div>
         </form>
       )}

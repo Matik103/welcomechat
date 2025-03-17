@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -26,8 +27,8 @@ serve(async (req) => {
   try {
     console.log("Send email function started");
     
-    // Use environment variable for Resend API key
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    // Use the new Resend API key
+    const resendApiKey = "re_36V5aruC_9aScEQmCQqnYzGtuuhg1WFN2";
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
       return new Response(

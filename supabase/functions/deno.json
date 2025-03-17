@@ -1,14 +1,10 @@
 {
-  "tasks": {
-    "dev": "deno run --allow-net --allow-env --watch validate-urls/index.ts",
-    "deploy": "supabase functions deploy validate-urls"
-  },
   "imports": {
-    "http/": "https://deno.land/std@0.208.0/http/",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3"
+    "std/http/server": "https://deno.land/std@0.168.0/http/server.ts",
+    "oauth2_client": "https://deno.land/x/oauth2_client@v1.0.2/mod.ts",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
   },
-  "compilerOptions": {
-    "lib": ["deno.ns", "deno.unstable", "dom"],
-    "types": ["deno"]
+  "tasks": {
+    "start": "deno run --allow-net --allow-env --watch index.ts"
   }
 } 
