@@ -32,7 +32,7 @@ serve(async (req) => {
     );
     
     const body = await req.json();
-    const { email, password, client_id, client_name } = body;
+    const { email, password, client_id, client_name, agent_name } = body;
     
     if (!email || !password || !client_id) {
       return new Response(
@@ -64,6 +64,7 @@ serve(async (req) => {
           user_metadata: { 
             client_id,
             client_name,
+            agent_name,
             user_type: "client"
           }
         }
@@ -83,6 +84,7 @@ serve(async (req) => {
         user_metadata: { 
           client_id,
           client_name,
+          agent_name,
           user_type: "client"
         }
       });

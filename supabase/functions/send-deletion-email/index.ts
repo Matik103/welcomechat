@@ -13,6 +13,7 @@ interface DeletionEmailRequest {
   clientId: string;
   clientName: string;
   email: string;
+  agentName?: string;
 }
 
 serve(async (req) => {
@@ -36,7 +37,7 @@ serve(async (req) => {
     const body: DeletionEmailRequest = await req.json();
     console.log("Received request body:", body);
 
-    const { clientId, clientName, email } = body;
+    const { clientId, clientName, email, agentName } = body;
 
     if (!clientId || !clientName || !email) {
       console.error("Missing required parameters:", { clientId, clientName, email });
@@ -45,6 +46,8 @@ serve(async (req) => {
 
     // Use Resend for email
     try {
+      const agentInfo = agentName ? ` and your AI assistant "${agentName}"` : '';
+      
       const { data, error: emailError } = await resend.emails.send({
         from: "Welcome.Chat <admin@welcome.chat>",
         to: email,
@@ -54,10 +57,10 @@ serve(async (req) => {
             <body style="font-family: Arial, sans-serif; line-height: 1.6;">
               <h1>Account Deletion Notice</h1>
               <p>Dear ${clientName},</p>
-              <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
+              <p>As requested, your account${agentInfo} has been scheduled for deletion. The deletion will be completed in 30 days.</p>
               <p>If this was done in error, you can contact support to cancel the deletion process.</p>
               <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
-              <p>Best regards,<br>TestBot Assistant Team</p>
+              <p>Best regards,<br>The Welcome.Chat Team</p>
             </body>
           </html>
         `

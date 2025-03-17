@@ -40,7 +40,8 @@ export const useClientMutation = (id: string | undefined) => {
             await sendClientInvitationEmail({
               clientId: newClientId,
               clientName: data.client_name,
-              email: data.email
+              email: data.email,
+              agentName: finalAgentName // Include the agent name
             });
           } catch (emailError) {
             console.error("Failed to send invitation email:", emailError);
