@@ -31,7 +31,13 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
-      throw new Error("Resend API key not configured");
+      return new Response(
+        JSON.stringify({ error: "Resend API key not configured" }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
     console.log("Initializing Resend client with API key length:", resendApiKey.length);
@@ -68,7 +74,13 @@ serve(async (req) => {
       if (!html) missingParams.push("html");
       
       console.error("Missing required parameters:", missingParams.join(", "));
-      throw new Error(`Missing required parameters: ${missingParams.join(", ")}`);
+      return new Response(
+        JSON.stringify({ error: `Missing required parameters: ${missingParams.join(", ")}` }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
     // Send the email
@@ -85,7 +97,13 @@ serve(async (req) => {
       
       if (error) {
         console.error("Error from Resend API:", error);
-        throw error;
+        return new Response(
+          JSON.stringify({ error: error.message || "Failed to send email" }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
       }
       
       console.log("Email sent successfully:", data);
@@ -102,7 +120,13 @@ serve(async (req) => {
       );
     } catch (sendError) {
       console.error("Resend API error details:", sendError);
-      throw new Error(`Resend API error: ${sendError.message || "Unknown error"}`);
+      return new Response(
+        JSON.stringify({ error: sendError.message || "Unknown error sending email" }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
   } catch (error: any) {
     console.error("Error in send-email function:", error);
@@ -112,8 +136,7 @@ serve(async (req) => {
       message: error.message || "Failed to send email",
       code: error.code,
       status: error.status,
-      name: error.name,
-      stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined
+      name: error.name
     };
     
     return new Response(

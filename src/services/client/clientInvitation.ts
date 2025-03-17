@@ -115,10 +115,10 @@ export const sendClientInvitationEmail = async (params: {
     // Handle email response
     if (!emailResponse.ok) {
       let errorMessage = '';
-      const contentType = emailResponse.headers.get('content-type');
-      
       try {
-        // Try to parse as JSON first
+        // Check content type to determine how to parse the response
+        const contentType = emailResponse.headers.get('content-type');
+        
         if (contentType && contentType.includes('application/json')) {
           const errorData = await emailResponse.json();
           errorMessage = errorData.error || errorData.message || emailResponse.statusText;
@@ -131,7 +131,7 @@ export const sendClientInvitationEmail = async (params: {
             : textContent;
         }
       } catch (parseError) {
-        // If parsing fails, use status
+        // If parsing fails, fall back to status text
         errorMessage = `Status ${emailResponse.status}: ${emailResponse.statusText}`;
       }
       
@@ -140,16 +140,15 @@ export const sendClientInvitationEmail = async (params: {
     }
     
     // Parse successful response
-    let emailResult;
     try {
-      emailResult = await emailResponse.json();
-      console.log("Invitation email response:", emailResult);
+      const emailResult = await emailResponse.json();
+      console.log("Invitation email sent successfully:", emailResult);
+      return;
     } catch (parseError) {
-      // Consider this a success if the response was OK but not JSON
+      // If we can't parse JSON but the request was successful, just log it and continue
       console.log("Could not parse email response as JSON, but request was successful");
+      return;
     }
-    
-    return;
   } catch (error: any) {
     console.error("Error sending invitation:", error);
     throw new Error(`Failed to send invitation: ${error.message}`);
