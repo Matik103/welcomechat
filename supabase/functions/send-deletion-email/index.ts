@@ -27,8 +27,8 @@ serve(async (req) => {
   try {
     console.log("Send deletion email function started");
     
-    // Use the Resend API key from environment variables
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    // Use the Resend API key from environment variables - fallback to direct value for testing
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") || "re_36V5aruC_9aScEQmCQqnYzGtuuhg1WFN2";
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
       return new Response(
