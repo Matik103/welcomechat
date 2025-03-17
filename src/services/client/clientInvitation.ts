@@ -30,7 +30,7 @@ export const sendClientInvitationEmail = async (params: {
       }
     });
     
-    // Check if there was an error
+    // Enhanced error handling for user creation
     if (createUserError) {
       console.error("Error creating client user:", createUserError);
       throw new Error(`Failed to create user account: ${createUserError.message}`);
@@ -84,29 +84,37 @@ export const sendClientInvitationEmail = async (params: {
     
     console.log("Sending invitation email...");
     
-    // Send the email via edge function
-    const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-      body: {
-        to: email,
-        subject: emailSubject,
-        html: emailHtml,
-        from: "Welcome.Chat <admin@welcome.chat>"
+    try {
+      // Send the email via edge function
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: email,
+          subject: emailSubject,
+          html: emailHtml,
+          from: "Welcome.Chat <admin@welcome.chat>"
+        }
+      });
+      
+      // Check if there was an error
+      if (emailError) {
+        console.error("Error sending invitation email:", emailError);
+        throw new Error(`Failed to send invitation email: ${emailError.message}`);
       }
-    });
-    
-    // Check if there was an error
-    if (emailError) {
-      console.error("Error sending invitation email:", emailError);
-      throw new Error(`Failed to send invitation email: ${emailError.message}`);
+      
+      // Check if the response data contains an error
+      if (emailData && emailData.error) {
+        console.error("Error response from send-email:", emailData.error);
+        throw new Error(`Failed to send invitation email: ${emailData.error}`);
+      }
+      
+      console.log("Invitation email sent successfully:", emailData);
+    } catch (emailSendError) {
+      // Continue with account creation even if email fails, but throw with detailed error
+      console.error("Email sending failed:", emailSendError);
+      
+      // Return object with success status for account creation but failed email
+      throw new Error(`Email sending failed: ${emailSendError.message}`);
     }
-    
-    // Check if the response data contains an error
-    if (emailData && emailData.error) {
-      console.error("Error response from send-email:", emailData.error);
-      throw new Error(`Failed to send invitation email: ${emailData.error}`);
-    }
-    
-    console.log("Invitation email sent successfully:", emailData);
     
     return;
   } catch (error: any) {
