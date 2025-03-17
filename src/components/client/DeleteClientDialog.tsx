@@ -60,7 +60,30 @@ export function DeleteClientDialog({
 
       if (updateError) throw updateError;
       
-      toast.success("Client scheduled for deletion");
+      // Use the dedicated send-deletion-email function
+      try {
+        console.log("Sending deletion email to:", clientEmail);
+        const { data, error: emailError } = await supabase.functions.invoke("send-deletion-email", {
+          body: {
+            clientId,
+            clientName,
+            email: clientEmail,
+            agentName: "" // Optional parameter
+          },
+        });
+
+        if (emailError || (data && data.error)) {
+          console.error("Email error details:", emailError || data?.error);
+          toast.warning("Client scheduled for deletion but email notification failed to send");
+        } else {
+          toast.success("Client scheduled for deletion and notification email sent");
+        }
+      } catch (emailError) {
+        console.error("Exception sending email:", emailError);
+        toast.warning("Client scheduled for deletion but email notification failed to send");
+      }
+      
+      // Even if email fails, we still successfully scheduled deletion
       onDeleted();
       onClose();
     } catch (error: any) {
@@ -78,7 +101,8 @@ export function DeleteClientDialog({
           <AlertDialogTitle>Delete Client</AlertDialogTitle>
           <AlertDialogDescription className="space-y-4">
             <p>
-              This action will schedule the client for deletion in 30 days.
+              This action will schedule the client for deletion in 30 days. 
+              The client will receive an email with instructions to recover their account if needed.
             </p>
             <p>
               Please type <strong>delete {clientName.toLowerCase()}</strong> to
