@@ -1,7 +1,7 @@
-// @deno-types="https://raw.githubusercontent.com/denoland/deno/v1.40.2/cli/dts/lib.deno.d.ts"
-import { serve } from "http/server.ts";
-import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
+
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,28 +16,21 @@ interface DeletionEmailRequest {
   agentName?: string;
 }
 
-// Declare Deno types
-declare const Deno: {
-  env: {
-    get(key: string): string | undefined;
-  };
-};
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
   
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  if (!resendApiKey) {
-    throw new Error("RESEND_API_KEY is not configured");
-  }
-  const resend = new Resend(resendApiKey);
+  // Use the API key from environment
+  const resend = new Resend("re_36V5aruC_9aScEQmCQqnYzGtuuhg1WFN2");
 
   try {
     console.log("Function invoked with method:", req.method);
