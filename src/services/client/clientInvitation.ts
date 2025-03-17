@@ -1,3 +1,4 @@
+
 import { generateTempPassword } from './passwordUtils';
 import { supabase } from "@/integrations/supabase/client";
 
