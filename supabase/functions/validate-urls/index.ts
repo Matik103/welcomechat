@@ -5,14 +5,9 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json'
-};
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from Functions!")
 
@@ -199,14 +194,38 @@ serve(async (req) => {
   }
 
   try {
-    // Skip authentication check for now since we're using the Supabase client
-    // which handles authentication automatically
+    // Get the authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get the JWT token
+    const jwt = authHeader.replace('Bearer ', '');
+
+    // Create a Supabase client to verify the token
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') as string;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') as string;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    // Verify the JWT
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { url, type } = await req.json() as ValidationRequest;
 
     if (!url) {
       return new Response(
         JSON.stringify({ error: 'URL is required' }),
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -216,7 +235,7 @@ serve(async (req) => {
     } catch {
       return new Response(
         JSON.stringify({ error: 'Invalid URL format' }),
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -226,7 +245,7 @@ serve(async (req) => {
       if (!url.includes('drive.google.com') && !url.includes('docs.google.com')) {
         return new Response(
           JSON.stringify({ error: 'Not a valid Google Drive URL' }),
-          { status: 400, headers: corsHeaders }
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       result = await checkGoogleDriveAccessibility(url);
@@ -236,14 +255,14 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(result),
-      { headers: corsHeaders }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in validate-urls function:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
