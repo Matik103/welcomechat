@@ -60,35 +60,20 @@ export function DeleteClientDialog({
 
       if (updateError) throw updateError;
       
-      // Set up the email content
-      const emailContent = `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h1>Account Deletion Notice</h1>
-            <p>Dear ${clientName},</p>
-            <p>As requested, your account has been scheduled for deletion. The deletion will be completed in 30 days.</p>
-            <p>If this was done in error, you can contact support to cancel the deletion process.</p>
-            <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
-            <p>Best regards,<br>AI Assistant Team</p>
-          </body>
-        </html>
-      `;
-      
-      // Now attempt to send the deletion email
+      // Use the dedicated send-deletion-email function instead of the generic send-email function
       try {
         console.log("Sending deletion email to:", clientEmail);
-        const { data, error: emailError } = await supabase.functions.invoke("send-email", {
+        const { data, error: emailError } = await supabase.functions.invoke("send-deletion-email", {
           body: {
-            to: clientEmail,
-            subject: "Account Deletion Notice",
-            html: emailContent,
-            from: "AI Assistant <admin@welcome.chat>" // Updated from address
+            clientId,
+            clientName,
+            email: clientEmail,
+            agentName: "" // Optional parameter
           },
         });
 
         if (emailError || (data && data.error)) {
           console.error("Email error details:", emailError || data?.error);
-          // Log the email error but don't throw - we've already updated the database
           toast.warning("Client scheduled for deletion but email notification failed to send");
         } else {
           toast.success("Client scheduled for deletion and notification email sent");
