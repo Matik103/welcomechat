@@ -3,6 +3,47 @@ import { generateTempPassword } from './passwordUtils';
 import { supabase } from "@/integrations/supabase/client";
 
 /**
+ * Ensures the auth token is valid before making requests
+ */
+async function ensureValidToken() {
+  try {
+    // Check the current session
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error("Session error:", error);
+      throw error;
+    }
+    
+    if (!session) {
+      console.error("No session found");
+      throw new Error("Authentication required");
+    }
+    
+    // If session is about to expire (within 5 minutes), refresh it
+    const expiresAt = session.expires_at;
+    const isExpiringSoon = expiresAt && (expiresAt * 1000 - Date.now() < 300000); // 5 minutes
+    
+    if (isExpiringSoon) {
+      console.log("Token expiring soon, refreshing...");
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError) {
+        console.error("Failed to refresh token:", refreshError);
+        throw refreshError;
+      }
+      
+      console.log("Token refreshed successfully");
+    }
+    
+    return session.access_token;
+  } catch (err) {
+    console.error("Token validation failed:", err);
+    throw new Error("Authentication failed, please sign in again");
+  }
+}
+
+/**
  * Sends an invitation email to a new client
  */
 export const sendClientInvitationEmail = async (params: { 
@@ -19,9 +60,8 @@ export const sendClientInvitationEmail = async (params: {
   try {
     console.log("Creating client auth user account...");
     
-    // Get the session token
-    const sessionResponse = await supabase.auth.getSession();
-    const accessToken = sessionResponse.data.session?.access_token;
+    // Ensure we have a valid token before proceeding
+    const accessToken = await ensureValidToken();
     
     if (!accessToken) {
       throw new Error("No auth session found - please log in again");
@@ -93,12 +133,15 @@ export const sendClientInvitationEmail = async (params: {
     
     console.log("Sending invitation email...");
     
+    // Re-fetch the token to ensure it's still valid (or get a newly refreshed one)
+    const emailToken = await ensureValidToken();
+    
     // Fix: Also use Supabase invoke for send-email function
     const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+        'Authorization': `Bearer ${emailToken}`
       },
       body: {
         to: email,
