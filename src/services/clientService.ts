@@ -167,26 +167,20 @@ export const sendClientInvitationEmail = async (params: {
       })
     });
     
-    // Check if the raw response is valid before parsing as JSON
-    const createUserResponseText = await createUserResponse.text();
-    let createUserResponseData;
-    
-    try {
-      if (createUserResponseText.trim()) {
-        createUserResponseData = JSON.parse(createUserResponseText);
-      }
-    } catch (jsonError) {
-      console.error("Could not parse create-user response as JSON:", jsonError);
-      console.log("Raw create-user response:", createUserResponseText);
-      // Continue despite parsing error
-    }
-    
     if (!createUserResponse.ok) {
-      let errorMsg = "Failed to create user account";
-      if (createUserResponseData?.error) {
-        errorMsg = `${errorMsg}: ${createUserResponseData.error}`;
-      } else {
-        errorMsg = `${errorMsg}: ${createUserResponse.status} ${createUserResponse.statusText}`;
+      const errorText = await createUserResponse.text();
+      let errorMsg = `Failed to create user account: ${createUserResponse.status} ${createUserResponse.statusText}`;
+      try {
+        // Try to parse as JSON, but don't fail if it's not valid JSON
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error) {
+          errorMsg = `${errorMsg}: ${errorJson.error}`;
+        }
+      } catch (parseError) {
+        // If it's not valid JSON, use the text response
+        if (errorText) {
+          errorMsg = `${errorMsg}: ${errorText.substring(0, 100)}${errorText.length > 100 ? '...' : ''}`;
+        }
       }
       throw new Error(errorMsg);
     }
@@ -248,34 +242,38 @@ export const sendClientInvitationEmail = async (params: {
       })
     });
     
-    // Get the raw response text before trying to parse as JSON
-    const responseText = await emailResponse.text();
-    console.log("Raw email API response:", responseText);
+    // Check if the response is OK before trying to parse as JSON
+    if (!emailResponse.ok) {
+      const errorText = await emailResponse.text();
+      let errorMessage = `Failed to send invitation email (HTTP ${emailResponse.status})`;
+      
+      // Try to parse as JSON, but handle if it's not valid JSON
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error) {
+          errorMessage = `${errorMessage}: ${errorJson.error}`;
+        }
+      } catch (parseError) {
+        // If it's not valid JSON, include part of the raw response
+        if (errorText) {
+          const truncatedResponse = errorText.substring(0, 100) + (errorText.length > 100 ? '...' : '');
+          errorMessage = `${errorMessage}: Non-JSON response: ${truncatedResponse}`;
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
     
-    // Try to parse as JSON if possible
+    // Parse JSON response, with fallback
     let emailResponseData;
     try {
+      const responseText = await emailResponse.text();
       if (responseText.trim()) {
         emailResponseData = JSON.parse(responseText);
       }
     } catch (parseError) {
-      console.warn("Could not parse email response as JSON:", parseError);
-      // Continue despite parsing error since we already have the text response
-    }
-    
-    // Check if the response is OK
-    if (!emailResponse.ok) {
-      let errorMessage = "Failed to send invitation email";
-      
-      if (emailResponseData?.error) {
-        errorMessage = `${errorMessage}: ${emailResponseData.error}`;
-      } else {
-        // If no parsed error data, include part of the raw response
-        const truncatedResponse = responseText.substring(0, 100) + (responseText.length > 100 ? '...' : '');
-        errorMessage = `${errorMessage}: Non-JSON response (${emailResponse.status}): ${truncatedResponse}`;
-      }
-      
-      throw new Error(errorMessage);
+      console.warn("Could not parse email response as JSON. This is not critical as the HTTP status was OK.");
+      // We don't throw an error here since the HTTP status was OK
     }
     
     console.log("Invitation email sent successfully");
