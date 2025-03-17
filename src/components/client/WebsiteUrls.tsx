@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { WebsiteUrl } from "@/types/client";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
+import { useUrlAccessCheck } from "@/hooks/useUrlAccessCheck";
 
 interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
@@ -28,15 +29,59 @@ export const WebsiteUrls = ({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { checkUrlAccess, isChecking, lastResult } = useUrlAccessCheck();
+  const [isValidated, setIsValidated] = useState(false);
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewUrl(e.target.value);
+    // Reset validation when URL changes
+    setIsValidated(false);
+    setError(null);
+  };
+
+  const validateUrl = async () => {
+    if (!newUrl) {
+      setError("Please enter a URL");
+      return false;
+    }
+
+    try {
+      // Basic URL validation
+      new URL(newUrl);
+    } catch (e) {
+      setError("Please enter a valid URL");
+      return false;
+    }
+
+    try {
+      const result = await checkUrlAccess(newUrl);
+      
+      if (!result.isAccessible) {
+        setError(`URL is not accessible: ${result.error || "Unknown error"}`);
+        return false;
+      }
+      
+      if (result.hasScrapingRestrictions) {
+        setError("This website has crawling restrictions in its robots.txt file. Your AI agent may have limited access to its content.");
+        // Still allow it but with a warning
+      }
+      
+      setIsValidated(true);
+      return true;
+    } catch (e) {
+      setError("Failed to validate URL");
+      return false;
+    }
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("handleAdd called with URL:", newUrl);
     setError(null);
     
-    if (!newUrl) {
-      setError("Please enter a URL");
-      return;
+    if (!isValidated) {
+      const isValid = await validateUrl();
+      if (!isValid) return;
     }
     
     try {
@@ -50,6 +95,7 @@ export const WebsiteUrls = ({
       setNewUrl("");
       setNewRefreshRate(30);
       setShowNewForm(false);
+      setIsValidated(false);
     } catch (error) {
       console.error("Error adding URL:", error);
       setError(error instanceof Error ? error.message : "Failed to add URL");
@@ -111,20 +157,47 @@ export const WebsiteUrls = ({
           <div className="space-y-4">
             {error && (
               <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {isValidated && !error && (
+              <Alert variant="success" className="bg-green-50 border-green-200">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertTitle className="text-green-800">URL Validated</AlertTitle>
+                <AlertDescription className="text-green-700">
+                  This website is accessible and can be added to your sources.
+                </AlertDescription>
               </Alert>
             )}
             
             <div className="space-y-2">
               <Label htmlFor="website-url">Website URL</Label>
-              <Input
-                id="website-url"
-                type="url"
-                placeholder="https://example.com"
-                value={newUrl}
-                onChange={(e) => setNewUrl(e.target.value)}
-                required
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="website-url"
+                  type="url"
+                  placeholder="https://example.com"
+                  value={newUrl}
+                  onChange={handleUrlChange}
+                  required
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={validateUrl}
+                  disabled={isChecking || !newUrl || isValidated}
+                >
+                  {isChecking ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                  )}
+                  Validate
+                </Button>
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -146,13 +219,14 @@ export const WebsiteUrls = ({
                 onClick={() => {
                   setShowNewForm(false);
                   setError(null);
+                  setIsValidated(false);
                 }}
               >
                 Cancel
               </Button>
               <Button 
                 type="submit"
-                disabled={isAddLoading || isSubmitting || !newUrl}
+                disabled={isAddLoading || isSubmitting || !newUrl || (isChecking && !isValidated)}
               >
                 {(isAddLoading || isSubmitting) ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
