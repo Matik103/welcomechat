@@ -108,7 +108,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       }
 
       // Create the auth user using the edge function
-      const createUserResponse = await fetch(`${window.location.origin}/api/create-client-user`, {
+      const createUserResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/create-client-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +123,9 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       });
 
       if (!createUserResponse.ok) {
-        throw new Error(`Failed to create auth user: ${createUserResponse.statusText}`);
+        const errorText = await createUserResponse.text();
+        console.error("Error response from create-client-user:", errorText);
+        throw new Error(`Failed to create auth user: ${errorText}`);
       }
 
       const responseData = await createUserResponse.json();
@@ -255,7 +257,7 @@ export const sendClientInvitationEmail = async (params: {
     }
     
     // Use fetch for send-email function to avoid CORS issues
-    const emailResponse = await fetch(`${window.location.origin}/api/send-email`, {
+    const emailResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
