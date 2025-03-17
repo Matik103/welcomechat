@@ -82,8 +82,8 @@ serve(async (req) => {
       );
     }
     
-    // Create recovery URL (this would typically point to a recovery page)
-    const recoveryUrl = `${req.headers.get("origin") || "https://welcomechat.ai"}/client/recovery?id=${clientId}`;
+    // Create recovery URL (direct to client dashboard)
+    const recoveryUrl = `${req.headers.get("origin") || "https://welcomechat.ai"}/client/auth`;
     
     // Calculate the expiration date (30 days from now)
     const expirationDate = new Date();
@@ -128,7 +128,7 @@ serve(async (req) => {
             </ul>
           </div>
           
-          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">If you wish to recover your account, please click the button below or contact our support team directly at <a href="mailto:support@welcomechat.ai" style="color: #4f46e5; text-decoration: none;">support@welcomechat.ai</a>.</p>
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">If you wish to recover your account, please click the button below to login with your existing credentials. Your account will be automatically reactivated once you sign in.</p>
           
           <!-- CTA Button -->
           <div style="text-align: center; margin: 35px 0;">
