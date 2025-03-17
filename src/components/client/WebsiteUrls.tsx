@@ -2,11 +2,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, Info, Database } from "lucide-react";
 import { WebsiteUrl } from "@/types/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { useUrlAccessCheck } from "@/hooks/useUrlAccessCheck";
+import { useStoreWebsiteContent } from "@/hooks/useStoreWebsiteContent";
+import { toast } from "sonner";
 
 interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
@@ -14,6 +16,8 @@ interface WebsiteUrlsProps {
   onDelete: (id: number) => void;
   isAddLoading: boolean;
   isDeleteLoading: boolean;
+  clientId?: string;
+  agentName?: string;
 }
 
 export const WebsiteUrls = ({
@@ -22,6 +26,8 @@ export const WebsiteUrls = ({
   onDelete,
   isAddLoading,
   isDeleteLoading,
+  clientId,
+  agentName,
 }: WebsiteUrlsProps) => {
   const [showNewForm, setShowNewForm] = useState(false);
   const [newUrl, setNewUrl] = useState("");
@@ -30,12 +36,15 @@ export const WebsiteUrls = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { checkUrlAccess, isChecking, lastResult } = useUrlAccessCheck();
+  const { storeWebsiteContent, isStoring } = useStoreWebsiteContent();
   const [isValidated, setIsValidated] = useState(false);
+  const [isContentStored, setIsContentStored] = useState(false);
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewUrl(e.target.value);
     // Reset validation when URL changes
     setIsValidated(false);
+    setIsContentStored(false);
     setError(null);
   };
 
@@ -62,6 +71,30 @@ export const WebsiteUrls = ({
       }
       
       setIsValidated(true);
+      
+      // If client ID and agent name are provided, and we have content, store it
+      if (clientId && agentName && result.content) {
+        try {
+          const storeResult = await storeWebsiteContent(
+            clientId,
+            agentName,
+            newUrl,
+            result.content
+          );
+          
+          if (storeResult.success) {
+            setIsContentStored(true);
+            toast.success("Website content imported to AI agent knowledge base");
+          } else {
+            console.warn("Could not store content:", storeResult.error);
+            // Don't block the URL addition if content storage fails
+          }
+        } catch (storeError) {
+          console.error("Error storing content:", storeError);
+          // Don't block the URL addition if content storage fails
+        }
+      }
+      
       return true;
     } catch (e) {
       setError("Failed to validate URL");
@@ -91,6 +124,7 @@ export const WebsiteUrls = ({
       setNewRefreshRate(30);
       setShowNewForm(false);
       setIsValidated(false);
+      setIsContentStored(false);
     } catch (error) {
       console.error("Error adding URL:", error);
       setError(error instanceof Error ? error.message : "Failed to add URL");
@@ -156,7 +190,13 @@ export const WebsiteUrls = ({
           <CheckCircle2 className="h-4 w-4 text-green-600" />
           <AlertTitle className="text-green-800">Fully Scrapable</AlertTitle>
           <AlertDescription className="text-green-700">
-            This website is accessible and can be scraped without restrictions.
+            <p>This website is accessible and can be scraped without restrictions.</p>
+            {isContentStored && (
+              <p className="mt-1">
+                <Database className="h-4 w-4 inline-block mr-1 text-green-600" />
+                Content successfully imported to your AI agent's knowledge base.
+              </p>
+            )}
           </AlertDescription>
         </Alert>
       );
@@ -270,6 +310,7 @@ export const WebsiteUrls = ({
                   setShowNewForm(false);
                   setError(null);
                   setIsValidated(false);
+                  setIsContentStored(false);
                 }}
               >
                 Cancel
@@ -278,12 +319,17 @@ export const WebsiteUrls = ({
                 type="submit"
                 disabled={isAddLoading || isSubmitting || !newUrl || (isChecking && !isValidated)}
               >
-                {(isAddLoading || isSubmitting) ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                {(isAddLoading || isSubmitting || isStoring) ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    {isStoring ? "Importing..." : "Adding..."}
+                  </>
                 ) : (
-                  <Plus className="w-4 h-4 mr-2" />
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add URL
+                  </>
                 )}
-                Add URL
               </Button>
             </div>
           </div>

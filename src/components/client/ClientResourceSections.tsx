@@ -33,6 +33,25 @@ export const ClientResourceSections = ({
   console.log("Drive Links:", driveLinks);
   console.log("Website URLs:", websiteUrls);
 
+  // Get the client's agent name (we need to fetch this from the client data)
+  // For now, we'll access it from the current client data in the localStorage or context
+  const getAgentName = (): string | undefined => {
+    try {
+      // Try to get the agent name from localStorage (this is just one approach)
+      const clientDataStr = localStorage.getItem('client_data');
+      if (clientDataStr) {
+        const clientData = JSON.parse(clientDataStr);
+        return clientData.agent_name;
+      }
+      return undefined;
+    } catch (e) {
+      console.error("Error getting agent name:", e);
+      return undefined;
+    }
+  };
+
+  const agentName = getAgentName();
+
   // Check if any drive links have restricted access
   const restrictedLinks = driveLinks.filter(link => link.access_status === "restricted");
   const hasRestrictedLinks = restrictedLinks.length > 0;
@@ -183,6 +202,8 @@ export const ClientResourceSections = ({
           onDelete={handleDeleteWebsiteUrl}
           isAddLoading={addWebsiteUrlMutation.isPending}
           isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+          clientId={clientId}
+          agentName={agentName}
         />
       </div>
     </div>

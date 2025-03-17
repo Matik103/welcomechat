@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { extract } from "https://deno.land/x/extract@v0.0.9/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +15,7 @@ interface URLAccessResponse {
   robotsRestrictions?: string[];
   metaRestrictions?: string[];
   canScrape: boolean;
+  content?: string;
   error?: string;
 }
 
@@ -113,27 +115,53 @@ serve(async (req) => {
             // If we can't check robots.txt, assume no restrictions but log the error
           }
           
-          // Check for meta tags that might restrict scraping
-          try {
-            if (contentType.includes('text/html')) {
-              const pageText = await response.text();
-              
-              // Check for noindex, nofollow meta tags
-              if (pageText.toLowerCase().includes('name="robots" content="noindex') || 
-                  pageText.toLowerCase().includes('name="robots" content="none') ||
-                  pageText.toLowerCase().includes('name="robots" content="nofollow')) {
-                hasScrapingRestrictions = true;
-                metaRestrictions.push('Page has noindex or nofollow meta tags');
-              }
-              
-              // Check for other potential scraping obstacles
-              if (pageText.toLowerCase().includes('captcha') || 
-                  pageText.toLowerCase().includes('recaptcha')) {
-                metaRestrictions.push('Page might use CAPTCHA which could hinder scraping');
-              }
+          // Extract page content if it's HTML
+          let content = '';
+          if (contentType.includes('text/html')) {
+            const pageText = await response.text();
+            
+            // Check for noindex, nofollow meta tags
+            if (pageText.toLowerCase().includes('name="robots" content="noindex') || 
+                pageText.toLowerCase().includes('name="robots" content="none') ||
+                pageText.toLowerCase().includes('name="robots" content="nofollow')) {
+              hasScrapingRestrictions = true;
+              metaRestrictions.push('Page has noindex or nofollow meta tags');
             }
-          } catch (metaError) {
-            console.error('Error checking meta tags:', metaError);
+            
+            // Check for other potential scraping obstacles
+            if (pageText.toLowerCase().includes('captcha') || 
+                pageText.toLowerCase().includes('recaptcha')) {
+              metaRestrictions.push('Page might use CAPTCHA which could hinder scraping');
+            }
+
+            // Extract content from HTML
+            try {
+              const extracted = await extract(pageText);
+              content = extracted.text || '';
+              
+              // If extraction failed, use a simple backup approach
+              if (!content) {
+                // Basic extraction: remove scripts, styles, and HTML tags
+                content = pageText
+                  .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+                  .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+                  .replace(/<[^>]*>/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+              }
+            } catch (extractError) {
+              console.error('Error extracting content:', extractError);
+              // Basic extraction as fallback
+              content = pageText
+                .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+                .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            }
+          } else if (contentType.includes('text/plain')) {
+            // For plain text, just get the raw content
+            content = await response.text();
           }
 
           const result: URLAccessResponse = {
@@ -143,7 +171,8 @@ serve(async (req) => {
             metaRestrictions: metaRestrictions.length > 0 ? metaRestrictions : undefined,
             statusCode,
             contentType,
-            canScrape: !hasScrapingRestrictions && metaRestrictions.length === 0
+            canScrape: !hasScrapingRestrictions && metaRestrictions.length === 0,
+            content: content || undefined
           };
 
           return new Response(

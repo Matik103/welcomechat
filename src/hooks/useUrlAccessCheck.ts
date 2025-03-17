@@ -10,6 +10,7 @@ interface UrlCheckResult {
   contentType?: string;
   robotsRestrictions?: string[];
   metaRestrictions?: string[];
+  content?: string;
   error?: string;
 }
 
