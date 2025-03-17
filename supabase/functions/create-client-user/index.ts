@@ -31,7 +31,21 @@ serve(async (req) => {
       supabaseServiceKey
     );
     
-    const body = await req.json();
+    // Parse request body
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error("Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
     const { email, password, client_id, client_name, agent_name } = body;
     
     if (!email || !password || !client_id) {
@@ -48,6 +62,17 @@ serve(async (req) => {
     const { data: existingUser, error: userCheckError } = await supabase.auth.admin.listUsers({
       email: email,
     });
+    
+    if (userCheckError) {
+      console.error("Error checking if user exists:", userCheckError);
+      return new Response(
+        JSON.stringify({ error: `Error checking if user exists: ${userCheckError.message}` }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
     let userId;
     
@@ -71,7 +96,14 @@ serve(async (req) => {
       );
       
       if (updateError) {
-        throw new Error(`Failed to update user metadata: ${updateError.message}`);
+        console.error("Failed to update user metadata:", updateError);
+        return new Response(
+          JSON.stringify({ error: `Failed to update user metadata: ${updateError.message}` }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
       }
     } else {
       // Create a new user
@@ -90,7 +122,14 @@ serve(async (req) => {
       });
       
       if (createError) {
-        throw new Error(`Failed to create user: ${createError.message}`);
+        console.error("Failed to create user:", createError);
+        return new Response(
+          JSON.stringify({ error: `Failed to create user: ${createError.message}` }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
       }
       
       userId = newUser.user.id;
@@ -111,9 +150,11 @@ serve(async (req) => {
       
       if (roleError) {
         console.warn("Could not create user role:", roleError.message);
+        // Continue despite error, but log it
       }
     } catch (roleError) {
       console.warn("Error creating user role:", roleError);
+      // Continue despite error, but log it
     }
     
     // Create AI agent entry for this client
