@@ -39,9 +39,11 @@ export const useClientMutation = (id: string | undefined) => {
         try {
           // Step 1: Create the client record first
           clientId = await createClient(updatedData);
+          console.log("Client created successfully with ID:", clientId);
           
           // Step 2: Try to send the invitation email
           try {
+            console.log("Attempting to send invitation email for client", clientId);
             await sendClientInvitationEmail({
               clientId: clientId,
               clientName: data.client_name,
@@ -50,9 +52,10 @@ export const useClientMutation = (id: string | undefined) => {
             });
             
             emailSent = true;
+            console.log("Invitation email sent successfully");
           } catch (emailError: any) {
             console.error("Failed to send invitation email:", emailError);
-            errorMessage = emailError.message;
+            errorMessage = emailError.message || "Unknown email sending error";
             // Continue with client creation even if email fails
           }
         } catch (error: any) {
@@ -62,8 +65,8 @@ export const useClientMutation = (id: string | undefined) => {
         
         if (!emailSent && errorMessage) {
           // If client was created but email failed, still return client ID but with error info
-          console.log(`Failed to send invitation email: ${errorMessage}`);
-          toast.warning(`Client created but couldn't send invitation email: ${errorMessage}`);
+          console.log(`Client created but email failed: ${errorMessage}`);
+          toast.warning(`Client created but couldn't send invitation email. The client can still access their account with the credentials you provide them manually.`);
         }
         
         return {

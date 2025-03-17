@@ -26,12 +26,33 @@ serve(async (req) => {
       throw new Error("Missing environment variables for Supabase client");
     }
     
+    console.log("Creating Supabase client with URL:", supabaseUrl);
     const supabase = createClient(
       supabaseUrl,
       supabaseServiceKey
     );
     
-    const body = await req.json();
+    // Parse the request body
+    let body;
+    try {
+      body = await req.json();
+      console.log("Request body parsed:", {
+        email: body.email,
+        client_id: body.client_id,
+        client_name: body.client_name,
+        agent_name: body.agent_name
+      });
+    } catch (parseError) {
+      console.error("Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
     const { email, password, client_id, client_name, agent_name } = body;
     
     if (!email || !password || !client_id) {
@@ -45,9 +66,14 @@ serve(async (req) => {
     }
     
     // Check if user already exists
+    console.log("Checking if user exists:", email);
     const { data: existingUser, error: userCheckError } = await supabase.auth.admin.listUsers({
       email: email,
     });
+    
+    if (userCheckError) {
+      console.error("Error checking existing user:", userCheckError);
+    }
     
     let userId;
     
@@ -71,6 +97,7 @@ serve(async (req) => {
       );
       
       if (updateError) {
+        console.error("Failed to update user metadata:", updateError);
         throw new Error(`Failed to update user metadata: ${updateError.message}`);
       }
     } else {
@@ -90,14 +117,22 @@ serve(async (req) => {
       });
       
       if (createError) {
+        console.error("Failed to create user:", createError);
         throw new Error(`Failed to create user: ${createError.message}`);
       }
       
+      if (!newUser || !newUser.user) {
+        console.error("User creation failed with no error but no user returned");
+        throw new Error("User creation failed with unknown error");
+      }
+      
       userId = newUser.user.id;
+      console.log("User created successfully with ID:", userId);
     }
     
     // Create client role for this user
     try {
+      console.log("Creating user role for user:", userId);
       const { error: roleError } = await supabase
         .from("user_roles")
         .upsert({
@@ -118,6 +153,7 @@ serve(async (req) => {
     
     // Create AI agent entry for this client
     try {
+      console.log("Creating AI agent for client:", client_id);
       const { error: agentError } = await supabase
         .from("ai_agents")
         .insert([{
