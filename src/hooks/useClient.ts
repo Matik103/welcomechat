@@ -1,6 +1,7 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { Client } from "@/types/client";
-import { getClientById } from "@/services/client";
+import { getClientById } from "@/services/clientService";
 
 export const useClient = (id: string | undefined) => {
   const { 
