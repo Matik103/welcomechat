@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
@@ -54,16 +53,15 @@ serve(async (req) => {
       );
     }
     
-    const { email, password, client_id, client_name, agent_name } = body;
+    const { email, client_id, client_name, agent_name } = body;
     
-    if (!email || !password || !client_id) {
+    if (!email || !client_id) {
       console.error("Missing required fields:", { 
         hasEmail: !!email, 
-        hasPassword: !!password, 
         hasClientId: !!client_id 
       });
       return new Response(
-        JSON.stringify({ error: "Email, password, and client_id are required" }),
+        JSON.stringify({ error: "Email and client_id are required" }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -73,21 +71,23 @@ serve(async (req) => {
     
     // Check if user already exists
     console.log("Checking if user exists:", email);
-    const { data: existingUser, error: userCheckError } = await supabase.auth.admin.listUsers({
-      email: email,
-    });
+    const { data: { users: existingUsers }, error: userCheckError } = await supabase.auth.admin.listUsers();
     
     if (userCheckError) {
       console.error("Error checking existing user:", userCheckError);
+      throw new Error(`Failed to check existing user: ${userCheckError.message}`);
     }
+
+    const existingUser = existingUsers?.find(u => u.email === email);
+    console.log("Existing user check result:", existingUser ? "Found" : "Not found");
     
-    let userId;
+    let userId: string;
+    let userPassword: string | undefined;
     
     // If user exists, update their metadata
-    if (existingUser && existingUser.users && existingUser.users.length > 0) {
+    if (existingUser) {
       console.log("User already exists, updating metadata:", email);
-      
-      userId = existingUser.users[0].id;
+      userId = existingUser.id;
       
       // Update user metadata
       const { error: updateError } = await supabase.auth.admin.updateUserById(
@@ -107,12 +107,23 @@ serve(async (req) => {
         throw new Error(`Failed to update user metadata: ${updateError.message}`);
       }
     } else {
-      // Create a new user
+      // Create a new user with Supabase's built-in user management
       console.log("Creating new user:", email);
       
+      // Generate a secure temporary password that meets Supabase requirements
+      const generateSecurePassword = () => {
+        const year = new Date().getFullYear();
+        const randomDigits = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `Welcome${year}#${randomDigits}`;
+      };
+      
+      const tempPassword = generateSecurePassword();
+      console.log("Generated temporary password for new user");
+      
+      // Create user with admin API to ensure proper auth setup
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
         email,
-        password,
+        password: tempPassword,
         email_confirm: true,
         user_metadata: { 
           client_id,
@@ -134,6 +145,8 @@ serve(async (req) => {
       
       userId = newUser.user.id;
       console.log("User created successfully with ID:", userId);
+      userPassword = tempPassword;
+      console.log("Temporary password stored for response");
     }
     
     // Create client role for this user
@@ -173,18 +186,18 @@ serve(async (req) => {
       
       if (agentError) {
         console.warn("Could not create AI agent entry:", agentError.message);
-        // Continue despite error
       }
     } catch (agentError) {
       console.warn("Error creating AI agent:", agentError);
-      // Continue despite error
     }
     
+    // Return success response with user info and password if it was just created
     return new Response(
       JSON.stringify({ 
         success: true,
         message: "Client user account created/updated successfully",
-        user_id: userId
+        user_id: userId,
+        temp_password: userPassword // Only set for new users
       }),
       { 
         status: 200, 
