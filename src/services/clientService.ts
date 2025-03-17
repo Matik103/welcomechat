@@ -168,8 +168,15 @@ export const sendClientInvitationEmail = async (params: {
     });
     
     if (!createUserResponse.ok) {
-      const errorData = await createUserResponse.json();
-      throw new Error(`Failed to create user account: ${errorData.error || createUserResponse.statusText}`);
+      let errorMsg = "Failed to create user account";
+      try {
+        const errorData = await createUserResponse.json();
+        errorMsg = `${errorMsg}: ${errorData.error || createUserResponse.statusText}`;
+      } catch (jsonError) {
+        // If we can't parse the JSON, use the status text
+        errorMsg = `${errorMsg}: ${createUserResponse.status} ${createUserResponse.statusText}`;
+      }
+      throw new Error(errorMsg);
     }
     
     console.log("Created auth user for client successfully");
@@ -228,13 +235,32 @@ export const sendClientInvitationEmail = async (params: {
       })
     });
     
+    // Check if the response is OK
     if (!emailResponse.ok) {
-      const errorData = await emailResponse.json();
-      throw new Error(`Failed to send invitation email: ${errorData.error || emailResponse.statusText}`);
+      let errorMessage = "Failed to send invitation email";
+      
+      // Try to get JSON error info, but handle case where response is not JSON
+      try {
+        const errorData = await emailResponse.json();
+        errorMessage = `${errorMessage}: ${errorData.error || emailResponse.statusText}`;
+      } catch (parseError) {
+        // If response is not JSON (e.g., HTML error page), use status text and log response text
+        const responseText = await emailResponse.text();
+        console.error("Non-JSON error response:", responseText);
+        errorMessage = `${errorMessage}: ${emailResponse.status} ${emailResponse.statusText}`;
+      }
+      
+      throw new Error(errorMessage);
     }
     
-    const emailResponseJson = await emailResponse.json();
-    console.log("Invitation email response:", emailResponseJson);
+    // Parse successful response
+    try {
+      const emailResponseJson = await emailResponse.json();
+      console.log("Invitation email response:", emailResponseJson);
+    } catch (parseError) {
+      console.warn("Could not parse email response as JSON:", parseError);
+      // This is not a critical error if the status was ok
+    }
     
     return;
   } catch (error: any) {
