@@ -29,7 +29,8 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
   
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+  // Use the updated API key directly
+  const resend = new Resend("re_36V5aruC_9aScEQmCQqnYzGtuuhg1WFN2");
 
   try {
     console.log("Function invoked with method:", req.method);
