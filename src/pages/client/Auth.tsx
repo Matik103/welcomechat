@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,9 @@ const ClientAuth = () => {
   const [password, setPassword] = useState("");
   const { session, isLoading } = useAuth();
   const [loadTimeout, setLoadTimeout] = useState(false);
+  const [searchParams] = useSearchParams();
+  const autoReactivate = searchParams.get("auto_reactivate") === "true";
+  const clientId = searchParams.get("client_id");
 
   // Set a short timeout to prevent infinite loading state
   useEffect(() => {
@@ -37,6 +40,33 @@ const ClientAuth = () => {
 
   // Redirect if already authenticated
   if (session) {
+    // If auto reactivate is in the URL, handle account reactivation
+    if (autoReactivate && clientId) {
+      // Async function to reactivate the account
+      const reactivateAccount = async () => {
+        try {
+          // Clear the deletion_scheduled_at field for this client
+          const { error } = await supabase
+            .from('clients')
+            .update({ deletion_scheduled_at: null })
+            .eq('id', clientId);
+            
+          if (error) {
+            console.error("Error reactivating account:", error);
+            toast.error("Failed to reactivate your account. Please contact support.");
+          } else {
+            toast.success("Your account has been successfully reactivated!");
+          }
+        } catch (error) {
+          console.error("Error in reactivation process:", error);
+          toast.error("An unexpected error occurred. Please contact support.");
+        }
+      };
+      
+      // Execute the reactivation
+      reactivateAccount();
+    }
+    
     return <Navigate to="/client/dashboard" replace />;
   }
 
@@ -57,7 +87,12 @@ const ClientAuth = () => {
         throw error;
       }
       
-      toast.success("Successfully signed in!");
+      // If auto reactivate is in the URL, we'll handle it after redirect
+      if (!autoReactivate) {
+        toast.success("Successfully signed in!");
+      } else {
+        toast.success("Successfully signed in! Reactivating your account...");
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to sign in");
     } finally {
@@ -71,10 +106,12 @@ const ClientAuth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">
-            Sign in to your account
+            {autoReactivate ? "Recover your account" : "Sign in to your account"}
           </CardTitle>
           <CardDescription>
-            Enter your credentials to access your AI agent dashboard
+            {autoReactivate 
+              ? "Enter your credentials to reactivate your account" 
+              : "Enter your credentials to access your AI agent dashboard"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -114,12 +151,12 @@ const ClientAuth = () => {
               type="submit" 
               className="w-full" 
               disabled={loading}
-              aria-label="Sign In"
+              aria-label={autoReactivate ? "Recover Account" : "Sign In"}
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Sign In"
+                autoReactivate ? "Recover Account" : "Sign In"
               )}
             </Button>
           </form>
