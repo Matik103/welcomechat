@@ -4,7 +4,7 @@ import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-application-name",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
@@ -31,13 +31,7 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
-      return new Response(
-        JSON.stringify({ error: "Resend API key not configured" }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+      throw new Error("Resend API key not configured");
     }
     
     console.log("Initializing Resend client with API key length:", resendApiKey.length);
@@ -74,13 +68,7 @@ serve(async (req) => {
       if (!html) missingParams.push("html");
       
       console.error("Missing required parameters:", missingParams.join(", "));
-      return new Response(
-        JSON.stringify({ error: `Missing required parameters: ${missingParams.join(", ")}` }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+      throw new Error(`Missing required parameters: ${missingParams.join(", ")}`);
     }
     
     // Send the email
@@ -97,16 +85,7 @@ serve(async (req) => {
       
       if (error) {
         console.error("Error from Resend API:", error);
-        return new Response(
-          JSON.stringify({ 
-            error: `Resend API error: ${error.message || JSON.stringify(error)}`,
-            details: error
-          }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
+        throw error;
       }
       
       console.log("Email sent successfully:", data);
@@ -123,16 +102,7 @@ serve(async (req) => {
       );
     } catch (sendError) {
       console.error("Resend API error details:", sendError);
-      return new Response(
-        JSON.stringify({ 
-          error: `Resend API error: ${sendError.message || "Unknown error"}`,
-          details: JSON.stringify(sendError)
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+      throw new Error(`Resend API error: ${sendError.message || "Unknown error"}`);
     }
   } catch (error: any) {
     console.error("Error in send-email function:", error);
