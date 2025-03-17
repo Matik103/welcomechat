@@ -157,14 +157,15 @@ const generateTempPassword = (): string => {
 export const sendClientInvitationEmail = async (params: { 
   clientId: string, 
   clientName: string, 
-  email: string 
+  email: string,
+  agentName: string  // Add agent_name parameter
 }): Promise<void> => {
   const maxRetries = 3;
   let retryCount = 0;
   
   const attemptOperation = async () => {
     try {
-      const { clientId, clientName, email } = params;
+      const { clientId, clientName, email, agentName } = params;
       console.log(`Attempt ${retryCount + 1}: Sending invitation email to client:`, clientId);
       
       // Generate a secure temporary password
@@ -178,7 +179,8 @@ export const sendClientInvitationEmail = async (params: {
             email: email,
             password: tempPassword,
             client_id: clientId,
-            client_name: clientName
+            client_name: clientName,
+            agent_name: agentName  // Pass agent name to the function
           }
         });
         
@@ -200,11 +202,11 @@ export const sendClientInvitationEmail = async (params: {
         
         const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-          <h1 style="color: #4a5568; text-align: center;">Welcome to TestBot Assistant!</h1>
+          <h1 style="color: #4a5568; text-align: center;">Welcome to Welcome.Chat!</h1>
           
           <p>Hello ${clientName},</p>
           
-          <p>You have been invited to create your account for TestBot Assistant. Your AI assistant has been set up and is ready for you to configure.</p>
+          <p>You have been invited to create your account for Welcome.Chat. Your AI assistant "${agentName}" has been set up and is ready for you to configure.</p>
           
           <p><strong>Your temporary password is: ${tempPassword}</strong></p>
           
@@ -225,7 +227,7 @@ export const sendClientInvitationEmail = async (params: {
           
           <p>If you didn't expect this invitation, you can safely ignore this email.</p>
           
-          <p>Best regards,<br>The TestBot Assistant Team</p>
+          <p>Best regards,<br>The Welcome.Chat Team</p>
         </div>
         `;
         
@@ -233,9 +235,9 @@ export const sendClientInvitationEmail = async (params: {
         const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
           body: {
             to: email,
-            subject: "Welcome to TestBot Assistant - Your Account Details",
+            subject: `Welcome to Welcome.Chat - ${agentName} AI Assistant Setup`,
             html: emailHtml,
-            from: "TestBot Assistant <admin@welcome.chat>"
+            from: "Welcome.Chat <admin@welcome.chat>"
           }
         });
         
