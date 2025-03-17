@@ -35,20 +35,28 @@ export const useClientMutation = (id: string | undefined) => {
           // Create new client
           const newClientId = await createClient(updatedData);
           
-          // Send invitation email with retry logic
+          // Track client creation outcome
+          let emailSent = false;
+          
+          // Send invitation email
           try {
             await sendClientInvitationEmail({
               clientId: newClientId,
               clientName: data.client_name,
               email: data.email,
-              agentName: finalAgentName // Include the agent name
+              agentName: finalAgentName
             });
+            
+            emailSent = true;
           } catch (emailError) {
             console.error("Failed to send invitation email:", emailError);
-            toast.error("Created client but failed to send invitation email. Please try sending it manually.");
+            // Continue with client creation even if email fails
           }
           
-          return newClientId;
+          return {
+            clientId: newClientId,
+            emailSent: emailSent
+          };
         }
       } catch (error: any) {
         console.error("Error in client mutation:", error);

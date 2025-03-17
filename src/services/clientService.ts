@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -158,114 +157,95 @@ export const sendClientInvitationEmail = async (params: {
   clientId: string, 
   clientName: string, 
   email: string,
-  agentName: string  // Add agent_name parameter
+  agentName: string
 }): Promise<void> => {
-  const maxRetries = 3;
-  let retryCount = 0;
+  const { clientId, clientName, email, agentName } = params;
   
-  const attemptOperation = async () => {
-    try {
-      const { clientId, clientName, email, agentName } = params;
-      console.log(`Attempt ${retryCount + 1}: Sending invitation email to client:`, clientId);
-      
-      // Generate a secure temporary password
-      const tempPassword = generateTempPassword();
-      
-      // Create a user account in Supabase Auth with the temp password
-      try {
-        console.log("Creating client auth user account...");
-        const { data: authUser, error: authError } = await supabase.functions.invoke('create-client-user', {
-          body: {
-            email: email,
-            password: tempPassword,
-            client_id: clientId,
-            client_name: clientName,
-            agent_name: agentName  // Pass agent name to the function
-          }
-        });
-        
-        if (authError) {
-          console.error("Error creating client auth user:", authError);
-          throw new Error(`Failed to create user account: ${authError.message}`);
-        }
-        
-        console.log("Created auth user for client:", authUser);
-      } catch (userError) {
-        console.error("Failed to create user account:", userError);
-        throw userError;
+  // Generate a secure temporary password
+  const tempPassword = generateTempPassword();
+  
+  // First, create the user in Supabase Auth
+  try {
+    console.log("Creating client auth user account...");
+    const { error: authError } = await supabase.functions.invoke('create-client-user', {
+      body: {
+        email: email,
+        password: tempPassword,
+        client_id: clientId,
+        client_name: clientName,
+        agent_name: agentName
       }
-      
-      // Send welcome email with the temp password
-      try {
-        console.log("Preparing to send welcome email...");
-        const loginUrl = `${window.location.origin}/client/auth`;
-        
-        const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-          <h1 style="color: #4a5568; text-align: center;">Welcome to Welcome.Chat!</h1>
-          
-          <p>Hello ${clientName},</p>
-          
-          <p>You have been invited to create your account for Welcome.Chat. Your AI assistant "${agentName}" has been set up and is ready for you to configure.</p>
-          
-          <p><strong>Your temporary password is: ${tempPassword}</strong></p>
-          
-          <p>To complete your account setup:</p>
-          
-          <ol>
-            <li>Click the button below to sign in</li>
-            <li>Use your email (${email}) and temporary password to log in</li>
-            <li>You'll be automatically redirected to your client dashboard</li>
-            <li>Configure your AI assistant's settings in the dashboard</li>
-          </ol>
-          
-          <div style="text-align: center; margin: 25px 0;">
-            <a href="${loginUrl}" style="background-color: #4299e1; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Sign In</a>
-          </div>
-          
-          <p>This invitation link will expire in 24 hours.</p>
-          
-          <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-          
-          <p>Best regards,<br>The Welcome.Chat Team</p>
-        </div>
-        `;
-        
-        console.log("Sending invitation email...");
-        const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
-          body: {
-            to: email,
-            subject: `Welcome to Welcome.Chat - ${agentName} AI Assistant Setup`,
-            html: emailHtml,
-            from: "Welcome.Chat <admin@welcome.chat>"
-          }
-        });
-        
-        if (emailError) {
-          console.error("Error sending invitation email:", emailError);
-          throw new Error(`Failed to send invitation email: ${emailError.message}`);
-        }
-        
-        console.log("Invitation email sent successfully:", emailResult);
-        return;
-      } catch (emailError) {
-        console.error(`Email sending attempt ${retryCount + 1} failed:`, emailError);
-        throw emailError;
-      }
-    } catch (error) {
-      retryCount++;
-      if (retryCount < maxRetries) {
-        console.log(`Retrying operation, attempt ${retryCount + 1} of ${maxRetries}`);
-        // Exponential backoff
-        const delay = 1000 * Math.pow(2, retryCount);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return attemptOperation();
-      } else {
-        console.error("Max retry attempts reached. Operation failed:", error);
-        throw error;
-      }
+    });
+    
+    if (authError) {
+      console.error("Error creating client auth user:", authError);
+      throw new Error(`Failed to create user account: ${authError.message}`);
     }
-  };
+    
+    console.log("Created auth user for client successfully");
+  } catch (userError) {
+    console.error("Failed to create user account:", userError);
+    throw userError;
+  }
   
-  return attemptOperation();
+  // Then send the welcome email
+  try {
+    console.log("Preparing to send welcome email...");
+    const loginUrl = `${window.location.origin}/client/auth`;
+    
+    // Prepare email content with agent name
+    const emailSubject = `Welcome to Welcome.Chat - ${agentName} AI Assistant Setup`;
+    
+    const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+      <h1 style="color: #4a5568; text-align: center;">Welcome to Welcome.Chat!</h1>
+      
+      <p>Hello ${clientName},</p>
+      
+      <p>You have been invited to create your account for Welcome.Chat. Your AI assistant "${agentName}" has been set up and is ready for you to configure.</p>
+      
+      <p><strong>Your temporary password is: ${tempPassword}</strong></p>
+      
+      <p>To complete your account setup:</p>
+      
+      <ol>
+        <li>Click the button below to sign in</li>
+        <li>Use your email (${email}) and temporary password to log in</li>
+        <li>You'll be automatically redirected to your client dashboard</li>
+        <li>Configure your AI assistant's settings in the dashboard</li>
+      </ol>
+      
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${loginUrl}" style="background-color: #4299e1; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Sign In</a>
+      </div>
+      
+      <p>This invitation link will expire in 24 hours.</p>
+      
+      <p>If you didn't expect this invitation, you can safely ignore this email.</p>
+      
+      <p>Best regards,<br>The Welcome.Chat Team</p>
+    </div>
+    `;
+    
+    console.log("Sending invitation email...");
+    const { error: emailError } = await supabase.functions.invoke('send-email', {
+      body: {
+        to: email,
+        subject: emailSubject,
+        html: emailHtml,
+        from: "Welcome.Chat <admin@welcome.chat>"
+      }
+    });
+    
+    if (emailError) {
+      console.error("Error sending invitation email:", emailError);
+      throw new Error(`Failed to send invitation email: ${emailError.message}`);
+    }
+    
+    console.log("Invitation email sent successfully");
+    return;
+  } catch (emailError) {
+    console.error("Email sending failed:", emailError);
+    throw emailError;
+  }
 };
