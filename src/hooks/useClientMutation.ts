@@ -12,55 +12,53 @@ import { toast } from "sonner";
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      try {
-        // Sanitize agent name to ensure it's valid
-        const sanitizedAgentName = data.agent_name
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '_');
-        
-        const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
-        
-        const updatedData = {
-          ...data,
-          agent_name: finalAgentName,
-        };
+      // Sanitize agent name to ensure it's valid
+      const sanitizedAgentName = data.agent_name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '_');
+      
+      const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+      
+      const updatedData = {
+        ...data,
+        agent_name: finalAgentName,
+      };
 
-        if (id) {
-          // Update existing client
-          const clientId = await updateClient(id, updatedData);
-          await logClientUpdateActivity(id);
-          return clientId;
-        } else {
-          // Create new client
-          const newClientId = await createClient(updatedData);
-          
-          // Track client creation outcome
-          let emailSent = false;
-          
-          // Send invitation email
-          try {
-            await sendClientInvitationEmail({
-              clientId: newClientId,
-              clientName: data.client_name,
-              email: data.email,
-              agentName: finalAgentName
-            });
-            
-            emailSent = true;
-          } catch (emailError) {
-            console.error("Failed to send invitation email:", emailError);
-            // Continue with client creation even if email fails
-          }
-          
-          return {
+      if (id) {
+        // Update existing client
+        const clientId = await updateClient(id, updatedData);
+        await logClientUpdateActivity(id);
+        return clientId;
+      } else {
+        // Create new client
+        const newClientId = await createClient(updatedData);
+        
+        // Track client creation outcome
+        let emailSent = false;
+        let emailError = null;
+        
+        // Send invitation email - but don't let email failure prevent client creation
+        try {
+          await sendClientInvitationEmail({
             clientId: newClientId,
-            emailSent: emailSent
-          };
+            clientName: data.client_name,
+            email: data.email,
+            agentName: finalAgentName
+          });
+          
+          emailSent = true;
+        } catch (error: any) {
+          console.error("Failed to send invitation email:", error);
+          emailError = error.message || "Unknown error";
+          // Continue with client creation even if email fails
         }
-      } catch (error: any) {
-        console.error("Error in client mutation:", error);
-        throw new Error(error.message || "Failed to save client");
+        
+        return {
+          clientId: newClientId,
+          emailSent,
+          emailError
+        };
       }
     }
   });

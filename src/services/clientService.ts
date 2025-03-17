@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -140,7 +141,7 @@ const generateTempPassword = (): string => {
   let password = 'Welcome';
   
   // Add random characters
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 8; i++) {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   
@@ -167,7 +168,7 @@ export const sendClientInvitationEmail = async (params: {
   // First, create the user in Supabase Auth
   try {
     console.log("Creating client auth user account...");
-    const { error: authError } = await supabase.functions.invoke('create-client-user', {
+    const response = await supabase.functions.invoke('create-client-user', {
       body: {
         email: email,
         password: tempPassword,
@@ -177,15 +178,15 @@ export const sendClientInvitationEmail = async (params: {
       }
     });
     
-    if (authError) {
-      console.error("Error creating client auth user:", authError);
-      throw new Error(`Failed to create user account: ${authError.message}`);
+    if (response.error) {
+      console.error("Error creating client auth user:", response.error);
+      throw new Error(`Failed to create user account: ${response.error.message}`);
     }
     
     console.log("Created auth user for client successfully");
-  } catch (userError) {
+  } catch (userError: any) {
     console.error("Failed to create user account:", userError);
-    throw userError;
+    throw new Error(`Failed to create user account: ${userError.message}`);
   }
   
   // Then send the welcome email
@@ -228,7 +229,7 @@ export const sendClientInvitationEmail = async (params: {
     `;
     
     console.log("Sending invitation email...");
-    const { error: emailError } = await supabase.functions.invoke('send-email', {
+    const response = await supabase.functions.invoke('send-email', {
       body: {
         to: email,
         subject: emailSubject,
@@ -237,15 +238,15 @@ export const sendClientInvitationEmail = async (params: {
       }
     });
     
-    if (emailError) {
-      console.error("Error sending invitation email:", emailError);
-      throw new Error(`Failed to send invitation email: ${emailError.message}`);
+    if (response.error) {
+      console.error("Error sending invitation email:", response.error);
+      throw new Error(`Failed to send invitation email: ${response.error.message}`);
     }
     
     console.log("Invitation email sent successfully");
     return;
-  } catch (emailError) {
+  } catch (emailError: any) {
     console.error("Email sending failed:", emailError);
-    throw emailError;
+    throw new Error(`Failed to send email: ${emailError.message}`);
   }
 };
