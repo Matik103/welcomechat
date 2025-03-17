@@ -1,271 +1,236 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
-
-// Setup type definitions for built-in Supabase Runtime APIs
-import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+/// <reference lib="deno.ns" />
+/// <reference lib="deno.unstable" />
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { corsHeaders } from "../_shared/cors.ts";
 
-console.log("Hello from Functions!")
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-interface ValidationRequest {
-  url: string;
-  type: 'website' | 'drive';
-}
-
-interface ValidationResponse {
+interface ValidationResult {
   isAccessible: boolean;
   error?: string;
-  details?: {
-    statusCode?: number;
+  details: {
+    robotsTxtAllows: boolean;
+    isSecure: boolean;
     contentType?: string;
-    robotsTxtAllows?: boolean;
-    isGoogleDriveViewable?: boolean;
-    isSecure?: boolean;
-    serverInfo?: {
-      headers?: Record<string, string>;
-      certificate?: {
-        valid: boolean;
-        expiryDate?: string;
-      };
-    };
   };
 }
 
-async function checkWebsiteAccessibility(url: string): Promise<ValidationResponse> {
-  try {
-    const urlObj = new URL(url);
-    
-    // Check if the URL uses HTTPS
-    const isSecure = urlObj.protocol === 'https:';
-    
-    // First, check robots.txt
-    const robotsTxtUrl = `${urlObj.protocol}//${urlObj.hostname}/robots.txt`;
-    let robotsTxtAllows = true;
-    
-    try {
-      const robotsTxtResponse = await fetch(robotsTxtUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; WelcomeChatBot/1.0; +https://welcome.chat)'
-        }
-      });
-      if (robotsTxtResponse.ok) {
-        const robotsTxt = await robotsTxtResponse.text();
-        // More comprehensive check for crawler rules
-        const userAgentSections = robotsTxt.toLowerCase().split('user-agent:');
-        const relevantSections = userAgentSections.filter(section => 
-          section.includes('*') || section.includes('welcomechatbot')
-        );
-        
-        robotsTxtAllows = !relevantSections.some(section => 
-          section.includes('disallow: /') && !section.includes('allow: /')
-        );
-      }
-    } catch {
-      // If robots.txt doesn't exist or can't be fetched, assume it's allowed
-      robotsTxtAllows = true;
-    }
-
-    // Now check the actual URL with a full GET request to verify content
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; WelcomeChatBot/1.0; +https://welcome.chat)'
-      }
-    });
-
-    // Get relevant headers
-    const headers = Object.fromEntries(response.headers.entries());
-    const contentType = headers['content-type'];
-
-    // Check if content type is supported (text/html, application/json, etc.)
-    const isSupportedContentType = contentType && (
-      contentType.includes('text/html') ||
-      contentType.includes('application/json') ||
-      contentType.includes('text/plain')
-    );
-
-    if (!isSupportedContentType) {
-      return {
-        isAccessible: false,
-        error: `Unsupported content type: ${contentType}`,
-        details: {
-          statusCode: response.status,
-          contentType,
-          robotsTxtAllows,
-          isSecure,
-          serverInfo: { headers }
-        }
-      };
-    }
-
-    return {
-      isAccessible: response.ok,
-      details: {
-        statusCode: response.status,
-        contentType,
-        robotsTxtAllows,
-        isSecure,
-        serverInfo: { headers }
-      }
-    };
-  } catch (error) {
-    return {
-      isAccessible: false,
-      error: error.message
-    };
-  }
+interface ValidationRequest {
+  url: string;
+  type: 'website' | 'google_drive';
 }
 
-async function checkGoogleDriveAccessibility(url: string): Promise<ValidationResponse> {
-  try {
-    // More comprehensive file ID extraction
-    let fileId: string | undefined;
-    
-    if (url.includes('drive.google.com/file/d/')) {
-      fileId = url.split('/file/d/')[1]?.split('/')[0];
-    } else if (url.includes('drive.google.com/drive/folders/')) {
-      fileId = url.split('/folders/')[1]?.split('/')[0];
-    } else if (url.includes('docs.google.com')) {
-      fileId = url.match(/\/d\/([-\w]{25,})/)?.[1];
-    } else if (url.includes('id=')) {
-      fileId = new URL(url).searchParams.get('id') || undefined;
-    }
-
-    if (!fileId) {
-      return {
-        isAccessible: false,
-        error: 'Invalid Google Drive URL format'
-      };
-    }
-
-    // Try multiple endpoints to verify access
-    const endpoints = [
-      `https://drive.google.com/uc?id=${fileId}`,
-      `https://drive.google.com/file/d/${fileId}/view`,
-      `https://drive.google.com/drive/folders/${fileId}`
-    ];
-
-    let isAccessible = false;
-    let finalResponse: Response | undefined;
-
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(endpoint, {
-          method: 'HEAD',
-          redirect: 'follow'
-        });
-
-        if (response.ok) {
-          isAccessible = true;
-          finalResponse = response;
-          break;
-        }
-      } catch {
-        continue;
-      }
-    }
-
-    // Get headers if available
-    const headers = finalResponse ? Object.fromEntries(finalResponse.headers.entries()) : {};
-
-    return {
-      isAccessible,
-      details: {
-        statusCode: finalResponse?.status,
-        isGoogleDriveViewable: isAccessible,
-        serverInfo: { headers }
-      }
-    };
-  } catch (error) {
-    return {
-      isAccessible: false,
-      error: error.message
-    };
-  }
-}
-
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Get the authorization header
+    // Get auth token from request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error('Missing authorization header');
     }
 
-    // Get the JWT token
-    const jwt = authHeader.replace('Bearer ', '');
+    // Create Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') || '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    );
 
-    // Create a Supabase client to verify the token
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') as string;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') as string;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    // Verify the JWT token
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
 
-    // Verify the JWT
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error('Invalid authentication token');
     }
 
+    // Parse request body
     const { url, type } = await req.json() as ValidationRequest;
 
-    if (!url) {
-      return new Response(
-        JSON.stringify({ error: 'URL is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    let result: ValidationResult;
 
-    // Validate URL format
-    try {
-      new URL(url);
-    } catch {
-      return new Response(
-        JSON.stringify({ error: 'Invalid URL format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    let result: ValidationResponse;
-
-    if (type === 'drive') {
-      if (!url.includes('drive.google.com') && !url.includes('docs.google.com')) {
-        return new Response(
-          JSON.stringify({ error: 'Not a valid Google Drive URL' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      result = await checkGoogleDriveAccessibility(url);
+    if (type === 'website') {
+      result = await validateWebsiteUrl(url);
+    } else if (type === 'google_drive') {
+      result = await validateGoogleDriveUrl(url);
     } else {
-      result = await checkWebsiteAccessibility(url);
+      throw new Error('Invalid URL type');
     }
 
     return new Response(
       JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      }
     );
-
   } catch (error) {
-    console.error('Error in validate-urls function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'An error occurred',
+      }),
+      {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      }
     );
   }
 });
+
+async function validateWebsiteUrl(url: string): Promise<ValidationResult> {
+  try {
+    const urlObj = new URL(url);
+    const result: ValidationResult = {
+      isAccessible: true,
+      details: {
+        isSecure: urlObj.protocol === 'https:',
+        robotsTxtAllows: true,
+        contentType: undefined,
+      },
+    };
+
+    // Check if URL is accessible
+    try {
+      const response = await fetch(url, {
+        method: 'HEAD',
+        headers: {
+          'User-Agent': 'Welcome.chat URL Validator',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Connection': 'keep-alive',
+        },
+        redirect: 'follow',
+      });
+
+      result.details.contentType = response.headers.get('content-type') || undefined;
+
+      if (!response.ok) {
+        result.isAccessible = false;
+        result.error = `Server returned status ${response.status}`;
+        return result;
+      }
+
+      // Check robots.txt
+      try {
+        const robotsTxtUrl = new URL('/robots.txt', urlObj.origin);
+        const robotsTxtResponse = await fetch(robotsTxtUrl.toString());
+        const robotsTxtContent = await robotsTxtResponse.text();
+        result.details.robotsTxtAllows = !robotsTxtContent.includes('Disallow: /');
+      } catch (robotsError) {
+        console.error('Error checking robots.txt:', robotsError);
+        // Don't fail validation if robots.txt check fails
+        result.details.robotsTxtAllows = true;
+      }
+    } catch (fetchError) {
+      result.isAccessible = false;
+      result.error = fetchError instanceof Error ? fetchError.message : 'Failed to fetch URL';
+    }
+
+    return result;
+  } catch (error) {
+    return {
+      isAccessible: false,
+      error: error instanceof Error ? error.message : 'Invalid URL format',
+      details: {
+        isSecure: false,
+        robotsTxtAllows: false,
+      },
+    };
+  }
+}
+
+async function validateGoogleDriveUrl(url: string): Promise<ValidationResult> {
+  try {
+    const urlObj = new URL(url);
+    const result: ValidationResult = {
+      isAccessible: true,
+      details: {
+        isSecure: true, // Google Drive URLs are always HTTPS
+        robotsTxtAllows: true,
+        contentType: undefined,
+      },
+    };
+
+    // Check if it's a valid Google Drive URL
+    if (!urlObj.hostname.includes('drive.google.com')) {
+      result.isAccessible = false;
+      result.error = 'Not a valid Google Drive URL';
+      return result;
+    }
+
+    // Extract file ID
+    let fileId = '';
+    if (url.includes('/file/d/')) {
+      fileId = url.split('/file/d/')[1].split('/')[0];
+    } else if (url.includes('id=')) {
+      fileId = new URLSearchParams(urlObj.search).get('id') || '';
+    }
+
+    if (!fileId) {
+      result.isAccessible = false;
+      result.error = 'Could not extract file ID from URL';
+      return result;
+    }
+
+    // Check if file is accessible
+    try {
+      const response = await fetch(`https://drive.google.com/uc?export=view&id=${fileId}`, {
+        method: 'HEAD',
+      });
+
+      result.details.contentType = response.headers.get('content-type') || undefined;
+
+      if (!response.ok) {
+        result.isAccessible = false;
+        result.error = `File is not accessible (status ${response.status})`;
+        return result;
+      }
+
+      // Check if content type is supported
+      const supportedTypes = [
+        'application/pdf',
+        'text/plain',
+        'text/html',
+        'text/csv',
+        'application/vnd.openxmlformats-officedocument',
+        'application/vnd.google-apps',
+      ];
+
+      const contentType = result.details.contentType || '';
+      if (!supportedTypes.some(type => contentType.includes(type))) {
+        result.isAccessible = false;
+        result.error = 'Unsupported file type';
+      }
+    } catch (fetchError) {
+      result.isAccessible = false;
+      result.error = fetchError instanceof Error ? fetchError.message : 'Failed to check file accessibility';
+    }
+
+    return result;
+  } catch (error) {
+    return {
+      isAccessible: false,
+      error: error instanceof Error ? error.message : 'Invalid URL format',
+      details: {
+        isSecure: true,
+        robotsTxtAllows: false,
+      },
+    };
+  }
+}
 
 /* To invoke locally:
 
