@@ -42,9 +42,17 @@ export const sendClientInvitationEmail = async (params: {
       })
     });
     
+    // Check if the response is valid
     if (!createUserResponse.ok) {
-      const errorData = await createUserResponse.json();
-      throw new Error(`Failed to create user account: ${errorData.error || createUserResponse.statusText}`);
+      let errorMessage = '';
+      try {
+        const errorData = await createUserResponse.json();
+        errorMessage = errorData.error || createUserResponse.statusText;
+      } catch (parseError) {
+        // If response is not JSON, use status text
+        errorMessage = `Status ${createUserResponse.status}: ${createUserResponse.statusText}`;
+      }
+      throw new Error(`Failed to create user account: ${errorMessage}`);
     }
     
     console.log("Created auth user for client successfully");
@@ -88,6 +96,7 @@ export const sendClientInvitationEmail = async (params: {
     `;
     
     console.log("Sending invitation email...");
+    
     // Use fetch for send-email function to avoid CORS issues
     const emailResponse = await fetch(`${window.location.origin}/api/send-email`, {
       method: 'POST',
@@ -99,17 +108,45 @@ export const sendClientInvitationEmail = async (params: {
         to: email,
         subject: emailSubject,
         html: emailHtml,
-        from: "Welcome.Chat <admin@welcome.chat>"  // Using admin@welcome.chat
+        from: "Welcome.Chat <admin@welcome.chat>"
       })
     });
     
+    // Handle email response
     if (!emailResponse.ok) {
-      const errorData = await emailResponse.json();
-      throw new Error(`Failed to send invitation email: ${errorData.error || emailResponse.statusText}`);
+      let errorMessage = '';
+      const contentType = emailResponse.headers.get('content-type');
+      
+      try {
+        // Try to parse as JSON first
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await emailResponse.json();
+          errorMessage = errorData.error || errorData.message || emailResponse.statusText;
+        } else {
+          // If not JSON, get text content
+          const textContent = await emailResponse.text();
+          // Truncate text if too long
+          errorMessage = textContent.length > 100 
+            ? `${textContent.substring(0, 100)}... (non-JSON response)` 
+            : textContent;
+        }
+      } catch (parseError) {
+        // If parsing fails, use status
+        errorMessage = `Status ${emailResponse.status}: ${emailResponse.statusText}`;
+      }
+      
+      console.error("Email sending failed:", errorMessage);
+      throw new Error(`Failed to send invitation email: ${errorMessage}`);
     }
     
-    const emailResponseJson = await emailResponse.json();
-    console.log("Invitation email response:", emailResponseJson);
+    // Parse successful response
+    let emailResult;
+    try {
+      emailResult = await emailResponse.json();
+      console.log("Invitation email response:", emailResult);
+    } catch (parseError) {
+      console.warn("Could not parse email response as JSON, but request was successful");
+    }
     
     return;
   } catch (error: any) {
