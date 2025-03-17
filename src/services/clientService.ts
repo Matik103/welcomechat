@@ -99,31 +99,6 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const clientId = newClients[0].id;
     console.log("Created client with ID:", clientId);
 
-    // Add entry to ai_agents table
-    try {
-      console.log("Creating AI agent entry for client:", clientId);
-      const { error: aiAgentError } = await supabase
-        .from("ai_agents")
-        .insert([{
-          client_id: clientId,
-          name: finalAgentName,
-          settings: {
-            client_name: data.client_name,
-            created_at: new Date().toISOString()
-          }
-        }]);
-
-      if (aiAgentError) {
-        console.error("Error creating AI agent entry:", aiAgentError);
-        // Continue despite error, as client was created successfully
-      } else {
-        console.log("AI agent entry created successfully");
-      }
-    } catch (aiAgentError) {
-      console.error("Failed to create AI agent entry:", aiAgentError);
-      // Continue despite error, as client was created successfully
-    }
-
     return clientId;
   } catch (error) {
     console.error("Error in createClient:", error);
@@ -165,32 +140,34 @@ export const sendClientInvitationEmail = async (params: {
   // Generate a secure temporary password
   const tempPassword = generateTempPassword();
   
-  // First, create the user in Supabase Auth
   try {
     console.log("Creating client auth user account...");
-    const response = await supabase.functions.invoke('create-client-user', {
-      body: {
+    
+    // Call the edge function without the x-application-name header
+    const functionUrl = `${supabase.functions.url}/create-client-user`;
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      },
+      body: JSON.stringify({
         email: email,
         password: tempPassword,
         client_id: clientId,
         client_name: clientName,
         agent_name: agentName
-      }
+      })
     });
     
-    if (response.error) {
-      console.error("Error creating client auth user:", response.error);
-      throw new Error(`Failed to create user account: ${response.error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to create user account: ${errorData.error || response.statusText}`);
     }
     
     console.log("Created auth user for client successfully");
-  } catch (userError: any) {
-    console.error("Failed to create user account:", userError);
-    throw new Error(`Failed to create user account: ${userError.message}`);
-  }
-  
-  // Then send the welcome email
-  try {
+    
+    // Then send the welcome email
     console.log("Preparing to send welcome email...");
     const loginUrl = `${window.location.origin}/client/auth`;
     
@@ -229,24 +206,31 @@ export const sendClientInvitationEmail = async (params: {
     `;
     
     console.log("Sending invitation email...");
-    const response = await supabase.functions.invoke('send-email', {
-      body: {
+    // Use fetch for send-email function too to avoid CORS issues
+    const emailFunctionUrl = `${supabase.functions.url}/send-email`;
+    const emailResponse = await fetch(emailFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      },
+      body: JSON.stringify({
         to: email,
         subject: emailSubject,
         html: emailHtml,
         from: "Welcome.Chat <admin@welcome.chat>"
-      }
+      })
     });
     
-    if (response.error) {
-      console.error("Error sending invitation email:", response.error);
-      throw new Error(`Failed to send invitation email: ${response.error.message}`);
+    if (!emailResponse.ok) {
+      const errorData = await emailResponse.json();
+      throw new Error(`Failed to send invitation email: ${errorData.error || emailResponse.statusText}`);
     }
     
     console.log("Invitation email sent successfully");
     return;
-  } catch (emailError: any) {
-    console.error("Email sending failed:", emailError);
-    throw new Error(`Failed to send email: ${emailError.message}`);
+  } catch (error: any) {
+    console.error("Error sending invitation:", error);
+    throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
