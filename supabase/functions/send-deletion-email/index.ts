@@ -1,6 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { Resend } from "npm:resend@2.0.0";
+// @deno-types="https://raw.githubusercontent.com/denoland/deno/v1.40.2/cli/dts/lib.deno.d.ts"
+import { serve } from "http/server.ts";
+import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,13 @@ interface DeletionEmailRequest {
   email: string;
   agentName?: string;
 }
+
+// Declare Deno types
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
