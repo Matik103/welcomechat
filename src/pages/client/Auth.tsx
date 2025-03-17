@@ -14,7 +14,7 @@ const ClientAuth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, userRole } = useAuth();
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [searchParams] = useSearchParams();
   const autoReactivate = searchParams.get("auto_reactivate") === "true";
@@ -67,7 +67,19 @@ const ClientAuth = () => {
       reactivateAccount();
     }
     
-    return <Navigate to="/client/dashboard" replace />;
+    // Ensure client users are directed to client dashboard, not admin dashboard
+    if (userRole === 'client') {
+      return <Navigate to="/client/dashboard" replace />;
+    } else if (userRole === 'admin') {
+      return <Navigate to="/admin/dashboard"replace />;
+    } else {
+      // If role is not determined yet, wait for it
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        </div>
+      );
+    }
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
