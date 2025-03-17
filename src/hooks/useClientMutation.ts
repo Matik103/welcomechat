@@ -57,7 +57,13 @@ export const useClientMutation = (id: string | undefined) => {
           }
         } catch (error: any) {
           console.error("Error in client creation process:", error);
-          throw error; // Rethrow to trigger the mutation's error handling
+          throw new Error(`Failed to create client: ${error.message}`);
+        }
+        
+        if (!emailSent && errorMessage) {
+          // If client was created but email failed, still return client ID but with error info
+          console.log(`Failed to send invitation email: ${errorMessage}`);
+          toast.warning(`Client created but couldn't send invitation email: ${errorMessage}`);
         }
         
         return {
