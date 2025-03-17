@@ -48,11 +48,14 @@ export const useClientMutation = (id: string | undefined) => {
               });
               toast.success("Invitation email sent successfully");
             } catch (emailError) {
-              console.error("Failed to send invitation email:", emailError);
-              toast.warning("Client created but invitation email failed to send");
+              console.error("Failed to send invitation email on first attempt:", emailError);
+              toast.loading("Retrying to send invitation email...");
               
-              // Retry sending the email after a delay
-              setTimeout(async () => {
+              // Retry sending the email after a delay with a maximum of 3 retries
+              let retryCount = 0;
+              const maxRetries = 3;
+              
+              const attemptSendEmail = async () => {
                 try {
                   await sendClientInvitationEmail({
                     clientId: newClientId,
@@ -60,11 +63,24 @@ export const useClientMutation = (id: string | undefined) => {
                     email: data.email
                   });
                   toast.success("Invitation email sent on retry");
+                  return true;
                 } catch (retryError) {
-                  console.error("Email retry failed:", retryError);
-                  toast.error("Failed to send invitation email. Please check client details and try manually.");
+                  console.error(`Email retry attempt ${retryCount + 1} failed:`, retryError);
+                  retryCount++;
+                  
+                  if (retryCount < maxRetries) {
+                    // Wait longer with each retry
+                    await new Promise(resolve => setTimeout(resolve, 3000 * retryCount));
+                    return attemptSendEmail();
+                  } else {
+                    toast.error("Failed to send invitation email after multiple attempts. Please check client details and try manually.");
+                    return false;
+                  }
                 }
-              }, 3000);
+              };
+              
+              // Start the retry process
+              attemptSendEmail();
             }
             
             return newClientId;

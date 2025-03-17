@@ -74,30 +74,55 @@ serve(async (req) => {
     const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
     console.log(`Sending email to ${to} from ${fromAddress} with subject "${subject}"`);
     
-    const { data, error } = await resend.emails.send({
-      from: fromAddress,
-      to: to,
-      subject: subject,
-      html: html
-    });
+    // Implement retry logic
+    const maxRetries = 3;
+    let retryCount = 0;
+    let lastError = null;
     
-    if (error) {
-      console.error("Error from Resend API:", error);
-      throw error;
+    while (retryCount < maxRetries) {
+      try {
+        const { data, error } = await resend.emails.send({
+          from: fromAddress,
+          to: to,
+          subject: subject,
+          html: html
+        });
+        
+        if (error) {
+          console.error(`Attempt ${retryCount + 1}: Error from Resend API:`, error);
+          lastError = error;
+          retryCount++;
+          // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+          continue;
+        }
+        
+        console.log("Email sent successfully:", data);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true,
+            data: data
+          }), 
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
+      } catch (error) {
+        console.error(`Attempt ${retryCount + 1}: Error in send-email function:`, error);
+        lastError = error;
+        retryCount++;
+        
+        if (retryCount < maxRetries) {
+          // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+        }
+      }
     }
     
-    console.log("Email sent successfully:", data);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        data: data
-      }), 
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+    // If we get here, all retries failed
+    throw lastError || new Error("Failed to send email after multiple attempts");
   } catch (error: any) {
     console.error("Error in send-email function:", error);
     

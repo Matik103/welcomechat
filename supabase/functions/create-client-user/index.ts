@@ -47,45 +47,97 @@ serve(async (req) => {
     
     console.log(`Creating user for client ${client_name} (${client_id}) with email ${email}`);
     
-    // Create the user with admin privileges
-    const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Auto-confirm email to allow immediate login
-      user_metadata: { 
-        client_id,
-        client_name,
-        role: "client"
+    // Check if user already exists with this email
+    const { data: existingUsers, error: checkError } = await supabase.auth.admin.listUsers({
+      filter: {
+        email: email
       }
     });
     
-    if (userError) {
-      console.error("Error creating user:", userError);
-      throw userError;
+    if (checkError) {
+      console.error("Error checking existing users:", checkError);
+      throw checkError;
     }
     
-    const userId = userData.user.id;
-    console.log("User created successfully:", userId);
+    let userId: string;
+    
+    if (existingUsers && existingUsers.users.length > 0) {
+      console.log("User with this email already exists, updating metadata");
+      const existingUser = existingUsers.users[0];
+      userId = existingUser.id;
+      
+      // Update the existing user metadata
+      const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+        user_metadata: { 
+          client_id,
+          client_name,
+          role: "client"
+        }
+      });
+      
+      if (updateError) {
+        console.error("Error updating existing user:", updateError);
+        throw updateError;
+      }
+      
+      console.log("Updated existing user metadata:", userId);
+    } else {
+      // Create a new user
+      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true, // Auto-confirm email to allow immediate login
+        user_metadata: { 
+          client_id,
+          client_name,
+          role: "client"
+        }
+      });
+      
+      if (userError) {
+        console.error("Error creating user:", userError);
+        throw userError;
+      }
+      
+      userId = userData.user.id;
+      console.log("User created successfully:", userId);
+    }
     
     // Create user role entry
     try {
-      const { error: roleError } = await supabase
+      // Check if the role entry already exists
+      const { data: existingRoles, error: roleCheckError } = await supabase
         .from("user_roles")
-        .insert({
-          user_id: userId,
-          role: "client",
-          client_id: client_id
-        });
+        .select("*")
+        .eq("user_id", userId)
+        .eq("client_id", client_id);
         
-      if (roleError) {
-        console.error("Error creating user role:", roleError);
-        // Continue despite error, as user was created successfully
+      if (roleCheckError) {
+        console.error("Error checking existing role:", roleCheckError);
+      }
+      
+      if (!existingRoles || existingRoles.length === 0) {
+        console.log("Creating new user role entry");
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({
+            user_id: userId,
+            role: "client",
+            client_id: client_id
+          });
+          
+        if (roleError) {
+          console.error("Error creating user role:", roleError);
+          // Continue despite error, as user was created/updated successfully
+        } else {
+          console.log("User role created successfully");
+        }
       } else {
-        console.log("User role created successfully");
+        console.log("User role entry already exists, skipping creation");
       }
     } catch (roleError) {
       console.error("Failed to create user role:", roleError);
-      // Continue despite error, as user was created successfully
+      // Continue despite error, as user was created/updated successfully
     }
     
     return new Response(
