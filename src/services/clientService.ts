@@ -128,10 +128,14 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         throw new Error(`Failed to create auth user: ${errorText}`);
       }
 
-      const responseData = await createUserResponse.json();
+      const responseText = await createUserResponse.text();
+      console.log("Create user response:", responseText);
+      
+      const responseData = JSON.parse(responseText);
       const tempPassword = responseData.temp_password;
 
       if (!tempPassword) {
+        console.error("Response data:", responseData);
         throw new Error('No temporary password received from server');
       }
 
