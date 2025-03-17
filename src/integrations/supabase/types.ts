@@ -1669,48 +1669,6 @@ export type Database = {
         }
         Relationships: []
       }
-      testb: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
-      testc: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
       testclient11: {
         Row: {
           content: string | null
@@ -1796,27 +1754,6 @@ export type Database = {
         Relationships: []
       }
       testclient5: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
-      testd: {
         Row: {
           content: string | null
           embedding: string | null
@@ -3577,32 +3514,6 @@ export type Database = {
           similarity: number
         }[]
       }
-      match_testb: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
-      match_testc: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
       match_testclient11: {
         Args: {
           query_embedding: string
@@ -3656,19 +3567,6 @@ export type Database = {
         }[]
       }
       match_testclient5: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
-      match_testd: {
         Args: {
           query_embedding: string
           match_count?: number

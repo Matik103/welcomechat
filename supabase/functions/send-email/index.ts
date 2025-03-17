@@ -31,16 +31,10 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
-      return new Response(
-        JSON.stringify({ error: "Resend API key not configured" }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+      throw new Error("Resend API key not configured");
     }
     
-    console.log("Initializing Resend client with API key");
+    console.log("Initializing Resend client with API key length:", resendApiKey.length);
     const resend = new Resend(resendApiKey);
     
     // Parse request body
@@ -74,13 +68,7 @@ serve(async (req) => {
       if (!html) missingParams.push("html");
       
       console.error("Missing required parameters:", missingParams.join(", "));
-      return new Response(
-        JSON.stringify({ error: `Missing required parameters: ${missingParams.join(", ")}` }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+      throw new Error(`Missing required parameters: ${missingParams.join(", ")}`);
     }
     
     // Send the email
@@ -88,52 +76,33 @@ serve(async (req) => {
     console.log(`Attempting to send email to ${to} from ${fromAddress} with subject "${subject}"`);
     
     try {
-      const resendResponse = await resend.emails.send({
+      const { data, error } = await resend.emails.send({
         from: fromAddress,
         to: [to],
         subject: subject,
         html: html
       });
       
-      // Always return properly formatted JSON
-      if (resendResponse.error) {
-        console.error("Error from Resend API:", resendResponse.error);
-        return new Response(
-          JSON.stringify({ 
-            error: resendResponse.error.message || "Failed to send email",
-            details: resendResponse.error
-          }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
+      if (error) {
+        console.error("Error from Resend API:", error);
+        throw error;
       }
       
-      console.log("Email sent successfully:", resendResponse.data);
+      console.log("Email sent successfully:", data);
       
       return new Response(
         JSON.stringify({ 
           success: true,
-          data: resendResponse.data || { id: "email-sent" }
+          data: data
         }), 
         {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         }
       );
-    } catch (sendError: any) {
-      console.error("Resend API error:", sendError);
-      return new Response(
-        JSON.stringify({ 
-          error: sendError.message || "Unknown error sending email",
-          details: sendError
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+    } catch (sendError) {
+      console.error("Resend API error details:", sendError);
+      throw new Error(`Resend API error: ${sendError.message || "Unknown error"}`);
     }
   } catch (error: any) {
     console.error("Error in send-email function:", error);
@@ -143,7 +112,8 @@ serve(async (req) => {
       message: error.message || "Failed to send email",
       code: error.code,
       status: error.status,
-      name: error.name
+      name: error.name,
+      stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined
     };
     
     return new Response(
