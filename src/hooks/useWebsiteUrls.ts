@@ -1,11 +1,16 @@
-
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toast as sonnerToast } from "sonner";
 import { WebsiteUrl } from "@/types/client";
+import { useToast } from '@/components/ui/use-toast';
 
 export function useWebsiteUrls(clientId: string | undefined) {
   const queryClient = useQueryClient();
+  const [urls, setUrls] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
   
   const query = useQuery({
     queryKey: ["websiteUrls", clientId],
@@ -29,80 +34,138 @@ export function useWebsiteUrls(clientId: string | undefined) {
     enabled: !!clientId,
   });
 
-  const addWebsiteUrl = async (input: { url: string; refresh_rate: number }): Promise<WebsiteUrl> => {
-    if (!clientId) {
-      console.error("Client ID is missing");
-      throw new Error("Client ID is required");
-    }
-    
-    console.log("Adding website URL with client ID:", clientId);
-    console.log("Input data:", input);
-    
-    // Insert the website URL
+  const fetchUrls = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
-        .from("website_urls")
-        .insert({
-          client_id: clientId,
-          url: input.url,
-          refresh_rate: input.refresh_rate,
-        })
-        .select()
-        .single();
-        
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
-      }
-      
-      if (!data) {
-        throw new Error("Failed to create website URL - no data returned");
-      }
-      
-      return data as WebsiteUrl;
-    } catch (insertError) {
-      console.error("Error inserting website URL:", insertError);
-      throw insertError;
+        .from('website_urls')
+        .select('url')
+        .eq('client_id', clientId);
+
+      if (error) throw error;
+      setUrls(data.map(item => item.url));
+    } catch (err) {
+      setError(err.message);
+      toast({
+        title: "Error fetching URLs",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const deleteWebsiteUrl = async (urlId: number): Promise<number> => {
-    const { error } = await supabase
-      .from("website_urls")
-      .delete()
-      .eq("id", urlId);
-    if (error) throw error;
-    return urlId;
+  const addUrl = async (url: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Validate URL format
+      new URL(url);
+
+      // Call the validate-urls function
+      const { data: validationResult, error: validationError } = await supabase.functions.invoke('validate-urls', {
+        body: { url, type: 'website' }
+      });
+
+      if (validationError) throw validationError;
+
+      if (!validationResult.isAccessible) {
+        // Show warning but still allow adding the URL
+        toast({
+          title: "Website Accessibility Warning",
+          description: `The website might have accessibility issues: ${validationResult.error || 'Unknown error'}. 
+            ${validationResult.details?.robotsTxtAllows === false ? 'The website\'s robots.txt disallows crawling.' : ''}
+            ${validationResult.details?.isSecure === false ? 'The website is not using HTTPS.' : ''}
+            Please ensure the website is properly configured for crawling.`,
+          variant: "default"
+        });
+      }
+
+      const { error: insertError } = await supabase
+        .from('website_urls')
+        .insert([{ client_id: clientId, url }]);
+
+      if (insertError) throw insertError;
+
+      setUrls([...urls, url]);
+      toast({
+        title: "URL Added",
+        description: "The website URL has been added successfully.",
+      });
+    } catch (err) {
+      setError(err.message);
+      toast({
+        title: "Error adding URL",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteUrl = async (url: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase
+        .from('website_urls')
+        .delete()
+        .eq('client_id', clientId)
+        .eq('url', url);
+
+      if (error) throw error;
+
+      setUrls(urls.filter(u => u !== url));
+      toast({
+        title: "URL Deleted",
+        description: "The website URL has been removed successfully.",
+      });
+    } catch (err) {
+      setError(err.message);
+      toast({
+        title: "Error deleting URL",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const addWebsiteUrlMutation = useMutation({
-    mutationFn: addWebsiteUrl,
+    mutationFn: addUrl,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
-      toast.success("Website URL added successfully");
+      sonnerToast.success("Website URL added successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Error adding website URL: ${error.message}`);
+      sonnerToast.error(`Error adding website URL: ${error.message}`);
     }
   });
 
   const deleteWebsiteUrlMutation = useMutation({
-    mutationFn: deleteWebsiteUrl,
+    mutationFn: deleteUrl,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["websiteUrls", clientId] });
-      toast.success("Website URL removed successfully");
+      sonnerToast.success("Website URL removed successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Error removing website URL: ${error.message}`);
+      sonnerToast.error(`Error removing website URL: ${error.message}`);
     }
   });
 
   return {
-    websiteUrls: query.data || [],
-    refetchWebsiteUrls: query.refetch,
+    urls,
+    isLoading,
+    error,
+    fetchUrls,
     addWebsiteUrlMutation,
     deleteWebsiteUrlMutation,
-    isLoading: query.isLoading,
+    websiteUrls: query.data || [],
+    refetchWebsiteUrls: query.refetch,
     isError: query.isError
   };
 }

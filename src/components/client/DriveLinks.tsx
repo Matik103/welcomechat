@@ -1,11 +1,11 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Lock, Globe, AlertTriangle } from "lucide-react";
 import { DriveLink } from "@/types/client";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
+import { useUrlValidation } from "@/hooks/useUrlValidation";
 
 interface DriveLinksProps {
   driveLinks: DriveLink[];
@@ -28,40 +28,105 @@ export const DriveLinks = ({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationWarning, setValidationWarning] = useState<string | null>(null);
+  const { validateUrl, isValidating } = useUrlValidation();
+
+  const validateRefreshRate = (rate: number): string | null => {
+    if (rate < 1) {
+      return "Refresh rate must be at least 1 day";
+    }
+    if (rate > 365) {
+      return "Refresh rate cannot exceed 365 days";
+    }
+    return null;
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("handleAdd called with link:", newLink);
     setError(null);
+    setValidationWarning(null);
     
     if (!newLink) {
       setError("Please enter a Google Drive link");
       return;
     }
-    
-    if (!newLink.includes('drive.google.com') && !newLink.includes('docs.google.com')) {
-      setError("Please enter a valid Google Drive link");
+
+    // Validate refresh rate
+    const refreshRateError = validateRefreshRate(newRefreshRate);
+    if (refreshRateError) {
+      setError(refreshRateError);
       return;
     }
     
     try {
       setIsSubmitting(true);
-      console.log("Submitting drive link:", newLink, newRefreshRate);
       
-      const linkData = {
+      // Validate the Drive link first
+      const validationResult = await validateUrl(newLink, 'drive');
+      
+      if (!validationResult.isAccessible) {
+        setError(validationResult.error || 'Google Drive link is not accessible');
+        setValidationWarning(`
+          To fix this:
+          1. Check if the link format is correct
+          2. Ensure you're using a direct Google Drive sharing link
+          3. Make sure you have access to the file/folder
+        `);
+        return;
+      }
+
+      if (!validationResult.details?.isGoogleDriveViewable) {
+        setValidationWarning(`
+          This Google Drive link is currently private. You can still add it, but to make it accessible:
+          1. Open the file/folder in Google Drive
+          2. Click the "Share" button (usually in the top-right)
+          3. Click "Change to anyone with the link"
+          4. Set access to "Viewer" or "Commenter" as needed
+          5. Click "Done" to save the changes
+        `);
+      }
+
+      // Add additional warnings based on validation details
+      if (validationResult.details?.serverInfo?.headers) {
+        const contentType = validationResult.details.serverInfo.headers['content-type']?.toLowerCase() || '';
+        const warnings: string[] = [];
+
+        if (contentType.includes('application/vnd.google-apps.folder')) {
+          warnings.push(`
+            This is a Google Drive folder. Please ensure:
+            1. All files within the folder are also shared
+            2. The folder permissions are properly set
+            3. Consider sharing specific files instead if not all content is relevant
+          `);
+        } else if (!contentType.includes('text/') && 
+                  !contentType.includes('application/pdf') && 
+                  !contentType.includes('application/vnd.google-apps.document')) {
+          warnings.push(`
+            This file type may not be suitable for AI processing.
+            Consider sharing documents, spreadsheets, or PDFs instead.
+          `);
+        }
+
+        if (warnings.length > 0) {
+          setValidationWarning((prev) => 
+            prev ? `${prev}\n\n${warnings.join('\n')}` : warnings.join('\n')
+          );
+        }
+      }
+      
+      console.log("Submitting Drive link:", newLink, newRefreshRate);
+      await onAdd({
         link: newLink,
         refresh_rate: newRefreshRate,
-      };
-      
-      console.log("Sending data to onAdd:", linkData);
-      await onAdd(linkData);
+      });
       
       setNewLink("");
       setNewRefreshRate(30);
       setShowNewForm(false);
     } catch (error) {
-      console.error("Error adding link:", error);
-      setError(error instanceof Error ? error.message : "Failed to add Google Drive link");
+      console.error("Error adding Drive link:", error);
+      setError(error instanceof Error ? error.message : "Failed to add Drive link");
     } finally {
       setIsSubmitting(false);
     }
@@ -72,7 +137,7 @@ export const DriveLinks = ({
     try {
       await onDelete(id);
     } catch (error) {
-      console.error("Error deleting link:", error);
+      console.error("Error deleting Drive link:", error);
     } finally {
       setDeletingId(null);
     }
@@ -83,12 +148,25 @@ export const DriveLinks = ({
       {driveLinks.length > 0 ? (
         <div className="space-y-2">
           {driveLinks.map((link) => (
-            <div 
-              key={link.id} 
-              className="flex items-center gap-2 p-3 rounded-md border bg-gray-50 border-gray-200"
-            >
-              <div className="flex-1 truncate text-sm">
-                {link.link}
+            <div key={link.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm">{link.link}</span>
+                  {link.access_status === 'restricted' && (
+                    <Lock className="h-4 w-4 text-amber-500" />
+                  )}
+                  {link.access_status === 'public' && (
+                    <Globe className="h-4 w-4 text-green-500" />
+                  )}
+                </div>
+                {link.access_status === 'restricted' && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    To make this link accessible:
+                    1. Open in Drive
+                    2. Click "Share"
+                    3. Change to "Anyone with the link"
+                  </p>
+                )}
               </div>
               <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
               <Button
@@ -126,6 +204,21 @@ export const DriveLinks = ({
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
+                {validationWarning && (
+                  <div className="mt-2 text-sm whitespace-pre-line">
+                    {validationWarning}
+                  </div>
+                )}
+              </Alert>
+            )}
+            
+            {!error && validationWarning && (
+              <Alert variant="warning" className="border-amber-300 bg-amber-50">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800">Access Warning</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                  <div className="whitespace-pre-line">{validationWarning}</div>
+                </AlertDescription>
               </Alert>
             )}
             
@@ -138,6 +231,7 @@ export const DriveLinks = ({
                 value={newLink}
                 onChange={(e) => setNewLink(e.target.value)}
                 required
+                disabled={isSubmitting || isValidating}
               />
             </div>
             
@@ -148,34 +242,22 @@ export const DriveLinks = ({
                 type="number"
                 min="1"
                 value={newRefreshRate}
-                onChange={(e) => setNewRefreshRate(parseInt(e.target.value) || 30)}
+                onChange={(e) => setNewRefreshRate(parseInt(e.target.value))}
                 required
+                disabled={isSubmitting || isValidating}
               />
             </div>
-            
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setShowNewForm(false);
-                  setError(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit"
-                disabled={isAddLoading || isSubmitting || !newLink}
-              >
-                {(isAddLoading || isSubmitting) ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Plus className="w-4 h-4 mr-2" />
-                )}
-                Add Link
-              </Button>
-            </div>
+
+            <Button
+              type="submit"
+              disabled={isSubmitting || isValidating}
+              className="w-full"
+            >
+              {(isSubmitting || isValidating) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              {isValidating ? 'Validating Link...' : isSubmitting ? 'Adding Link...' : 'Add Link'}
+            </Button>
           </div>
         </form>
       )}
