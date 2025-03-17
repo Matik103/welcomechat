@@ -67,8 +67,6 @@ export const sendClientInvitationEmail = async (params: {
       throw new Error("No auth session found - please log in again");
     }
     
-    // Fix: Use Supabase function invoke method instead of direct fetch
-    // This ensures proper URL construction and authentication
     console.log("Invoking create-client-user function");
     const { data: userData, error: userError } = await supabase.functions.invoke('create-client-user', {
       method: 'POST',
@@ -133,33 +131,36 @@ export const sendClientInvitationEmail = async (params: {
     
     console.log("Sending invitation email...");
     
-    // Re-fetch the token to ensure it's still valid (or get a newly refreshed one)
+    // Re-fetch the token to ensure it's still valid
     const emailToken = await ensureValidToken();
     
-    // Fix: Also use Supabase invoke for send-email function
-    const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${emailToken}`
-      },
-      body: {
-        to: email,
-        subject: emailSubject,
-        html: emailHtml,
-        from: "Welcome.Chat <admin@welcome.chat>"
+    // Call the send-email function with proper error handling for JSON responses
+    try {
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${emailToken}`
+        },
+        body: {
+          to: email,
+          subject: emailSubject,
+          html: emailHtml,
+          from: "Welcome.Chat <admin@welcome.chat>"
+        }
+      });
+      
+      if (emailError) {
+        console.error("Email sending failed:", emailError);
+        throw new Error(`Failed to send invitation email: ${emailError.message || emailError}`);
       }
-    });
-    
-    // Handle email response
-    if (emailError) {
-      console.error("Email sending failed:", emailError);
-      throw new Error(`Failed to send invitation email: ${emailError.message || emailError}`);
+      
+      console.log("Invitation email sent successfully:", emailData);
+      return;
+    } catch (sendError) {
+      console.error("Error in email sending request:", sendError);
+      throw new Error(`Failed to send email: ${sendError.message}`);
     }
-    
-    console.log("Invitation email sent successfully:", emailData);
-    return;
-    
   } catch (error: any) {
     console.error("Error sending invitation:", error);
     throw new Error(`Failed to send invitation: ${error.message}`);

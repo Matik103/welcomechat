@@ -40,7 +40,7 @@ serve(async (req) => {
       );
     }
     
-    console.log("Initializing Resend client with API key length:", resendApiKey.length);
+    console.log("Initializing Resend client with API key");
     const resend = new Resend(resendApiKey);
     
     // Parse request body
@@ -88,17 +88,21 @@ serve(async (req) => {
     console.log(`Attempting to send email to ${to} from ${fromAddress} with subject "${subject}"`);
     
     try {
-      const { data, error } = await resend.emails.send({
+      const resendResponse = await resend.emails.send({
         from: fromAddress,
         to: [to],
         subject: subject,
         html: html
       });
       
-      if (error) {
-        console.error("Error from Resend API:", error);
+      // Always return properly formatted JSON
+      if (resendResponse.error) {
+        console.error("Error from Resend API:", resendResponse.error);
         return new Response(
-          JSON.stringify({ error: error.message || "Failed to send email" }),
+          JSON.stringify({ 
+            error: resendResponse.error.message || "Failed to send email",
+            details: resendResponse.error
+          }),
           { 
             status: 500, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -106,22 +110,25 @@ serve(async (req) => {
         );
       }
       
-      console.log("Email sent successfully:", data);
+      console.log("Email sent successfully:", resendResponse.data);
       
       return new Response(
         JSON.stringify({ 
           success: true,
-          data: data
+          data: resendResponse.data || { id: "email-sent" }
         }), 
         {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         }
       );
-    } catch (sendError) {
-      console.error("Resend API error details:", sendError);
+    } catch (sendError: any) {
+      console.error("Resend API error:", sendError);
       return new Response(
-        JSON.stringify({ error: sendError.message || "Unknown error sending email" }),
+        JSON.stringify({ 
+          error: sendError.message || "Unknown error sending email",
+          details: sendError
+        }),
         { 
           status: 500, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
