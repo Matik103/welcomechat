@@ -1984,6 +1984,27 @@ export type Database = {
         }
         Relationships: []
       }
+      testh: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       testheagent: {
         Row: {
           content: string | null
@@ -3823,6 +3844,19 @@ export type Database = {
         }[]
       }
       match_testglas: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_testh: {
         Args: {
           query_embedding: string
           match_count?: number
