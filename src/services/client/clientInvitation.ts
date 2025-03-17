@@ -145,7 +145,8 @@ export const sendClientInvitationEmail = async (params: {
       emailResult = await emailResponse.json();
       console.log("Invitation email response:", emailResult);
     } catch (parseError) {
-      console.warn("Could not parse email response as JSON, but request was successful");
+      // Consider this a success if the response was OK but not JSON
+      console.log("Could not parse email response as JSON, but request was successful");
     }
     
     return;
