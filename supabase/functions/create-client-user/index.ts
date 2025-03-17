@@ -87,14 +87,21 @@ serve(async (req) => {
     // Check if user already exists
     try {
       console.log("Checking if user exists:", email);
-      const { data: existingUser, error: userCheckError } = await supabase.auth.admin.listUsers({
-        email: email,
-      });
-      
-      if (userCheckError) {
+      let existingUser;
+      try {
+        const { data: userData, error: userCheckError } = await supabase.auth.admin.listUsers({
+          email: email,
+        });
+        
+        if (userCheckError) {
+          throw userCheckError;
+        }
+        
+        existingUser = userData;
+      } catch (userCheckError) {
         console.error("Error checking if user exists:", userCheckError);
         return new Response(
-          JSON.stringify({ error: `Error checking if user exists: ${userCheckError.message}` }),
+          JSON.stringify({ error: `Error checking if user exists: ${userCheckError.message || JSON.stringify(userCheckError)}` }),
           { 
             status: 500, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -109,6 +116,7 @@ serve(async (req) => {
         console.log("User already exists, updating metadata:", email);
         
         userId = existingUser.users[0].id;
+        console.log("Found existing user with ID:", userId);
         
         // Update user metadata
         try {
@@ -137,7 +145,7 @@ serve(async (req) => {
         } catch (updateError) {
           console.error("Exception updating user metadata:", updateError);
           return new Response(
-            JSON.stringify({ error: `Exception updating user metadata: ${updateError.message || "Unknown error"}` }),
+            JSON.stringify({ error: `Exception updating user metadata: ${updateError.message || JSON.stringify(updateError)}` }),
             { 
               status: 500, 
               headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -172,11 +180,23 @@ serve(async (req) => {
             );
           }
           
+          if (!newUser || !newUser.user) {
+            console.error("User creation returned no data");
+            return new Response(
+              JSON.stringify({ error: "User creation returned no data" }),
+              { 
+                status: 500, 
+                headers: { ...corsHeaders, "Content-Type": "application/json" } 
+              }
+            );
+          }
+          
           userId = newUser.user.id;
+          console.log("Created new user with ID:", userId);
         } catch (createError) {
           console.error("Exception creating user:", createError);
           return new Response(
-            JSON.stringify({ error: `Exception creating user: ${createError.message || "Unknown error"}` }),
+            JSON.stringify({ error: `Exception creating user: ${createError.message || JSON.stringify(createError)}` }),
             { 
               status: 500, 
               headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -210,21 +230,34 @@ serve(async (req) => {
       
       // Create AI agent entry for this client
       try {
-        console.log("Creating AI agent for client:", client_id);
-        const { error: agentError } = await supabase
-          .from("ai_agents")
-          .insert([{
-            client_id: client_id,
-            name: agent_name,
-            settings: {
-              client_name: client_name,
-              created_at: new Date().toISOString()
-            }
-          }]);
+        console.log("Checking if AI agent already exists for client:", client_id);
         
-        if (agentError) {
-          console.warn("Could not create AI agent entry:", agentError.message);
-          // Continue despite error
+        // Check if AI agent already exists
+        const { data: existingAgents } = await supabase
+          .from("ai_agents")
+          .select("id")
+          .eq("client_id", client_id)
+          .limit(1);
+        
+        if (!existingAgents || existingAgents.length === 0) {
+          console.log("Creating AI agent for client:", client_id);
+          const { error: agentError } = await supabase
+            .from("ai_agents")
+            .insert([{
+              client_id: client_id,
+              name: agent_name,
+              settings: {
+                client_name: client_name,
+                created_at: new Date().toISOString()
+              }
+            }]);
+          
+          if (agentError) {
+            console.warn("Could not create AI agent entry:", agentError.message);
+            // Continue despite error
+          }
+        } else {
+          console.log("AI agent already exists for client, skipping creation");
         }
       } catch (agentError) {
         console.warn("Error creating AI agent:", agentError);
@@ -248,7 +281,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: err.message || "Failed to create client user",
-          details: err.toString()
+          details: JSON.stringify(err)
         }),
         { 
           status: 500, 
@@ -262,7 +295,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: err.message || "Failed to create client user",
-        details: err.toString()
+        details: JSON.stringify(err)
       }),
       { 
         status: 500, 

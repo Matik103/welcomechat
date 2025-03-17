@@ -1312,6 +1312,27 @@ export type Database = {
         }
         Relationships: []
       }
+      tesi: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       test_98: {
         Row: {
           content: string | null
@@ -3428,6 +3449,19 @@ export type Database = {
         }[]
       }
       match_tea_team: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_tesi: {
         Args: {
           query_embedding: string
           match_count?: number

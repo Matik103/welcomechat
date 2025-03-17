@@ -38,10 +38,13 @@ export const useClientMutation = (id: string | undefined) => {
         
         try {
           // Step 1: Create the client record first
+          console.log("Creating client record...");
           clientId = await createClient(updatedData);
+          console.log("Client record created with ID:", clientId);
           
           // Step 2: Try to send the invitation email
           try {
+            console.log("Sending invitation email for client:", clientId);
             const inviteResult = await sendClientInvitationEmail({
               clientId: clientId,
               clientName: data.client_name,
@@ -54,12 +57,15 @@ export const useClientMutation = (id: string | undefined) => {
             
             if (!inviteResult.success && !inviteResult.emailSent) {
               console.error("Failed to create user account:", inviteResult.error);
+              // If account creation failed, we want to show this error
+              throw new Error(`Failed to create user account: ${inviteResult.error}`);
             } else if (!inviteResult.emailSent && inviteResult.error) {
               console.warn("Client account created but email failed:", inviteResult.error);
+              // This is a warning but not a fatal error as the account was created
             }
           } catch (emailError: any) {
             console.error("Failed to send invitation email:", emailError);
-            errorMessage = emailError.message;
+            errorMessage = emailError.message || JSON.stringify(emailError);
             // Continue with client creation even if email fails
           }
         } catch (error: any) {
@@ -73,6 +79,10 @@ export const useClientMutation = (id: string | undefined) => {
           errorMessage
         };
       }
+    },
+    onError: (error: any) => {
+      console.error("Mutation error:", error);
+      toast.error(`Client operation failed: ${error.message || "Unknown error"}`);
     }
   });
 

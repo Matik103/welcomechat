@@ -126,7 +126,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: `Resend API error: ${sendError.message || "Unknown error"}`,
-          details: sendError.toString()
+          details: JSON.stringify(sendError)
         }),
         { 
           status: 500, 
