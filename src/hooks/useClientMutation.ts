@@ -4,7 +4,8 @@ import { ClientFormData } from "@/types/client";
 import { 
   updateClient, 
   createClient, 
-  logClientUpdateActivity
+  logClientUpdateActivity,
+  sendClientInvitationEmail
 } from "@/services/clientService";
 import { toast } from "sonner";
 
@@ -33,8 +34,44 @@ export const useClientMutation = (id: string | undefined) => {
         } else {
           // Create new client
           toast.info("Creating client...");
-          const newClientId = await createClient(updatedData);
-          return newClientId;
+          
+          try {
+            // First create the client
+            const newClientId = await createClient(updatedData);
+            
+            // Then send the invitation email - with retry logic
+            try {
+              await sendClientInvitationEmail({
+                clientId: newClientId,
+                clientName: data.client_name,
+                email: data.email
+              });
+              toast.success("Invitation email sent successfully");
+            } catch (emailError) {
+              console.error("Failed to send invitation email:", emailError);
+              toast.warning("Client created but invitation email failed to send");
+              
+              // Retry sending the email after a delay
+              setTimeout(async () => {
+                try {
+                  await sendClientInvitationEmail({
+                    clientId: newClientId,
+                    clientName: data.client_name,
+                    email: data.email
+                  });
+                  toast.success("Invitation email sent on retry");
+                } catch (retryError) {
+                  console.error("Email retry failed:", retryError);
+                  toast.error("Failed to send invitation email. Please check client details and try manually.");
+                }
+              }, 3000);
+            }
+            
+            return newClientId;
+          } catch (clientError) {
+            console.error("Error creating client:", clientError);
+            throw new Error("Failed to create client. Please try again.");
+          }
         }
       } catch (error: any) {
         console.error("Error in client mutation:", error);
@@ -44,6 +81,8 @@ export const useClientMutation = (id: string | undefined) => {
     onSuccess: (clientId) => {
       if (id) {
         toast.success("Client updated successfully");
+      } else {
+        toast.success("Client created successfully");
       }
     },
     onError: (error: any) => {
