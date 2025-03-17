@@ -53,15 +53,39 @@ serve(async (req) => {
         to: email,
         subject: "Account Deletion Notice",
         html: `
+          <!DOCTYPE html>
           <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-              <h1>Account Deletion Notice</h1>
-              <p>Dear ${clientName},</p>
-              <p>As requested, your account${agentInfo} has been scheduled for deletion. The deletion will be completed in 30 days.</p>
-              <p>If this was done in error, you can contact support to cancel the deletion process.</p>
-              <p>Please note: After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
-              <p>Best regards,<br>The Welcome.Chat Team</p>
-            </body>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+          </head>
+          <body style="background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              <!-- Header -->
+              <div style="background-color: #4299e1; padding: 30px 40px; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Account Deletion Notice</h1>
+              </div>
+              
+              <!-- Content -->
+              <div style="padding: 40px;">
+                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">Dear ${clientName},</p>
+                
+                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">As requested, your account${agentInfo} has been scheduled for deletion. The deletion will be completed in 30 days.</p>
+                
+                <div style="border-left: 4px solid #f6ad55; background-color: #fffaf0; padding: 15px; margin: 30px 0; color: #744210; font-size: 14px; line-height: 1.6;">
+                  <p style="margin: 0 0 10px;"><strong>Important Information:</strong></p>
+                  <p style="margin: 0;">If this deletion was requested in error, please contact our support team immediately to cancel the deletion process. After 30 days, all your data will be permanently deleted and cannot be recovered.</p>
+                </div>
+                
+                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 30px 0 0;">Best regards,<br>The Welcome.Chat Team</p>
+              </div>
+              
+              <!-- Footer -->
+              <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="color: #718096; font-size: 14px; margin: 0;">© ${new Date().getFullYear()} Welcome.Chat. All rights reserved.</p>
+              </div>
+            </div>
+          </body>
           </html>
         `
       });
