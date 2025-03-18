@@ -11,10 +11,11 @@ import { toast } from "sonner";
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      // Use agent name exactly as provided without any modifications
+      // Use agent name and description exactly as provided without any modifications
       const updatedData = {
         ...data,
-        agent_name: data.agent_name // Use the exact agent name as provided
+        agent_name: data.agent_name, // Use the exact agent name as provided
+        agent_description: data.agent_description // Include agent_description
       };
 
       if (id) {

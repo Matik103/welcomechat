@@ -14,18 +14,35 @@ export function useStoreDocumentContent() {
   // Function to get the latest agent name for a client
   const getAgentName = async (clientId: string): Promise<string | null> => {
     try {
-      const { data, error } = await supabase
+      console.log(`Fetching agent name for client: ${clientId}`);
+      
+      // First try to get the agent name from clients table
+      const { data: clientData, error: clientError } = await supabase
         .from("clients")
         .select("agent_name")
         .eq("id", clientId)
         .single();
 
-      if (error) {
-        console.error("Error fetching agent name:", error);
-        return null;
+      if (clientError) {
+        console.error("Error fetching agent name from clients table:", clientError);
+        
+        // If that fails, try to get the latest agent name from ai_agents
+        const { data: agentsData, error: agentsError } = await supabase
+          .from("ai_agents")
+          .select("name")
+          .eq("client_id", clientId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+          
+        if (agentsError || !agentsData || agentsData.length === 0) {
+          console.error("Error fetching agent name from ai_agents:", agentsError);
+          return null;
+        }
+        
+        return agentsData[0]?.name || null;
       }
 
-      return data?.agent_name || null;
+      return clientData?.agent_name || null;
     } catch (error) {
       console.error("Error in getAgentName:", error);
       return null;
