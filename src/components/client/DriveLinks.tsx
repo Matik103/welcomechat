@@ -59,7 +59,7 @@ export const DriveLinks = ({
         console.log("Fetching client data for ID:", clientId);
         const { data, error } = await supabase
           .from("clients")
-          .select("client_name, agent_name, agent_description")
+          .select("client_name, agent_name")
           .eq("id", clientId)
           .single();
 
@@ -80,6 +80,9 @@ export const DriveLinks = ({
       } catch (err) {
         console.error("Error in fetchClientData:", err);
         toast.error("Failed to load client information");
+        // Make sure to initialize the clientData state to prevent NULL errors
+        setClientData({});
+        setAgentName(null);
       } finally {
         setIsLoading(false);
       }
