@@ -11,18 +11,41 @@ interface StoreDocumentResult {
 export function useStoreDocumentContent() {
   const [isStoring, setIsStoring] = useState(false);
 
+  // Function to get the latest agent name for a client
+  const getAgentName = async (clientId: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("agent_name")
+        .eq("id", clientId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching agent name:", error);
+        return null;
+      }
+
+      return data?.agent_name || null;
+    } catch (error) {
+      console.error("Error in getAgentName:", error);
+      return null;
+    }
+  };
+
   const storeDocumentContent = async (
     clientId: string,
-    agentName: string,
+    agentName: string | null,
     file: File,
     fileUrl: string
   ): Promise<StoreDocumentResult> => {
     setIsStoring(true);
     
     try {
-      console.log(`Storing document content for client: ${clientId}, agent: ${agentName}`);
+      // Fetch the latest agent name from the database if not provided
+      const validAgentName = agentName || await getAgentName(clientId);
+      console.log(`Storing document content for client: ${clientId}, agent: ${validAgentName}`);
       
-      if (!agentName || agentName.trim() === "") {
+      if (!validAgentName || validAgentName.trim() === "") {
         return {
           success: false,
           error: "Agent name is not configured. Please set up an AI Agent Name in client settings before uploading documents."
@@ -44,7 +67,7 @@ export function useStoreDocumentContent() {
         .from("ai_agents")
         .insert({
           client_id: clientId,
-          name: agentName, // Use exact name without modification
+          name: validAgentName, // Use the valid agent name
           content: `File uploaded: ${file.name}`,
           url: fileUrl,
           interaction_type: "file_upload",

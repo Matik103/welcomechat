@@ -1,5 +1,5 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, ExternalLink, FileUp, FileText, PlusCircle } from "lucide-react";
@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { useDriveAccessCheck } from "@/hooks/useDriveAccessCheck";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DocumentLinksProps {
   documentLinks: DocumentLink[];
@@ -18,6 +19,7 @@ interface DocumentLinksProps {
   isDeleteLoading: boolean;
   isUploadLoading: boolean;
   agentName?: string;
+  clientId?: string;
 }
 
 export const DocumentLinks = ({
@@ -28,7 +30,8 @@ export const DocumentLinks = ({
   isAddLoading,
   isDeleteLoading,
   isUploadLoading,
-  agentName
+  agentName: initialAgentName,
+  clientId
 }: DocumentLinksProps) => {
   const [activeTab, setActiveTab] = useState("link");
   const [showNewForm, setShowNewForm] = useState(false);
@@ -43,6 +46,66 @@ export const DocumentLinks = ({
   const [fileId, setFileId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [agentName, setAgentName] = useState<string | undefined>(initialAgentName);
+  const [isLoadingAgentName, setIsLoadingAgentName] = useState(false);
+
+  // Fetch the agent name from database whenever clientId changes
+  useEffect(() => {
+    const fetchAgentName = async () => {
+      if (!clientId) return;
+      
+      setIsLoadingAgentName(true);
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("agent_name")
+          .eq("id", clientId)
+          .single();
+
+        if (error) {
+          console.error("Error fetching agent name:", error);
+        } else {
+          console.log("Fetched agent name:", data.agent_name);
+          setAgentName(data.agent_name);
+        }
+      } catch (error) {
+        console.error("Error in fetchAgentName:", error);
+      } finally {
+        setIsLoadingAgentName(false);
+      }
+    };
+
+    fetchAgentName();
+  }, [clientId]);
+
+  // Re-fetch agent name whenever we show the form to ensure it's up to date
+  useEffect(() => {
+    if (showNewForm && clientId) {
+      const fetchAgentName = async () => {
+        setIsLoadingAgentName(true);
+        try {
+          const { data, error } = await supabase
+            .from("clients")
+            .select("agent_name")
+            .eq("id", clientId)
+            .single();
+  
+          if (error) {
+            console.error("Error fetching agent name:", error);
+          } else {
+            console.log("Fetched agent name on form open:", data.agent_name);
+            setAgentName(data.agent_name);
+          }
+        } catch (error) {
+          console.error("Error in fetchAgentName on form open:", error);
+        } finally {
+          setIsLoadingAgentName(false);
+        }
+      };
+  
+      fetchAgentName();
+    }
+  }, [showNewForm, clientId]);
 
   const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewLink(e.target.value);
@@ -382,11 +445,23 @@ export const DocumentLinks = ({
                   </Alert>
                 )}
                 
-                {!agentName && (
+                {isLoadingAgentName ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                ) : !agentName ? (
                   <Alert variant="warning" className="bg-amber-50 border-amber-200">
                     <AlertTriangle className="h-4 w-4 text-amber-600" />
                     <AlertDescription className="text-amber-700">
                       Agent name is not configured. Please set up an AI Agent Name in client settings before uploading documents.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert variant="success" className="bg-green-50 border-green-200">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertTitle className="text-green-800">Agent Name Configured</AlertTitle>
+                    <AlertDescription className="text-green-700">
+                      Using agent name: <span className="font-medium">{agentName}</span>
                     </AlertDescription>
                   </Alert>
                 )}
