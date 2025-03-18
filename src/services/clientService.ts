@@ -22,12 +22,15 @@ export const getClientById = async (id: string): Promise<Client | null> => {
  * Updates an existing client
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
+  console.log("Updating client with data:", data);
+  
   const { error } = await supabase
     .from("clients")
     .update({
       client_name: data.client_name,
       email: data.email,
       agent_name: data.agent_name, // Use the exact name provided by the user
+      agent_description: data.agent_description, // Save agent_description to clients table
       widget_settings: data.widget_settings,
     })
     .eq("id", id);
@@ -128,6 +131,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         client_name: data.client_name,
         email: data.email,
         agent_name: finalAgentName,
+        agent_description: data.agent_description, // Save agent_description
         widget_settings: data.widget_settings || {},
         status: 'active',
         website_url_refresh_rate: 60,

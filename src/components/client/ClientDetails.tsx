@@ -37,6 +37,7 @@ export const ClientDetails = ({
   const ensureAiAgentExists = async (clientId: string, agentName: string, agentDescription?: string): Promise<AgentUpdateResult> => {
     try {
       console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
+      console.log(`Agent description: ${agentDescription}`);
       
       // Use the agent name exactly as provided without any modifications
       const formattedAgentName = agentName;
@@ -133,7 +134,12 @@ export const ClientDetails = ({
       
       if (clientId && isClientView) {
         // Update existing client
-        await clientMutation.mutateAsync(data);
+        await clientMutation.mutateAsync({
+          client_name: data.client_name,
+          email: data.email,
+          agent_name: data.agent_name,
+          agent_description: data.agent_description
+        });
         
         // Ensure AI agent exists with correct name and description
         let agentUpdateResult = { updated: false, created: false, descriptionUpdated: false };
@@ -184,7 +190,12 @@ export const ClientDetails = ({
         toast.success("Client information saved successfully");
       } else if (clientId) {
         // Admin updating client
-        await clientMutation.mutateAsync(data);
+        await clientMutation.mutateAsync({
+          client_name: data.client_name,
+          email: data.email,
+          agent_name: data.agent_name,
+          agent_description: data.agent_description
+        });
         
         // Ensure AI agent exists with correct name and description
         if (data.agent_name) {
@@ -200,7 +211,12 @@ export const ClientDetails = ({
         
         try {
           // Create the client and attempt to send invitation
-          const result = await clientMutation.mutateAsync(data);
+          const result = await clientMutation.mutateAsync({
+            client_name: data.client_name,
+            email: data.email,
+            agent_name: data.agent_name,
+            agent_description: data.agent_description
+          });
           
           // Check if result contains emailSent flag
           if (typeof result === 'object' && 'clientId' in result) {
