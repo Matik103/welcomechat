@@ -68,13 +68,19 @@ export const DriveLinks = ({
           throw error;
         }
 
-        console.log("Fetched client data:", data);
-        setClientData(data);
-        if (data.agent_name) {
-          console.log("Setting agent name:", data.agent_name);
-          setAgentName(data.agent_name);
+        if (data) {
+          console.log("Fetched client data:", data);
+          setClientData(data);
+          if (data.agent_name) {
+            console.log("Setting agent name:", data.agent_name);
+            setAgentName(data.agent_name);
+          } else {
+            console.log("No agent name found in client data");
+            setAgentName(null);
+          }
         } else {
-          console.log("No agent name found in client data");
+          console.log("No client data found");
+          setClientData({});
           setAgentName(null);
         }
       } catch (err) {
