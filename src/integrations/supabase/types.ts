@@ -5196,6 +5196,7 @@ export type Database = {
         | "document_processing_started"
         | "document_processing_completed"
         | "document_processing_failed"
+        | "system_update"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"

@@ -4,6 +4,7 @@ import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { Database } from "@/integrations/supabase/types";
 import { mapActivityType } from "@/utils/activityTypeUtils";
+import { toast } from "sonner";
 
 // Define the proper role type based on the database schema
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -59,9 +60,11 @@ export const createClientActivity = async (
         
         if (fallbackError) {
           console.error("Failed to log activity even with fallback:", fallbackError);
+          toast.error("Failed to record activity. Please try again.");
           throw fallbackError;
         }
       } else {
+        toast.error("Failed to record activity. Please try again.");
         throw error;
       }
     }
@@ -108,6 +111,7 @@ export const logChatInteraction = async (
     
     if (error) {
       console.error("Failed to log chat interaction:", error);
+      toast.error("Failed to record chat interaction");
       throw error;
     }
   } catch (error) {
@@ -154,7 +158,13 @@ export const logAgentError = async (
     
     if (error) {
       console.error("Failed to log agent error:", error);
+      toast.error("Failed to record agent error");
       throw error;
+    } else {
+      // Only show toast for errors that users should know about
+      toast.error(`Agent error: ${errorType}`, {
+        description: errorMessage.substring(0, 100) + (errorMessage.length > 100 ? '...' : '')
+      });
     }
   } catch (error) {
     console.error("Error logging agent error:", error);
@@ -189,10 +199,14 @@ export const ensureUserRole = async (
     
     if (error) {
       console.error("Role creation/update error:", error);
+      toast.error("Failed to update user role");
       throw error;
+    } else {
+      toast.success("User role updated successfully");
     }
   } catch (error) {
     console.error("Error ensuring user role:", error);
+    toast.error("Failed to update user role");
     throw error;
   }
 };
