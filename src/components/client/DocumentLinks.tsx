@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useDriveAccessCheck } from "@/hooks/useDriveAccessCheck";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface DocumentLinksProps {
   documentLinks: DocumentLink[];
@@ -48,6 +49,56 @@ export const DocumentLinks = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [agentName, setAgentName] = useState<string | undefined>(initialAgentName);
   const [isLoadingAgentName, setIsLoadingAgentName] = useState(false);
+
+  // Document type specific placeholders and validation patterns
+  const documentTypeConfig = {
+    google_drive: {
+      placeholder: "https://drive.google.com/drive/folders/...",
+      validationRegex: /drive\.google\.com|docs\.google\.com/i,
+      helperText: "Enter a Google Drive folder or file link",
+    },
+    google_doc: {
+      placeholder: "https://docs.google.com/document/d/...",
+      validationRegex: /docs\.google\.com\/document/i,
+      helperText: "Enter a Google Doc document link",
+    },
+    google_sheet: {
+      placeholder: "https://docs.google.com/spreadsheets/d/...",
+      validationRegex: /docs\.google\.com\/spreadsheets/i,
+      helperText: "Enter a Google Sheet spreadsheet link",
+    },
+    pdf: {
+      placeholder: "https://example.com/document.pdf",
+      validationRegex: /\.pdf$/i,
+      helperText: "Enter a link to a PDF document (must end with .pdf)",
+    },
+    excel: {
+      placeholder: "https://example.com/spreadsheet.xlsx",
+      validationRegex: /\.(xlsx|xls|csv)$/i,
+      helperText: "Enter a link to an Excel file (must end with .xlsx, .xls, or .csv)",
+    },
+    document: {
+      placeholder: "https://example.com/document.docx",
+      validationRegex: /\.(docx|doc|txt)$/i,
+      helperText: "Enter a link to a document file (must end with .docx, .doc, or .txt)",
+    },
+    other: {
+      placeholder: "https://example.com/resource",
+      validationRegex: /.+/,
+      helperText: "Enter any resource link",
+    }
+  };
+
+  // Get current document type configuration
+  const currentConfig = documentTypeConfig[documentType as keyof typeof documentTypeConfig] || documentTypeConfig.other;
+
+  // Handle document type change
+  const handleDocumentTypeChange = (value: string) => {
+    setDocumentType(value);
+    setIsValidated(false);
+    setError(null);
+    setFileId(null);
+  };
 
   // Fetch the agent name from database whenever clientId changes
   useEffect(() => {
@@ -115,10 +166,6 @@ export const DocumentLinks = ({
     setFileId(null);
   };
 
-  const handleDocumentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setDocumentType(e.target.value);
-  };
-
   const validateLink = async () => {
     if (!newLink) {
       setError("Please enter a document link");
@@ -126,7 +173,14 @@ export const DocumentLinks = ({
     }
 
     // Validate the link format based on document type
-    if (documentType === "google_drive") {
+    const config = documentTypeConfig[documentType as keyof typeof documentTypeConfig];
+    if (!config.validationRegex.test(newLink)) {
+      setError(`Invalid ${documentType.replace('_', ' ')} link format. ${config.helperText}`);
+      return false;
+    }
+
+    // Special validation for Google Drive links
+    if (documentType === "google_drive" || documentType === "google_doc" || documentType === "google_sheet") {
       const validation = validateDriveLink(newLink);
       if (!validation.isValid) {
         setError(validation.error);
@@ -134,7 +188,7 @@ export const DocumentLinks = ({
       }
       setFileId(validation.fileId);
     } else {
-      // For other document types (PDF, Excel, etc.), just verify it's a valid URL
+      // For other document types, verify it's a valid URL
       try {
         new URL(newLink);
       } catch (e) {
@@ -237,6 +291,10 @@ export const DocumentLinks = ({
     switch (link.document_type) {
       case "google_drive":
         return <FileText className="h-4 w-4 text-blue-600" />;
+      case "google_doc":
+        return <FileText className="h-4 w-4 text-blue-600" />;
+      case "google_sheet":
+        return <FileText className="h-4 w-4 text-green-600" />;
       case "pdf":
         return <FileText className="h-4 w-4 text-red-600" />;
       case "excel":
@@ -245,6 +303,20 @@ export const DocumentLinks = ({
         return <FileText className="h-4 w-4 text-indigo-600" />;
       default:
         return <FileText className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getDocumentTypeName = (type: string | undefined) => {
+    if (!type) return "Unknown";
+    
+    switch (type) {
+      case "google_drive": return "Google Drive";
+      case "google_doc": return "Google Doc";
+      case "google_sheet": return "Google Sheet";
+      case "pdf": return "PDF";
+      case "excel": return "Excel";
+      case "document": return "Document";
+      default: return type.replace('_', ' ');
     }
   };
 
@@ -261,6 +333,11 @@ export const DocumentLinks = ({
               <div className="flex-1 truncate text-sm">
                 {link.link}
               </div>
+              {link.document_type && (
+                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                  {getDocumentTypeName(link.document_type)}
+                </span>
+              )}
               <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
               <Button
                 variant="ghost"
@@ -324,12 +401,12 @@ export const DocumentLinks = ({
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <AlertTitle className="text-green-800">Link Validated</AlertTitle>
                     <AlertDescription className="text-green-700">
-                      This is a valid document link.
+                      This is a valid {getDocumentTypeName(documentType)} link.
                     </AlertDescription>
                   </Alert>
                 )}
                 
-                {isValidated && fileId && documentType === "google_drive" && (
+                {isValidated && fileId && (documentType === "google_drive" || documentType === "google_doc" || documentType === "google_sheet") && (
                   <div className="text-sm bg-blue-50 p-3 rounded-md border border-blue-200">
                     <p className="font-medium text-blue-800 mb-2">Make sure your Google Drive content is shared properly:</p>
                     <ol className="list-decimal list-inside text-blue-700 space-y-1 ml-2">
@@ -352,20 +429,24 @@ export const DocumentLinks = ({
                 
                 <div className="space-y-2">
                   <Label htmlFor="document-type">Document Type</Label>
-                  <select 
-                    id="document-type"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  <Select 
                     value={documentType}
-                    onChange={(e) => setDocumentType(e.target.value)}
+                    onValueChange={handleDocumentTypeChange}
                   >
-                    <option value="google_drive">Google Drive</option>
-                    <option value="google_doc">Google Doc</option>
-                    <option value="google_sheet">Google Sheet</option>
-                    <option value="pdf">PDF</option>
-                    <option value="excel">Excel</option>
-                    <option value="document">Document</option>
-                    <option value="other">Other</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select document type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="google_drive">Google Drive</SelectItem>
+                      <SelectItem value="google_doc">Google Doc</SelectItem>
+                      <SelectItem value="google_sheet">Google Sheet</SelectItem>
+                      <SelectItem value="pdf">PDF</SelectItem>
+                      <SelectItem value="excel">Excel</SelectItem>
+                      <SelectItem value="document">Document</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 mt-1">{currentConfig.helperText}</p>
                 </div>
                 
                 <div className="space-y-2">
@@ -374,7 +455,7 @@ export const DocumentLinks = ({
                     <Input
                       id="document-link"
                       type="url"
-                      placeholder="https://drive.google.com/... or https://example.com/document.pdf"
+                      placeholder={currentConfig.placeholder}
                       value={newLink}
                       onChange={handleLinkChange}
                       required
