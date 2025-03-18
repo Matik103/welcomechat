@@ -6,6 +6,19 @@ import { logAgentError } from "@/services/clientActivityService";
 import { toast } from "sonner";
 
 /**
+ * Define types for document metadata to avoid Json type issues
+ */
+interface DocumentSettings {
+  file_name?: string;
+  file_type?: string;
+  file_size?: number;
+  document_type?: string;
+  document_id?: string;
+  uploaded_at?: string;
+  [key: string]: any;
+}
+
+/**
  * Tracks the status of document processing and logs activities
  */
 export const trackDocumentProcessing = async (
@@ -226,10 +239,11 @@ export const migrateDocumentProcessingSystem = async (): Promise<void> => {
     if (documentUploads && documentUploads.length > 0) {
       for (const doc of documentUploads) {
         // Extract file details from settings
-        const fileName = doc.settings?.file_name || 'unknown.file';
-        const fileType = doc.settings?.file_type || 'unknown';
-        const fileSize = doc.settings?.file_size || 0;
-        const documentId = doc.settings?.document_id || `${Date.now()}_migration_${fileName}`;
+        const settings = doc.settings as DocumentSettings;
+        const fileName = settings?.file_name || 'unknown.file';
+        const fileType = settings?.file_type || 'unknown';
+        const fileSize = settings?.file_size || 0;
+        const documentId = settings?.document_id || `${Date.now()}_migration_${fileName}`;
         
         // Check if we have a completed activity for this document
         const { data: existingActivity } = await supabase
@@ -299,11 +313,12 @@ export const getClientDocuments = async (
     
     // Transform the data
     const documents = (data || []).map(doc => {
+      const settings = doc.settings as DocumentSettings;
       return {
         id: doc.id,
-        name: doc.settings?.file_name || 'Unknown file',
-        type: doc.settings?.file_type || 'unknown',
-        size: doc.settings?.file_size || 0,
+        name: settings?.file_name || 'Unknown file',
+        type: settings?.file_type || 'unknown',
+        size: settings?.file_size || 0,
         url: doc.url || '',
         uploadDate: doc.created_at || new Date().toISOString(),
         status: 'completed' as 'processing' | 'completed' | 'failed'
