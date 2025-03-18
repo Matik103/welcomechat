@@ -37,6 +37,7 @@ function runMigration(sqlFilePath) {
   }
 }
 
-// Run the fix migration
-runMigration(path.join(__dirname, '../supabase/migrations/20240911_fix_ai_agents_migration.sql'));
+// Get the migration file from command-line arguments or use default
+const migrationFile = process.argv[2] || path.join(__dirname, '../supabase/migrations/20240911_fix_ai_agents_migration.sql');
+runMigration(migrationFile);
 console.log("Migration process complete. Check the Supabase Dashboard to verify the data has been properly linked.");
