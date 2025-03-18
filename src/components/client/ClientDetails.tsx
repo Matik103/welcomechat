@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";

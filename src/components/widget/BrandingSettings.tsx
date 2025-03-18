@@ -2,7 +2,6 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { WidgetSettings } from "@/types/widget-settings";
-import { useEffect } from "react";
 
 interface BrandingSettingsProps {
   settings: WidgetSettings;
@@ -17,16 +16,6 @@ export function BrandingSettings({
   onSettingsChange,
   onLogoUpload
 }: BrandingSettingsProps) {
-  // Handle agent name with potential " Assistant" suffix
-  useEffect(() => {
-    if (settings.agent_name && settings.agent_name.endsWith(" Assistant")) {
-      // Remove " Assistant" suffix automatically
-      onSettingsChange({ 
-        agent_name: settings.agent_name.substring(0, settings.agent_name.length - 10) 
-      });
-    }
-  }, [settings.agent_name, onSettingsChange]);
-  
   return (
     <div className="space-y-4">
       <div>
