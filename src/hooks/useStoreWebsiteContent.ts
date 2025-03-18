@@ -37,12 +37,12 @@ export function useStoreWebsiteContent() {
         content_type: "text"
       };
       
-      // Insert the content into AI agents table
+      // Insert the content into AI agents table with the correct agent name
       const { data, error } = await supabase
         .from("ai_agents")
         .insert({
           client_id: clientId,
-          name: agentName,
+          name: agentName, // Use the actual agent name passed in
           content: content,
           url: url,
           interaction_type: "imported_content",
