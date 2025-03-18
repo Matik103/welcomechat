@@ -33,7 +33,20 @@ export const ClientDetails = ({
     try {
       if (clientId && isClientView) {
         // Update existing client
+        console.log("Updating client with data:", data);
         await clientMutation.mutateAsync(data);
+        
+        // Store current client data in localStorage for easy access
+        if (client) {
+          const updatedClient = {
+            ...client,
+            client_name: data.client_name,
+            email: data.email,
+            agent_name: data.agent_name,
+            agent_description: data.agent_description
+          };
+          localStorage.setItem('currentClient', JSON.stringify(updatedClient));
+        }
         
         // Refetch client data to update the UI with the latest changes
         refetchClient();
@@ -57,7 +70,9 @@ export const ClientDetails = ({
         toast.success("Client information saved successfully");
       } else if (clientId) {
         // Admin updating client
+        console.log("Admin updating client with data:", data);
         await clientMutation.mutateAsync(data);
+        toast.success("Client updated successfully");
         navigate("/admin/clients");
       } else {
         // Create new client - show loading toast
