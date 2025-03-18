@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -106,48 +105,44 @@ export function useDriveLinks(clientId: string | undefined) {
     // Set default access status to unknown since we can't check anymore
     const accessStatus: AccessStatus = "unknown";
     
-    // Insert the document link with access status
+    // First, check if the document_type column exists in the google_drive_links table
     try {
-      const { error: schemaError } = await supabase
+      // Try to access the schema to check if document_type column exists
+      const { error: columnCheckError } = await supabase
         .from("google_drive_links")
-        .select("access_status")
+        .select("document_type")
         .limit(1);
-      
-      const baseData: {
-        client_id: string;
-        link: string;
-        refresh_rate: number;
-        document_type?: string;
-      } = {
+        
+      // Prepare base data without document_type
+      const baseData = {
         client_id: clientId,
         link: input.link,
         refresh_rate: input.refresh_rate,
-        document_type: input.document_type || "unknown"
+        access_status: accessStatus
       };
-      
-      let insertData: any;
-      
-      if (!schemaError) {
-        console.log("The access_status column exists, adding it to the insert data");
+        
+      // If document_type column exists, add it to the insert data
+      let insertData;
+      if (!columnCheckError) {
+        console.log("document_type column exists, including it in the insert");
         insertData = {
           ...baseData,
-          access_status: accessStatus
-        } as (typeof baseData & { access_status: AccessStatus });
+          document_type: input.document_type || "google_drive"
+        };
       } else {
-        console.log("The access_status column does not exist, using base data only");
+        console.log("document_type column does not exist, using base data only");
         insertData = baseData;
       }
       
+      // Insert the record
       const { data, error } = await supabase
         .from("google_drive_links")
         .insert(insertData)
         .select()
         .single();
-      
-      console.log("Supabase response:", { data, error });
         
       if (error) {
-        console.error("Supabase error:", error);
+        console.error("Error inserting document link:", error);
         throw error;
       }
       
@@ -156,9 +151,9 @@ export function useDriveLinks(clientId: string | undefined) {
       }
       
       return data as DocumentLink;
-    } catch (insertError) {
-      console.error("Error inserting document link:", insertError);
-      throw insertError;
+    } catch (error) {
+      console.error("Error in addDocumentLink:", error);
+      throw error;
     }
   };
 
