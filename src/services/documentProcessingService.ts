@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ExtendedActivityType } from "@/types/activity";
 import { createClientActivity } from "@/services/clientActivityService";
@@ -95,10 +94,8 @@ export const uploadDocumentWithTracking = async (
   documentType: string
 ): Promise<string | null> => {
   try {
-    // Make sure agent name ends with " Assistant"
-    const formattedAgentName = agentName.endsWith(' Assistant') 
-      ? agentName 
-      : `${agentName} Assistant`;
+    // Use agent name exactly as provided without any modifications
+    const formattedAgentName = agentName;
     
     // Generate a unique ID for the document
     const documentId = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
