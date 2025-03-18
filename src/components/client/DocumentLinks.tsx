@@ -54,6 +54,17 @@ export const DocumentLinks = ({
 
   const handleDocumentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setDocumentType(e.target.value);
+    // Reset validation when document type changes
+    setIsValidated(false);
+    setError(null);
+    setFileId(null);
+  };
+
+  // Helper function to check if a document type is a Google resource
+  const isGoogleResource = (type: string): boolean => {
+    return type === "google_drive" || 
+           type === "google_doc" || 
+           type === "google_sheet";
   };
 
   const validateLink = async () => {
@@ -63,7 +74,8 @@ export const DocumentLinks = ({
     }
 
     // Validate the link format based on document type
-    if (documentType === "google_drive") {
+    if (isGoogleResource(documentType)) {
+      // Only validate Google Drive links with the Drive access check
       const validation = validateDriveLink(newLink);
       if (!validation.isValid) {
         setError(validation.error);
@@ -266,7 +278,7 @@ export const DocumentLinks = ({
                   </Alert>
                 )}
                 
-                {isValidated && fileId && documentType === "google_drive" && (
+                {isValidated && fileId && isGoogleResource(documentType) && (
                   <div className="text-sm bg-blue-50 p-3 rounded-md border border-blue-200">
                     <p className="font-medium text-blue-800 mb-2">Make sure your Google Drive content is shared properly:</p>
                     <ol className="list-decimal list-inside text-blue-700 space-y-1 ml-2">
@@ -293,7 +305,7 @@ export const DocumentLinks = ({
                     id="document-type"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                     value={documentType}
-                    onChange={(e) => setDocumentType(e.target.value)}
+                    onChange={handleDocumentTypeChange}
                   >
                     <option value="google_drive">Google Drive</option>
                     <option value="google_doc">Google Doc</option>
@@ -317,19 +329,21 @@ export const DocumentLinks = ({
                       required
                       className="flex-1"
                     />
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={validateLink}
-                      disabled={isChecking || !newLink || isValidated}
-                    >
-                      {isChecking ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                      )}
-                      Validate
-                    </Button>
+                    {isGoogleResource(documentType) && (
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={validateLink}
+                        disabled={isChecking || !newLink || isValidated}
+                      >
+                        {isChecking ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                        )}
+                        Validate
+                      </Button>
+                    )}
                   </div>
                 </div>
                 
@@ -360,7 +374,7 @@ export const DocumentLinks = ({
                   </Button>
                   <Button 
                     type="submit"
-                    disabled={isAddLoading || isSubmitting || !newLink || (isChecking && !isValidated)}
+                    disabled={isAddLoading || isSubmitting || !newLink || (isGoogleResource(documentType) && isChecking && !isValidated)}
                   >
                     {(isAddLoading || isSubmitting) ? (
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />

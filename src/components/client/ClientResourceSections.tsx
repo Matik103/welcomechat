@@ -64,8 +64,17 @@ export const ClientResourceSections = ({
 
   const agentName = getAgentName();
 
-  // Check if any document links have restricted access
-  const restrictedLinks = documentLinks.filter(link => link.access_status === "restricted");
+  // Helper function to check if a document type is a Google resource
+  const isGoogleResource = (type: string): boolean => {
+    return type === "google_drive" || 
+           type === "google_doc" || 
+           type === "google_sheet";
+  };
+
+  // Check if any Google Drive links have restricted access
+  const restrictedLinks = documentLinks.filter(link => 
+    isGoogleResource(link.document_type || '') && link.access_status === "restricted"
+  );
   const hasRestrictedLinks = restrictedLinks.length > 0;
 
   const handleAddDocumentLink = async (data: { link: string; refresh_rate: number; document_type?: string }) => {
@@ -213,12 +222,12 @@ export const ClientResourceSections = ({
             <AlertDescription className="text-amber-700">
               <p className="mb-2">
                 {restrictedLinks.length > 1 
-                  ? `${restrictedLinks.length} document links have restricted access.` 
-                  : "One document link has restricted access."} 
+                  ? `${restrictedLinks.length} Google Drive links have restricted access.` 
+                  : "One Google Drive link has restricted access."} 
                 Your AI agent cannot access these files.
               </p>
               <p className="text-sm">
-                To fix this: For Google Drive links, open each restricted link, click "Share", and change access to "Anyone with the link".
+                To fix this: Open each restricted Google Drive link, click "Share", and change access to "Anyone with the link".
               </p>
             </AlertDescription>
           </Alert>

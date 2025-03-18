@@ -15,7 +15,7 @@ export function useDriveAccessCheck() {
   const [lastResult, setLastResult] = useState<DriveCheckResult | null>(null);
 
   const extractDriveFileId = (link: string): string => {
-    console.log("Extracting file ID from link:", link);
+    console.log("Extracting file ID from Google Drive link:", link);
     let fileId = '';
     
     try {
@@ -39,7 +39,7 @@ export function useDriveAccessCheck() {
         fileId = link.split('/d/')[1]?.split('/')[0];
       }
       
-      console.log("Extracted file ID:", fileId);
+      console.log("Extracted Google Drive file ID:", fileId);
       
       if (!fileId) {
         throw new Error("Invalid Google Drive link format - couldn't extract file ID");
@@ -47,7 +47,7 @@ export function useDriveAccessCheck() {
       
       return fileId;
     } catch (error) {
-      console.error("Error extracting file ID:", error);
+      console.error("Error extracting Google Drive file ID:", error);
       throw new Error("Invalid Google Drive link format");
     }
   };
@@ -84,7 +84,7 @@ export function useDriveAccessCheck() {
     setIsChecking(true);
     
     try {
-      console.log("Validating Drive link:", link);
+      console.log("Validating Google Drive link:", link);
       const validation = validateDriveLink(link);
       
       if (!validation.isValid) {
@@ -109,7 +109,7 @@ export function useDriveAccessCheck() {
       setLastResult(result);
       return result;
     } catch (error) {
-      console.error("Error in drive access check:", error);
+      console.error("Error in Google Drive access check:", error);
       const result = {
         accessLevel: "unknown" as AccessStatus,
         fileType: "unknown" as const,
