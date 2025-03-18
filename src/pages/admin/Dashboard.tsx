@@ -10,7 +10,7 @@ import { AdminDashboardTools } from "@/components/admin/AdminDashboardTools";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const { activities, isLoading, error } = useRecentActivities();
+  const { data: activities, isLoading, error } = useRecentActivities();
   const [activeTab, setActiveTab] = useState<string>("overview");
 
   return (

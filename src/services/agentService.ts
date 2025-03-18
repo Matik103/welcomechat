@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { checkAndRefreshAuth } from "./authService";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 
 /**
  * Updates all AI agent records with the correct agent name from client records
