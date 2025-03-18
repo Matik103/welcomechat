@@ -102,7 +102,13 @@ export const DocumentLinks = ({
       }
     }
     
-    await onAdd(data);
+    // Fix: Ensure we're passing all required properties
+    await onAdd({
+      link: data.link,
+      refresh_rate: data.refresh_rate,
+      document_type: data.document_type
+    });
+    
     reset();
   };
 
