@@ -32,12 +32,12 @@ export function useStoreDocumentContent() {
         url: fileUrl
       };
       
-      // Insert the content into AI agents table with the correct agent name
+      // Insert the content into AI agents table
       const { data, error } = await supabase
         .from("ai_agents")
         .insert({
           client_id: clientId,
-          name: agentName, // Use the actual agent name passed in
+          name: agentName,
           content: `File uploaded: ${file.name}`,
           url: fileUrl,
           interaction_type: "file_upload",

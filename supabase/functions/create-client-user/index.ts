@@ -175,18 +175,17 @@ serve(async (req) => {
       console.warn("Error creating user role:", roleError);
     }
     
-    // Create AI agent entry for this client - Use the actual agent_name from request
+    // Create AI agent entry for this client
     try {
       console.log("Creating AI agent for client:", client_id);
       const { error: agentError } = await supabase
         .from("ai_agents")
         .insert([{
           client_id: client_id,
-          name: agent_name, // Use the actual agent_name parameter here
+          name: agent_name,
           description: agent_description || "",
           settings: {
             client_name: client_name,
-            agent_description: agent_description || "",
             created_at: new Date().toISOString()
           }
         }]);

@@ -6,19 +6,6 @@ import { logAgentError } from "@/services/clientActivityService";
 import { toast } from "sonner";
 
 /**
- * Define types for document metadata to avoid Json type issues
- */
-interface DocumentSettings {
-  file_name?: string;
-  file_type?: string;
-  file_size?: number;
-  document_type?: string;
-  document_id?: string;
-  uploaded_at?: string;
-  [key: string]: any;
-}
-
-/**
  * Tracks the status of document processing and logs activities
  */
 export const trackDocumentProcessing = async (
@@ -239,19 +226,17 @@ export const migrateDocumentProcessingSystem = async (): Promise<void> => {
     if (documentUploads && documentUploads.length > 0) {
       for (const doc of documentUploads) {
         // Extract file details from settings
-        const settings = doc.settings as DocumentSettings;
-        const fileName = settings?.file_name || 'unknown.file';
-        const fileType = settings?.file_type || 'unknown';
-        const fileSize = settings?.file_size || 0;
-        const documentId = settings?.document_id || `${Date.now()}_migration_${fileName}`;
+        const fileName = doc.settings?.file_name || 'unknown.file';
+        const fileType = doc.settings?.file_type || 'unknown';
+        const fileSize = doc.settings?.file_size || 0;
+        const documentId = doc.settings?.document_id || `${Date.now()}_migration_${fileName}`;
         
         // Check if we have a completed activity for this document
-        // Fix: Use string literal for metadata column query instead of the arrow syntax
         const { data: existingActivity } = await supabase
           .from("client_activities")
           .select("*")
           .eq("client_id", doc.client_id)
-          .eq("metadata::json->>'document_id'", documentId)
+          .eq("metadata->document_id", documentId)
           .eq("activity_type", "document_processing_completed");
           
         // If we don't have a completed activity, create one
@@ -314,12 +299,11 @@ export const getClientDocuments = async (
     
     // Transform the data
     const documents = (data || []).map(doc => {
-      const settings = doc.settings as DocumentSettings;
       return {
         id: doc.id,
-        name: settings?.file_name || 'Unknown file',
-        type: settings?.file_type || 'unknown',
-        size: settings?.file_size || 0,
+        name: doc.settings?.file_name || 'Unknown file',
+        type: doc.settings?.file_type || 'unknown',
+        size: doc.settings?.file_size || 0,
         url: doc.url || '',
         uploadDate: doc.created_at || new Date().toISOString(),
         status: 'completed' as 'processing' | 'completed' | 'failed'
@@ -329,12 +313,11 @@ export const getClientDocuments = async (
     // Get the status of each document from client_activities
     for (const doc of documents) {
       // See if we have a failed status
-      // Fix: Use string literal for metadata column query instead of the arrow syntax
       const { data: failedActivity } = await supabase
         .from("client_activities")
         .select("*")
         .eq("client_id", clientId)
-        .eq("metadata::json->>'document_name'", doc.name)
+        .eq("metadata->document_name", doc.name)
         .eq("activity_type", "document_processing_failed")
         .order('created_at', { ascending: false })
         .limit(1);
@@ -349,7 +332,7 @@ export const getClientDocuments = async (
         .from("client_activities")
         .select("*")
         .eq("client_id", clientId)
-        .eq("metadata::json->>'document_name'", doc.name)
+        .eq("metadata->document_name", doc.name)
         .eq("activity_type", "document_processing_started")
         .order('created_at', { ascending: false })
         .limit(1);
@@ -358,7 +341,7 @@ export const getClientDocuments = async (
         .from("client_activities")
         .select("*")
         .eq("client_id", clientId)
-        .eq("metadata::json->>'document_name'", doc.name)
+        .eq("metadata->document_name", doc.name)
         .eq("activity_type", "document_processing_completed")
         .order('created_at', { ascending: false })
         .limit(1);
