@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -124,6 +123,16 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const finalAgentName = data.agent_name || 'agent_' + Date.now();
     
     console.log("Using agent name:", finalAgentName);
+    
+    // Prepare widget settings, ensuring it's an object
+    const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
+      ? { 
+          ...data.widget_settings,
+          agent_description: data.agent_description 
+        } 
+      : { 
+          agent_description: data.agent_description 
+        };
 
     // Create the client record
     const { data: newClients, error } = await supabase
@@ -133,10 +142,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         email: data.email,
         agent_name: finalAgentName,
         // Store the agent_description in widget_settings for now
-        widget_settings: {
-          ...(data.widget_settings || {}),
-          agent_description: data.agent_description
-        },
+        widget_settings: widgetSettings,
         status: 'active',
         website_url_refresh_rate: 60,
         drive_link_refresh_rate: 60,
