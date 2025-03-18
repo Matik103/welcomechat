@@ -30,10 +30,8 @@ export const ClientDetails = ({
     try {
       console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
       
-      // Format agent name to include " Assistant" suffix
-      const formattedAgentName = agentName.endsWith(' Assistant') 
-        ? agentName 
-        : `${agentName} Assistant`;
+      // Use the agent name exactly as provided
+      const formattedAgentName = agentName;
       
       // Check if agent exists
       const { data: existingAgents, error: queryError } = await supabase

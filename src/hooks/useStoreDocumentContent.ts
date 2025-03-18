@@ -29,10 +29,8 @@ export function useStoreDocumentContent() {
         };
       }
       
-      // Format agent name to include " Assistant" suffix
-      const formattedAgentName = agentName.endsWith(' Assistant') 
-        ? agentName 
-        : `${agentName} Assistant`;
+      // Use the agent name exactly as provided
+      const formattedAgentName = agentName;
       
       // Prepare metadata
       const metadata = {
