@@ -185,7 +185,9 @@ export const ClientDetails = ({
       }
     } catch (error: any) {
       console.error("Error submitting client form:", error);
-      toast.error("Failed to save client information: " + (error?.message || "Unknown error"));
+      // Enhanced error message with more details if available
+      const errorDetails = error?.code ? ` (${error.code}: ${error.message})` : "";
+      toast.error("Failed to save client information" + (errorDetails || ": " + (error?.message || "Unknown error")));
     }
   };
 

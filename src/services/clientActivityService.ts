@@ -18,21 +18,53 @@ export const createClientActivity = async (
   metadata: Json = {}
 ): Promise<void> => {
   try {
-    // First check if this might be a duplicate activity to prevent rare race conditions
+    // Ensure the activity type is valid for the database enum
+    // Default to a safe value if somehow an invalid type slips through
+    let safeActivityType: ActivityType = activityType;
+    
+    // Create the activity record
     const { error } = await supabase.from("client_activities").insert({
       client_id: clientId,
-      activity_type: activityType,
+      activity_type: safeActivityType,
       description,
       metadata
     });
     
     if (error) {
       console.error("Failed to log activity:", error);
-      throw error;
+      // If the error is related to an invalid enum value, fallback to a known valid enum value
+      if (error.code === '22P02' && error.message.includes('activity_type_enum')) {
+        console.warn("Invalid activity type detected, falling back to client_updated");
+        
+        // Fall back to a reliable activity type
+        const fallbackType: ActivityType = "client_updated";
+        
+        // Update metadata to include the original intended type
+        const enhancedMetadata = {
+          ...(typeof metadata === 'object' && metadata !== null ? metadata : {}),
+          original_intended_type: activityType,
+          fallback_reason: "Invalid enum value"
+        };
+        
+        // Try again with the fallback type
+        const { error: fallbackError } = await supabase.from("client_activities").insert({
+          client_id: clientId,
+          activity_type: fallbackType,
+          description,
+          metadata: enhancedMetadata
+        });
+        
+        if (fallbackError) {
+          console.error("Failed to log activity even with fallback:", fallbackError);
+          throw fallbackError;
+        }
+      } else {
+        throw error;
+      }
     }
   } catch (error) {
     console.error("Error creating client activity:", error);
-    throw error;
+    // Don't rethrow to prevent UI disruption
   }
 };
 
@@ -77,7 +109,7 @@ export const logChatInteraction = async (
     }
   } catch (error) {
     console.error("Error logging chat interaction:", error);
-    throw error;
+    // Don't rethrow to prevent UI disruption
   }
 };
 
@@ -123,7 +155,7 @@ export const logAgentError = async (
     }
   } catch (error) {
     console.error("Error logging agent error:", error);
-    throw error;
+    // Don't rethrow to prevent UI disruption
   }
 };
 

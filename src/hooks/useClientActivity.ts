@@ -3,6 +3,7 @@ import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { mapActivityType } from "@/utils/activityTypeUtils";
 import { createClientActivity, ensureUserRole } from "@/services/clientActivityService";
+import { toast } from "sonner";
 
 export const useClientActivity = (clientId: string | undefined) => {
   /**
@@ -33,8 +34,8 @@ export const useClientActivity = (clientId: string | undefined) => {
         description
       });
       
-      // We don't rethrow the error to prevent UI disruption,
-      // but this could be modified based on requirements
+      // We don't throw the error to prevent UI disruption due to activity logging failures
+      // This allows the main operation to complete even if activity logging fails
     }
   };
 
