@@ -6,6 +6,7 @@ import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -48,6 +49,27 @@ export const ClientDetails = ({
           localStorage.setItem('currentClient', JSON.stringify(updatedClient));
         }
         
+        // If the agent name changed, we need to update any existing agent records
+        if (client?.agent_name !== data.agent_name && data.agent_name) {
+          try {
+            // Update existing AI agent names if they exist
+            const { error: agentError } = await supabase
+              .from("ai_agents")
+              .update({ name: data.agent_name })
+              .eq("client_id", clientId)
+              .eq("name", client?.agent_name);
+              
+            if (agentError) {
+              console.error("Error updating agent names:", agentError);
+              // Don't block the client update if this fails
+            } else {
+              console.log(`Updated agent names from ${client?.agent_name} to ${data.agent_name}`);
+            }
+          } catch (agentUpdateError) {
+            console.error("Error in agent name update:", agentUpdateError);
+          }
+        }
+        
         // Refetch client data to update the UI with the latest changes
         refetchClient();
         
@@ -72,6 +94,28 @@ export const ClientDetails = ({
         // Admin updating client
         console.log("Admin updating client with data:", data);
         await clientMutation.mutateAsync(data);
+        
+        // If the agent name changed, update any existing agent records
+        if (client?.agent_name !== data.agent_name && data.agent_name) {
+          try {
+            // Update existing AI agent names if they exist
+            const { error: agentError } = await supabase
+              .from("ai_agents")
+              .update({ name: data.agent_name })
+              .eq("client_id", clientId)
+              .eq("name", client?.agent_name);
+              
+            if (agentError) {
+              console.error("Error updating agent names:", agentError);
+              // Don't block the client update if this fails
+            } else {
+              console.log(`Updated agent names from ${client?.agent_name} to ${data.agent_name}`);
+            }
+          } catch (agentUpdateError) {
+            console.error("Error in agent name update:", agentUpdateError);
+          }
+        }
+        
         toast.success("Client updated successfully");
         navigate("/admin/clients");
       } else {
