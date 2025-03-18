@@ -43,14 +43,13 @@ export const updateAllAgentNames = async (): Promise<{
     console.log("Agent names update result:", result);
     
     return {
-      updated_count: result.updated_count,
-      client_count: result.client_count,
-      error_count: result.error_count
+      updated_count: result.updated_count || 0,
+      client_count: result.client_count || 0,
+      error_count: result.error_count || 0
     };
   } catch (error) {
     console.error("Error updating agent names:", error);
-    toast.error("Failed to update agent names: " + error.message);
-    throw error;
+    throw error; // Re-throw to handle in component
   }
 };
 
@@ -70,7 +69,7 @@ export const getMismatchedAgentNameCount = async (): Promise<number> => {
     
     if (clientError) {
       console.error("Error fetching clients:", clientError);
-      return 0;
+      throw clientError;
     }
     
     if (!clients || clients.length === 0) {
@@ -91,12 +90,14 @@ export const getMismatchedAgentNameCount = async (): Promise<number> => {
       
       if (!error && count !== null) {
         mismatchCount += count;
+      } else if (error) {
+        console.error(`Error checking mismatches for client ${client.id}:`, error);
       }
     }
     
     return mismatchCount;
   } catch (error) {
     console.error("Error counting mismatched agent names:", error);
-    return 0;
+    throw error; // Re-throw to handle in component
   }
 };

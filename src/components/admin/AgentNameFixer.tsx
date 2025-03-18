@@ -25,9 +25,9 @@ export function AgentNameFixer() {
       setIsChecking(true);
       const count = await getMismatchedAgentNameCount();
       setMismatchCount(count);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error checking mismatched names:", error);
-      toast.error("Failed to check mismatched agent names");
+      toast.error(`Failed to check mismatched agent names: ${error.message || "Unknown error"}`);
     } finally {
       setIsChecking(false);
     }
@@ -40,7 +40,7 @@ export function AgentNameFixer() {
       setResult(updateResult);
       setMismatchCount(0); // Assume all fixed
       toast.success(`Updated ${updateResult.updated_count} AI agent records`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update agent names:", error);
       toast.error(`Error updating agent names: ${error.message || "Unknown error"}`);
     } finally {
@@ -92,6 +92,7 @@ export function AgentNameFixer() {
           disabled={isChecking}
         >
           {isChecking && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+          <RefreshCw className="mr-2 h-3 w-3" />
           Check Again
         </Button>
         
