@@ -35,6 +35,10 @@ export const useClientActivity = (clientId: string | undefined) => {
         metadata
       });
       
+      toast.error("Failed to log activity", {
+        description: "An error occurred while recording this action. Please try again."
+      });
+      
       // We don't throw the error to prevent UI disruption due to activity logging failures
       // This allows the main operation to complete even if activity logging fails
     }
@@ -51,8 +55,10 @@ export const useClientActivity = (clientId: string | undefined) => {
     
     try {
       await ensureUserRole(userId, "client", clientId);
+      toast.success("Client role updated successfully");
     } catch (error) {
       console.error("Failed to ensure client role:", error);
+      toast.error("Failed to update client role");
       // Don't rethrow to prevent UI disruption
     }
   };
