@@ -15,7 +15,10 @@ export type ExtendedActivityType = ActivityType |
   "signed_out" | 
   "document_link_added" | 
   "document_uploaded" | 
-  "document_link_deleted";
+  "document_link_deleted" |
+  "document_processing_started" |
+  "document_processing_completed" |
+  "document_processing_failed";
 
 export interface ActivityRecord {
   activity_type: ExtendedActivityType;
