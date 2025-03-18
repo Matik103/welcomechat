@@ -32,10 +32,20 @@ export const useClient = (id?: string) => {
         .limit(1)
         .maybeSingle();
       
+      // Extract agent_description from widget_settings safely
+      let widgetAgentDescription = "";
+      if (
+        clientData.widget_settings && 
+        typeof clientData.widget_settings === 'object' && 
+        clientData.widget_settings !== null
+      ) {
+        widgetAgentDescription = (clientData.widget_settings as any).agent_description || "";
+      }
+      
       // Combine the data and return the client with the agent description
       const combinedData: Client = {
         ...clientData,
-        agent_description: agentData?.agent_description || clientData.widget_settings?.agent_description || "",
+        agent_description: agentData?.agent_description || widgetAgentDescription || "",
       };
       
       console.log("Client data merged with agent description:", combinedData);
