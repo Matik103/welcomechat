@@ -42,6 +42,7 @@ export function AgentNameFixer() {
       toast.success(`Updated ${updateResult.updated_count} AI agent records`);
     } catch (error) {
       console.error("Failed to update agent names:", error);
+      toast.error(`Error updating agent names: ${error.message || "Unknown error"}`);
     } finally {
       setIsLoading(false);
     }
