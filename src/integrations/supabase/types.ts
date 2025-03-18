@@ -32,6 +32,7 @@ export type Database = {
       }
       ai_agents: {
         Row: {
+          agent_description: string | null
           client_id: string
           content: string | null
           created_at: string | null
@@ -52,6 +53,7 @@ export type Database = {
           url: string | null
         }
         Insert: {
+          agent_description?: string | null
           client_id: string
           content?: string | null
           created_at?: string | null
@@ -72,6 +74,7 @@ export type Database = {
           url?: string | null
         }
         Update: {
+          agent_description?: string | null
           client_id?: string
           content?: string | null
           created_at?: string | null
@@ -4866,6 +4869,10 @@ export type Database = {
         }
         Returns: number
       }
+      update_ai_agents_from_client_settings: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       update_logo_url: {
         Args: {
           client_id: string
@@ -4939,6 +4946,9 @@ export type Database = {
         | "growth_milestone"
         | "ai_agent_table_created"
         | "ai_agent_created"
+        | "document_processing_started"
+        | "document_processing_completed"
+        | "document_processing_failed"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"
