@@ -22,7 +22,7 @@ const clientFormSchema = z.object({
   agent_name: z.string().min(1, "Agent name is required"),
 });
 
-export const EditForm = ({ initialData, onSubmit, isLoading = false }: EditFormProps) => {
+export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormProps) {
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
