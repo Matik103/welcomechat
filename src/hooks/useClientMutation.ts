@@ -11,17 +11,20 @@ import { toast } from "sonner";
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      // Sanitize agent name to ensure it's valid
-      const sanitizedAgentName = data.agent_name
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '_');
-      
-      const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+      // Sanitize agent name to ensure it's valid (if provided)
+      let finalAgentName = "";
+      if (data.agent_name) {
+        const sanitizedAgentName = data.agent_name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '_');
+        
+        finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+      }
       
       const updatedData = {
         ...data,
-        agent_name: finalAgentName,
+        agent_name: finalAgentName || undefined,
       };
 
       if (id) {

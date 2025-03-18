@@ -31,6 +31,45 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
     })
     .eq("id", id);
   if (error) throw error;
+  
+  // Update agent description in ai_agents table if agent_name exists
+  if (data.agent_name && data.agent_description !== undefined) {
+    try {
+      // Check if AI agent exists first
+      const { data: agentData } = await supabase
+        .from("ai_agents")
+        .select("id")
+        .eq("client_id", id)
+        .maybeSingle();
+        
+      if (agentData?.id) {
+        // Update existing AI agent
+        await supabase
+          .from("ai_agents")
+          .update({
+            description: data.agent_description
+          })
+          .eq("client_id", id);
+      } else {
+        // Create new AI agent if it doesn't exist
+        await supabase
+          .from("ai_agents")
+          .insert({
+            client_id: id,
+            name: data.agent_name,
+            description: data.agent_description,
+            settings: {
+              client_name: data.client_name,
+              updated_at: new Date().toISOString()
+            }
+          });
+      }
+    } catch (agentError) {
+      console.error("Error updating agent description:", agentError);
+      // Continue even if agent update fails
+    }
+  }
+  
   return id;
 };
 
@@ -61,13 +100,18 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
 
-    // Ensure agent_name is properly formatted (sanitized)
-    const sanitizedAgentName = data.agent_name
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '_');
-    
-    const finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+    // Ensure agent_name is properly formatted (sanitized) if provided
+    let finalAgentName = "";
+    if (data.agent_name) {
+      const sanitizedAgentName = data.agent_name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '_');
+      
+      finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
+    } else {
+      finalAgentName = 'agent_' + Date.now();
+    }
     
     console.log("Using sanitized agent name:", finalAgentName);
 
@@ -119,7 +163,8 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           email: data.email,
           client_id: clientId,
           client_name: data.client_name,
-          agent_name: finalAgentName
+          agent_name: finalAgentName,
+          agent_description: data.agent_description || ""
         })
       });
 

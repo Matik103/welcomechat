@@ -24,7 +24,12 @@ export const ClientDetails = ({
   // Use the clientId that was passed to the component
   const { clientMutation, refetchClient } = useClientData(clientId);
 
-  const handleSubmit = async (data: { client_name: string; email: string; agent_name: string }) => {
+  const handleSubmit = async (data: { 
+    client_name: string; 
+    email: string; 
+    agent_name?: string; 
+    agent_description?: string 
+  }) => {
     try {
       if (clientId && isClientView) {
         // Update existing client

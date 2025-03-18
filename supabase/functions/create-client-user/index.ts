@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
@@ -40,7 +41,8 @@ serve(async (req) => {
         email: body.email,
         client_id: body.client_id,
         client_name: body.client_name,
-        agent_name: body.agent_name
+        agent_name: body.agent_name,
+        agent_description: body.agent_description
       });
     } catch (parseError) {
       console.error("Failed to parse request body:", parseError);
@@ -53,7 +55,7 @@ serve(async (req) => {
       );
     }
     
-    const { email, client_id, client_name, agent_name } = body;
+    const { email, client_id, client_name, agent_name, agent_description } = body;
     
     if (!email || !client_id) {
       console.error("Missing required fields:", { 
@@ -181,6 +183,7 @@ serve(async (req) => {
         .insert([{
           client_id: client_id,
           name: agent_name,
+          description: agent_description || "",
           settings: {
             client_name: client_name,
             created_at: new Date().toISOString()

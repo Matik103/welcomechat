@@ -135,6 +135,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ask_parent_handbook: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       buffalo_school_board: {
         Row: {
           content: string | null
@@ -1586,6 +1607,27 @@ export type Database = {
         Relationships: []
       }
       testac: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
+      testad: {
         Row: {
           content: string | null
           embedding: string | null
@@ -3225,6 +3267,19 @@ export type Database = {
           similarity: number
         }[]
       }
+      match_ask_parent_handbook: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
       match_biegye: {
         Args: {
           query_embedding: string
@@ -3967,6 +4022,19 @@ export type Database = {
         }[]
       }
       match_testac: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_testad: {
         Args: {
           query_embedding: string
           match_count?: number

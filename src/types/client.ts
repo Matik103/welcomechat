@@ -24,7 +24,8 @@ export interface WebsiteUrl {
 export interface ClientFormData {
   client_name: string;
   email: string;
-  agent_name: string;
+  agent_name?: string;
+  agent_description?: string;
   widget_settings?: Json;
   company?: string;
   description?: string;
