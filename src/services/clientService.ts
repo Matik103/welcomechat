@@ -24,14 +24,15 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);
   
+  // Update the client record (excluding agent_description)
   const { error } = await supabase
     .from("clients")
     .update({
       client_name: data.client_name,
       email: data.email,
       agent_name: data.agent_name, // Use the exact name provided by the user
-      agent_description: data.agent_description, // Save agent_description to clients table
-      widget_settings: data.widget_settings,
+      // Store agent_description in widget_settings if needed
+      widget_settings: data.widget_settings
     })
     .eq("id", id);
   if (error) throw error;
@@ -57,7 +58,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
           .from("ai_agents")
           .update({
             name: data.agent_name, // Use the exact name provided by the user
-            agent_description: data.agent_description, // Use the new column
+            agent_description: data.agent_description, // Use the agent_description column
             ai_prompt: aiPrompt, // Save the generated AI prompt
             settings: {
               agent_description: data.agent_description,
@@ -74,7 +75,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
             client_id: id,
             name: data.agent_name, // Use the exact name provided by the user
             content: "",
-            agent_description: data.agent_description, // Use the new column
+            agent_description: data.agent_description, // Use the agent_description column
             ai_prompt: aiPrompt, // Save the generated AI prompt
             settings: {
               agent_description: data.agent_description,
@@ -131,8 +132,11 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         client_name: data.client_name,
         email: data.email,
         agent_name: finalAgentName,
-        agent_description: data.agent_description, // Save agent_description
-        widget_settings: data.widget_settings || {},
+        // Store the agent_description in widget_settings for now
+        widget_settings: {
+          ...(data.widget_settings || {}),
+          agent_description: data.agent_description
+        },
         status: 'active',
         website_url_refresh_rate: 60,
         drive_link_refresh_rate: 60,
