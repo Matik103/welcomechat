@@ -29,7 +29,7 @@ export function useStoreDocumentContent() {
         };
       }
       
-      // Use the agent name exactly as provided
+      // Use the agent name exactly as provided without any modifications
       const formattedAgentName = agentName;
       
       // Prepare metadata
