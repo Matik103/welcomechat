@@ -30,6 +30,11 @@ export const ClientDetails = ({
     try {
       console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
       
+      // Format agent name to include " Assistant" suffix
+      const formattedAgentName = agentName.endsWith(' Assistant') 
+        ? agentName 
+        : `${agentName} Assistant`;
+      
       // Check if agent exists
       const { data: existingAgents, error: queryError } = await supabase
         .from("ai_agents")
@@ -54,7 +59,7 @@ export const ClientDetails = ({
         const { error: updateError } = await supabase
           .from("ai_agents")
           .update({ 
-            name: agentName,
+            name: formattedAgentName,
             settings: settings
           })
           .eq("id", existingAgents[0].id);
@@ -62,7 +67,7 @@ export const ClientDetails = ({
         if (updateError) {
           console.error("Error updating AI agent name:", updateError);
         } else {
-          console.log(`Updated agent name from ${existingAgents[0].name} to ${agentName}`);
+          console.log(`Updated agent name from ${existingAgents[0].name} to ${formattedAgentName}`);
         }
       } else {
         // Create new agent
@@ -70,7 +75,7 @@ export const ClientDetails = ({
           .from("ai_agents")
           .insert({
             client_id: clientId,
-            name: agentName,
+            name: formattedAgentName,
             content: "",
             interaction_type: "config",
             settings: settings,
@@ -80,7 +85,7 @@ export const ClientDetails = ({
         if (insertError) {
           console.error("Error creating new AI agent:", insertError);
         } else {
-          console.log(`Created new AI agent with name ${agentName}`);
+          console.log(`Created new AI agent with name ${formattedAgentName}`);
         }
       }
     } catch (error) {

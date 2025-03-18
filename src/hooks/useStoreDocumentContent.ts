@@ -29,6 +29,11 @@ export function useStoreDocumentContent() {
         };
       }
       
+      // Format agent name to include " Assistant" suffix
+      const formattedAgentName = agentName.endsWith(' Assistant') 
+        ? agentName 
+        : `${agentName} Assistant`;
+      
       // Prepare metadata
       const metadata = {
         source: "file_upload",
@@ -44,7 +49,7 @@ export function useStoreDocumentContent() {
         .from("ai_agents")
         .insert({
           client_id: clientId,
-          name: agentName,
+          name: formattedAgentName,
           content: `File uploaded: ${file.name}`,
           url: fileUrl,
           interaction_type: "file_upload",

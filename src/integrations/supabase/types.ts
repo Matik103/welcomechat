@@ -273,6 +273,20 @@ export type Database = {
             foreignKeyName: "client_activities_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "agent_name_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_names_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -331,6 +345,20 @@ export type Database = {
           used_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "client_recovery_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "agent_name_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_recovery_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_names_audit"
+            referencedColumns: ["client_id"]
+          },
           {
             foreignKeyName: "client_recovery_tokens_client_id_fkey"
             columns: ["client_id"]
@@ -517,6 +545,20 @@ export type Database = {
             foreignKeyName: "common_queries_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "agent_name_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "common_queries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_names_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "common_queries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -620,6 +662,20 @@ export type Database = {
           status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "error_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "agent_name_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "error_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_names_audit"
+            referencedColumns: ["client_id"]
+          },
           {
             foreignKeyName: "error_logs_client_id_fkey"
             columns: ["client_id"]
@@ -742,6 +798,20 @@ export type Database = {
           refresh_rate?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "google_drive_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "agent_name_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "google_drive_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_names_audit"
+            referencedColumns: ["client_id"]
+          },
           {
             foreignKeyName: "google_drive_links_client_id_fkey"
             columns: ["client_id"]
@@ -2581,6 +2651,20 @@ export type Database = {
             foreignKeyName: "user_roles_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "agent_name_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "user_roles_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_names_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "user_roles_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -2889,6 +2973,20 @@ export type Database = {
             foreignKeyName: "website_urls_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "agent_name_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "website_urls_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_names_audit"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "website_urls_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -2938,7 +3036,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      agent_name_audit: {
+        Row: {
+          agent_record_id: string | null
+          ai_agent_name: string | null
+          client_agent_name: string | null
+          client_id: string | null
+          client_name: string | null
+          created_at: string | null
+          interaction_type: string | null
+        }
+        Relationships: []
+      }
+      chatbot_names_audit: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          client_agent_name: string | null
+          client_id: string | null
+          client_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_invitation: {
@@ -2947,6 +3066,16 @@ export type Database = {
           accepting_user_id: string
         }
         Returns: string
+      }
+      audit_agent_names: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          client_id: string
+          client_name: string
+          client_agent_name: string
+          ai_agent_name: string
+          record_count: number
+        }[]
       }
       binary_quantize:
         | {
@@ -3000,6 +3129,10 @@ export type Database = {
           content: string
         }
         Returns: string[]
+      }
+      fix_agent_name_mismatches: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       get_active_days: {
         Args: {
