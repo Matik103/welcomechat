@@ -95,13 +95,18 @@ export const uploadDocumentWithTracking = async (
   documentType: string
 ): Promise<string | null> => {
   try {
+    // Make sure agent name ends with " Assistant"
+    const formattedAgentName = agentName.endsWith(' Assistant') 
+      ? agentName 
+      : `${agentName} Assistant`;
+    
     // Generate a unique ID for the document
     const documentId = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     
     // Start tracking
     await trackDocumentProcessing(
       clientId,
-      agentName,
+      formattedAgentName,
       documentId,
       'started',
       {
@@ -122,7 +127,7 @@ export const uploadDocumentWithTracking = async (
     if (uploadError) {
       await trackDocumentProcessing(
         clientId,
-        agentName,
+        formattedAgentName,
         documentId,
         'failed',
         {
@@ -149,7 +154,7 @@ export const uploadDocumentWithTracking = async (
       .from("ai_agents")
       .insert({
         client_id: clientId,
-        name: agentName,
+        name: formattedAgentName,
         content: `File uploaded: ${file.name}`,
         url: fileUrl,
         interaction_type: "document_upload",
@@ -168,7 +173,7 @@ export const uploadDocumentWithTracking = async (
     if (agentError) {
       await trackDocumentProcessing(
         clientId,
-        agentName,
+        formattedAgentName,
         documentId,
         'failed',
         {
@@ -187,7 +192,7 @@ export const uploadDocumentWithTracking = async (
     // Complete tracking
     await trackDocumentProcessing(
       clientId,
-      agentName,
+      formattedAgentName,
       documentId,
       'completed',
       {
@@ -285,6 +290,14 @@ export const getClientDocuments = async (
   status: 'processing' | 'completed' | 'failed';
 }[]> => {
   try {
+    // Format the agent name if provided
+    let formattedAgentName: string | undefined = undefined;
+    if (agentName) {
+      formattedAgentName = agentName.endsWith(' Assistant') 
+        ? agentName 
+        : `${agentName} Assistant`;
+    }
+    
     // Query the ai_agents table for document uploads
     let query = supabase
       .from("ai_agents")
@@ -293,8 +306,8 @@ export const getClientDocuments = async (
       .eq("interaction_type", "document_upload");
       
     // Add agent name filter if provided
-    if (agentName) {
-      query = query.eq("name", agentName);
+    if (formattedAgentName) {
+      query = query.eq("name", formattedAgentName);
     }
     
     const { data, error } = await query;
