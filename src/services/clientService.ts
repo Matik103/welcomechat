@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -106,20 +105,10 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
 
-    // Ensure agent_name is properly formatted (sanitized) if provided
-    let finalAgentName = "";
-    if (data.agent_name) {
-      const sanitizedAgentName = data.agent_name
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '_');
-      
-      finalAgentName = sanitizedAgentName || 'agent_' + Date.now();
-    } else {
-      finalAgentName = 'agent_' + Date.now();
-    }
+    // Use agent name exactly as provided without any modifications
+    const finalAgentName = data.agent_name || 'agent_' + Date.now();
     
-    console.log("Using sanitized agent name:", finalAgentName);
+    console.log("Using agent name:", finalAgentName);
 
     // Create the client record
     const { data: newClients, error } = await supabase
@@ -337,4 +326,3 @@ export const sendClientInvitationEmail = async (params: {
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
-
