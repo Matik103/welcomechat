@@ -26,7 +26,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
     .update({
       client_name: data.client_name,
       email: data.email,
-      agent_name: data.agent_name,
+      agent_name: data.agent_name, // Use the exact name provided by the user
       widget_settings: data.widget_settings,
     })
     .eq("id", id);
@@ -47,6 +47,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         await supabase
           .from("ai_agents")
           .update({
+            name: data.agent_name, // Use the exact name provided by the user
             settings: {
               agent_description: data.agent_description,
               client_name: data.client_name,
@@ -60,7 +61,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
           .from("ai_agents")
           .insert({
             client_id: id,
-            name: data.agent_name,
+            name: data.agent_name, // Use the exact name provided by the user
             content: "",
             settings: {
               agent_description: data.agent_description,

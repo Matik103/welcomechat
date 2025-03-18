@@ -30,7 +30,7 @@ export const ClientDetails = ({
     try {
       console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
       
-      // Use the agent name exactly as provided
+      // Use the agent name exactly as provided without any modifications
       const formattedAgentName = agentName;
       
       // Check if agent exists
