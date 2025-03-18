@@ -96,6 +96,72 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agents_backup: {
+        Row: {
+          agent_description: string | null
+          client_id: string | null
+          content: string | null
+          created_at: string | null
+          embedding: string | null
+          error_message: string | null
+          error_status: string | null
+          error_type: string | null
+          id: string | null
+          interaction_type: string | null
+          is_error: boolean | null
+          name: string | null
+          query_text: string | null
+          response_time_ms: number | null
+          sentiment: string | null
+          settings: Json | null
+          topic: string | null
+          updated_at: string | null
+          url: string | null
+        }
+        Insert: {
+          agent_description?: string | null
+          client_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          embedding?: string | null
+          error_message?: string | null
+          error_status?: string | null
+          error_type?: string | null
+          id?: string | null
+          interaction_type?: string | null
+          is_error?: boolean | null
+          name?: string | null
+          query_text?: string | null
+          response_time_ms?: number | null
+          sentiment?: string | null
+          settings?: Json | null
+          topic?: string | null
+          updated_at?: string | null
+          url?: string | null
+        }
+        Update: {
+          agent_description?: string | null
+          client_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          embedding?: string | null
+          error_message?: string | null
+          error_status?: string | null
+          error_type?: string | null
+          id?: string | null
+          interaction_type?: string | null
+          is_error?: boolean | null
+          name?: string | null
+          query_text?: string | null
+          response_time_ms?: number | null
+          sentiment?: string | null
+          settings?: Json | null
+          topic?: string | null
+          updated_at?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
       airtable: {
         Row: {
           content: string | null
@@ -3133,6 +3199,16 @@ export type Database = {
       fix_agent_name_mismatches: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      fix_agent_names: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          client_id: string
+          client_name: string
+          old_agent_name: string
+          new_agent_name: string
+          records_updated: number
+        }[]
       }
       get_active_days: {
         Args: {
