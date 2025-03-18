@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -65,6 +64,9 @@ export const ClientDetails = ({
       };
 
       if (existingAgents && existingAgents.length > 0) {
+        // Check if description has changed
+        const descriptionChanged = existingAgents[0].agent_description !== agentDescription;
+        
         // Update existing agent
         const { error: updateError } = await supabase
           .from("ai_agents")
@@ -84,13 +86,7 @@ export const ClientDetails = ({
           console.log(`Updated agent description to: ${agentDescription}`);
           console.log(`Generated AI prompt: ${aiPrompt}`);
           
-          // Log if description was updated
-          const descriptionChanged = existingAgents[0].agent_description !== agentDescription;
-          if (descriptionChanged) {
-            return { updated: true, created: false, descriptionUpdated: true };
-          }
-          
-          return { updated: true, created: false, descriptionUpdated: false };
+          return { updated: true, created: false, descriptionUpdated: descriptionChanged };
         }
       } else {
         // Create new agent
@@ -114,7 +110,7 @@ export const ClientDetails = ({
           console.log(`Created new AI agent with name ${formattedAgentName}`);
           console.log(`Set agent description to: ${agentDescription}`);
           console.log(`Generated AI prompt: ${aiPrompt}`);
-          return { updated: false, created: true, descriptionUpdated: false };
+          return { updated: false, created: true, descriptionUpdated: true };
         }
       }
     } catch (error) {
@@ -131,6 +127,9 @@ export const ClientDetails = ({
   }) => {
     try {
       console.log("Submitting client data:", data);
+      
+      // Track if the agent description was changed
+      const descriptionChanged = client?.agent_description !== data.agent_description;
       
       if (clientId && isClientView) {
         // Update existing client
@@ -172,15 +171,19 @@ export const ClientDetails = ({
               }
             );
           } else {
-            await logClientActivity(
-              "client_updated", 
-              "updated their client information",
-              { 
-                updated_fields: Object.keys(data).filter(key => 
-                  client && data[key as keyof typeof data] !== client[key as keyof typeof client]
-                )
-              }
-            );
+            // Check what fields were changed and log appropriate activity
+            const updatedFields = [];
+            if (client?.client_name !== data.client_name) updatedFields.push('client_name');
+            if (client?.email !== data.email) updatedFields.push('email');
+            if (client?.agent_name !== data.agent_name) updatedFields.push('agent_name');
+            
+            if (updatedFields.length > 0) {
+              await logClientActivity(
+                "client_updated", 
+                "updated their client information",
+                { updated_fields: updatedFields }
+              );
+            }
           }
         } catch (logError) {
           console.error("Error logging activity:", logError);
