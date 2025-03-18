@@ -22,6 +22,13 @@ export function useStoreDocumentContent() {
     try {
       console.log(`Storing document content for client: ${clientId}, agent: ${agentName}`);
       
+      if (!agentName || agentName.trim() === "") {
+        return {
+          success: false,
+          error: "Agent name is not configured. Please set up an AI Agent Name in client settings before uploading documents."
+        };
+      }
+      
       // Prepare metadata
       const metadata = {
         source: "file_upload",
