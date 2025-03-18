@@ -4,6 +4,7 @@ import { ExtendedActivityType } from "@/types/activity";
 import { createClientActivity } from "@/services/clientActivityService";
 import { logAgentError } from "@/services/clientActivityService";
 import { toast } from "sonner";
+import { Json } from "@/integrations/supabase/types";
 
 /**
  * Tracks the status of document processing and logs activities
@@ -226,10 +227,12 @@ export const migrateDocumentProcessingSystem = async (): Promise<void> => {
     if (documentUploads && documentUploads.length > 0) {
       for (const doc of documentUploads) {
         // Extract file details from settings
-        const fileName = doc.settings?.file_name || 'unknown.file';
-        const fileType = doc.settings?.file_type || 'unknown';
-        const fileSize = doc.settings?.file_size || 0;
-        const documentId = doc.settings?.document_id || `${Date.now()}_migration_${fileName}`;
+        // Fix TypeScript errors by safely accessing settings properties
+        const settings = doc.settings as Record<string, any> || {};
+        const fileName = settings.file_name as string || 'unknown.file';
+        const fileType = settings.file_type as string || 'unknown';
+        const fileSize = settings.file_size as number || 0;
+        const documentId = settings.document_id as string || `${Date.now()}_migration_${fileName}`;
         
         // Check if we have a completed activity for this document
         const { data: existingActivity } = await supabase
@@ -299,11 +302,13 @@ export const getClientDocuments = async (
     
     // Transform the data
     const documents = (data || []).map(doc => {
+      // Fix TypeScript errors by safely accessing settings properties
+      const settings = doc.settings as Record<string, any> || {};
       return {
         id: doc.id,
-        name: doc.settings?.file_name || 'Unknown file',
-        type: doc.settings?.file_type || 'unknown',
-        size: doc.settings?.file_size || 0,
+        name: settings.file_name as string || 'Unknown file',
+        type: settings.file_type as string || 'unknown',
+        size: settings.file_size as number || 0,
         url: doc.url || '',
         uploadDate: doc.created_at || new Date().toISOString(),
         status: 'completed' as 'processing' | 'completed' | 'failed'
