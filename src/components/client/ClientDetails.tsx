@@ -6,6 +6,7 @@ import { useClientData } from "@/hooks/useClientData";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -24,6 +25,69 @@ export const ClientDetails = ({
   // Use the clientId that was passed to the component
   const { clientMutation, refetchClient } = useClientData(clientId);
 
+  // Function to ensure AI agent exists with correct name
+  const ensureAiAgentExists = async (clientId: string, agentName: string, agentDescription?: string) => {
+    try {
+      console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
+      
+      // Check if agent exists
+      const { data: existingAgents, error: queryError } = await supabase
+        .from("ai_agents")
+        .select("id, name")
+        .eq("client_id", clientId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (queryError) {
+        console.error("Error checking for existing AI agent:", queryError);
+        return;
+      }
+
+      const settings = {
+        agent_description: agentDescription || "",
+        client_id: clientId,
+        updated_at: new Date().toISOString()
+      };
+
+      if (existingAgents && existingAgents.length > 0) {
+        // Update existing agent
+        const { error: updateError } = await supabase
+          .from("ai_agents")
+          .update({ 
+            name: agentName,
+            settings: settings
+          })
+          .eq("id", existingAgents[0].id);
+        
+        if (updateError) {
+          console.error("Error updating AI agent name:", updateError);
+        } else {
+          console.log(`Updated agent name from ${existingAgents[0].name} to ${agentName}`);
+        }
+      } else {
+        // Create new agent
+        const { error: insertError } = await supabase
+          .from("ai_agents")
+          .insert({
+            client_id: clientId,
+            name: agentName,
+            content: "",
+            interaction_type: "config",
+            settings: settings,
+            is_error: false
+          });
+        
+        if (insertError) {
+          console.error("Error creating new AI agent:", insertError);
+        } else {
+          console.log(`Created new AI agent with name ${agentName}`);
+        }
+      }
+    } catch (error) {
+      console.error("Error in ensureAiAgentExists:", error);
+    }
+  };
+
   const handleSubmit = async (data: { 
     client_name: string; 
     email: string; 
@@ -34,6 +98,11 @@ export const ClientDetails = ({
       if (clientId && isClientView) {
         // Update existing client
         await clientMutation.mutateAsync(data);
+        
+        // Ensure AI agent exists with correct name
+        if (data.agent_name) {
+          await ensureAiAgentExists(clientId, data.agent_name, data.agent_description);
+        }
         
         // Refetch client data to update the UI with the latest changes
         refetchClient();
@@ -58,6 +127,12 @@ export const ClientDetails = ({
       } else if (clientId) {
         // Admin updating client
         await clientMutation.mutateAsync(data);
+        
+        // Ensure AI agent exists with correct name 
+        if (data.agent_name) {
+          await ensureAiAgentExists(clientId, data.agent_name, data.agent_description);
+        }
+        
         navigate("/admin/clients");
       } else {
         // Create new client - show loading toast
@@ -70,6 +145,11 @@ export const ClientDetails = ({
           
           // Check if result contains emailSent flag
           if (typeof result === 'object' && 'clientId' in result) {
+            // Ensure AI agent exists with correct name for the new client
+            if (data.agent_name && result.clientId) {
+              await ensureAiAgentExists(result.clientId, data.agent_name, data.agent_description);
+            }
+            
             if (result.emailSent) {
               toast.dismiss(toastId);
               toast.success("Client created and invitation email sent successfully");

@@ -22,6 +22,13 @@ export function useStoreWebsiteContent() {
     try {
       console.log(`Storing website content for client: ${clientId}, agent: ${agentName}`);
       
+      if (!agentName || agentName.trim() === "") {
+        return {
+          success: false,
+          error: "Agent name is not configured. Please set up an AI Agent Name in client settings before uploading content."
+        };
+      }
+      
       if (!content || content.trim().length === 0) {
         return {
           success: false,
