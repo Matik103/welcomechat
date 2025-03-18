@@ -31,7 +31,14 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
       email: data.email,
       agent_name: data.agent_name, // Use the exact name provided by the user
       // Store agent_description in widget_settings if needed
-      widget_settings: data.widget_settings
+      widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
+        ? { 
+            ...data.widget_settings,
+            agent_description: data.agent_description 
+          } 
+        : { 
+            agent_description: data.agent_description 
+          }
     })
     .eq("id", id);
   if (error) throw error;

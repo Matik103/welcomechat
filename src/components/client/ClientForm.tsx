@@ -48,6 +48,7 @@ export const ClientForm = ({
   // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
+      console.log("Setting form values with initial data:", initialData);
       reset({
         client_name: initialData.client_name || "",
         email: initialData.email || "",
@@ -56,6 +57,12 @@ export const ClientForm = ({
       });
     }
   }, [initialData, reset]);
+
+  // For debugging: log the current form values
+  const currentValues = watch();
+  useEffect(() => {
+    console.log("Current form values:", currentValues);
+  }, [currentValues]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
