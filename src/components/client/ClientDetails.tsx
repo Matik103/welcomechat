@@ -16,6 +16,13 @@ interface ClientDetailsProps {
   logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
+// Define a consistent return type for ensureAiAgentExists
+interface AgentUpdateResult {
+  updated: boolean;
+  created: boolean;
+  descriptionUpdated: boolean;
+}
+
 export const ClientDetails = ({ 
   client, 
   clientId, 
@@ -27,7 +34,7 @@ export const ClientDetails = ({
   const { clientMutation, refetchClient } = useClientData(clientId);
 
   // Function to ensure AI agent exists with correct name and description
-  const ensureAiAgentExists = async (clientId: string, agentName: string, agentDescription?: string) => {
+  const ensureAiAgentExists = async (clientId: string, agentName: string, agentDescription?: string): Promise<AgentUpdateResult> => {
     try {
       console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
       
@@ -47,7 +54,7 @@ export const ClientDetails = ({
       
       if (queryError) {
         console.error("Error checking for existing AI agent:", queryError);
-        return;
+        return { updated: false, created: false, descriptionUpdated: false };
       }
 
       const settings = {
@@ -79,8 +86,10 @@ export const ClientDetails = ({
           // Log if description was updated
           const descriptionChanged = existingAgents[0].agent_description !== agentDescription;
           if (descriptionChanged) {
-            return { descriptionUpdated: true };
+            return { updated: true, created: false, descriptionUpdated: true };
           }
+          
+          return { updated: true, created: false, descriptionUpdated: false };
         }
       } else {
         // Create new agent
@@ -104,11 +113,9 @@ export const ClientDetails = ({
           console.log(`Created new AI agent with name ${formattedAgentName}`);
           console.log(`Set agent description to: ${agentDescription}`);
           console.log(`Generated AI prompt: ${aiPrompt}`);
-          return { created: true };
+          return { updated: false, created: true, descriptionUpdated: false };
         }
       }
-      
-      return { updated: true };
     } catch (error) {
       console.error("Error in ensureAiAgentExists:", error);
       throw error;
