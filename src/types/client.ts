@@ -4,13 +4,14 @@ import { Json } from "@/integrations/supabase/types";
 
 export type AccessStatus = "public" | "restricted" | "unknown";
 
-export interface DriveLink {
+export interface DocumentLink {
   id: number;
   client_id: string;
   link: string;
   refresh_rate: number;
   access_status?: AccessStatus;
   created_at?: string;
+  document_type?: string;
 }
 
 export interface WebsiteUrl {

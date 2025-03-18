@@ -43,11 +43,15 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         .maybeSingle();
         
       if (agentData?.id) {
-        // Update existing AI agent
+        // Update existing AI agent using settings for description since the table doesn't have a direct description column
         await supabase
           .from("ai_agents")
           .update({
-            description: data.agent_description
+            settings: {
+              agent_description: data.agent_description,
+              client_name: data.client_name,
+              updated_at: new Date().toISOString()
+            }
           })
           .eq("client_id", id);
       } else {
@@ -57,8 +61,9 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
           .insert({
             client_id: id,
             name: data.agent_name,
-            description: data.agent_description,
+            content: "",
             settings: {
+              agent_description: data.agent_description,
               client_name: data.client_name,
               updated_at: new Date().toISOString()
             }

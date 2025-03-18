@@ -1,7 +1,7 @@
 
 import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
-import { DriveLinks } from "@/components/client/DriveLinks";
+import { DocumentLinks } from "@/components/client/DocumentLinks";
 import { WebsiteUrls } from "@/components/client/WebsiteUrls";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
@@ -27,10 +27,22 @@ export const ClientResourceSections = ({
 
   console.log("ClientResourceSections rendering with clientId:", clientId);
 
-  const { driveLinks, addDriveLinkMutation, deleteDriveLinkMutation, isLoading: isDriveLoading } = useDriveLinks(clientId);
-  const { websiteUrls, addWebsiteUrlMutation, deleteWebsiteUrlMutation, isLoading: isUrlsLoading } = useWebsiteUrls(clientId);
+  const { 
+    documentLinks,
+    addDriveLinkMutation, 
+    deleteDriveLinkMutation,
+    uploadDocumentMutation,
+    isLoading: isDriveLoading 
+  } = useDriveLinks(clientId);
+  
+  const { 
+    websiteUrls, 
+    addWebsiteUrlMutation, 
+    deleteWebsiteUrlMutation, 
+    isLoading: isUrlsLoading 
+  } = useWebsiteUrls(clientId);
 
-  console.log("Drive Links:", driveLinks);
+  console.log("Document Links:", documentLinks);
   console.log("Website URLs:", websiteUrls);
 
   // Get the client's agent name (we need to fetch this from the client data)
@@ -52,34 +64,61 @@ export const ClientResourceSections = ({
 
   const agentName = getAgentName();
 
-  // Check if any drive links have restricted access
-  const restrictedLinks = driveLinks.filter(link => link.access_status === "restricted");
+  // Check if any document links have restricted access
+  const restrictedLinks = documentLinks.filter(link => link.access_status === "restricted");
   const hasRestrictedLinks = restrictedLinks.length > 0;
 
-  const handleAddDriveLink = async (data: { link: string; refresh_rate: number }) => {
+  const handleAddDocumentLink = async (data: { link: string; refresh_rate: number; document_type?: string }) => {
     try {
       if (!clientId) {
-        toast.error("Client ID is required to add a drive link");
+        toast.error("Client ID is required to add a document link");
         return;
       }
       
-      console.log("Adding drive link:", data, "for client:", clientId);
+      console.log("Adding document link:", data, "for client:", clientId);
       await addDriveLinkMutation.mutateAsync(data);
       
       if (isClientView) {
         try {
           await logClientActivity(
-            "drive_link_added", 
-            "added a Google Drive link", 
-            { link: data.link, refresh_rate: data.refresh_rate }
+            "document_link_added", 
+            "added a document link", 
+            { link: data.link, refresh_rate: data.refresh_rate, document_type: data.document_type }
           );
         } catch (logError) {
-          console.error("Error logging drive link activity:", logError);
+          console.error("Error logging document link activity:", logError);
         }
       }
     } catch (error) {
-      console.error("Error adding drive link:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to add Google Drive link");
+      console.error("Error adding document link:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to add document link");
+    }
+  };
+
+  const handleUploadDocument = async (file: File, agentName: string) => {
+    try {
+      if (!clientId) {
+        toast.error("Client ID is required to upload a document");
+        return;
+      }
+      
+      console.log("Uploading document for client:", clientId, "agent:", agentName);
+      await uploadDocumentMutation.mutateAsync({ file, agentName });
+      
+      if (isClientView) {
+        try {
+          await logClientActivity(
+            "document_uploaded", 
+            "uploaded a document to the knowledge base", 
+            { filename: file.name, filesize: file.size, filetype: file.type }
+          );
+        } catch (logError) {
+          console.error("Error logging document upload activity:", logError);
+        }
+      }
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to upload document");
     }
   };
 
@@ -110,25 +149,25 @@ export const ClientResourceSections = ({
     }
   };
 
-  const handleDeleteDriveLink = async (linkId: number) => {
+  const handleDeleteDocumentLink = async (linkId: number) => {
     try {
-      const linkToDelete = driveLinks.find(link => link.id === linkId);
+      const linkToDelete = documentLinks.find(link => link.id === linkId);
       await deleteDriveLinkMutation.mutateAsync(linkId);
       
       if (isClientView && linkToDelete) {
         try {
           await logClientActivity(
-            "drive_link_deleted", 
-            "removed a Google Drive link", 
+            "document_link_deleted", 
+            "removed a document link", 
             { link: linkToDelete.link }
           );
         } catch (logError) {
-          console.error("Error logging drive link deletion:", logError);
+          console.error("Error logging document link deletion:", logError);
         }
       }
     } catch (error) {
-      console.error("Error deleting drive link:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to delete Google Drive link");
+      console.error("Error deleting document link:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to delete document link");
     }
   };
 
@@ -165,7 +204,7 @@ export const ClientResourceSections = ({
   return (
     <div className="space-y-6">
       <div className="rounded-lg">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Google Drive Links</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Sources</h3>
         
         {hasRestrictedLinks && (
           <Alert variant="warning" className="mb-4 border-amber-300 bg-amber-50">
@@ -174,23 +213,26 @@ export const ClientResourceSections = ({
             <AlertDescription className="text-amber-700">
               <p className="mb-2">
                 {restrictedLinks.length > 1 
-                  ? `${restrictedLinks.length} Google Drive links have restricted access.` 
-                  : "One Google Drive link has restricted access."} 
+                  ? `${restrictedLinks.length} document links have restricted access.` 
+                  : "One document link has restricted access."} 
                 Your AI agent cannot access these files.
               </p>
               <p className="text-sm">
-                To fix this: Open each restricted link in Google Drive, click "Share", and change access to "Anyone with the link".
+                To fix this: For Google Drive links, open each restricted link, click "Share", and change access to "Anyone with the link".
               </p>
             </AlertDescription>
           </Alert>
         )}
         
-        <DriveLinks
-          driveLinks={driveLinks}
-          onAdd={handleAddDriveLink}
-          onDelete={handleDeleteDriveLink}
+        <DocumentLinks
+          documentLinks={documentLinks}
+          onAdd={handleAddDocumentLink}
+          onDelete={handleDeleteDocumentLink}
+          onUpload={handleUploadDocument}
           isAddLoading={addDriveLinkMutation.isPending}
           isDeleteLoading={deleteDriveLinkMutation.isPending}
+          isUploadLoading={uploadDocumentMutation.isPending}
+          agentName={agentName}
         />
       </div>
 
