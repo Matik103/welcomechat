@@ -1,6 +1,8 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
+import { generateAiPrompt } from "@/utils/activityTypeUtils";
 
 /**
  * Fetches a single client by ID
@@ -34,6 +36,11 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   // Update agent description in ai_agents table if agent_name exists
   if (data.agent_name && data.agent_description !== undefined) {
     try {
+      // Generate AI prompt based on agent name and description
+      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description);
+      
+      console.log("Generated AI prompt:", aiPrompt);
+      
       // Check if AI agent exists first
       const { data: agentData } = await supabase
         .from("ai_agents")
@@ -42,11 +49,13 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         .maybeSingle();
         
       if (agentData?.id) {
-        // Update existing AI agent using settings for description since the table doesn't have a direct description column
+        // Update existing AI agent 
         await supabase
           .from("ai_agents")
           .update({
             name: data.agent_name, // Use the exact name provided by the user
+            agent_description: data.agent_description, // Use the new column
+            ai_prompt: aiPrompt, // Save the generated AI prompt
             settings: {
               agent_description: data.agent_description,
               client_name: data.client_name,
@@ -62,6 +71,8 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
             client_id: id,
             name: data.agent_name, // Use the exact name provided by the user
             content: "",
+            agent_description: data.agent_description, // Use the new column
+            ai_prompt: aiPrompt, // Save the generated AI prompt
             settings: {
               agent_description: data.agent_description,
               client_name: data.client_name,

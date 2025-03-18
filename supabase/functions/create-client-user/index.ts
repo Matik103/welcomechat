@@ -8,6 +8,19 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
+// Function to generate an AI prompt based on the agent name and description
+const generateAiPrompt = (agentName: string, agentDescription: string): string => {
+  // Create a default prompt if no description is provided
+  if (!agentDescription || agentDescription.trim() === '') {
+    return `You are ${agentName}, a helpful AI assistant. Your goal is to provide clear, concise, and accurate information to users.`;
+  }
+  
+  // Generate a prompt with the agent's name and description
+  return `You are ${agentName}. ${agentDescription}
+
+As an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.`;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -175,6 +188,10 @@ serve(async (req) => {
       console.warn("Error creating user role:", roleError);
     }
     
+    // Generate AI prompt
+    const aiPrompt = generateAiPrompt(agent_name, agent_description || "");
+    console.log("Generated AI prompt:", aiPrompt);
+    
     // Create AI agent entry for this client - using exact agent name
     try {
       console.log("Creating AI agent for client:", client_id);
@@ -183,6 +200,8 @@ serve(async (req) => {
         .insert({
           client_id: client_id,
           name: agent_name, // Use agent name exactly as provided
+          agent_description: agent_description || "",
+          ai_prompt: aiPrompt,
           settings: {
             agent_description: agent_description || "",
             client_name: client_name,
@@ -195,6 +214,21 @@ serve(async (req) => {
       }
     } catch (agentError) {
       console.warn("Error creating AI agent:", agentError);
+    }
+    
+    // Log the agent creation in client_activities
+    try {
+      await supabase.from("client_activities").insert({
+        client_id: client_id,
+        activity_type: "ai_agent_created",
+        description: "AI agent was created during client signup",
+        metadata: {
+          agent_name: agent_name,
+          agent_description: agent_description
+        }
+      });
+    } catch (activityError) {
+      console.warn("Error logging agent creation activity:", activityError);
     }
     
     // Return success response with user info and password if it was just created

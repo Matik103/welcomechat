@@ -33,6 +33,7 @@ export type Database = {
       ai_agents: {
         Row: {
           agent_description: string | null
+          ai_prompt: string | null
           client_id: string
           content: string | null
           created_at: string | null
@@ -54,6 +55,7 @@ export type Database = {
         }
         Insert: {
           agent_description?: string | null
+          ai_prompt?: string | null
           client_id: string
           content?: string | null
           created_at?: string | null
@@ -75,6 +77,7 @@ export type Database = {
         }
         Update: {
           agent_description?: string | null
+          ai_prompt?: string | null
           client_id?: string
           content?: string | null
           created_at?: string | null
@@ -5197,6 +5200,7 @@ export type Database = {
         | "document_processing_completed"
         | "document_processing_failed"
         | "system_update"
+        | "ai_agent_updated"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"
