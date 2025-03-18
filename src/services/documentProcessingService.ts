@@ -287,12 +287,10 @@ export const getClientDocuments = async (
   status: 'processing' | 'completed' | 'failed';
 }[]> => {
   try {
-    // Format the agent name if provided
+    // Use agent name exactly as provided without any modifications
     let formattedAgentName: string | undefined = undefined;
     if (agentName) {
-      formattedAgentName = agentName.endsWith(' Assistant') 
-        ? agentName 
-        : `${agentName} Assistant`;
+      formattedAgentName = agentName;
     }
     
     // Query the ai_agents table for document uploads

@@ -108,7 +108,7 @@ serve(async (req) => {
           user_metadata: { 
             client_id,
             client_name,
-            agent_name,
+            agent_name, // Use agent name exactly as provided
             user_type: "client"
           }
         }
@@ -133,7 +133,7 @@ serve(async (req) => {
         user_metadata: { 
           client_id,
           client_name,
-          agent_name,
+          agent_name, // Use agent name exactly as provided
           user_type: "client"
         },
         email_confirm_sent: false // Disable automatic confirmation email
@@ -175,20 +175,20 @@ serve(async (req) => {
       console.warn("Error creating user role:", roleError);
     }
     
-    // Create AI agent entry for this client
+    // Create AI agent entry for this client - using exact agent name
     try {
       console.log("Creating AI agent for client:", client_id);
       const { error: agentError } = await supabase
         .from("ai_agents")
-        .insert([{
+        .insert({
           client_id: client_id,
-          name: agent_name,
-          description: agent_description || "",
+          name: agent_name, // Use agent name exactly as provided
           settings: {
+            agent_description: agent_description || "",
             client_name: client_name,
             created_at: new Date().toISOString()
           }
-        }]);
+        });
       
       if (agentError) {
         console.warn("Could not create AI agent entry:", agentError.message);
@@ -203,7 +203,7 @@ serve(async (req) => {
         success: true,
         message: "Client user account created/updated successfully",
         user_id: userId,
-        temp_password: userPassword // Only set for new users
+        temp_password: userPassword
       }),
       { 
         status: 200, 
