@@ -18,14 +18,17 @@ export const createClientActivity = async (
   metadata: Json = {}
 ): Promise<void> => {
   try {
-    // Ensure the activity type is valid for the database enum
-    // Default to a safe value if somehow an invalid type slips through
-    let safeActivityType: ActivityType = activityType;
+    console.log("Creating activity:", {
+      client_id: clientId,
+      activity_type: activityType,
+      description,
+      metadata
+    });
     
     // Create the activity record
     const { error } = await supabase.from("client_activities").insert({
       client_id: clientId,
-      activity_type: safeActivityType,
+      activity_type: activityType,
       description,
       metadata
     });

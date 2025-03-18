@@ -31,7 +31,8 @@ export const useClientActivity = (clientId: string | undefined) => {
         error,
         clientId,
         activity_type,
-        description
+        description,
+        metadata
       });
       
       // We don't throw the error to prevent UI disruption due to activity logging failures
