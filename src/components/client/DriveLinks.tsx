@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useDriveAccessCheck } from "@/hooks/useDriveAccessCheck";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface DriveLinksProps {
   driveLinks: DocumentLink[];
@@ -41,31 +42,50 @@ export const DriveLinks = ({
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [agentName, setAgentName] = useState<string | null>(null);
+  const [clientData, setClientData] = useState<{ 
+    client_name?: string; 
+    agent_name?: string;
+    agent_description?: string;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch agent name when component mounts
+  // Fetch client data when component mounts
   useEffect(() => {
-    if (clientId) {
-      const fetchAgentName = async () => {
-        try {
-          const { data, error } = await supabase
-            .from("clients")
-            .select("agent_name")
-            .eq("id", clientId)
-            .single();
+    const fetchClientData = async () => {
+      if (!clientId) return;
+      
+      setIsLoading(true);
+      try {
+        console.log("Fetching client data for ID:", clientId);
+        const { data, error } = await supabase
+          .from("clients")
+          .select("client_name, agent_name, agent_description")
+          .eq("id", clientId)
+          .single();
 
-          if (error) {
-            console.error("Error fetching agent name:", error);
-            return;
-          }
-
-          setAgentName(data.agent_name);
-        } catch (err) {
-          console.error("Error in fetchAgentName:", err);
+        if (error) {
+          console.error("Error fetching client data:", error);
+          throw error;
         }
-      };
 
-      fetchAgentName();
-    }
+        console.log("Fetched client data:", data);
+        setClientData(data);
+        if (data.agent_name) {
+          console.log("Setting agent name:", data.agent_name);
+          setAgentName(data.agent_name);
+        } else {
+          console.log("No agent name found in client data");
+          setAgentName(null);
+        }
+      } catch (err) {
+        console.error("Error in fetchClientData:", err);
+        toast.error("Failed to load client information");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchClientData();
   }, [clientId]);
 
   const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,15 +285,82 @@ export const DriveLinks = ({
     }
   };
 
-  if (!agentName) {
+  // Show loading state while client data is being fetched
+  if (isLoading) {
     return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Agent Name Required</AlertTitle>
-        <AlertDescription>
-          Agent name is not configured. Please set up an AI Agent Name in client settings before adding documents.
-        </AlertDescription>
-      </Alert>
+      <div className="flex justify-center py-4">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show missing agent name alert if not configured
+  if (!agentName && !showNewForm && !showUploadForm) {
+    return (
+      <div className="space-y-4">
+        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800">Agent Name Required</AlertTitle>
+          <AlertDescription className="text-amber-700">
+            Agent name is not configured. Please set up an AI Agent Name in client settings before adding documents.
+          </AlertDescription>
+        </Alert>
+        
+        {driveLinks.length > 0 ? (
+          <div className="space-y-2">
+            {driveLinks.map((link) => (
+              <div 
+                key={link.id} 
+                className="flex items-center gap-2 p-3 rounded-md border bg-gray-50 border-gray-200"
+              >
+                <div className="flex-1 truncate text-sm">
+                  {link.link}
+                </div>
+                {link.document_type && (
+                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                    {getDocumentTypeLabel(link.document_type)}
+                  </span>
+                )}
+                <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(link.id)}
+                  disabled={isDeleteLoading || deletingId === link.id}
+                  className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  {(isDeleteLoading && deletingId === link.id) ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500 italic">No document links added yet.</div>
+        )}
+        
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowNewForm(true)}
+            className="flex-1"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add Document Link
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowUploadForm(true)}
+            className="flex-1"
+          >
+            <Upload className="w-4 h-4 mr-2" /> Upload Document
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -541,5 +628,3 @@ export const DriveLinks = ({
     </div>
   );
 };
-
-import { toast } from "sonner";
