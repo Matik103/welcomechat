@@ -21,7 +21,6 @@ export const getClientById = async (id: string): Promise<Client | null> => {
  * Updates an existing client
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
-  console.log("Updating client with data:", data);
   const { error } = await supabase
     .from("clients")
     .update({
@@ -36,17 +35,15 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   // Update agent description in ai_agents table if agent_name exists
   if (data.agent_name && data.agent_description !== undefined) {
     try {
-      console.log("Updating agent description:", data.agent_description);
       // Check if AI agent exists first
       const { data: agentData } = await supabase
         .from("ai_agents")
         .select("id")
         .eq("client_id", id)
-        .eq("name", data.agent_name)
         .maybeSingle();
         
       if (agentData?.id) {
-        // Update existing AI agent using settings for description
+        // Update existing AI agent using settings for description since the table doesn't have a direct description column
         await supabase
           .from("ai_agents")
           .update({
@@ -56,10 +53,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
               updated_at: new Date().toISOString()
             }
           })
-          .eq("client_id", id)
-          .eq("name", data.agent_name);
-          
-        console.log("Updated existing agent description");
+          .eq("client_id", id);
       } else {
         // Create new AI agent if it doesn't exist
         await supabase
@@ -71,13 +65,9 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
             settings: {
               agent_description: data.agent_description,
               client_name: data.client_name,
-              created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
-            },
-            interaction_type: "config"
+            }
           });
-          
-        console.log("Created new agent with description");
       }
     } catch (agentError) {
       console.error("Error updating agent description:", agentError);

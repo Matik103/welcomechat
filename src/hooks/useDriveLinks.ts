@@ -83,31 +83,10 @@ export function useDriveLinks(clientId: string | undefined) {
     }
   };
 
-  // Helper to determine if a link is a Google Drive resource
-  const isGoogleDriveResource = (documentType: string, link: string): boolean => {
-    if (documentType === 'google_drive' || 
-        documentType === 'google_doc' || 
-        documentType === 'google_sheet') {
-      return true;
-    }
-    
-    // Also check the URL itself for Google domains
-    return link.includes('drive.google.com') || 
-           link.includes('docs.google.com') || 
-           link.includes('sheets.google.com') || 
-           link.includes('slides.google.com');
-  };
-
-  // Simplified check for document access - only for Google Drive resources
-  const checkDocumentAccess = async (link: string, documentType: string): Promise<AccessStatus> => {
+  // Simplified check for document access
+  const checkDocumentAccess = async (link: string): Promise<AccessStatus> => {
     try {
-      // Skip access check for non-Google resources
-      if (!isGoogleDriveResource(documentType, link)) {
-        return "public"; // Assume non-Google resources are accessible
-      }
-      
       // Since we've removed OAuth, we'll just set access status to unknown
-      // for Google Drive resources
       return "unknown";
     } catch (error: any) {
       console.error("Document access check error:", error);
@@ -124,14 +103,8 @@ export function useDriveLinks(clientId: string | undefined) {
     console.log("Adding document link with client ID:", clientId);
     console.log("Input data:", input);
     
-    // Set access status based on document type
-    const documentType = input.document_type || "unknown";
-    let accessStatus: AccessStatus = "public"; // Default for non-Google resources
-    
-    // Only check access for Google Drive resources
-    if (isGoogleDriveResource(documentType, input.link)) {
-      accessStatus = "unknown"; // Since we can't check anymore
-    }
+    // Set default access status to unknown since we can't check anymore
+    const accessStatus: AccessStatus = "unknown";
     
     // Insert the document link with access status
     try {
@@ -149,7 +122,7 @@ export function useDriveLinks(clientId: string | undefined) {
         client_id: clientId,
         link: input.link,
         refresh_rate: input.refresh_rate,
-        document_type: documentType
+        document_type: input.document_type || "unknown"
       };
       
       let insertData: any;

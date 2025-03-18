@@ -1,65 +1,24 @@
 
-import { useState } from "react";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader2, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, ExternalLink, FileUp, FileText, PlusCircle } from "lucide-react";
 import { DocumentLink } from "@/types/client";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
 import { useDriveAccessCheck } from "@/hooks/useDriveAccessCheck";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface DocumentLinksProps {
   documentLinks: DocumentLink[];
   onAdd: (data: { link: string; refresh_rate: number; document_type?: string }) => Promise<void>;
-  onDelete: (id: number) => Promise<void>;
+  onDelete: (id: number) => void;
   onUpload: (file: File, agentName: string) => Promise<void>;
   isAddLoading: boolean;
   isDeleteLoading: boolean;
   isUploadLoading: boolean;
   agentName?: string;
 }
-
-const documentSchema = z.object({
-  link: z.string().url("Please enter a valid URL"),
-  refresh_rate: z.preprocess(
-    (val) => parseInt(String(val), 10),
-    z.number().min(1, "Refresh rate must be at least 1 hour")
-  ),
-  document_type: z.string().min(1, "Document type is required")
-});
-
-const DOCUMENT_TYPES = [
-  { value: "google_drive", label: "Google Drive Folder" },
-  { value: "google_doc", label: "Google Doc" },
-  { value: "google_sheet", label: "Google Sheet" },
-  { value: "google_presentation", label: "Google Presentation" },
-  { value: "pdf", label: "PDF Link" },
-  { value: "web_page", label: "Web Page" },
-  { value: "other", label: "Other Document" }
-];
-
-// Helper function to check if a document type is a Google resource
-const isGoogleResource = (type: string): boolean => {
-  return type === "google_drive" || 
-         type === "google_doc" || 
-         type === "google_sheet" ||
-         type === "google_presentation";
-};
 
 export const DocumentLinks = ({
   documentLinks,
@@ -71,313 +30,461 @@ export const DocumentLinks = ({
   isUploadLoading,
   agentName
 }: DocumentLinksProps) => {
+  const [activeTab, setActiveTab] = useState("link");
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newLink, setNewLink] = useState("");
+  const [documentType, setDocumentType] = useState("google_drive");
+  const [newRefreshRate, setNewRefreshRate] = useState(30);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { checkDriveAccess, validateDriveLink, isChecking } = useDriveAccessCheck();
+  const [isValidated, setIsValidated] = useState(false);
+  const [fileId, setFileId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [documentType, setDocumentType] = useState<string>("google_doc");
-  const { checkDriveAccess, isChecking, lastResult } = useDriveAccessCheck();
-  
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<z.infer<typeof documentSchema>>({
-    resolver: zodResolver(documentSchema),
-    defaultValues: {
-      link: "",
-      refresh_rate: 24,
-      document_type: "google_doc"
-    }
-  });
 
-  // Watch for changes to document_type to update state
-  const watchedDocType = watch("document_type");
-  
-  const handleAddLink = async (data: z.infer<typeof documentSchema>) => {
-    // Only perform Google Drive access check for Google resources
-    if (isGoogleResource(data.document_type)) {
-      const accessCheckResult = await checkDriveAccess(data.link);
-      
-      if (accessCheckResult.error) {
-        toast.error(`Invalid Google Drive link: ${accessCheckResult.error}`);
-        return;
+  const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewLink(e.target.value);
+    // Reset validation when link changes
+    setIsValidated(false);
+    setError(null);
+    setFileId(null);
+  };
+
+  const handleDocumentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setDocumentType(e.target.value);
+  };
+
+  const validateLink = async () => {
+    if (!newLink) {
+      setError("Please enter a document link");
+      return false;
+    }
+
+    // Validate the link format based on document type
+    if (documentType === "google_drive") {
+      const validation = validateDriveLink(newLink);
+      if (!validation.isValid) {
+        setError(validation.error);
+        return false;
       }
-      
-      if (accessCheckResult.accessLevel === "restricted") {
-        toast.warning("This Google Drive link has restricted access. Your AI agent may not be able to access it.");
+      setFileId(validation.fileId);
+    } else {
+      // For other document types (PDF, Excel, etc.), just verify it's a valid URL
+      try {
+        new URL(newLink);
+      } catch (e) {
+        setError("Please enter a valid URL");
+        return false;
       }
     }
     
-    // Fix: Ensure we're passing all required properties
-    await onAdd({
-      link: data.link,
-      refresh_rate: data.refresh_rate,
-      document_type: data.document_type
-    });
+    setIsValidated(true);
+    return true;
+  };
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("handleAdd called with link:", newLink);
+    setError(null);
     
-    reset();
+    if (!isValidated) {
+      const isValid = await validateLink();
+      if (!isValid) return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      console.log("Submitting document link:", newLink, newRefreshRate, documentType);
+      await onAdd({
+        link: newLink,
+        refresh_rate: newRefreshRate,
+        document_type: documentType
+      });
+      
+      setNewLink("");
+      setNewRefreshRate(30);
+      setShowNewForm(false);
+      setIsValidated(false);
+      setFileId(null);
+    } catch (error) {
+      console.error("Error adding link:", error);
+      setError(error instanceof Error ? error.message : "Failed to add document link");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
-    await onDelete(id);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setSelectedFile(e.dataTransfer.files[0]);
+    setDeletingId(id);
+    try {
+      await onDelete(id);
+    } catch (error) {
+      console.error("Error deleting link:", error);
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
+      setError(null);
     }
   };
 
-  const handleUploadSubmit = async () => {
-    if (!selectedFile) {
-      toast.error("Please select a file first");
-      return;
-    }
-    
-    if (!agentName) {
-      toast.error("Agent name is not configured. Please set up an AI Agent Name in client settings before uploading documents.");
-      return;
-    }
-    
-    await onUpload(selectedFile, agentName);
-    setSelectedFile(null);
-    // Reset the file input by clearing the value
-    const fileInput = document.getElementById("fileUpload") as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = "";
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!selectedFile) {
+      setError("Please select a file to upload");
+      return;
+    }
+
+    if (!agentName) {
+      setError("Agent name is required. Please configure it in the client settings.");
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      await onUpload(selectedFile, agentName);
+      setSelectedFile(null);
+      setShowNewForm(false);
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      setError(error instanceof Error ? error.message : "Failed to upload file");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Check if agent name is configured
-  const isAgentNameMissing = !agentName || agentName.trim() === "";
+  const getShareSettingsUrl = () => {
+    if (!fileId) return null;
+    return `https://drive.google.com/drive/u/0/folders/${fileId}?usp=sharing`;
+  };
+
+  const renderDocumentTypeIcon = (link: DocumentLink) => {
+    switch (link.document_type) {
+      case "google_drive":
+        return <FileText className="h-4 w-4 text-blue-600" />;
+      case "pdf":
+        return <FileText className="h-4 w-4 text-red-600" />;
+      case "excel":
+        return <FileText className="h-4 w-4 text-green-600" />;
+      case "document":
+        return <FileText className="h-4 w-4 text-indigo-600" />;
+      default:
+        return <FileText className="h-4 w-4 text-gray-600" />;
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="grid md:grid-cols-2 gap-6">
-        <div>
-          <h4 className="text-base font-medium mb-3">Add Document Link</h4>
-          <form onSubmit={handleSubmit(handleAddLink)} className="space-y-4">
-            <div>
-              <Label htmlFor="document_type" className="text-sm">Document Type</Label>
-              <Select 
-                onValueChange={(value) => setDocumentType(value)}
-                defaultValue={documentType}
-                {...register("document_type")}
+    <div className="space-y-4">
+      {documentLinks.length > 0 ? (
+        <div className="space-y-2">
+          {documentLinks.map((link) => (
+            <div 
+              key={link.id} 
+              className="flex items-center gap-2 p-3 rounded-md border bg-gray-50 border-gray-200"
+            >
+              {renderDocumentTypeIcon(link)}
+              <div className="flex-1 truncate text-sm">
+                {link.link}
+              </div>
+              <span className="text-sm text-gray-500 whitespace-nowrap">({link.refresh_rate} days)</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDelete(link.id)}
+                disabled={isDeleteLoading || deletingId === link.id}
+                className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
               >
-                <SelectTrigger className="w-full mt-1">
-                  <SelectValue placeholder="Select document type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DOCUMENT_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.document_type && (
-                <p className="text-sm text-red-500 mt-1">{errors.document_type.message}</p>
-              )}
+                {(isDeleteLoading && deletingId === link.id) ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+              </Button>
             </div>
-
-            <div>
-              <Label htmlFor="link" className="text-sm">Document URL</Label>
-              <Input
-                id="link"
-                {...register("link")}
-                placeholder="https://"
-                className="mt-1"
-              />
-              {errors.link && (
-                <p className="text-sm text-red-500 mt-1">{errors.link.message}</p>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="refresh_rate" className="text-sm">Refresh Rate (hours)</Label>
-              <Input
-                id="refresh_rate"
-                type="number"
-                min="1"
-                max="168"
-                {...register("refresh_rate")}
-                className="mt-1"
-              />
-              {errors.refresh_rate && (
-                <p className="text-sm text-red-500 mt-1">{errors.refresh_rate.message}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">How often to re-index the document for updates</p>
-            </div>
-
-            <Button type="submit" disabled={isAddLoading}>
-              {isAddLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Link
-            </Button>
-          </form>
+          ))}
         </div>
-
-        <div>
-          <h4 className="text-base font-medium mb-3">Upload Document</h4>
-          
-          {isAgentNameMissing && (
-            <Alert variant="warning" className="mb-4 border-amber-300 bg-amber-50">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-700">
-                Agent name is not configured. Please set up an AI Agent Name in client settings before uploading documents.
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center ${
-              selectedFile ? 'border-primary' : 'border-gray-200'
-            } ${isAgentNameMissing ? 'opacity-50' : ''}`}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-          >
-            {selectedFile ? (
-              <div className="space-y-4">
-                <p className="text-sm text-gray-700">
-                  Selected file: <span className="font-medium">{selectedFile.name}</span>
-                </p>
-                <Button 
-                  onClick={handleUploadSubmit} 
-                  disabled={isUploadLoading || isAgentNameMissing}
-                  className="w-full"
-                >
-                  {isUploadLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    'Upload Document'
-                  )}
-                </Button>
-                <button
-                  onClick={() => setSelectedFile(null)}
-                  type="button"
-                  className="text-sm text-gray-500 hover:text-gray-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="mx-auto h-12 w-12 text-gray-400 flex items-center justify-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-full w-full"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                <p className="text-sm text-gray-500">
-                  Drag and drop a file here, or
-                </p>
-                <div>
-                  <label htmlFor="fileUpload" className="inline-block">
-                    <span className={`px-4 py-2 text-sm font-medium text-white rounded-md 
-                                    ${isAgentNameMissing 
-                                      ? 'bg-gray-400 cursor-not-allowed' 
-                                      : 'bg-primary hover:bg-primary-dark cursor-pointer'}`}>
-                      Select File
-                    </span>
-                    <input
-                      id="fileUpload"
-                      name="fileUpload"
-                      type="file"
-                      className="sr-only"
-                      onChange={handleFileSelect}
-                      disabled={isAgentNameMissing}
-                    />
-                  </label>
-                </div>
-                <p className="text-xs text-gray-500">
-                  Supported file types: PDF, Word, Excel, PowerPoint, TXT, CSV
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {documentLinks.length > 0 && (
-        <div className="mt-6">
-          <h4 className="text-base font-medium mb-3">Added Document Sources</h4>
-          <div className="space-y-3">
-            {documentLinks.map((link) => (
-              <Card key={link.id} className="overflow-hidden">
-                <CardContent className="p-4 flex justify-between items-center">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center">
-                      <span className="font-medium truncate">
-                        {link.document_type 
-                          ? DOCUMENT_TYPES.find(t => t.value === link.document_type)?.label || "Document" 
-                          : "Document"}
-                      </span>
-                      
-                      {isGoogleResource(link.document_type || '') && link.access_status === "restricted" && (
-                        <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                          Restricted
-                        </span>
-                      )}
-                      
-                      {isGoogleResource(link.document_type || '') && link.access_status === "public" && (
-                        <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-green-100 text-green-800 border border-green-300">
-                          Public
-                        </span>
-                      )}
-                    </div>
-                    <a 
-                      href={link.link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:underline truncate block"
-                    >
-                      {link.link}
-                    </a>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Refresh rate: {link.refresh_rate} hour{link.refresh_rate !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(link.id)}
-                    disabled={isDeleteLoading}
-                    aria-label="Delete link"
-                    className="text-gray-500 hover:text-red-500"
-                  >
-                    {isDeleteLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+      ) : (
+        <div className="text-sm text-gray-500 italic">No document links added yet.</div>
       )}
 
-      {documentLinks.length === 0 && (
-        <div className="py-2">
-          <p className="text-gray-500 text-sm">No document links added yet.</p>
+      {!showNewForm ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowNewForm(true)}
+          className="w-full"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Add Document Source
+        </Button>
+      ) : (
+        <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+          <Tabs defaultValue="link" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="link">Add Document Link</TabsTrigger>
+              <TabsTrigger value="upload">Upload Document</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="link">
+              <form onSubmit={handleAdd} className="space-y-4">
+                {error && !error.includes("Note:") && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      {error}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {error && error.includes("Note:") && (
+                  <Alert variant="warning" className="bg-amber-50 border-amber-200">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-700">
+                      {error}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {isValidated && (
+                  <Alert variant="success" className="bg-green-50 border-green-200">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertTitle className="text-green-800">Link Validated</AlertTitle>
+                    <AlertDescription className="text-green-700">
+                      This is a valid document link.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {isValidated && fileId && documentType === "google_drive" && (
+                  <div className="text-sm bg-blue-50 p-3 rounded-md border border-blue-200">
+                    <p className="font-medium text-blue-800 mb-2">Make sure your Google Drive content is shared properly:</p>
+                    <ol className="list-decimal list-inside text-blue-700 space-y-1 ml-2">
+                      <li>Open your Google Drive file/folder</li>
+                      <li>Click "Share" in the top-right</li>
+                      <li>Set access to "Anyone with the link"</li>
+                    </ol>
+                    <div className="mt-2">
+                      <a 
+                        href={getShareSettingsUrl()}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-blue-600 hover:underline"
+                      >
+                        Open sharing settings <ExternalLink className="ml-1 h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="document-type">Document Type</Label>
+                  <select 
+                    id="document-type"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    value={documentType}
+                    onChange={(e) => setDocumentType(e.target.value)}
+                  >
+                    <option value="google_drive">Google Drive</option>
+                    <option value="google_doc">Google Doc</option>
+                    <option value="google_sheet">Google Sheet</option>
+                    <option value="pdf">PDF</option>
+                    <option value="excel">Excel</option>
+                    <option value="document">Document</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="document-link">Document Link</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="document-link"
+                      type="url"
+                      placeholder="https://drive.google.com/... or https://example.com/document.pdf"
+                      value={newLink}
+                      onChange={handleLinkChange}
+                      required
+                      className="flex-1"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={validateLink}
+                      disabled={isChecking || !newLink || isValidated}
+                    >
+                      {isChecking ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                      )}
+                      Validate
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="refresh-rate">Refresh Rate (days)</Label>
+                  <Input
+                    id="refresh-rate"
+                    type="number"
+                    min="1"
+                    value={newRefreshRate}
+                    onChange={(e) => setNewRefreshRate(parseInt(e.target.value) || 30)}
+                    required
+                  />
+                </div>
+                
+                <div className="flex items-center justify-end gap-2 mt-4">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowNewForm(false);
+                      setError(null);
+                      setIsValidated(false);
+                      setFileId(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={isAddLoading || isSubmitting || !newLink || (isChecking && !isValidated)}
+                  >
+                    {(isAddLoading || isSubmitting) ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
+                    Add Link
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+            
+            <TabsContent value="upload">
+              <form onSubmit={handleFileUpload} className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                
+                {!agentName && (
+                  <Alert variant="warning" className="bg-amber-50 border-amber-200">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-700">
+                      Agent name is not configured. Please set up an AI Agent Name in client settings before uploading documents.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.ppt,.pptx"
+                  />
+                  
+                  {selectedFile ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center">
+                        <FileText className="h-8 w-8 text-blue-500" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
+                      <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedFile(null);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = "";
+                          }
+                        }}
+                      >
+                        Change File
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center">
+                        <FileUp className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-700">
+                        Drag and drop a file here, or
+                      </p>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Select File
+                      </Button>
+                      <p className="text-xs text-gray-500">
+                        Supported file types: PDF, Word, Excel, PowerPoint, TXT, CSV
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {selectedFile && (
+                  <Alert variant="success" className="bg-green-50 border-green-200">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertTitle className="text-green-800">File Selected</AlertTitle>
+                    <AlertDescription className="text-green-700">
+                      This file will be uploaded to your AI agent's knowledge base when you click "Upload Document".
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="flex items-center justify-end gap-2 mt-4">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowNewForm(false);
+                      setError(null);
+                      setSelectedFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = "";
+                      }
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={isUploadLoading || isSubmitting || !selectedFile || !agentName}
+                  >
+                    {(isUploadLoading || isSubmitting) ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <FileUp className="w-4 h-4 mr-2" />
+                    )}
+                    Upload Document
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+          </Tabs>
         </div>
       )}
     </div>
