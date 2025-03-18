@@ -29,9 +29,6 @@ export function useStoreDocumentContent() {
         };
       }
       
-      // Use the agent name exactly as provided without any modifications
-      const formattedAgentName = agentName;
-      
       // Prepare metadata
       const metadata = {
         source: "file_upload",
@@ -42,12 +39,12 @@ export function useStoreDocumentContent() {
         url: fileUrl
       };
       
-      // Insert the content into AI agents table
+      // Insert the content into AI agents table using exact agent name as provided
       const { data, error } = await supabase
         .from("ai_agents")
         .insert({
           client_id: clientId,
-          name: formattedAgentName,
+          name: agentName, // Use exact name without modification
           content: `File uploaded: ${file.name}`,
           url: fileUrl,
           interaction_type: "file_upload",

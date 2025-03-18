@@ -3316,6 +3316,10 @@ export type Database = {
         }
         Returns: string
       }
+      log_agent_name_fix: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       log_chat_interaction: {
         Args: {
           client_id_param: string

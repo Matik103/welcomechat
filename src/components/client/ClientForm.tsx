@@ -57,16 +57,6 @@ export const ClientForm = ({
     }
   }, [initialData, reset]);
 
-  // Watch for agent name changes to validate and clean any potential " Assistant" suffix
-  const agentName = watch("agent_name");
-  
-  useEffect(() => {
-    if (agentName && agentName.endsWith(" Assistant")) {
-      // Automatically remove the " Assistant" suffix
-      setValue("agent_name", agentName.substring(0, agentName.length - 10));
-    }
-  }, [agentName, setValue]);
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-2">
