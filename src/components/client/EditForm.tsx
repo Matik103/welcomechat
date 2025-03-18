@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +23,7 @@ const clientFormSchema = z.object({
 });
 
 export const EditForm = ({ initialData, onSubmit, isLoading = false }: EditFormProps) => {
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || "",
@@ -33,13 +33,23 @@ export const EditForm = ({ initialData, onSubmit, isLoading = false }: EditFormP
   });
 
   // Update form values when initialData changes
-  useState(() => {
+  useEffect(() => {
     if (initialData) {
-      setValue("client_name", initialData.client_name);
-      setValue("email", initialData.email);
-      setValue("agent_name", initialData.agent_name);
+      setValue("client_name", initialData.client_name || "");
+      setValue("email", initialData.email || "");
+      setValue("agent_name", initialData.agent_name || "");
     }
-  });
+  }, [initialData, setValue]);
+
+  // Watch for agent name changes to validate and clean any potential " Assistant" suffix
+  const agentName = watch("agent_name");
+  
+  useEffect(() => {
+    if (agentName && agentName.endsWith(" Assistant")) {
+      // Automatically remove the " Assistant" suffix
+      setValue("agent_name", agentName.substring(0, agentName.length - 10));
+    }
+  }, [agentName, setValue]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
