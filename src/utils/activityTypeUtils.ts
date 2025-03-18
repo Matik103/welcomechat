@@ -40,11 +40,25 @@ export const mapActivityType = (
       } as Json;
       break;
       
+    // Map system_update to client_updated which is a stable enum value
+    case "system_update":
+      dbActivityType = "client_updated";
+      
+      // Store the original activity type in metadata for reference
+      const systemMetadataObj = typeof metadata === 'object' && metadata !== null 
+        ? metadata 
+        : {};
+        
+      enhancedMetadata = {
+        ...systemMetadataObj,
+        original_activity_type: activity_type
+      } as Json;
+      break;
+      
     // Map new document processing activities to a reliable enum that exists
     case "document_processing_started":
     case "document_processing_completed":
     case "document_processing_failed":
-    case "system_update":
       // Use client_updated which is a stable enum value
       dbActivityType = "client_updated";
       
