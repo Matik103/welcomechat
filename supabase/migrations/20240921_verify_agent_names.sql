@@ -6,7 +6,8 @@ SELECT
   COUNT(*) AS total_agents,
   COUNT(DISTINCT client_id) AS unique_clients,
   COUNT(*) FILTER (WHERE name = 'ai_agent') AS generic_name_count,
-  COUNT(*) FILTER (WHERE name LIKE '% Assistant') AS assistant_suffix_count
+  COUNT(*) FILTER (WHERE name LIKE '% Assistant') AS assistant_suffix_count,
+  COUNT(*) FILTER (WHERE name LIKE '%"%') AS quoted_name_count
 FROM ai_agents;
 
 -- Check for any remaining mismatches between client agent_name and ai_agents name
@@ -28,6 +29,17 @@ GROUP BY
 ORDER BY
   record_count DESC;
 
+-- Find any agent names containing quotes that might cause SQL issues
+SELECT 
+  c.id as client_id,
+  c.client_name,
+  c.agent_name as agent_name
+FROM
+  clients c
+WHERE
+  c.agent_name LIKE '%"%'
+  OR c.agent_name LIKE '%''%';
+  
 -- Log the verification
 INSERT INTO client_activities (
   client_id,
