@@ -35,7 +35,7 @@ export const ClientForm = ({
   isLoading = false, 
   isClientView = false
 }: ClientFormProps) => {
-  const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || "",
@@ -56,6 +56,16 @@ export const ClientForm = ({
       });
     }
   }, [initialData, reset]);
+
+  // Watch for agent name changes to validate and clean any potential " Assistant" suffix
+  const agentName = watch("agent_name");
+  
+  useEffect(() => {
+    if (agentName && agentName.endsWith(" Assistant")) {
+      // Automatically remove the " Assistant" suffix
+      setValue("agent_name", agentName.substring(0, agentName.length - 10));
+    }
+  }, [agentName, setValue]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

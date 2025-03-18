@@ -28,14 +28,15 @@ BEGIN
   )
   SELECT DISTINCT
     client_id,
-    'system_update' as activity_type,
+    'client_updated'::activity_type_enum as activity_type,
     'Fixed AI agent name format removing " Assistant" suffix',
     jsonb_build_object(
       'migration_type', 'agent_name_fix',
       'migration_date', NOW(),
       'affected_records', updated_count
     )
-  FROM public.ai_agents;
+  FROM public.ai_agents
+  WHERE client_id IN (SELECT id FROM public.clients);
   
   RAISE NOTICE 'Updated % AI agent names by removing " Assistant" suffix', updated_count;
 END;
@@ -57,4 +58,3 @@ FROM public.clients c
 WHERE a.client_id = c.id
 AND c.agent_name IS NOT NULL
 AND a.name != c.agent_name;
-
