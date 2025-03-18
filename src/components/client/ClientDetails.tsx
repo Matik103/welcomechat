@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -63,6 +64,7 @@ export const ClientDetails = ({
         
         if (updateError) {
           console.error("Error updating AI agent name:", updateError);
+          throw updateError;
         } else {
           console.log(`Updated agent name from ${existingAgents[0].name} to ${formattedAgentName}`);
         }
@@ -81,12 +83,14 @@ export const ClientDetails = ({
         
         if (insertError) {
           console.error("Error creating new AI agent:", insertError);
+          throw insertError;
         } else {
           console.log(`Created new AI agent with name ${formattedAgentName}`);
         }
       }
     } catch (error) {
       console.error("Error in ensureAiAgentExists:", error);
+      throw error;
     }
   };
 
@@ -97,6 +101,8 @@ export const ClientDetails = ({
     agent_description?: string 
   }) => {
     try {
+      console.log("Submitting client data:", data);
+      
       if (clientId && isClientView) {
         // Update existing client
         await clientMutation.mutateAsync(data);
@@ -135,6 +141,7 @@ export const ClientDetails = ({
           await ensureAiAgentExists(clientId, data.agent_name, data.agent_description);
         }
         
+        toast.success("Client updated successfully");
         navigate("/admin/clients");
       } else {
         // Create new client - show loading toast
@@ -176,9 +183,9 @@ export const ClientDetails = ({
           toast.error(`Failed to create client: ${createError.message}`);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting client form:", error);
-      toast.error("Failed to save client information");
+      toast.error("Failed to save client information: " + (error?.message || "Unknown error"));
     }
   };
 
