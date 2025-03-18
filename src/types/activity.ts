@@ -18,7 +18,8 @@ export type ExtendedActivityType = ActivityType |
   "document_link_deleted" |
   "document_processing_started" |
   "document_processing_completed" |
-  "document_processing_failed";
+  "document_processing_failed" |
+  "system_update";
 
 export interface ActivityRecord {
   activity_type: ExtendedActivityType;
