@@ -21,9 +21,28 @@ const EditClientInfo = () => {
   const handleSubmit = async (data) => {
     try {
       await clientMutation.mutateAsync(data);
-      // After successful update, log the activity
-      await logClientActivity("client_updated", "Updated client information");
-      toast.success("Your information has been updated");
+      
+      // Determine if agent details were updated
+      const agentNameChanged = client?.agent_name !== data.agent_name;
+      const agentDescriptionChanged = client?.agent_description !== data.agent_description;
+      
+      // Log appropriate activity based on what changed
+      if (agentNameChanged || agentDescriptionChanged) {
+        await logClientActivity(
+          "ai_agent_updated", 
+          "updated AI agent settings",
+          {
+            agent_name: data.agent_name,
+            agent_description: data.agent_description,
+            name_changed: agentNameChanged,
+            description_changed: agentDescriptionChanged
+          }
+        );
+        toast.success("AI agent settings updated successfully");
+      } else {
+        await logClientActivity("client_updated", "Updated client information");
+        toast.success("Your information has been updated");
+      }
     } catch (error) {
       toast.error(`Failed to update your information: ${error.message}`);
     }

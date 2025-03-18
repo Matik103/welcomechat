@@ -22,6 +22,11 @@ export const mapActivityType = (
       dbActivityType = "ai_agent_created";
       break;
       
+    // New enum value now exists in the database  
+    case "ai_agent_updated":
+      dbActivityType = "ai_agent_updated";
+      break;
+      
     // Document-related activities
     case "document_link_added":
     case "document_uploaded":
@@ -42,17 +47,7 @@ export const mapActivityType = (
       
     // Map system_update to client_updated which is a stable enum value
     case "system_update":
-      dbActivityType = "client_updated";
-      
-      // Store the original activity type in metadata for reference
-      const systemMetadataObj = typeof metadata === 'object' && metadata !== null 
-        ? metadata 
-        : {};
-        
-      enhancedMetadata = {
-        ...systemMetadataObj,
-        original_activity_type: activity_type
-      } as Json;
+      dbActivityType = "system_update";
       break;
       
     // Map new document processing activities to a reliable enum that exists
@@ -69,22 +64,6 @@ export const mapActivityType = (
         
       enhancedMetadata = {
         ...processingMetadataObj,
-        original_activity_type: activity_type
-      } as Json;
-      break;
-      
-    // Map ai_agent_updated to a valid enum value that exists in the database
-    case "ai_agent_updated":
-      // Map to client_updated instead of ai_agent_updated since the latter isn't in the enum
-      dbActivityType = "client_updated";
-      
-      // Store the original activity type in metadata for reference
-      const agentMetadataObj = typeof metadata === 'object' && metadata !== null 
-        ? metadata 
-        : {};
-        
-      enhancedMetadata = {
-        ...agentMetadataObj,
         original_activity_type: activity_type
       } as Json;
       break;
@@ -128,4 +107,19 @@ export const mapActivityType = (
   }
   
   return { dbActivityType, enhancedMetadata };
+};
+
+/**
+ * Generates an AI prompt based on agent name and description
+ */
+export const generateAiPrompt = (agentName: string, agentDescription: string): string => {
+  // Create a default prompt if no description is provided
+  if (!agentDescription || agentDescription.trim() === '') {
+    return `You are ${agentName}, a helpful AI assistant. Your goal is to provide clear, concise, and accurate information to users.`;
+  }
+  
+  // Generate a prompt with the agent's name and description
+  return `You are ${agentName}. ${agentDescription}
+
+As an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.`;
 };

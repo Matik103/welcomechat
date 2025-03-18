@@ -7,6 +7,7 @@ import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { generateAiPrompt } from "@/utils/activityTypeUtils";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -25,7 +26,7 @@ export const ClientDetails = ({
   // Use the clientId that was passed to the component
   const { clientMutation, refetchClient } = useClientData(clientId);
 
-  // Function to ensure AI agent exists with correct name
+  // Function to ensure AI agent exists with correct name and description
   const ensureAiAgentExists = async (clientId: string, agentName: string, agentDescription?: string) => {
     try {
       console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
@@ -33,10 +34,13 @@ export const ClientDetails = ({
       // Use the agent name exactly as provided without any modifications
       const formattedAgentName = agentName;
       
+      // Generate AI prompt from agent name and description
+      const aiPrompt = generateAiPrompt(agentName, agentDescription || "");
+      
       // Check if agent exists
       const { data: existingAgents, error: queryError } = await supabase
         .from("ai_agents")
-        .select("id, name")
+        .select("id, name, agent_description")
         .eq("client_id", clientId)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -58,15 +62,25 @@ export const ClientDetails = ({
           .from("ai_agents")
           .update({ 
             name: formattedAgentName,
+            agent_description: agentDescription,
+            ai_prompt: aiPrompt,
             settings: settings
           })
           .eq("id", existingAgents[0].id);
         
         if (updateError) {
-          console.error("Error updating AI agent name:", updateError);
+          console.error("Error updating AI agent:", updateError);
           throw updateError;
         } else {
           console.log(`Updated agent name from ${existingAgents[0].name} to ${formattedAgentName}`);
+          console.log(`Updated agent description to: ${agentDescription}`);
+          console.log(`Generated AI prompt: ${aiPrompt}`);
+          
+          // Log if description was updated
+          const descriptionChanged = existingAgents[0].agent_description !== agentDescription;
+          if (descriptionChanged) {
+            return { descriptionUpdated: true };
+          }
         }
       } else {
         // Create new agent
@@ -75,6 +89,8 @@ export const ClientDetails = ({
           .insert({
             client_id: clientId,
             name: formattedAgentName,
+            agent_description: agentDescription,
+            ai_prompt: aiPrompt,
             content: "",
             interaction_type: "config",
             settings: settings,
@@ -86,8 +102,13 @@ export const ClientDetails = ({
           throw insertError;
         } else {
           console.log(`Created new AI agent with name ${formattedAgentName}`);
+          console.log(`Set agent description to: ${agentDescription}`);
+          console.log(`Generated AI prompt: ${aiPrompt}`);
+          return { created: true };
         }
       }
+      
+      return { updated: true };
     } catch (error) {
       console.error("Error in ensureAiAgentExists:", error);
       throw error;
@@ -107,9 +128,10 @@ export const ClientDetails = ({
         // Update existing client
         await clientMutation.mutateAsync(data);
         
-        // Ensure AI agent exists with correct name
+        // Ensure AI agent exists with correct name and description
+        let agentUpdateResult = { updated: false, created: false, descriptionUpdated: false };
         if (data.agent_name) {
-          await ensureAiAgentExists(clientId, data.agent_name, data.agent_description);
+          agentUpdateResult = await ensureAiAgentExists(clientId, data.agent_name, data.agent_description);
         }
         
         // Refetch client data to update the UI with the latest changes
@@ -117,15 +139,36 @@ export const ClientDetails = ({
         
         // Log client information update activity
         try {
-          await logClientActivity(
-            "client_updated", 
-            "updated their client information",
-            { 
-              updated_fields: Object.keys(data).filter(key => 
-                client && data[key as keyof typeof data] !== client[key as keyof typeof client]
-              )
-            }
-          );
+          // Log different activities based on what was updated
+          if (agentUpdateResult.created) {
+            await logClientActivity(
+              "ai_agent_created", 
+              "created a new AI agent",
+              { 
+                agent_name: data.agent_name,
+                agent_description: data.agent_description
+              }
+            );
+          } else if (agentUpdateResult.descriptionUpdated) {
+            await logClientActivity(
+              "ai_agent_updated", 
+              "updated their AI agent description",
+              { 
+                agent_name: data.agent_name,
+                agent_description: data.agent_description
+              }
+            );
+          } else {
+            await logClientActivity(
+              "client_updated", 
+              "updated their client information",
+              { 
+                updated_fields: Object.keys(data).filter(key => 
+                  client && data[key as keyof typeof data] !== client[key as keyof typeof client]
+                )
+              }
+            );
+          }
         } catch (logError) {
           console.error("Error logging activity:", logError);
           // Continue even if logging fails
@@ -136,7 +179,7 @@ export const ClientDetails = ({
         // Admin updating client
         await clientMutation.mutateAsync(data);
         
-        // Ensure AI agent exists with correct name 
+        // Ensure AI agent exists with correct name and description
         if (data.agent_name) {
           await ensureAiAgentExists(clientId, data.agent_name, data.agent_description);
         }
