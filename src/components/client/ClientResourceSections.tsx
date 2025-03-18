@@ -45,12 +45,11 @@ export const ClientResourceSections = ({
   console.log("Document Links:", documentLinks);
   console.log("Website URLs:", websiteUrls);
 
-  // Get the client's agent name (we need to fetch this from the client data)
-  // For now, we'll access it from the current client data in the localStorage or context
+  // Get the client's agent name from localStorage or context
   const getAgentName = (): string | undefined => {
     try {
-      // Try to get the agent name from localStorage (this is just one approach)
-      const clientDataStr = localStorage.getItem('client_data');
+      // Try to get the agent name from localStorage
+      const clientDataStr = localStorage.getItem('currentClient');
       if (clientDataStr) {
         const clientData = JSON.parse(clientDataStr);
         return clientData.agent_name;
@@ -68,7 +67,8 @@ export const ClientResourceSections = ({
   const isGoogleResource = (type: string): boolean => {
     return type === "google_drive" || 
            type === "google_doc" || 
-           type === "google_sheet";
+           type === "google_sheet" ||
+           type === "google_presentation";
   };
 
   // Check if any Google Drive links have restricted access

@@ -57,8 +57,23 @@ export const ClientForm = ({
     }
   }, [initialData, reset]);
 
+  const handleFormSubmit = async (data: { 
+    client_name: string; 
+    email: string; 
+    agent_name: string; 
+    agent_description: string;
+  }) => {
+    // Ensure agent_description is properly passed to the onSubmit handler
+    await onSubmit({
+      client_name: data.client_name,
+      email: data.email,
+      agent_name: data.agent_name || undefined,
+      agent_description: data.agent_description || undefined
+    });
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name <span className="text-red-500">*</span>
