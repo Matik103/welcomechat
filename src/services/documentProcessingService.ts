@@ -235,12 +235,12 @@ export const migrateDocumentProcessingSystem = async (): Promise<void> => {
         const documentId = settings.document_id as string || `${Date.now()}_migration_${fileName}`;
         
         // Check if we have a completed activity for this document
-        // Fix the TypeScript error by using a string key for the metadata filter
+        // Using a string literal for the metadata path to avoid TypeScript errors
         const { data: existingActivity } = await supabase
           .from("client_activities")
           .select("*")
           .eq("client_id", doc.client_id)
-          .eq("metadata->document_id", documentId)
+          .eq("metadata->>document_id", documentId)
           .eq("activity_type", "document_processing_completed");
           
         // If we don't have a completed activity, create one
@@ -319,12 +319,12 @@ export const getClientDocuments = async (
     // Get the status of each document from client_activities
     for (const doc of documents) {
       // See if we have a failed status
-      // Fix the TypeScript error by using a string key for the metadata filter
+      // Using a string literal for the metadata path to avoid TypeScript errors
       const { data: failedActivity } = await supabase
         .from("client_activities")
         .select("*")
         .eq("client_id", clientId)
-        .eq("metadata->document_name", doc.name)
+        .eq("metadata->>document_name", doc.name)
         .eq("activity_type", "document_processing_failed")
         .order('created_at', { ascending: false })
         .limit(1);
@@ -339,7 +339,7 @@ export const getClientDocuments = async (
         .from("client_activities")
         .select("*")
         .eq("client_id", clientId)
-        .eq("metadata->document_name", doc.name)
+        .eq("metadata->>document_name", doc.name)
         .eq("activity_type", "document_processing_started")
         .order('created_at', { ascending: false })
         .limit(1);
@@ -348,7 +348,7 @@ export const getClientDocuments = async (
         .from("client_activities")
         .select("*")
         .eq("client_id", clientId)
-        .eq("metadata->document_name", doc.name)
+        .eq("metadata->>document_name", doc.name)
         .eq("activity_type", "document_processing_completed")
         .order('created_at', { ascending: false })
         .limit(1);
