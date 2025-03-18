@@ -26,6 +26,7 @@ export const mapActivityType = (
     case "document_link_added":
     case "document_uploaded":
     case "document_link_deleted":
+    case "system_update":
       // Map to "document_updated" or another relevant existing enum value
       dbActivityType = "ai_agent_table_created";
       

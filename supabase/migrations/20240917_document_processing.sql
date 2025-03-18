@@ -34,6 +34,7 @@ BEGIN
     PERFORM add_value_to_enum('activity_type_enum', 'document_processing_started');
     PERFORM add_value_to_enum('activity_type_enum', 'document_processing_completed');
     PERFORM add_value_to_enum('activity_type_enum', 'document_processing_failed');
+    PERFORM add_value_to_enum('activity_type_enum', 'system_update');
     
     -- Drop the helper function
     DROP FUNCTION add_value_to_enum(text, text);
