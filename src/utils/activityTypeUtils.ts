@@ -22,6 +22,24 @@ export const mapActivityType = (
       dbActivityType = "ai_agent_created";
       break;
       
+    // Document-related activities
+    case "document_link_added":
+    case "document_uploaded":
+    case "document_link_deleted":
+      // Map to "document_updated" or another relevant existing enum value
+      dbActivityType = "ai_agent_table_created";
+      
+      // Store the original activity type in metadata for reference
+      const documentMetadataObj = typeof metadata === 'object' && metadata !== null 
+        ? metadata 
+        : {};
+        
+      enhancedMetadata = {
+        ...documentMetadataObj,
+        original_activity_type: activity_type
+      } as Json;
+      break;
+      
     // Map ai_agent_updated to a valid enum value that exists in the database
     case "ai_agent_updated":
       // Map to client_updated instead of ai_agent_updated since the latter isn't in the enum

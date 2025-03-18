@@ -43,12 +43,16 @@ const getActivityIcon = (type: string, metadata: Json) => {
       return <Settings className="w-4 h-4 text-primary" />;
     case 'website_url_added':
     case 'drive_link_added':
+    case 'document_link_added':
       return <Link className="w-4 h-4 text-primary" />;
     case 'website_url_removed':
     case 'drive_link_removed':
     case 'url_deleted':
     case 'drive_link_deleted':
+    case 'document_link_deleted':
       return <Trash2 className="w-4 h-4 text-primary" />;
+    case 'document_uploaded':
+      return <Upload className="w-4 h-4 text-primary" />;
     case 'logo_uploaded':
       return <Image className="w-4 h-4 text-primary" />;
     case 'embed_code_copied':

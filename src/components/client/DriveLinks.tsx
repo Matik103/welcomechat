@@ -3,13 +3,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
-import { DriveLink } from "@/types/client";
+import { DocumentLink } from "@/types/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { useDriveAccessCheck } from "@/hooks/useDriveAccessCheck";
 
 interface DriveLinksProps {
-  driveLinks: DriveLink[];
+  driveLinks: DocumentLink[];
   onAdd: (data: { link: string; refresh_rate: number }) => Promise<void>;
   onDelete: (id: number) => void;
   isAddLoading: boolean;
