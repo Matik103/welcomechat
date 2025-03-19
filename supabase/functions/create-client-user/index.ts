@@ -199,6 +199,9 @@ serve(async (req) => {
     // Create AI agent entry for this client - using exact agent name and logo
     try {
       console.log("Creating AI agent for client:", client_id);
+      console.log("Using logo URL:", logo_url);
+      console.log("Using logo storage path:", logo_storage_path);
+      
       const { error: agentError } = await supabase
         .from("ai_agents")
         .insert({

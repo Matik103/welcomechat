@@ -5,12 +5,11 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LogoManagement } from "@/components/widget/LogoManagement";
-import { handleLogoUploadEvent } from "@/utils/widgetSettingsUtils";
 import { toast } from "sonner";
 
 interface ClientFormProps {
@@ -43,6 +42,8 @@ export const ClientForm = ({
   isClientView = false
 }: ClientFormProps) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [tempLogoFile, setTempLogoFile] = useState<File | null>(null);
+  const [localLogoPreview, setLocalLogoPreview] = useState<string | null>(null);
   
   const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
@@ -80,37 +81,84 @@ export const ClientForm = ({
   // Get client ID for logo upload
   const clientId = initialData?.id;
   
-  // Handle logo upload
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!clientId) {
-      toast.error("Please save the client first before uploading a logo");
+  // Handle logo selection for new clients (no ID yet)
+  const handleLogoSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Check file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Logo file must be less than 5MB");
       return;
     }
     
-    handleLogoUploadEvent(
-      event,
-      clientId,
-      (url: string, storagePath: string) => {
-        setValue("logo_url", url);
-        setValue("logo_storage_path", storagePath);
-        toast.success("Logo uploaded successfully");
-      },
-      (error: Error) => {
-        toast.error(`Upload failed: ${error.message}`);
-      },
-      () => setIsUploading(true),
-      () => setIsUploading(false)
-    );
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please select a valid image file (JPG, PNG, GIF, SVG, WebP)");
+      return;
+    }
+    
+    // Save the file for later upload
+    setTempLogoFile(file);
+    
+    // Generate a preview URL
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const previewUrl = e.target?.result as string;
+      setLocalLogoPreview(previewUrl);
+    };
+    reader.readAsDataURL(file);
+    
+    toast.success("Logo selected. It will be uploaded when you save the client.");
+  };
+  
+  // Handle logo upload for existing clients
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!clientId) {
+      // For new clients, store the file temporarily
+      handleLogoSelection(event);
+      return;
+    }
+    
+    // For existing clients, use the regular upload flow
+    import("@/utils/widgetSettingsUtils").then(({ handleLogoUploadEvent }) => {
+      handleLogoUploadEvent(
+        event,
+        clientId,
+        (url: string, storagePath: string) => {
+          setValue("logo_url", url);
+          setValue("logo_storage_path", storagePath);
+          toast.success("Logo uploaded successfully");
+        },
+        (error: Error) => {
+          toast.error(`Upload failed: ${error.message}`);
+        },
+        () => setIsUploading(true),
+        () => setIsUploading(false)
+      );
+    });
   };
   
   // Handle logo removal
   const handleRemoveLogo = () => {
     setValue("logo_url", "");
     setValue("logo_storage_path", "");
+    setTempLogoFile(null);
+    setLocalLogoPreview(null);
+  };
+
+  // Custom submit handler that includes the temp logo file
+  const handleFormSubmit = async (data: any) => {
+    // Pass the temp logo file along with the form data
+    await onSubmit({
+      ...data,
+      _tempLogoFile: tempLogoFile // Will be handled in ClientDetails.tsx
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name <span className="text-red-500">*</span>
@@ -162,7 +210,7 @@ export const ClientForm = ({
           AI Agent Logo
         </Label>
         <LogoManagement
-          logoUrl={watch("logo_url") || ""}
+          logoUrl={localLogoPreview || watch("logo_url") || ""}
           isUploading={isUploading}
           onLogoUpload={handleLogoUpload}
           onRemoveLogo={handleRemoveLogo}
