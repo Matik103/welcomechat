@@ -51,38 +51,60 @@ export class FirecrawlService {
             depth: 2, // Enable depth crawling
             maxPagesToCrawl: 100, // Increase page limit
             format: 'markdown' // Prefer markdown for better structure
+          },
+          // Add parse options for LlamaParse
+          parseOptions: {
+            split_by: "chunk", 
+            chunk_size: 2000,
+            include_metadata: true
           }
         }),
       });
 
-      // Handle non-JSON responses first
+      // Better error handling for non-JSON responses
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        const rawText = await response.text();
-        console.error('Received non-JSON response:', rawText.substring(0, 500));
-        return {
-          success: false,
-          error: `Server returned non-JSON response: ${rawText.substring(0, 200)}...`,
-        };
+        try {
+          const rawText = await response.text();
+          console.error('Received non-JSON response:', rawText.substring(0, 500));
+          return {
+            success: false,
+            error: `Server returned non-JSON response: ${rawText.substring(0, 200)}...`,
+          };
+        } catch (textError) {
+          console.error('Error getting response text:', textError);
+          return {
+            success: false,
+            error: `Failed to read response: ${textError instanceof Error ? textError.message : "Unknown error"}`,
+          };
+        }
       }
 
       // If response is not OK, get the error text
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error processing document. Status:', response.status, 'Error:', errorText);
-        
         try {
-          // Try to parse the error as JSON
-          const errorJson = JSON.parse(errorText);
+          const errorText = await response.text();
+          console.error('Error processing document. Status:', response.status, 'Error:', errorText);
+          
+          try {
+            // Try to parse the error as JSON
+            const errorJson = JSON.parse(errorText);
+            return {
+              success: false,
+              error: errorJson.error || `HTTP error ${response.status}`,
+            };
+          } catch (e) {
+            // If parsing fails, return the raw error text
+            return {
+              success: false,
+              error: `HTTP error ${response.status}: ${errorText}`,
+            };
+          }
+        } catch (textError) {
+          console.error('Error getting error text:', textError);
           return {
             success: false,
-            error: errorJson.error || `HTTP error ${response.status}`,
-          };
-        } catch (e) {
-          // If parsing fails, return the raw error text
-          return {
-            success: false,
-            error: `HTTP error ${response.status}: ${errorText}`,
+            error: `HTTP error ${response.status}`,
           };
         }
       }
@@ -90,6 +112,7 @@ export class FirecrawlService {
       // Parse the JSON response
       try {
         const data = await response.json();
+        console.log('Got successful response from process-document:', data);
         return {
           success: true,
           data

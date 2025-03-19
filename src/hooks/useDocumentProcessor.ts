@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { FirecrawlService } from "@/utils/FirecrawlService";
+import { LlamaCloudService } from "@/utils/LlamaCloudService";
 import { toast } from "sonner";
 
 interface ProcessDocumentParams {
@@ -48,6 +49,22 @@ export function useDocumentProcessor() {
       
       if (useLlamaParse) {
         toast.info(`Processing ${documentType} with LlamaParse...`);
+        
+        // For direct file uploads, we'll use LlamaParse directly
+        if (documentType === "pdf" || documentType === "docx" || 
+            documentType === "excel" || documentType === "other") {
+          console.log("Direct file upload detected, using LlamaParse");
+          const result = await LlamaCloudService.parseDocument(documentUrl, documentType);
+          
+          if (!result.success) {
+            console.error("LlamaParse processing failed:", result.error);
+            throw new Error(result.error || "Failed to process document with LlamaParse");
+          }
+          
+          console.log("LlamaParse processing succeeded:", result.data);
+          toast.success(`Document processed successfully with LlamaParse!`);
+          return result.data;
+        }
       } else {
         toast.info(`Processing ${isWebsite ? "website" : documentType} with Firecrawl...`);
       }
