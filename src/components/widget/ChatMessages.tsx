@@ -48,6 +48,10 @@ export function ChatMessages({
                     src={logoUrl} 
                     alt={agentName} 
                     className="object-cover w-full h-full"
+                    onError={(e) => {
+                      console.error("Error loading logo in message avatar:", logoUrl);
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 ) : null}
                 <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800 font-medium">
@@ -87,6 +91,10 @@ export function ChatMessages({
                   src={logoUrl} 
                   alt={agentName} 
                   className="object-cover"
+                  onError={(e) => {
+                    console.error("Error loading logo in typing indicator:", logoUrl);
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
               ) : null}
               <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800 font-medium">
