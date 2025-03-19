@@ -132,7 +132,7 @@ export const WebsiteUrls = ({
           });
         } catch (processingError) {
           console.error("Error processing website:", processingError);
-          toast.error(`Website URL added but content processing failed: ${processingError.message}`);
+          toast.error(`Website URL added but content processing failed: ${processingError instanceof Error ? processingError.message : "Unknown error"}`);
         }
       }
       
