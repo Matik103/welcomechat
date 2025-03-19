@@ -11,6 +11,8 @@ export class LlamaCloudService {
     documentType: string
   ): Promise<ParseResponse> {
     try {
+      console.log(`LlamaParse: Starting document parsing for ${documentType} at ${documentUrl}`);
+      
       // This will be handled by the edge function with the API key
       const response = await fetch('/api/process-document', {
         method: 'POST',
@@ -51,6 +53,9 @@ export class LlamaCloudService {
         };
       }
 
+      console.log('LlamaParse: Successfully parsed document, content length:', 
+        data.content ? data.content.length : 'unknown');
+      
       return {
         success: true,
         data
