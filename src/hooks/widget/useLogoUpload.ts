@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { handleLogoUploadEvent } from "@/utils/widgetSettingsUtils";
 import { toast } from "sonner";
+import { ExtendedActivityType } from "@/types/activity";
+import { Json } from "@/integrations/supabase/types";
 
 /**
  * Hook to manage logo upload functionality
@@ -16,9 +18,9 @@ export function useLogoUpload(
   const [isUploading, setIsUploading] = useState(false);
   
   const logClientActivity = async (
-    activity_type: string, 
+    activity_type: ExtendedActivityType, 
     description: string, 
-    metadata?: any
+    metadata?: Json
   ) => {
     if (clientId && isClientView) {
       try {
@@ -46,7 +48,7 @@ export function useLogoUpload(
 
         if (isClientView) {
           logClientActivity(
-            "logo_uploaded", 
+            "logo_uploaded" as ExtendedActivityType, 
             "uploaded a new logo for their widget", 
             { logo_url: publicUrl, logo_storage_path: storagePath }
           );

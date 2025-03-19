@@ -5,6 +5,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { WidgetSettings as IWidgetSettings } from "@/types/widget-settings";
 import { convertSettingsToJson } from "@/utils/widgetSettingsUtils";
 import { checkAndRefreshAuth } from "@/services/authService";
+import { ExtendedActivityType } from "@/types/activity";
+import { Json } from "@/integrations/supabase/types";
 
 /**
  * Hook to manage widget settings mutations
@@ -14,9 +16,9 @@ export function useWidgetSettingsMutation(clientId: string | undefined, isClient
   const queryClient = useQueryClient();
   
   const logClientActivity = async (
-    activity_type: string, 
+    activity_type: ExtendedActivityType, 
     description: string, 
-    metadata?: any
+    metadata?: Json
   ) => {
     if (clientId && isClientView) {
       try {
@@ -82,7 +84,7 @@ export function useWidgetSettingsMutation(clientId: string | undefined, isClient
     onSuccess: (_, variables) => {
       if (isClientView) {
         logClientActivity(
-          "widget_settings_updated", 
+          "widget_settings_updated" as ExtendedActivityType, 
           "updated widget settings", 
           { updated_fields: Object.keys(variables) }
         );
