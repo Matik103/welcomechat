@@ -1,21 +1,29 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Loader2 } from "lucide-react";
+import { useAgentContent } from "@/hooks/useAgentContent";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
+  clientId?: string;
 }
 
-export function WidgetPreview({ settings }: WidgetPreviewProps) {
+export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const [expanded, setExpanded] = useState(false);
   const [messages, setMessages] = useState<{ text: string; isUser: boolean }[]>([
     { text: settings.welcome_text || "Hi 👋, how can I help?", isUser: false }
   ]);
   const [inputValue, setInputValue] = useState("");
+  
+  // Fetch agent content for preview responses
+  const { agentContent, isLoading: isAgentLoading } = useAgentContent(
+    clientId, 
+    settings.agent_name
+  );
 
   const handleToggleExpand = () => {
     setExpanded(!expanded);
@@ -29,13 +37,24 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
     
     // Simulate AI response
     setTimeout(() => {
-      setMessages(prev => [
-        ...prev, 
-        { 
-          text: "I'm your AI assistant. This is a preview of how the widget will look on your website. In the actual implementation, I'll be able to answer questions based on your knowledge base.", 
-          isUser: false 
+      let responseText = "I'm your AI assistant. This is a preview of how the widget will look on your website.";
+      
+      // If we have agent content, use it to create a more realistic preview
+      if (agentContent && agentContent.length > 0) {
+        if (inputValue.toLowerCase().includes("what") && 
+            (inputValue.toLowerCase().includes("know") || 
+             inputValue.toLowerCase().includes("about") ||
+             inputValue.toLowerCase().includes("learn"))) {
+          responseText = `I know about the following topics: ${agentContent.substring(0, 150)}...`;
+        } else if (inputValue.toLowerCase().includes("help")) {
+          responseText = "I can help answer questions based on the documents and websites that have been shared with me.";
+        } else {
+          responseText = "In the actual implementation, I'll be able to answer questions based on your knowledge base. I currently have access to content about: " + 
+            (agentContent.substring(0, 100) + "...");
         }
-      ]);
+      }
+      
+      setMessages(prev => [...prev, { text: responseText, isUser: false }]);
     }, 1000);
     
     setInputValue("");
@@ -71,21 +90,31 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
               onClose={handleToggleExpand}
             />
             
-            <ChatMessages 
-              messages={messages}
-              backgroundColor={settings.background_color}
-              textColor={settings.text_color}
-              secondaryColor={settings.secondary_color}
-            />
+            {isAgentLoading && (
+              <div className="flex-1 flex items-center justify-center bg-opacity-50 bg-gray-100">
+                <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+              </div>
+            )}
             
-            <ChatInput 
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onSend={handleSendMessage}
-              primaryColor={settings.chat_color}
-              secondaryColor={settings.secondary_color}
-              textColor={settings.text_color}
-            />
+            {!isAgentLoading && (
+              <>
+                <ChatMessages 
+                  messages={messages}
+                  backgroundColor={settings.background_color}
+                  textColor={settings.text_color}
+                  secondaryColor={settings.secondary_color}
+                />
+                
+                <ChatInput 
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onSend={handleSendMessage}
+                  primaryColor={settings.chat_color}
+                  secondaryColor={settings.secondary_color}
+                  textColor={settings.text_color}
+                />
+              </>
+            )}
           </>
         ) : (
           <button
