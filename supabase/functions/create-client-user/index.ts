@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 console.log("create-client-user function loading...");
 
@@ -112,6 +112,38 @@ serve(async (req) => {
     } catch (roleError) {
       console.error("Exception setting user role:", roleError);
       // Continue even with role error, we'll handle it on the client side
+    }
+    
+    // Check if agent creation is needed
+    console.log("Creating AI agent for client:", clientId);
+    try {
+      // Generate AI prompt based on agent name and description
+      let promptBase = `You are ${agentName}, an AI assistant`;
+      if (agentDescription) {
+        promptBase += ` that ${agentDescription}`;
+      }
+      
+      // Create the AI agent record
+      const { error: agentError } = await supabase
+        .from('ai_agents')
+        .insert({
+          client_id: clientId,
+          name: agentName || 'Assistant',
+          agent_description: agentDescription || '',
+          content: '',
+          ai_prompt: promptBase,
+          settings: {
+            agent_description: agentDescription,
+            client_name: clientName
+          }
+        });
+        
+      if (agentError) {
+        console.error("Error creating AI agent:", agentError);
+      }
+    } catch (agentError) {
+      console.error("Exception creating AI agent:", agentError);
+      // Continue even with agent error
     }
 
     // Send back success response with temp password

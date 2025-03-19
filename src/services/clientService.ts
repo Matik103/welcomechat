@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -272,9 +271,12 @@ const continueClientCreation = async (
     let attempts = 0;
     const maxAttempts = 3;
     
+    // Import the SUPABASE_URL from the client file
+    const { SUPABASE_URL } = await import("@/integrations/supabase/client");
+    
     while (attempts < maxAttempts) {
       try {
-        createUserResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/create-client-user`, {
+        createUserResponse = await fetch(`${SUPABASE_URL}/functions/v1/create-client-user`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -480,8 +482,11 @@ export const sendClientInvitationEmail = async (params: {
       throw new Error("No auth session found - please log in again");
     }
     
+    // Import the SUPABASE_URL from the client file
+    const { SUPABASE_URL } = await import("@/integrations/supabase/client");
+    
     // Use fetch for send-email function to avoid CORS issues
-    const emailResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-email`, {
+    const emailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
