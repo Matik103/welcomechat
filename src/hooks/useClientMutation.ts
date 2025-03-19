@@ -19,6 +19,8 @@ export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       console.log("Data before mutation:", data);
+      console.log("Data JSON stringified:", JSON.stringify(data));
+      console.log("Agent name type:", typeof data.agent_name);
       
       // Create a deep copy of the data to avoid mutating the original object
       const sanitizedData = {
@@ -27,14 +29,21 @@ export const useClientMutation = (id: string | undefined) => {
       };
       
       console.log("Data after sanitization:", sanitizedData);
+      console.log("Data after sanitization JSON stringified:", JSON.stringify(sanitizedData));
       console.log("Agent name before:", data.agent_name);
       console.log("Agent name after sanitization:", sanitizedData.agent_name);
 
       if (id) {
         // Update existing client
-        const clientId = await updateClient(id, sanitizedData);
-        await logClientUpdateActivity(id);
-        return clientId;
+        try {
+          const clientId = await updateClient(id, sanitizedData);
+          await logClientUpdateActivity(id);
+          return clientId;
+        } catch (error) {
+          console.error("Error updating client in mutation:", error);
+          console.error("Error details:", JSON.stringify(error, null, 2));
+          throw error;
+        }
       } else {
         // Create new client
         let clientId;
@@ -43,6 +52,7 @@ export const useClientMutation = (id: string | undefined) => {
         
         try {
           // Create the client record which also handles sending the invitation email
+          console.log("Calling createClient with sanitized data...");
           clientId = await createClient(sanitizedData);
           console.log("Client created successfully with ID:", clientId);
           
@@ -50,6 +60,11 @@ export const useClientMutation = (id: string | undefined) => {
           emailSent = true;
         } catch (error: any) {
           console.error("Error in client creation process:", error);
+          console.error("Error stack:", error.stack);
+          console.error("Error stringified:", JSON.stringify(error, null, 2));
+          if (error.code) {
+            console.error(`SQL Error code: ${error.code}, message: ${error.message}`);
+          }
           throw new Error(`Failed to create client: ${error.message}`);
         }
         
