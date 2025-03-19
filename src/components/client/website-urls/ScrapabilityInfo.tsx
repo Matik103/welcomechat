@@ -1,7 +1,16 @@
 
 import { AlertTriangle, CheckCircle2, Database } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { UrlAccessResult } from "@/hooks/useUrlAccessCheck";
+
+// Define the type here since it's not exported from useUrlAccessCheck
+interface UrlAccessResult {
+  isAccessible: boolean;
+  status?: number;
+  canScrape: boolean;
+  hasScrapingRestrictions: boolean;
+  robotsRestrictions?: string[];
+  metaRestrictions?: string[];
+}
 
 interface ScrapabilityInfoProps {
   lastResult: UrlAccessResult | null;
