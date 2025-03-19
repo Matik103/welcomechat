@@ -1,4 +1,3 @@
-
 import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
