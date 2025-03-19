@@ -11,19 +11,11 @@ import { toast } from "sonner";
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      // Thoroughly sanitize agent_name to prevent SQL syntax errors
-      // by removing double quotes or replacing them with single quotes
-      const sanitizedData = {
-        ...data,
-        agent_name: data.agent_name ? data.agent_name.replace(/"/g, "'") : data.agent_name,
-        agent_description: data.agent_description 
-      };
-
-      console.log("Sanitized data before mutation:", sanitizedData);
+      console.log("Data before mutation:", data);
 
       if (id) {
         // Update existing client
-        const clientId = await updateClient(id, sanitizedData);
+        const clientId = await updateClient(id, data);
         await logClientUpdateActivity(id);
         return clientId;
       } else {
@@ -34,7 +26,7 @@ export const useClientMutation = (id: string | undefined) => {
         
         try {
           // Create the client record which also handles sending the invitation email
-          clientId = await createClient(sanitizedData);
+          clientId = await createClient(data);
           console.log("Client created successfully with ID:", clientId);
           
           // The email is already sent in createClient, so we don't need to send it again here
