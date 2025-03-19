@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +17,6 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
 
   console.log("Client ID for widget settings:", clientId);
 
-  // Fetch client data including widget settings
   const { data: client, isLoading, refetch } = useQuery({
     queryKey: ["client", clientId],
     queryFn: async () => {
@@ -26,7 +24,6 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       
       console.log("Fetching client data for ID:", clientId);
       
-      // Ensure we have a valid auth session
       await checkAndRefreshAuth();
       
       const { data, error } = await supabase
@@ -48,7 +45,6 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
     retry: 1
   });
 
-  // Update settings state when client data changes
   useEffect(() => {
     if (client) {
       console.log("Client data:", client);
@@ -67,7 +63,6 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
     }
   }, [client]);
 
-  // Mutation for updating settings
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: IWidgetSettings) => {
       console.log("Saving widget settings:", newSettings);
@@ -76,15 +71,29 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
         throw new Error("No client ID available");
       }
       
-      // Ensure we have a valid auth session
       await checkAndRefreshAuth();
+      
+      let clientName = "";
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("client_name")
+          .eq("id", clientId)
+          .single();
+          
+        if (!error && data) {
+          clientName = data.client_name;
+          console.log("Got client name for settings sync:", clientName);
+        }
+      } catch (error) {
+        console.error("Error getting client name:", error);
+      }
       
       const settingsJson = convertSettingsToJson(newSettings);
       console.log("Settings being saved to DB:", settingsJson);
       
-      // Sync with AI agent if available
       import("@/utils/aiAgentSync").then(({ syncWidgetSettingsWithAgent }) => {
-        syncWidgetSettingsWithAgent(clientId, newSettings)
+        syncWidgetSettingsWithAgent(clientId, newSettings, clientName)
           .then(success => {
             if (success) {
               console.log("Widget settings synchronized with AI agent");
@@ -112,7 +121,6 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       
       console.log("Update response:", data);
       
-      // Force refetch to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ["client", clientId] });
       
       return data;
@@ -146,7 +154,6 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
     },
   });
 
-  // Handle logo upload
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     await handleLogoUploadEvent(
       event,
@@ -168,7 +175,6 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
           );
         }
 
-        // Force refetch after a short delay to get the updated URL from the database
         setTimeout(() => {
           refetch().then(() => {
             console.log("Refetched client data after logo upload");

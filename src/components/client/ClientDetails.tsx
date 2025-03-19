@@ -40,18 +40,20 @@ export const ClientDetails = ({
     agentName: string, 
     agentDescription?: string,
     logoUrl?: string,
-    logoStoragePath?: string
+    logoStoragePath?: string,
+    clientName?: string
   ): Promise<AgentUpdateResult> => {
     try {
       console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
       console.log(`Agent description: ${agentDescription}`);
+      console.log(`Client name: ${clientName}`);
       console.log(`Agent logo URL: ${logoUrl}`);
       
       // Use the agent name exactly as provided without any modifications
       const formattedAgentName = agentName;
       
-      // Generate AI prompt from agent name and description
-      const aiPrompt = generateAiPrompt(agentName, agentDescription || "");
+      // Generate AI prompt from agent name, description and client name
+      const aiPrompt = generateAiPrompt(agentName, agentDescription || "", clientName || "");
       
       // Check if agent exists
       const { data: existingAgents, error: queryError } = await supabase
@@ -69,6 +71,7 @@ export const ClientDetails = ({
       const settings = {
         agent_description: agentDescription || "",
         client_id: clientId,
+        client_name: clientName || "",
         updated_at: new Date().toISOString(),
         logo_url: logoUrl || "",
         logo_storage_path: logoStoragePath || ""
@@ -166,7 +169,7 @@ export const ClientDetails = ({
           logo_storage_path: data.logo_storage_path
         });
         
-        // Ensure AI agent exists with correct name, description, and logo
+        // Ensure AI agent exists with correct name, description, logo and client name
         let agentUpdateResult = { updated: false, created: false, descriptionUpdated: false };
         if (data.agent_name) {
           agentUpdateResult = await ensureAiAgentExists(
@@ -174,7 +177,8 @@ export const ClientDetails = ({
             data.agent_name, 
             data.agent_description,
             data.logo_url,
-            data.logo_storage_path
+            data.logo_storage_path,
+            data.client_name
           );
         }
         
@@ -237,14 +241,15 @@ export const ClientDetails = ({
           logo_storage_path: data.logo_storage_path
         });
         
-        // Ensure AI agent exists with correct name, description, and logo
+        // Ensure AI agent exists with correct name, description, logo and client name
         if (data.agent_name) {
           await ensureAiAgentExists(
             clientId, 
             data.agent_name, 
             data.agent_description,
             data.logo_url,
-            data.logo_storage_path
+            data.logo_storage_path,
+            data.client_name
           );
         }
         
