@@ -185,6 +185,11 @@ export const ClientDetails = ({
           agentUpdateResult = await ensureAiAgentExists(clientId, data.agent_name, data.agent_description);
         }
         
+        // Handle logo upload if a logo file was provided
+        if (data.logo_file) {
+          await handleLogoUpload(data.logo_file);
+        }
+        
         // Refetch client data to update the UI with the latest changes
         refetchClient();
         
@@ -242,6 +247,11 @@ export const ClientDetails = ({
         // Ensure AI agent exists with correct name and description
         if (data.agent_name) {
           await ensureAiAgentExists(clientId, data.agent_name, data.agent_description);
+        }
+        
+        // Handle logo upload if a logo file was provided
+        if (data.logo_file) {
+          await handleLogoUpload(data.logo_file);
         }
         
         toast.success("Client updated successfully");
