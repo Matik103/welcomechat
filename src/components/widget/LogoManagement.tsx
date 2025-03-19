@@ -33,23 +33,6 @@ export function LogoManagement({
     }
   };
 
-  return (
-    <div className="space-y-4">
-      <div>
-        <div className="mt-1 flex items-center gap-4">
-          {logoPreview && <LogoPreview logoUrl={logoPreview} onRemoveLogo={onRemoveLogo} />}
-          <LogoUploadButton 
-            isUploading={isUploading} 
-            onLogoUpload={handleLogoSelect} 
-            hasExistingLogo={!!logoPreview} 
-          />
-        </div>
-        <p className="text-sm text-gray-500 mt-1">
-          Recommended size: 64x64px. Max size: 5MB. The logo will be displayed in the chat header.
-        </p>
-      </div>
-
-      <LogoUrlDisplay logoUrl={logoUrl} />
-    </div>
-  );
+  // Per user's request, we'll remove the logo management UI
+  return null;
 }

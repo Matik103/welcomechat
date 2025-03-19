@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ExtendedActivityType } from "@/types/activity";
 import { createClientActivity } from "@/services/clientActivityService";
@@ -162,8 +161,7 @@ export const uploadDocumentWithTracking = async (
           file_size: file.size,
           document_type: documentType,
           document_id: documentId,
-          uploaded_at: new Date().toISOString(),
-          processing_method: "llamaparse" // Always use LlamaParse for documents
+          uploaded_at: new Date().toISOString()
         }
       })
       .select("id")
@@ -202,13 +200,74 @@ export const uploadDocumentWithTracking = async (
       }
     );
     
-    toast.success(`Document uploaded successfully! Processing with LlamaParse...`);
+    toast.success(`Document uploaded and processed successfully!`);
     return fileUrl;
     
   } catch (error) {
     console.error("Error uploading document with tracking:", error);
     toast.error(`An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return null;
+  }
+};
+
+/**
+ * Updates our document processing pipeline to use the new status tracking
+ */
+export const migrateDocumentProcessingSystem = async (): Promise<void> => {
+  try {
+    // Get all document uploads from ai_agents
+    const { data: documentUploads, error } = await supabase
+      .from("ai_agents")
+      .select("*")
+      .eq("interaction_type", "document_upload");
+      
+    if (error) throw error;
+    
+    console.log(`Found ${documentUploads?.length || 0} document uploads to process`);
+    
+    // Process each document to ensure it has the right tracking
+    if (documentUploads && documentUploads.length > 0) {
+      for (const doc of documentUploads) {
+        // Extract file details from settings
+        // Fix TypeScript errors by safely accessing settings properties
+        const settings = doc.settings as Record<string, any> || {};
+        const fileName = settings.file_name as string || 'unknown.file';
+        const fileType = settings.file_type as string || 'unknown';
+        const fileSize = settings.file_size as number || 0;
+        const documentId = settings.document_id as string || `${Date.now()}_migration_${fileName}`;
+        
+        // Check if we have a completed activity for this document
+        // Using a string literal for the metadata path to avoid TypeScript errors
+        const { data: existingActivity } = await supabase
+          .from("client_activities")
+          .select("*")
+          .eq("client_id", doc.client_id)
+          .eq("metadata->>document_id", documentId)
+          .eq("activity_type", "document_processing_completed");
+          
+        // If we don't have a completed activity, create one
+        if (!existingActivity || existingActivity.length === 0) {
+          console.log(`Creating completion activity for document: ${fileName}`);
+          
+          await trackDocumentProcessing(
+            doc.client_id,
+            doc.name,
+            documentId,
+            'completed',
+            {
+              name: fileName,
+              type: fileType,
+              size: fileSize,
+              url: doc.url || undefined
+            }
+          );
+        }
+      }
+    }
+    
+    console.log('Document processing migration completed successfully');
+  } catch (error) {
+    console.error('Error migrating document processing system:', error);
   }
 };
 
@@ -313,67 +372,6 @@ export const getClientDocuments = async (
   } catch (error) {
     console.error('Error fetching client documents:', error);
     return [];
-  }
-};
-
-/**
- * Updates our document processing pipeline to use the new status tracking
- */
-export const migrateDocumentProcessingSystem = async (): Promise<void> => {
-  try {
-    // Get all document uploads from ai_agents
-    const { data: documentUploads, error } = await supabase
-      .from("ai_agents")
-      .select("*")
-      .eq("interaction_type", "document_upload");
-      
-    if (error) throw error;
-    
-    console.log(`Found ${documentUploads?.length || 0} document uploads to process`);
-    
-    // Process each document to ensure it has the right tracking
-    if (documentUploads && documentUploads.length > 0) {
-      for (const doc of documentUploads) {
-        // Extract file details from settings
-        // Fix TypeScript errors by safely accessing settings properties
-        const settings = doc.settings as Record<string, any> || {};
-        const fileName = settings.file_name as string || 'unknown.file';
-        const fileType = settings.file_type as string || 'unknown';
-        const fileSize = settings.file_size as number || 0;
-        const documentId = settings.document_id as string || `${Date.now()}_migration_${fileName}`;
-        
-        // Check if we have a completed activity for this document
-        // Using a string literal for the metadata path to avoid TypeScript errors
-        const { data: existingActivity } = await supabase
-          .from("client_activities")
-          .select("*")
-          .eq("client_id", doc.client_id)
-          .eq("metadata->>document_id", documentId)
-          .eq("activity_type", "document_processing_completed");
-          
-        // If we don't have a completed activity, create one
-        if (!existingActivity || existingActivity.length === 0) {
-          console.log(`Creating completion activity for document: ${fileName}`);
-          
-          await trackDocumentProcessing(
-            doc.client_id,
-            doc.name,
-            documentId,
-            'completed',
-            {
-              name: fileName,
-              type: fileType,
-              size: fileSize,
-              url: doc.url || undefined
-            }
-          );
-        }
-      }
-    }
-    
-    console.log('Document processing migration completed successfully');
-  } catch (error) {
-    console.error('Error migrating document processing system:', error);
   }
 };
 

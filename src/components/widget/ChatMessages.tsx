@@ -1,127 +1,59 @@
 
-import { RefObject } from 'react';
-import { Loader2 } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Loader2 } from "lucide-react";
+import { WidgetSettings } from "@/types/widget-settings";
 
-interface ChatMessagesProps {
-  messages: { text: string; isUser: boolean }[];
-  backgroundColor: string;
-  textColor: string;
-  secondaryColor: string;
-  isTyping?: boolean;
-  messagesEndRef?: RefObject<HTMLDivElement>;
-  logoUrl?: string;
-  agentName: string;
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
-export function ChatMessages({ 
-  messages, 
-  backgroundColor, 
-  textColor, 
-  secondaryColor,
-  isTyping = false,
-  messagesEndRef,
-  logoUrl,
-  agentName
-}: ChatMessagesProps) {
-  // Helper function to generate initials from agent name
-  const getInitials = (name: string) => {
-    if (!name) return "AI";
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  };
+interface ChatMessagesProps {
+  messages: Message[];
+  isLoading: boolean;
+  settings: WidgetSettings;
+}
 
+export function ChatMessages({ messages, isLoading, settings }: ChatMessagesProps) {
   return (
-    <div 
-      className="flex-1 p-4 overflow-y-auto"
-      style={{ backgroundColor }}
+    <div
+      className="flex-1 p-4 overflow-y-auto flex flex-col gap-4"
+      style={{
+        backgroundColor: settings.background_color,
+        color: settings.text_color,
+      }}
     >
-      <div className="space-y-4">
-        {messages.map((message, index) => (
-          <div 
+      {messages.length === 0 ? (
+        <div className="text-center text-sm opacity-50 my-8">
+          {settings.welcome_text}
+        </div>
+      ) : (
+        messages.map((message, index) => (
+          <div
             key={index}
-            className={`flex ${message.isUser ? 'justify-end' : 'justify-start'} items-end gap-2`}
+            className={`max-w-[80%] rounded-lg p-3 ${
+              message.role === 'user'
+                ? 'bg-gray-100 ml-auto'
+                : 'bg-primary text-white mr-auto'
+            }`}
+            style={{
+              backgroundColor: message.role === 'user' 
+                ? '#f3f4f6' 
+                : settings.chat_color
+            }}
           >
-            {!message.isUser && (
-              <Avatar className="w-8 h-8 border border-gray-200 shadow-sm">
-                {logoUrl ? (
-                  <AvatarImage 
-                    src={logoUrl} 
-                    alt={agentName} 
-                    className="object-cover w-full h-full"
-                    onError={(e) => {
-                      console.error("Error loading logo in message avatar:", logoUrl);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : null}
-                <AvatarFallback 
-                  className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}
-                >
-                  {getInitials(agentName)}
-                </AvatarFallback>
-              </Avatar>
-            )}
-            
-            <div 
-              className={`max-w-[75%] rounded-xl p-3 ${
-                message.isUser 
-                  ? 'bg-indigo-600 text-white rounded-tr-none' 
-                  : 'bg-gray-100 rounded-tl-none'
-              }`}
-              style={{
-                backgroundColor: message.isUser ? secondaryColor : 'rgb(243, 244, 246)',
-                color: message.isUser ? 'white' : textColor,
-                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-              }}
-            >
-              <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-            </div>
-            
-            {message.isUser && (
-              <Avatar className="w-8 h-8 bg-gray-400 text-white">
-                <AvatarFallback>You</AvatarFallback>
-              </Avatar>
-            )}
+            {message.content}
           </div>
-        ))}
-        
-        {isTyping && (
-          <div className="flex justify-start items-end gap-2">
-            <Avatar className="w-8 h-8 border border-gray-200">
-              {logoUrl ? (
-                <AvatarImage 
-                  src={logoUrl} 
-                  alt={agentName} 
-                  className="object-cover w-full h-full"
-                  onError={(e) => {
-                    console.error("Error loading logo in typing indicator:", logoUrl);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              ) : null}
-              <AvatarFallback 
-                className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}
-              >
-                {getInitials(agentName)}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div 
-              className="max-w-[75%] rounded-xl p-3 bg-gray-100 rounded-tl-none"
-              style={{ color: textColor }}
-            >
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Invisible div for scrolling to bottom */}
-        <div ref={messagesEndRef}></div>
-      </div>
+        ))
+      )}
+      {isLoading && (
+        <div 
+          className="rounded-lg p-3 max-w-[80%] mr-auto flex items-center gap-2"
+          style={{ backgroundColor: settings.chat_color }}
+        >
+          <Loader2 className="w-4 h-4 animate-spin text-white" />
+          <span className="text-white">Typing...</span>
+        </div>
+      )}
     </div>
   );
 }

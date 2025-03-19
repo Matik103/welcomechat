@@ -1,187 +1,261 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
-console.log("create-client-user function loading...");
-
-// Create a Supabase client with the service role key
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-// Define proper CORS headers with Authorization allowed
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
-// Helper function to sanitize string input
-function sanitizeString(input: string): string {
-  if (!input) return "";
-  let sanitized = input.trim();
-  // Remove quotes and special characters that might cause SQL injection or security issues
-  sanitized = sanitized.replace(/['"`\\]/g, '');
-  return sanitized;
-}
+// Function to generate an AI prompt based on the agent name and description
+const generateAiPrompt = (agentName: string, agentDescription: string): string => {
+  // Create a default prompt if no description is provided
+  if (!agentDescription || agentDescription.trim() === '') {
+    return `You are ${agentName}, a helpful AI assistant. Your goal is to provide clear, concise, and accurate information to users.`;
+  }
+  
+  // Generate a prompt with the agent's name and description
+  return `You are ${agentName}. ${agentDescription}
+
+As an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.
+
+You have access to a knowledge base of documents and websites that have been processed and stored for your reference. When answering questions, prioritize information from this knowledge base when available.`;
+};
 
 serve(async (req) => {
-  // This is needed if you're planning to invoke your function from a browser.
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  try {
-    console.log("Request received to create client user");
-    
-    // Check authorization
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Not authorized' }), { 
-        status: 401,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
-    }
-
-    // Extract and validate the JWT
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      console.error("Auth error:", authError);
-      return new Response(JSON.stringify({ error: 'Invalid token' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
-    }
-
-    // Parse request body
-    const requestData = await req.json();
-    
-    // Sanitize input data to prevent injection attacks
-    const email = sanitizeString(requestData.email);
-    const clientId = requestData.client_id; // UUIDs don't need sanitization
-    const clientName = sanitizeString(requestData.client_name);
-    const agentName = sanitizeString(requestData.agent_name || '');
-    const agentDescription = sanitizeString(requestData.agent_description || '');
-    
-    console.log("Creating user for:", { email, clientId, clientName });
-
-    if (!email || !clientId) {
-      return new Response(JSON.stringify({ error: 'Missing required fields: email and client_id' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
-    }
-    
-    // Generate a standardized temporary password
-    const tempPassword = `Welcome${new Date().getFullYear()}!`;
-    console.log("Generated temporary password");
-
-    // Create a new user with the client role
-    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-      email: email,
-      password: tempPassword,
-      email_confirm: true, // Auto-confirm the email
-      user_metadata: {
-        client_id: clientId,
-        client_name: clientName,
-        agent_name: agentName,
-        agent_description: agentDescription
-      }
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
     });
-
-    if (createError) {
-      console.error("Error creating user:", createError);
-      return new Response(JSON.stringify({ 
-        error: 'Failed to create user', 
-        details: createError.message 
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
-    }
-
-    // Set the user role to 'client'
-    try {
-      console.log("Setting role for user:", newUser.user.id);
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: newUser.user.id,
-          role: 'client'
-        });
-
-      if (roleError) {
-        console.error("Error setting user role:", roleError);
-        // Continue even with role error, we'll handle it on the client side
-      }
-    } catch (roleError) {
-      console.error("Exception setting user role:", roleError);
-      // Continue even with role error, we'll handle it on the client side
+  }
+  
+  try {
+    // Initialize Supabase client with service role key
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
+    const supabaseServiceKey = Deno.env.get("SERVICE_ROLE_KEY") as string;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing environment variables for Supabase client");
+      throw new Error("Missing environment variables for Supabase client");
     }
     
-    // Check if agent creation is needed
-    console.log("Creating AI agent for client:", clientId);
+    console.log("Creating Supabase client with URL:", supabaseUrl);
+    const supabase = createClient(
+      supabaseUrl,
+      supabaseServiceKey
+    );
+    
+    // Parse the request body
+    let body;
     try {
-      // Generate AI prompt based on agent name and description
-      let promptBase = `You are ${agentName}, an AI assistant`;
-      if (agentDescription) {
-        promptBase += ` that ${agentDescription}`;
+      body = await req.json();
+      console.log("Request body parsed:", {
+        email: body.email,
+        client_id: body.client_id,
+        client_name: body.client_name,
+        agent_name: body.agent_name,
+        agent_description: body.agent_description
+      });
+    } catch (parseError) {
+      console.error("Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    const { email, client_id, client_name, agent_name, agent_description } = body;
+    
+    if (!email || !client_id) {
+      console.error("Missing required fields:", { 
+        hasEmail: !!email, 
+        hasClientId: !!client_id 
+      });
+      return new Response(
+        JSON.stringify({ error: "Email and client_id are required" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    // Check if user already exists
+    console.log("Checking if user exists:", email);
+    const { data: { users: existingUsers }, error: userCheckError } = await supabase.auth.admin.listUsers();
+    
+    if (userCheckError) {
+      console.error("Error checking existing user:", userCheckError);
+      throw new Error(`Failed to check existing user: ${userCheckError.message}`);
+    }
+
+    const existingUser = existingUsers?.find(u => u.email === email);
+    console.log("Existing user check result:", existingUser ? "Found" : "Not found");
+    
+    // Generate a secure temporary password that meets Supabase requirements
+    const generateSecurePassword = () => {
+      const year = new Date().getFullYear();
+      const randomDigits = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      return `Welcome${year}#${randomDigits}`;
+    };
+
+    let userId: string;
+    let userPassword: string;
+    const tempPassword = generateSecurePassword();
+    console.log("Generated temporary password");
+    
+    // If user exists, update their metadata and password
+    if (existingUser) {
+      console.log("User already exists, updating metadata and password:", email);
+      userId = existingUser.id;
+      
+      // Update user metadata and password
+      const { error: updateError } = await supabase.auth.admin.updateUserById(
+        userId,
+        {
+          password: tempPassword,
+          user_metadata: { 
+            client_id,
+            client_name,
+            agent_name, // Use agent name exactly as provided
+            user_type: "client"
+          }
+        }
+      );
+      
+      if (updateError) {
+        console.error("Failed to update user:", updateError);
+        throw new Error(`Failed to update user: ${updateError.message}`);
+      }
+
+      userPassword = tempPassword;
+      console.log("User updated successfully with new password");
+    } else {
+      // Create a new user with Supabase's built-in user management
+      console.log("Creating new user:", email);
+      
+      // Create user with admin API to ensure proper auth setup
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { 
+          client_id,
+          client_name,
+          agent_name, // Use agent name exactly as provided
+          user_type: "client"
+        },
+        email_confirm_sent: false // Disable automatic confirmation email
+      });
+      
+      if (createError) {
+        console.error("Failed to create user:", createError);
+        throw new Error(`Failed to create user: ${createError.message}`);
       }
       
-      // Create the AI agent record
+      if (!newUser || !newUser.user) {
+        console.error("User creation failed with no error but no user returned");
+        throw new Error("User creation failed with unknown error");
+      }
+      
+      userId = newUser.user.id;
+      userPassword = tempPassword;
+      console.log("User created successfully with ID:", userId);
+    }
+    
+    // Create client role for this user
+    try {
+      console.log("Creating user role for user:", userId);
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .upsert({
+          user_id: userId,
+          role: "client",
+          client_id: client_id
+        }, {
+          onConflict: 'user_id,role',
+          ignoreDuplicates: false
+        });
+      
+      if (roleError) {
+        console.warn("Could not create user role:", roleError.message);
+      }
+    } catch (roleError) {
+      console.warn("Error creating user role:", roleError);
+    }
+    
+    // Generate AI prompt
+    const aiPrompt = generateAiPrompt(agent_name, agent_description || "");
+    console.log("Generated AI prompt:", aiPrompt);
+    
+    // Create AI agent entry for this client - using exact agent name
+    try {
+      console.log("Creating AI agent for client:", client_id);
       const { error: agentError } = await supabase
-        .from('ai_agents')
+        .from("ai_agents")
         .insert({
-          client_id: clientId,
-          name: agentName || 'Assistant',
-          agent_description: agentDescription || '',
-          content: '',
-          ai_prompt: promptBase,
+          client_id: client_id,
+          name: agent_name, // Use agent name exactly as provided
+          agent_description: agent_description || "",
+          ai_prompt: aiPrompt,
           settings: {
-            agent_description: agentDescription,
-            client_name: clientName
+            agent_description: agent_description || "",
+            client_name: client_name,
+            created_at: new Date().toISOString()
           }
         });
-        
+      
       if (agentError) {
-        console.error("Error creating AI agent:", agentError);
+        console.warn("Could not create AI agent entry:", agentError.message);
       }
     } catch (agentError) {
-      console.error("Exception creating AI agent:", agentError);
-      // Continue even with agent error
+      console.warn("Error creating AI agent:", agentError);
     }
-
-    // Send back success response with temp password
-    return new Response(
-      JSON.stringify({
-        success: true,
-        user_id: newUser.user.id,
-        temp_password: tempPassword
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
+    
+    // Log the agent creation in client_activities
+    try {
+      await supabase.from("client_activities").insert({
+        client_id: client_id,
+        activity_type: "ai_agent_created",
+        description: "AI agent was created during client signup",
+        metadata: {
+          agent_name: agent_name,
+          agent_description: agent_description
         }
+      });
+    } catch (activityError) {
+      console.warn("Error logging agent creation activity:", activityError);
+    }
+    
+    // Return success response with user info and password if it was just created
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        message: "Client user account created/updated successfully",
+        user_id: userId,
+        temp_password: userPassword
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
-  } catch (error) {
-    console.error("Exception in create-client-user:", error);
+  } catch (err) {
+    console.error("Error in create-client-user function:", err);
+    
     return new Response(
-      JSON.stringify({
-        error: 'Internal server error',
-        details: error.message
+      JSON.stringify({ 
+        error: err.message || "Failed to create client user" 
       }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        }
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
   }

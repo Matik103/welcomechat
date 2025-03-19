@@ -81,9 +81,6 @@ export const DocumentUploadForm = ({
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-xs text-gray-500">
-            Document will be processed with LlamaParse for text extraction.
-          </p>
         </div>
         
         <div className="space-y-2">
@@ -112,14 +109,11 @@ export const DocumentUploadForm = ({
             disabled={isUploading || !file}
           >
             {isUploading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Processing with LlamaParse...
-              </>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
             ) : (
               <Upload className="w-4 h-4 mr-2" />
             )}
-            {!isUploading && "Upload Document"}
+            Upload Document
           </Button>
         </div>
       </div>

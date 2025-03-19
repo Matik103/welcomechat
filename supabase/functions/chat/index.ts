@@ -1,11 +1,8 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.48.1';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +18,7 @@ serve(async (req) => {
   try {
     // Parse the request body
     const requestData = await req.json();
-    const { prompt, agent_name, webhook_url, client_id, context } = requestData;
+    const { prompt, agent_name, webhook_url } = requestData;
 
     if (!prompt) {
       console.error("Missing prompt in request");
@@ -33,42 +30,6 @@ serve(async (req) => {
 
     console.log(`Processing chat request with prompt: "${prompt.substring(0, 50)}..." for agent "${agent_name || 'AI Assistant'}"`);
     console.log(`Webhook URL provided: ${webhook_url || 'None'}`);
-    console.log(`Client ID provided: ${client_id || 'None'}`);
-
-    // Initialize Supabase client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Get agent content if we have a client_id but no context provided
-    let agentContext = context || '';
-    
-    if (client_id && agent_name && !context) {
-      try {
-        console.log(`Fetching agent content for client: ${client_id}, agent: ${agent_name}`);
-        
-        // Get the most recent content from the agent
-        const { data, error } = await supabase
-          .from("ai_agents")
-          .select("content")
-          .eq("client_id", client_id)
-          .eq("name", agent_name)
-          .order("created_at", { ascending: false })
-          .limit(10);
-        
-        if (error) {
-          console.error("Error fetching AI agent content:", error);
-        } else if (data && data.length > 0) {
-          // Combine all content to provide context
-          agentContext = data
-            .filter(item => item.content && item.content.trim().length > 0)
-            .map(item => item.content)
-            .join("\n\n");
-          
-          console.log(`Retrieved ${data.length} content entries for context`);
-        }
-      } catch (contentError) {
-        console.error("Error getting agent content:", contentError);
-      }
-    }
 
     // Attempt to call external webhook if specified
     if (webhook_url) {
@@ -82,7 +43,6 @@ serve(async (req) => {
           body: JSON.stringify({
             prompt,
             agent_name,
-            client_id,
             // Don't pass webhook_url to avoid potential infinite loops
           }),
         });
@@ -118,20 +78,8 @@ serve(async (req) => {
       });
     }
 
-    // Log if we're using context
-    if (agentContext) {
-      console.log(`Using context of length: ${agentContext.length} characters`);
-    } else {
-      console.log("No context available for this request");
-    }
-
     // Default to OpenAI if no webhook or webhook failed
     console.log("Calling OpenAI API");
-    
-    // Prepare system message with context if available
-    const systemMessage = `You are ${agent_name || 'an AI assistant'}, a helpful AI assistant. 
-Keep your responses friendly and concise.${agentContext ? `\n\nHere's information to help answer the user's question:\n${agentContext.substring(0, 8000)}` : ''}`;
-    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -141,10 +89,13 @@ Keep your responses friendly and concise.${agentContext ? `\n\nHere's informatio
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: systemMessage },
+          { 
+            role: 'system', 
+            content: `You are ${agent_name || 'an AI assistant'}, a helpful AI assistant. Keep your responses friendly and concise.`
+          },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 500
+        max_tokens: 250
       }),
     });
 
@@ -158,24 +109,6 @@ Keep your responses friendly and concise.${agentContext ? `\n\nHere's informatio
     const generatedText = data.choices[0].message.content;
 
     console.log(`Successfully generated response (${generatedText.length} chars)`);
-    
-    // Log interaction in the database if client_id is provided
-    if (client_id && agent_name) {
-      try {
-        await supabase
-          .from("agent_queries")
-          .insert({
-            client_id,
-            agent_name,
-            query: prompt,
-            response: generatedText,
-            query_time: new Date().toISOString()
-          });
-        console.log("Interaction logged to database");
-      } catch (logError) {
-        console.error("Failed to log interaction:", logError);
-      }
-    }
 
     return new Response(JSON.stringify({ generatedText }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

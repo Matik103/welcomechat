@@ -3,6 +3,7 @@ export interface WidgetSettings {
   agent_name: string;
   logo_url: string;
   logo_storage_path?: string;
+  webhook_url: string;
   chat_color: string;
   background_color: string;
   text_color: string;
@@ -16,6 +17,7 @@ export const defaultSettings: WidgetSettings = {
   agent_name: "",
   logo_url: "",
   logo_storage_path: "",
+  webhook_url: "",
   chat_color: "#854fff",
   secondary_color: "#6b3fd4",
   background_color: "#ffffff",
@@ -31,6 +33,7 @@ export function isWidgetSettings(value: unknown): value is WidgetSettings {
   return typeof settings.agent_name === 'string' &&
          typeof settings.logo_url === 'string' &&
          (settings.logo_storage_path === undefined || typeof settings.logo_storage_path === 'string') &&
+         typeof settings.webhook_url === 'string' &&
          typeof settings.chat_color === 'string' &&
          typeof settings.background_color === 'string' &&
          typeof settings.text_color === 'string' &&
