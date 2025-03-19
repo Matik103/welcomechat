@@ -23,8 +23,8 @@ export function ChatHeader({
       style={{ backgroundColor, color: textColor }}
     >
       <div className="flex items-center gap-3">
-        <Avatar className="w-10 h-10 border-2 border-white border-opacity-30 shadow-sm">
-          {logoUrl ? (
+        <Avatar className="w-10 h-10 border-2 border-white border-opacity-30 shadow-sm relative">
+          {logoUrl && (
             <AvatarImage 
               src={logoUrl} 
               alt={agentName}
@@ -34,10 +34,12 @@ export function ChatHeader({
                 e.currentTarget.style.display = 'none';
               }}
             />
-          ) : null}
-          <AvatarFallback className={`text-sm bg-indigo-200 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}>
-            {agentName ? agentName.substring(0, 2).toUpperCase() : 'AI'}
-          </AvatarFallback>
+          )}
+          {(!logoUrl || document.querySelector('.avatar-fallback-visible')) && (
+            <AvatarFallback className="text-sm bg-indigo-200 text-indigo-800 font-medium">
+              {agentName ? agentName.substring(0, 2).toUpperCase() : 'AI'}
+            </AvatarFallback>
+          )}
         </Avatar>
         <div className="flex flex-col">
           <span className="font-medium text-base truncate max-w-[180px]">{agentName || 'AI Assistant'}</span>
