@@ -1,3 +1,4 @@
+
 import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
@@ -109,7 +110,7 @@ export const mapActivityType = (
 };
 
 /**
- * Generates a standardized AI prompt from agent name and description
+ * Generates a standardized AI prompt from agent name and description with client-specific context
  */
 export const generateAiPrompt = (agentName: string, agentDescription: string, clientName?: string): string => {
   // System prompt template to ensure assistants only respond to client-specific questions
