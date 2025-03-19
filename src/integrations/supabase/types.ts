@@ -65,6 +65,8 @@ export type Database = {
           id: string
           interaction_type: string | null
           is_error: boolean | null
+          logo_storage_path: string | null
+          logo_url: string | null
           name: string
           query_text: string | null
           response_time_ms: number | null
@@ -87,6 +89,8 @@ export type Database = {
           id?: string
           interaction_type?: string | null
           is_error?: boolean | null
+          logo_storage_path?: string | null
+          logo_url?: string | null
           name: string
           query_text?: string | null
           response_time_ms?: number | null
@@ -109,6 +113,8 @@ export type Database = {
           id?: string
           interaction_type?: string | null
           is_error?: boolean | null
+          logo_storage_path?: string | null
+          logo_url?: string | null
           name?: string
           query_text?: string | null
           response_time_ms?: number | null

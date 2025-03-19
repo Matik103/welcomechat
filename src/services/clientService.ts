@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -266,32 +267,66 @@ const continueClientCreation = async (
       throw new Error("No auth session found - please log in again");
     }
 
-    // Create the auth user using the edge function
-    const createUserResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/create-client-user`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({
-        email: email,
-        client_id: clientId,
-        client_name: clientName,
-        agent_name: agentName,
-        agent_description: agentDescription
-      })
-    });
-
-    if (!createUserResponse.ok) {
-      const errorText = await createUserResponse.text();
-      console.error("Error response from create-client-user:", errorText);
-      throw new Error(`Failed to create auth user: ${errorText}`);
+    // Create the auth user using the edge function - retry up to 3 times with delay
+    let createUserResponse;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        createUserResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/create-client-user`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            email: email,
+            client_id: clientId,
+            client_name: clientName,
+            agent_name: agentName,
+            agent_description: agentDescription
+          })
+        });
+        
+        if (createUserResponse.ok) {
+          break; // Success, exit the retry loop
+        } else {
+          const errorText = await createUserResponse.text();
+          console.error(`Attempt ${attempts + 1}/${maxAttempts} failed:`, errorText);
+          
+          if (attempts === maxAttempts - 1) {
+            throw new Error(`Failed to create auth user after ${maxAttempts} attempts: ${errorText}`);
+          }
+        }
+      } catch (fetchError) {
+        console.error(`Attempt ${attempts + 1}/${maxAttempts} fetch error:`, fetchError);
+        
+        if (attempts === maxAttempts - 1) {
+          throw fetchError;
+        }
+      }
+      
+      attempts++;
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+    }
+    
+    if (!createUserResponse || !createUserResponse.ok) {
+      throw new Error("Failed to create auth user - no valid response received");
     }
 
     const responseText = await createUserResponse.text();
     console.log("Create user response:", responseText);
     
-    const responseData = JSON.parse(responseText);
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error("Error parsing response:", parseError);
+      throw new Error("Invalid response from server: " + responseText);
+    }
+    
     const tempPassword = responseData.temp_password;
 
     if (!tempPassword) {
@@ -299,15 +334,39 @@ const continueClientCreation = async (
       throw new Error('No temporary password received from server');
     }
 
-    // Send welcome email with the temporary password
-    await sendClientInvitationEmail({
-      clientId,
-      clientName,
-      email,
-      agentName, 
-      tempPassword
-    });
+    // Send welcome email with the temporary password - also retry this operation
+    attempts = 0;
+    let emailSuccess = false;
+    let emailError = null;
+    
+    while (attempts < maxAttempts && !emailSuccess) {
+      try {
+        await sendClientInvitationEmail({
+          clientId,
+          clientName,
+          email,
+          agentName, 
+          tempPassword
+        });
+        emailSuccess = true;
+      } catch (sendError) {
+        console.error(`Attempt ${attempts + 1}/${maxAttempts} email error:`, sendError);
+        emailError = sendError;
+        
+        if (attempts === maxAttempts - 1) {
+          console.error("Failed to send invitation email after all attempts");
+          // We will continue even if email fails - user can resend later
+        }
+      }
+      
+      attempts++;
+      if (!emailSuccess && attempts < maxAttempts) {
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      }
+    }
 
+    // Return success with email status
     return clientId;
   } catch (error) {
     console.error("Error in continueClientCreation:", error);
@@ -422,7 +481,7 @@ export const sendClientInvitationEmail = async (params: {
     }
     
     // Use fetch for send-email function to avoid CORS issues
-    const emailResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/send-email`, {
+    const emailResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -437,7 +496,8 @@ export const sendClientInvitationEmail = async (params: {
     });
     
     if (!emailResponse.ok) {
-      throw new Error(`Failed to send invitation email (HTTP ${emailResponse.status})`);
+      const errorText = await emailResponse.text();
+      throw new Error(`Failed to send invitation email (HTTP ${emailResponse.status}): ${errorText}`);
     }
     
     console.log("Invitation email sent successfully");

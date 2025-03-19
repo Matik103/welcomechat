@@ -32,6 +32,23 @@ export async function uploadWidgetLogo(file: File, clientId: string): Promise<{ 
   console.log(`Uploading logo to ${BUCKET_NAME}/${filePath} storage...`);
   
   try {
+    // Check if bucket exists, create it if it doesn't
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(bucket => bucket.name === BUCKET_NAME);
+    
+    if (!bucketExists) {
+      console.log(`Bucket ${BUCKET_NAME} doesn't exist, creating it...`);
+      const { error: bucketError } = await supabase.storage.createBucket(BUCKET_NAME, {
+        public: true,
+        fileSizeLimit: 5 * 1024 * 1024 // 5MB limit
+      });
+      
+      if (bucketError) {
+        console.error("Error creating storage bucket:", bucketError);
+        throw new Error(`Failed to create storage bucket: ${bucketError.message}`);
+      }
+    }
+    
     // Upload the file to Supabase Storage with proper metadata format
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
