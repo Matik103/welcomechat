@@ -123,7 +123,11 @@ export const WebsiteUrlForm = ({
     <form className="border border-gray-200 rounded-md p-4 bg-gray-50" onSubmit={handleSubmit}>
       <div className="space-y-4">
         <ValidationResult error={error} isValidated={isValidated} lastResult={lastResult} />
-        <ScrapabilityInfo lastResult={lastResult} isValidated={isValidated} isContentStored={isContentStored} />
+        <ScrapabilityInfo 
+          lastResult={lastResult} 
+          isValidated={isValidated} 
+          isContentStored={isContentStored} 
+        />
         
         <div className="space-y-2">
           <Label htmlFor="website-url">Website URL</Label>
