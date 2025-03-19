@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -131,8 +132,16 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
  */
 export const sanitizeStringForSQL = (value: string): string => {
   if (!value) return "";
-  // Replace quotes with escaped quotes to prevent SQL injection
-  return value.replace(/['"`\\]/g, '');
+  
+  // First, trim the value
+  let sanitized = value.trim();
+  
+  // Replace single and double quotes, backticks, and backslashes
+  sanitized = sanitized.replace(/['"`\\]/g, '');
+  
+  console.log(`Sanitized "${value}" to "${sanitized}"`);
+  
+  return sanitized;
 };
 
 /**
@@ -142,7 +151,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
 
-    // Sanitize all string values to prevent SQL syntax errors
+    // Strongly sanitize all string values to prevent SQL syntax errors
     const sanitizedClientName = sanitizeStringForSQL(data.client_name);
     const sanitizedEmail = sanitizeStringForSQL(data.email);
     const sanitizedAgentName = data.agent_name ? sanitizeStringForSQL(data.agent_name) : 'agent_' + Date.now();
@@ -165,96 +174,159 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           agent_description: sanitizedAgentDescription
         };
 
-    // Create the client record with sanitized values
-    const { data: newClients, error } = await supabase
-      .from("clients")
-      .insert([{
-        client_name: sanitizedClientName,
-        email: sanitizedEmail,
-        agent_name: sanitizedAgentName,
-        widget_settings: widgetSettings,
-        status: 'active',
-        website_url_refresh_rate: 60,
-        drive_link_refresh_rate: 60,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select('*');
+    // Create the client record with sanitized values - using RPC call instead of direct insert
+    // This helps avoid SQL syntax issues by letting the server handle parameter binding
+    const { data: newClients, error } = await supabase.rpc(
+      'create_new_client',
+      {
+        p_client_name: sanitizedClientName,
+        p_email: sanitizedEmail,
+        p_agent_name: sanitizedAgentName,
+        p_widget_settings: widgetSettings,
+        p_status: 'active',
+        p_website_url_refresh_rate: 60,
+        p_drive_link_refresh_rate: 60
+      }
+    );
 
     if (error) {
-      console.error("Error creating client:", error);
-      throw error;
-    }
-
-    if (!newClients || newClients.length === 0) {
-      throw new Error("Failed to create client - no data returned");
-    }
-
-    const clientId = newClients[0].id;
-    console.log("Created client with ID:", clientId);
-
-    // Create Supabase auth user immediately after client creation
-    try {
-      const sessionResponse = await supabase.auth.getSession();
-      const accessToken = sessionResponse.data.session?.access_token;
+      console.error("Error creating client with RPC:", error);
       
-      if (!accessToken) {
-        throw new Error("No auth session found - please log in again");
-      }
-
-      // Create the auth user using the edge function
-      const createUserResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/create-client-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          email: sanitizedEmail,
-          client_id: clientId,
+      // Fall back to direct insert if RPC fails or doesn't exist
+      console.log("Falling back to direct insert");
+      
+      const { data: insertResult, error: insertError } = await supabase
+        .from("clients")
+        .insert({
           client_name: sanitizedClientName,
+          email: sanitizedEmail,
           agent_name: sanitizedAgentName,
-          agent_description: sanitizedAgentDescription
+          widget_settings: widgetSettings,
+          status: 'active',
+          website_url_refresh_rate: 60,
+          drive_link_refresh_rate: 60,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
-      });
-
-      if (!createUserResponse.ok) {
-        const errorText = await createUserResponse.text();
-        console.error("Error response from create-client-user:", errorText);
-        throw new Error(`Failed to create auth user: ${errorText}`);
+        .select();
+        
+      if (insertError) {
+        console.error("Error in fallback client creation:", insertError);
+        throw insertError;
       }
-
-      const responseText = await createUserResponse.text();
-      console.log("Create user response:", responseText);
       
-      const responseData = JSON.parse(responseText);
-      const tempPassword = responseData.temp_password;
-
-      if (!tempPassword) {
-        console.error("Response data:", responseData);
-        throw new Error('No temporary password received from server');
+      if (!insertResult || insertResult.length === 0) {
+        throw new Error("Failed to create client - no data returned from insert");
       }
-
-      // Send welcome email with the temporary password
-      await sendClientInvitationEmail({
-        clientId,
-        clientName: sanitizedClientName,
-        email: sanitizedEmail,
-        agentName: sanitizedAgentName,
-        tempPassword
-      });
-
-    } catch (authError) {
-      console.error("Error setting up client authentication:", authError);
-      // Delete the client record if auth setup fails
-      await supabase.from("clients").delete().eq("id", clientId);
-      throw new Error(`Failed to set up client authentication: ${authError.message}`);
+      
+      const clientId = insertResult[0].id;
+      console.log("Created client with ID:", clientId);
+      
+      // Continue with the rest of the function using the clientId from direct insert
+      return await continueClientCreation(
+        clientId, 
+        sanitizedClientName, 
+        sanitizedEmail, 
+        sanitizedAgentName, 
+        sanitizedAgentDescription
+      );
     }
 
-    return clientId;
+    if (!newClients || typeof newClients !== 'string') {
+      console.error("No client ID returned from RPC", newClients);
+      throw new Error("Failed to create client - no ID returned from RPC");
+    }
+
+    const clientId = newClients;
+    console.log("Created client with ID from RPC:", clientId);
+
+    return await continueClientCreation(
+      clientId, 
+      sanitizedClientName, 
+      sanitizedEmail, 
+      sanitizedAgentName, 
+      sanitizedAgentDescription
+    );
   } catch (error) {
     console.error("Error in createClient:", error);
     throw error;
+  }
+};
+
+/**
+ * Continues the client creation process after the initial client record is created
+ * This is extracted to reduce duplication between the RPC and direct insert paths
+ */
+const continueClientCreation = async (
+  clientId: string, 
+  clientName: string, 
+  email: string, 
+  agentName: string, 
+  agentDescription: string
+): Promise<string> => {
+  try {
+    // Create Supabase auth user
+    const sessionResponse = await supabase.auth.getSession();
+    const accessToken = sessionResponse.data.session?.access_token;
+    
+    if (!accessToken) {
+      throw new Error("No auth session found - please log in again");
+    }
+
+    // Create the auth user using the edge function
+    const createUserResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/create-client-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        email: email,
+        client_id: clientId,
+        client_name: clientName,
+        agent_name: agentName,
+        agent_description: agentDescription
+      })
+    });
+
+    if (!createUserResponse.ok) {
+      const errorText = await createUserResponse.text();
+      console.error("Error response from create-client-user:", errorText);
+      throw new Error(`Failed to create auth user: ${errorText}`);
+    }
+
+    const responseText = await createUserResponse.text();
+    console.log("Create user response:", responseText);
+    
+    const responseData = JSON.parse(responseText);
+    const tempPassword = responseData.temp_password;
+
+    if (!tempPassword) {
+      console.error("Response data:", responseData);
+      throw new Error('No temporary password received from server');
+    }
+
+    // Send welcome email with the temporary password
+    await sendClientInvitationEmail({
+      clientId,
+      clientName,
+      email,
+      agentName, 
+      tempPassword
+    });
+
+    return clientId;
+  } catch (error) {
+    console.error("Error in continueClientCreation:", error);
+    
+    // Try to delete the client record if auth setup fails
+    try {
+      await supabase.from("clients").delete().eq("id", clientId);
+    } catch (deleteError) {
+      console.error("Error deleting partial client:", deleteError);
+    }
+    
+    throw new Error(`Failed to set up client authentication: ${error.message}`);
   }
 };
 

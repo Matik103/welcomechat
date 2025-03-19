@@ -11,8 +11,13 @@ const corsHeaders = {
 // Function to sanitize string values to prevent SQL syntax errors
 const sanitizeString = (value: string): string => {
   if (!value) return "";
-  // Replace quotes and other characters that might cause SQL issues
-  return value.replace(/['"`\\]/g, '');
+  
+  // Trim and then completely remove any quotes or backslashes
+  const sanitized = value.trim().replace(/['"`\\]/g, '');
+  
+  console.log(`Sanitized value from "${value}" to "${sanitized}"`);
+  
+  return sanitized;
 };
 
 // Function to generate an AI prompt based on the agent name and description
@@ -97,7 +102,7 @@ serve(async (req) => {
       );
     }
     
-    // Sanitize all input values to prevent SQL injection
+    // Strongly sanitize all input values
     const sanitizedEmail = sanitizeString(email);
     const sanitizedClientName = sanitizeString(client_name);
     const sanitizedAgentName = agent_name ? sanitizeString(agent_name) : '';
