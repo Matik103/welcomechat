@@ -50,7 +50,7 @@ export function ChatInput({
         style={{ 
           backgroundColor: value.trim() && !disabled ? primaryColor : '#ccc',
           color: 'white',
-          focusRingColor: primaryColor
+          // Changed focusRingColor to use focus ring via CSS classes instead
         }}
         aria-label="Send message"
       >
