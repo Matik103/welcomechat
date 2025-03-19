@@ -28,6 +28,49 @@ export function useDocumentProcessor() {
     }
   };
   
+  // Generic process document method that handles different document types
+  const processDocument = async ({
+    documentUrl,
+    documentType,
+    clientId,
+    agentName,
+    documentId
+  }: {
+    documentUrl: string;
+    documentType: string;
+    clientId: string;
+    agentName: string;
+    documentId: string;
+  }) => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    try {
+      console.log(`Processing document of type ${documentType} for client ${clientId} with agent ${agentName}`);
+      
+      const result = await FirecrawlService.processDocument(
+        documentUrl,
+        documentType,
+        clientId,
+        agentName,
+        documentId
+      );
+      
+      if (result.success) {
+        toast.success(`${documentType === 'website_url' ? 'Website' : 'Document'} is being processed and will be added to your knowledge base`);
+      } else {
+        toast.error(`Failed to process ${documentType === 'website_url' ? 'website' : 'document'}: ${result.error}`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`Error processing ${documentType}:`, error);
+      toast.error(`Error processing ${documentType === 'website_url' ? 'website' : 'document'}: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
   const processWebsiteUrl = async (clientId: string, url: string, urlId: string) => {
     if (isProcessing) return;
     
@@ -142,6 +185,7 @@ export function useDocumentProcessor() {
   };
   
   return {
+    processDocument,
     processWebsiteUrl,
     processGoogleDriveLink,
     processUploadedDocument,
