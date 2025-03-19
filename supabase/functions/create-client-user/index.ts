@@ -8,15 +8,26 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
+// Function to sanitize string values to prevent SQL syntax errors
+const sanitizeString = (value: string): string => {
+  if (!value) return "";
+  // Replace quotes and other characters that might cause SQL issues
+  return value.replace(/['"`\\]/g, '');
+};
+
 // Function to generate an AI prompt based on the agent name and description
 const generateAiPrompt = (agentName: string, agentDescription: string): string => {
+  // Sanitize inputs first to prevent SQL injection
+  const safeName = sanitizeString(agentName);
+  const safeDescription = sanitizeString(agentDescription);
+  
   // Create a default prompt if no description is provided
-  if (!agentDescription || agentDescription.trim() === '') {
-    return `You are ${agentName}, a helpful AI assistant. Your goal is to provide clear, concise, and accurate information to users.`;
+  if (!safeDescription || safeDescription.trim() === '') {
+    return `You are ${safeName}, a helpful AI assistant. Your goal is to provide clear, concise, and accurate information to users.`;
   }
   
   // Generate a prompt with the agent's name and description
-  return `You are ${agentName}. ${agentDescription}
+  return `You are ${safeName}. ${safeDescription}
 
 As an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.
 
@@ -86,11 +97,21 @@ serve(async (req) => {
       );
     }
     
-    // Sanitize agent name to avoid SQL errors with quotes
-    const sanitizedAgentName = agent_name ? agent_name.replace(/["']/g, '') : '';
+    // Sanitize all input values to prevent SQL injection
+    const sanitizedEmail = sanitizeString(email);
+    const sanitizedClientName = sanitizeString(client_name);
+    const sanitizedAgentName = agent_name ? sanitizeString(agent_name) : '';
+    const sanitizedAgentDescription = agent_description ? sanitizeString(agent_description) : '';
+    
+    console.log("Sanitized values:", {
+      email: sanitizedEmail,
+      client_name: sanitizedClientName,
+      agent_name: sanitizedAgentName,
+      agent_description: sanitizedAgentDescription
+    });
     
     // Check if user already exists
-    console.log("Checking if user exists:", email);
+    console.log("Checking if user exists:", sanitizedEmail);
     const { data: { users: existingUsers }, error: userCheckError } = await supabase.auth.admin.listUsers();
     
     if (userCheckError) {
@@ -98,7 +119,7 @@ serve(async (req) => {
       throw new Error(`Failed to check existing user: ${userCheckError.message}`);
     }
 
-    const existingUser = existingUsers?.find(u => u.email === email);
+    const existingUser = existingUsers?.find(u => u.email === sanitizedEmail);
     console.log("Existing user check result:", existingUser ? "Found" : "Not found");
     
     // Generate a secure temporary password that meets Supabase requirements
@@ -115,7 +136,7 @@ serve(async (req) => {
     
     // If user exists, update their metadata and password
     if (existingUser) {
-      console.log("User already exists, updating metadata and password:", email);
+      console.log("User already exists, updating metadata and password:", sanitizedEmail);
       userId = existingUser.id;
       
       // Update user metadata and password
@@ -125,8 +146,8 @@ serve(async (req) => {
           password: tempPassword,
           user_metadata: { 
             client_id,
-            client_name,
-            agent_name: sanitizedAgentName, // Use sanitized agent name
+            client_name: sanitizedClientName,
+            agent_name: sanitizedAgentName,
             user_type: "client"
           }
         }
@@ -141,17 +162,17 @@ serve(async (req) => {
       console.log("User updated successfully with new password");
     } else {
       // Create a new user with Supabase's built-in user management
-      console.log("Creating new user:", email);
+      console.log("Creating new user:", sanitizedEmail);
       
       // Create user with admin API to ensure proper auth setup
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email,
+        email: sanitizedEmail,
         password: tempPassword,
         email_confirm: true,
         user_metadata: { 
           client_id,
-          client_name,
-          agent_name: sanitizedAgentName, // Use sanitized agent name
+          client_name: sanitizedClientName,
+          agent_name: sanitizedAgentName,
           user_type: "client"
         },
         email_confirm_sent: false // Disable automatic confirmation email
@@ -194,7 +215,7 @@ serve(async (req) => {
     }
     
     // Generate AI prompt
-    const aiPrompt = generateAiPrompt(sanitizedAgentName, agent_description || "");
+    const aiPrompt = generateAiPrompt(sanitizedAgentName, sanitizedAgentDescription);
     console.log("Generated AI prompt:", aiPrompt);
     
     // Create AI agent entry for this client - using sanitized agent name
@@ -204,12 +225,12 @@ serve(async (req) => {
         .from("ai_agents")
         .insert({
           client_id: client_id,
-          name: sanitizedAgentName, // Use sanitized agent name
-          agent_description: agent_description || "",
+          name: sanitizedAgentName,
+          agent_description: sanitizedAgentDescription,
           ai_prompt: aiPrompt,
           settings: {
-            agent_description: agent_description || "",
-            client_name: client_name,
+            agent_description: sanitizedAgentDescription,
+            client_name: sanitizedClientName,
             created_at: new Date().toISOString()
           }
         });
@@ -229,7 +250,7 @@ serve(async (req) => {
         description: "AI agent was created during client signup",
         metadata: {
           agent_name: sanitizedAgentName,
-          agent_description: agent_description
+          agent_description: sanitizedAgentDescription
         }
       });
     } catch (activityError) {

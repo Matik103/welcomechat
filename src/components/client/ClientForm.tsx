@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -27,8 +28,14 @@ interface ClientFormProps {
 const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().optional(),
-  agent_description: z.string().optional(),
+  agent_name: z.string().optional()
+    .refine(name => !name || !name.match(/['"`\\]/), { 
+      message: 'Agent name cannot include quotes or backslashes' 
+    }),
+  agent_description: z.string().optional()
+    .refine(desc => !desc || !desc.match(/["'\\]/g), {
+      message: 'Agent description cannot include quotes or backslashes'
+    }),
 });
 
 export const ClientForm = ({ 
@@ -150,6 +157,7 @@ export const ClientForm = ({
         {!isClientView && (
           <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
         )}
+        <p className="text-xs text-gray-500">Please avoid using quotes (', ", `) in the agent name.</p>
       </div>
 
       <div className="space-y-2">
@@ -169,6 +177,7 @@ export const ClientForm = ({
         {!isClientView && (
           <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
         )}
+        <p className="text-xs text-gray-500">Please avoid using quotes (', ", `) in the description.</p>
       </div>
       
       {onLogoUpload && (

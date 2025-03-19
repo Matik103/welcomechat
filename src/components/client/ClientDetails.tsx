@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -8,6 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { generateAiPrompt } from "@/utils/activityTypeUtils";
 import { useState } from "react";
+import { sanitizeStringForSQL } from "@/services/clientService";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -40,11 +42,12 @@ export const ClientDetails = ({
       console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
       console.log(`Agent description: ${agentDescription}`);
       
-      // Use the agent name exactly as provided without any modifications
-      const formattedAgentName = agentName;
+      // Sanitize agent name and description
+      const sanitizedAgentName = sanitizeStringForSQL(agentName);
+      const sanitizedAgentDescription = agentDescription ? sanitizeStringForSQL(agentDescription) : "";
       
       // Generate AI prompt from agent name and description
-      const aiPrompt = generateAiPrompt(agentName, agentDescription || "");
+      const aiPrompt = generateAiPrompt(sanitizedAgentName, sanitizedAgentDescription);
       
       // Check if agent exists
       const { data: existingAgents, error: queryError } = await supabase
@@ -60,21 +63,21 @@ export const ClientDetails = ({
       }
 
       const settings = {
-        agent_description: agentDescription || "",
+        agent_description: sanitizedAgentDescription,
         client_id: clientId,
         updated_at: new Date().toISOString()
       };
 
       if (existingAgents && existingAgents.length > 0) {
         // Check if description has changed
-        const descriptionChanged = existingAgents[0].agent_description !== agentDescription;
+        const descriptionChanged = existingAgents[0].agent_description !== sanitizedAgentDescription;
         
         // Update existing agent
         const { error: updateError } = await supabase
           .from("ai_agents")
           .update({ 
-            name: formattedAgentName,
-            agent_description: agentDescription,
+            name: sanitizedAgentName,
+            agent_description: sanitizedAgentDescription,
             ai_prompt: aiPrompt,
             settings: settings
           })
@@ -84,8 +87,8 @@ export const ClientDetails = ({
           console.error("Error updating AI agent:", updateError);
           throw updateError;
         } else {
-          console.log(`Updated agent name from ${existingAgents[0].name} to ${formattedAgentName}`);
-          console.log(`Updated agent description to: ${agentDescription}`);
+          console.log(`Updated agent name from ${existingAgents[0].name} to ${sanitizedAgentName}`);
+          console.log(`Updated agent description to: ${sanitizedAgentDescription}`);
           console.log(`Generated AI prompt: ${aiPrompt}`);
           
           return { updated: true, created: false, descriptionUpdated: descriptionChanged };
@@ -96,8 +99,8 @@ export const ClientDetails = ({
           .from("ai_agents")
           .insert({
             client_id: clientId,
-            name: formattedAgentName,
-            agent_description: agentDescription,
+            name: sanitizedAgentName,
+            agent_description: sanitizedAgentDescription,
             ai_prompt: aiPrompt,
             content: "",
             interaction_type: "config",
@@ -109,8 +112,8 @@ export const ClientDetails = ({
           console.error("Error creating new AI agent:", insertError);
           throw insertError;
         } else {
-          console.log(`Created new AI agent with name ${formattedAgentName}`);
-          console.log(`Set agent description to: ${agentDescription}`);
+          console.log(`Created new AI agent with name ${sanitizedAgentName}`);
+          console.log(`Set agent description to: ${sanitizedAgentDescription}`);
           console.log(`Generated AI prompt: ${aiPrompt}`);
           return { updated: false, created: true, descriptionUpdated: true };
         }

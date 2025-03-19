@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -24,23 +23,26 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);
   
+  // Sanitize all string values to prevent SQL injection
+  const sanitizedData = {
+    client_name: sanitizeStringForSQL(data.client_name),
+    email: sanitizeStringForSQL(data.email),
+    agent_name: data.agent_name ? sanitizeStringForSQL(data.agent_name) : null,
+    // Store agent_description in widget_settings if needed
+    widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
+      ? { 
+          ...data.widget_settings,
+          agent_description: data.agent_description ? sanitizeStringForSQL(data.agent_description) : null
+        } 
+      : { 
+          agent_description: data.agent_description ? sanitizeStringForSQL(data.agent_description) : null
+        }
+  };
+  
   // Update the client record (excluding agent_description)
   const { error } = await supabase
     .from("clients")
-    .update({
-      client_name: data.client_name,
-      email: data.email,
-      agent_name: data.agent_name, // Use the exact name provided by the user
-      // Store agent_description in widget_settings if needed
-      widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
-        ? { 
-            ...data.widget_settings,
-            agent_description: data.agent_description 
-          } 
-        : { 
-            agent_description: data.agent_description 
-          }
-    })
+    .update(sanitizedData)
     .eq("id", id);
   if (error) throw error;
   
@@ -48,7 +50,10 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   if (data.agent_name && data.agent_description !== undefined) {
     try {
       // Generate AI prompt based on agent name and description
-      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description);
+      const aiPrompt = generateAiPrompt(
+        sanitizeStringForSQL(data.agent_name), 
+        sanitizeStringForSQL(data.agent_description || "")
+      );
       
       console.log("Generated AI prompt:", aiPrompt);
       
@@ -64,12 +69,12 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         await supabase
           .from("ai_agents")
           .update({
-            name: data.agent_name, // Use the exact name provided by the user
-            agent_description: data.agent_description, // Use the agent_description column
-            ai_prompt: aiPrompt, // Save the generated AI prompt
+            name: sanitizeStringForSQL(data.agent_name),
+            agent_description: sanitizeStringForSQL(data.agent_description || ""),
+            ai_prompt: sanitizeStringForSQL(aiPrompt),
             settings: {
-              agent_description: data.agent_description,
-              client_name: data.client_name,
+              agent_description: sanitizeStringForSQL(data.agent_description || ""),
+              client_name: sanitizeStringForSQL(data.client_name),
               updated_at: new Date().toISOString()
             }
           })
@@ -80,13 +85,13 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
           .from("ai_agents")
           .insert({
             client_id: id,
-            name: data.agent_name, // Use the exact name provided by the user
+            name: sanitizeStringForSQL(data.agent_name),
             content: "",
-            agent_description: data.agent_description, // Use the agent_description column
-            ai_prompt: aiPrompt, // Save the generated AI prompt
+            agent_description: sanitizeStringForSQL(data.agent_description || ""),
+            ai_prompt: sanitizeStringForSQL(aiPrompt),
             settings: {
-              agent_description: data.agent_description,
-              client_name: data.client_name,
+              agent_description: sanitizeStringForSQL(data.agent_description || ""),
+              client_name: sanitizeStringForSQL(data.client_name),
               updated_at: new Date().toISOString()
             }
           });
@@ -121,35 +126,52 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
 };
 
 /**
+ * Helper function to sanitize string values for SQL
+ * This prevents SQL syntax errors when strings contain quotes
+ */
+export const sanitizeStringForSQL = (value: string): string => {
+  if (!value) return "";
+  // Replace quotes with escaped quotes to prevent SQL injection
+  return value.replace(/['"`\\]/g, '');
+};
+
+/**
  * Creates a new client
  */
 export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
 
-    // Sanitize agent name to avoid SQL syntax errors with quotes
-    const sanitizedAgentName = data.agent_name ? data.agent_name.replace(/["']/g, '') : 'agent_' + Date.now();
+    // Sanitize all string values to prevent SQL syntax errors
+    const sanitizedClientName = sanitizeStringForSQL(data.client_name);
+    const sanitizedEmail = sanitizeStringForSQL(data.email);
+    const sanitizedAgentName = data.agent_name ? sanitizeStringForSQL(data.agent_name) : 'agent_' + Date.now();
+    const sanitizedAgentDescription = data.agent_description ? sanitizeStringForSQL(data.agent_description) : '';
     
-    console.log("Using agent name:", sanitizedAgentName);
+    console.log("Using sanitized values:", {
+      client_name: sanitizedClientName,
+      email: sanitizedEmail,
+      agent_name: sanitizedAgentName,
+      agent_description: sanitizedAgentDescription
+    });
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
       ? { 
           ...data.widget_settings,
-          agent_description: data.agent_description 
+          agent_description: sanitizedAgentDescription
         } 
       : { 
-          agent_description: data.agent_description 
+          agent_description: sanitizedAgentDescription
         };
 
-    // Create the client record
+    // Create the client record with sanitized values
     const { data: newClients, error } = await supabase
       .from("clients")
       .insert([{
-        client_name: data.client_name,
-        email: data.email,
+        client_name: sanitizedClientName,
+        email: sanitizedEmail,
         agent_name: sanitizedAgentName,
-        // Store the agent_description in widget_settings for now
         widget_settings: widgetSettings,
         status: 'active',
         website_url_refresh_rate: 60,
@@ -188,11 +210,11 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({
-          email: data.email,
+          email: sanitizedEmail,
           client_id: clientId,
-          client_name: data.client_name,
+          client_name: sanitizedClientName,
           agent_name: sanitizedAgentName,
-          agent_description: data.agent_description || ""
+          agent_description: sanitizedAgentDescription
         })
       });
 
@@ -216,8 +238,8 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       // Send welcome email with the temporary password
       await sendClientInvitationEmail({
         clientId,
-        clientName: data.client_name,
-        email: data.email,
+        clientName: sanitizedClientName,
+        email: sanitizedEmail,
         agentName: sanitizedAgentName,
         tempPassword
       });
