@@ -42,8 +42,8 @@ export function ChatMessages({
             className={`flex ${message.isUser ? 'justify-end' : 'justify-start'} items-end gap-2`}
           >
             {!message.isUser && (
-              <Avatar className="w-8 h-8 border border-gray-200 shadow-sm">
-                {logoUrl ? (
+              <Avatar className="w-8 h-8 border border-gray-200 shadow-sm relative">
+                {logoUrl && (
                   <AvatarImage 
                     src={logoUrl} 
                     alt={agentName} 
@@ -51,12 +51,15 @@ export function ChatMessages({
                     onError={(e) => {
                       console.error("Error loading logo in message avatar:", logoUrl);
                       e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.classList.add('avatar-fallback-visible');
                     }}
                   />
-                ) : null}
-                <AvatarFallback className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}>
-                  {getInitials(agentName)}
-                </AvatarFallback>
+                )}
+                {(!logoUrl || document.querySelector('.avatar-fallback-visible')) && (
+                  <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800 font-medium">
+                    {getInitials(agentName)}
+                  </AvatarFallback>
+                )}
               </Avatar>
             )}
             
@@ -85,8 +88,8 @@ export function ChatMessages({
         
         {isTyping && (
           <div className="flex justify-start items-end gap-2">
-            <Avatar className="w-8 h-8 border border-gray-200">
-              {logoUrl ? (
+            <Avatar className="w-8 h-8 border border-gray-200 relative">
+              {logoUrl && (
                 <AvatarImage 
                   src={logoUrl} 
                   alt={agentName} 
@@ -94,12 +97,15 @@ export function ChatMessages({
                   onError={(e) => {
                     console.error("Error loading logo in typing indicator:", logoUrl);
                     e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement?.classList.add('avatar-fallback-visible');
                   }}
                 />
-              ) : null}
-              <AvatarFallback className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}>
-                {getInitials(agentName)}
-              </AvatarFallback>
+              )}
+              {(!logoUrl || document.querySelector('.avatar-fallback-visible')) && (
+                <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800 font-medium">
+                  {getInitials(agentName)}
+                </AvatarFallback>
+              )}
             </Avatar>
             
             <div 
