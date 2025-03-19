@@ -6,6 +6,7 @@ import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { MessageCircle, Loader2 } from "lucide-react";
 import { useAgentContent } from "@/hooks/useAgentContent";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -170,7 +171,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       <div 
         className={`
           transition-all duration-300 ease-in-out z-10
-          ${expanded ? 'w-80 h-[450px] rounded-lg' : 'w-14 h-14 rounded-full cursor-pointer'}
+          ${expanded ? 'w-96 h-[500px] rounded-lg' : 'w-14 h-14 rounded-full cursor-pointer'}
           shadow-lg
           flex flex-col
           overflow-hidden
@@ -202,6 +203,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                   secondaryColor={settings.secondary_color}
                   isTyping={isTyping}
                   messagesEndRef={messagesEndRef}
+                  logoUrl={settings.logo_url}
                 />
                 
                 <ChatInput 
@@ -220,19 +222,25 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           <button
             onClick={handleToggleExpand}
             style={{ backgroundColor: settings.chat_color }}
-            className="w-full h-full flex items-center justify-center text-white"
+            className="w-full h-full flex items-center justify-center text-white relative group overflow-hidden"
           >
             {settings.logo_url ? (
-              <img 
-                src={settings.logo_url} 
-                alt={settings.agent_name} 
-                className="w-8 h-8 object-contain"
-                onError={(e) => {
-                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";
-                }}
-              />
+              <div className="relative w-full h-full flex items-center justify-center">
+                <img 
+                  src={settings.logo_url} 
+                  alt={settings.agent_name} 
+                  className="w-8 h-8 object-contain transition-transform group-hover:scale-110"
+                  onError={(e) => {
+                    e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";
+                  }}
+                />
+                {/* Pulse effect around the logo */}
+                <div className="absolute w-full h-full rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-0 rounded-full bg-white opacity-20 animate-ping"></div>
+                </div>
+              </div>
             ) : (
-              <MessageCircle className="w-6 h-6" />
+              <MessageCircle className="w-6 h-6 transition-transform group-hover:scale-110" />
             )}
           </button>
         )}
