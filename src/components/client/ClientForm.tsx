@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -94,6 +93,17 @@ export const ClientForm = ({
     });
   });
 
+  // Get logo URL from widget_settings safely
+  const getLogoUrl = (): string | null | undefined => {
+    if (!initialData?.widget_settings) return null;
+    
+    if (typeof initialData.widget_settings === 'object' && initialData.widget_settings !== null) {
+      return (initialData.widget_settings as any).logo_url;
+    }
+    
+    return null;
+  };
+
   return (
     <form onSubmit={handleFormSubmit} className="space-y-6">
       <div className="space-y-2">
@@ -163,7 +173,7 @@ export const ClientForm = ({
       
       {onLogoUpload && (
         <LogoUpload
-          logoUrl={initialData?.widget_settings?.logo_url}
+          logoUrl={getLogoUrl()}
           onLogoUpload={handleLogoUpload}
           isUploading={isUploading}
         />
