@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Loader2, Lock } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
@@ -45,7 +46,6 @@ export const ClientResourceSections = ({
   console.log("Document Links:", documentLinks);
   console.log("Website URLs:", websiteUrls);
 
-  // Check if any document links have restricted access
   const restrictedLinks = documentLinks.filter(link => link.access_status === "restricted");
   const hasRestrictedLinks = restrictedLinks.length > 0;
 

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDocumentProcessor } from "@/hooks/useDocumentProcessor";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 
 interface DocumentLinksProps {
   documentLinks: DocumentLink[];
