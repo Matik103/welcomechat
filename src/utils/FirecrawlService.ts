@@ -89,11 +89,16 @@ export class FirecrawlService {
    */
   static async getProcessingStatus(jobId: string): Promise<CrawlResponse> {
     try {
+      // Create a URLSearchParams object to properly encode the jobId
+      const searchParams = new URLSearchParams({ jobId });
+      
       // Call the Supabase Edge Function directly
       const { data, error } = await supabase.functions.invoke('document-processing-status', {
         method: 'GET',
-        // Fix: Use params instead of query for FunctionInvokeOptions
-        params: { jobId },
+        // Fix: Use correct approach to pass query parameters in FunctionInvokeOptions
+        headers: {
+          'x-search-params': searchParams.toString()
+        }
       });
 
       // Check for errors
