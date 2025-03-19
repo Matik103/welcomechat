@@ -51,6 +51,27 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_1742426304880: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       ai_agent: {
         Row: {
           content: string | null
@@ -3678,6 +3699,19 @@ export type Database = {
         }[]
       }
       match_agent_1742425072029: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_agent_1742426304880: {
         Args: {
           query_embedding: string
           match_count?: number
