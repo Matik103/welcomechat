@@ -35,7 +35,9 @@ export function ChatHeader({
               }}
             />
           ) : null}
-          <AvatarFallback className={`text-sm bg-indigo-200 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}>
+          <AvatarFallback 
+            className={`text-sm bg-indigo-200 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}
+          >
             {agentName ? agentName.substring(0, 2).toUpperCase() : 'AI'}
           </AvatarFallback>
         </Avatar>

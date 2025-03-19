@@ -54,7 +54,9 @@ export function ChatMessages({
                     }}
                   />
                 ) : null}
-                <AvatarFallback className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}>
+                <AvatarFallback 
+                  className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}
+                >
                   {getInitials(agentName)}
                 </AvatarFallback>
               </Avatar>
@@ -97,7 +99,9 @@ export function ChatMessages({
                   }}
                 />
               ) : null}
-              <AvatarFallback className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}>
+              <AvatarFallback 
+                className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}
+              >
                 {getInitials(agentName)}
               </AvatarFallback>
             </Avatar>
