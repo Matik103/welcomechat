@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
 import { generateAiPrompt } from "@/utils/activityTypeUtils";
@@ -208,8 +209,11 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         throw new Error("No auth session found - please log in again");
       }
 
-      // Create the auth user using the edge function
-      const createUserResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/create-client-user`, {
+      // Create the auth user using the edge function with the correct URL
+      const functionUrl = `${SUPABASE_URL}/functions/v1/create-client-user`;
+      console.log("Calling edge function at:", functionUrl);
+      
+      const createUserResponse = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
