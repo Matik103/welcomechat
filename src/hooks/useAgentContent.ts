@@ -5,6 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { checkAndRefreshAuth } from "@/services/authService";
 
+export interface AgentSource {
+  url?: string;
+  settings?: Record<string, any>;
+}
+
 export function useAgentContent(clientId: string | undefined, agentName: string | undefined) {
   const [isLoading, setIsLoading] = useState(false);
 
