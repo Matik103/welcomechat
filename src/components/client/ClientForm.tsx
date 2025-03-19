@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,10 +28,7 @@ interface ClientFormProps {
 const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().optional()
-    .refine(name => !name || !name.includes('"'), { 
-      message: 'Agent name cannot include double quotes ("). Please use single quotes (\') instead.' 
-    }),
+  agent_name: z.string().optional(),
   agent_description: z.string().optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
@@ -139,21 +135,9 @@ export const ClientForm = ({
     setLocalLogoPreview(null);
   };
 
-  const sanitizeFormData = (data: any) => {
-    // Ensure agent_name doesn't contain double quotes
-    if (data.agent_name && data.agent_name.includes('"')) {
-      data.agent_name = data.agent_name.replace(/"/g, "'");
-      toast.warning('Double quotes in Agent Name were converted to single quotes for compatibility');
-    }
-    return data;
-  };
-
   const handleFormSubmit = async (data: any) => {
-    // Sanitize the data before submitting
-    const sanitizedData = sanitizeFormData(data);
-    
     await onSubmit({
-      ...sanitizedData,
+      ...data,
       _tempLogoFile: tempLogoFile
     });
   };
@@ -197,18 +181,12 @@ export const ClientForm = ({
           id="agent_name"
           {...register("agent_name")}
           className={errors.agent_name ? "border-red-500" : ""}
-          onChange={(e) => {
-            // Auto-remove double quotes during typing
-            if (e.target.value.includes('"')) {
-              e.target.value = e.target.value.replace(/"/g, "'");
-            }
-          }}
         />
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
         <p className="text-xs text-gray-500 mt-1">
-          {!isClientView ? "Optional - client can set this later" : "Please use single quotes (') instead of double quotes (\") in the agent name."}
+          {!isClientView ? "Optional - client can set this later" : "The name of your AI assistant"}
         </p>
       </div>
       

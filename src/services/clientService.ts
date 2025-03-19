@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -24,16 +23,13 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);
   
-  // Sanitize the agent_name to prevent SQL syntax errors
-  const sanitizedAgentName = data.agent_name ? data.agent_name.replace(/"/g, "'") : data.agent_name;
-  
   // Update the client record (including logo fields)
   const { error } = await supabase
     .from("clients")
     .update({
       client_name: data.client_name,
       email: data.email,
-      agent_name: sanitizedAgentName, // Use sanitized agent name
+      agent_name: data.agent_name,
       // Store agent_description and logo info in widget_settings
       widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
         ? { 
@@ -52,10 +48,10 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   if (error) throw error;
   
   // Update agent description and logo in ai_agents table if agent_name exists
-  if (sanitizedAgentName) {
+  if (data.agent_name) {
     try {
       // Generate AI prompt based on agent name and description
-      const aiPrompt = generateAiPrompt(sanitizedAgentName, data.agent_description || "");
+      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description || "");
       
       console.log("Generated AI prompt:", aiPrompt);
       
@@ -71,9 +67,9 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         await supabase
           .from("ai_agents")
           .update({
-            name: sanitizedAgentName, // Use sanitized agent name
-            agent_description: data.agent_description, // Use the agent_description column
-            ai_prompt: aiPrompt, // Save the generated AI prompt
+            name: data.agent_name,
+            agent_description: data.agent_description,
+            ai_prompt: aiPrompt,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
             settings: {
@@ -91,10 +87,10 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
           .from("ai_agents")
           .insert({
             client_id: id,
-            name: sanitizedAgentName, // Use sanitized agent name
+            name: data.agent_name,
             content: "",
-            agent_description: data.agent_description, // Use the agent_description column
-            ai_prompt: aiPrompt, // Save the generated AI prompt
+            agent_description: data.agent_description,
+            ai_prompt: aiPrompt,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
             settings: {
@@ -141,13 +137,11 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
 export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
-
-    // Sanitize the agent_name to prevent SQL syntax errors by removing double quotes completely
-    const sanitizedAgentName = data.agent_name 
-      ? data.agent_name.replace(/"/g, "'") 
-      : 'agent_' + Date.now();
     
-    console.log("Using sanitized agent name:", sanitizedAgentName);
+    // Use the agent name as provided
+    const agentName = data.agent_name || 'agent_' + Date.now();
+    
+    console.log("Using agent name:", agentName);
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
@@ -169,7 +163,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       .insert([{
         client_name: data.client_name,
         email: data.email,
-        agent_name: sanitizedAgentName, // Use sanitized agent name
+        agent_name: agentName,
         // Store the agent_description and logo in widget_settings
         widget_settings: widgetSettings,
         status: 'active',
@@ -212,7 +206,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           email: data.email,
           client_id: clientId,
           client_name: data.client_name,
-          agent_name: sanitizedAgentName, // Use sanitizedAgentName instead of finalAgentName
+          agent_name: agentName,
           agent_description: data.agent_description || "",
           logo_url: data.logo_url || "",
           logo_storage_path: data.logo_storage_path || ""
@@ -241,7 +235,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         clientId,
         clientName: data.client_name,
         email: data.email,
-        agentName: sanitizedAgentName, // Use sanitizedAgentName instead of finalAgentName
+        agentName: agentName,
         tempPassword
       });
 
