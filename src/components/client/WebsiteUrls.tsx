@@ -20,13 +20,20 @@ export const WebsiteUrls = ({
   isClientView = false,
   logClientActivity
 }: WebsiteUrlsProps) => {
-  const { websiteUrls, isLoading, addWebsiteUrl, deleteWebsiteUrl, isAddLoading, isDeletingId } = useWebsiteUrls(clientId);
+  const { 
+    websiteUrls, 
+    addWebsiteUrlMutation, 
+    deleteWebsiteUrlMutation, 
+    isLoading 
+  } = useWebsiteUrls(clientId);
+  
   const [showAddForm, setShowAddForm] = useState(false);
   const { processDocument, isProcessing } = useDocumentProcessor();
+  const [processingUrlId, setProcessingUrlId] = useState<number | null>(null);
 
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
-      const newUrl = await addWebsiteUrl(data);
+      const newUrl = await addWebsiteUrlMutation.mutateAsync(data);
       setShowAddForm(false);
       
       // Process the website content
@@ -57,7 +64,7 @@ export const WebsiteUrls = ({
   const handleDelete = async (id: number) => {
     try {
       const deletedUrl = websiteUrls.find(url => url.id === id);
-      await deleteWebsiteUrl(id);
+      await deleteWebsiteUrlMutation.mutateAsync(id);
       
       if (deletedUrl) {
         await logClientActivity(
@@ -74,14 +81,49 @@ export const WebsiteUrls = ({
     }
   };
 
+  const handleProcessUrl = async (url: WebsiteUrl) => {
+    if (!agentName) {
+      toast.error("Cannot process URL: Agent name is missing");
+      return;
+    }
+    
+    setProcessingUrlId(url.id);
+    
+    try {
+      await processDocument({
+        documentUrl: url.url,
+        documentType: "website_url",
+        clientId: clientId,
+        agentName: agentName,
+        documentId: url.id.toString()
+      });
+      
+      toast.success("Website URL processed successfully");
+      
+      // Log activity
+      await logClientActivity(
+        "website_url_processed",
+        `Processed website URL: ${url.url}`,
+        { url: url.url }
+      );
+    } catch (error) {
+      console.error("Error processing website URL:", error);
+      toast.error("Failed to process website URL");
+    } finally {
+      setProcessingUrlId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {websiteUrls.length > 0 && (
         <WebsiteUrlsList
           urls={websiteUrls}
           onDelete={handleDelete}
-          isDeleteLoading={isLoading}
-          deletingId={isDeletingId}
+          onProcess={handleProcessUrl}
+          isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+          isProcessing={isProcessing}
+          deletingId={deleteWebsiteUrlMutation.variables}
         />
       )}
       
@@ -89,7 +131,7 @@ export const WebsiteUrls = ({
         <WebsiteUrlForm
           onAdd={handleAddUrl}
           onCancel={() => setShowAddForm(false)}
-          isAddLoading={isAddLoading}
+          isAddLoading={addWebsiteUrlMutation.isPending}
           clientId={clientId}
           agentName={agentName}
           isProcessing={isProcessing}
