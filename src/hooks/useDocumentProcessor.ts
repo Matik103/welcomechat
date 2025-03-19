@@ -1,8 +1,9 @@
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { FirecrawlService } from "@/utils/FirecrawlService";
 import { LlamaCloudService } from "@/utils/LlamaCloudService";
-import { toast } from "sonner";
+import { trackDocumentProcessing } from "@/services/documentProcessingService";
 
 interface ProcessDocumentParams {
   documentUrl: string;
@@ -14,97 +15,118 @@ interface ProcessDocumentParams {
 
 export function useDocumentProcessor() {
   const [isProcessing, setIsProcessing] = useState(false);
-  
+  const [lastJobId, setLastJobId] = useState<string | null>(null);
+
   const processDocument = async (params: ProcessDocumentParams) => {
+    const { documentUrl, documentType, clientId, agentName, documentId } = params;
+    
+    setIsProcessing(true);
+    
     try {
-      setIsProcessing(true);
-      console.log("Processing document:", params);
-      
-      // Check if document type is a Google Drive folder
-      let documentType = params.documentType;
-      if (documentType === "google_drive" && params.documentUrl.includes("/folders/")) {
-        documentType = "google_drive_folder";
-        toast.info("Google Drive folder detected - processing all documents in folder");
-      }
-      
-      // Ensure URL format is correct
-      let documentUrl = params.documentUrl;
-      try {
-        // Validate URL format - if it doesn't include protocol, add https://
-        if (!documentUrl.startsWith('http://') && !documentUrl.startsWith('https://')) {
-          documentUrl = 'https://' + documentUrl;
-          console.log("Added https:// to URL:", documentUrl);
+      // Track document processing start
+      await trackDocumentProcessing(
+        clientId,
+        agentName,
+        documentId,
+        'started',
+        {
+          name: documentUrl,
+          type: documentType,
+          url: documentUrl
         }
-        
-        // Validate URL is properly formatted
-        new URL(documentUrl);
-      } catch (urlError) {
-        throw new Error(`Invalid URL format: ${urlError.message}`);
-      }
-      
-      // Determine if we should use LlamaParse or Firecrawl
-      const isWebsite = documentType === "website_url" || documentType.includes("website");
-      const isFolder = documentUrl.includes("/folders/");
-      const useLlamaParse = !isWebsite && !isFolder;
-      
-      if (useLlamaParse) {
-        toast.info(`Processing ${documentType} with LlamaParse...`);
-        
-        // For direct file uploads, we'll use LlamaParse directly
-        if (documentType === "pdf" || documentType === "docx" || 
-            documentType === "excel" || documentType === "other") {
-          console.log("Direct file upload detected, using LlamaParse");
-          const result = await LlamaCloudService.parseDocument(documentUrl, documentType);
-          
-          if (!result.success) {
-            console.error("LlamaParse processing failed:", result.error);
-            throw new Error(result.error || "Failed to process document with LlamaParse");
-          }
-          
-          console.log("LlamaParse processing succeeded:", result.data);
-          toast.success(`Document processed successfully with LlamaParse!`);
-          return result.data;
-        }
-      } else {
-        toast.info(`Processing ${isWebsite ? "website" : documentType} with Firecrawl...`);
-      }
-      
-      // Call the Edge Function to process the document
-      const response = await FirecrawlService.processDocument(
-        documentUrl,
-        documentType,
-        params.clientId,
-        params.agentName,
-        params.documentId,
-        useLlamaParse
       );
       
-      if (!response.success) {
-        console.error("Document processing failed:", response.error);
-        throw new Error(response.error || "Failed to process document");
-      }
-      
-      console.log("Document processing succeeded:", response.data);
-      
-      // Success message based on document type
-      if (documentType === "google_drive_folder") {
-        toast.success("Google Drive folder documents processed successfully!");
+      // Determine which service to use based on document type
+      // Website URLs always use Firecrawl, everything else uses LlamaParse
+      let response;
+      if (documentType === "website_url" || documentType.includes("website")) {
+        console.log(`Processing website URL with Firecrawl: ${documentUrl}`);
+        response = await FirecrawlService.processDocument(
+          documentUrl,
+          documentType,
+          clientId,
+          agentName,
+          documentId,
+          false // Don't use LlamaParse for websites
+        );
       } else {
-        toast.success(`Document processed successfully with ${useLlamaParse ? "LlamaParse" : "Firecrawl"}!`);
+        console.log(`Processing document with LlamaParse: ${documentUrl}`);
+        response = await LlamaCloudService.parseDocument(
+          documentUrl,
+          documentType
+        );
       }
+      
+      console.log("Document processing response:", response);
+      
+      if (!response.success) {
+        // Track document processing failure
+        await trackDocumentProcessing(
+          clientId,
+          agentName,
+          documentId,
+          'failed',
+          {
+            name: documentUrl,
+            type: documentType,
+            url: documentUrl
+          },
+          response.error || "Unknown error"
+        );
+        
+        toast.error(`Failed to process document: ${response.error || "Unknown error"}`);
+        return;
+      }
+      
+      // If job ID is returned, store it
+      if (response.data?.job_id) {
+        setLastJobId(response.data.job_id);
+      }
+      
+      // Track document processing completion
+      await trackDocumentProcessing(
+        clientId,
+        agentName,
+        documentId,
+        'completed',
+        {
+          name: documentUrl,
+          type: documentType,
+          url: documentUrl,
+          content_length: response.data?.content_length || 0
+        }
+      );
+      
+      toast.success(`Document processed successfully!`);
       
       return response.data;
     } catch (error) {
-      console.error("Error in processDocument:", error);
-      toast.error(`Failed to process document: ${error instanceof Error ? error.message : "Unknown error"}`);
+      console.error("Error processing document:", error);
+      
+      // Track document processing failure
+      await trackDocumentProcessing(
+        clientId,
+        agentName,
+        documentId,
+        'failed',
+        {
+          name: documentUrl,
+          type: documentType,
+          url: documentUrl
+        },
+        error instanceof Error ? error.message : "Unknown error"
+      );
+      
+      toast.error(`Error processing document: ${error instanceof Error ? error.message : "Unknown error"}`);
       throw error;
     } finally {
       setIsProcessing(false);
     }
   };
-  
+
   return {
     processDocument,
-    isProcessing
+    isProcessing,
+    lastJobId
   };
 }
