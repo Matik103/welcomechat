@@ -28,8 +28,10 @@ export async function syncWidgetSettingsWithAgent(
       return false;
     }
     
+    // Fix: Create a typed settings object instead of using spread
     const agentSettings = {
-      ...(agentData?.settings || {}),
+      // Only copy specific properties from existing settings if they exist
+      ...(agentData?.settings ? agentData.settings as Record<string, any> : {}),
       logo_url: settings.logo_url,
       agent_name: settings.agent_name,
       updated_at: new Date().toISOString()

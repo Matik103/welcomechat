@@ -44,6 +44,11 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     try {
       const chatApiEndpoint = `https://${projectRef}.supabase.co/functions/v1/chat`;
       
+      // Pre-define logoHtml variable for both places it's used
+      const logoHtmlCode = settings.logo_url ? 
+        `<img src="${settings.logo_url}" alt="${settings.agent_name}" class="widget-logo" />` : 
+        '';
+      
       const embedCode = `<!-- Welcome.Chat Widget CSS -->
 <link href="https://cdn.welcome.chat/widget.css" rel="stylesheet" />
 
@@ -142,12 +147,10 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         const chatContent = document.createElement('div');
         chatContent.classList.add('chat-content');
         
-        // Add logo if available
-        const logoHtml = '${settings.logo_url ? `<img src="${settings.logo_url}" alt="${settings.agent_name}" class="widget-logo" />` : ''}';
-        
+        // Add logo if available - use predefined variable
         chatContent.innerHTML = \`
             <div class="chat-header">
-                ${logoHtml}
+                ${logoHtmlCode}
                 <span class="chat-title">${settings.agent_name}</span>
             </div>
             <div class="chat-messages"></div>
@@ -210,6 +213,11 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
       });
     }
   };
+  
+  // Pre-define logoHtml variable for the main display as well
+  const logoHtmlDisplay = settings.logo_url ? 
+    `<img src="${settings.logo_url}" alt="${settings.agent_name}" class="widget-logo" />` : 
+    '';
   
   return (
     <div className="relative">
@@ -320,7 +328,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         
         chatContent.innerHTML = \`
             <div class="chat-header">
-                ${logoHtml}
+                ${logoHtmlDisplay}
                 <span class="chat-title">${settings.agent_name}</span>
             </div>
             <div class="chat-messages"></div>
