@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -229,7 +230,7 @@ export const DocumentLinks = ({
           });
         } catch (processingError) {
           console.error("Error processing document:", processingError);
-          toast.error(`Document added but content processing failed: ${processingError.message}`);
+          toast.error(`Document added but content processing failed: ${processingError instanceof Error ? processingError.message : "Unknown error"}`);
         }
       }
       

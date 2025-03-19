@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -185,7 +186,7 @@ export const DriveLinks = ({
         });
       } catch (processingError) {
         console.error("Error processing document:", processingError);
-        toast.error(`Document link added but content processing failed: ${processingError.message}`);
+        toast.error(`Document link added but content processing failed: ${processingError instanceof Error ? processingError.message : "Unknown error"}`);
       }
       
       setNewLink("");
