@@ -1,4 +1,3 @@
-
 import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
@@ -110,7 +109,7 @@ export const mapActivityType = (
 };
 
 /**
- * Generates an AI prompt based on agent name and description
+ * Generates a standardized AI prompt from agent name and description
  */
 export const generateAiPrompt = (agentName: string, agentDescription: string): string => {
   // Create a default prompt if no description is provided
@@ -121,5 +120,7 @@ export const generateAiPrompt = (agentName: string, agentDescription: string): s
   // Generate a prompt with the agent's name and description
   return `You are ${agentName}. ${agentDescription}
 
-As an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.`;
-};
+As an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.
+
+You have access to a knowledge base of documents and websites that have been processed and stored for your reference. When answering questions, prioritize information from this knowledge base when available.`;
+}
