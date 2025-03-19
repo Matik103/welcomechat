@@ -24,7 +24,9 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 const sanitizeForSQL = (value: string | undefined): string | undefined => {
   if (!value) return value;
   // Replace double quotes with single quotes to prevent SQL errors
-  return value.replace(/"/g, "'");
+  const sanitized = value.replace(/"/g, "'");
+  console.log(`Sanitized value: "${value}" to "${sanitized}"`);
+  return sanitized;
 };
 
 /**
@@ -35,6 +37,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   
   // Sanitize agent_name to prevent SQL errors
   const sanitizedAgentName = sanitizeForSQL(data.agent_name);
+  console.log("Using sanitized agent name in updateClient:", sanitizedAgentName);
   
   // Update the client record (including logo fields)
   const { error } = await supabase
@@ -154,7 +157,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     // Sanitize agent_name to prevent SQL errors
     const sanitizedAgentName = sanitizeForSQL(data.agent_name) || 'agent_' + Date.now();
     
-    console.log("Using sanitized agent name:", sanitizedAgentName);
+    console.log("Using sanitized agent name in createClient:", sanitizedAgentName);
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
