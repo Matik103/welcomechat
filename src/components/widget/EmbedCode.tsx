@@ -42,16 +42,17 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 
   const handleCopyCode = () => {
     try {
-      const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
+      const chatApiEndpoint = `https://${projectRef}.supabase.co/functions/v1/chat`;
       
-      const embedCode = `<!-- Load n8n Chat Widget CSS -->
-<link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+      const embedCode = `<!-- Welcome.Chat Widget CSS -->
+<link href="https://cdn.welcome.chat/widget.css" rel="stylesheet" />
 
 <!-- Widget Configuration -->
 <script>
-    window.ChatWidgetConfig = {
+    window.WelcomeChatWidgetConfig = {
         branding: {
             name: '${settings.agent_name}',
+            logo: '${settings.logo_url}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
         },
@@ -68,7 +69,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 <!-- Add custom CSS for expandable behavior -->
 <style>
     /* Chat container styling */
-    .n8n-chat-widget {
+    .welcome-chat-widget {
         position: fixed;
         ${settings.position}: 20px;
         bottom: 20px;
@@ -85,7 +86,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
 
     /* When the chat is expanded */
-    .n8n-chat-widget.expanded {
+    .welcome-chat-widget.expanded {
         width: 350px; /* Adjust the width for the expanded chat */
         height: 400px; /* Adjust the height for the expanded chat */
         border-radius: 10px;
@@ -94,7 +95,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
 
     /* Chat content inside the widget */
-    .n8n-chat-widget .chat-content {
+    .welcome-chat-widget .chat-content {
         display: none;
         flex-direction: column;
         width: 100%;
@@ -105,45 +106,57 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
 
     /* When chat is expanded, show chat content */
-    .n8n-chat-widget.expanded .chat-content {
+    .welcome-chat-widget.expanded .chat-content {
         display: flex;
     }
 
     /* Icon for the collapsed state */
-    .n8n-chat-widget .chat-icon {
+    .welcome-chat-widget .chat-icon {
         font-size: 30px;
         color: white;
     }
     
     /* You can cycle between icon sizes by double-clicking */
-    .n8n-chat-widget .chat-icon.medium {
+    .welcome-chat-widget .chat-icon.medium {
         font-size: 38px;
     }
     
-    .n8n-chat-widget .chat-icon.large {
+    .welcome-chat-widget .chat-icon.large {
         font-size: 46px;
     }
 </style>
 
-<!-- Load n8n Chat Widget -->
+<!-- Load Welcome.Chat Widget -->
 <script type="module">
-    import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+    import { createChat } from 'https://cdn.welcome.chat/widget.js';
 
     // Create the chat widget
     const chatWidget = createChat({
-        webhookUrl: '${webhookUrl}'
+        apiEndpoint: '${chatApiEndpoint}'
     });
 
     // Add event listener to handle expand/collapse
     document.addEventListener('DOMContentLoaded', () => {
-        const chatWidgetElement = document.querySelector('.n8n-chat-widget');
+        const chatWidgetElement = document.querySelector('.welcome-chat-widget');
         const chatIcon = document.querySelector('.chat-icon');
         const chatContent = document.createElement('div');
         chatContent.classList.add('chat-content');
+        
+        // Add logo if available
+        const logoHtml = '${settings.logo_url ? `<img src="${settings.logo_url}" alt="${settings.agent_name}" class="widget-logo" />` : ''}';
+        
         chatContent.innerHTML = \`
-            <div>Welcome to the chat!</div>
-            <!-- Chat widget content will be dynamically inserted here -->
+            <div class="chat-header">
+                ${logoHtml}
+                <span class="chat-title">${settings.agent_name}</span>
+            </div>
+            <div class="chat-messages"></div>
+            <div class="chat-input">
+                <input type="text" placeholder="Type your message..." />
+                <button class="send-button">Send</button>
+            </div>
         \`;
+        
         chatWidgetElement.appendChild(chatContent);
 
         chatWidgetElement.addEventListener('click', () => {
@@ -171,7 +184,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 </script>
 
 <!-- HTML for the chat icon -->
-<div class="n8n-chat-widget">
+<div class="welcome-chat-widget">
     <div class="chat-icon">💬</div>
 </div>`;
 
@@ -197,8 +210,6 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
       });
     }
   };
-
-  const webhookUrl = settings.webhook_url || `https://${projectRef}.supabase.co/functions/v1/chat`;
   
   return (
     <div className="relative">
@@ -206,14 +217,15 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         ref={codeRef}
         className="p-4 bg-gray-50 rounded-lg text-sm overflow-x-auto border border-gray-200 max-h-[300px] font-mono"
       >
-{`<!-- Load n8n Chat Widget CSS -->
-<link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+{`<!-- Welcome.Chat Widget CSS -->
+<link href="https://cdn.welcome.chat/widget.css" rel="stylesheet" />
 
 <!-- Widget Configuration -->
 <script>
-    window.ChatWidgetConfig = {
+    window.WelcomeChatWidgetConfig = {
         branding: {
             name: '${settings.agent_name}',
+            logo: '${settings.logo_url}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
         },
@@ -230,7 +242,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 <!-- Add custom CSS for expandable behavior -->
 <style>
     /* Chat container styling */
-    .n8n-chat-widget {
+    .welcome-chat-widget {
         position: fixed;
         ${settings.position}: 20px;
         bottom: 20px;
@@ -247,7 +259,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
 
     /* When the chat is expanded */
-    .n8n-chat-widget.expanded {
+    .welcome-chat-widget.expanded {
         width: 350px; /* Adjust the width for the expanded chat */
         height: 400px; /* Adjust the height for the expanded chat */
         border-radius: 10px;
@@ -256,7 +268,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
 
     /* Chat content inside the widget */
-    .n8n-chat-widget .chat-content {
+    .welcome-chat-widget .chat-content {
         display: none;
         flex-direction: column;
         width: 100%;
@@ -267,45 +279,57 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
 
     /* When chat is expanded, show chat content */
-    .n8n-chat-widget.expanded .chat-content {
+    .welcome-chat-widget.expanded .chat-content {
         display: flex;
     }
 
     /* Icon for the collapsed state */
-    .n8n-chat-widget .chat-icon {
+    .welcome-chat-widget .chat-icon {
         font-size: 30px;
         color: white;
     }
     
     /* You can cycle between icon sizes by double-clicking */
-    .n8n-chat-widget .chat-icon.medium {
+    .welcome-chat-widget .chat-icon.medium {
         font-size: 38px;
     }
     
-    .n8n-chat-widget .chat-icon.large {
+    .welcome-chat-widget .chat-icon.large {
         font-size: 46px;
     }
 </style>
 
-<!-- Load n8n Chat Widget -->
+<!-- Load Welcome.Chat Widget -->
 <script type="module">
-    import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+    import { createChat } from 'https://cdn.welcome.chat/widget.js';
 
-    // Create the chat widget
+    // Create the chat widget with the AI assistant
     const chatWidget = createChat({
-        webhookUrl: '${webhookUrl}'
+        apiEndpoint: 'https://${projectRef}.supabase.co/functions/v1/chat'
     });
 
     // Add event listener to handle expand/collapse
     document.addEventListener('DOMContentLoaded', () => {
-        const chatWidgetElement = document.querySelector('.n8n-chat-widget');
+        const chatWidgetElement = document.querySelector('.welcome-chat-widget');
         const chatIcon = document.querySelector('.chat-icon');
         const chatContent = document.createElement('div');
         chatContent.classList.add('chat-content');
+        
+        // Add logo if available
+        const logoHtml = '${settings.logo_url ? `<img src="${settings.logo_url}" alt="${settings.agent_name}" class="widget-logo" />` : ''}';
+        
         chatContent.innerHTML = \`
-            <div>Welcome to the chat!</div>
-            <!-- Chat widget content will be dynamically inserted here -->
+            <div class="chat-header">
+                ${logoHtml}
+                <span class="chat-title">${settings.agent_name}</span>
+            </div>
+            <div class="chat-messages"></div>
+            <div class="chat-input">
+                <input type="text" placeholder="Type your message..." />
+                <button class="send-button">Send</button>
+            </div>
         \`;
+        
         chatWidgetElement.appendChild(chatContent);
 
         chatWidgetElement.addEventListener('click', () => {
@@ -333,7 +357,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 </script>
 
 <!-- HTML for the chat icon -->
-<div class="n8n-chat-widget">
+<div class="welcome-chat-widget">
     <div class="chat-icon">💬</div>
 </div>`}
       </pre>

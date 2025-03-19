@@ -1,59 +1,48 @@
 
-import { Loader2 } from "lucide-react";
-import { WidgetSettings } from "@/types/widget-settings";
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { useState, useEffect, useRef } from "react";
 
 interface ChatMessagesProps {
-  messages: Message[];
-  isLoading: boolean;
-  settings: WidgetSettings;
+  messages: Array<{ text: string; isUser: boolean }>;
+  backgroundColor: string;
+  textColor: string;
+  secondaryColor: string;
 }
 
-export function ChatMessages({ messages, isLoading, settings }: ChatMessagesProps) {
+export function ChatMessages({ 
+  messages, 
+  backgroundColor, 
+  textColor, 
+  secondaryColor 
+}: ChatMessagesProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   return (
-    <div
-      className="flex-1 p-4 overflow-y-auto flex flex-col gap-4"
-      style={{
-        backgroundColor: settings.background_color,
-        color: settings.text_color,
-      }}
+    <div 
+      className="flex-1 overflow-y-auto p-3 space-y-3"
+      style={{ backgroundColor, color: textColor }}
     >
-      {messages.length === 0 ? (
-        <div className="text-center text-sm opacity-50 my-8">
-          {settings.welcome_text}
-        </div>
-      ) : (
-        messages.map((message, index) => (
-          <div
-            key={index}
-            className={`max-w-[80%] rounded-lg p-3 ${
-              message.role === 'user'
-                ? 'bg-gray-100 ml-auto'
-                : 'bg-primary text-white mr-auto'
-            }`}
-            style={{
-              backgroundColor: message.role === 'user' 
-                ? '#f3f4f6' 
-                : settings.chat_color
-            }}
-          >
-            {message.content}
-          </div>
-        ))
-      )}
-      {isLoading && (
+      {messages.map((message, index) => (
         <div 
-          className="rounded-lg p-3 max-w-[80%] mr-auto flex items-center gap-2"
-          style={{ backgroundColor: settings.chat_color }}
+          key={index}
+          className={`p-3 rounded-lg max-w-[85%] ${
+            message.isUser 
+              ? 'ml-auto bg-blue-600 text-white' 
+              : `mr-auto ${secondaryColor === '#ffffff' ? 'bg-gray-100' : ''}`
+          }`}
+          style={
+            !message.isUser 
+              ? { backgroundColor: secondaryColor, color: textColor }
+              : {}
+          }
         >
-          <Loader2 className="w-4 h-4 animate-spin text-white" />
-          <span className="text-white">Typing...</span>
+          {message.text}
         </div>
-      )}
+      ))}
+      <div ref={messagesEndRef} />
     </div>
   );
 }
