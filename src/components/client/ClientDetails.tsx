@@ -8,6 +8,7 @@ import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { generateAiPrompt } from "@/utils/activityTypeUtils";
+import { uploadWidgetLogo } from "@/utils/widgetSettingsUtils";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -142,9 +143,14 @@ export const ClientDetails = ({
     agent_description?: string;
     logo_url?: string;
     logo_storage_path?: string;
+    _tempLogoFile?: File | null;
   }) => {
     try {
       console.log("Submitting client data:", data);
+      
+      // Extract temp logo file from data
+      const tempLogoFile = data._tempLogoFile;
+      delete data._tempLogoFile;
       
       // Track if the agent description was changed
       const descriptionChanged = client?.agent_description !== data.agent_description;
@@ -250,7 +256,7 @@ export const ClientDetails = ({
         toast.loading("Creating client account...", { id: toastId });
         
         try {
-          // Create the client and attempt to send invitation
+          // Create the client without the logo first
           const result = await clientMutation.mutateAsync({
             client_name: data.client_name,
             email: data.email,
@@ -260,6 +266,38 @@ export const ClientDetails = ({
             logo_storage_path: data.logo_storage_path
           });
           
+          let logoUrl = "";
+          let logoStoragePath = "";
+          
+          // Check if we got a client ID and have a logo to upload
+          if (tempLogoFile && typeof result === 'object' && 'clientId' in result && result.clientId) {
+            try {
+              // Upload the logo now that we have a client ID
+              const uploadResult = await uploadWidgetLogo(tempLogoFile, result.clientId);
+              logoUrl = uploadResult.publicUrl;
+              logoStoragePath = uploadResult.storagePath;
+              
+              // Update the client with the logo URL
+              await supabase
+                .from("clients")
+                .update({
+                  logo_url: logoUrl,
+                  logo_storage_path: logoStoragePath,
+                  widget_settings: {
+                    logo_url: logoUrl,
+                    logo_storage_path: logoStoragePath,
+                    agent_description: data.agent_description || ""
+                  }
+                })
+                .eq("id", result.clientId);
+                
+              console.log("Updated client with logo:", logoUrl);
+            } catch (logoError) {
+              console.error("Error uploading logo:", logoError);
+              // Continue without the logo if upload fails
+            }
+          }
+          
           // Check if result contains emailSent flag
           if (typeof result === 'object' && 'clientId' in result) {
             // Ensure AI agent exists with correct name for the new client
@@ -268,8 +306,8 @@ export const ClientDetails = ({
                 result.clientId, 
                 data.agent_name, 
                 data.agent_description,
-                data.logo_url,
-                data.logo_storage_path
+                logoUrl || data.logo_url,
+                logoStoragePath || data.logo_storage_path
               );
             }
             
