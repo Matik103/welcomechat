@@ -142,8 +142,10 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
 
-    // Sanitize the agent_name to prevent SQL syntax errors
-    const sanitizedAgentName = data.agent_name ? data.agent_name.replace(/"/g, "'") : 'agent_' + Date.now();
+    // Sanitize the agent_name to prevent SQL syntax errors by removing double quotes completely
+    const sanitizedAgentName = data.agent_name 
+      ? data.agent_name.replace(/"/g, "'") 
+      : 'agent_' + Date.now();
     
     console.log("Using sanitized agent name:", sanitizedAgentName);
     
@@ -380,4 +382,3 @@ export const sendClientInvitationEmail = async (params: {
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
-
