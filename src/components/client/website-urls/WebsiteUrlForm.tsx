@@ -49,16 +49,22 @@ export const WebsiteUrlForm = ({
       return false;
     }
 
+    // Normalize URL with proper protocol if missing
+    let normalizedUrl = newUrl;
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = 'https://' + normalizedUrl;
+    }
+
     try {
-      new URL(newUrl);
+      new URL(normalizedUrl);
     } catch (e) {
       setError("Please enter a valid URL");
       return false;
     }
 
     try {
-      console.log("Validating URL:", newUrl);
-      const result = await checkUrlAccess(newUrl);
+      console.log("Validating URL:", normalizedUrl);
+      const result = await checkUrlAccess(normalizedUrl);
       
       console.log("URL validation result:", result);
       
@@ -71,11 +77,11 @@ export const WebsiteUrlForm = ({
       
       if (clientId && agentName && result.content) {
         try {
-          console.log("Storing website content for:", { clientId, agentName, newUrl });
+          console.log("Storing website content for:", { clientId, agentName, normalizedUrl });
           const storeResult = await storeWebsiteContent(
             clientId,
             agentName,
-            newUrl,
+            normalizedUrl,
             result.content
           );
           
@@ -84,6 +90,13 @@ export const WebsiteUrlForm = ({
             toast.success("Website content imported to AI agent knowledge base");
           } else {
             console.warn("Could not store content:", storeResult.error);
+            
+            // Attempt to use Firecrawl if direct extraction failed
+            if (!isProcessing && clientId && agentName) {
+              toast.info("Trying advanced web scraping with Firecrawl...");
+              // The actual processing will be handled by the WebsiteUrls component
+              // using the FirecrawlService when the URL is added to the database
+            }
           }
         } catch (storeError) {
           console.error("Error storing content:", storeError);
@@ -117,10 +130,17 @@ export const WebsiteUrlForm = ({
     
     try {
       setIsSubmitting(true);
-      console.log("Submitting website URL:", newUrl, newRefreshRate);
+      
+      // Normalize URL with proper protocol if missing
+      let normalizedUrl = newUrl;
+      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+      
+      console.log("Submitting website URL:", normalizedUrl, newRefreshRate);
       
       await onAdd({
-        url: newUrl,
+        url: normalizedUrl,
         refresh_rate: newRefreshRate,
       });
     } catch (error) {

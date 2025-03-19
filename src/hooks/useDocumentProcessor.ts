@@ -42,15 +42,14 @@ export function useDocumentProcessor() {
       }
       
       // Determine if we should use LlamaParse or Firecrawl
-      // Only use Firecrawl for website URLs, everything else uses LlamaParse
-      const useLlamaParse = documentType !== "website_url" && 
-                           !documentType.includes("website") && 
-                           !(documentUrl.includes("/folders/"));
+      const isWebsite = documentType === "website_url" || documentType.includes("website");
+      const isFolder = documentUrl.includes("/folders/");
+      const useLlamaParse = !isWebsite && !isFolder;
       
       if (useLlamaParse) {
         toast.info(`Processing ${documentType} with LlamaParse...`);
       } else {
-        toast.info(`Processing ${documentType === "website_url" ? "website" : documentType} with Firecrawl...`);
+        toast.info(`Processing ${isWebsite ? "website" : documentType} with Firecrawl...`);
       }
       
       // Call the Edge Function to process the document

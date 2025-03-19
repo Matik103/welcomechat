@@ -8,6 +8,8 @@ interface CrawlResponse {
 interface CrawlOptions {
   limit?: number;
   formats?: string[];
+  depth?: number;
+  maxPagesToCrawl?: number;
 }
 
 export class FirecrawlService {
@@ -43,9 +45,26 @@ export class FirecrawlService {
           clientId,
           agentName,
           documentId,
-          useLlamaParse
+          useLlamaParse,
+          // Add crawl options for Firecrawl
+          crawlOptions: {
+            depth: 2, // Enable depth crawling
+            maxPagesToCrawl: 100, // Increase page limit
+            format: 'markdown' // Prefer markdown for better structure
+          }
         }),
       });
+
+      // Handle non-JSON responses first
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const rawText = await response.text();
+        console.error('Received non-JSON response:', rawText.substring(0, 500));
+        return {
+          success: false,
+          error: `Server returned non-JSON response: ${rawText.substring(0, 200)}...`,
+        };
+      }
 
       // If response is not OK, get the error text
       if (!response.ok) {
