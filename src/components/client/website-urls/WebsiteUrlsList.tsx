@@ -1,19 +1,23 @@
 
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, RefreshCw } from "lucide-react";
 import { WebsiteUrl } from "@/types/client";
 
 interface WebsiteUrlsListProps {
   urls: WebsiteUrl[];
   onDelete: (id: number) => void;
+  onProcess: (url: WebsiteUrl) => void;
   isDeleteLoading: boolean;
-  deletingId: number | null;
+  isProcessing: boolean;
+  deletingId?: number | null;
 }
 
 export const WebsiteUrlsList = ({
   urls,
   onDelete,
+  onProcess,
   isDeleteLoading,
+  isProcessing,
   deletingId,
 }: WebsiteUrlsListProps) => {
   if (urls.length === 0) {
@@ -26,6 +30,20 @@ export const WebsiteUrlsList = ({
         <div key={url.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
           <span className="flex-1 truncate text-sm">{url.url}</span>
           <span className="text-sm text-gray-500 whitespace-nowrap">({url.refresh_rate} days)</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onProcess(url)}
+            disabled={isProcessing}
+            className="h-8 px-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+            title="Process this URL"
+          >
+            {isProcessing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
