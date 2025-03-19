@@ -27,6 +27,8 @@ export const useClientMutation = (id: string | undefined) => {
       };
       
       console.log("Data after sanitization:", sanitizedData);
+      console.log("Agent name before:", data.agent_name);
+      console.log("Agent name after sanitization:", sanitizedData.agent_name);
 
       if (id) {
         // Update existing client

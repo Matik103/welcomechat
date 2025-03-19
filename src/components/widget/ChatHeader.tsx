@@ -16,6 +16,9 @@ export function ChatHeader({
   textColor, 
   onClose 
 }: ChatHeaderProps) {
+  // Log the received agent name for debugging
+  console.log("ChatHeader received agent name:", agentName);
+  
   return (
     <div 
       className="p-3 flex items-center justify-between border-b" 
