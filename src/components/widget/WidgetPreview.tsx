@@ -11,10 +11,11 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 interface WidgetPreviewProps {
   settings: WidgetSettings;
   clientId?: string;
+  fullscreen?: boolean;
 }
 
-export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
-  const [expanded, setExpanded] = useState(false);
+export function WidgetPreview({ settings, clientId, fullscreen = false }: WidgetPreviewProps) {
+  const [expanded, setExpanded] = useState(fullscreen);
   const [messages, setMessages] = useState<{ text: string; isUser: boolean }[]>([
     { text: settings.welcome_text || "Hi 👋, how can I help?", isUser: false }
   ]);
@@ -27,6 +28,13 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     clientId, 
     settings.agent_name
   );
+
+  // When fullscreen prop changes, update expanded state
+  useEffect(() => {
+    if (fullscreen) {
+      setExpanded(true);
+    }
+  }, [fullscreen]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -158,9 +166,14 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     }, 1000);
   };
 
+  // Determine the appropriate width and height based on fullscreen mode
+  const containerClasses = fullscreen 
+    ? "w-full h-full rounded-lg overflow-hidden shadow-xl" 
+    : "relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex justify-end items-end p-4 bg-gray-50";
+
   return (
-    <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex justify-end items-end p-4 bg-gray-50">
-      {!expanded && (
+    <div className={containerClasses}>
+      {!expanded && !fullscreen && (
         <div className="absolute bottom-16 right-16 text-xs text-gray-500 z-0 pointer-events-none">
           <div className="bg-white p-2 rounded-lg shadow-md animate-pulse">
             Click the chat icon to expand the widget
@@ -171,10 +184,11 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       <div 
         className={`
           transition-all duration-300 ease-in-out z-10
-          ${expanded ? 'w-96 h-[500px] rounded-lg' : 'w-14 h-14 rounded-full cursor-pointer'}
+          ${expanded ? (fullscreen ? 'w-full h-full' : 'w-96 h-[500px]') : 'w-14 h-14 rounded-full cursor-pointer'}
           shadow-lg
           flex flex-col
           overflow-hidden
+          rounded-lg
         `}
         style={{ backgroundColor: expanded ? settings.background_color : settings.chat_color }}
       >
@@ -185,7 +199,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
               logoUrl={settings.logo_url}
               backgroundColor={settings.chat_color}
               textColor={settings.text_color}
-              onClose={handleToggleExpand}
+              onClose={fullscreen ? () => {} : handleToggleExpand}
             />
             
             {isAgentLoading && (
@@ -204,6 +218,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                   isTyping={isTyping}
                   messagesEndRef={messagesEndRef}
                   logoUrl={settings.logo_url}
+                  agentName={settings.agent_name}
                 />
                 
                 <ChatInput 
@@ -214,6 +229,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                   secondaryColor={settings.secondary_color}
                   textColor={settings.text_color}
                   disabled={isTyping}
+                  fullscreen={fullscreen}
                 />
               </>
             )}

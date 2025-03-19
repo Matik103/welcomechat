@@ -11,6 +11,7 @@ interface ChatMessagesProps {
   isTyping?: boolean;
   messagesEndRef?: RefObject<HTMLDivElement>;
   logoUrl?: string;
+  agentName: string;
 }
 
 export function ChatMessages({ 
@@ -20,7 +21,8 @@ export function ChatMessages({
   secondaryColor,
   isTyping = false,
   messagesEndRef,
-  logoUrl
+  logoUrl,
+  agentName
 }: ChatMessagesProps) {
   // Helper function to generate initials from agent name
   const getInitials = (name: string) => {
@@ -40,12 +42,16 @@ export function ChatMessages({
             className={`flex ${message.isUser ? 'justify-end' : 'justify-start'} items-end gap-2`}
           >
             {!message.isUser && (
-              <Avatar className="w-8 h-8 border border-gray-200">
+              <Avatar className="w-8 h-8 border border-gray-200 shadow-sm overflow-hidden">
                 {logoUrl ? (
-                  <AvatarImage src={logoUrl} alt="Agent" className="object-cover" />
+                  <AvatarImage 
+                    src={logoUrl} 
+                    alt={agentName} 
+                    className="object-cover w-full h-full"
+                  />
                 ) : null}
-                <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800">
-                  AI
+                <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800 font-medium">
+                  {getInitials(agentName)}
                 </AvatarFallback>
               </Avatar>
             )}
@@ -75,12 +81,16 @@ export function ChatMessages({
         
         {isTyping && (
           <div className="flex justify-start items-end gap-2">
-            <Avatar className="w-8 h-8 border border-gray-200">
+            <Avatar className="w-8 h-8 border border-gray-200 overflow-hidden">
               {logoUrl ? (
-                <AvatarImage src={logoUrl} alt="Agent" className="object-cover" />
+                <AvatarImage 
+                  src={logoUrl} 
+                  alt={agentName} 
+                  className="object-cover"
+                />
               ) : null}
-              <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800">
-                AI
+              <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800 font-medium">
+                {getInitials(agentName)}
               </AvatarFallback>
             </Avatar>
             

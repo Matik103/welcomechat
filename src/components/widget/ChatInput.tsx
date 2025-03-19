@@ -9,6 +9,7 @@ interface ChatInputProps {
   secondaryColor: string;
   textColor: string;
   disabled?: boolean;
+  fullscreen?: boolean;
 }
 
 export function ChatInput({ 
@@ -18,7 +19,8 @@ export function ChatInput({
   primaryColor,
   secondaryColor,
   textColor,
-  disabled = false
+  disabled = false,
+  fullscreen = false
 }: ChatInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && value.trim() && !disabled) {
@@ -27,7 +29,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="border-t border-gray-200 p-4 flex gap-2 items-center">
+    <div className={`border-t border-gray-200 p-4 flex gap-2 items-center ${fullscreen ? 'bg-white' : ''}`}>
       <input
         type="text"
         value={value}
@@ -44,11 +46,13 @@ export function ChatInput({
       <button
         onClick={onSend}
         disabled={!value.trim() || disabled}
-        className="p-2.5 rounded-full disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
+        className="p-2.5 rounded-full disabled:opacity-50 transition-all hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2"
         style={{ 
           backgroundColor: value.trim() && !disabled ? primaryColor : '#ccc',
-          color: 'white'
+          color: 'white',
+          focusRingColor: primaryColor
         }}
+        aria-label="Send message"
       >
         <Send className="w-5 h-5" />
       </button>
