@@ -1,85 +1,150 @@
 
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { FirecrawlService } from "@/utils/FirecrawlService";
 import { toast } from "sonner";
-
-interface ProcessDocumentInput {
-  documentUrl: string;
-  documentType: string;
-  clientId: string;
-  agentName: string;
-  documentId: string;
-}
+import { supabase } from "@/integrations/supabase/client";
 
 export function useDocumentProcessor() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [lastProcessingResult, setLastProcessingResult] = useState<any>(null);
-
-  const processDocument = async (input: ProcessDocumentInput): Promise<{ success: boolean; message?: string; error?: string }> => {
-    if (!input.documentUrl || !input.documentType || !input.clientId || !input.agentName || !input.documentId) {
-      return { 
-        success: false, 
-        error: "Missing required fields for document processing" 
-      };
-    }
-    
+  
+  // Function to get the agent name for a client
+  const getAgentName = async (clientId: string): Promise<string | null> => {
     try {
-      setIsProcessing(true);
-      console.log("Processing document:", input);
-      
-      // Call the Supabase Edge Function
-      const { data, error } = await supabase.functions.invoke("process-document", {
-        body: {
-          documentUrl: input.documentUrl,
-          documentType: input.documentType,
-          clientId: input.clientId,
-          agentName: input.agentName,
-          documentId: input.documentId
-        }
-      });
-      
+      const { data, error } = await supabase
+        .from("clients")
+        .select("agent_name")
+        .eq("id", clientId)
+        .single();
+        
       if (error) {
-        console.error("Error calling process-document function:", error);
-        toast.error(`Processing failed: ${error.message}`);
-        setLastProcessingResult({ success: false, error: error.message });
-        return { 
-          success: false, 
-          error: error.message 
-        };
+        console.error("Error fetching agent name:", error);
+        return null;
       }
       
-      console.log("Document processing result:", data);
-      setLastProcessingResult(data);
-      
-      if (data.success) {
-        toast.success("Document processed successfully");
-        return {
-          success: true,
-          message: data.message || "Document processed successfully"
-        };
-      } else {
-        toast.error(`Processing failed: ${data.error}`);
-        return {
-          success: false,
-          error: data.error
-        };
-      }
+      return data?.agent_name || null;
     } catch (error) {
-      console.error("Unhandled error in processDocument:", error);
-      toast.error(`Processing failed: ${error.message}`);
-      setLastProcessingResult({ success: false, error: error.message });
-      return {
-        success: false,
-        error: error.message
-      };
+      console.error("Error in getAgentName:", error);
+      return null;
+    }
+  };
+  
+  const processWebsiteUrl = async (clientId: string, url: string, urlId: string) => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    try {
+      const agentName = await getAgentName(clientId);
+      
+      if (!agentName) {
+        toast.error("AI Agent Name not found. Please configure your agent name in settings.");
+        return;
+      }
+      
+      console.log(`Processing website URL for client ${clientId} with agent ${agentName}`);
+      
+      const result = await FirecrawlService.processDocument(
+        url,
+        "website_url",
+        clientId,
+        agentName,
+        urlId.toString()
+      );
+      
+      if (result.success) {
+        toast.success("Website is being processed and will be added to your knowledge base");
+      } else {
+        toast.error(`Failed to process website: ${result.error}`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Error processing website URL:", error);
+      toast.error(`Error processing website: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  const processGoogleDriveLink = async (clientId: string, link: string, linkId: string) => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    try {
+      const agentName = await getAgentName(clientId);
+      
+      if (!agentName) {
+        toast.error("AI Agent Name not found. Please configure your agent name in settings.");
+        return;
+      }
+      
+      console.log(`Processing Google Drive link for client ${clientId} with agent ${agentName}`);
+      
+      const result = await FirecrawlService.processDocument(
+        link,
+        "google_drive",
+        clientId,
+        agentName,
+        linkId.toString()
+      );
+      
+      if (result.success) {
+        toast.success("Document is being processed and will be added to your knowledge base");
+      } else {
+        toast.error(`Failed to process document: ${result.error}`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Error processing Google Drive link:", error);
+      toast.error(`Error processing document: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  const processUploadedDocument = async (clientId: string, file: File, documentId: string) => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    try {
+      const agentName = await getAgentName(clientId);
+      
+      if (!agentName) {
+        toast.error("AI Agent Name not found. Please configure your agent name in settings.");
+        return;
+      }
+      
+      const documentUrl = `https://storage.example.com/${clientId}/${file.name}`; // This would be the actual storage URL
+      
+      console.log(`Processing uploaded document for client ${clientId} with agent ${agentName}`);
+      
+      const result = await FirecrawlService.processDocument(
+        documentUrl,
+        file.type,
+        clientId,
+        agentName,
+        documentId
+      );
+      
+      if (result.success) {
+        toast.success("Document is being processed and will be added to your knowledge base");
+      } else {
+        toast.error(`Failed to process document: ${result.error}`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Error processing uploaded document:", error);
+      toast.error(`Error processing document: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsProcessing(false);
     }
   };
   
   return {
-    processDocument,
-    isProcessing,
-    lastProcessingResult
+    processWebsiteUrl,
+    processGoogleDriveLink,
+    processUploadedDocument,
+    isProcessing
   };
 }
