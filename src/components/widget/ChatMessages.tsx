@@ -42,7 +42,7 @@ export function ChatMessages({
             className={`flex ${message.isUser ? 'justify-end' : 'justify-start'} items-end gap-2`}
           >
             {!message.isUser && (
-              <Avatar className="w-8 h-8 border border-gray-200 shadow-sm overflow-hidden">
+              <Avatar className="w-8 h-8 border border-gray-200 shadow-sm">
                 {logoUrl ? (
                   <AvatarImage 
                     src={logoUrl} 
@@ -54,7 +54,7 @@ export function ChatMessages({
                     }}
                   />
                 ) : null}
-                <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800 font-medium">
+                <AvatarFallback className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}>
                   {getInitials(agentName)}
                 </AvatarFallback>
               </Avatar>
@@ -85,19 +85,19 @@ export function ChatMessages({
         
         {isTyping && (
           <div className="flex justify-start items-end gap-2">
-            <Avatar className="w-8 h-8 border border-gray-200 overflow-hidden">
+            <Avatar className="w-8 h-8 border border-gray-200">
               {logoUrl ? (
                 <AvatarImage 
                   src={logoUrl} 
                   alt={agentName} 
-                  className="object-cover"
+                  className="object-cover w-full h-full"
                   onError={(e) => {
                     console.error("Error loading logo in typing indicator:", logoUrl);
                     e.currentTarget.style.display = 'none';
                   }}
                 />
               ) : null}
-              <AvatarFallback className="text-xs bg-indigo-100 text-indigo-800 font-medium">
+              <AvatarFallback className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}>
                 {getInitials(agentName)}
               </AvatarFallback>
             </Avatar>
