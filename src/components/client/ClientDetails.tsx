@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -53,7 +52,7 @@ export const ClientDetails = ({
       const formattedAgentName = agentName;
       
       // Generate AI prompt from agent name, description and client name
-      const aiPrompt = generateAiPrompt(agentName, agentDescription || "", clientName || "");
+      const aiPrompt = generateAiPrompt(agentName, agentDescription || "", clientName);
       
       // Check if agent exists
       const { data: existingAgents, error: queryError } = await supabase
