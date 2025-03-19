@@ -57,7 +57,10 @@ export const WebsiteUrlForm = ({
     }
 
     try {
+      console.log("Validating URL:", newUrl);
       const result = await checkUrlAccess(newUrl);
+      
+      console.log("URL validation result:", result);
       
       if (!result.isAccessible) {
         setError(`URL is not accessible: ${result.error || "Unknown error"}`);
@@ -68,6 +71,7 @@ export const WebsiteUrlForm = ({
       
       if (clientId && agentName && result.content) {
         try {
+          console.log("Storing website content for:", { clientId, agentName, newUrl });
           const storeResult = await storeWebsiteContent(
             clientId,
             agentName,
@@ -84,10 +88,18 @@ export const WebsiteUrlForm = ({
         } catch (storeError) {
           console.error("Error storing content:", storeError);
         }
+      } else {
+        console.warn("Not storing content due to missing clientId, agentName, or content", {
+          hasClientId: !!clientId,
+          hasAgentName: !!agentName,
+          hasContent: !!result.content,
+          contentLength: result.content?.length || 0
+        });
       }
       
       return true;
     } catch (e) {
+      console.error("Failed to validate URL:", e);
       setError("Failed to validate URL");
       return false;
     }
@@ -172,6 +184,9 @@ export const WebsiteUrlForm = ({
               Validate
             </Button>
           </div>
+          <p className="text-xs text-gray-500">
+            Enter complete URL including https:// (e.g., https://example.com)
+          </p>
         </div>
         
         <div className="space-y-2">
