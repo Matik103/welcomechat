@@ -22,8 +22,9 @@ export function useLogoUpload(
   ) => {
     if (clientId && isClientView) {
       try {
-        const { logClientActivity } = await import("@/hooks/useClientActivity");
-        return logClientActivity(clientId)(activity_type, description, metadata);
+        const { useClientActivity } = await import("@/hooks/useClientActivity");
+        const { logClientActivity } = useClientActivity(clientId);
+        return logClientActivity(activity_type, description, metadata);
       } catch (error) {
         console.error("Error logging client activity:", error);
       }
