@@ -23,7 +23,7 @@ export function ChatHeader({
       style={{ backgroundColor, color: textColor }}
     >
       <div className="flex items-center gap-3">
-        <Avatar className="w-10 h-10 border-2 border-white border-opacity-30 overflow-hidden shadow-sm">
+        <Avatar className="w-10 h-10 border-2 border-white border-opacity-30 shadow-sm">
           {logoUrl ? (
             <AvatarImage 
               src={logoUrl} 
@@ -35,7 +35,7 @@ export function ChatHeader({
               }}
             />
           ) : null}
-          <AvatarFallback className="text-sm bg-indigo-200 text-indigo-800 font-medium">
+          <AvatarFallback className={`text-sm bg-indigo-200 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}>
             {agentName ? agentName.substring(0, 2).toUpperCase() : 'AI'}
           </AvatarFallback>
         </Avatar>
