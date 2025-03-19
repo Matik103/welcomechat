@@ -162,7 +162,8 @@ export const uploadDocumentWithTracking = async (
           file_size: file.size,
           document_type: documentType,
           document_id: documentId,
-          uploaded_at: new Date().toISOString()
+          uploaded_at: new Date().toISOString(),
+          processing_method: "llamaparse" // Always use LlamaParse for documents
         }
       })
       .select("id")
@@ -201,7 +202,7 @@ export const uploadDocumentWithTracking = async (
       }
     );
     
-    toast.success(`Document uploaded and processed successfully!`);
+    toast.success(`Document uploaded successfully! Processing with LlamaParse...`);
     return fileUrl;
     
   } catch (error) {
