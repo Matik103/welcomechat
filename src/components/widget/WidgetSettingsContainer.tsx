@@ -38,7 +38,8 @@ export function WidgetSettingsContainer({
   const [isChatExpanded, setIsChatExpanded] = useState(false);
 
   const handleSettingsChange = (newSettings: Partial<IWidgetSettings>) => {
-    setCurrentSettings({ ...currentSettings, ...newSettings });
+    console.log("Settings changed:", newSettings);
+    setCurrentSettings(prevSettings => ({ ...prevSettings, ...newSettings }));
   };
 
   const handleSave = async () => {
@@ -69,6 +70,9 @@ export function WidgetSettingsContainer({
       );
     }
   };
+
+  // Calculate if logo has changed to inform user
+  const hasLogoChanged = currentSettings.logo_url !== settings.logo_url;
 
   return (
     <div className="container mx-auto py-8 max-w-4xl">
@@ -108,6 +112,11 @@ export function WidgetSettingsContainer({
         
         <div className="lg:col-span-1">
           <WidgetPreviewCard settings={currentSettings} clientId={clientId} />
+          {hasLogoChanged && !updateSettingsMutation.isPending && (
+            <div className="mt-2 text-sm text-amber-600">
+              <p>Remember to click "Save Changes" to permanently save your logo.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
