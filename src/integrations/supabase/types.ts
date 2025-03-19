@@ -675,6 +675,51 @@ export type Database = {
         }
         Relationships: []
       }
+      document_processing_jobs: {
+        Row: {
+          agent_name: string
+          client_id: string
+          content: string | null
+          created_at: string
+          document_id: string
+          document_type: string
+          document_url: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_name: string
+          client_id: string
+          content?: string | null
+          created_at?: string
+          document_id: string
+          document_type: string
+          document_url: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_name?: string
+          client_id?: string
+          content?: string | null
+          created_at?: string
+          document_id?: string
+          document_type?: string
+          document_url?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_logs: {
         Row: {
           email_to: string

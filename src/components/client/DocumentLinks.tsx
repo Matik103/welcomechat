@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,8 @@ import { useDriveAccessCheck } from "@/hooks/useDriveAccessCheck";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDocumentProcessor } from "@/hooks/useDocumentProcessor";
+import { toast } from "react-toastify";
 
 interface DocumentLinksProps {
   documentLinks: DocumentLink[];
@@ -49,8 +50,8 @@ export const DocumentLinks = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [agentName, setAgentName] = useState<string | undefined>(initialAgentName);
   const [isLoadingAgentName, setIsLoadingAgentName] = useState(false);
+  const { processDocument, isProcessing } = useDocumentProcessor();
 
-  // Document type specific placeholders and validation patterns
   const documentTypeConfig = {
     google_drive: {
       placeholder: "https://drive.google.com/drive/folders/...",
@@ -89,10 +90,8 @@ export const DocumentLinks = ({
     }
   };
 
-  // Get current document type configuration
   const currentConfig = documentTypeConfig[documentType as keyof typeof documentTypeConfig] || documentTypeConfig.other;
 
-  // Handle document type change
   const handleDocumentTypeChange = (value: string) => {
     setDocumentType(value);
     setIsValidated(false);
@@ -100,7 +99,6 @@ export const DocumentLinks = ({
     setFileId(null);
   };
 
-  // Fetch the agent name from database whenever clientId changes
   useEffect(() => {
     const fetchAgentName = async () => {
       if (!clientId) return;
@@ -129,7 +127,6 @@ export const DocumentLinks = ({
     fetchAgentName();
   }, [clientId]);
 
-  // Re-fetch agent name whenever we show the form to ensure it's up to date
   useEffect(() => {
     if (showNewForm && clientId) {
       const fetchAgentName = async () => {
@@ -160,7 +157,6 @@ export const DocumentLinks = ({
 
   const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewLink(e.target.value);
-    // Reset validation when link changes
     setIsValidated(false);
     setError(null);
     setFileId(null);
@@ -172,14 +168,12 @@ export const DocumentLinks = ({
       return false;
     }
 
-    // Validate the link format based on document type
     const config = documentTypeConfig[documentType as keyof typeof documentTypeConfig];
     if (!config.validationRegex.test(newLink)) {
       setError(`Invalid ${documentType.replace('_', ' ')} link format. ${config.helperText}`);
       return false;
     }
 
-    // Special validation for Google Drive links
     if (documentType === "google_drive" || documentType === "google_doc" || documentType === "google_sheet") {
       const validation = validateDriveLink(newLink);
       if (!validation.isValid) {
@@ -188,7 +182,6 @@ export const DocumentLinks = ({
       }
       setFileId(validation.fileId);
     } else {
-      // For other document types, verify it's a valid URL
       try {
         new URL(newLink);
       } catch (e) {
@@ -214,11 +207,31 @@ export const DocumentLinks = ({
     try {
       setIsSubmitting(true);
       console.log("Submitting document link:", newLink, newRefreshRate, documentType);
+      
       await onAdd({
         link: newLink,
         refresh_rate: newRefreshRate,
         document_type: documentType
       });
+      
+      if (clientId && agentName) {
+        try {
+          const documentId = `${Date.now()}_${documentType}`;
+          
+          toast.info("Processing document content...");
+          
+          await processDocument({
+            documentUrl: newLink,
+            documentType: documentType,
+            clientId,
+            agentName,
+            documentId
+          });
+        } catch (processingError) {
+          console.error("Error processing document:", processingError);
+          toast.error(`Document added but content processing failed: ${processingError.message}`);
+        }
+      }
       
       setNewLink("");
       setNewRefreshRate(30);
@@ -266,11 +279,12 @@ export const DocumentLinks = ({
     
     try {
       setIsSubmitting(true);
+      
       await onUpload(selectedFile, agentName);
+      
       setSelectedFile(null);
       setShowNewForm(false);
       
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -317,6 +331,16 @@ export const DocumentLinks = ({
       case "excel": return "Excel";
       case "document": return "Document";
       default: return type.replace('_', ' ');
+    }
+  };
+
+  const getAddButtonText = () => {
+    if (isAddLoading || isSubmitting) {
+      return "Adding...";
+    } else if (isProcessing) {
+      return "Processing...";
+    } else {
+      return "Add Link";
     }
   };
 
@@ -504,14 +528,14 @@ export const DocumentLinks = ({
                   </Button>
                   <Button 
                     type="submit"
-                    disabled={isAddLoading || isSubmitting || !newLink || (isChecking && !isValidated)}
+                    disabled={isAddLoading || isSubmitting || !newLink || (isChecking && !isValidated) || isProcessing}
                   >
-                    {(isAddLoading || isSubmitting) ? (
+                    {(isAddLoading || isSubmitting || isProcessing) ? (
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     ) : (
                       <Plus className="w-4 h-4 mr-2" />
                     )}
-                    Add Link
+                    {getAddButtonText()}
                   </Button>
                 </div>
               </form>
