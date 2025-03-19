@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { FirecrawlService } from "@/utils/FirecrawlService";
+import { LlamaCloudService } from "@/utils/LlamaCloudService";
 import { toast } from "sonner";
 
 interface ProcessDocumentParams {
@@ -25,13 +26,26 @@ export function useDocumentProcessor() {
         toast.info("Google Drive folder detected - processing all documents in folder");
       }
       
+      // Determine if we should use LlamaParse or Firecrawl
+      // Only use Firecrawl for website URLs, everything else uses LlamaParse
+      const useLlamaParse = documentType !== "website_url" && 
+                           !documentType.includes("website") && 
+                           !(params.documentUrl.includes("/folders/"));
+      
+      if (useLlamaParse) {
+        toast.info(`Processing ${documentType} with LlamaParse...`);
+      } else {
+        toast.info(`Processing ${documentType === "website_url" ? "website" : documentType} with Firecrawl...`);
+      }
+      
       // Call the Edge Function to process the document
       const response = await FirecrawlService.processDocument(
         params.documentUrl,
         documentType,
         params.clientId,
         params.agentName,
-        params.documentId
+        params.documentId,
+        useLlamaParse
       );
       
       if (!response.success) {
@@ -42,7 +56,7 @@ export function useDocumentProcessor() {
       if (documentType === "google_drive_folder") {
         toast.success("Google Drive folder documents processed successfully!");
       } else {
-        toast.success("Document processed successfully!");
+        toast.success(`Document processed successfully with ${useLlamaParse ? "LlamaParse" : "Firecrawl"}!`);
       }
       
       return response.data;

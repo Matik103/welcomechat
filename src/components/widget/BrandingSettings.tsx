@@ -2,6 +2,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { WidgetSettings } from "@/types/widget-settings";
+import { LogoManagement } from "./LogoManagement";
 
 interface BrandingSettingsProps {
   settings: WidgetSettings;
@@ -16,6 +17,10 @@ export function BrandingSettings({
   onSettingsChange,
   onLogoUpload
 }: BrandingSettingsProps) {
+  const handleRemoveLogo = () => {
+    onSettingsChange({ logo_url: "", logo_storage_path: "" });
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -33,17 +38,13 @@ export function BrandingSettings({
       </div>
 
       <div>
-        <Label htmlFor="webhook_url">Webhook URL (Optional)</Label>
-        <Input
-          id="webhook_url"
-          value={settings.webhook_url || ''}
-          onChange={(e) => onSettingsChange({ webhook_url: e.target.value })}
-          placeholder="https://your-webhook-url.com"
-          className="mt-1"
+        <Label>Logo</Label>
+        <LogoManagement
+          logoUrl={settings.logo_url}
+          isUploading={isUploading}
+          onLogoUpload={onLogoUpload}
+          onRemoveLogo={handleRemoveLogo}
         />
-        <p className="text-sm text-gray-500 mt-1">
-          API endpoint that will receive and respond to chat messages. If not provided, our default AI endpoint will be used.
-        </p>
       </div>
 
       <div>

@@ -12,14 +12,15 @@ interface CrawlOptions {
 
 export class FirecrawlService {
   /**
-   * Calls the Supabase process-document edge function to process a document with Firecrawl
+   * Calls the Supabase process-document edge function to process a document with Firecrawl or LlamaParse
    */
   static async processDocument(
     documentUrl: string,
     documentType: string,
     clientId: string,
     agentName: string,
-    documentId: string
+    documentId: string,
+    useLlamaParse: boolean = false
   ): Promise<CrawlResponse> {
     try {
       const response = await fetch('/api/process-document', {
@@ -32,7 +33,8 @@ export class FirecrawlService {
           documentType,
           clientId,
           agentName,
-          documentId
+          documentId,
+          useLlamaParse
         }),
       });
 
@@ -54,7 +56,7 @@ export class FirecrawlService {
       console.error('Error in processDocument:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to connect to Firecrawl API',
+        error: error instanceof Error ? error.message : 'Failed to connect to processing API',
       };
     }
   }

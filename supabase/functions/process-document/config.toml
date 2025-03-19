@@ -10,3 +10,9 @@ command = [
   "--allow-read",
   "index.ts"
 ]
+
+# Add the LlamaCloud API key to the Edge Function secrets
+# The actual key is managed via Supabase secrets, not stored here
+# Run this command to add the key:
+# supabase secrets set LLAMA_CLOUD_API_KEY="llx-01SGEh28rpYJ08omsfd2q1izhiRnIrWhP3wsG1HBIvXykkkw"
+
