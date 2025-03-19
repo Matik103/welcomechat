@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,6 +119,23 @@ export const WebsiteUrlForm = ({
     }
   };
 
+  const getProcessingText = () => {
+    if (isProcessing) {
+      // For website URLs, we always use Firecrawl
+      return "Processing with Firecrawl...";
+    }
+    
+    if (isStoring) {
+      return "Importing...";
+    }
+    
+    if (isAddLoading || isSubmitting) {
+      return "Adding...";
+    }
+    
+    return "Add URL";
+  };
+
   return (
     <form className="border border-gray-200 rounded-md p-4 bg-gray-50" onSubmit={handleSubmit}>
       <div className="space-y-4">
@@ -183,7 +201,7 @@ export const WebsiteUrlForm = ({
             {(isAddLoading || isSubmitting || isProcessing || isStoring) ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                {isProcessing ? "Processing..." : isStoring ? "Importing..." : "Adding..."}
+                {getProcessingText()}
               </>
             ) : (
               <>

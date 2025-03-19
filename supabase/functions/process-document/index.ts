@@ -15,7 +15,7 @@ serve(async (req) => {
 
   try {
     // Extract the request data
-    const { documentUrl, documentType, clientId, agentName, documentId } = await req.json();
+    const { documentUrl, documentType, clientId, agentName, documentId, useLlamaParse } = await req.json();
     
     // Validate required fields
     if (!documentUrl || !documentType || !clientId || !agentName || !documentId) {
@@ -46,7 +46,8 @@ serve(async (req) => {
         status: "processing",
         metadata: {
           started_at: new Date().toISOString(),
-          source_type: documentType
+          source_type: documentType,
+          processing_method: useLlamaParse ? "llamaparse" : "firecrawl"
         }
       })
       .select()
@@ -65,65 +66,265 @@ serve(async (req) => {
 
     console.log("Created processing job:", jobData.id);
 
-    // Configure Firecrawl request based on document type
-    let firecrawlEndpoint = "";
-    let requestData = {};
-    const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
-
-    if (!firecrawlApiKey) {
-      await updateJobStatus(supabase, jobData.id, "failed", "Firecrawl API key is missing");
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Firecrawl API key is missing" 
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    // Determine which service to use based on document type and the useLlamaParse flag
+    if (useLlamaParse || 
+        documentType === "google_doc" || 
+        documentType === "excel" ||
+        documentType === "powerpoint" ||
+        documentType === "pdf" ||
+        (documentUrl.includes("drive.google.com") && !documentUrl.includes("/folders/"))) {
+      
+      // Use LlamaParse for document processing
+      return await processWithLlamaParse(
+        supabase, 
+        jobData.id, 
+        documentUrl, 
+        documentType, 
+        clientId, 
+        agentName,
+        documentId,
+        corsHeaders
+      );
+    } else {
+      // Use Firecrawl for website and other content types
+      return await processWithFirecrawl(
+        supabase, 
+        jobData.id, 
+        documentUrl, 
+        documentType, 
+        clientId, 
+        agentName,
+        documentId,
+        corsHeaders
       );
     }
 
-    // Handle different document types
-    if (documentType === "website_url" || documentUrl.startsWith("http") && !documentUrl.includes("drive.google.com")) {
-      firecrawlEndpoint = "https://api.firecrawl.dev/crawl/url";
-      requestData = {
+  } catch (error) {
+    console.error('Error in process-document function:', error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: `Unhandled error: ${error.message}` 
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    );
+  }
+});
+
+// Process with LlamaParse
+async function processWithLlamaParse(
+  supabase: any, 
+  jobId: string, 
+  documentUrl: string, 
+  documentType: string, 
+  clientId: string, 
+  agentName: string,
+  documentId: string,
+  corsHeaders: any
+) {
+  const llamaCloudApiKey = Deno.env.get("LLAMA_CLOUD_API_KEY");
+
+  if (!llamaCloudApiKey) {
+    await updateJobStatus(supabase, jobId, "failed", "LlamaCloud API key is missing");
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: "LlamaCloud API key is missing" 
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    );
+  }
+
+  console.log(`Processing ${documentType} with LlamaParse:`, documentUrl);
+
+  try {
+    // Call the LlamaParse API
+    const llamaParseUrl = "https://api.cloud.llamaindex.ai/api/parsing";
+    const response = await fetch(llamaParseUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${llamaCloudApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
         url: documentUrl,
-        options: {
-          limit: 100,
-          formats: ["markdown"]
-        }
-      };
-    } else if (documentType === "google_drive_folder") {
-      // Special handling for Google Drive folders
-      firecrawlEndpoint = "https://api.firecrawl.dev/content/drive-folder";
-      requestData = {
-        folderId: extractGoogleDriveFolderId(documentUrl),
-        options: {
-          recursive: true,
-          formats: ["markdown"]
-        }
-      };
-    } else if (documentType === "google_drive" || documentType === "google_doc" || 
-              documentType === "excel" || documentType === "pdf") {
-      firecrawlEndpoint = "https://api.firecrawl.dev/content/document";
-      requestData = {
-        url: documentUrl,
-        options: {
-          formats: ["markdown"]
-        }
-      };
-    } else {
-      await updateJobStatus(supabase, jobData.id, "failed", `Unsupported document type: ${documentType}`);
+        result_type: "markdown" // Request markdown format
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("LlamaParse API error:", errorText);
+      await updateJobStatus(supabase, jobId, "failed", `LlamaParse API error: ${response.status} ${response.statusText} - ${errorText}`);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Unsupported document type: ${documentType}` 
+          error: `LlamaParse API error: ${response.status} ${response.statusText}` 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
+      );
+    }
+
+    const llamaParseResult = await response.json();
+    console.log("LlamaParse API response received");
+
+    // Extract content from the LlamaParse result
+    let extractedContent = "";
+    if (llamaParseResult.text) {
+      extractedContent = llamaParseResult.text;
+    } else if (llamaParseResult.markdown) {
+      extractedContent = llamaParseResult.markdown;
+    } else {
+      extractedContent = JSON.stringify(llamaParseResult);
+    }
+
+    if (!extractedContent) {
+      await updateJobStatus(supabase, jobId, "failed", "No content could be extracted from LlamaParse");
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "No content could be extracted from LlamaParse" 
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
-    console.log(`Processing ${documentType} with Firecrawl:`, documentUrl);
-    console.log("Request data:", JSON.stringify(requestData));
+    // Update job status and store content
+    await updateJobStatus(supabase, jobId, "completed", null, extractedContent);
 
+    // Add the extracted content to the AI agent's knowledge base
+    const { data: agentData, error: agentError } = await supabase
+      .from("ai_agents")
+      .insert({
+        client_id: clientId,
+        name: agentName,
+        content: extractedContent,
+        url: documentUrl,
+        interaction_type: "document_content",
+        settings: {
+          document_id: documentId,
+          document_type: documentType,
+          document_url: documentUrl,
+          processed_at: new Date().toISOString(),
+          content_length: extractedContent.length,
+          processing_method: "llamaparse",
+          llamaparse_job_id: jobId
+        }
+      });
+
+    if (agentError) {
+      console.error("Error saving to AI agent knowledge base:", agentError);
+      await updateJobStatus(supabase, jobId, "failed", `Error saving to AI agent knowledge base: ${agentError.message}`);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Error saving to AI agent knowledge base: ${agentError.message}` 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+
+    // Log success activity
+    await supabase
+      .from("client_activities")
+      .insert({
+        client_id: clientId,
+        activity_type: "document_processed",
+        description: `Successfully processed ${documentType} with LlamaParse: ${documentUrl}`,
+        metadata: {
+          document_id: documentId,
+          document_type: documentType,
+          document_url: documentUrl,
+          content_length: extractedContent.length,
+          processing_job_id: jobId,
+          processing_method: "llamaparse"
+        }
+      });
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: "Document processed successfully with LlamaParse",
+        job_id: jobId,
+        content_length: extractedContent.length
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    console.error("Error processing with LlamaParse:", error);
+    await updateJobStatus(supabase, jobId, "failed", `LlamaParse processing error: ${error.message}`);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: `LlamaParse processing error: ${error.message}` 
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    );
+  }
+}
+
+// Process with Firecrawl (existing functionality)
+async function processWithFirecrawl(
+  supabase: any, 
+  jobId: string, 
+  documentUrl: string, 
+  documentType: string, 
+  clientId: string, 
+  agentName: string,
+  documentId: string,
+  corsHeaders: any
+) {
+  // Configure Firecrawl request based on document type
+  let firecrawlEndpoint = "";
+  let requestData = {};
+  const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
+
+  if (!firecrawlApiKey) {
+    await updateJobStatus(supabase, jobId, "failed", "Firecrawl API key is missing");
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: "Firecrawl API key is missing" 
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    );
+  }
+
+  // Handle different document types
+  if (documentType === "website_url" || documentUrl.startsWith("http") && !documentUrl.includes("drive.google.com")) {
+    firecrawlEndpoint = "https://api.firecrawl.dev/crawl/url";
+    requestData = {
+      url: documentUrl,
+      options: {
+        limit: 100,
+        formats: ["markdown"]
+      }
+    };
+  } else if (documentType === "google_drive_folder") {
+    // Special handling for Google Drive folders
+    firecrawlEndpoint = "https://api.firecrawl.dev/content/drive-folder";
+    requestData = {
+      folderId: extractGoogleDriveFolderId(documentUrl),
+      options: {
+        recursive: true,
+        formats: ["markdown"]
+      }
+    };
+  } else {
+    await updateJobStatus(supabase, jobId, "failed", `Unsupported document type for Firecrawl: ${documentType}`);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: `Unsupported document type for Firecrawl: ${documentType}` 
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+    );
+  }
+
+  console.log(`Processing ${documentType} with Firecrawl:`, documentUrl);
+  console.log("Request data:", JSON.stringify(requestData));
+
+  try {
     // Call the Firecrawl API
     const response = await fetch(firecrawlEndpoint, {
       method: "POST",
@@ -138,7 +339,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error("Firecrawl API error:", firecrawlResult);
-      await updateJobStatus(supabase, jobData.id, "failed", `Firecrawl API error: ${firecrawlResult.error || response.statusText}`);
+      await updateJobStatus(supabase, jobId, "failed", `Firecrawl API error: ${firecrawlResult.error || response.statusText}`);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -177,31 +378,26 @@ serve(async (req) => {
           .join("\n");
           
         // Log the number of files processed
-        await updateJobMetadata(supabase, jobData.id, {
+        await updateJobMetadata(supabase, jobId, {
           files_processed: firecrawlResult.files.length,
           folder_id: extractGoogleDriveFolderId(documentUrl)
         });
       }
-    } else {
-      // For documents, use the content directly
-      if (firecrawlResult.content && firecrawlResult.content.formats && firecrawlResult.content.formats.markdown) {
-        extractedContent = firecrawlResult.content.formats.markdown;
-      }
     }
 
     if (!extractedContent) {
-      await updateJobStatus(supabase, jobData.id, "failed", "No content could be extracted");
+      await updateJobStatus(supabase, jobId, "failed", "No content could be extracted from Firecrawl");
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "No content could be extracted" 
+          error: "No content could be extracted from Firecrawl" 
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
     // Update the processing job with the extracted content
-    await updateJobStatus(supabase, jobData.id, "completed", null, extractedContent);
+    await updateJobStatus(supabase, jobId, "completed", null, extractedContent);
 
     // Add the extracted content to the AI agent's knowledge base
     const { data: agentData, error: agentError } = await supabase
@@ -218,13 +414,14 @@ serve(async (req) => {
           document_url: documentUrl,
           processed_at: new Date().toISOString(),
           content_length: extractedContent.length,
-          firecrawl_job_id: jobData.id
+          processing_method: "firecrawl",
+          firecrawl_job_id: jobId
         }
       });
 
     if (agentError) {
       console.error("Error saving to AI agent knowledge base:", agentError);
-      await updateJobStatus(supabase, jobData.id, "failed", `Error saving to AI agent knowledge base: ${agentError.message}`);
+      await updateJobStatus(supabase, jobId, "failed", `Error saving to AI agent knowledge base: ${agentError.message}`);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -235,46 +432,43 @@ serve(async (req) => {
     }
 
     // Log the successful processing
-    const { error: activityError } = await supabase
+    await supabase
       .from("client_activities")
       .insert({
         client_id: clientId,
         activity_type: "document_processed",
-        description: `Successfully processed ${documentType}: ${documentUrl}`,
+        description: `Successfully processed ${documentType} with Firecrawl: ${documentUrl}`,
         metadata: {
           document_id: documentId,
           document_type: documentType,
           document_url: documentUrl,
           content_length: extractedContent.length,
-          processing_job_id: jobData.id
+          processing_job_id: jobId,
+          processing_method: "firecrawl"
         }
       });
-
-    if (activityError) {
-      console.error("Error logging activity:", activityError);
-    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Document processed successfully",
-        job_id: jobData.id,
+        message: "Document processed successfully with Firecrawl",
+        job_id: jobId,
         content_length: extractedContent.length
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error) {
-    console.error("Unhandled error in process-document function:", error);
+    console.error("Error processing with Firecrawl:", error);
+    await updateJobStatus(supabase, jobId, "failed", `Firecrawl processing error: ${error.message}`);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: `Unhandled error: ${error.message}` 
+        error: `Firecrawl processing error: ${error.message}` 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
-});
+}
 
 // Helper function to extract Google Drive folder ID
 function extractGoogleDriveFolderId(url: string): string {
