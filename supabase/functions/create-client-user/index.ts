@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
@@ -12,7 +11,9 @@ const corsHeaders = {
 const sanitizeString = (value: string | null | undefined): string => {
   if (!value) return '';
   // Replace double quotes with single quotes to prevent SQL errors
-  return value.replace(/"/g, "'");
+  const sanitized = value.replace(/"/g, "'");
+  console.log(`Edge function: Sanitizing "${value}" to "${sanitized}"`);
+  return sanitized;
 };
 
 // Function to generate an AI prompt based on the agent name and description
@@ -92,15 +93,19 @@ serve(async (req) => {
     let body;
     try {
       body = await req.json();
-      console.log("Request body parsed:", {
+      console.log("Request body received:", {
         email: body.email,
         client_id: body.client_id,
-        client_name: body.client_name,
+        client_name: body.client_name
+      });
+      console.log("Agent details received:", {
         agent_name: body.agent_name,
+        agent_name_type: typeof body.agent_name,
         agent_description: body.agent_description,
         logo_url: body.logo_url,
         logo_storage_path: body.logo_storage_path
       });
+      console.log("Full request body (stringified):", JSON.stringify(body));
     } catch (parseError) {
       console.error("Failed to parse request body:", parseError);
       return new Response(
@@ -119,7 +124,8 @@ serve(async (req) => {
     const sanitizedClientName = sanitizeString(client_name);
     const sanitizedAgentDescription = sanitizeString(agent_description);
     
-    console.log("Using sanitized agent name:", sanitizedAgentName);
+    console.log("Edge function: Using sanitized agent name:", sanitizedAgentName);
+    console.log("Edge function: Raw agent name value:", agent_name);
     
     if (!email || !client_id) {
       console.error("Missing required fields:", { 
@@ -305,10 +311,13 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("Error in create-client-user function:", err);
+    console.error("Error stack:", err.stack);
+    console.error("Error details:", JSON.stringify(err, null, 2));
     
     return new Response(
       JSON.stringify({ 
-        error: err.message || "Failed to create client user" 
+        error: err.message || "Failed to create client user",
+        details: JSON.stringify(err)
       }),
       { 
         status: 500, 

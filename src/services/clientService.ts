@@ -34,6 +34,7 @@ const sanitizeForSQL = (value: string | undefined): string | undefined => {
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);
+  console.log("Data JSON stringified:", JSON.stringify(data));
   
   // Sanitize agent_name to prevent SQL errors
   const sanitizedAgentName = sanitizeForSQL(data.agent_name);
@@ -153,11 +154,13 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
 export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
+    console.log("Data JSON stringified:", JSON.stringify(data));
     
     // Sanitize agent_name to prevent SQL errors
     const sanitizedAgentName = sanitizeForSQL(data.agent_name) || 'agent_' + Date.now();
     
     console.log("Using sanitized agent name in createClient:", sanitizedAgentName);
+    console.log("sanitizedAgentName type:", typeof sanitizedAgentName);
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
@@ -173,7 +176,17 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           logo_storage_path: data.logo_storage_path
         };
 
+    console.log("Widget settings:", JSON.stringify(widgetSettings));
+
     // Create the client record
+    console.log("Inserting client with sanitized data...");
+    console.log("agent_name value being inserted:", sanitizedAgentName);
+    
+    // Log the full SQL-like statement for debugging (not actual execution)
+    console.log(`DEBUG - SQL-like statement: 
+INSERT INTO clients(client_name, email, agent_name, widget_settings, status, website_url_refresh_rate, drive_link_refresh_rate, created_at, updated_at) 
+VALUES('${data.client_name}', '${data.email}', '${sanitizedAgentName}', '${JSON.stringify(widgetSettings)}', 'active', 60, 60, NOW(), NOW())`);
+    
     const { data: newClients, error } = await supabase
       .from("clients")
       .insert([{
@@ -192,6 +205,9 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
 
     if (error) {
       console.error("Error creating client:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+      console.error("Error details:", error.details);
       throw error;
     }
 
@@ -268,6 +284,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     return clientId;
   } catch (error) {
     console.error("Error in createClient:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     throw error;
   }
 };
@@ -395,3 +412,4 @@ export const sendClientInvitationEmail = async (params: {
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
+

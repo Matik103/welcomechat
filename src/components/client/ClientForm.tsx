@@ -136,6 +136,10 @@ export const ClientForm = ({
   };
 
   const handleFormSubmit = async (data: any) => {
+    console.log("ClientForm submitting data:", data);
+    console.log("Agent name value:", data.agent_name);
+    console.log("Agent name type:", typeof data.agent_name);
+    
     await onSubmit({
       ...data,
       _tempLogoFile: tempLogoFile
