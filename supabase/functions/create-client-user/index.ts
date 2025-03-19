@@ -9,6 +9,14 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+// Define proper CORS headers with Authorization allowed
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+};
+
 // Helper function to sanitize string input
 function sanitizeString(input: string): string {
   if (!input) return "";
@@ -21,7 +29,7 @@ function sanitizeString(input: string): string {
 serve(async (req) => {
   // This is needed if you're planning to invoke your function from a browser.
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*' } });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -32,7 +40,7 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Not authorized' }), { 
         status: 401,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
@@ -44,7 +52,7 @@ serve(async (req) => {
       console.error("Auth error:", authError);
       return new Response(JSON.stringify({ error: 'Invalid token' }), {
         status: 401,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
@@ -63,7 +71,7 @@ serve(async (req) => {
     if (!email || !clientId) {
       return new Response(JSON.stringify({ error: 'Missing required fields: email and client_id' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
     
@@ -91,7 +99,7 @@ serve(async (req) => {
         details: createError.message 
       }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
@@ -157,7 +165,7 @@ serve(async (req) => {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
+          ...corsHeaders
         }
       }
     );
@@ -172,7 +180,7 @@ serve(async (req) => {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
+          ...corsHeaders
         }
       }
     );

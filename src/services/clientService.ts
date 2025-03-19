@@ -174,7 +174,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         };
 
     // Create the client record with sanitized values using a custom SQL function
-    // This avoids SQL syntax issues by letting the database handle parameter binding
+    // Use 'active' as a constant string instead of passing it as a parameter
     const { data: clientId, error: functionError } = await supabase.rpc(
       'create_new_client',
       {
@@ -182,7 +182,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         p_email: sanitizedEmail,
         p_agent_name: sanitizedAgentName,
         p_widget_settings: widgetSettings,
-        p_status: 'active',
+        p_status: 'active', // Ensure this is a valid enum value matching client_status type
         p_website_url_refresh_rate: 60,
         p_drive_link_refresh_rate: 60
       }
@@ -201,7 +201,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           email: sanitizedEmail,
           agent_name: sanitizedAgentName,
           widget_settings: widgetSettings,
-          status: 'active',
+          status: 'active', // Use enum value directly
           website_url_refresh_rate: 60,
           drive_link_refresh_rate: 60,
           created_at: new Date().toISOString(),
@@ -511,3 +511,4 @@ export const sendClientInvitationEmail = async (params: {
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
+
