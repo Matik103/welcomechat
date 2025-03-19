@@ -5,10 +5,13 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { Client } from "@/types/client";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { LogoManagement } from "@/components/widget/LogoManagement";
+import { handleLogoUploadEvent } from "@/utils/widgetSettingsUtils";
+import { toast } from "sonner";
 
 interface ClientFormProps {
   initialData?: Client | null;
@@ -16,7 +19,9 @@ interface ClientFormProps {
     client_name: string; 
     email: string; 
     agent_name?: string; 
-    agent_description?: string 
+    agent_description?: string;
+    logo_url?: string;
+    logo_storage_path?: string;
   }) => Promise<void>;
   isLoading?: boolean;
   isClientView?: boolean;
@@ -27,6 +32,8 @@ const clientFormSchema = z.object({
   email: z.string().email("Invalid email address"),
   agent_name: z.string().optional(),
   agent_description: z.string().optional(),
+  logo_url: z.string().optional(),
+  logo_storage_path: z.string().optional(),
 });
 
 export const ClientForm = ({ 
@@ -35,6 +42,8 @@ export const ClientForm = ({
   isLoading = false, 
   isClientView = false
 }: ClientFormProps) => {
+  const [isUploading, setIsUploading] = useState(false);
+  
   const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
@@ -42,6 +51,8 @@ export const ClientForm = ({
       email: initialData?.email || "",
       agent_name: initialData?.agent_name || "",
       agent_description: initialData?.agent_description || "",
+      logo_url: initialData?.logo_url || "",
+      logo_storage_path: initialData?.logo_storage_path || "",
     },
   });
 
@@ -54,6 +65,8 @@ export const ClientForm = ({
         email: initialData.email || "",
         agent_name: initialData.agent_name || "",
         agent_description: initialData.agent_description || "",
+        logo_url: initialData.logo_url || "",
+        logo_storage_path: initialData.logo_storage_path || "",
       });
     }
   }, [initialData, reset]);
@@ -63,6 +76,38 @@ export const ClientForm = ({
   useEffect(() => {
     console.log("Current form values:", currentValues);
   }, [currentValues]);
+  
+  // Get client ID for logo upload
+  const clientId = initialData?.id;
+  
+  // Handle logo upload
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!clientId) {
+      toast.error("Please save the client first before uploading a logo");
+      return;
+    }
+    
+    handleLogoUploadEvent(
+      event,
+      clientId,
+      (url: string, storagePath: string) => {
+        setValue("logo_url", url);
+        setValue("logo_storage_path", storagePath);
+        toast.success("Logo uploaded successfully");
+      },
+      (error: Error) => {
+        toast.error(`Upload failed: ${error.message}`);
+      },
+      () => setIsUploading(true),
+      () => setIsUploading(false)
+    );
+  };
+  
+  // Handle logo removal
+  const handleRemoveLogo = () => {
+    setValue("logo_url", "");
+    setValue("logo_storage_path", "");
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -110,6 +155,21 @@ export const ClientForm = ({
         {!isClientView && (
           <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
         )}
+      </div>
+      
+      <div className="space-y-2">
+        <Label className="text-sm font-medium text-gray-900">
+          AI Agent Logo
+        </Label>
+        <LogoManagement
+          logoUrl={watch("logo_url") || ""}
+          isUploading={isUploading}
+          onLogoUpload={handleLogoUpload}
+          onRemoveLogo={handleRemoveLogo}
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          The logo will appear in the chat header for your AI assistant
+        </p>
       </div>
 
       <div className="space-y-2">
