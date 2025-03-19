@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -126,10 +127,10 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
 
-    // Use agent name exactly as provided without any modifications
-    const finalAgentName = data.agent_name || 'agent_' + Date.now();
+    // Sanitize agent name to avoid SQL syntax errors with quotes
+    const sanitizedAgentName = data.agent_name ? data.agent_name.replace(/["']/g, '') : 'agent_' + Date.now();
     
-    console.log("Using agent name:", finalAgentName);
+    console.log("Using agent name:", sanitizedAgentName);
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
@@ -147,7 +148,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       .insert([{
         client_name: data.client_name,
         email: data.email,
-        agent_name: finalAgentName,
+        agent_name: sanitizedAgentName,
         // Store the agent_description in widget_settings for now
         widget_settings: widgetSettings,
         status: 'active',
@@ -190,7 +191,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           email: data.email,
           client_id: clientId,
           client_name: data.client_name,
-          agent_name: finalAgentName,
+          agent_name: sanitizedAgentName,
           agent_description: data.agent_description || ""
         })
       });
@@ -217,7 +218,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         clientId,
         clientName: data.client_name,
         email: data.email,
-        agentName: finalAgentName,
+        agentName: sanitizedAgentName,
         tempPassword
       });
 

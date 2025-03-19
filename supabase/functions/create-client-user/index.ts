@@ -86,6 +86,9 @@ serve(async (req) => {
       );
     }
     
+    // Sanitize agent name to avoid SQL errors with quotes
+    const sanitizedAgentName = agent_name ? agent_name.replace(/["']/g, '') : '';
+    
     // Check if user already exists
     console.log("Checking if user exists:", email);
     const { data: { users: existingUsers }, error: userCheckError } = await supabase.auth.admin.listUsers();
@@ -123,7 +126,7 @@ serve(async (req) => {
           user_metadata: { 
             client_id,
             client_name,
-            agent_name, // Use agent name exactly as provided
+            agent_name: sanitizedAgentName, // Use sanitized agent name
             user_type: "client"
           }
         }
@@ -148,7 +151,7 @@ serve(async (req) => {
         user_metadata: { 
           client_id,
           client_name,
-          agent_name, // Use agent name exactly as provided
+          agent_name: sanitizedAgentName, // Use sanitized agent name
           user_type: "client"
         },
         email_confirm_sent: false // Disable automatic confirmation email
@@ -191,17 +194,17 @@ serve(async (req) => {
     }
     
     // Generate AI prompt
-    const aiPrompt = generateAiPrompt(agent_name, agent_description || "");
+    const aiPrompt = generateAiPrompt(sanitizedAgentName, agent_description || "");
     console.log("Generated AI prompt:", aiPrompt);
     
-    // Create AI agent entry for this client - using exact agent name
+    // Create AI agent entry for this client - using sanitized agent name
     try {
       console.log("Creating AI agent for client:", client_id);
       const { error: agentError } = await supabase
         .from("ai_agents")
         .insert({
           client_id: client_id,
-          name: agent_name, // Use agent name exactly as provided
+          name: sanitizedAgentName, // Use sanitized agent name
           agent_description: agent_description || "",
           ai_prompt: aiPrompt,
           settings: {
@@ -225,7 +228,7 @@ serve(async (req) => {
         activity_type: "ai_agent_created",
         description: "AI agent was created during client signup",
         metadata: {
-          agent_name: agent_name,
+          agent_name: sanitizedAgentName,
           agent_description: agent_description
         }
       });
