@@ -11,13 +11,15 @@ import { toast } from "sonner";
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      // Sanitize agent_name to prevent SQL syntax errors
+      // Thoroughly sanitize agent_name to prevent SQL syntax errors
       // by removing double quotes or replacing them with single quotes
       const sanitizedData = {
         ...data,
         agent_name: data.agent_name ? data.agent_name.replace(/"/g, "'") : data.agent_name,
         agent_description: data.agent_description 
       };
+
+      console.log("Sanitized data before mutation:", sanitizedData);
 
       if (id) {
         // Update existing client

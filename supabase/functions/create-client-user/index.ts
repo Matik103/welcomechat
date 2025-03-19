@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
@@ -103,6 +104,8 @@ serve(async (req) => {
     
     // Sanitize agent name to prevent SQL errors - replace double quotes with single quotes
     const sanitizedAgentName = agent_name ? agent_name.replace(/"/g, "'") : agent_name;
+    
+    console.log("Using sanitized agent name:", sanitizedAgentName);
     
     if (!email || !client_id) {
       console.error("Missing required fields:", { 
@@ -264,7 +267,7 @@ serve(async (req) => {
         activity_type: "ai_agent_created",
         description: "AI agent was created during client signup",
         metadata: {
-          agent_name: agent_name,
+          agent_name: sanitizedAgentName,
           agent_description: agent_description,
           logo_url: logo_url
         }
