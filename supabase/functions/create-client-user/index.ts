@@ -101,6 +101,9 @@ serve(async (req) => {
     
     const { email, client_id, client_name, agent_name, agent_description, logo_url, logo_storage_path } = body;
     
+    // Sanitize agent name to prevent SQL errors - replace double quotes with single quotes
+    const sanitizedAgentName = agent_name ? agent_name.replace(/"/g, "'") : agent_name;
+    
     if (!email || !client_id) {
       console.error("Missing required fields:", { 
         hasEmail: !!email, 
@@ -144,7 +147,7 @@ serve(async (req) => {
       console.log("User already exists, updating metadata and password:", email);
       userId = existingUser.id;
       
-      // Update user metadata and password
+      // Update user metadata with sanitized agent name
       const { error: updateError } = await supabase.auth.admin.updateUserById(
         userId,
         {
@@ -152,7 +155,7 @@ serve(async (req) => {
           user_metadata: { 
             client_id,
             client_name,
-            agent_name, // Use agent name exactly as provided
+            agent_name: sanitizedAgentName, // Use sanitized agent name
             user_type: "client"
           }
         }
@@ -177,7 +180,7 @@ serve(async (req) => {
         user_metadata: { 
           client_id,
           client_name,
-          agent_name, // Use agent name exactly as provided
+          agent_name: sanitizedAgentName, // Use sanitized agent name
           user_type: "client"
         },
         email_confirm_sent: false // Disable automatic confirmation email
@@ -198,7 +201,7 @@ serve(async (req) => {
       console.log("User created successfully with ID:", userId);
     }
     
-    // Create client role for this user
+    // Create user role for this user
     try {
       console.log("Creating user role for user:", userId);
       const { error: roleError } = await supabase
@@ -219,11 +222,11 @@ serve(async (req) => {
       console.warn("Error creating user role:", roleError);
     }
     
-    // Generate AI prompt
-    const aiPrompt = generateAiPrompt(agent_name, agent_description || "", client_name || "");
+    // Generate AI prompt with sanitized agent name
+    const aiPrompt = generateAiPrompt(sanitizedAgentName, agent_description || "", client_name || "");
     console.log("Generated AI prompt:", aiPrompt);
     
-    // Create AI agent entry for this client - using exact agent name and logo
+    // Create AI agent entry with sanitized agent name
     try {
       console.log("Creating AI agent for client:", client_id);
       console.log("Using logo URL:", logo_url);
@@ -233,7 +236,7 @@ serve(async (req) => {
         .from("ai_agents")
         .insert({
           client_id: client_id,
-          name: agent_name, // Use agent name exactly as provided
+          name: sanitizedAgentName, // Use sanitized agent name
           agent_description: agent_description || "",
           ai_prompt: aiPrompt,
           logo_url: logo_url || "",

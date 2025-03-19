@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,7 +28,8 @@ interface ClientFormProps {
 const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().optional(),
+  agent_name: z.string().optional()
+    .refine(name => !name || !name.includes('"'), { message: 'Agent name cannot include double quotes (")' }),
   agent_description: z.string().optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
@@ -57,7 +57,6 @@ export const ClientForm = ({
     },
   });
 
-  // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
       console.log("Setting form values with initial data:", initialData);
@@ -72,37 +71,30 @@ export const ClientForm = ({
     }
   }, [initialData, reset]);
 
-  // For debugging: log the current form values
   const currentValues = watch();
   useEffect(() => {
     console.log("Current form values:", currentValues);
   }, [currentValues]);
   
-  // Get client ID for logo upload
   const clientId = initialData?.id;
   
-  // Handle logo selection for new clients (no ID yet)
   const handleLogoSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    // Check file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Logo file must be less than 5MB");
       return;
     }
     
-    // Check file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       toast.error("Please select a valid image file (JPG, PNG, GIF, SVG, WebP)");
       return;
     }
     
-    // Save the file for later upload
     setTempLogoFile(file);
     
-    // Generate a preview URL
     const reader = new FileReader();
     reader.onload = (e) => {
       const previewUrl = e.target?.result as string;
@@ -113,15 +105,12 @@ export const ClientForm = ({
     toast.success("Logo selected. It will be uploaded when you save the client.");
   };
   
-  // Handle logo upload for existing clients
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!clientId) {
-      // For new clients, store the file temporarily
       handleLogoSelection(event);
       return;
     }
     
-    // For existing clients, use the regular upload flow
     import("@/utils/widgetSettingsUtils").then(({ handleLogoUploadEvent }) => {
       handleLogoUploadEvent(
         event,
@@ -140,7 +129,6 @@ export const ClientForm = ({
     });
   };
   
-  // Handle logo removal
   const handleRemoveLogo = () => {
     setValue("logo_url", "");
     setValue("logo_storage_path", "");
@@ -148,12 +136,10 @@ export const ClientForm = ({
     setLocalLogoPreview(null);
   };
 
-  // Custom submit handler that includes the temp logo file
   const handleFormSubmit = async (data: any) => {
-    // Pass the temp logo file along with the form data
     await onSubmit({
       ...data,
-      _tempLogoFile: tempLogoFile // Will be handled in ClientDetails.tsx
+      _tempLogoFile: tempLogoFile
     });
   };
 
@@ -200,9 +186,9 @@ export const ClientForm = ({
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
-        {!isClientView && (
-          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
-        )}
+        <p className="text-xs text-gray-500 mt-1">
+          {!isClientView ? "Optional - client can set this later" : "Please avoid using quotes (\") in the agent name."}
+        </p>
       </div>
       
       <div className="space-y-2">
