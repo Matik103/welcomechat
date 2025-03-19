@@ -44,7 +44,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
   return (
     <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex justify-end items-end p-4 bg-gray-50">
       {!expanded && (
-        <div className="absolute bottom-16 left-4 text-xs text-gray-500 z-0">
+        <div className="absolute bottom-16 right-16 text-xs text-gray-500 z-0 pointer-events-none">
           <div className="bg-white p-2 rounded-lg shadow-md animate-pulse">
             Click the chat icon to expand the widget
           </div>
@@ -59,7 +59,7 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
           flex flex-col
           overflow-hidden
         `}
-        style={{ backgroundColor: expanded ? 'white' : settings.chat_color }}
+        style={{ backgroundColor: expanded ? settings.background_color : settings.chat_color }}
       >
         {expanded ? (
           <>

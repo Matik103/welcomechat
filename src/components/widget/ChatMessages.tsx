@@ -30,13 +30,13 @@ export function ChatMessages({
           key={index}
           className={`p-3 rounded-lg max-w-[85%] ${
             message.isUser 
-              ? 'ml-auto bg-blue-600 text-white' 
-              : `mr-auto ${secondaryColor === '#ffffff' ? 'bg-gray-100' : ''}`
+              ? 'ml-auto' 
+              : 'mr-auto'
           }`}
           style={
-            !message.isUser 
-              ? { backgroundColor: secondaryColor, color: textColor }
-              : {}
+            message.isUser 
+              ? { backgroundColor: secondaryColor, color: 'white' }
+              : { backgroundColor: 'rgba(243, 244, 246, 0.8)', color: textColor }
           }
         >
           {message.text}
