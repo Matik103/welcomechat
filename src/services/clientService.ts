@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -174,9 +173,9 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           agent_description: sanitizedAgentDescription
         };
 
-    // Create the client record with sanitized values - using RPC call instead of direct insert
-    // This helps avoid SQL syntax issues by letting the server handle parameter binding
-    const { data: newClients, error } = await supabase.rpc(
+    // Create the client record with sanitized values using a custom SQL function
+    // This avoids SQL syntax issues by letting the database handle parameter binding
+    const { data: clientId, error: functionError } = await supabase.rpc(
       'create_new_client',
       {
         p_client_name: sanitizedClientName,
@@ -189,8 +188,8 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       }
     );
 
-    if (error) {
-      console.error("Error creating client with RPC:", error);
+    if (functionError) {
+      console.error("Error creating client with RPC:", functionError);
       
       // Fall back to direct insert if RPC fails or doesn't exist
       console.log("Falling back to direct insert");
@@ -219,12 +218,12 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         throw new Error("Failed to create client - no data returned from insert");
       }
       
-      const clientId = insertResult[0].id;
-      console.log("Created client with ID:", clientId);
+      const newClientId = insertResult[0].id;
+      console.log("Created client with ID:", newClientId);
       
       // Continue with the rest of the function using the clientId from direct insert
       return await continueClientCreation(
-        clientId, 
+        newClientId, 
         sanitizedClientName, 
         sanitizedEmail, 
         sanitizedAgentName, 
@@ -232,12 +231,6 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       );
     }
 
-    if (!newClients || typeof newClients !== 'string') {
-      console.error("No client ID returned from RPC", newClients);
-      throw new Error("Failed to create client - no ID returned from RPC");
-    }
-
-    const clientId = newClients;
     console.log("Created client with ID from RPC:", clientId);
 
     return await continueClientCreation(
