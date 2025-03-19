@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -8,6 +7,7 @@ import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { generateAiPrompt } from "@/utils/activityTypeUtils";
+import { useState } from "react";
 
 interface ClientDetailsProps {
   client: Client | null;
@@ -32,6 +32,7 @@ export const ClientDetails = ({
   const navigate = useNavigate();
   // Use the clientId that was passed to the component
   const { clientMutation, refetchClient } = useClientData(clientId);
+  const [isLogoUploading, setIsLogoUploading] = useState(false);
 
   // Function to ensure AI agent exists with correct name and description
   const ensureAiAgentExists = async (clientId: string, agentName: string, agentDescription?: string): Promise<AgentUpdateResult> => {
@@ -120,11 +121,45 @@ export const ClientDetails = ({
     }
   };
 
+  // Handle logo upload
+  const handleLogoUpload = async (file: File) => {
+    if (!clientId) return;
+    
+    setIsLogoUploading(true);
+    try {
+      // Import the logo upload utility
+      const { uploadWidgetLogo } = await import("@/utils/logo/logoUploadUtils");
+      
+      // Upload the logo
+      const { publicUrl, storagePath } = await uploadWidgetLogo(file, clientId);
+      
+      // Log activity if in client view
+      if (isClientView) {
+        await logClientActivity(
+          "logo_uploaded" as ExtendedActivityType,
+          "uploaded a new logo for their widget",
+          { logo_url: publicUrl, logo_storage_path: storagePath }
+        );
+      }
+      
+      // Refetch client data to update UI
+      await refetchClient();
+      
+      toast.success("Logo uploaded successfully");
+    } catch (error: any) {
+      console.error("Error uploading logo:", error);
+      toast.error(error.message || "Failed to upload logo");
+    } finally {
+      setIsLogoUploading(false);
+    }
+  };
+
   const handleSubmit = async (data: { 
     client_name: string; 
     email: string; 
     agent_name?: string; 
-    agent_description?: string 
+    agent_description?: string;
+    logo_file?: File;
   }) => {
     try {
       console.log("Submitting client data:", data);
@@ -222,11 +257,24 @@ export const ClientDetails = ({
             agent_description: data.agent_description
           });
           
-          // Check if result contains emailSent flag
+          // Check if result contains emailSent flag and clientId
           if (typeof result === 'object' && 'clientId' in result) {
+            const newClientId = result.clientId;
+            
+            // Handle logo upload if a logo file was provided
+            if (data.logo_file && newClientId) {
+              try {
+                const { uploadWidgetLogo } = await import("@/utils/logo/logoUploadUtils");
+                await uploadWidgetLogo(data.logo_file, newClientId);
+              } catch (logoError: any) {
+                console.error("Error uploading logo for new client:", logoError);
+                // Continue with client creation even if logo upload fails
+              }
+            }
+            
             // Ensure AI agent exists with correct name for the new client
-            if (data.agent_name && result.clientId) {
-              await ensureAiAgentExists(result.clientId, data.agent_name, data.agent_description);
+            if (data.agent_name && newClientId) {
+              await ensureAiAgentExists(newClientId, data.agent_name, data.agent_description);
             }
             
             if (result.emailSent) {
@@ -268,6 +316,7 @@ export const ClientDetails = ({
         onSubmit={handleSubmit}
         isLoading={clientMutation.isPending}
         isClientView={isClientView}
+        onLogoUpload={handleLogoUpload}
       />
     </div>
   );

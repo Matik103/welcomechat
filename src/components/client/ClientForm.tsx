@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { LogoUpload } from "./LogoUpload";
 
 interface ClientFormProps {
   initialData?: Client | null;
@@ -16,10 +17,12 @@ interface ClientFormProps {
     client_name: string; 
     email: string; 
     agent_name?: string; 
-    agent_description?: string 
+    agent_description?: string;
+    logo_file?: File;
   }) => Promise<void>;
   isLoading?: boolean;
   isClientView?: boolean;
+  onLogoUpload?: (file: File) => Promise<void>;
 }
 
 const clientFormSchema = z.object({
@@ -33,8 +36,12 @@ export const ClientForm = ({
   initialData, 
   onSubmit, 
   isLoading = false, 
-  isClientView = false
+  isClientView = false,
+  onLogoUpload
 }: ClientFormProps) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  
   const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
@@ -63,9 +70,32 @@ export const ClientForm = ({
   useEffect(() => {
     console.log("Current form values:", currentValues);
   }, [currentValues]);
+  
+  // Handle logo upload
+  const handleLogoUpload = async (file: File) => {
+    if (!onLogoUpload) return;
+    
+    setIsUploading(true);
+    try {
+      setLogoFile(file);
+      if (onLogoUpload) {
+        await onLogoUpload(file);
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  // Handle form submission
+  const handleFormSubmit = handleSubmit(async (data) => {
+    await onSubmit({
+      ...data,
+      logo_file: logoFile || undefined
+    });
+  });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleFormSubmit} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name <span className="text-red-500">*</span>
@@ -130,10 +160,18 @@ export const ClientForm = ({
           <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
         )}
       </div>
+      
+      {onLogoUpload && (
+        <LogoUpload
+          logoUrl={initialData?.widget_settings?.logo_url}
+          onLogoUpload={handleLogoUpload}
+          isUploading={isUploading}
+        />
+      )}
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">
-        <Button type="submit" disabled={isLoading}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button type="submit" disabled={isLoading || isUploading}>
+          {(isLoading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isClientView 
             ? "Save Changes"
             : initialData 
