@@ -20,9 +20,26 @@ export class LlamaCloudService {
         body: JSON.stringify({
           documentUrl,
           documentType,
-          useLlamaParse: true
+          useLlamaParse: true,
+          parseOptions: {
+            // Add LlamaParse specific options
+            split_by: "chunk", // Split by chunks for better segmentation
+            chunk_size: 2000, // Optimal chunk size for OpenAI models
+            include_metadata: true // Include document metadata
+          }
         }),
       });
+
+      // Handle non-JSON responses first
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const rawText = await response.text();
+        console.error('Received non-JSON response from LlamaParse:', rawText.substring(0, 500));
+        return {
+          success: false,
+          error: `LlamaParse returned non-JSON response: ${rawText.substring(0, 200)}...`,
+        };
+      }
 
       const data = await response.json();
       
