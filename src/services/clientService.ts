@@ -29,7 +29,7 @@ const sanitizeForSQL = (value: string | undefined): string | undefined => {
 };
 
 /**
- * Updates an existing client
+ * Updates an existing client 
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);

@@ -19,8 +19,7 @@ interface EditFormProps {
 const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().min(1, "Agent name is required")
-    .refine(name => !name.includes('"'), { message: 'Agent name cannot include double quotes (")' }),
+  agent_name: z.string().min(1, "Agent name is required"),
 });
 
 export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormProps) {
@@ -85,7 +84,7 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
-        <p className="text-xs text-gray-500">Please avoid using quotes (") in the agent name.</p>
+        <p className="text-xs text-gray-500">Double quotes (") will be automatically converted to single quotes (') for database compatibility.</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">
