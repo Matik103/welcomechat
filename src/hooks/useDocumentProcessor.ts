@@ -1,7 +1,6 @@
 
 import { useState } from "react";
 import { FirecrawlService } from "@/utils/FirecrawlService";
-import { LlamaCloudService } from "@/utils/LlamaCloudService";
 import { toast } from "sonner";
 
 interface ProcessDocumentParams {
@@ -18,6 +17,7 @@ export function useDocumentProcessor() {
   const processDocument = async (params: ProcessDocumentParams) => {
     try {
       setIsProcessing(true);
+      console.log("Processing document:", params);
       
       // Check if document type is a Google Drive folder
       let documentType = params.documentType;
@@ -26,11 +26,26 @@ export function useDocumentProcessor() {
         toast.info("Google Drive folder detected - processing all documents in folder");
       }
       
+      // Ensure URL format is correct
+      let documentUrl = params.documentUrl;
+      try {
+        // Validate URL format - if it doesn't include protocol, add https://
+        if (!documentUrl.startsWith('http://') && !documentUrl.startsWith('https://')) {
+          documentUrl = 'https://' + documentUrl;
+          console.log("Added https:// to URL:", documentUrl);
+        }
+        
+        // Validate URL is properly formatted
+        new URL(documentUrl);
+      } catch (urlError) {
+        throw new Error(`Invalid URL format: ${urlError.message}`);
+      }
+      
       // Determine if we should use LlamaParse or Firecrawl
       // Only use Firecrawl for website URLs, everything else uses LlamaParse
       const useLlamaParse = documentType !== "website_url" && 
                            !documentType.includes("website") && 
-                           !(params.documentUrl.includes("/folders/"));
+                           !(documentUrl.includes("/folders/"));
       
       if (useLlamaParse) {
         toast.info(`Processing ${documentType} with LlamaParse...`);
@@ -40,7 +55,7 @@ export function useDocumentProcessor() {
       
       // Call the Edge Function to process the document
       const response = await FirecrawlService.processDocument(
-        params.documentUrl,
+        documentUrl,
         documentType,
         params.clientId,
         params.agentName,
@@ -49,8 +64,11 @@ export function useDocumentProcessor() {
       );
       
       if (!response.success) {
+        console.error("Document processing failed:", response.error);
         throw new Error(response.error || "Failed to process document");
       }
+      
+      console.log("Document processing succeeded:", response.data);
       
       // Success message based on document type
       if (documentType === "google_drive_folder") {

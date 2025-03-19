@@ -48,7 +48,12 @@ serve(async (req) => {
   }
 
   try {
-    const { url } = await req.json();
+    const requestJson = await req.json().catch(err => {
+      console.error("Error parsing request JSON:", err);
+      throw new Error("Invalid JSON in request body");
+    });
+    
+    const { url } = requestJson;
 
     if (!url) {
       return new Response(

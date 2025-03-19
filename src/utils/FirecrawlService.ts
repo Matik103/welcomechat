@@ -23,6 +23,15 @@ export class FirecrawlService {
     useLlamaParse: boolean = false
   ): Promise<CrawlResponse> {
     try {
+      console.log(`Sending request to process document:`, {
+        documentUrl,
+        documentType,
+        clientId,
+        agentName,
+        documentId,
+        useLlamaParse
+      });
+      
       const response = await fetch('/api/process-document', {
         method: 'POST',
         headers: {
@@ -38,20 +47,41 @@ export class FirecrawlService {
         }),
       });
 
-      const data = await response.json();
-      
+      // If response is not OK, get the error text
       if (!response.ok) {
-        console.error('Error processing document:', data);
-        return {
-          success: false,
-          error: data.error || 'Failed to process document',
-        };
+        const errorText = await response.text();
+        console.error('Error processing document. Status:', response.status, 'Error:', errorText);
+        
+        try {
+          // Try to parse the error as JSON
+          const errorJson = JSON.parse(errorText);
+          return {
+            success: false,
+            error: errorJson.error || `HTTP error ${response.status}`,
+          };
+        } catch (e) {
+          // If parsing fails, return the raw error text
+          return {
+            success: false,
+            error: `HTTP error ${response.status}: ${errorText}`,
+          };
+        }
       }
 
-      return {
-        success: true,
-        data
-      };
+      // Parse the JSON response
+      try {
+        const data = await response.json();
+        return {
+          success: true,
+          data
+        };
+      } catch (jsonError) {
+        console.error('Error parsing JSON response:', jsonError);
+        return {
+          success: false,
+          error: 'Invalid JSON response from server',
+        };
+      }
     } catch (error) {
       console.error('Error in processDocument:', error);
       return {
@@ -74,20 +104,39 @@ export class FirecrawlService {
         },
       });
 
-      const data = await response.json();
-      
+      // Handle non-OK responses
       if (!response.ok) {
-        console.error('Error getting processing status:', data);
-        return {
-          success: false,
-          error: data.error || 'Failed to get processing status',
-        };
+        const errorText = await response.text();
+        console.error('Error getting processing status:', errorText);
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          return {
+            success: false,
+            error: errorJson.error || `HTTP error ${response.status}`,
+          };
+        } catch (e) {
+          return {
+            success: false,
+            error: `HTTP error ${response.status}: ${errorText}`,
+          };
+        }
       }
 
-      return {
-        success: true,
-        data
-      };
+      // Parse the JSON response
+      try {
+        const data = await response.json();
+        return {
+          success: true,
+          data
+        };
+      } catch (jsonError) {
+        console.error('Error parsing JSON response:', jsonError);
+        return {
+          success: false,
+          error: 'Invalid JSON response from server',
+        };
+      }
     } catch (error) {
       console.error('Error in getProcessingStatus:', error);
       return {
