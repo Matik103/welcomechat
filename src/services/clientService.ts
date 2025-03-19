@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
@@ -18,10 +19,22 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 };
 
 /**
+ * Helper function to sanitize strings for SQL queries
+ */
+const sanitizeForSQL = (value: string | undefined): string | undefined => {
+  if (!value) return value;
+  // Replace double quotes with single quotes
+  return value.replace(/"/g, "'");
+};
+
+/**
  * Updates an existing client
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);
+  
+  // Sanitize agent_name to prevent SQL errors
+  const sanitizedAgentName = sanitizeForSQL(data.agent_name);
   
   // Update the client record (including logo fields)
   const { error } = await supabase
@@ -29,7 +42,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
     .update({
       client_name: data.client_name,
       email: data.email,
-      agent_name: data.agent_name,
+      agent_name: sanitizedAgentName,
       // Store agent_description and logo info in widget_settings
       widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
         ? { 
@@ -48,10 +61,10 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   if (error) throw error;
   
   // Update agent description and logo in ai_agents table if agent_name exists
-  if (data.agent_name) {
+  if (sanitizedAgentName) {
     try {
       // Generate AI prompt based on agent name and description
-      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description || "");
+      const aiPrompt = generateAiPrompt(sanitizedAgentName, data.agent_description || "");
       
       console.log("Generated AI prompt:", aiPrompt);
       
@@ -67,7 +80,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         await supabase
           .from("ai_agents")
           .update({
-            name: data.agent_name,
+            name: sanitizedAgentName,
             agent_description: data.agent_description,
             ai_prompt: aiPrompt,
             logo_url: data.logo_url,
@@ -87,7 +100,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
           .from("ai_agents")
           .insert({
             client_id: id,
-            name: data.agent_name,
+            name: sanitizedAgentName,
             content: "",
             agent_description: data.agent_description,
             ai_prompt: aiPrompt,
@@ -138,10 +151,10 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
     
-    // Use the agent name as provided
-    const agentName = data.agent_name || 'agent_' + Date.now();
+    // Sanitize agent_name to prevent SQL errors
+    const sanitizedAgentName = sanitizeForSQL(data.agent_name) || 'agent_' + Date.now();
     
-    console.log("Using agent name:", agentName);
+    console.log("Using sanitized agent name:", sanitizedAgentName);
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
@@ -163,7 +176,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       .insert([{
         client_name: data.client_name,
         email: data.email,
-        agent_name: agentName,
+        agent_name: sanitizedAgentName,
         // Store the agent_description and logo in widget_settings
         widget_settings: widgetSettings,
         status: 'active',
@@ -196,7 +209,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       }
 
       // Create the auth user using the edge function
-      const createUserResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/create-client-user`, {
+      const createUserResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/create-client-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,7 +219,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           email: data.email,
           client_id: clientId,
           client_name: data.client_name,
-          agent_name: agentName,
+          agent_name: sanitizedAgentName,
           agent_description: data.agent_description || "",
           logo_url: data.logo_url || "",
           logo_storage_path: data.logo_storage_path || ""
@@ -235,7 +248,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         clientId,
         clientName: data.client_name,
         email: data.email,
-        agentName: agentName,
+        agentName: sanitizedAgentName,
         tempPassword
       });
 

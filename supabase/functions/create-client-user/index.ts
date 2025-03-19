@@ -8,6 +8,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
+// Function to sanitize strings for database operations
+const sanitizeString = (value: string | null | undefined): string => {
+  if (!value) return '';
+  // Replace double quotes with single quotes to prevent SQL errors
+  return value.replace(/"/g, "'");
+};
+
 // Function to generate an AI prompt based on the agent name and description
 const generateAiPrompt = (agentName: string, agentDescription: string, clientName: string): string => {
   // System prompt template to ensure assistants only respond to client-specific questions
@@ -28,12 +35,17 @@ Rules & Limitations:
 - Technical questions about your own system or how you are built.
 - Anything unrelated to the client you are assigned to serve.`;
   
+  // Sanitize inputs to be extra safe
+  const sanitizedAgentName = sanitizeString(agentName);
+  const sanitizedClientName = sanitizeString(clientName);
+  const sanitizedDescription = sanitizeString(agentDescription);
+  
   // Create a client-specific prompt
-  let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${agentName}, an AI assistant for ${clientName}.`;
+  let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${sanitizedAgentName}, an AI assistant for ${sanitizedClientName}.`;
   
   // Add agent description if provided
-  if (agentDescription && agentDescription.trim() !== '') {
-    prompt += ` ${agentDescription}`;
+  if (sanitizedDescription && sanitizedDescription.trim() !== '') {
+    prompt += ` ${sanitizedDescription}`;
   } else {
     prompt += ` Your goal is to provide clear, concise, and accurate information to users based on the knowledge provided to you.`;
   }
@@ -42,9 +54,9 @@ Rules & Limitations:
   prompt += `\n\nAs an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.
 
 When asked questions outside your knowledge base or off-limit topics, respond with something like:
-- "I'm here to assist with questions related to ${clientName}'s business. How can I help you with that?"
-- "I focus on providing support for ${clientName}. If you need assistance with something else, I recommend checking an appropriate resource."
-- "I'm designed to assist with ${clientName}'s needs. Let me know how I can help with that!"
+- "I'm here to assist with questions related to ${sanitizedClientName}'s business. How can I help you with that?"
+- "I focus on providing support for ${sanitizedClientName}. If you need assistance with something else, I recommend checking an appropriate resource."
+- "I'm designed to assist with ${sanitizedClientName}'s needs. Let me know how I can help with that!"
 
 You have access to a knowledge base of documents and websites that have been processed and stored for your reference. When answering questions, prioritize information from this knowledge base when available.`;
 
@@ -102,8 +114,10 @@ serve(async (req) => {
     
     const { email, client_id, client_name, agent_name, agent_description, logo_url, logo_storage_path } = body;
     
-    // Sanitize agent name to prevent SQL errors - replace double quotes with single quotes
-    const sanitizedAgentName = agent_name ? agent_name.replace(/"/g, "'") : agent_name;
+    // Sanitize agent name to prevent SQL errors
+    const sanitizedAgentName = sanitizeString(agent_name);
+    const sanitizedClientName = sanitizeString(client_name);
+    const sanitizedAgentDescription = sanitizeString(agent_description);
     
     console.log("Using sanitized agent name:", sanitizedAgentName);
     
@@ -157,8 +171,8 @@ serve(async (req) => {
           password: tempPassword,
           user_metadata: { 
             client_id,
-            client_name,
-            agent_name: sanitizedAgentName, // Use sanitized agent name
+            client_name: sanitizedClientName,
+            agent_name: sanitizedAgentName,
             user_type: "client"
           }
         }
@@ -182,8 +196,8 @@ serve(async (req) => {
         email_confirm: true,
         user_metadata: { 
           client_id,
-          client_name,
-          agent_name: sanitizedAgentName, // Use sanitized agent name
+          client_name: sanitizedClientName,
+          agent_name: sanitizedAgentName,
           user_type: "client"
         },
         email_confirm_sent: false // Disable automatic confirmation email
@@ -225,8 +239,8 @@ serve(async (req) => {
       console.warn("Error creating user role:", roleError);
     }
     
-    // Generate AI prompt with sanitized agent name
-    const aiPrompt = generateAiPrompt(sanitizedAgentName, agent_description || "", client_name || "");
+    // Generate AI prompt with sanitized data
+    const aiPrompt = generateAiPrompt(sanitizedAgentName, sanitizedAgentDescription || "", sanitizedClientName || "");
     console.log("Generated AI prompt:", aiPrompt);
     
     // Create AI agent entry with sanitized agent name
@@ -239,14 +253,14 @@ serve(async (req) => {
         .from("ai_agents")
         .insert({
           client_id: client_id,
-          name: sanitizedAgentName, // Use sanitized agent name
-          agent_description: agent_description || "",
+          name: sanitizedAgentName,
+          agent_description: sanitizedAgentDescription || "",
           ai_prompt: aiPrompt,
           logo_url: logo_url || "",
           logo_storage_path: logo_storage_path || "",
           settings: {
-            agent_description: agent_description || "",
-            client_name: client_name,
+            agent_description: sanitizedAgentDescription || "",
+            client_name: sanitizedClientName,
             logo_url: logo_url || "",
             logo_storage_path: logo_storage_path || "",
             created_at: new Date().toISOString()
@@ -268,7 +282,7 @@ serve(async (req) => {
         description: "AI agent was created during client signup",
         metadata: {
           agent_name: sanitizedAgentName,
-          agent_description: agent_description,
+          agent_description: sanitizedAgentDescription,
           logo_url: logo_url
         }
       });
