@@ -14,7 +14,7 @@ export interface UrlCheckResult {
   error?: string;
 }
 
-// Export this type for use in ScrapabilityInfo component
+// Make sure this type is properly exported
 export interface UrlAccessResult {
   isAccessible: boolean;
   status?: number;
