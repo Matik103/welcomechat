@@ -43,8 +43,17 @@ export function WidgetSettingsContainer({
 
   const handleSave = async () => {
     try {
+      console.log("Saving widget settings:", currentSettings);
       await updateSettingsMutation.mutateAsync(currentSettings);
       toast.success("Widget settings saved successfully!");
+      
+      if (isClientView) {
+        logClientActivity(
+          "widget_settings_updated", 
+          "updated widget settings", 
+          { updated_settings: Object.keys(currentSettings) }
+        );
+      }
     } catch (error) {
       console.error("Error saving widget settings:", error);
       toast.error("Failed to save widget settings. Please try again.");
