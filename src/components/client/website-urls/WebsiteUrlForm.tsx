@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, Loader2, Plus } from "lucide-react";
-import { useUrlAccessCheck } from "@/hooks/useUrlAccessCheck";
+import { useUrlAccessCheck, UrlAccessResult } from "@/hooks/useUrlAccessCheck";
 import { useStoreWebsiteContent } from "@/hooks/useStoreWebsiteContent";
 import { toast } from "sonner";
 import { ValidationResult } from "./ValidationResult";
@@ -123,7 +124,7 @@ export const WebsiteUrlForm = ({
       <div className="space-y-4">
         <ValidationResult error={error} isValidated={isValidated} lastResult={lastResult} />
         <ScrapabilityInfo 
-          lastResult={lastResult as unknown as UrlAccessResult} 
+          lastResult={lastResult as UrlAccessResult} 
           isValidated={isValidated} 
           isContentStored={isContentStored} 
         />

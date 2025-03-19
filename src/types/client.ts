@@ -14,6 +14,9 @@ export interface DocumentLink {
   document_type?: string;
 }
 
+// Add DriveLink as an alias to DocumentLink for backward compatibility
+export type DriveLink = DocumentLink;
+
 export interface WebsiteUrl {
   id: number;
   client_id: string;
