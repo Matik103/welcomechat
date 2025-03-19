@@ -1,39 +1,57 @@
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
-import { WidgetSettings } from "@/types/widget-settings";
 
 interface ChatInputProps {
-  input: string;
-  isLoading: boolean;
-  settings: WidgetSettings;
-  onInputChange: (value: string) => void;
-  onSendMessage: (e: React.FormEvent) => void;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSend: () => void;
+  primaryColor: string;
+  secondaryColor: string;
+  textColor: string;
+  disabled?: boolean;
 }
 
-export function ChatInput({ input, isLoading, settings, onInputChange, onSendMessage }: ChatInputProps) {
+export function ChatInput({ 
+  value, 
+  onChange, 
+  onSend,
+  primaryColor,
+  secondaryColor,
+  textColor,
+  disabled = false
+}: ChatInputProps) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && value.trim() && !disabled) {
+      onSend();
+    }
+  };
+
   return (
-    <div className="p-4 border-t">
-      <form onSubmit={onSendMessage} className="flex gap-2">
-        <Input
-          value={input}
-          onChange={(e) => onInputChange(e.target.value)}
-          placeholder="Type a message..."
-          className="flex-1"
-        />
-        <Button 
-          type="submit" 
-          size="icon"
-          disabled={isLoading || !input.trim()}
-          style={{ backgroundColor: settings.secondary_color }}
-        >
-          <Send className="w-4 h-4" />
-        </Button>
-      </form>
-      <div className="text-xs text-gray-500 mt-2 text-center">
-        {settings.response_time_text}
-      </div>
+    <div className="border-t border-gray-200 p-3 flex gap-2 items-center">
+      <input
+        type="text"
+        value={value}
+        onChange={onChange}
+        onKeyDown={handleKeyDown}
+        placeholder="Type your message..."
+        className="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2"
+        style={{ 
+          color: textColor,
+          outlineColor: primaryColor
+        }}
+        disabled={disabled}
+      />
+      <button
+        onClick={onSend}
+        disabled={!value.trim() || disabled}
+        className="p-2 rounded-full disabled:opacity-50 transition-colors"
+        style={{ 
+          backgroundColor: value.trim() && !disabled ? primaryColor : '#ccc',
+          color: 'white'
+        }}
+      >
+        <Send className="w-5 h-5" />
+      </button>
     </div>
   );
 }

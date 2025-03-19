@@ -1,59 +1,69 @@
 
-import { Loader2 } from "lucide-react";
-import { WidgetSettings } from "@/types/widget-settings";
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { RefObject } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface ChatMessagesProps {
-  messages: Message[];
-  isLoading: boolean;
-  settings: WidgetSettings;
+  messages: { text: string; isUser: boolean }[];
+  backgroundColor: string;
+  textColor: string;
+  secondaryColor: string;
+  isTyping?: boolean;
+  messagesEndRef?: RefObject<HTMLDivElement>;
 }
 
-export function ChatMessages({ messages, isLoading, settings }: ChatMessagesProps) {
+export function ChatMessages({ 
+  messages, 
+  backgroundColor, 
+  textColor, 
+  secondaryColor,
+  isTyping = false,
+  messagesEndRef
+}: ChatMessagesProps) {
   return (
-    <div
-      className="flex-1 p-4 overflow-y-auto flex flex-col gap-4"
-      style={{
-        backgroundColor: settings.background_color,
-        color: settings.text_color,
-      }}
+    <div 
+      className="flex-1 p-3 overflow-y-auto"
+      style={{ backgroundColor }}
     >
-      {messages.length === 0 ? (
-        <div className="text-center text-sm opacity-50 my-8">
-          {settings.welcome_text}
-        </div>
-      ) : (
-        messages.map((message, index) => (
-          <div
+      <div className="space-y-3">
+        {messages.map((message, index) => (
+          <div 
             key={index}
-            className={`max-w-[80%] rounded-lg p-3 ${
-              message.role === 'user'
-                ? 'bg-gray-100 ml-auto'
-                : 'bg-primary text-white mr-auto'
-            }`}
-            style={{
-              backgroundColor: message.role === 'user' 
-                ? '#f3f4f6' 
-                : settings.chat_color
-            }}
+            className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
           >
-            {message.content}
+            <div 
+              className={`max-w-[80%] rounded-lg p-3 ${
+                message.isUser 
+                  ? 'bg-indigo-600 text-white' 
+                  : 'bg-gray-100'
+              }`}
+              style={{
+                backgroundColor: message.isUser ? secondaryColor : 'rgb(243, 244, 246)',
+                color: message.isUser ? 'white' : textColor
+              }}
+            >
+              <p className="text-sm">{message.text}</p>
+            </div>
           </div>
-        ))
-      )}
-      {isLoading && (
-        <div 
-          className="rounded-lg p-3 max-w-[80%] mr-auto flex items-center gap-2"
-          style={{ backgroundColor: settings.chat_color }}
-        >
-          <Loader2 className="w-4 h-4 animate-spin text-white" />
-          <span className="text-white">Typing...</span>
-        </div>
-      )}
+        ))}
+        
+        {isTyping && (
+          <div className="flex justify-start">
+            <div 
+              className="max-w-[80%] rounded-lg p-3 bg-gray-100"
+              style={{ color: textColor }}
+            >
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Invisible div for scrolling to bottom */}
+        <div ref={messagesEndRef}></div>
+      </div>
     </div>
   );
 }

@@ -1,28 +1,46 @@
 
-import { WidgetSettings } from "@/types/widget-settings";
+import { X } from "lucide-react";
 
 interface ChatHeaderProps {
-  settings: WidgetSettings;
+  agentName: string;
+  logoUrl?: string;
+  backgroundColor: string;
+  textColor: string;
+  onClose: () => void;
 }
 
-export function ChatHeader({ settings }: ChatHeaderProps) {
+export function ChatHeader({ 
+  agentName, 
+  logoUrl, 
+  backgroundColor, 
+  textColor, 
+  onClose 
+}: ChatHeaderProps) {
   return (
-    <div
-      className="h-12 flex items-center px-4 rounded-t-lg"
-      style={{ backgroundColor: settings.chat_color }}
+    <div 
+      className="p-3 flex items-center justify-between border-b" 
+      style={{ backgroundColor, color: textColor }}
     >
-      <div className="flex items-center gap-3">
-        {settings.logo_url && (
-          <img
-            src={settings.logo_url}
-            alt="Agent logo"
-            className="w-8 h-8 rounded object-contain bg-white"
+      <div className="flex items-center gap-2">
+        {logoUrl && (
+          <img 
+            src={logoUrl} 
+            alt={agentName}
+            className="w-6 h-6 object-contain rounded"
+            onError={(e) => {
+              console.error("Error loading logo in chat header:", logoUrl);
+              e.currentTarget.style.display = 'none';
+            }}
           />
         )}
-        <span className="font-medium text-white">
-          {settings.agent_name || "AI Agent"}
-        </span>
+        <span className="font-medium truncate max-w-[180px]">{agentName || 'AI Assistant'}</span>
       </div>
+      <button 
+        onClick={onClose}
+        className="text-inherit hover:opacity-75 transition-opacity"
+      >
+        <X className="w-5 h-5" />
+      </button>
     </div>
   );
 }
