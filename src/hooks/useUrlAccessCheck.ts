@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface UrlCheckResult {
+export interface UrlCheckResult {
   isAccessible: boolean;
   hasScrapingRestrictions: boolean;
   canScrape?: boolean;
@@ -12,6 +12,16 @@ interface UrlCheckResult {
   metaRestrictions?: string[];
   content?: string;
   error?: string;
+}
+
+// Export this type for use in ScrapabilityInfo component
+export interface UrlAccessResult {
+  isAccessible: boolean;
+  status?: number;
+  canScrape: boolean;
+  hasScrapingRestrictions: boolean;
+  robotsRestrictions?: string[];
+  metaRestrictions?: string[];
 }
 
 export function useUrlAccessCheck() {
