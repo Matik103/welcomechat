@@ -57,7 +57,9 @@ serve(async (req) => {
         client_id: body.client_id,
         client_name: body.client_name,
         agent_name: body.agent_name,
-        agent_description: body.agent_description
+        agent_description: body.agent_description,
+        logo_url: body.logo_url,
+        logo_storage_path: body.logo_storage_path
       });
     } catch (parseError) {
       console.error("Failed to parse request body:", parseError);
@@ -70,7 +72,7 @@ serve(async (req) => {
       );
     }
     
-    const { email, client_id, client_name, agent_name, agent_description } = body;
+    const { email, client_id, client_name, agent_name, agent_description, logo_url, logo_storage_path } = body;
     
     if (!email || !client_id) {
       console.error("Missing required fields:", { 
@@ -194,7 +196,7 @@ serve(async (req) => {
     const aiPrompt = generateAiPrompt(agent_name, agent_description || "");
     console.log("Generated AI prompt:", aiPrompt);
     
-    // Create AI agent entry for this client - using exact agent name
+    // Create AI agent entry for this client - using exact agent name and logo
     try {
       console.log("Creating AI agent for client:", client_id);
       const { error: agentError } = await supabase
@@ -204,9 +206,13 @@ serve(async (req) => {
           name: agent_name, // Use agent name exactly as provided
           agent_description: agent_description || "",
           ai_prompt: aiPrompt,
+          logo_url: logo_url || "",
+          logo_storage_path: logo_storage_path || "",
           settings: {
             agent_description: agent_description || "",
             client_name: client_name,
+            logo_url: logo_url || "",
+            logo_storage_path: logo_storage_path || "",
             created_at: new Date().toISOString()
           }
         });
@@ -226,7 +232,8 @@ serve(async (req) => {
         description: "AI agent was created during client signup",
         metadata: {
           agent_name: agent_name,
-          agent_description: agent_description
+          agent_description: agent_description,
+          logo_url: logo_url
         }
       });
     } catch (activityError) {

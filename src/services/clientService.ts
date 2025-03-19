@@ -23,31 +23,35 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);
   
-  // Update the client record (excluding agent_description)
+  // Update the client record (including logo fields)
   const { error } = await supabase
     .from("clients")
     .update({
       client_name: data.client_name,
       email: data.email,
       agent_name: data.agent_name, // Use the exact name provided by the user
-      // Store agent_description in widget_settings if needed
+      // Store agent_description and logo info in widget_settings
       widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
         ? { 
             ...data.widget_settings,
-            agent_description: data.agent_description 
+            agent_description: data.agent_description,
+            logo_url: data.logo_url,
+            logo_storage_path: data.logo_storage_path
           } 
         : { 
-            agent_description: data.agent_description 
+            agent_description: data.agent_description,
+            logo_url: data.logo_url,
+            logo_storage_path: data.logo_storage_path
           }
     })
     .eq("id", id);
   if (error) throw error;
   
-  // Update agent description in ai_agents table if agent_name exists
-  if (data.agent_name && data.agent_description !== undefined) {
+  // Update agent description and logo in ai_agents table if agent_name exists
+  if (data.agent_name) {
     try {
       // Generate AI prompt based on agent name and description
-      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description);
+      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description || "");
       
       console.log("Generated AI prompt:", aiPrompt);
       
@@ -66,9 +70,13 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
             name: data.agent_name, // Use the exact name provided by the user
             agent_description: data.agent_description, // Use the agent_description column
             ai_prompt: aiPrompt, // Save the generated AI prompt
+            logo_url: data.logo_url,
+            logo_storage_path: data.logo_storage_path,
             settings: {
               agent_description: data.agent_description,
               client_name: data.client_name,
+              logo_url: data.logo_url,
+              logo_storage_path: data.logo_storage_path,
               updated_at: new Date().toISOString()
             }
           })
@@ -83,15 +91,19 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
             content: "",
             agent_description: data.agent_description, // Use the agent_description column
             ai_prompt: aiPrompt, // Save the generated AI prompt
+            logo_url: data.logo_url,
+            logo_storage_path: data.logo_storage_path,
             settings: {
               agent_description: data.agent_description,
               client_name: data.client_name,
+              logo_url: data.logo_url,
+              logo_storage_path: data.logo_storage_path,
               updated_at: new Date().toISOString()
             }
           });
       }
     } catch (agentError) {
-      console.error("Error updating agent description:", agentError);
+      console.error("Error updating agent description or logo:", agentError);
       // Continue even if agent update fails
     }
   }
@@ -135,10 +147,14 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
       ? { 
           ...data.widget_settings,
-          agent_description: data.agent_description 
+          agent_description: data.agent_description,
+          logo_url: data.logo_url,
+          logo_storage_path: data.logo_storage_path 
         } 
       : { 
-          agent_description: data.agent_description 
+          agent_description: data.agent_description,
+          logo_url: data.logo_url,
+          logo_storage_path: data.logo_storage_path
         };
 
     // Create the client record
@@ -148,7 +164,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         client_name: data.client_name,
         email: data.email,
         agent_name: finalAgentName,
-        // Store the agent_description in widget_settings for now
+        // Store the agent_description and logo in widget_settings
         widget_settings: widgetSettings,
         status: 'active',
         website_url_refresh_rate: 60,
@@ -191,7 +207,9 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           client_id: clientId,
           client_name: data.client_name,
           agent_name: finalAgentName,
-          agent_description: data.agent_description || ""
+          agent_description: data.agent_description || "",
+          logo_url: data.logo_url || "",
+          logo_storage_path: data.logo_storage_path || ""
         })
       });
 
@@ -358,3 +376,4 @@ export const sendClientInvitationEmail = async (params: {
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
+

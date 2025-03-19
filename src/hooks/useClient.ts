@@ -23,32 +23,39 @@ export const useClient = (id?: string) => {
         throw clientError;
       }
       
-      // Get the agent description from the ai_agents table
+      // Get the agent description and logo from the ai_agents table
       const { data: agentData } = await supabase
         .from("ai_agents")
-        .select("agent_description")
+        .select("agent_description, logo_url, logo_storage_path")
         .eq("client_id", id)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       
-      // Extract agent_description from widget_settings safely
+      // Extract agent_description and logo from widget_settings safely
       let widgetAgentDescription = "";
+      let widgetLogoUrl = "";
+      let widgetLogoStoragePath = "";
+      
       if (
         clientData.widget_settings && 
         typeof clientData.widget_settings === 'object' && 
         clientData.widget_settings !== null
       ) {
         widgetAgentDescription = (clientData.widget_settings as any).agent_description || "";
+        widgetLogoUrl = (clientData.widget_settings as any).logo_url || "";
+        widgetLogoStoragePath = (clientData.widget_settings as any).logo_storage_path || "";
       }
       
-      // Combine the data and return the client with the agent description
+      // Combine the data and return the client with the agent description and logo
       const combinedData: Client = {
         ...clientData,
         agent_description: agentData?.agent_description || widgetAgentDescription || "",
+        logo_url: agentData?.logo_url || widgetLogoUrl || "",
+        logo_storage_path: agentData?.logo_storage_path || widgetLogoStoragePath || "",
       };
       
-      console.log("Client data merged with agent description:", combinedData);
+      console.log("Client data merged with agent description and logo:", combinedData);
       
       return combinedData as Client;
     },
