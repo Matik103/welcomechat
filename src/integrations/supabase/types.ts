@@ -9,27 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      agent_1742397281528: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
       ai_agent: {
         Row: {
           content: string | null
@@ -65,8 +44,6 @@ export type Database = {
           id: string
           interaction_type: string | null
           is_error: boolean | null
-          logo_storage_path: string | null
-          logo_url: string | null
           name: string
           query_text: string | null
           response_time_ms: number | null
@@ -89,8 +66,6 @@ export type Database = {
           id?: string
           interaction_type?: string | null
           is_error?: boolean | null
-          logo_storage_path?: string | null
-          logo_url?: string | null
           name: string
           query_text?: string | null
           response_time_ms?: number | null
@@ -113,8 +88,6 @@ export type Database = {
           id?: string
           interaction_type?: string | null
           is_error?: boolean | null
-          logo_storage_path?: string | null
-          logo_url?: string | null
           name?: string
           query_text?: string | null
           response_time_ms?: number | null
@@ -1037,48 +1010,6 @@ export type Database = {
           role_type?: string
           status?: Database["public"]["Enums"]["invitation_status"] | null
           token?: string
-        }
-        Relationships: []
-      }
-      llama1: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
-      llama3: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
         }
         Relationships: []
       }
@@ -3322,18 +3253,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      create_new_client: {
-        Args: {
-          p_client_name: string
-          p_email: string
-          p_agent_name: string
-          p_widget_settings: Json
-          p_status: string
-          p_website_url_refresh_rate: number
-          p_drive_link_refresh_rate: number
-        }
-        Returns: string
-      }
       exec_sql: {
         Args: {
           sql_query: string
@@ -3558,19 +3477,6 @@ export type Database = {
           settings_json?: Json
         }
         Returns: string
-      }
-      match_agent_1742397281528: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
       }
       match_ai_agent: {
         Args: {
@@ -3907,32 +3813,6 @@ export type Database = {
         }[]
       }
       match_imanye_3: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
-      match_llama1: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
-        Returns: {
-          id: number
-          content: string
-          metadata: Json
-          similarity: number
-        }[]
-      }
-      match_llama3: {
         Args: {
           query_embedding: string
           match_count?: number

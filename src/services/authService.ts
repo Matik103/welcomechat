@@ -1,41 +1,26 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/auth";
 
 /**
- * Checks and refreshes auth session if needed
- * Returns true if the session is valid, false otherwise
+ * Checks if the authentication session is valid and refreshes if needed
+ * @returns Promise<boolean> indicating if auth is valid
  */
 export const checkAndRefreshAuth = async (): Promise<boolean> => {
   try {
-    // Get the current session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      console.error("No active session found");
-      return false;
-    }
-    
-    // Check if token expires soon (within next 5 minutes)
-    const expiresAt = session.expires_at;
-    const now = Math.floor(Date.now() / 1000); // Current time in seconds
-    const fiveMinutesFromNow = now + 300; // 5 minutes = 300 seconds
-    
-    if (expiresAt && expiresAt < fiveMinutesFromNow) {
-      console.log("Session is about to expire, refreshing...");
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        console.error("Error refreshing session:", error);
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) {
+      console.log("Auth session error or missing:", error);
+      // Session is invalid, try refreshing
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.error("Failed to refresh auth session:", refreshError);
         return false;
       }
-      
-      console.log("Session refreshed successfully");
-      return !!data.session;
     }
-    
     return true;
-  } catch (error) {
-    console.error("Error checking/refreshing auth session:", error);
+  } catch (err) {
+    console.error("Error checking auth session:", err);
     return false;
   }
 }

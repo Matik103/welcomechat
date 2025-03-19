@@ -66,7 +66,6 @@ const WidgetSettings = () => {
 
   return (
     <WidgetSettingsContainer
-      clientId={clientId}
       settings={settings}
       isClientView={isClientView}
       isUploading={isUploading}

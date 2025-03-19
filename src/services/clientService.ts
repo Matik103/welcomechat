@@ -23,26 +23,23 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);
   
-  // Sanitize all string values to prevent SQL injection
-  const sanitizedData = {
-    client_name: sanitizeStringForSQL(data.client_name),
-    email: sanitizeStringForSQL(data.email),
-    agent_name: data.agent_name ? sanitizeStringForSQL(data.agent_name) : null,
-    // Store agent_description in widget_settings if needed
-    widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
-      ? { 
-          ...data.widget_settings,
-          agent_description: data.agent_description ? sanitizeStringForSQL(data.agent_description) : null
-        } 
-      : { 
-          agent_description: data.agent_description ? sanitizeStringForSQL(data.agent_description) : null
-        }
-  };
-  
   // Update the client record (excluding agent_description)
   const { error } = await supabase
     .from("clients")
-    .update(sanitizedData)
+    .update({
+      client_name: data.client_name,
+      email: data.email,
+      agent_name: data.agent_name, // Use the exact name provided by the user
+      // Store agent_description in widget_settings if needed
+      widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
+        ? { 
+            ...data.widget_settings,
+            agent_description: data.agent_description 
+          } 
+        : { 
+            agent_description: data.agent_description 
+          }
+    })
     .eq("id", id);
   if (error) throw error;
   
@@ -50,10 +47,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   if (data.agent_name && data.agent_description !== undefined) {
     try {
       // Generate AI prompt based on agent name and description
-      const aiPrompt = generateAiPrompt(
-        sanitizeStringForSQL(data.agent_name), 
-        sanitizeStringForSQL(data.agent_description || "")
-      );
+      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description);
       
       console.log("Generated AI prompt:", aiPrompt);
       
@@ -69,12 +63,12 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         await supabase
           .from("ai_agents")
           .update({
-            name: sanitizeStringForSQL(data.agent_name),
-            agent_description: sanitizeStringForSQL(data.agent_description || ""),
-            ai_prompt: sanitizeStringForSQL(aiPrompt),
+            name: data.agent_name, // Use the exact name provided by the user
+            agent_description: data.agent_description, // Use the agent_description column
+            ai_prompt: aiPrompt, // Save the generated AI prompt
             settings: {
-              agent_description: sanitizeStringForSQL(data.agent_description || ""),
-              client_name: sanitizeStringForSQL(data.client_name),
+              agent_description: data.agent_description,
+              client_name: data.client_name,
               updated_at: new Date().toISOString()
             }
           })
@@ -85,13 +79,13 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
           .from("ai_agents")
           .insert({
             client_id: id,
-            name: sanitizeStringForSQL(data.agent_name),
+            name: data.agent_name, // Use the exact name provided by the user
             content: "",
-            agent_description: sanitizeStringForSQL(data.agent_description || ""),
-            ai_prompt: sanitizeStringForSQL(aiPrompt),
+            agent_description: data.agent_description, // Use the agent_description column
+            ai_prompt: aiPrompt, // Save the generated AI prompt
             settings: {
-              agent_description: sanitizeStringForSQL(data.agent_description || ""),
-              client_name: sanitizeStringForSQL(data.client_name),
+              agent_description: data.agent_description,
+              client_name: data.client_name,
               updated_at: new Date().toISOString()
             }
           });
@@ -126,261 +120,118 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
 };
 
 /**
- * Helper function to sanitize string values for SQL
- * This prevents SQL syntax errors when strings contain quotes
- */
-export const sanitizeStringForSQL = (value: string): string => {
-  if (!value) return "";
-  
-  // First, trim the value
-  let sanitized = value.trim();
-  
-  // Replace single and double quotes, backticks, and backslashes
-  sanitized = sanitized.replace(/['"`\\]/g, '');
-  
-  console.log(`Sanitized "${value}" to "${sanitized}"`);
-  
-  return sanitized;
-};
-
-/**
  * Creates a new client
  */
 export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
 
-    // Strongly sanitize all string values to prevent SQL syntax errors
-    const sanitizedClientName = sanitizeStringForSQL(data.client_name);
-    const sanitizedEmail = sanitizeStringForSQL(data.email);
-    const sanitizedAgentName = data.agent_name ? sanitizeStringForSQL(data.agent_name) : 'agent_' + Date.now();
-    const sanitizedAgentDescription = data.agent_description ? sanitizeStringForSQL(data.agent_description) : '';
+    // Use agent name exactly as provided without any modifications
+    const finalAgentName = data.agent_name || 'agent_' + Date.now();
     
-    console.log("Using sanitized values:", {
-      client_name: sanitizedClientName,
-      email: sanitizedEmail,
-      agent_name: sanitizedAgentName,
-      agent_description: sanitizedAgentDescription
-    });
+    console.log("Using agent name:", finalAgentName);
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
       ? { 
           ...data.widget_settings,
-          agent_description: sanitizedAgentDescription
+          agent_description: data.agent_description 
         } 
       : { 
-          agent_description: sanitizedAgentDescription
+          agent_description: data.agent_description 
         };
 
-    // Create the client record with sanitized values using a custom SQL function
-    // Use 'active' as a constant string instead of passing it as a parameter
-    const { data: clientId, error: functionError } = await supabase.rpc(
-      'create_new_client',
-      {
-        p_client_name: sanitizedClientName,
-        p_email: sanitizedEmail,
-        p_agent_name: sanitizedAgentName,
-        p_widget_settings: widgetSettings,
-        p_status: 'active', // Ensure this is a valid enum value matching client_status type
-        p_website_url_refresh_rate: 60,
-        p_drive_link_refresh_rate: 60
-      }
-    );
+    // Create the client record
+    const { data: newClients, error } = await supabase
+      .from("clients")
+      .insert([{
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: finalAgentName,
+        // Store the agent_description in widget_settings for now
+        widget_settings: widgetSettings,
+        status: 'active',
+        website_url_refresh_rate: 60,
+        drive_link_refresh_rate: 60,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select('*');
 
-    if (functionError) {
-      console.error("Error creating client with RPC:", functionError);
-      
-      // Fall back to direct insert if RPC fails or doesn't exist
-      console.log("Falling back to direct insert");
-      
-      const { data: insertResult, error: insertError } = await supabase
-        .from("clients")
-        .insert({
-          client_name: sanitizedClientName,
-          email: sanitizedEmail,
-          agent_name: sanitizedAgentName,
-          widget_settings: widgetSettings,
-          status: 'active', // Use enum value directly
-          website_url_refresh_rate: 60,
-          drive_link_refresh_rate: 60,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select();
-        
-      if (insertError) {
-        console.error("Error in fallback client creation:", insertError);
-        throw insertError;
-      }
-      
-      if (!insertResult || insertResult.length === 0) {
-        throw new Error("Failed to create client - no data returned from insert");
-      }
-      
-      const newClientId = insertResult[0].id;
-      console.log("Created client with ID:", newClientId);
-      
-      // Continue with the rest of the function using the clientId from direct insert
-      return await continueClientCreation(
-        newClientId, 
-        sanitizedClientName, 
-        sanitizedEmail, 
-        sanitizedAgentName, 
-        sanitizedAgentDescription
-      );
+    if (error) {
+      console.error("Error creating client:", error);
+      throw error;
     }
 
-    console.log("Created client with ID from RPC:", clientId);
+    if (!newClients || newClients.length === 0) {
+      throw new Error("Failed to create client - no data returned");
+    }
 
-    return await continueClientCreation(
-      clientId, 
-      sanitizedClientName, 
-      sanitizedEmail, 
-      sanitizedAgentName, 
-      sanitizedAgentDescription
-    );
+    const clientId = newClients[0].id;
+    console.log("Created client with ID:", clientId);
+
+    // Create Supabase auth user immediately after client creation
+    try {
+      const sessionResponse = await supabase.auth.getSession();
+      const accessToken = sessionResponse.data.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No auth session found - please log in again");
+      }
+
+      // Create the auth user using the edge function
+      const createUserResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/create-client-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          email: data.email,
+          client_id: clientId,
+          client_name: data.client_name,
+          agent_name: finalAgentName,
+          agent_description: data.agent_description || ""
+        })
+      });
+
+      if (!createUserResponse.ok) {
+        const errorText = await createUserResponse.text();
+        console.error("Error response from create-client-user:", errorText);
+        throw new Error(`Failed to create auth user: ${errorText}`);
+      }
+
+      const responseText = await createUserResponse.text();
+      console.log("Create user response:", responseText);
+      
+      const responseData = JSON.parse(responseText);
+      const tempPassword = responseData.temp_password;
+
+      if (!tempPassword) {
+        console.error("Response data:", responseData);
+        throw new Error('No temporary password received from server');
+      }
+
+      // Send welcome email with the temporary password
+      await sendClientInvitationEmail({
+        clientId,
+        clientName: data.client_name,
+        email: data.email,
+        agentName: finalAgentName,
+        tempPassword
+      });
+
+    } catch (authError) {
+      console.error("Error setting up client authentication:", authError);
+      // Delete the client record if auth setup fails
+      await supabase.from("clients").delete().eq("id", clientId);
+      throw new Error(`Failed to set up client authentication: ${authError.message}`);
+    }
+
+    return clientId;
   } catch (error) {
     console.error("Error in createClient:", error);
     throw error;
-  }
-};
-
-/**
- * Continues the client creation process after the initial client record is created
- * This is extracted to reduce duplication between the RPC and direct insert paths
- */
-const continueClientCreation = async (
-  clientId: string, 
-  clientName: string, 
-  email: string, 
-  agentName: string, 
-  agentDescription: string
-): Promise<string> => {
-  try {
-    // Create Supabase auth user
-    const sessionResponse = await supabase.auth.getSession();
-    const accessToken = sessionResponse.data.session?.access_token;
-    
-    if (!accessToken) {
-      throw new Error("No auth session found - please log in again");
-    }
-
-    // Create the auth user using the edge function - retry up to 3 times with delay
-    let createUserResponse;
-    let attempts = 0;
-    const maxAttempts = 3;
-    
-    // Import the SUPABASE_URL from the client file
-    const { SUPABASE_URL } = await import("@/integrations/supabase/client");
-    
-    while (attempts < maxAttempts) {
-      try {
-        createUserResponse = await fetch(`${SUPABASE_URL}/functions/v1/create-client-user`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            email: email,
-            client_id: clientId,
-            client_name: clientName,
-            agent_name: agentName,
-            agent_description: agentDescription
-          })
-        });
-        
-        if (createUserResponse.ok) {
-          break; // Success, exit the retry loop
-        } else {
-          const errorText = await createUserResponse.text();
-          console.error(`Attempt ${attempts + 1}/${maxAttempts} failed:`, errorText);
-          
-          if (attempts === maxAttempts - 1) {
-            throw new Error(`Failed to create auth user after ${maxAttempts} attempts: ${errorText}`);
-          }
-        }
-      } catch (fetchError) {
-        console.error(`Attempt ${attempts + 1}/${maxAttempts} fetch error:`, fetchError);
-        
-        if (attempts === maxAttempts - 1) {
-          throw fetchError;
-        }
-      }
-      
-      attempts++;
-      // Wait before retrying (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
-    }
-    
-    if (!createUserResponse || !createUserResponse.ok) {
-      throw new Error("Failed to create auth user - no valid response received");
-    }
-
-    const responseText = await createUserResponse.text();
-    console.log("Create user response:", responseText);
-    
-    let responseData;
-    try {
-      responseData = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error("Error parsing response:", parseError);
-      throw new Error("Invalid response from server: " + responseText);
-    }
-    
-    const tempPassword = responseData.temp_password;
-
-    if (!tempPassword) {
-      console.error("Response data:", responseData);
-      throw new Error('No temporary password received from server');
-    }
-
-    // Send welcome email with the temporary password - also retry this operation
-    attempts = 0;
-    let emailSuccess = false;
-    let emailError = null;
-    
-    while (attempts < maxAttempts && !emailSuccess) {
-      try {
-        await sendClientInvitationEmail({
-          clientId,
-          clientName,
-          email,
-          agentName, 
-          tempPassword
-        });
-        emailSuccess = true;
-      } catch (sendError) {
-        console.error(`Attempt ${attempts + 1}/${maxAttempts} email error:`, sendError);
-        emailError = sendError;
-        
-        if (attempts === maxAttempts - 1) {
-          console.error("Failed to send invitation email after all attempts");
-          // We will continue even if email fails - user can resend later
-        }
-      }
-      
-      attempts++;
-      if (!emailSuccess && attempts < maxAttempts) {
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
-      }
-    }
-
-    // Return success with email status
-    return clientId;
-  } catch (error) {
-    console.error("Error in continueClientCreation:", error);
-    
-    // Try to delete the client record if auth setup fails
-    try {
-      await supabase.from("clients").delete().eq("id", clientId);
-    } catch (deleteError) {
-      console.error("Error deleting partial client:", deleteError);
-    }
-    
-    throw new Error(`Failed to set up client authentication: ${error.message}`);
   }
 };
 
@@ -482,11 +333,8 @@ export const sendClientInvitationEmail = async (params: {
       throw new Error("No auth session found - please log in again");
     }
     
-    // Import the SUPABASE_URL from the client file
-    const { SUPABASE_URL } = await import("@/integrations/supabase/client");
-    
     // Use fetch for send-email function to avoid CORS issues
-    const emailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+    const emailResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -501,8 +349,7 @@ export const sendClientInvitationEmail = async (params: {
     });
     
     if (!emailResponse.ok) {
-      const errorText = await emailResponse.text();
-      throw new Error(`Failed to send invitation email (HTTP ${emailResponse.status}): ${errorText}`);
+      throw new Error(`Failed to send invitation email (HTTP ${emailResponse.status})`);
     }
     
     console.log("Invitation email sent successfully");
@@ -511,4 +358,3 @@ export const sendClientInvitationEmail = async (params: {
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
-

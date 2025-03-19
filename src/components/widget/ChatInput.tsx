@@ -1,61 +1,39 @@
 
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
+import { WidgetSettings } from "@/types/widget-settings";
 
 interface ChatInputProps {
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSend: () => void;
-  primaryColor: string;
-  secondaryColor: string;
-  textColor: string;
-  disabled?: boolean;
-  fullscreen?: boolean;
+  input: string;
+  isLoading: boolean;
+  settings: WidgetSettings;
+  onInputChange: (value: string) => void;
+  onSendMessage: (e: React.FormEvent) => void;
 }
 
-export function ChatInput({ 
-  value, 
-  onChange, 
-  onSend,
-  primaryColor,
-  secondaryColor,
-  textColor,
-  disabled = false,
-  fullscreen = false
-}: ChatInputProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && value.trim() && !disabled) {
-      onSend();
-    }
-  };
-
+export function ChatInput({ input, isLoading, settings, onInputChange, onSendMessage }: ChatInputProps) {
   return (
-    <div className={`border-t border-gray-200 p-4 flex gap-2 items-center ${fullscreen ? 'bg-white' : ''}`}>
-      <input
-        type="text"
-        value={value}
-        onChange={onChange}
-        onKeyDown={handleKeyDown}
-        placeholder="Type your message..."
-        className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 transition-all"
-        style={{ 
-          color: textColor,
-          outlineColor: primaryColor
-        }}
-        disabled={disabled}
-      />
-      <button
-        onClick={onSend}
-        disabled={!value.trim() || disabled}
-        className="p-2.5 rounded-full disabled:opacity-50 transition-all hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2"
-        style={{ 
-          backgroundColor: value.trim() && !disabled ? primaryColor : '#ccc',
-          color: 'white',
-          // Changed focusRingColor to use focus ring via CSS classes instead
-        }}
-        aria-label="Send message"
-      >
-        <Send className="w-5 h-5" />
-      </button>
+    <div className="p-4 border-t">
+      <form onSubmit={onSendMessage} className="flex gap-2">
+        <Input
+          value={input}
+          onChange={(e) => onInputChange(e.target.value)}
+          placeholder="Type a message..."
+          className="flex-1"
+        />
+        <Button 
+          type="submit" 
+          size="icon"
+          disabled={isLoading || !input.trim()}
+          style={{ backgroundColor: settings.secondary_color }}
+        >
+          <Send className="w-4 h-4" />
+        </Button>
+      </form>
+      <div className="text-xs text-gray-500 mt-2 text-center">
+        {settings.response_time_text}
+      </div>
     </div>
   );
 }

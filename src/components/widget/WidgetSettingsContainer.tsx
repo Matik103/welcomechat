@@ -11,7 +11,6 @@ import { ExtendedActivityType } from "@/types/activity";
 import { toast } from "sonner";
 
 interface WidgetSettingsContainerProps {
-  clientId?: string;
   settings: IWidgetSettings;
   isClientView: boolean;
   isUploading: boolean;
@@ -25,7 +24,6 @@ interface WidgetSettingsContainerProps {
 }
 
 export function WidgetSettingsContainer({
-  clientId,
   settings,
   isClientView,
   isUploading,
@@ -38,23 +36,13 @@ export function WidgetSettingsContainer({
   const [isChatExpanded, setIsChatExpanded] = useState(false);
 
   const handleSettingsChange = (newSettings: Partial<IWidgetSettings>) => {
-    console.log("Settings changed:", newSettings);
-    setCurrentSettings(prevSettings => ({ ...prevSettings, ...newSettings }));
+    setCurrentSettings({ ...currentSettings, ...newSettings });
   };
 
   const handleSave = async () => {
     try {
-      console.log("Saving widget settings:", currentSettings);
       await updateSettingsMutation.mutateAsync(currentSettings);
       toast.success("Widget settings saved successfully!");
-      
-      if (isClientView) {
-        logClientActivity(
-          "widget_settings_updated", 
-          "updated widget settings", 
-          { updated_settings: Object.keys(currentSettings) }
-        );
-      }
     } catch (error) {
       console.error("Error saving widget settings:", error);
       toast.error("Failed to save widget settings. Please try again.");
@@ -70,9 +58,6 @@ export function WidgetSettingsContainer({
       );
     }
   };
-
-  // Calculate if logo has changed to inform user
-  const hasLogoChanged = currentSettings.logo_url !== settings.logo_url;
 
   return (
     <div className="container mx-auto py-8 max-w-4xl">
@@ -111,12 +96,7 @@ export function WidgetSettingsContainer({
         </div>
         
         <div className="lg:col-span-1">
-          <WidgetPreviewCard settings={currentSettings} clientId={clientId} />
-          {hasLogoChanged && !updateSettingsMutation.isPending && (
-            <div className="mt-2 text-sm text-amber-600">
-              <p>Remember to click "Save Changes" to permanently save your logo.</p>
-            </div>
-          )}
+          <WidgetPreviewCard settings={currentSettings} />
         </div>
       </div>
     </div>

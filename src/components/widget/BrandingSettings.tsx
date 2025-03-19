@@ -33,6 +33,20 @@ export function BrandingSettings({
       </div>
 
       <div>
+        <Label htmlFor="webhook_url">Webhook URL (Optional)</Label>
+        <Input
+          id="webhook_url"
+          value={settings.webhook_url || ''}
+          onChange={(e) => onSettingsChange({ webhook_url: e.target.value })}
+          placeholder="https://your-webhook-url.com"
+          className="mt-1"
+        />
+        <p className="text-sm text-gray-500 mt-1">
+          API endpoint that will receive and respond to chat messages. If not provided, our default AI endpoint will be used.
+        </p>
+      </div>
+
+      <div>
         <Label htmlFor="welcome_text">Welcome Message</Label>
         <Input
           id="welcome_text"
