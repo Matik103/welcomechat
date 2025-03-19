@@ -8,6 +8,7 @@ interface ChatInputProps {
   primaryColor: string;
   secondaryColor: string;
   textColor: string;
+  disabled?: boolean;
 }
 
 export function ChatInput({ 
@@ -16,10 +17,11 @@ export function ChatInput({
   onSend,
   primaryColor,
   secondaryColor,
-  textColor
+  textColor,
+  disabled = false
 }: ChatInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && value.trim()) {
+    if (e.key === 'Enter' && value.trim() && !disabled) {
       onSend();
     }
   };
@@ -37,13 +39,14 @@ export function ChatInput({
           color: textColor,
           outlineColor: primaryColor
         }}
+        disabled={disabled}
       />
       <button
         onClick={onSend}
-        disabled={!value.trim()}
-        className="p-2 rounded-full disabled:opacity-50"
+        disabled={!value.trim() || disabled}
+        className="p-2 rounded-full disabled:opacity-50 transition-colors"
         style={{ 
-          backgroundColor: value.trim() ? primaryColor : '#ccc',
+          backgroundColor: value.trim() && !disabled ? primaryColor : '#ccc',
           color: 'white'
         }}
       >

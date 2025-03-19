@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
@@ -18,46 +18,143 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     { text: settings.welcome_text || "Hi 👋, how can I help?", isUser: false }
   ]);
   const [inputValue, setInputValue] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Fetch agent content for preview responses
-  const { agentContent, isLoading: isAgentLoading } = useAgentContent(
+  const { agentContent, sources, isLoading: isAgentLoading } = useAgentContent(
     clientId, 
     settings.agent_name
   );
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleToggleExpand = () => {
     setExpanded(!expanded);
   };
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+  // Simulate a typing effect for responses
+  const typeResponse = (response: string) => {
+    setIsTyping(true);
+    
+    // Add an empty message that will be filled character by character
+    const newMessageIndex = messages.length;
+    setMessages(prev => [...prev, { text: "", isUser: false }]);
+    
+    let i = 0;
+    const typingInterval = setInterval(() => {
+      if (i < response.length) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[newMessageIndex] = { 
+            text: response.substring(0, i + 1), 
+            isUser: false 
+          };
+          return updated;
+        });
+        i++;
+      } else {
+        clearInterval(typingInterval);
+        setIsTyping(false);
+      }
+    }, 15); // typing speed - adjust as needed
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isTyping) return;
 
     // Add user message
-    setMessages([...messages, { text: inputValue, isUser: true }]);
+    setMessages(prev => [...prev, { text: inputValue, isUser: true }]);
+    const userQuery = inputValue;
+    setInputValue("");
     
-    // Simulate AI response
+    // If we have a client ID, try to make a real request to our API
+    if (clientId) {
+      try {
+        // Show typing indicator
+        setIsTyping(true);
+        
+        // Call the OpenAI-powered chat function
+        const response = await fetch('https://mgjodiqecnnltsgorife.supabase.co/functions/v1/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompt: userQuery,
+            agent_name: settings.agent_name,
+            client_id: clientId,
+            context: agentContent.substring(0, 3000) // Send first 3000 chars as context
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Use typing effect for the response
+          typeResponse(data.generatedText || "I couldn't generate a response. Please try again.");
+        } else {
+          // Fallback to simulated response if API call fails
+          simulateResponse(userQuery);
+        }
+      } catch (error) {
+        console.error("Error calling chat API:", error);
+        // Fallback to simulated response
+        simulateResponse(userQuery);
+      }
+    } else {
+      // No client ID, use simulated response
+      simulateResponse(userQuery);
+    }
+  };
+  
+  const simulateResponse = (userQuery: string) => {
+    // Use agent content to create a more realistic preview
     setTimeout(() => {
       let responseText = "I'm your AI assistant. This is a preview of how the widget will look on your website.";
       
       // If we have agent content, use it to create a more realistic preview
       if (agentContent && agentContent.length > 0) {
-        if (inputValue.toLowerCase().includes("what") && 
-            (inputValue.toLowerCase().includes("know") || 
-             inputValue.toLowerCase().includes("about") ||
-             inputValue.toLowerCase().includes("learn"))) {
-          responseText = `I know about the following topics: ${agentContent.substring(0, 150)}...`;
-        } else if (inputValue.toLowerCase().includes("help")) {
-          responseText = "I can help answer questions based on the documents and websites that have been shared with me.";
+        if (userQuery.toLowerCase().includes("what") && 
+            (userQuery.toLowerCase().includes("know") || 
+             userQuery.toLowerCase().includes("about") ||
+             userQuery.toLowerCase().includes("learn"))) {
+          responseText = `Based on the content I have access to, I can help with information about: ${agentContent.substring(0, 150)}...`;
+        } else if (userQuery.toLowerCase().includes("help")) {
+          responseText = "I can help answer questions based on the documents and websites that have been shared with me. What would you like to know?";
+        } else if (userQuery.toLowerCase().includes("document") || userQuery.toLowerCase().includes("information")) {
+          const sourceInfo = sources && sources.length > 0 
+            ? `I have access to ${sources.length} documents including ${sources[0]?.url || 'various resources'}.` 
+            : "I have access to your organization's knowledge base.";
+          responseText = `${sourceInfo} How can I help you today?`;
         } else {
-          responseText = "In the actual implementation, I'll be able to answer questions based on your knowledge base. I currently have access to content about: " + 
-            (agentContent.substring(0, 100) + "...");
+          // Find a relevant snippet from the agent content
+          const words = userQuery.toLowerCase().split(' ').filter(w => w.length > 3);
+          let relevantContent = agentContent;
+          
+          // Try to find a relevant section based on the query
+          for (const word of words) {
+            const index = agentContent.toLowerCase().indexOf(word);
+            if (index > -1) {
+              const start = Math.max(0, index - 100);
+              const end = Math.min(agentContent.length, index + 200);
+              relevantContent = agentContent.substring(start, end);
+              break;
+            }
+          }
+          
+          responseText = `Based on the available information, I can tell you that ${relevantContent.substring(0, 150)}...`;
         }
       }
       
-      setMessages(prev => [...prev, { text: responseText, isUser: false }]);
+      // Use typing effect for the response
+      typeResponse(responseText);
     }, 1000);
-    
-    setInputValue("");
   };
 
   return (
@@ -73,7 +170,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       <div 
         className={`
           transition-all duration-300 ease-in-out z-10
-          ${expanded ? 'w-80 h-96 rounded-lg' : 'w-14 h-14 rounded-full cursor-pointer'}
+          ${expanded ? 'w-80 h-[450px] rounded-lg' : 'w-14 h-14 rounded-full cursor-pointer'}
           shadow-lg
           flex flex-col
           overflow-hidden
@@ -103,6 +200,8 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                   backgroundColor={settings.background_color}
                   textColor={settings.text_color}
                   secondaryColor={settings.secondary_color}
+                  isTyping={isTyping}
+                  messagesEndRef={messagesEndRef}
                 />
                 
                 <ChatInput 
@@ -112,6 +211,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                   primaryColor={settings.chat_color}
                   secondaryColor={settings.secondary_color}
                   textColor={settings.text_color}
+                  disabled={isTyping}
                 />
               </>
             )}

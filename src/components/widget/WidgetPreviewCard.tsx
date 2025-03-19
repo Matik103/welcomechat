@@ -15,7 +15,7 @@ export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps
         <CardTitle className="text-indigo-700">Live Widget Preview</CardTitle>
         <CardDescription>
           This is exactly how your widget will appear to your website visitors. 
-          Click the chat icon to interact with a demo version.
+          Click the chat icon to interact with a demo version powered by your actual content.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6 pb-6">
