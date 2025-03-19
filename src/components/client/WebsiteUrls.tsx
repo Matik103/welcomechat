@@ -1,97 +1,107 @@
 
-import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { useState } from "react";
+import { WebsiteUrlForm } from "@/components/client/website-urls/WebsiteUrlForm";
+import { WebsiteUrlsList } from "@/components/client/website-urls/WebsiteUrlsList";
+import { WebsiteUrl } from "@/types/client";
+import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { useDocumentProcessor } from "@/hooks/useDocumentProcessor";
 import { toast } from "sonner";
-import { 
-  WebsiteUrlsList, 
-  ValidationResult, 
-  ScrapabilityInfo 
-} from "@/components/client/website-urls";
-import { WebsiteUrlForm } from "@/components/client/website-urls/WebsiteUrlForm";
-import { WebsiteUrl } from "@/types/client";
 
 interface WebsiteUrlsProps {
-  urls: WebsiteUrl[];
-  onAdd: (data: { url: string; refresh_rate: number }) => Promise<void>;
-  onDelete: (urlId: number) => Promise<void>;
-  isAddLoading: boolean;
-  isDeleteLoading: boolean;
-  clientId?: string;
+  clientId: string;
   agentName?: string;
+  isClientView?: boolean;
+  logClientActivity: (activity_type: any, description: string, metadata?: any) => Promise<void>;
 }
 
-export const WebsiteUrls = ({
-  urls,
-  onAdd,
-  onDelete,
-  isAddLoading,
-  isDeleteLoading,
-  clientId,
-  agentName
+export const WebsiteUrls = ({ 
+  clientId, 
+  agentName, 
+  isClientView = false,
+  logClientActivity
 }: WebsiteUrlsProps) => {
+  const { websiteUrls, isLoading, addWebsiteUrl, deleteWebsiteUrl, isAddLoading, isDeletingId } = useWebsiteUrls(clientId);
   const [showAddForm, setShowAddForm] = useState(false);
-  const { processWebsiteUrl, isProcessing } = useDocumentProcessor();
-  
-  const handleAdd = async (data: { url: string; refresh_rate: number }) => {
+  const { processDocument, isProcessing } = useDocumentProcessor();
+
+  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
-      await onAdd(data);
+      const newUrl = await addWebsiteUrl(data);
       setShowAddForm(false);
+      
+      // Process the website content
+      if (agentName && newUrl) {
+        processDocument({
+          documentUrl: data.url,
+          documentType: "website_url",
+          clientId: clientId,
+          agentName: agentName,
+          documentId: newUrl.id.toString()
+        });
+      }
+      
+      // Log activity
+      await logClientActivity(
+        "website_url_added",
+        `Added website URL: ${data.url}`,
+        { url: data.url, refresh_rate: data.refresh_rate }
+      );
+      
+      toast.success("Website URL added successfully");
     } catch (error) {
-      console.error("Error in handleAdd:", error);
+      console.error("Error adding website URL:", error);
+      toast.error("Failed to add website URL");
     }
   };
-  
-  const handleCancel = () => {
-    setShowAddForm(false);
-  };
-  
-  const handleProcess = async (url: WebsiteUrl) => {
-    if (!clientId) {
-      toast.error("Client ID is required to process the website URL");
-      return;
-    }
-    
+
+  const handleDelete = async (id: number) => {
     try {
-      await processWebsiteUrl(clientId, url.url, url.id.toString());
-      toast.success("Website URL processing initiated");
+      const deletedUrl = websiteUrls.find(url => url.id === id);
+      await deleteWebsiteUrl(id);
+      
+      if (deletedUrl) {
+        await logClientActivity(
+          "website_url_deleted",
+          `Deleted website URL: ${deletedUrl.url}`,
+          { url: deletedUrl.url }
+        );
+      }
+      
+      toast.success("Website URL deleted successfully");
     } catch (error) {
-      console.error("Error processing website URL:", error);
-      toast.error("Failed to process website URL");
+      console.error("Error deleting website URL:", error);
+      toast.error("Failed to delete website URL");
     }
   };
 
   return (
     <div className="space-y-4">
-      {urls.length > 0 && (
-        <WebsiteUrlsList 
-          urls={urls} 
-          onDelete={onDelete} 
-          onProcess={handleProcess}
-          isDeleteLoading={isDeleteLoading}
-          isProcessing={isProcessing}
+      {websiteUrls.length > 0 && (
+        <WebsiteUrlsList
+          urls={websiteUrls}
+          onDelete={handleDelete}
+          isDeleteLoading={isLoading}
+          deletingId={isDeletingId}
         />
       )}
       
       {showAddForm ? (
         <WebsiteUrlForm
-          onAdd={handleAdd}
-          onCancel={handleCancel}
+          onAdd={handleAddUrl}
+          onCancel={() => setShowAddForm(false)}
           isAddLoading={isAddLoading}
           clientId={clientId}
           agentName={agentName}
           isProcessing={isProcessing}
         />
       ) : (
-        <Button 
+        <button
+          type="button"
           onClick={() => setShowAddForm(true)}
-          className="w-full"
-          variant="outline"
+          className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Website URL
-        </Button>
+          + Add Website URL
+        </button>
       )}
     </div>
   );
