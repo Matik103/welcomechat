@@ -210,7 +210,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           email: data.email,
           client_id: clientId,
           client_name: data.client_name,
-          agent_name: finalAgentName,
+          agent_name: sanitizedAgentName, // Use sanitizedAgentName instead of finalAgentName
           agent_description: data.agent_description || "",
           logo_url: data.logo_url || "",
           logo_storage_path: data.logo_storage_path || ""
@@ -239,7 +239,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         clientId,
         clientName: data.client_name,
         email: data.email,
-        agentName: finalAgentName,
+        agentName: sanitizedAgentName, // Use sanitizedAgentName instead of finalAgentName
         tempPassword
       });
 
