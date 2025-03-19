@@ -1,4 +1,3 @@
-
 import { useDriveLinks } from "@/hooks/useDriveLinks";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { DocumentLinks } from "@/components/client/DocumentLinks";
@@ -8,6 +7,7 @@ import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { Loader2, Lock } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useState, useEffect } from "react";
 
 interface ClientResourceSectionsProps {
   clientId: string | undefined;
@@ -48,6 +48,33 @@ export const ClientResourceSections = ({
   // Check if any document links have restricted access
   const restrictedLinks = documentLinks.filter(link => link.access_status === "restricted");
   const hasRestrictedLinks = restrictedLinks.length > 0;
+
+  const [agentName, setAgentName] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchAgentName = async () => {
+      if (!clientId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("agent_name")
+          .eq("id", clientId)
+          .single();
+        
+        if (error) {
+          console.error("Error fetching agent name:", error);
+        } else {
+          console.log("Fetched agent name:", data.agent_name);
+          setAgentName(data.agent_name);
+        }
+      } catch (error) {
+        console.error("Error in fetchAgentName:", error);
+      }
+    };
+    
+    fetchAgentName();
+  }, [clientId]);
 
   const handleAddDocumentLink = async (data: { link: string; refresh_rate: number; document_type?: string }) => {
     try {
@@ -214,6 +241,7 @@ export const ClientResourceSections = ({
           isDeleteLoading={deleteDriveLinkMutation.isPending}
           isUploadLoading={uploadDocumentMutation.isPending}
           clientId={clientId}
+          agentName={agentName || undefined}
         />
       </div>
 
@@ -226,6 +254,7 @@ export const ClientResourceSections = ({
           isAddLoading={addWebsiteUrlMutation.isPending}
           isDeleteLoading={deleteWebsiteUrlMutation.isPending}
           clientId={clientId}
+          agentName={agentName || undefined}
         />
       </div>
     </div>

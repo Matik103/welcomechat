@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { useDriveAccessCheck } from "@/hooks/useDriveAccessCheck";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useDocumentProcessor } from "@/hooks/useDocumentProcessor";
 
 interface DriveLinksProps {
   driveLinks: DocumentLink[];
@@ -48,8 +48,8 @@ export const DriveLinks = ({
     agent_description?: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { processDocument, isProcessing } = useDocumentProcessor();
 
-  // Fetch client data when component mounts
   useEffect(() => {
     const fetchClientData = async () => {
       if (!clientId) return;
@@ -86,7 +86,6 @@ export const DriveLinks = ({
       } catch (err) {
         console.error("Error in fetchClientData:", err);
         toast.error("Failed to load client information");
-        // Make sure to initialize the clientData state to prevent NULL errors
         setClientData({});
         setAgentName(null);
       } finally {
@@ -99,7 +98,6 @@ export const DriveLinks = ({
 
   const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewLink(e.target.value);
-    // Reset validation when link changes
     setIsValidated(false);
     setError(null);
     setFileId(null);
@@ -111,7 +109,6 @@ export const DriveLinks = ({
       return false;
     }
 
-    // For Google Drive links, validate format
     if (documentType === "google_drive" || documentType === "google_doc") {
       const validation = validateDriveLink(newLink);
       if (!validation.isValid) {
@@ -129,7 +126,6 @@ export const DriveLinks = ({
           return false;
         }
         
-        // Show a warning about not being able to check access
         if (result.accessLevel === "unknown") {
           setError("Note: We can't verify if this link is publicly accessible. Please ensure you've set sharing to 'Anyone with the link'.");
         }
@@ -138,7 +134,6 @@ export const DriveLinks = ({
         return false;
       }
     } else {
-      // For other document types, just check if it's a valid URL
       try {
         new URL(newLink);
       } catch (_) {
@@ -169,11 +164,29 @@ export const DriveLinks = ({
     try {
       setIsSubmitting(true);
       console.log("Submitting document link:", newLink, newRefreshRate, documentType);
+      
       await onAdd({
         link: newLink,
         refresh_rate: newRefreshRate,
         document_type: documentType
       });
+      
+      try {
+        const documentId = `drive_${Date.now()}`;
+        
+        toast.info("Processing document content...");
+        
+        await processDocument({
+          documentUrl: newLink,
+          documentType: documentType,
+          clientId,
+          agentName,
+          documentId
+        });
+      } catch (processingError) {
+        console.error("Error processing document:", processingError);
+        toast.error(`Document link added but content processing failed: ${processingError.message}`);
+      }
       
       setNewLink("");
       setNewRefreshRate(30);
@@ -211,10 +224,8 @@ export const DriveLinks = ({
     try {
       setIsUploading(true);
       
-      // Create a storage path based on client ID and file name
       const filePath = `${clientId}/${Date.now()}_${file.name}`;
       
-      // Upload the file to Supabase storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client_documents')
         .upload(filePath, file);
@@ -223,14 +234,12 @@ export const DriveLinks = ({
         throw new Error(`File upload failed: ${uploadError.message}`);
       }
       
-      // Get the public URL of the uploaded file
       const { data: urlData } = await supabase.storage
         .from('client_documents')
         .getPublicUrl(filePath);
       
       const fileUrl = urlData.publicUrl;
       
-      // Store the document content in the AI agent's knowledge base
       const { data: agentData, error: agentError } = await supabase
         .from("ai_agents")
         .insert({
@@ -294,7 +303,6 @@ export const DriveLinks = ({
     }
   };
 
-  // Show loading state while client data is being fetched
   if (isLoading) {
     return (
       <div className="flex justify-center py-4">
@@ -303,7 +311,6 @@ export const DriveLinks = ({
     );
   }
 
-  // Show missing agent name alert if not configured
   if (!agentName && !showNewForm && !showUploadForm) {
     return (
       <div className="space-y-4">
@@ -551,14 +558,19 @@ export const DriveLinks = ({
               </Button>
               <Button 
                 type="submit"
-                disabled={isAddLoading || isSubmitting || !newLink || (isChecking && !isValidated)}
+                disabled={isAddLoading || isSubmitting || !newLink || (isChecking && !isValidated) || isProcessing}
               >
-                {(isAddLoading || isSubmitting) ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                {(isAddLoading || isSubmitting || isProcessing) ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    {isProcessing ? "Processing..." : "Adding..."}
+                  </>
                 ) : (
-                  <Plus className="w-4 h-4 mr-2" />
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Link
+                  </>
                 )}
-                Add Link
               </Button>
             </div>
           </div>

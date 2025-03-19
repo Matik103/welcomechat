@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useUrlAccessCheck } from "@/hooks/useUrlAccessCheck";
 import { useStoreWebsiteContent } from "@/hooks/useStoreWebsiteContent";
 import { toast } from "sonner";
+import { useDocumentProcessor } from "@/hooks/useDocumentProcessor";
 
 interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
@@ -39,10 +39,10 @@ export const WebsiteUrls = ({
   const { storeWebsiteContent, isStoring } = useStoreWebsiteContent();
   const [isValidated, setIsValidated] = useState(false);
   const [isContentStored, setIsContentStored] = useState(false);
+  const { processDocument, isProcessing } = useDocumentProcessor();
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewUrl(e.target.value);
-    // Reset validation when URL changes
     setIsValidated(false);
     setIsContentStored(false);
     setError(null);
@@ -55,7 +55,6 @@ export const WebsiteUrls = ({
     }
 
     try {
-      // Basic URL validation
       new URL(newUrl);
     } catch (e) {
       setError("Please enter a valid URL");
@@ -72,7 +71,6 @@ export const WebsiteUrls = ({
       
       setIsValidated(true);
       
-      // If client ID and agent name are provided, and we have content, store it
       if (clientId && agentName && result.content) {
         try {
           const storeResult = await storeWebsiteContent(
@@ -87,11 +85,9 @@ export const WebsiteUrls = ({
             toast.success("Website content imported to AI agent knowledge base");
           } else {
             console.warn("Could not store content:", storeResult.error);
-            // Don't block the URL addition if content storage fails
           }
         } catch (storeError) {
           console.error("Error storing content:", storeError);
-          // Don't block the URL addition if content storage fails
         }
       }
       
@@ -115,10 +111,30 @@ export const WebsiteUrls = ({
     try {
       setIsSubmitting(true);
       console.log("Submitting website URL:", newUrl, newRefreshRate);
+      
       await onAdd({
         url: newUrl,
         refresh_rate: newRefreshRate,
       });
+      
+      if (clientId && agentName) {
+        try {
+          const documentId = `website_${Date.now()}`;
+          
+          toast.info("Processing website content...");
+          
+          await processDocument({
+            documentUrl: newUrl,
+            documentType: "website_url",
+            clientId,
+            agentName,
+            documentId
+          });
+        } catch (processingError) {
+          console.error("Error processing website:", processingError);
+          toast.error(`Website URL added but content processing failed: ${processingError.message}`);
+        }
+      }
       
       setNewUrl("");
       setNewRefreshRate(30);
@@ -144,11 +160,9 @@ export const WebsiteUrls = ({
     }
   };
 
-  // Function to render scrapability details
   const renderScrapabilityInfo = () => {
     if (!lastResult || !isValidated) return null;
     
-    // Display different info based on scrapability
     if (lastResult.canScrape === false) {
       return (
         <Alert variant="warning" className="bg-amber-50 border-amber-200 mt-2">
@@ -317,12 +331,12 @@ export const WebsiteUrls = ({
               </Button>
               <Button 
                 type="submit"
-                disabled={isAddLoading || isSubmitting || !newUrl || (isChecking && !isValidated)}
+                disabled={isAddLoading || isSubmitting || !newUrl || (isChecking && !isValidated) || isProcessing}
               >
-                {(isAddLoading || isSubmitting || isStoring) ? (
+                {(isAddLoading || isSubmitting || isProcessing || isStoring) ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    {isStoring ? "Importing..." : "Adding..."}
+                    {isProcessing ? "Processing..." : isStoring ? "Importing..." : "Adding..."}
                   </>
                 ) : (
                   <>
