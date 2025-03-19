@@ -20,7 +20,7 @@ export const useClientMutation = (id: string | undefined) => {
     mutationFn: async (data: ClientFormData) => {
       console.log("Data before mutation:", data);
       
-      // Sanitize agent_name to prevent SQL syntax errors
+      // Create a deep copy of the data to avoid mutating the original object
       const sanitizedData = {
         ...data,
         agent_name: sanitizeForSQL(data.agent_name)

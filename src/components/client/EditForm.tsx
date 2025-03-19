@@ -84,7 +84,6 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
-        <p className="text-xs text-gray-500">Double quotes (") will be automatically converted to single quotes (') for database compatibility.</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">
