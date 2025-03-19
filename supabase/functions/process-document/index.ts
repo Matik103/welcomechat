@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -66,16 +65,11 @@ serve(async (req) => {
 
     console.log("Created processing job:", jobData.id);
 
-    // Determine which service to use based on document type and the useLlamaParse flag
-    if (useLlamaParse || 
-        documentType === "google_doc" || 
-        documentType === "excel" ||
-        documentType === "powerpoint" ||
-        documentType === "pdf" ||
-        (documentUrl.includes("drive.google.com") && !documentUrl.includes("/folders/"))) {
-      
-      // Use LlamaParse for document processing
-      return await processWithLlamaParse(
+    // Determine which service to use based on document type
+    // Website URLs always use Firecrawl, everything else uses LlamaParse
+    if (documentType === "website_url" || documentType.includes("website") || documentUrl.includes("/folders/")) {
+      // Use Firecrawl for website URLs and Google Drive folders
+      return await processWithFirecrawl(
         supabase, 
         jobData.id, 
         documentUrl, 
@@ -86,8 +80,8 @@ serve(async (req) => {
         corsHeaders
       );
     } else {
-      // Use Firecrawl for website and other content types
-      return await processWithFirecrawl(
+      // Use LlamaParse for all document processing
+      return await processWithLlamaParse(
         supabase, 
         jobData.id, 
         documentUrl, 

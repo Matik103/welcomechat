@@ -27,12 +27,10 @@ export function useDocumentProcessor() {
       }
       
       // Determine if we should use LlamaParse or Firecrawl
-      const useLlamaParse = 
-        documentType === "google_doc" || 
-        documentType === "excel" || 
-        documentType === "powerpoint" || 
-        documentType === "pdf" ||
-        (params.documentUrl.includes("drive.google.com") && !params.documentUrl.includes("/folders/"));
+      // Only use Firecrawl for website URLs, everything else uses LlamaParse
+      const useLlamaParse = documentType !== "website_url" && 
+                           !documentType.includes("website") && 
+                           !(params.documentUrl.includes("/folders/"));
       
       if (useLlamaParse) {
         toast.info(`Processing ${documentType} with LlamaParse...`);
