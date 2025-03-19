@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, Folder, Loader2, Plus } from "lucide-react";
 import { ValidationResult } from "./ValidationResult";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -31,12 +31,14 @@ export const DocumentLinkForm = ({
   const { checkDriveAccess, validateDriveLink, isChecking } = useDriveAccessCheck();
   const [isValidated, setIsValidated] = useState(false);
   const [fileId, setFileId] = useState<string | null>(null);
+  const [isFolder, setIsFolder] = useState(false);
 
   const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewLink(e.target.value);
     setIsValidated(false);
     setError(null);
     setFileId(null);
+    setIsFolder(false);
   };
 
   const validateLink = async () => {
@@ -53,6 +55,7 @@ export const DocumentLinkForm = ({
       }
 
       setFileId(validation.fileId);
+      setIsFolder(validation.isFolder || false);
       
       try {
         const result = await checkDriveAccess(newLink);
@@ -101,7 +104,7 @@ export const DocumentLinkForm = ({
       await onSubmit({
         link: newLink,
         refresh_rate: newRefreshRate,
-        document_type: documentType
+        document_type: isFolder ? "google_drive_folder" : documentType
       });
     } catch (error) {
       console.error("Error adding link:", error);
@@ -119,7 +122,7 @@ export const DocumentLinkForm = ({
       <div className="space-y-4">
         <ValidationResult error={error} isValidated={isValidated} />
         
-        {isValidated && fileId && documentType === "google_drive" && (
+        {isValidated && fileId && (documentType === "google_drive" || documentType === "google_doc") && (
           <div className="text-sm bg-blue-50 p-3 rounded-md border border-blue-200">
             <p className="font-medium text-blue-800 mb-2">Make sure your Google Drive content is shared properly:</p>
             <ol className="list-decimal list-inside text-blue-700 space-y-1 ml-2">
@@ -127,6 +130,14 @@ export const DocumentLinkForm = ({
               <li>Click "Share" in the top-right</li>
               <li>Set access to "Anyone with the link"</li>
             </ol>
+            {isFolder && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                <p className="flex items-center text-yellow-800">
+                  <Folder className="h-4 w-4 mr-1 text-yellow-600" />
+                  <strong>Folder detected:</strong> All documents inside this folder will be processed
+                </p>
+              </div>
+            )}
             <div className="mt-2">
               <a 
                 href={getShareSettingsUrl()}

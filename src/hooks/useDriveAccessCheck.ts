@@ -14,15 +14,17 @@ export function useDriveAccessCheck() {
   const [isChecking, setIsChecking] = useState(false);
   const [lastResult, setLastResult] = useState<DriveCheckResult | null>(null);
 
-  const extractDriveFileId = (link: string): string => {
+  const extractDriveFileId = (link: string): { fileId: string; isFolder: boolean } => {
     console.log("Extracting file ID from link:", link);
     let fileId = '';
+    let isFolder = false;
     
     try {
       if (link.includes('drive.google.com/drive/folders/')) {
         const folderMatch = link.match(/folders\/([^/?]+)/);
         if (folderMatch && folderMatch[1]) {
           fileId = folderMatch[1];
+          isFolder = true;
         }
       } else if (link.includes('docs.google.com/document/d/') || 
                 link.includes('docs.google.com/spreadsheets/d/') ||
@@ -39,13 +41,13 @@ export function useDriveAccessCheck() {
         fileId = link.split('/d/')[1]?.split('/')[0];
       }
       
-      console.log("Extracted file ID:", fileId);
+      console.log("Extracted file ID:", fileId, "Is folder:", isFolder);
       
       if (!fileId) {
         throw new Error("Invalid Google Drive link format - couldn't extract file ID");
       }
       
-      return fileId;
+      return { fileId, isFolder };
     } catch (error) {
       console.error("Error extracting file ID:", error);
       throw new Error("Invalid Google Drive link format");
@@ -53,7 +55,7 @@ export function useDriveAccessCheck() {
   };
 
   // This function validates that the link is a proper Google Drive link and extracts the file ID
-  const validateDriveLink = (link: string): { isValid: boolean; fileId?: string; error?: string } => {
+  const validateDriveLink = (link: string): { isValid: boolean; fileId?: string; isFolder?: boolean; error?: string } => {
     try {
       // Basic URL validation
       new URL(link);
@@ -66,11 +68,12 @@ export function useDriveAccessCheck() {
         };
       }
       
-      // Extract file ID
-      const fileId = extractDriveFileId(link);
+      // Extract file ID and check if it's a folder
+      const { fileId, isFolder } = extractDriveFileId(link);
       return {
         isValid: true,
-        fileId
+        fileId,
+        isFolder
       };
     } catch (error) {
       return {
@@ -101,7 +104,7 @@ export function useDriveAccessCheck() {
       // But we could re-implement this in the future
       const result = {
         accessLevel: "unknown" as AccessStatus,
-        fileType: "unknown" as const,
+        fileType: validation.isFolder ? "folder" as const : "file" as const,
         fileId: validation.fileId,
         error: "Google Drive access checking requires authentication which is not currently set up"
       };

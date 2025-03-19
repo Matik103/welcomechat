@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -82,6 +83,11 @@ export function useDriveLinks(clientId: string | undefined) {
     }
   };
 
+  // Detect if link is a folder
+  const isGoogleDriveFolder = (link: string): boolean => {
+    return link.includes('drive.google.com/drive/folders/');
+  };
+
   // Simplified check for document access
   const checkDocumentAccess = async (link: string): Promise<AccessStatus> => {
     try {
@@ -105,34 +111,22 @@ export function useDriveLinks(clientId: string | undefined) {
     // Set default access status to unknown since we can't check anymore
     const accessStatus: AccessStatus = "unknown";
     
-    // First, check if the document_type column exists in the google_drive_links table
+    // Detect if it's a folder for document type
+    let documentType = input.document_type || "google_drive";
+    if (isGoogleDriveFolder(input.link) && documentType === "google_drive") {
+      documentType = "google_drive_folder";
+      console.log("Detected Google Drive folder, setting document_type to:", documentType);
+    }
+    
     try {
-      // Try to access the schema to check if document_type column exists
-      const { error: columnCheckError } = await supabase
-        .from("google_drive_links")
-        .select("document_type")
-        .limit(1);
-        
-      // Prepare base data without document_type
-      const baseData = {
+      // Prepare base data with document_type
+      const insertData = {
         client_id: clientId,
         link: input.link,
         refresh_rate: input.refresh_rate,
-        access_status: accessStatus
+        access_status: accessStatus,
+        document_type: documentType
       };
-        
-      // If document_type column exists, add it to the insert data
-      let insertData;
-      if (!columnCheckError) {
-        console.log("document_type column exists, including it in the insert");
-        insertData = {
-          ...baseData,
-          document_type: input.document_type || "google_drive"
-        };
-      } else {
-        console.log("document_type column does not exist, using base data only");
-        insertData = baseData;
-      }
       
       // Insert the record
       const { data, error } = await supabase

@@ -82,12 +82,22 @@ serve(async (req) => {
     }
 
     // Handle different document types
-    if (documentType === "website_url" || documentUrl.startsWith("http")) {
+    if (documentType === "website_url" || documentUrl.startsWith("http") && !documentUrl.includes("drive.google.com")) {
       firecrawlEndpoint = "https://api.firecrawl.dev/crawl/url";
       requestData = {
         url: documentUrl,
         options: {
           limit: 100,
+          formats: ["markdown"]
+        }
+      };
+    } else if (documentType === "google_drive_folder") {
+      // Special handling for Google Drive folders
+      firecrawlEndpoint = "https://api.firecrawl.dev/content/drive-folder";
+      requestData = {
+        folderId: extractGoogleDriveFolderId(documentUrl),
+        options: {
+          recursive: true,
           formats: ["markdown"]
         }
       };
@@ -112,6 +122,7 @@ serve(async (req) => {
     }
 
     console.log(`Processing ${documentType} with Firecrawl:`, documentUrl);
+    console.log("Request data:", JSON.stringify(requestData));
 
     // Call the Firecrawl API
     const response = await fetch(firecrawlEndpoint, {
@@ -137,11 +148,11 @@ serve(async (req) => {
       );
     }
 
-    console.log("Firecrawl API response:", firecrawlResult);
+    console.log("Firecrawl API response received");
 
     // Extract content from the Firecrawl result
     let extractedContent = "";
-    if (documentType === "website_url" || documentUrl.startsWith("http")) {
+    if (documentType === "website_url" || documentUrl.startsWith("http") && !documentUrl.includes("drive.google.com")) {
       // For websites, concatenate all page content
       if (firecrawlResult.pages && firecrawlResult.pages.length > 0) {
         extractedContent = firecrawlResult.pages
@@ -151,6 +162,25 @@ serve(async (req) => {
             return `${pageTitle}${pageContent}\n\n`;
           })
           .join("\n");
+      }
+    } else if (documentType === "google_drive_folder") {
+      // For Google Drive folders, concatenate all file contents
+      if (firecrawlResult.files && firecrawlResult.files.length > 0) {
+        extractedContent = firecrawlResult.files
+          .map((file: any) => {
+            const fileTitle = file.name ? `# ${file.name}\n\n` : "";
+            const fileContent = file.content && file.content.formats && file.content.formats.markdown 
+              ? file.content.formats.markdown 
+              : "";
+            return `${fileTitle}${fileContent}\n\n`;
+          })
+          .join("\n");
+          
+        // Log the number of files processed
+        await updateJobMetadata(supabase, jobData.id, {
+          files_processed: firecrawlResult.files.length,
+          folder_id: extractGoogleDriveFolderId(documentUrl)
+        });
       }
     } else {
       // For documents, use the content directly
@@ -246,6 +276,24 @@ serve(async (req) => {
   }
 });
 
+// Helper function to extract Google Drive folder ID
+function extractGoogleDriveFolderId(url: string): string {
+  if (url.includes('drive.google.com/drive/folders/')) {
+    const folderMatch = url.match(/folders\/([^/?]+)/);
+    if (folderMatch && folderMatch[1]) {
+      return folderMatch[1];
+    }
+  }
+  
+  if (url.includes('id=')) {
+    const urlObj = new URL(url);
+    const id = urlObj.searchParams.get('id');
+    if (id) return id;
+  }
+  
+  throw new Error("Could not extract folder ID from URL");
+}
+
 // Helper function to update job status
 async function updateJobStatus(supabase: any, jobId: string, status: string, errorMessage?: string | null, content?: string) {
   const updateData: any = {
@@ -273,5 +321,30 @@ async function updateJobStatus(supabase: any, jobId: string, status: string, err
 
   if (error) {
     console.error("Error updating job status:", error);
+  }
+}
+
+// Helper function to update job metadata
+async function updateJobMetadata(supabase: any, jobId: string, metadata: Record<string, any>) {
+  const { data, error } = await supabase
+    .from("document_processing_jobs")
+    .select("metadata")
+    .eq("id", jobId)
+    .single();
+    
+  if (error) {
+    console.error("Error fetching job metadata:", error);
+    return;
+  }
+  
+  const updatedMetadata = { ...data.metadata, ...metadata };
+  
+  const { error: updateError } = await supabase
+    .from("document_processing_jobs")
+    .update({ metadata: updatedMetadata })
+    .eq("id", jobId);
+    
+  if (updateError) {
+    console.error("Error updating job metadata:", updateError);
   }
 }
