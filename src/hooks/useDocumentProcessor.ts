@@ -84,6 +84,8 @@ export function useDocumentProcessor() {
       }
       
       // Track document processing completion
+      // Fix: Add only the properties that exist in the type signature
+      // Remove content_length property that's not in the type
       await trackDocumentProcessing(
         clientId,
         agentName,
@@ -93,7 +95,8 @@ export function useDocumentProcessor() {
           name: documentUrl,
           type: documentType,
           url: documentUrl,
-          content_length: response.data?.content_length || 0
+          // The content_length property is removed as it's not part of the expected type
+          size: response.data?.content_length || 0 // Use size instead for tracking content length
         }
       );
       

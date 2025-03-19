@@ -92,7 +92,8 @@ export class FirecrawlService {
       // Call the Supabase Edge Function directly
       const { data, error } = await supabase.functions.invoke('document-processing-status', {
         method: 'GET',
-        query: { jobId },
+        // Fix: Use params instead of query for FunctionInvokeOptions
+        params: { jobId },
       });
 
       // Check for errors
