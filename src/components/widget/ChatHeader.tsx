@@ -18,7 +18,7 @@ export function ChatHeader({
 }: ChatHeaderProps) {
   return (
     <div 
-      className="p-3 flex items-center justify-between" 
+      className="p-3 flex items-center justify-between border-b" 
       style={{ backgroundColor, color: textColor }}
     >
       <div className="flex items-center gap-2">
@@ -28,11 +28,12 @@ export function ChatHeader({
             alt={agentName}
             className="w-6 h-6 object-contain rounded"
             onError={(e) => {
+              console.error("Error loading logo in chat header:", logoUrl);
               e.currentTarget.style.display = 'none';
             }}
           />
         )}
-        <span className="font-medium">{agentName || 'AI Assistant'}</span>
+        <span className="font-medium truncate max-w-[180px]">{agentName || 'AI Assistant'}</span>
       </div>
       <button 
         onClick={onClose}

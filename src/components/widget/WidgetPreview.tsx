@@ -43,15 +43,23 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
 
   return (
     <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex justify-end items-end p-4 bg-gray-50">
+      {!expanded && (
+        <div className="absolute bottom-16 left-4 text-xs text-gray-500 z-0">
+          <div className="bg-white p-2 rounded-lg shadow-md animate-pulse">
+            Click the chat icon to expand the widget
+          </div>
+        </div>
+      )}
+      
       <div 
         className={`
-          transition-all duration-300 ease-in-out
-          ${expanded ? 'w-80 h-96 rounded-lg' : 'w-14 h-14 rounded-full'}
+          transition-all duration-300 ease-in-out z-10
+          ${expanded ? 'w-80 h-96 rounded-lg' : 'w-14 h-14 rounded-full cursor-pointer'}
           shadow-lg
           flex flex-col
           overflow-hidden
-          ${expanded ? 'bg-white' : `bg-[${settings.chat_color}]`}
         `}
+        style={{ backgroundColor: expanded ? 'white' : settings.chat_color }}
       >
         {expanded ? (
           <>
@@ -98,14 +106,6 @@ export function WidgetPreview({ settings }: WidgetPreviewProps) {
               <MessageCircle className="w-6 h-6" />
             )}
           </button>
-        )}
-      </div>
-      
-      <div className="absolute bottom-3 left-4 text-xs text-gray-500">
-        {!expanded && (
-          <div className="bg-white p-2 rounded-lg shadow-md animate-pulse">
-            Click the button to expand the widget
-          </div>
         )}
       </div>
     </div>
