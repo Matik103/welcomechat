@@ -33,9 +33,12 @@ export async function syncWidgetSettingsWithAgent(
       // Only copy specific properties from existing settings if they exist
       ...(agentData?.settings ? agentData.settings as Record<string, any> : {}),
       logo_url: settings.logo_url,
+      logo_storage_path: settings.logo_storage_path,
       agent_name: settings.agent_name,
       updated_at: new Date().toISOString()
     };
+    
+    console.log("Updated agent settings:", agentSettings);
     
     if (agentData?.id) {
       // Update existing AI agent
