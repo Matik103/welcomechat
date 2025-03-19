@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
@@ -24,7 +23,7 @@ export const getClientById = async (id: string): Promise<Client | null> => {
  */
 const sanitizeForSQL = (value: string | undefined): string | undefined => {
   if (!value) return value;
-  // Replace double quotes with single quotes
+  // Replace double quotes with single quotes to prevent SQL errors
   return value.replace(/"/g, "'");
 };
 
