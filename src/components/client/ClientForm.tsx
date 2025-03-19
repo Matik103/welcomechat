@@ -26,7 +26,10 @@ interface ClientFormProps {
 }
 
 const clientFormSchema = z.object({
-  client_name: z.string().min(1, "Client name is required"),
+  client_name: z.string().min(1, "Client name is required")
+    .refine(name => !name.match(/['"`\\]/), { 
+      message: 'Client name cannot include quotes or backslashes' 
+    }),
   email: z.string().email("Invalid email address"),
   agent_name: z.string().optional()
     .refine(name => !name || !name.match(/['"`\\]/), { 
