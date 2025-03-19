@@ -11,6 +11,7 @@ import { ExtendedActivityType } from "@/types/activity";
 import { toast } from "sonner";
 
 interface WidgetSettingsContainerProps {
+  clientId?: string;
   settings: IWidgetSettings;
   isClientView: boolean;
   isUploading: boolean;
@@ -24,6 +25,7 @@ interface WidgetSettingsContainerProps {
 }
 
 export function WidgetSettingsContainer({
+  clientId,
   settings,
   isClientView,
   isUploading,
@@ -96,7 +98,7 @@ export function WidgetSettingsContainer({
         </div>
         
         <div className="lg:col-span-1">
-          <WidgetPreviewCard settings={currentSettings} />
+          <WidgetPreviewCard settings={currentSettings} clientId={clientId} />
         </div>
       </div>
     </div>

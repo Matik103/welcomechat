@@ -5,9 +5,10 @@ import { WidgetSettings } from "@/types/widget-settings";
 
 interface WidgetPreviewCardProps {
   settings: WidgetSettings;
+  clientId?: string;
 }
 
-export function WidgetPreviewCard({ settings }: WidgetPreviewCardProps) {
+export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps) {
   return (
     <Card className="border-2 border-indigo-100 shadow-lg sticky top-6">
       <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50">
@@ -18,7 +19,7 @@ export function WidgetPreviewCard({ settings }: WidgetPreviewCardProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6 pb-6">
-        <WidgetPreview settings={settings} />
+        <WidgetPreview settings={settings} clientId={clientId} />
       </CardContent>
     </Card>
   );
