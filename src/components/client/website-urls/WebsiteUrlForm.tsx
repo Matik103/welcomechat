@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,7 +123,7 @@ export const WebsiteUrlForm = ({
       <div className="space-y-4">
         <ValidationResult error={error} isValidated={isValidated} lastResult={lastResult} />
         <ScrapabilityInfo 
-          lastResult={lastResult} 
+          lastResult={lastResult as unknown as UrlAccessResult} 
           isValidated={isValidated} 
           isContentStored={isContentStored} 
         />
