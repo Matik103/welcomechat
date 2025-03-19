@@ -82,6 +82,21 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       const settingsJson = convertSettingsToJson(newSettings);
       console.log("Settings being saved to DB:", settingsJson);
       
+      // Sync with AI agent if available
+      import("@/utils/aiAgentSync").then(({ syncWidgetSettingsWithAgent }) => {
+        syncWidgetSettingsWithAgent(clientId, newSettings)
+          .then(success => {
+            if (success) {
+              console.log("Widget settings synchronized with AI agent");
+            } else {
+              console.log("Could not synchronize widget settings with AI agent");
+            }
+          })
+          .catch(error => {
+            console.error("Error syncing widget settings with AI agent:", error);
+          });
+      });
+      
       const { error, data } = await supabase
         .from("clients")
         .update({

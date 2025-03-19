@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { WidgetSettings as IWidgetSettings, defaultSettings } from "@/types/widget-settings";
 import { Json } from "@/integrations/supabase/types";
@@ -13,7 +12,6 @@ export function convertSettingsToJson(settings: IWidgetSettings): { [key: string
     agent_name: settings.agent_name || defaultSettings.agent_name,
     logo_url: settings.logo_url || '',
     logo_storage_path: settings.logo_storage_path || '',
-    webhook_url: settings.webhook_url || '',
     chat_color: settings.chat_color || defaultSettings.chat_color,
     background_color: settings.background_color || defaultSettings.background_color,
     text_color: settings.text_color || defaultSettings.text_color,
