@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WebsiteUrls } from '@/components/client/WebsiteUrls';
 import { DriveLinks } from '@/components/client/DriveLinks';
@@ -8,6 +8,7 @@ import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentProcessing } from '@/hooks/useDocumentProcessing';
 import { ExtendedActivityType } from '@/types/extended-supabase';
 import { Json } from '@/integrations/supabase/types';
+import { ValidationResult } from '@/types/website-url';
 
 interface ClientResourceSectionsProps {
   clientId: string;
@@ -24,51 +25,79 @@ export const ClientResourceSections = ({
   isClientView = false,
   logClientActivity
 }: ClientResourceSectionsProps) => {
-  // Wrap URL operations for notification and activity logging
+  // State for URL validation
+  const [validatingUrl, setValidatingUrl] = useState(false);
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+
+  // Get website URLs
   const {
     websiteUrls,
     isLoading: isLoadingUrls,
-    validateUrl,
-    isValidating: isValidatingUrl,
-    addWebsiteUrl: rawAddWebsiteUrl,
-    deleteWebsiteUrl: rawDeleteWebsiteUrl,
-    validationResult
+    addWebsiteUrlMutation,
+    deleteWebsiteUrlMutation
   } = useWebsiteUrls(clientId);
 
-  // Wrap document link operations for notification and activity logging
+  // Get document links
   const {
     documentLinks,
     isLoading: isLoadingDocs,
-    isValidating: isValidatingDoc,
-    addDocumentLink: rawAddDocumentLink,
-    deleteDocumentLink: rawDeleteDocumentLink
+    addDocumentLinkMutation,
+    deleteDocumentLinkMutation
   } = useDocumentLinks(clientId);
 
-  // Wrap document processing operations for notification and activity logging
+  // Get document processing
   const {
-    uploadDocument: rawUploadDocument,
+    uploadDocumentMutation,
     isUploading
   } = useDocumentProcessing(clientId, agentName);
+
+  // Validate URL function
+  const validateUrl = async (url: string): Promise<ValidationResult> => {
+    setValidatingUrl(true);
+    try {
+      // Mock validation for now
+      const result: ValidationResult = {
+        isValid: true,
+        details: {
+          scrapability: 'high',
+          contentType: 'text/html',
+          statusCode: 200,
+          pageSize: '50KB',
+          estimatedTokens: 5000
+        }
+      };
+      setValidationResult(result);
+      return result;
+    } catch (error) {
+      console.error('Error validating URL:', error);
+      const errorResult: ValidationResult = {
+        isValid: false,
+        message: 'Failed to validate URL'
+      };
+      setValidationResult(errorResult);
+      return errorResult;
+    } finally {
+      setValidatingUrl(false);
+    }
+  };
 
   /**
    * Enhanced addWebsiteUrl with activity logging
    */
   const addWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
-      const result = await rawAddWebsiteUrl.mutateAsync(data);
+      const result = await addWebsiteUrlMutation.mutateAsync(data);
       
-      if (result) {
-        await logClientActivity(
-          'website_url_added',
-          `Added website URL: ${data.url}`,
-          {
-            url: data.url,
-            refresh_rate: data.refresh_rate
-          }
-        );
-      }
+      await logClientActivity(
+        'website_url_added',
+        `Added website URL: ${data.url}`,
+        {
+          url: data.url,
+          refresh_rate: data.refresh_rate
+        }
+      );
       
-      return result;
+      return;
     } catch (error) {
       console.error('Error adding website URL:', error);
       throw error;
@@ -81,9 +110,9 @@ export const ClientResourceSections = ({
   const deleteWebsiteUrl = async (urlId: number) => {
     try {
       const urlToDelete = websiteUrls?.find(url => url.id === urlId);
-      const result = await rawDeleteWebsiteUrl.mutateAsync(urlId);
+      await deleteWebsiteUrlMutation.mutateAsync(urlId);
       
-      if (result && urlToDelete) {
+      if (urlToDelete) {
         await logClientActivity(
           'website_url_deleted',
           `Deleted website URL: ${urlToDelete.url}`,
@@ -94,7 +123,7 @@ export const ClientResourceSections = ({
         );
       }
       
-      return result;
+      return;
     } catch (error) {
       console.error('Error deleting website URL:', error);
       throw error;
@@ -106,21 +135,19 @@ export const ClientResourceSections = ({
    */
   const addDocumentLink = async (data: { link: string; document_type: string; refresh_rate: number }) => {
     try {
-      const result = await rawAddDocumentLink.mutateAsync(data);
+      await addDocumentLinkMutation.mutateAsync(data);
       
-      if (result) {
-        await logClientActivity(
-          'document_link_added',
-          `Added ${data.document_type} link: ${data.link}`,
-          {
-            link: data.link,
-            document_type: data.document_type,
-            refresh_rate: data.refresh_rate
-          }
-        );
-      }
+      await logClientActivity(
+        'document_link_added',
+        `Added ${data.document_type} link: ${data.link}`,
+        {
+          link: data.link,
+          document_type: data.document_type,
+          refresh_rate: data.refresh_rate
+        }
+      );
       
-      return result;
+      return;
     } catch (error) {
       console.error('Error adding document link:', error);
       throw error;
@@ -133,9 +160,9 @@ export const ClientResourceSections = ({
   const deleteDocumentLink = async (linkId: number) => {
     try {
       const linkToDelete = documentLinks?.find(link => link.id === linkId);
-      const result = await rawDeleteDocumentLink.mutateAsync(linkId);
+      await deleteDocumentLinkMutation.mutateAsync(linkId);
       
-      if (result && linkToDelete) {
+      if (linkToDelete) {
         await logClientActivity(
           'document_link_deleted',
           `Deleted ${linkToDelete.document_type} link: ${linkToDelete.link}`,
@@ -147,7 +174,7 @@ export const ClientResourceSections = ({
         );
       }
       
-      return result;
+      return;
     } catch (error) {
       console.error('Error deleting document link:', error);
       throw error;
@@ -159,21 +186,19 @@ export const ClientResourceSections = ({
    */
   const uploadDocument = async (file: File) => {
     try {
-      const result = await rawUploadDocument.mutateAsync(file);
+      await uploadDocumentMutation.mutateAsync(file);
       
-      if (result) {
-        await logClientActivity(
-          'document_uploaded',
-          `Uploaded document: ${file.name}`,
-          {
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type
-          }
-        );
-      }
+      await logClientActivity(
+        'document_uploaded',
+        `Uploaded document: ${file.name}`,
+        {
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type
+        }
+      );
       
-      return result;
+      return;
     } catch (error) {
       console.error('Error uploading document:', error);
       throw error;
@@ -196,9 +221,6 @@ export const ClientResourceSections = ({
           <WebsiteUrls
             urls={websiteUrls || []}
             isLoading={isLoadingUrls}
-            isValidating={isValidatingUrl}
-            validationResult={validationResult}
-            validateUrl={validateUrl}
             addWebsiteUrl={addWebsiteUrl}
             deleteWebsiteUrl={deleteWebsiteUrl}
             isClientView={isClientView}
@@ -209,7 +231,7 @@ export const ClientResourceSections = ({
           <DriveLinks
             documents={documentLinks || []}
             isLoading={isLoadingDocs}
-            isValidating={isValidatingDoc}
+            isValidating={false}
             isUploading={isUploading}
             addDocumentLink={addDocumentLink}
             deleteDocumentLink={deleteDocumentLink}

@@ -1,82 +1,60 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { checkAndRefreshAuth } from "@/services/authService";
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { useClientActivity } from '@/hooks/useClientActivity';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
-export const SignOutSection = () => {
+export const SignOutSection = ({ clientId }: { clientId?: string }) => {
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
-  const { logActivity } = useClientActivity(user?.user_metadata?.client_id);
-  const [isLoading, setIsLoading] = useState(false);
+  const { signOut } = useAuth();
+  const { logActivity } = useClientActivity(clientId);
 
   const handleSignOut = async () => {
-    if (isLoading) return;
-    
-    setIsLoading(true);
     try {
-      console.log("Signing out user:", user?.email);
-      
-      // Check and refresh auth session if needed
-      const isAuthValid = await checkAndRefreshAuth();
-      if (!isAuthValid) {
-        // If auth is already invalid, just redirect to auth page
-        navigate("/auth", { replace: true });
-        return;
+      // Log the sign out activity if clientId is provided
+      if (clientId) {
+        await logActivity.mutateAsync({
+          activity_type: 'signed_out',
+          description: 'User signed out of the platform',
+          metadata: { timestamp: new Date().toISOString() }
+        });
       }
       
-      // Log the sign out action before actually signing out
-      if (user?.user_metadata?.client_id) {
-        try {
-          await logActivity("signed_out", "signed out of their account");
-        } catch (logError) {
-          console.error("Failed to log sign out activity, continuing with sign out", logError);
-          // Continue with sign out even if logging fails
-        }
-      }
-      
-      // Explicitly call the signOut function from AuthContext
+      // Sign out and redirect
       await signOut();
-      console.log("Sign out successful");
-      toast.success("Successfully signed out");
-      navigate("/auth", { replace: true });
-    } catch (error: any) {
-      console.error("Sign out error:", error);
-      toast.error(error.message || "Failed to sign out");
+      toast.success('You have been signed out successfully');
       
-      // If sign out fails due to a network error, force a client-side sign out
-      if (error.message?.includes("Failed to fetch") || error.message?.includes("Network Error")) {
-        console.log("Forcing client-side sign out due to network error");
-        navigate("/auth", { replace: true });
-        window.location.reload(); // Force a full page reload to clear auth state
-      }
-    } finally {
-      setIsLoading(false);
+      // Navigate to the homepage after sign out
+      navigate('/');
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      toast.error('Failed to sign out. Please try again.');
     }
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-destructive">
-          <LogOut className="h-5 w-5" />
-          Sign Out
-        </CardTitle>
+        <CardTitle>Sign Out</CardTitle>
         <CardDescription>
-          Sign out of your account on this device
+          Sign out of your account to end your session
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button variant="destructive" onClick={handleSignOut} disabled={isLoading}>
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+        <p className="text-sm text-gray-500">
+          When you sign out, your current session will be terminated. You'll need to sign in again to access your account.
+        </p>
+      </CardContent>
+      <Separator />
+      <CardFooter className="flex justify-between pt-6">
+        <Button variant="destructive" onClick={handleSignOut}>
           Sign Out
         </Button>
-      </CardContent>
+      </CardFooter>
     </Card>
   );
 };

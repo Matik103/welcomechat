@@ -1,52 +1,80 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card } from '@/components/ui/card';
 import { WebsiteUrls } from '@/components/client/WebsiteUrls';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { ExtendedActivityType } from '@/types/extended-supabase';
 import { Json } from '@/integrations/supabase/types';
+import { ValidationResult } from '@/types/website-url';
 
 interface WebsiteResourcesSectionProps {
   clientId: string;
-  isClientView?: boolean;
+  isClientView: boolean;
   logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
-export const WebsiteResourcesSection = ({
+export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = ({
   clientId,
-  isClientView = false,
+  isClientView,
   logClientActivity
-}: WebsiteResourcesSectionProps) => {
-  // Wrap URL operations for notification and activity logging
+}) => {
+  // State for URL validation
+  const [validatingUrl, setValidatingUrl] = useState(false);
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+
+  // Get website URLs from hook
   const {
     websiteUrls,
-    isLoading: isLoadingUrls,
-    validateUrl,
-    isValidating: isValidatingUrl,
-    addWebsiteUrl: rawAddWebsiteUrl,
-    deleteWebsiteUrl: rawDeleteWebsiteUrl,
-    validationResult
+    isLoading,
+    addWebsiteUrlMutation,
+    deleteWebsiteUrlMutation
   } = useWebsiteUrls(clientId);
+
+  // Custom URL validator
+  const validateUrl = async (url: string): Promise<ValidationResult> => {
+    setValidatingUrl(true);
+    try {
+      // Mock validation result
+      const result: ValidationResult = {
+        isValid: true,
+        details: {
+          scrapability: 'high',
+          contentType: 'text/html',
+          statusCode: 200,
+          pageSize: '50KB',
+          estimatedTokens: 5000
+        }
+      };
+      setValidationResult(result);
+      return result;
+    } catch (error) {
+      console.error('Error validating URL:', error);
+      const errorResult: ValidationResult = {
+        isValid: false,
+        message: 'Failed to validate URL'
+      };
+      setValidationResult(errorResult);
+      return errorResult;
+    } finally {
+      setValidatingUrl(false);
+    }
+  };
 
   /**
    * Enhanced addWebsiteUrl with activity logging
    */
   const addWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
-      const result = await rawAddWebsiteUrl.mutateAsync(data);
+      await addWebsiteUrlMutation.mutateAsync(data);
       
-      if (result) {
-        await logClientActivity(
-          'website_url_added',
-          `Added website URL: ${data.url}`,
-          {
-            url: data.url,
-            refresh_rate: data.refresh_rate
-          }
-        );
-      }
-      
-      return result;
+      await logClientActivity(
+        'website_url_added',
+        `Added website URL: ${data.url}`,
+        {
+          url: data.url,
+          refresh_rate: data.refresh_rate
+        }
+      );
     } catch (error) {
       console.error('Error adding website URL:', error);
       throw error;
@@ -59,9 +87,9 @@ export const WebsiteResourcesSection = ({
   const deleteWebsiteUrl = async (urlId: number) => {
     try {
       const urlToDelete = websiteUrls?.find(url => url.id === urlId);
-      const result = await rawDeleteWebsiteUrl.mutateAsync(urlId);
+      await deleteWebsiteUrlMutation.mutateAsync(urlId);
       
-      if (result && urlToDelete) {
+      if (urlToDelete) {
         await logClientActivity(
           'website_url_deleted',
           `Deleted website URL: ${urlToDelete.url}`,
@@ -71,8 +99,6 @@ export const WebsiteResourcesSection = ({
           }
         );
       }
-      
-      return result;
     } catch (error) {
       console.error('Error deleting website URL:', error);
       throw error;
@@ -80,22 +106,14 @@ export const WebsiteResourcesSection = ({
   };
 
   return (
-    <Card className="col-span-1">
-      <CardHeader>
-        <CardTitle>Website URLs</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <WebsiteUrls
-          urls={websiteUrls || []}
-          isLoading={isLoadingUrls}
-          isValidating={isValidatingUrl}
-          validationResult={validationResult}
-          validateUrl={validateUrl}
-          addWebsiteUrl={addWebsiteUrl}
-          deleteWebsiteUrl={deleteWebsiteUrl}
-          isClientView={isClientView}
-        />
-      </CardContent>
+    <Card className="p-0">
+      <WebsiteUrls
+        urls={websiteUrls || []}
+        isLoading={isLoading}
+        addWebsiteUrl={addWebsiteUrl}
+        deleteWebsiteUrl={deleteWebsiteUrl}
+        isClientView={isClientView}
+      />
     </Card>
   );
 };

@@ -7,7 +7,6 @@ import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinks
 import { DocumentUploadForm } from '@/components/client/drive-links/DocumentUploadForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentNameWarning } from '@/components/client/drive-links/AgentNameWarning';
-import { ExtendedActivityType } from '@/types/extended-supabase';
 import { DocumentLink } from '@/hooks/useDocumentLinks';
 
 interface DriveLinksProps {
@@ -61,7 +60,7 @@ export const DriveLinks = ({
         )}
       </CardHeader>
       <CardContent>
-        {!isClientView && <AgentNameWarning />}
+        {!isClientView && <AgentNameWarning show={true} />}
 
         {showAddForm ? (
           <div className="mb-4">
@@ -80,7 +79,7 @@ export const DriveLinks = ({
 
             <TabsContent value="list" className="space-y-4">
               <DocumentLinksList
-                documents={documents}
+                documentLinks={documents}
                 isLoading={isLoading}
                 onDelete={handleDeleteLink}
               />
@@ -88,7 +87,7 @@ export const DriveLinks = ({
 
             <TabsContent value="upload">
               <DocumentUploadForm
-                onUpload={handleUploadDocument}
+                onSubmitDocument={handleUploadDocument}
                 isUploading={isUploading}
               />
             </TabsContent>

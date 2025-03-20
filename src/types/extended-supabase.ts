@@ -36,7 +36,8 @@ export type ExtendedActivityType =
   | "logo_uploaded"
   | "system_update"
   | "source_deleted"
-  | "source_added";
+  | "source_added"
+  | "email_sent"; // Added email_sent activity type
 
 /**
  * Access status type for document links
@@ -55,4 +56,15 @@ export interface ChatInteraction {
   agentName?: string;
   responseTimeMs?: number;
   metadata?: Json;
+}
+
+/**
+ * Interface to define dashboard stats more clearly
+ */
+export interface DashboardStats {
+  totalInteractions: number;
+  activeDays: number;
+  averageResponseTime: number;
+  successRate?: number;
+  topQueries: Array<{query_text: string; frequency: number}>;
 }
