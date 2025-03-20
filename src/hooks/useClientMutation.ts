@@ -17,14 +17,15 @@ export const useClientMutation = (id: string | undefined) => {
       // Create a deep copy of the data to avoid mutating the original object
       const sanitizedData: ClientFormData = {
         ...data,
-        // Sanitize the agent name for SQL safety
-        agent_name: data.agent_name ? sanitizeForSQL(data.agent_name) : 'AI Assistant'
+        widget_settings: {
+          ...data.widget_settings,
+          // Ensure agent_name is sanitized if present in widget_settings
+          agent_name: data.widget_settings?.agent_name ? 
+            sanitizeForSQL(data.widget_settings.agent_name) : 
+            'AI Assistant'
+        }
       };
       
-      // Get agent_description from input data
-      const agentDescription = data.agent_description || "";
-      
-      console.log("Agent description:", agentDescription);
       console.log("Data after sanitization:", sanitizedData);
 
       if (id) {
