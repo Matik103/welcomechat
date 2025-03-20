@@ -4,14 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useClientDashboard } from "@/hooks/useClientDashboard";
 import { Loader2 } from "lucide-react";
 import { InteractionStats } from "@/types/client-dashboard";
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ClientStatsProps {
   clientId: string;
   agentName?: string;
 }
 
-export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
-  const { stats, isLoading, error } = useClientDashboard(clientId, agentName);
+export const ClientStats = ({ clientId }: ClientStatsProps) => {
+  const { stats, isLoading, error } = useClientDashboard(clientId);
 
   if (isLoading) {
     return (
@@ -26,6 +27,23 @@ export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
     );
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Performance Metrics</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertDescription>
+              Unable to load statistics: {error.message}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!stats) {
     return (
       <Card>
@@ -34,7 +52,7 @@ export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
         </CardHeader>
         <CardContent>
           <div className="text-center text-gray-500 py-10">
-            Unable to load statistics
+            No statistics available
           </div>
         </CardContent>
       </Card>
@@ -42,11 +60,11 @@ export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
   }
 
   // Ensure we have consistent property names by accessing either camelCase or snake_case
-  const totalInteractions = stats.totalInteractions ?? stats.total_interactions;
-  const activeDays = stats.activeDays ?? stats.active_days;
-  const averageResponseTime = stats.averageResponseTime ?? stats.average_response_time;
-  const topQueries = stats.topQueries ?? stats.top_queries;
-  const successRate = stats.successRate ?? stats.success_rate;
+  const totalInteractions = stats.totalInteractions ?? stats.total_interactions ?? 0;
+  const activeDays = stats.activeDays ?? stats.active_days ?? 0;
+  const averageResponseTime = stats.averageResponseTime ?? stats.average_response_time ?? 0;
+  const topQueries = stats.topQueries ?? stats.top_queries ?? [];
+  const successRate = stats.successRate ?? stats.success_rate ?? 0;
 
   return (
     <Card>

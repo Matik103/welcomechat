@@ -33,6 +33,8 @@ export const useClientDashboard = (clientId: string) => {
       } as InteractionStats;
     },
     enabled: !!clientId,
+    retry: 1,
+    staleTime: 30000, // 30 seconds
   });
 
   // Get chat history
