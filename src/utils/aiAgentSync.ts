@@ -4,17 +4,34 @@ import { WidgetSettings } from "@/types/widget-settings";
 import { checkAndRefreshAuth } from "@/services/authService";
 
 /**
+ * Removes quotation marks and other potentially problematic characters from a string
+ */
+function sanitizeString(str: string | null | undefined): string {
+  if (!str) return '';
+  return str.replace(/["`']/g, '');
+}
+
+/**
  * Syncs the widget settings with the AI agent data in the database
  */
 export async function syncWidgetSettingsWithAgent(
   clientId: string,
-  settings: WidgetSettings
+  settings: WidgetSettings,
+  clientName?: string
 ): Promise<boolean> {
   try {
     // Ensure we have a valid auth session
     await checkAndRefreshAuth();
     
-    console.log("Syncing widget settings with AI agent:", { clientId, settings });
+    // Sanitize strings to remove quotation marks and other potentially problematic characters
+    const sanitizedAgentName = sanitizeString(settings.agent_name);
+    const sanitizedClientName = sanitizeString(clientName);
+    
+    console.log("Syncing widget settings with AI agent:", { 
+      clientId, 
+      settings: { ...settings, agent_name: sanitizedAgentName },
+      clientName: sanitizedClientName 
+    });
     
     // First check if an AI agent exists for this client
     const { data: agentData, error: agentError } = await supabase
@@ -33,7 +50,8 @@ export async function syncWidgetSettingsWithAgent(
       // Only copy specific properties from existing settings if they exist
       ...(agentData?.settings ? agentData.settings as Record<string, any> : {}),
       logo_url: settings.logo_url,
-      agent_name: settings.agent_name,
+      agent_name: sanitizedAgentName,
+      client_name: sanitizedClientName || "",
       updated_at: new Date().toISOString()
     };
     
@@ -42,7 +60,7 @@ export async function syncWidgetSettingsWithAgent(
       const { error: updateError } = await supabase
         .from("ai_agents")
         .update({
-          name: settings.agent_name, // Update name to match widget settings
+          name: sanitizedAgentName, // Update name to match widget settings, ensuring no quotation marks
           settings: agentSettings
         })
         .eq("id", agentData.id);

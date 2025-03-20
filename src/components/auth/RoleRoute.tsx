@@ -2,7 +2,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
-import { UserRole } from "@/types/auth";
+import { UserRole } from "@/types/app";
 
 type RoleRouteProps = {
   children: React.ReactNode;
@@ -26,8 +26,8 @@ export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
   }
 
   if (!userRole || !allowedRoles.includes(userRole)) {
-    // Redirect admin to admin dashboard, clients to client dashboard
-    const redirectPath = userRole === 'admin' ? '/' : '/client/dashboard';
+    // Redirect admin to dashboard, users to user dashboard
+    const redirectPath = userRole === 'admin' ? '/' : '/dashboard';
     return <Navigate to={redirectPath} replace />;
   }
 

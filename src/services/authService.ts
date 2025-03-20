@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "@/types/auth";
+import { UserRole } from "@/types/app";
 
 /**
  * Checks if the authentication session is valid and refreshes if needed
@@ -44,33 +44,6 @@ export const getCurrentUser = async () => {
 }
 
 /**
- * Checks if a user's email exists in the clients table
- * @param email The email to check
- * @returns Promise<boolean> indicating if the client exists
- */
-export const checkIfClientExists = async (email: string): Promise<boolean> => {
-  try {
-    if (!email) return false;
-    
-    const { data, error } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-      
-    if (error) {
-      console.error("Error checking client existence:", error);
-      return false;
-    }
-    
-    return !!data;
-  } catch (err) {
-    console.error("Error in checkIfClientExists:", err);
-    return false;
-  }
-}
-
-/**
  * Creates a role for a user in the database
  * @param userId User's Supabase ID
  * @param role Role to assign
@@ -79,22 +52,15 @@ export const checkIfClientExists = async (email: string): Promise<boolean> => {
  */
 export const createUserRole = async (
   userId: string, 
-  role: UserRole, 
-  clientId?: string
+  role: UserRole
 ): Promise<boolean> => {
   try {
-    const roleData: any = {
-      user_id: userId,
-      role: role
-    };
-    
-    if (clientId && role === 'client') {
-      roleData.client_id = clientId;
-    }
-    
     const { error } = await supabase
       .from('user_roles')
-      .insert(roleData);
+      .insert({
+        user_id: userId,
+        role: role
+      });
       
     if (error) {
       console.error("Error creating user role:", error);
