@@ -1,29 +1,40 @@
 
 import { Json } from "@/integrations/supabase/types";
-import { Database } from "@/integrations/supabase/types";
 
-// Use the exact type from the Supabase schema
-export type ActivityType = Database["public"]["Enums"]["activity_type_enum"];
+// Standard activity types from the database enum
+export type ActivityType = 
+  | "chat_interaction"
+  | "client_created" 
+  | "client_updated"
+  | "client_deleted"
+  | "client_recovered"
+  | "widget_settings_updated"
+  | "website_url_added"
+  | "drive_link_added"
+  | "url_deleted"
+  | "drive_link_deleted"
+  | "invitation_sent"
+  | "invitation_accepted"
+  | "webhook_sent"
+  | "document_stored"
+  | "document_processed"
+  | "ai_agent_created"
+  | "ai_agent_updated"
+  | "logo_uploaded"
+  | "system_update";
 
-// Define additional client activity types that may not be in the enum yet
-export type ExtendedActivityType = ActivityType | 
-  "logo_uploaded" | 
-  "embed_code_copied" | 
-  "widget_previewed" | 
-  "ai_agent_created" | 
-  "ai_agent_updated" | 
-  "signed_out" | 
-  "document_link_added" | 
-  "document_uploaded" | 
-  "document_link_deleted" |
-  "document_processing_started" |
-  "document_processing_completed" |
-  "document_processing_failed" |
-  "system_update";
+// Extended activity types for additional client activities
+export type ExtendedActivityType = ActivityType 
+  | "agent_name_updated" 
+  | "error_logged"
+  | "agent_error";
 
-export interface ActivityRecord {
+export interface Activity {
+  id: string;
+  created_at: string;
+  client_id: string;
   activity_type: ExtendedActivityType;
   description: string;
-  client_id?: string;
-  metadata?: Json;
+  metadata: Json;
+  is_read: boolean;
 }
