@@ -50,5 +50,5 @@ export interface AgentNameWarningProps {
 export interface ValidationResult {
   isValid: boolean;
   message: string;
-  status: 'success' | 'error' | 'warning' | 'info' | 'pending';
+  status?: 'success' | 'error' | 'warning' | 'info' | 'pending';
 }

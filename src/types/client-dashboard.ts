@@ -5,6 +5,12 @@ export interface InteractionStats {
   average_response_time: number;
   top_queries: Array<{query_text: string; frequency: number}>;
   successRate?: number; // Optional field for backward compatibility
+  
+  // Add camelCase aliases for frontend compatibility
+  totalInteractions?: number;
+  activeDays?: number;
+  averageResponseTime?: number;
+  topQueries?: Array<{query_text: string; frequency: number}>;
 }
 
 // Alias for backward compatibility
