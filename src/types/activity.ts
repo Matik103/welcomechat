@@ -47,3 +47,6 @@ export interface Activity {
   metadata: Json;
   is_read: boolean;
 }
+
+// Client status types
+export type ClientStatus = "active" | "inactive" | "deleted";

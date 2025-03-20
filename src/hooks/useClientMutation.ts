@@ -30,9 +30,9 @@ export const useClientMutation = (id: string | undefined) => {
       // Create a deep copy of the data to avoid mutating the original object
       const sanitizedData: ClientFormData = {
         ...data,
-        // Ensure widget_settings is an object with the agent_description
+        // Ensure widget_settings is an object
         widget_settings: {
-          ...(data.widget_settings || {}),
+          ...(data.widget_settings && typeof data.widget_settings === 'object' ? data.widget_settings : {}),
           agent_description: sanitizeForSQL(data.agent_description) || '',
         }
       };
