@@ -25,6 +25,7 @@ export const fetchTopQueries = async (clientId: string): Promise<QueryItem[]> =>
     );
     
     if (!data || !Array.isArray(data)) {
+      console.log("No data or invalid data format returned from get_common_queries");
       return [];
     }
     

@@ -32,3 +32,12 @@ export interface ValidationResult {
     estimatedTokens?: number;
   };
 }
+
+// Add WebsiteUrlsProps interface
+export interface WebsiteUrlsProps {
+  urls: WebsiteUrl[];
+  isLoading: boolean;
+  addWebsiteUrl: (data: { url: string; refresh_rate: number; }) => Promise<void>;
+  deleteWebsiteUrl: (urlId: number) => Promise<void>;
+  isClientView?: boolean;
+}

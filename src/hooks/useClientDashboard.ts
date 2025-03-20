@@ -4,16 +4,16 @@ import { getInteractionStats } from "@/services/statsService";
 import { useClientChatHistory } from "@/hooks/useClientChatHistory";
 import { InteractionStats, ChatInteraction } from "@/types/client-dashboard";
 
-export const useClientDashboard = (clientId: string, agentName?: string) => {
+export const useClientDashboard = (clientId: string) => {
   // Get interaction stats
   const {
     data: stats,
     isLoading: isLoadingStats,
     error: statsError,
   } = useQuery({
-    queryKey: ["interaction-stats", clientId, agentName],
+    queryKey: ["interaction-stats", clientId],
     queryFn: async () => {
-      const data = await getInteractionStats(clientId, agentName);
+      const data = await getInteractionStats(clientId);
       
       // Ensure both snake_case and camelCase properties exist
       return {
@@ -52,7 +52,6 @@ export const useClientDashboard = (clientId: string, agentName?: string) => {
     chatHistory: chatHistory as ChatInteraction[],
     recentInteractions: chatHistory as ChatInteraction[],
     isLoading,
-    error,
-    agentName
+    error
   };
 };

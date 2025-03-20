@@ -1,5 +1,5 @@
 
-import { callRpcFunctionVoid } from '@/utils/rpcUtils';
+import { callRpcFunction } from '@/utils/rpcUtils';
 
 /**
  * Get the average response time for a client
@@ -8,8 +8,8 @@ import { callRpcFunctionVoid } from '@/utils/rpcUtils';
  */
 export const getAverageResponseTime = async (client_id: string): Promise<number> => {
   try {
-    await callRpcFunctionVoid('get_average_response_time', { client_id_param: client_id });
-    return 0; // Default value since we're moving to other methods
+    const result = await callRpcFunction<number>('get_average_response_time', { client_id_param: client_id });
+    return result ?? 0; // Return result or default to 0
   } catch (error) {
     console.error("Error getting average response time:", error);
     return 0;

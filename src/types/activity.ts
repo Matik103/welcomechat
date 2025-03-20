@@ -109,5 +109,11 @@ export interface ActivityItemProps {
   activity: ClientActivity;
 }
 
+// Add missing ClientActivityProps interface
+export interface ClientActivityProps {
+  clientId: string;
+  limit?: number;
+}
+
 // Client status enum
 export type ClientStatus = 'active' | 'inactive' | 'pending' | 'deleted';
