@@ -9,15 +9,19 @@ export const sanitizeForSQL = (input: string | null | undefined): string => {
     return '';
   }
   
-  // Replace all double quotes with single quotes to avoid SQL syntax errors
-  let sanitized = input.replace(/"/g, "'");
+  // First escape single quotes by doubling them (SQL standard)
+  let sanitized = input.replace(/'/g, "''");
+  
+  // Remove any double quotes entirely to prevent SQL syntax errors
+  sanitized = sanitized.replace(/"/g, "");
   
   // Also replace any potential SQL injection patterns
   sanitized = sanitized.replace(/--/g, ""); // SQL comments
   sanitized = sanitized.replace(/;/g, ""); // SQL command terminator
   
-  // Log the sanitization for debugging
-  console.log(`Sanitized input from "${input}" to "${sanitized}"`);
+  if (sanitized !== input) {
+    console.log(`Sanitized input from "${input}" to "${sanitized}"`);
+  }
   
   return sanitized;
 };

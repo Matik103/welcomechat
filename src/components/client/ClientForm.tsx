@@ -30,12 +30,21 @@ const clientFormSchema = z.object({
   email: z.string().email("Invalid email address"),
   agent_name: z.string()
     .transform(val => val.trim())
-    .refine(val => !val.includes('"'), "Agent name cannot contain double quotes")
-    .refine(val => !val.includes("'"), "Agent name cannot contain single quotes")
+    .refine(val => !val.includes('"'), {
+      message: "Agent name cannot contain double quotes"
+    })
+    .refine(val => !val.includes("'"), {
+      message: "Agent name cannot contain single quotes"
+    })
     .optional(),
   agent_description: z.string()
     .transform(val => val.trim())
-    .refine(val => !val.includes('"'), "Agent description cannot contain double quotes")
+    .refine(val => !val.includes('"'), {
+      message: "Agent description cannot contain double quotes"
+    })
+    .refine(val => !val.includes("'"), {
+      message: "Agent description cannot contain single quotes"
+    })
     .optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
@@ -48,12 +57,21 @@ const clientViewSchema = z.object({
   agent_name: z.string()
     .min(1, "Agent name is required")
     .transform(val => val.trim())
-    .refine(val => !val.includes('"'), "Agent name cannot contain double quotes")
-    .refine(val => !val.includes("'"), "Agent name cannot contain single quotes"),
+    .refine(val => !val.includes('"'), {
+      message: "Agent name cannot contain double quotes"
+    })
+    .refine(val => !val.includes("'"), {
+      message: "Agent name cannot contain single quotes"
+    }),
   agent_description: z.string()
     .min(1, "Agent description is required")
     .transform(val => val.trim())
-    .refine(val => !val.includes('"'), "Agent description cannot contain double quotes"),
+    .refine(val => !val.includes('"'), {
+      message: "Agent description cannot contain double quotes"
+    })
+    .refine(val => !val.includes("'"), {
+      message: "Agent description cannot contain single quotes"
+    }),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
 });
