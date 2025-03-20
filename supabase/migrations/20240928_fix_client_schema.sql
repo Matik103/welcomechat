@@ -29,7 +29,6 @@ CREATE OR REPLACE FUNCTION create_new_client(
   p_client_name TEXT,
   p_email TEXT,
   p_agent_name TEXT DEFAULT 'AI Assistant',
-  p_agent_description TEXT DEFAULT NULL,
   p_logo_url TEXT DEFAULT NULL,
   p_logo_storage_path TEXT DEFAULT NULL,
   p_widget_settings JSONB DEFAULT '{}'::jsonb,
@@ -41,13 +40,8 @@ DECLARE
   new_client_id UUID;
   final_widget_settings JSONB;
 BEGIN
-  -- Merge the provided widget_settings with the agent_description
+  -- Merge the provided widget_settings
   final_widget_settings := COALESCE(p_widget_settings, '{}'::jsonb);
-  final_widget_settings := jsonb_set(
-    final_widget_settings, 
-    '{agent_description}', 
-    to_jsonb(COALESCE(p_agent_description, ''))
-  );
   
   -- Add logo information to widget_settings
   IF p_logo_url IS NOT NULL THEN
@@ -105,12 +99,12 @@ BEGIN
   ) VALUES (
     new_client_id,
     p_agent_name,
-    p_agent_description,
+    p_widget_settings->>'agent_description',
     '',
     'config',
     jsonb_build_object(
       'agent_name', p_agent_name,
-      'agent_description', p_agent_description,
+      'agent_description', p_widget_settings->>'agent_description',
       'client_name', p_client_name,
       'logo_url', p_logo_url,
       'logo_storage_path', p_logo_storage_path,
