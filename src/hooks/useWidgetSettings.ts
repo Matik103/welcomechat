@@ -3,11 +3,26 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { WidgetSettings as IWidgetSettings, defaultSettings, isWidgetSettings } from "@/types/widget-settings";
+import { WidgetSettings as IWidgetSettings, isWidgetSettings } from "@/types/widget-settings";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { convertSettingsToJson, handleLogoUploadEvent } from "@/utils/widgetSettingsUtils";
 import { toast } from "sonner";
 import { checkAndRefreshAuth } from "@/services/authService";
+
+// Define the default settings here first so it's available throughout the hook
+const defaultSettings: IWidgetSettings = {
+  agent_name: "",
+  agent_description: "",
+  welcome_text: "Hi 👋, how can I help?",
+  chat_color: "#3f83f8",
+  background_color: "#ffffff",
+  text_color: "#ffffff",
+  secondary_color: "#6366f1",
+  logo_url: "",
+  logo_storage_path: "",
+  position: "bottom-right" as const,
+  response_time_text: "I typically respond right away"
+};
 
 export function useWidgetSettings(clientId: string | undefined, isClientView: boolean = false) {
   const { toast: uiToast } = useToast();
@@ -188,21 +203,6 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       () => setIsUploading(true),
       () => setIsUploading(false)
     );
-  };
-
-  // This custom settings object is now correctly defined after its usage
-  const customDefaultSettings = {
-    agent_name: "",
-    agent_description: "",
-    welcome_text: "Hi 👋, how can I help?",
-    chat_color: "#3f83f8",
-    background_color: "#ffffff",
-    text_color: "#ffffff",
-    secondary_color: "#6366f1",
-    logo_url: "",
-    logo_storage_path: "",
-    position: "bottom-right" as const,
-    response_time_text: "I typically respond right away"
   };
 
   return {
