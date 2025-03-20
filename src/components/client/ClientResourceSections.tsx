@@ -1,200 +1,221 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { WebsiteUrls } from '@/components/client/WebsiteUrls';
+import { DriveLinks } from '@/components/client/DriveLinks';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { WebsiteUrls } from '@/components/client/WebsiteUrls';
-import { DocumentLinks } from '@/components/client/DocumentLinks';
 import { useDocumentProcessing } from '@/hooks/useDocumentProcessing';
-import { WebsiteResourcesSection } from '@/components/client/resource-sections/WebsiteResourcesSection';
-import { DocumentResourcesSection } from '@/components/client/resource-sections/DocumentResourcesSection';
-import { ActivityType } from '@/integrations/supabase/types';
+import { ExtendedActivityType } from '@/types/extended-supabase';
 import { Json } from '@/integrations/supabase/types';
-import { toast } from 'sonner';
 
-export interface ClientResourceSectionsProps {
+interface ClientResourceSectionsProps {
   clientId: string;
   agentName: string;
   className?: string;
-  isClientView: boolean;
-  logClientActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
+  isClientView?: boolean;
+  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
 export const ClientResourceSections = ({
   clientId,
   agentName,
   className = '',
-  isClientView,
+  isClientView = false,
   logClientActivity
 }: ClientResourceSectionsProps) => {
-  const websiteUrlsState = useWebsiteUrls(clientId);
-  const documentLinksState = useDocumentLinks(clientId);
-  const documentProcessing = useDocumentProcessing({ clientId, agentName });
+  // Wrap URL operations for notification and activity logging
+  const {
+    websiteUrls,
+    isLoading: isLoadingUrls,
+    validateUrl,
+    isValidating: isValidatingUrl,
+    addWebsiteUrl: rawAddWebsiteUrl,
+    deleteWebsiteUrl: rawDeleteWebsiteUrl,
+    validationResult
+  } = useWebsiteUrls(clientId);
 
-  if (!clientId) {
-    return null;
-  }
+  // Wrap document link operations for notification and activity logging
+  const {
+    documentLinks,
+    isLoading: isLoadingDocs,
+    isValidating: isValidatingDoc,
+    addDocumentLink: rawAddDocumentLink,
+    deleteDocumentLink: rawDeleteDocumentLink
+  } = useDocumentLinks(clientId);
 
-  // Destructure only the properties we need
-  const { 
-    websiteUrls, 
-    refetchWebsiteUrls, 
-    addWebsiteUrlMutation, 
-    deleteWebsiteUrlMutation, 
-    isLoading: isLoadingWebsiteUrls, 
-    isError: isWebsiteUrlsError 
-  } = websiteUrlsState;
+  // Wrap document processing operations for notification and activity logging
+  const {
+    uploadDocument: rawUploadDocument,
+    isUploading
+  } = useDocumentProcessing(clientId, agentName);
 
-  const { 
-    documentLinks, 
-    refetchDocumentLinks, 
-    addDocumentLinkMutation, 
-    deleteDocumentLinkMutation, 
-    isLoading: isLoadingDocumentLinks, 
-    isError: isDocumentLinksError 
-  } = documentLinksState;
-
-  // Create handlers for adding and deleting website URLs
-  const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
+  /**
+   * Enhanced addWebsiteUrl with activity logging
+   */
+  const addWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
-      await addWebsiteUrlMutation.mutateAsync(data);
-      await refetchWebsiteUrls();
+      const result = await rawAddWebsiteUrl.mutateAsync(data);
       
-      await logClientActivity(
-        'website_url_added',
-        `Added website URL: ${data.url}`,
-        { url: data.url }
-      );
+      if (result) {
+        await logClientActivity(
+          'website_url_added',
+          `Added website URL: ${data.url}`,
+          {
+            url: data.url,
+            refresh_rate: data.refresh_rate
+          }
+        );
+      }
       
-      return toast.success('Website URL added successfully');
+      return result;
     } catch (error) {
       console.error('Error adding website URL:', error);
-      toast.error('Failed to add website URL');
+      throw error;
     }
   };
 
-  const handleDeleteWebsiteUrl = async (urlId: number) => {
+  /**
+   * Enhanced deleteWebsiteUrl with activity logging
+   */
+  const deleteWebsiteUrl = async (urlId: number) => {
     try {
-      await deleteWebsiteUrlMutation.mutateAsync(urlId);
-      await refetchWebsiteUrls();
+      const urlToDelete = websiteUrls?.find(url => url.id === urlId);
+      const result = await rawDeleteWebsiteUrl.mutateAsync(urlId);
       
-      await logClientActivity(
-        'website_url_deleted',
-        'Website URL deleted',
-        { url_id: urlId }
-      );
+      if (result && urlToDelete) {
+        await logClientActivity(
+          'website_url_deleted',
+          `Deleted website URL: ${urlToDelete.url}`,
+          {
+            url: urlToDelete.url,
+            id: urlId
+          }
+        );
+      }
       
-      return toast.success('Website URL deleted successfully');
+      return result;
     } catch (error) {
       console.error('Error deleting website URL:', error);
-      toast.error('Failed to delete website URL');
+      throw error;
     }
   };
 
-  // Create handlers for adding and deleting document links
-  const handleAddDocumentLink = async (data: { 
-    link: string; 
-    document_type: string; 
-    refresh_rate: number 
-  }) => {
+  /**
+   * Enhanced addDocumentLink with activity logging
+   */
+  const addDocumentLink = async (data: { link: string; document_type: string; refresh_rate: number }) => {
     try {
-      await addDocumentLinkMutation.mutateAsync({
-        link: data.link,
-        document_type: data.document_type || 'google_drive',
-        refresh_rate: data.refresh_rate || 30
-      });
-      await refetchDocumentLinks();
+      const result = await rawAddDocumentLink.mutateAsync(data);
       
-      await logClientActivity(
-        'drive_link_added',
-        `Added ${data.document_type || 'document'} link: ${data.link}`,
-        { link: data.link, type: data.document_type }
-      );
+      if (result) {
+        await logClientActivity(
+          'document_link_added',
+          `Added ${data.document_type} link: ${data.link}`,
+          {
+            link: data.link,
+            document_type: data.document_type,
+            refresh_rate: data.refresh_rate
+          }
+        );
+      }
       
-      return toast.success('Document link added successfully');
+      return result;
     } catch (error) {
       console.error('Error adding document link:', error);
-      toast.error('Failed to add document link');
+      throw error;
     }
   };
 
-  const handleDeleteDocumentLink = async (linkId: number) => {
+  /**
+   * Enhanced deleteDocumentLink with activity logging
+   */
+  const deleteDocumentLink = async (linkId: number) => {
     try {
-      await deleteDocumentLinkMutation.mutateAsync(linkId);
-      await refetchDocumentLinks();
+      const linkToDelete = documentLinks?.find(link => link.id === linkId);
+      const result = await rawDeleteDocumentLink.mutateAsync(linkId);
       
-      await logClientActivity(
-        'drive_link_deleted',
-        'Document link deleted',
-        { link_id: linkId }
-      );
+      if (result && linkToDelete) {
+        await logClientActivity(
+          'document_link_deleted',
+          `Deleted ${linkToDelete.document_type} link: ${linkToDelete.link}`,
+          {
+            link: linkToDelete.link,
+            document_type: linkToDelete.document_type,
+            id: linkId
+          }
+        );
+      }
       
-      return toast.success('Document link deleted successfully');
+      return result;
     } catch (error) {
       console.error('Error deleting document link:', error);
-      toast.error('Failed to delete document link');
+      throw error;
     }
   };
 
-  // Handle document upload
-  const handleDocumentUpload = async (file: File) => {
+  /**
+   * Enhanced uploadDocument with activity logging
+   */
+  const uploadDocument = async (file: File) => {
     try {
-      await documentProcessing.uploadDocument(file);
+      const result = await rawUploadDocument.mutateAsync(file);
       
-      await logClientActivity(
-        'document_uploaded',
-        `Uploaded document: ${file.name}`,
-        { 
-          file_name: file.name, 
-          file_size: file.size, 
-          file_type: file.type 
-        }
-      );
+      if (result) {
+        await logClientActivity(
+          'document_uploaded',
+          `Uploaded document: ${file.name}`,
+          {
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type
+          }
+        );
+      }
       
-      return toast.success('Document uploaded successfully');
+      return result;
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error('Failed to upload document');
+      throw error;
     }
   };
 
   return (
     <div className={className}>
-      <Tabs defaultValue="website-urls">
-        <TabsList className="mb-4">
-          <TabsTrigger value="website-urls">Website URLs</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
+      <Tabs defaultValue="websites" className="w-full">
+        <TabsList className="w-full mb-6">
+          <TabsTrigger value="websites" className="flex-1">
+            Website URLs
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="flex-1">
+            Documents &amp; Drive Links
+          </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="website-urls">
-          <WebsiteResourcesSection clientId={clientId} logActivity={logClientActivity}>
-            <WebsiteUrls
-              urls={websiteUrls}
-              onAdd={handleAddWebsiteUrl}
-              onDelete={handleDeleteWebsiteUrl}
-              isLoading={isLoadingWebsiteUrls}
-              isAdding={addWebsiteUrlMutation.isPending}
-              isDeleting={deleteWebsiteUrlMutation.isPending}
-              agentName={agentName}
-            />
-          </WebsiteResourcesSection>
+
+        <TabsContent value="websites">
+          <WebsiteUrls
+            urls={websiteUrls || []}
+            isLoading={isLoadingUrls}
+            isValidating={isValidatingUrl}
+            validationResult={validationResult}
+            validateUrl={validateUrl}
+            addWebsiteUrl={addWebsiteUrl}
+            deleteWebsiteUrl={deleteWebsiteUrl}
+            isClientView={isClientView}
+          />
         </TabsContent>
-        
+
         <TabsContent value="documents">
-          <DocumentResourcesSection clientId={clientId} logActivity={logClientActivity}>
-            <DocumentLinks
-              documentLinks={documentLinks}
-              onAdd={handleAddDocumentLink}
-              onDelete={handleDeleteDocumentLink}
-              onUpload={handleDocumentUpload}
-              isLoading={isLoadingDocumentLinks}
-              isAdding={addDocumentLinkMutation.isPending}
-              isDeleting={deleteDocumentLinkMutation.isPending}
-              isUploading={documentProcessing.isUploading}
-              uploadProgress={documentProcessing.progress}
-              agentName={agentName}
-            />
-          </DocumentResourcesSection>
+          <DriveLinks
+            documents={documentLinks || []}
+            isLoading={isLoadingDocs}
+            isValidating={isValidatingDoc}
+            isUploading={isUploading}
+            addDocumentLink={addDocumentLink}
+            deleteDocumentLink={deleteDocumentLink}
+            uploadDocument={uploadDocument}
+            isClientView={isClientView}
+          />
         </TabsContent>
       </Tabs>
     </div>

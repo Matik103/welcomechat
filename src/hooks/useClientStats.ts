@@ -1,14 +1,19 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Database } from "@/integrations/supabase/types";
+import { Json } from "@/integrations/supabase/types";
 
 type ActivityMetadata = {
   success?: boolean;
   [key: string]: any;
 };
 
-type ClientActivity = Database["public"]["Tables"]["client_activities"]["Row"] & {
+type ClientActivity = {
+  id: string;
+  client_id: string;
+  activity_type: string;
+  description: string;
+  created_at: string;
   metadata: ActivityMetadata;
 };
 

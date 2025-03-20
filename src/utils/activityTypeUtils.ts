@@ -1,140 +1,92 @@
 
-import { ActivityType, ExtendedActivityType } from "@/types/activity";
-import { Json } from "@/integrations/supabase/types";
+import { ExtendedActivityType } from "@/types/extended-supabase";
 
 /**
- * Maps the extended activity type to a valid database activity type
- * @param extendedType The extended activity type that may not exist in the database enum
- * @param metadata Optional metadata to enhance
- * @returns An object with the mapped database activity type and enhanced metadata
+ * Maps activity types to user-friendly descriptions
  */
-export const mapActivityType = (
-  extendedType: ExtendedActivityType,
-  metadata: Json = {}
-): { dbActivityType: ActivityType; enhancedMetadata: Json } => {
-  // Start with the original metadata or an empty object
-  const metadataObj = 
-    typeof metadata === 'object' && metadata !== null ? 
-    { ...metadata } : 
-    {};
-  
-  // Default to client_updated as a fallback activity type
-  let dbActivityType: ActivityType = "client_updated";
-  
-  // Add the original type to metadata for reference
-  (metadataObj as Record<string, any>).original_activity_type = extendedType;
-  
-  // Map extended types to database types
-  switch (extendedType) {
-    // Direct mappings (these already exist in the database enum)
-    case "client_created":
-    case "client_updated":
-    case "client_deleted":
-    case "client_recovered":
-    case "widget_settings_updated":
-    case "website_url_added":
-    case "drive_link_added":
-    case "url_deleted":
-    case "drive_link_deleted":
-    case "invitation_sent":
-    case "invitation_accepted":
-    case "webhook_sent":
-    case "document_stored":
-    case "document_processed":
-    case "document_processing_started":
-    case "document_processing_completed":
-    case "document_processing_failed":
-    case "ai_agent_created":
-    case "ai_agent_updated":
-    case "logo_uploaded":
-    case "system_update":
-    case "document_link_added":
-    case "document_link_deleted":
-    case "document_uploaded":
-    case "signed_out":
-    case "embed_code_copied":
-    case "widget_previewed":
-    case "chat_interaction":
-    case "email_sent":
-      // These types already exist in the database enum
-      dbActivityType = extendedType as ActivityType;
-      break;
-      
-    // Extended types that need mapping
-    case "agent_name_updated":
-      dbActivityType = "ai_agent_updated";
-      (metadataObj as Record<string, any>).field_updated = "agent_name";
-      break;
-      
-    case "error_logged":
-    case "agent_error":
-      dbActivityType = "system_update";
-      (metadataObj as Record<string, any>).error_type = extendedType;
-      break;
-      
-    // Default case - use client_updated as a safe fallback
-    default:
-      dbActivityType = "client_updated";
-      (metadataObj as Record<string, any>).unmapped_type = extendedType;
-      console.warn(`Unmapped activity type "${extendedType}" defaulting to "client_updated"`);
-  }
-  
-  return {
-    dbActivityType,
-    enhancedMetadata: metadataObj as Json
+export const getActivityDescription = (activityType: ExtendedActivityType): string => {
+  const activityDescriptions: Record<ExtendedActivityType, string> = {
+    'chat_interaction': 'Chat interaction',
+    'client_created': 'Client created',
+    'client_updated': 'Client updated',
+    'client_deleted': 'Client deleted',
+    'client_recovered': 'Client recovered',
+    'widget_settings_updated': 'Widget settings updated',
+    'website_url_added': 'Website URL added',
+    'website_url_deleted': 'Website URL deleted',
+    'website_url_processed': 'Website processed',
+    'drive_link_added': 'Drive link added',
+    'drive_link_deleted': 'Drive link deleted',
+    'document_link_added': 'Document link added',
+    'document_link_deleted': 'Document link deleted',
+    'document_uploaded': 'Document uploaded',
+    'document_processed': 'Document processed',
+    'document_stored': 'Document stored',
+    'document_processing_started': 'Document processing started',
+    'document_processing_completed': 'Document processing completed',
+    'document_processing_failed': 'Document processing failed',
+    'error_logged': 'Error occurred',
+    'common_query_milestone': 'Common query milestone',
+    'interaction_milestone': 'Interaction milestone',
+    'growth_milestone': 'Growth milestone',
+    'webhook_sent': 'Webhook sent',
+    'ai_agent_created': 'AI agent created',
+    'agent_name_updated': 'Agent name updated',
+    'signed_out': 'User signed out',
+    'embed_code_copied': 'Embed code copied',
+    'logo_uploaded': 'Logo uploaded',
+    'system_update': 'System update',
+    'source_deleted': 'Source deleted',
+    'source_added': 'Source added'
   };
+
+  return activityDescriptions[activityType] || 'Unknown activity';
 };
 
 /**
- * Generates an AI prompt based on the agent name, description, and client name
- * @param agentName The name of the AI agent
- * @param agentDescription Optional description of the AI agent
- * @param clientName Optional name of the client
- * @returns A formatted AI prompt string
+ * Groups activity types into categories
  */
-export const generateAiPrompt = (agentName: string, agentDescription: string, clientName?: string): string => {
-  // System prompt template to ensure assistants only respond to client-specific questions
-  const SYSTEM_PROMPT_TEMPLATE = `You are an AI assistant created within the ByClicks AI system, designed to serve individual clients with their own unique knowledge bases. Each assistant is assigned to a specific client, and must only respond based on the information available for that specific client.
+export const getActivityCategory = (activityType: ExtendedActivityType): 'user' | 'system' | 'data' | 'interaction' => {
+  const userActivities: ExtendedActivityType[] = [
+    'client_created',
+    'client_updated',
+    'client_deleted',
+    'client_recovered',
+    'widget_settings_updated',
+    'signed_out',
+    'embed_code_copied',
+    'logo_uploaded',
+    'ai_agent_created',
+    'agent_name_updated'
+  ];
 
-Rules & Limitations:
-✅ Client-Specific Knowledge Only:
-- You must only provide answers based on the knowledge base assigned to your specific client.
-- If a question is outside your assigned knowledge, politely decline to answer.
+  const dataActivities: ExtendedActivityType[] = [
+    'website_url_added',
+    'website_url_deleted',
+    'website_url_processed',
+    'drive_link_added',
+    'drive_link_deleted',
+    'document_link_added',
+    'document_link_deleted',
+    'document_uploaded',
+    'document_processed',
+    'document_stored',
+    'document_processing_started',
+    'document_processing_completed',
+    'document_processing_failed',
+    'source_deleted',
+    'source_added'
+  ];
 
-✅ Professional, Friendly, and Helpful:
-- Maintain a conversational and approachable tone.
-- Always prioritize clear, concise, and accurate responses.
+  const interactionActivities: ExtendedActivityType[] = [
+    'chat_interaction',
+    'common_query_milestone',
+    'interaction_milestone',
+    'growth_milestone'
+  ];
 
-🚫 Do NOT Answer These Types of Questions:
-- Personal or existential questions (e.g., "What's your age?" or "Do you have feelings?").
-- Philosophical or abstract discussions (e.g., "What is the meaning of life?").
-- Technical questions about your own system or how you are built.
-- Anything unrelated to the client you are assigned to serve.`;
-  
-  // Sanitize inputs to be extra safe
-  const sanitizedAgentName = agentName.replace(/"/g, "'");
-  const sanitizedClientName = clientName ? clientName.replace(/"/g, "'") : "your organization";
-  const sanitizedDescription = agentDescription ? agentDescription.replace(/"/g, "'") : "";
-  
-  // Create a client-specific prompt
-  let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${sanitizedAgentName}, an AI assistant for ${sanitizedClientName}.`;
-  
-  // Add agent description if provided
-  if (sanitizedDescription && sanitizedDescription.trim() !== '') {
-    prompt += ` ${sanitizedDescription}`;
-  } else {
-    prompt += ` Your goal is to provide clear, concise, and accurate information to users based on the knowledge provided to you.`;
-  }
-  
-  // Add instructions for responding to off-limit questions
-  prompt += `\n\nAs an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.
-
-When asked questions outside your knowledge base or off-limit topics, respond with something like:
-- "I'm here to assist with questions related to ${sanitizedClientName}'s business. How can I help you with that?"
-- "I focus on providing support for ${sanitizedClientName}. If you need assistance with something else, I recommend checking an appropriate resource."
-- "I'm designed to assist with ${sanitizedClientName}'s needs. Let me know how I can help with that!"
-
-You have access to a knowledge base of documents and websites that have been processed and stored for your reference. When answering questions, prioritize information from this knowledge base when available.`;
-
-  return prompt;
+  if (userActivities.includes(activityType)) return 'user';
+  if (dataActivities.includes(activityType)) return 'data';
+  if (interactionActivities.includes(activityType)) return 'interaction';
+  return 'system';
 };
