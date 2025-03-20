@@ -1,3 +1,4 @@
+
 import { useNewClientForm } from "@/hooks/useNewClientForm";
 import { ClientFormData } from "@/types/client-form";
 import { Button } from "@/components/ui/button";
@@ -32,15 +33,15 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Client Information</CardTitle>
+          <CardTitle>AI Agent Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="client_name">Client Name</Label>
+            <Label htmlFor="client_name">Name</Label>
             <Input
               id="client_name"
               {...form.register("client_name")}
-              placeholder="Enter client name"
+              placeholder="Enter name"
               disabled={isSubmitting}
             />
             {errors.client_name && (
@@ -106,9 +107,9 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
 
       <div className="flex justify-end">
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Creating..." : "Create Client"}
+          {isSubmitting ? "Creating..." : "Create Agent"}
         </Button>
       </div>
     </form>
   );
-} 
+}
