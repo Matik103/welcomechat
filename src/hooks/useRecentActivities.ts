@@ -42,39 +42,53 @@ export const useRecentActivities = () => {
       
       // If we have client IDs, fetch their names
       if (clientIds.length > 0) {
-        // Fetch client names from ai_agents table where interaction_type is "config"
-        // This gets the main configuration record for each client
-        const { data: clientsData, error: clientsError } = await supabase
-          .from("ai_agents")
-          .select("id, client_id, client_name, name")
-          .in("client_id", clientIds)
-          .eq("interaction_type", "config");
-        
-        if (clientsError) {
-          console.error("Error fetching client names:", clientsError);
-        }
-        
-        // Create a map of client IDs to names
-        const clientNameMap = new Map();
-        if (clientsData && clientsData.length > 0) {
-          clientsData.forEach(client => {
-            // Use client_name as the primary identifier, fallback to name (agent name)
-            if (client.client_id) {
-              clientNameMap.set(client.client_id, client.client_name || client.name || "Unknown Client");
-            }
+        try {
+          // Fetch client names from ai_agents table where interaction_type is "config"
+          const { data: clientsData, error: clientsError } = await supabase
+            .from("ai_agents")
+            .select("id, client_id, client_name, name")
+            .in("client_id", clientIds)
+            .eq("interaction_type", "config");
+          
+          if (clientsError) {
+            console.error("Error fetching client names:", clientsError);
+          }
+          
+          // Create a map of client IDs to names
+          const clientNameMap = new Map();
+          if (clientsData && clientsData.length > 0) {
+            clientsData.forEach(client => {
+              // Use client_name as the primary identifier, fallback to name (agent name)
+              if (client.client_id) {
+                clientNameMap.set(client.client_id, client.client_name || client.name || "Unknown Client");
+              }
+            });
+          }
+          
+          // Map activities with client names
+          return activities.map(activity => {
+            // Also check metadata for client_name as a fallback
+            const metadataClientName = 
+              activity.metadata && 
+              typeof activity.metadata === 'object' && 
+              activity.metadata !== null && 
+              'client_name' in activity.metadata ? 
+              String(activity.metadata.client_name) : 
+              null;
+            
+            return {
+              id: activity.id,
+              activity_type: activity.activity_type,
+              description: activity.description,
+              created_at: activity.created_at,
+              metadata: activity.metadata,
+              client_id: activity.client_id,
+              client_name: clientNameMap.get(activity.client_id) || metadataClientName || "Unknown Client"
+            };
           });
+        } catch (err) {
+          console.error("Error processing client names:", err);
         }
-        
-        // Map activities with client names
-        return activities.map(activity => ({
-          id: activity.id,
-          activity_type: activity.activity_type,
-          description: activity.description,
-          created_at: activity.created_at,
-          metadata: activity.metadata,
-          client_id: activity.client_id,
-          client_name: clientNameMap.get(activity.client_id) || "Unknown Client"
-        }));
       }
 
       // Return activities with default "Unknown Client" if we couldn't fetch names

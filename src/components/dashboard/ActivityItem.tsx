@@ -82,17 +82,25 @@ const getActivityIcon = (type: string, metadata: Json) => {
   }
 };
 
-export const ActivityItem = ({ item }: ActivityItemProps) => (
-  <div className="flex items-center gap-4 py-3 animate-slide-in">
-    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-      {getActivityIcon(item.activity_type, item.metadata)}
+export const ActivityItem = ({ item }: ActivityItemProps) => {
+  // Extract client name from metadata if not directly provided
+  const clientName = item.client_name || 
+    (item.metadata && typeof item.metadata === 'object' && item.metadata !== null && 'client_name' in item.metadata ? 
+    String(item.metadata.client_name) : 
+    "Unknown Client");
+    
+  return (
+    <div className="flex items-center gap-4 py-3 animate-slide-in">
+      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+        {getActivityIcon(item.activity_type, item.metadata)}
+      </div>
+      <div className="flex-1">
+        <p className="text-sm text-gray-900">
+          <span className="font-medium">{clientName}</span>{" "}
+          {item.description}
+        </p>
+        <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>
+      </div>
     </div>
-    <div className="flex-1">
-      <p className="text-sm text-gray-900">
-        <span className="font-medium">{item.client_name || "Unknown Client"}</span>{" "}
-        {item.description}
-      </p>
-      <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>
-    </div>
-  </div>
-);
+  );
+};
