@@ -87,8 +87,9 @@ export function useStoreDocumentContent(clientId: string, agentName: string) {
           .single();
         
         // Log activity of document storage
-        // Type assertion to any to bypass type checking due to activity_type
         const docInfo = data[0];
+        
+        // Use typecast for activity_type
         await supabase
           .from("client_activities")
           .insert({

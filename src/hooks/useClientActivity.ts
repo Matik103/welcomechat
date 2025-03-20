@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { createClientActivity } from "@/services/clientActivityService";
 import { ExtendedActivityType } from "@/types/activity";
-import { mapActivityType } from "@/utils/activityTypeUtils";
 import { Json } from "@/integrations/supabase/types";
 
 export const useClientActivity = (clientId: string) => {
@@ -25,8 +24,12 @@ export const useClientActivity = (clientId: string) => {
     }
   };
 
+  // Add alias for backward compatibility
+  const logClientActivity = logActivity;
+
   return {
     logActivity,
+    logClientActivity, // Add this alias to maintain compatibility with existing code
     isLogging
   };
 };
