@@ -67,9 +67,13 @@ export const DeleteClientDialog = ({
       }
 
       // Send deletion notification email
-      await sendDeletionEmail(client);
+      const emailResult = await sendDeletionEmail(client);
       
-      toast.success("Client scheduled for deletion");
+      if (emailResult.success) {
+        toast.success(`Client scheduled for deletion and notification email sent to ${client.email}`);
+      } else {
+        toast.error("Client scheduled for deletion but failed to send notification email");
+      }
       
       // Let the parent component know to update the list and log the activity
       onClientsUpdated();
@@ -97,7 +101,7 @@ export const DeleteClientDialog = ({
     }
   };
 
-  const sendDeletionEmail = async (client: Client) => {
+  const sendDeletionEmail = async (client: Client): Promise<{success: boolean, message?: string}> => {
     if (!client.email || !client.client_name) {
       console.error("Missing client email or name for deletion notification");
       
@@ -114,7 +118,7 @@ export const DeleteClientDialog = ({
         }
       );
       
-      return;
+      return { success: false, message: "Missing client email or name" };
     }
 
     setIsSendingEmail(true);
@@ -158,7 +162,7 @@ export const DeleteClientDialog = ({
           }
         );
         
-        toast.error("Failed to send deletion notification email");
+        return { success: false, message: `Error: ${error.message}` };
       } else {
         console.log("Deletion email sent successfully:", data);
         
@@ -175,8 +179,10 @@ export const DeleteClientDialog = ({
             successful: true
           }
         );
+        
+        return { success: true };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error invoking send-deletion-email function:", error);
       
       // Log the error
@@ -192,7 +198,7 @@ export const DeleteClientDialog = ({
         }
       );
       
-      toast.error("Failed to send deletion notification email");
+      return { success: false, message: `Error: ${error.message || "Unknown error"}` };
     } finally {
       setIsSendingEmail(false);
     }
@@ -235,7 +241,7 @@ export const DeleteClientDialog = ({
             {isDeleting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {isSendingEmail ? "Sending email..." : "Deleting..."}
               </>
             ) : (
               "Delete Client"
