@@ -564,7 +564,7 @@ export type Database = {
         }
         Insert: {
           agent_name?: string | null
-          client_name: string
+          client_name?: string
           company?: string | null
           created_at?: string | null
           deleted_at?: string | null

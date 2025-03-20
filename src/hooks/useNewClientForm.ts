@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,7 +20,7 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
       client_name: "",
       email: "",
       widget_settings: {
-        agent_name: "",
+        agent_name: "AI Assistant", // Default value
         agent_description: "",
         logo_url: "",
       },
@@ -50,19 +51,29 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
 
       // Handle logo file if present
       if (data._tempLogoFile) {
-        // TODO: Implement logo upload logic
         console.log("Logo file present:", data._tempLogoFile);
+      }
+
+      // Ensure widget_settings exists and has default values
+      if (!data.widget_settings) {
+        data.widget_settings = {
+          agent_name: "AI Assistant",
+          agent_description: "",
+          logo_url: "",
+        };
+      } else if (!data.widget_settings.agent_name) {
+        data.widget_settings.agent_name = "AI Assistant";
       }
 
       // Clean up the data before submission
       const submissionData: ClientFormData = {
         client_name: data.client_name.trim(),
         email: data.email.toLowerCase().trim(),
-        widget_settings: data.widget_settings ? {
-          agent_name: data.widget_settings.agent_name?.trim(),
-          agent_description: data.widget_settings.agent_description?.trim(),
-          logo_url: data.widget_settings.logo_url,
-        } : undefined,
+        widget_settings: {
+          agent_name: data.widget_settings.agent_name?.trim() || "AI Assistant",
+          agent_description: data.widget_settings.agent_description?.trim() || "",
+          logo_url: data.widget_settings.logo_url || "",
+        },
       };
 
       await onSubmit(submissionData);
@@ -87,4 +98,4 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
     handleLogoChange,
     reset: form.reset,
   };
-}; 
+};

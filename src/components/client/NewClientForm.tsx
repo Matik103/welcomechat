@@ -1,3 +1,4 @@
+
 import { useNewClientForm } from "@/hooks/useNewClientForm";
 import { ClientFormData } from "@/types/client-form";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,14 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
     handleLogoChange,
   } = useNewClientForm({
     onSubmit,
-    initialData,
+    initialData: {
+      widget_settings: {
+        agent_name: "AI Assistant",
+        agent_description: "",
+        logo_url: "",
+      },
+      ...initialData
+    },
   });
 
   const isSubmitting = externalIsSubmitting ?? internalIsSubmitting;
@@ -42,6 +50,7 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
               {...form.register("client_name")}
               placeholder="Enter client name"
               disabled={isSubmitting}
+              required
             />
             {errors.client_name && (
               <p className="text-sm text-red-500">{errors.client_name}</p>
@@ -56,6 +65,7 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
               {...form.register("email")}
               placeholder="Enter email address"
               disabled={isSubmitting}
+              required
             />
             {errors.email && (
               <p className="text-sm text-red-500">{errors.email}</p>
@@ -76,6 +86,7 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
               {...form.register("widget_settings.agent_name")}
               placeholder="Enter assistant name"
               disabled={isSubmitting}
+              defaultValue="AI Assistant"
             />
             {errors.widget_settings?.agent_name && (
               <p className="text-sm text-red-500">{errors.widget_settings.agent_name}</p>
@@ -111,4 +122,4 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
       </div>
     </form>
   );
-} 
+}
