@@ -1,3 +1,4 @@
+
 -- Add only the essential columns needed for the form
 ALTER TABLE public.ai_agents 
 ADD COLUMN IF NOT EXISTS client_name TEXT,
@@ -16,6 +17,6 @@ INSERT INTO public.client_activities (
 ) VALUES (
   'system',
   'schema_update',
-  'Added essential client columns to ai_agents table',
+  'Added essential columns to ai_agents table',
   '{"migration": "20240321000004_migrate_clients_to_ai_agents"}'
-); 
+);
