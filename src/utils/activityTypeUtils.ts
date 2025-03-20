@@ -1,3 +1,89 @@
+
+import { ActivityType, ExtendedActivityType } from "@/types/activity";
+import { Json } from "@/integrations/supabase/types";
+
+/**
+ * Maps the extended activity type to a valid database activity type
+ * @param extendedType The extended activity type that may not exist in the database enum
+ * @param metadata Optional metadata to enhance
+ * @returns An object with the mapped database activity type and enhanced metadata
+ */
+export const mapActivityType = (
+  extendedType: ExtendedActivityType,
+  metadata: Json = {}
+): { dbActivityType: ActivityType; enhancedMetadata: Json } => {
+  // Start with the original metadata or an empty object
+  const metadataObj = 
+    typeof metadata === 'object' && metadata !== null ? 
+    { ...metadata } : 
+    {};
+  
+  // Default to client_updated as a fallback activity type
+  let dbActivityType: ActivityType = "client_updated";
+  
+  // Add the original type to metadata for reference
+  (metadataObj as Record<string, any>).original_activity_type = extendedType;
+  
+  // Map extended types to database types
+  switch (extendedType) {
+    // Direct mappings (these already exist in the database enum)
+    case "client_created":
+    case "client_updated":
+    case "client_deleted":
+    case "client_recovered":
+    case "widget_settings_updated":
+    case "website_url_added":
+    case "drive_link_added":
+    case "url_deleted":
+    case "drive_link_deleted":
+    case "invitation_sent":
+    case "invitation_accepted":
+    case "webhook_sent":
+    case "document_stored":
+    case "document_processed":
+    case "document_processing_started":
+    case "document_processing_completed":
+    case "document_processing_failed":
+    case "ai_agent_created":
+    case "ai_agent_updated":
+    case "logo_uploaded":
+    case "system_update":
+    case "document_link_added":
+    case "document_link_deleted":
+    case "document_uploaded":
+    case "signed_out":
+    case "embed_code_copied":
+    case "widget_previewed":
+    case "chat_interaction":
+      // These types already exist in the database enum
+      dbActivityType = extendedType as ActivityType;
+      break;
+      
+    // Extended types that need mapping
+    case "agent_name_updated":
+      dbActivityType = "ai_agent_updated";
+      (metadataObj as Record<string, any>).field_updated = "agent_name";
+      break;
+      
+    case "error_logged":
+    case "agent_error":
+      dbActivityType = "system_update";
+      (metadataObj as Record<string, any>).error_type = extendedType;
+      break;
+      
+    // Default case - use client_updated as a safe fallback
+    default:
+      dbActivityType = "client_updated";
+      (metadataObj as Record<string, any>).unmapped_type = extendedType;
+      console.warn(`Unmapped activity type "${extendedType}" defaulting to "client_updated"`);
+  }
+  
+  return {
+    dbActivityType,
+    enhancedMetadata: metadataObj as Json
+  };
+};
+
 /**
  * Generates an AI prompt based on the agent name, description, and client name
  * @param agentName The name of the AI agent
