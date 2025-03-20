@@ -55,6 +55,7 @@ export const mapActivityType = (
     case "embed_code_copied":
     case "widget_previewed":
     case "chat_interaction":
+    case "email_sent":
       // These types already exist in the database enum
       dbActivityType = extendedType as ActivityType;
       break;
