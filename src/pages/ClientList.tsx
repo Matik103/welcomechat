@@ -14,6 +14,8 @@ import { DeleteClientDialog } from "@/components/client/DeleteClientDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
 import { checkAndRefreshAuth } from "@/services/authService";
+import { createClientActivity } from "@/services/clientActivityService";
+import { ClientActions } from "@/components/client/ClientActions";
 
 // This function properly types the clients array
 const ClientList = () => {
@@ -109,10 +111,49 @@ const ClientList = () => {
   const handleDeleteClick = (client: Client) => {
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
+    
+    // Log that admin viewed the delete dialog
+    createClientActivity(
+      client.id,
+      "client_updated",
+      `Admin opened deletion dialog for ${client.client_name}`,
+      { 
+        action: "delete_dialog_opened",
+        client_name: client.client_name,
+        admin_action: true
+      }
+    );
   };
 
-  const handleEditClick = (clientId: string) => {
-    navigate(`/admin/clients/${clientId}`);
+  const handleEditClick = (client: Client) => {
+    // Log activity before navigating
+    createClientActivity(
+      client.id,
+      "client_updated",
+      `Admin edited client ${client.client_name}`,
+      { 
+        action: "edit_initiated",
+        client_name: client.client_name,
+        admin_action: true
+      }
+    );
+    
+    navigate(`/admin/clients/${client.id}`);
+  };
+
+  const handleClientCreated = () => {
+    // Log activity when navigating to create a new client
+    createClientActivity(
+      "system", // Using "system" as client_id for system-wide activities
+      "system_update",
+      "Admin initiated new client creation",
+      { 
+        action: "client_creation_initiated",
+        admin_action: true
+      }
+    );
+    
+    navigate("/admin/clients/new");
   };
 
   return (
@@ -147,7 +188,7 @@ const ClientList = () => {
             Next
           </Button>
         </div>
-        <Button onClick={() => navigate("/admin/clients/new")}>
+        <Button onClick={handleClientCreated}>
           <Plus className="mr-2 h-4 w-4" />
           Add Client
         </Button>
@@ -198,7 +239,7 @@ const ClientList = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEditClick(client.id)}>
+                        <DropdownMenuItem onClick={() => handleEditClick(client)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
@@ -228,6 +269,21 @@ const ClientList = () => {
         onOpenChange={setIsDeleteDialogOpen}
         client={selectedClient}
         onClientsUpdated={() => {
+          // Log deletion activity
+          if (selectedClient) {
+            createClientActivity(
+              selectedClient.id,
+              "client_deleted",
+              `Client ${selectedClient.client_name} was scheduled for deletion`,
+              { 
+                client_name: selectedClient.client_name,
+                client_email: selectedClient.email,
+                admin_action: true,
+                deletion_scheduled: true
+              }
+            );
+          }
+          
           setClients((prevClients) =>
             prevClients.filter((c) => c.id !== selectedClient?.id)
           );
