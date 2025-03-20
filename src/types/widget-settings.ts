@@ -1,6 +1,5 @@
 
 export interface WidgetSettings {
-  agent_name: string;
   logo_url: string;
   logo_storage_path?: string;
   chat_color: string;
@@ -13,7 +12,6 @@ export interface WidgetSettings {
 }
 
 export const defaultSettings: WidgetSettings = {
-  agent_name: "",
   logo_url: "",
   logo_storage_path: "",
   chat_color: "#854fff",
@@ -28,8 +26,7 @@ export const defaultSettings: WidgetSettings = {
 export function isWidgetSettings(value: unknown): value is WidgetSettings {
   if (!value || typeof value !== 'object') return false;
   const settings = value as Record<string, unknown>;
-  return typeof settings.agent_name === 'string' &&
-         typeof settings.logo_url === 'string' &&
+  return typeof settings.logo_url === 'string' &&
          (settings.logo_storage_path === undefined || typeof settings.logo_storage_path === 'string') &&
          typeof settings.chat_color === 'string' &&
          typeof settings.background_color === 'string' &&
