@@ -25,6 +25,9 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       ? { ...data.widget_settings }
       : {};
     
+    // Add agent_description to widget_settings instead of as separate column
+    widgetSettings.agent_description = sanitizedAgentDescription;
+    
     // Create the client record in the database using raw SQL with parameter binding
     // This avoids SQL syntax errors with special characters
     const { data: newClient, error } = await supabase.rpc(
@@ -33,11 +36,10 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         p_client_name: data.client_name,
         p_email: data.email,
         p_agent_name: sanitizedAgentName,
-        p_agent_description: sanitizedAgentDescription,
         p_logo_url: data.logo_url || null,
         p_logo_storage_path: data.logo_storage_path || null,
         p_widget_settings: {
-          agent_description: sanitizedAgentDescription,
+          ...widgetSettings,
           logo_url: data.logo_url || "",
           logo_storage_path: data.logo_storage_path || ""
         }
@@ -128,6 +130,9 @@ export const updateClient = async (
 
     // Sanitize agent name to prevent SQL issues
     const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
+    
+    // Also sanitize agent_description
+    const sanitizedAgentDescription = sanitizeForSQL(data.agent_description || '');
 
     // Prepare update data with widget_settings correctly handled
     const updateData: any = {
@@ -140,14 +145,14 @@ export const updateClient = async (
     if (typeof data.widget_settings === 'object' && data.widget_settings !== null) {
       updateData.widget_settings = {
         ...data.widget_settings,
-        agent_description: sanitizeForSQL(data.agent_description) || "",
+        agent_description: sanitizedAgentDescription,
         logo_url: data.logo_url || "",
         logo_storage_path: data.logo_storage_path || ""
       };
     } else {
       // If widget_settings doesn't exist or is not an object, create a new one
       updateData.widget_settings = {
-        agent_description: sanitizeForSQL(data.agent_description) || "",
+        agent_description: sanitizedAgentDescription,
         logo_url: data.logo_url || "",
         logo_storage_path: data.logo_storage_path || ""
       };
