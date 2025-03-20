@@ -11,7 +11,10 @@ import { toast } from "sonner";
 // Function to sanitize strings that will be used in SQL queries
 const sanitizeForSQL = (value: string | undefined): string | undefined => {
   if (!value) return value;
-  // Replace double quotes with single quotes to prevent SQL injection
+  
+  // Replace all double quotes with single quotes
+  // This is critical because PostgreSQL uses double quotes for identifiers
+  // and Supabase can have issues with them in string literals
   return value.replace(/"/g, "'");
 };
 
@@ -25,7 +28,9 @@ export const useClientMutation = (id: string | undefined) => {
       // Create a deep copy of the data to avoid mutating the original object
       const sanitizedData = {
         ...data,
-        agent_name: sanitizeForSQL(data.agent_name)
+        agent_name: sanitizeForSQL(data.agent_name),
+        // Also sanitize the agent_description to be safe
+        agent_description: sanitizeForSQL(data.agent_description)
       };
       
       console.log("Data after sanitization:", sanitizedData);

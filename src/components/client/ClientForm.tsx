@@ -28,7 +28,14 @@ interface ClientFormProps {
 const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().optional(),
+  agent_name: z.string()
+    .optional()
+    .refine(
+      value => !value || !value.includes('"'), 
+      {
+        message: "Agent name cannot contain double quotes - please use single quotes instead"
+      }
+    ),
   agent_description: z.string().optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
@@ -140,6 +147,14 @@ export const ClientForm = ({
     console.log("Agent name value:", data.agent_name);
     console.log("Agent name type:", typeof data.agent_name);
     
+    if (data.agent_name) {
+      data.agent_name = data.agent_name.replace(/"/g, "'");
+    }
+    
+    if (data.agent_description) {
+      data.agent_description = data.agent_description.replace(/"/g, "'");
+    }
+    
     await onSubmit({
       ...data,
       _tempLogoFile: tempLogoFile
@@ -190,7 +205,7 @@ export const ClientForm = ({
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
         <p className="text-xs text-gray-500 mt-1">
-          {!isClientView ? "Optional - client can set this later" : "The name of your AI assistant"}
+          {!isClientView ? "Optional - client can set this later. Avoid using double quotes." : "The name of your AI assistant. Avoid using double quotes."}
         </p>
       </div>
       
