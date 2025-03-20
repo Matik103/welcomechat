@@ -9,17 +9,9 @@ import { DeleteClientDialog } from "@/components/client/DeleteClientDialog";
 import { ClientHeader } from "@/components/client/ClientHeader";
 import { ClientSearchBar } from "@/components/client/ClientSearchBar";
 import { ClientListTable } from "@/components/client/ClientListTable";
+import { Client } from "@/types/client";
 
 const ITEMS_PER_PAGE = 10;
-
-type Client = {
-  id: string;
-  client_name: string;
-  agent_name: string;
-  status: string;
-  updated_at: string;
-  email: string;
-};
 
 const ClientList = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,7 +25,7 @@ const ClientList = () => {
 
   const queryClient = useQueryClient();
 
-  const { data: clients = [], isLoading } = useQuery<Client[]>({
+  const { data: clients = [], isLoading } = useQuery({
     queryKey: ["clients", sortField, sortOrder],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -43,13 +35,18 @@ const ClientList = () => {
         .order(sortField, { ascending: sortOrder === "asc" });
       
       if (error) throw error;
-      return data || [];
+      
+      // Ensure all required fields are present or defaulted
+      return (data || []).map(client => ({
+        ...client,
+        agent_name: client.agent_name || 'AI Assistant'
+      })) as Client[];
     },
   });
 
   const filteredClients = clients.filter(client =>
     client.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.agent_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (client.agent_name && client.agent_name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const totalPages = Math.ceil(filteredClients.length / ITEMS_PER_PAGE);
