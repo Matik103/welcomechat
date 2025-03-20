@@ -1,120 +1,217 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { checkAndRefreshAuth } from "@/services/authService";
 
-interface StoreContentResult {
-  success: boolean;
-  aiAgentId?: string;
-  error?: string;
+interface Website {
+  id: number;
+  client_id: string;
+  url: string;
+  scrapable: boolean;
+  lastFetched?: string;
+  created_at?: string;
 }
 
-export function useStoreWebsiteContent() {
-  const [isStoring, setIsStoring] = useState(false);
+export function useStoreWebsiteContent(clientId: string | undefined) {
+  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  const storeWebsiteContent = async (
-    clientId: string,
-    agentName: string,
-    url: string,
-    content: string
-  ): Promise<StoreContentResult> => {
-    setIsStoring(true);
+  // Fetch websites
+  const { data: websites, isLoading: isWebsitesLoading, error, refetch } = useQuery({
+    queryKey: ["websites", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      
+      console.log(`Fetching websites for client: ${clientId}`);
+      
+      // Ensure we have a valid auth session
+      await checkAndRefreshAuth();
+      
+      setIsLoading(true);
+      
+      try {
+        const { data, error } = await supabase
+          .from("client_websites")
+          .select("*")
+          .eq("client_id", clientId);
+        
+        if (error) {
+          console.error("Error fetching client websites:", error);
+          throw error;
+        }
+        
+        console.log("Client websites fetched:", data);
+        return data as Website[];
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    enabled: !!clientId,
+  });
+
+  // Mutation to add a new website
+  const addWebsiteMutation = useMutation({
+    mutationFn: async (newWebsite: Omit<Website, 'id' | 'created_at' | 'lastFetched'>) => {
+      console.log("Adding new website:", newWebsite);
+      
+      // Ensure we have a valid auth session
+      await checkAndRefreshAuth();
+      
+      const { data, error } = await supabase
+        .from("client_websites")
+        .insert([newWebsite])
+        .select();
+      
+      if (error) {
+        console.error("Error adding website:", error);
+        throw error;
+      }
+      
+      console.log("Website added:", data);
+      return data;
+    },
+    onSuccess: () => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ["websites", clientId] });
+      toast.success("Website added successfully");
+    },
+    onError: (error: any) => {
+      console.error("Error in addWebsiteMutation:", error);
+      toast.error(`Failed to add website: ${error.message}`);
+    },
+  });
+
+  // Mutation to delete a website
+  const deleteWebsiteMutation = useMutation({
+    mutationFn: async (websiteId: number) => {
+      console.log("Deleting website with ID:", websiteId);
+      
+      // Ensure we have a valid auth session
+      await checkAndRefreshAuth();
+      
+      const { error } = await supabase
+        .from("client_websites")
+        .delete()
+        .eq("id", websiteId);
+      
+      if (error) {
+        console.error("Error deleting website:", error);
+        throw error;
+      }
+      
+      console.log("Website deleted successfully");
+    },
+    onSuccess: () => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ["websites", clientId] });
+      toast.success("Website deleted successfully");
+    },
+    onError: (error: any) => {
+      console.error("Error in deleteWebsiteMutation:", error);
+      toast.error(`Failed to delete website: ${error.message}`);
+    },
+  });
+
+  // Mutation to update a website
+  const updateWebsiteMutation = useMutation({
+    mutationFn: async (updatedWebsite: Website) => {
+      console.log("Updating website:", updatedWebsite);
+      
+      // Ensure we have a valid auth session
+      await checkAndRefreshAuth();
+      
+      const { error } = await supabase
+        .from("client_websites")
+        .update(updatedWebsite)
+        .eq("id", updatedWebsite.id);
+      
+      if (error) {
+        console.error("Error updating website:", error);
+        throw error;
+      }
+      
+      console.log("Website updated successfully");
+    },
+    onSuccess: () => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ["websites", clientId] });
+      toast.success("Website updated successfully");
+    },
+    onError: (error: any) => {
+      console.error("Error in updateWebsiteMutation:", error);
+      toast.error(`Failed to update website: ${error.message}`);
+    },
+  });
+
+  // Function to store website content
+  const storeWebsiteContent = async (website: Website) => {
+    if (!clientId) {
+      console.warn("Client ID is missing, cannot store website content.");
+      return;
+    }
+    
+    console.log(`Storing website content for client: ${clientId}, website: ${website.url}`);
+    
+    // Ensure we have a valid auth session
+    await checkAndRefreshAuth();
+    
+    setIsLoading(true);
     
     try {
-      console.log(`Storing website content for client: ${clientId}, agent: ${agentName}`);
-      
-      if (!agentName || agentName.trim() === "") {
-        return {
-          success: false,
-          error: "Agent name is not configured. Please set up an AI Agent Name in client settings before uploading content."
-        };
-      }
-      
-      if (!content || content.trim().length === 0) {
-        return {
-          success: false,
-          error: "No content to store"
-        };
-      }
-      
-      // Normalize URL
-      let normalizedUrl = url;
-      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-        normalizedUrl = 'https://' + normalizedUrl;
-      }
-      
-      // Prepare metadata with more detailed information
-      const metadata = {
-        source: "website",
-        url: normalizedUrl,
-        imported_at: new Date().toISOString(),
-        content_type: "text",
-        extraction_method: "direct", // Direct method vs Firecrawl
-        content_length: content.length,
-        title: extractTitleFromContent(content) || normalizedUrl
+      // Create a JSON object with website details
+      const websiteJson = {
+        id: String(website.id), // Convert to string here
+        name: website.name,
+        url: website.url,
+        scrapable: website.scrapable,
+        lastFetched: website.lastFetched
       };
       
-      // Insert the content into AI agents table using exact agent name as provided
-      const { data, error } = await supabase
+      // Insert the website content into the ai_agents table
+      const { error: agentError } = await supabase
         .from("ai_agents")
         .insert({
           client_id: clientId,
-          name: agentName, // Use exact name without modification
-          content: content,
-          url: normalizedUrl,
-          interaction_type: "imported_content",
-          settings: metadata,
+          name: website.name,
+          content: JSON.stringify(websiteJson),
+          url: website.url,
+          interaction_type: "website_content",
+          settings: websiteJson,
           is_error: false
-        })
-        .select("id")
-        .single();
+        });
       
-      if (error) {
-        console.error("Error storing website content:", error);
-        return {
-          success: false,
-          error: error.message
-        };
+      if (agentError) {
+        console.error("Error storing website content in ai_agents:", agentError);
+        throw agentError;
       }
       
-      return {
-        success: true,
-        aiAgentId: data.id
-      };
-    } catch (error) {
+      console.log("Website content stored successfully in ai_agents");
+      toast.success("Website content stored successfully");
+    } catch (error: any) {
       console.error("Error in storeWebsiteContent:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
-      };
+      toast.error(`Failed to store website content: ${error.message}`);
     } finally {
-      setIsStoring(false);
+      setIsLoading(false);
     }
   };
 
-  // Helper function to extract title from HTML content
-  const extractTitleFromContent = (content: string): string | null => {
-    try {
-      // Try to extract title from HTML content
-      const titleMatch = content.match(/<title>(.*?)<\/title>/i);
-      if (titleMatch && titleMatch[1]) {
-        return titleMatch[1].trim();
-      }
-      
-      // Try to extract first heading
-      const headingMatch = content.match(/<h1>(.*?)<\/h1>/i);
-      if (headingMatch && headingMatch[1]) {
-        return headingMatch[1].trim();
-      }
-      
-      return null;
-    } catch (error) {
-      console.error("Error extracting title:", error);
-      return null;
+  // Handle error
+  useEffect(() => {
+    if (error) {
+      console.error("Error in useStoreWebsiteContent:", error);
+      toast.error("Failed to load websites");
     }
-  };
+  }, [error]);
 
   return {
+    websites,
+    isLoading: isLoading || isWebsitesLoading,
+    error,
+    refetchWebsites: refetch,
+    addWebsite: addWebsiteMutation.mutateAsync,
+    deleteWebsite: deleteWebsiteMutation.mutateAsync,
+    updateWebsite: updateWebsiteMutation.mutateAsync,
     storeWebsiteContent,
-    isStoring
   };
 }

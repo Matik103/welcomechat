@@ -15,7 +15,31 @@ export interface Client {
   widget_settings: any;
   urls: string[];
   drive_urls: string[];
-  email: string; // Add email field to match actual database schema
+  email: string;
+}
+
+export interface AIAgent {
+  id: string;
+  client_id: string;
+  name: string;
+  agent_description?: string;
+  content?: string;
+  embedding?: any;
+  url?: string;
+  interaction_type?: string;
+  query_text?: string;
+  response_time_ms?: number;
+  is_error?: boolean;
+  error_type?: string;
+  error_message?: string;
+  error_status?: string;
+  topic?: string;
+  sentiment?: string;
+  settings?: any;
+  created_at?: string;
+  updated_at?: string;
+  logo_url?: string;
+  logo_storage_path?: string;
 }
 
 export type Database = {
@@ -25,6 +49,11 @@ export type Database = {
         Row: Client;
         Insert: Partial<Client>;
         Update: Partial<Client>;
+      };
+      ai_agents: {
+        Row: AIAgent;
+        Insert: Partial<AIAgent>;
+        Update: Partial<AIAgent>;
       };
       // ... other tables
     };
