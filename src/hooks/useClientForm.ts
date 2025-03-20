@@ -10,6 +10,7 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
   const { schema } = useClientFormValidation(isClientView);
   
   // Get agent description from initialData if available
+  // Look for it in widget_settings first (new approach) or ai_agents relation if available
   const agentDescription = initialData?.widget_settings && 
                           typeof initialData.widget_settings === 'object' ? 
                           (initialData.widget_settings as any).agent_description || "" : 
@@ -58,20 +59,20 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
     }
   };
 
-  // Prepare form data for submission
+  // Prepare form data for submission - now separating client data from agent data
   const prepareFormData = (data: any) => {
+    // Only include client-specific data at the top level
     const formData = {
-      ...data,
+      client_name: data.client_name,
+      email: data.email,
       _tempLogoFile: tempLogoFile,
-      widget_settings: {
-        agent_description: data.agent_description || "",
-        logo_url: data.logo_url || "",
-        logo_storage_path: data.logo_storage_path || ""
-      }
+      
+      // AI agent specific data
+      agent_name: data.agent_name,
+      agent_description: data.agent_description, 
+      logo_url: data.logo_url || "",
+      logo_storage_path: data.logo_storage_path || ""
     };
-    
-    // Remove agent_description from top level since it's now in widget_settings
-    delete formData.agent_description;
     
     return formData;
   };

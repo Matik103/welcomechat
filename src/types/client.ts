@@ -29,11 +29,13 @@ export interface ClientFormData {
   client_name: string;
   email: string;
   agent_name?: string;
+  agent_description?: string; // Added explicit agent_description field
   widget_settings?: Json;
   company?: string;
   description?: string;
   logo_url?: string;
   logo_storage_path?: string;
+  _tempLogoFile?: File | null;
 }
 
 export interface Client extends Omit<ClientFormData, 'agent_description'> {
