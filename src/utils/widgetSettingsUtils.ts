@@ -17,16 +17,16 @@ export const getWidgetSettings = async (clientId: string): Promise<WidgetSetting
   try {
     // Use SQL query via RPC instead of direct table access
     const query = `
-      SELECT widget_settings FROM clients WHERE id = '${clientId}' LIMIT 1
+      SELECT settings FROM ai_agents WHERE id = '${clientId}' LIMIT 1
     `;
     
     const result = await execSql(query);
     
-    if (result && result.length > 0 && result[0].widget_settings) {
+    if (result && result.length > 0 && result[0].settings) {
       // Merge the default settings with the stored settings
       return {
         ...defaultSettings,
-        ...result[0].widget_settings
+        ...(typeof result[0].settings === 'object' ? result[0].settings : {})
       };
     }
     
@@ -63,8 +63,8 @@ export const updateWidgetSettings = async (
     
     // Update using SQL via RPC instead of direct table access
     const updateQuery = `
-      UPDATE clients 
-      SET widget_settings = '${JSON.stringify(updatedSettings)}'::jsonb,
+      UPDATE ai_agents 
+      SET settings = '${JSON.stringify(updatedSettings)}'::jsonb,
           updated_at = NOW()
       WHERE id = '${clientId}'
       RETURNING id

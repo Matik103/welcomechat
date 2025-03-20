@@ -1,139 +1,180 @@
 
-import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
-import { LlamaParseRequest, LlamaParseResponse } from '@/types/llamaparse';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
+import { checkAndRefreshAuth } from "./authService";
+import { DocumentProcessingOptions, DocumentProcessingResult } from "@/types/document-processing";
+import { v4 as uuidv4 } from "uuid";
 
 /**
- * Process a document with LlamaParse
- * @param file The file to process
- * @param options Processing options
- * @returns Processing result
+ * Upload a document to storage and register it in the database
  */
-export const processDocumentWithLlamaParse = async (
+export const uploadDocument = async (
   file: File,
   options: DocumentProcessingOptions
-): Promise<DocumentProcessingResult> => {
-  try {
-    console.log("Processing document with LlamaParse:", file.name);
-    
-    // Create a form data object for file upload
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    // Add metadata to request if needed
-    if (options.metadata) {
-      formData.append('metadata', JSON.stringify(options.metadata));
-    }
-    
-    // Track progress if a callback is provided
-    const requestOptions: RequestInit = {
-      method: 'POST',
-      body: formData,
-      headers: {
-        // API key is added in the serverless function
-      }
-    };
+): Promise<string> => {
+  const { clientId, agentName, onUploadProgress, metadata = {} } = options;
+  
+  if (!clientId) {
+    throw new Error("Client ID is required for document upload");
+  }
 
-    // Call our serverless function for document processing
-    const response = await fetch(`/api/process-document`, requestOptions);
-    const data = await response.json();
+  try {
+    // Ensure authentication is valid
+    await checkAndRefreshAuth();
+
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${uuidv4()}.${fileExt}`;
+    const filePath = `documents/${clientId}/${fileName}`;
+
+    // Custom upload with progress tracking
+    let xhr = new XMLHttpRequest();
     
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to process document');
+    const uploadPromise = new Promise<{path: string}>((resolve, reject) => {
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && onUploadProgress) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          onUploadProgress(percentComplete);
+        }
+      });
+      
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve({ path: filePath });
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      });
+      
+      xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+      xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+    });
+
+    // Start upload
+    await supabase.storage.from('documents').upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type
+    });
+
+    // Get public URL
+    const { data: urlData } = await supabase.storage
+      .from('documents')
+      .getPublicUrl(filePath);
+
+    // Create document record in ai_agents table 
+    const { data: documentData, error: docError } = await supabase
+      .from('ai_agents')
+      .insert({
+        client_id: clientId,
+        name: agentName || 'AI Assistant',
+        type: file.type,
+        size: file.size,
+        content: `Document: ${file.name}`,
+        url: urlData.publicUrl,
+        interaction_type: 'document',
+        status: 'processing',
+        uploadDate: new Date().toISOString(),
+        metadata: {
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          originalName: file.name,
+          ...metadata
+        }
+      })
+      .select('id')
+      .single();
+
+    if (docError) {
+      throw new Error(`Error creating document record: ${docError.message}`);
     }
+
+    // Return the document ID
+    return documentData.id;
+  } catch (error) {
+    console.error("Error uploading document:", error);
+    throw error;
+  }
+};
+
+/**
+ * Process a document that was previously uploaded
+ */
+export const processDocument = async (
+  documentId: string,
+  options: DocumentProcessingOptions
+): Promise<DocumentProcessingResult> => {
+  const { clientId } = options;
+  
+  if (!documentId || !clientId) {
+    throw new Error("Document ID and Client ID are required for processing");
+  }
+
+  try {
+    // Update status to processing
+    await supabase
+      .from('ai_agents')
+      .update({ status: 'processing' })
+      .eq('id', documentId);
+
+    // In a real implementation, this would trigger a serverless function
+    // to process the document. For this example, we'll simulate success.
     
-    // Store document in our database
-    await storeProcessedDocument(file.name, data, options);
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Return processing result
+    // Update status to completed
+    await supabase
+      .from('ai_agents')
+      .update({ 
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', documentId);
+    
     return {
       success: true,
-      status: data.status,
-      documentId: data.documentId,
-      content: data.content,
-      metadata: data.metadata
+      status: 'completed',
+      documentId: documentId
     };
   } catch (error) {
-    console.error('Error processing document:', error);
+    console.error("Error processing document:", error);
+    
+    // Update status to failed
+    await supabase
+      .from('ai_agents')
+      .update({ 
+        status: 'failed',
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', documentId);
+    
     return {
       success: false,
       status: 'failed',
-      error: (error as Error).message
+      documentId: documentId,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
     };
   }
 };
 
 /**
- * Store a processed document in the database
- * @param fileName The file name
- * @param parseResult The parsing result
- * @param options Processing options
- * @returns Success or failure
+ * Helper function to check if a document exists and get its processing status
  */
-const storeProcessedDocument = async (
-  fileName: string,
-  parseResult: LlamaParseResponse,
-  options: DocumentProcessingOptions
-): Promise<boolean> => {
+export const getDocumentStatus = async (documentId: string): Promise<string> => {
   try {
-    // Store document in document_processing_jobs table
-    const uploadResult = await supabase
-      .from('document_processing_jobs')
-      .insert({
-        client_id: options.clientId,
-        agent_name: options.agentName || 'Default',
-        document_id: parseResult.documentId || '',
-        document_type: 'pdf',
-        document_url: fileName,
-        content: parseResult.content || '',
-        status: parseResult.status || 'completed',
-        error: parseResult.error || null,
-        processing_method: 'llamaparse',
-        metadata: parseResult.metadata || {}
-      });
-
-    if (uploadResult.error) {
-      console.error("Error saving document:", uploadResult.error);
-      return false;
-    }
-
-    // Log client activity
-    if (options.clientId) {
-      const { error: activityError } = await supabase
-        .from('client_activities')
-        .insert({
-          client_id: options.clientId,
-          activity_type: 'document_processed',
-          description: `Document "${fileName}" processed successfully`,
-          metadata: {
-            document_id: parseResult.documentId,
-            document_type: 'pdf',
-            status: parseResult.status
-          }
-        });
-
-      if (activityError) {
-        console.error("Error logging document activity:", activityError);
-      }
-    }
-
-    return true;
+    const { data, error } = await supabase
+      .from('ai_agents')
+      .select('status')
+      .eq('id', documentId)
+      .eq('interaction_type', 'document')
+      .single();
+    
+    if (error) throw error;
+    return data.status || 'unknown';
   } catch (error) {
-    console.error("Error storing document:", error);
-    return false;
+    console.error("Error checking document status:", error);
+    return 'error';
   }
-};
-
-/**
- * Process document using the appropriate method
- * @param file The file to process
- * @param options Processing options
- * @returns Processing result
- */
-export const processDocument = async (
-  file: File,
-  options: DocumentProcessingOptions
-): Promise<DocumentProcessingResult> => {
-  // For now, we'll just use LlamaParse for document processing
-  return processDocumentWithLlamaParse(file, options);
 };

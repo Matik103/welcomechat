@@ -1,4 +1,3 @@
-
 /**
  * Extended types for the client application
  */
@@ -118,3 +117,11 @@ export type ActivityType =
   | 'system_update'
   | 'source_deleted'
   | 'source_added';
+
+// Add missing ClientDetailsProps interface
+export interface ClientDetailsProps {
+  client: any;
+  clientId: string;
+  isClientView: boolean;
+  logClientActivity: (activity_type: ActivityType, description: string, metadata?: any) => Promise<any>;
+}

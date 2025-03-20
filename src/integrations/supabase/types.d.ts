@@ -6,6 +6,43 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export type UserRole = 'admin' | 'client';
+
+export type ActivityType = 
+  | 'client_created'
+  | 'client_updated' 
+  | 'client_deleted'
+  | 'client_recovered'
+  | 'widget_settings_updated'
+  | 'website_url_added'
+  | 'website_url_deleted'
+  | 'drive_link_added'
+  | 'drive_link_deleted'
+  | 'document_uploaded'
+  | 'document_processed'
+  | 'document_processing_failed'
+  | 'chat_interaction'
+  | 'agent_name_updated'
+  | 'agent_logo_updated'
+  | 'agent_description_updated'
+  | 'ai_agent_created'
+  | 'ai_agent_updated'
+  | 'error_logged'
+  | 'webhook_sent'
+  | 'system_update'
+  | 'common_query_milestone'
+  | 'interaction_milestone'
+  | 'growth_milestone'
+  | 'invitation_sent'
+  | 'invitation_accepted'
+  | 'user_role_updated'
+  | 'login_success'
+  | 'login_failed'
+  | 'logo_uploaded'
+  | 'ai_agent_table_created'
+  | 'source_added'
+  | 'source_deleted';
+
 export interface Database {
   public: {
     Tables: {
@@ -442,43 +479,3 @@ export interface Database {
     }
   }
 }
-
-export type ActivityType = 
-  | 'client_created'
-  | 'client_updated' 
-  | 'client_deleted'
-  | 'client_recovered'
-  | 'widget_settings_updated'
-  | 'website_url_added'
-  | 'website_url_deleted'
-  | 'drive_link_added'
-  | 'drive_link_deleted'
-  | 'document_uploaded'
-  | 'document_processed'
-  | 'document_processing_failed'
-  | 'chat_interaction'
-  | 'agent_name_updated'
-  | 'agent_logo_updated'
-  | 'agent_description_updated'
-  | 'ai_agent_created'
-  | 'ai_agent_updated'
-  | 'error_logged'
-  | 'webhook_sent'
-  | 'system_update'
-  | 'common_query_milestone'
-  | 'interaction_milestone'
-  | 'growth_milestone'
-  | 'invitation_sent'
-  | 'invitation_accepted'
-  | 'user_role_updated'
-  | 'login_success'
-  | 'login_failed'
-  | 'logo_uploaded'
-  | 'ai_agent_table_created'
-  | 'source_added'
-  | 'source_deleted';
-
-export type AccessStatus = 'granted' | 'pending' | 'denied' | 'unknown';
-
-export type UserRole = 'admin' | 'client';
-export type ExtendedActivityType = ActivityType | string;
