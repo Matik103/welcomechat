@@ -21,7 +21,16 @@ export type ActivityType =
   | "ai_agent_created"
   | "ai_agent_updated"
   | "logo_uploaded"
-  | "system_update";
+  | "system_update"
+  | "document_link_added"
+  | "document_link_deleted"
+  | "document_uploaded"
+  | "document_processing_started"
+  | "document_processing_completed"
+  | "document_processing_failed"
+  | "signed_out"
+  | "embed_code_copied"
+  | "widget_previewed";
 
 // Extended activity types for additional client activities
 export type ExtendedActivityType = ActivityType 

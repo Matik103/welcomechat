@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { toast } from "sonner";
-import { Json } from "@/types/supabase";
+import { Json } from "@/integrations/supabase/types";
 import { ExtendedActivityType } from "@/types/activity";
 
 // Create a new client
@@ -49,6 +49,14 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   console.log("Updating client with ID:", id, "Data:", data);
   
   try {
+    // Prepare widget_settings object
+    const widgetSettings = {
+      ...(data.widget_settings || {}),
+      agent_description: data.agent_description || "",
+      logo_url: data.logo_url || "",
+      logo_storage_path: data.logo_storage_path || ""
+    };
+    
     // First update the client record
     const { error: clientError } = await supabase
       .from("clients")
@@ -58,12 +66,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         agent_name: data.agent_name || 'AI Assistant',
         logo_url: data.logo_url,
         logo_storage_path: data.logo_storage_path,
-        widget_settings: {
-          ...(data.widget_settings || {}),
-          agent_description: data.agent_description || "",
-          logo_url: data.logo_url || "",
-          logo_storage_path: data.logo_storage_path || ""
-        },
+        widget_settings: widgetSettings,
         updated_at: new Date().toISOString()
       })
       .eq("id", id);
@@ -149,7 +152,7 @@ export const logClientUpdateActivity = async (clientId: string): Promise<void> =
       .from("client_activities")
       .insert({
         client_id: clientId,
-        activity_type: "client_updated" as ExtendedActivityType,
+        activity_type: "client_updated",
         description: "Client information updated",
         metadata: {
           updated_at: new Date().toISOString()

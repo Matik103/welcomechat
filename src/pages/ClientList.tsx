@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -87,13 +88,13 @@ const ClientList = () => {
   const getBadgeVariant = (status: string) => {
     switch (status) {
       case "active":
-        return "success";
+        return "default"; // Changed from "success" to "default"
       case "inactive":
         return "secondary";
       case "deleted":
         return "destructive";
       default:
-        return "default";
+        return "outline";
     }
   };
 
@@ -224,7 +225,7 @@ const ClientList = () => {
 
       <DeleteClientDialog
         isOpen={isDeleteDialogOpen}
-        setIsOpen={setIsDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
         client={selectedClient}
         onClientsUpdated={() => {
           setClients((prevClients) =>

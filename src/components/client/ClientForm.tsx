@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,11 +30,25 @@ const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
   agent_name: z.string()
+    .transform(val => val.trim())
+    .refine(val => !val.includes('"'), "Agent name cannot contain double quotes")
+    .refine(val => !val.includes("'"), "Agent name cannot contain single quotes")
+    .optional(),
+  agent_description: z.string().optional(),
+  logo_url: z.string().optional(),
+  logo_storage_path: z.string().optional(),
+});
+
+// Create a more strict client view schema that requires agent fields
+const clientViewSchema = z.object({
+  client_name: z.string().min(1, "Client name is required"),
+  email: z.string().email("Invalid email address"),
+  agent_name: z.string()
     .min(1, "Agent name is required")
     .transform(val => val.trim())
     .refine(val => !val.includes('"'), "Agent name cannot contain double quotes")
     .refine(val => !val.includes("'"), "Agent name cannot contain single quotes"),
-  agent_description: z.string().optional(),
+  agent_description: z.string().min(1, "Agent description is required"),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
 });
@@ -48,8 +63,11 @@ export const ClientForm = ({
   const [tempLogoFile, setTempLogoFile] = useState<File | null>(null);
   const [localLogoPreview, setLocalLogoPreview] = useState<string | null>(null);
   
+  // Use the appropriate schema based on whether this is the client view
+  const schema = isClientView ? clientViewSchema : clientFormSchema;
+  
   const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm({
-    resolver: zodResolver(clientFormSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
@@ -190,7 +208,7 @@ export const ClientForm = ({
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
         {!isClientView && (
-          <p className="text-xs text-gray-500 mt-1">Default is "AI Assistant" if not specified.</p>
+          <p className="text-xs text-gray-500 mt-1">Optional - "AI Assistant" will be used if not specified. Client can set this later.</p>
         )}
       </div>
       
