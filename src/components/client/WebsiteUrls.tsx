@@ -6,7 +6,6 @@ import { WebsiteUrl } from "@/types/client";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { useDocumentProcessor } from "@/hooks/useDocumentProcessor";
 import { toast } from "sonner";
-import { useStoreWebsiteContent } from "@/hooks/useStoreWebsiteContent";
 
 interface WebsiteUrlsProps {
   clientId: string;
@@ -31,7 +30,6 @@ export const WebsiteUrls = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const { processDocument, isProcessing } = useDocumentProcessor();
   const [processingUrlId, setProcessingUrlId] = useState<number | null>(null);
-  const webstoreHook = useStoreWebsiteContent(clientId);
 
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
@@ -131,9 +129,12 @@ export const WebsiteUrls = ({
       
       {showAddForm ? (
         <WebsiteUrlForm
+          onAdd={handleAddUrl}
+          onCancel={() => setShowAddForm(false)}
+          isAddLoading={addWebsiteUrlMutation.isPending}
           clientId={clientId}
-          onAddSuccess={() => setShowAddForm(false)}
-          webstoreHook={webstoreHook}
+          agentName={agentName}
+          isProcessing={isProcessing}
         />
       ) : (
         <button

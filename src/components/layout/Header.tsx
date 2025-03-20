@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,19 +9,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { Settings, User, LogOut } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
 
-  const handleSignOut = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    
+  const handleSignOut = async () => {
     try {
       await signOut();
-      // Navigation is handled inside signOut function
     } catch (error) {
       console.error('Sign out error:', error);
     }
@@ -36,18 +31,14 @@ export const Header = () => {
         <div className="flex justify-between items-center h-16">
           <nav className="flex items-center gap-6">
             <Link 
-              to="/admin/dashboard" 
-              className={`text-gray-600 hover:text-gray-900 font-medium ${
-                location.pathname === '/admin/dashboard' || location.pathname === '/' ? 'text-gray-900' : ''
-              }`}
+              to="/" 
+              className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname === '/' ? 'text-gray-900' : ''}`}
             >
               Dashboard
             </Link>
             <Link 
               to="/admin/clients" 
-              className={`text-gray-600 hover:text-gray-900 font-medium ${
-                location.pathname.includes('/admin/clients') ? 'text-gray-900' : ''
-              }`}
+              className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname.includes('/admin/clients') ? 'text-gray-900' : ''}`}
             >
               Clients
             </Link>
@@ -66,7 +57,7 @@ export const Header = () => {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/admin/settings" className="w-full cursor-pointer">
+                <Link to="/settings" className="w-full cursor-pointer">
                   <Settings className="h-4 w-4 mr-2" />
                   Account Settings
                 </Link>

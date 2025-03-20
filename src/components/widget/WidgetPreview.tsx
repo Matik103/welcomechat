@@ -24,7 +24,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   // Fetch agent content for preview responses
   const { agentContent, sources, isLoading: isAgentLoading } = useAgentContent(
     clientId, 
-    "" // Use an empty string instead of fixed value
+    settings.agent_name
   );
 
   const scrollToBottom = () => {
@@ -88,7 +88,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           },
           body: JSON.stringify({
             prompt: userQuery,
-            agent_name: "", // Use empty string instead of fixed value
+            agent_name: settings.agent_name,
             client_id: clientId,
             context: agentContent.substring(0, 3000) // Send first 3000 chars as context
           })
@@ -180,7 +180,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         {expanded ? (
           <>
             <ChatHeader 
-              agentName=""  
+              agentName={settings.agent_name} 
               logoUrl={settings.logo_url}
               backgroundColor={settings.chat_color}
               textColor={settings.text_color}
@@ -225,7 +225,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
             {settings.logo_url ? (
               <img 
                 src={settings.logo_url} 
-                alt="Chat Widget" 
+                alt={settings.agent_name} 
                 className="w-8 h-8 object-contain"
                 onError={(e) => {
                   e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";

@@ -27,8 +27,8 @@ serve(async (req) => {
   try {
     console.log("Send email function started");
     
-    // Get the Resend API key from environment variable
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    // Use the new Resend API key
+    const resendApiKey = "re_36V5aruC_9aScEQmCQqnYzGtuuhg1WFN2";
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
       return new Response(
@@ -87,7 +87,7 @@ serve(async (req) => {
     const toArray = Array.isArray(to) ? to : [to];
     
     // Send the email
-    const fromAddress = from || "Welcome.Chat <onboarding@resend.dev>";
+    const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
     console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
     
     try {

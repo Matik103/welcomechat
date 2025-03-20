@@ -1,31 +1,17 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Settings, Palette, UserCog, Edit, LogOut } from "lucide-react";
+import { Settings, Palette, UserCog, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 export const ClientHeader = () => {
   const { user, signOut } = useAuth();
-
-  const handleSignOut = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    try {
-      await signOut();
-      // Navigation is handled inside signOut function
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
-  };
-
-  if (!user) return null;
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -44,11 +30,6 @@ export const ClientHeader = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56" sideOffset={16}>
-                <DropdownMenuLabel className="flex items-center gap-2">
-                  <UserCog className="h-4 w-4" />
-                  {user.user_metadata.full_name || user.email}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/client/widget-settings" className="flex items-center">
                     <Palette className="mr-2 h-4 w-4" />
@@ -67,13 +48,21 @@ export const ClientHeader = () => {
                     <span>Account Settings</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign Out</span>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button 
+              variant="ghost" 
+              onClick={async () => {
+                try {
+                  await signOut();
+                } catch (error) {
+                  console.error('Sign out error:', error);
+                }
+              }}
+              className="text-sm"
+            >
+              Sign Out
+            </Button>
           </div>
         </div>
       </div>

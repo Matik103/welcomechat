@@ -12,7 +12,7 @@ import { checkAndRefreshAuth } from "@/services/authService";
 export const SignOutSection = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const { logActivity } = useClientActivity(user?.user_metadata?.client_id);
+  const { logClientActivity } = useClientActivity(user?.user_metadata?.client_id);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {
@@ -33,7 +33,7 @@ export const SignOutSection = () => {
       // Log the sign out action before actually signing out
       if (user?.user_metadata?.client_id) {
         try {
-          await logActivity("signed_out", "signed out of their account");
+          await logClientActivity("signed_out", "signed out of their account");
         } catch (logError) {
           console.error("Failed to log sign out activity, continuing with sign out", logError);
           // Continue with sign out even if logging fails

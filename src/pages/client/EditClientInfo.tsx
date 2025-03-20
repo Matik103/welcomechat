@@ -22,24 +22,20 @@ const EditClientInfo = () => {
     try {
       await clientMutation.mutateAsync(data);
       
-      // Get agent description from widget_settings to maintain consistency
-      const widgetSettings = client?.widget_settings || {};
-      const agentDescription = typeof widgetSettings === 'object' && widgetSettings !== null 
-        ? (widgetSettings as any).agent_description || ""
-        : "";
-      
       // Determine if agent details were updated
       const agentNameChanged = client?.agent_name !== data.agent_name;
+      const agentDescriptionChanged = client?.agent_description !== data.agent_description;
       
       // Log appropriate activity based on what changed
-      if (agentNameChanged) {
+      if (agentNameChanged || agentDescriptionChanged) {
         await logClientActivity(
           "ai_agent_updated", 
           "updated AI agent settings",
           {
             agent_name: data.agent_name,
-            agent_description: agentDescription,
-            name_changed: agentNameChanged
+            agent_description: data.agent_description,
+            name_changed: agentNameChanged,
+            description_changed: agentDescriptionChanged
           }
         );
         toast.success("AI agent settings updated successfully");

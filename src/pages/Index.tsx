@@ -28,12 +28,7 @@ const Index = () => {
   }, []);
 
   // Set up global activity tracking for the admin dashboard
-  const { 
-    data: recentActivities,
-    isLoading: isActivitiesLoading,
-    isError: isActivitiesError,
-    refetch: refetchActivities 
-  } = useRecentActivities();
+  const { refetch: refetchActivities } = useRecentActivities();
   
   useEffect(() => {
     // Subscribe to all client activities for real-time updates in the activity list
@@ -43,7 +38,7 @@ const Index = () => {
     });
     
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
   }, [refetchActivities]);
   
@@ -60,13 +55,17 @@ const Index = () => {
     isError: isInteractionStatsError,
     isLoading: isInteractionStatsLoading 
   } = useInteractionStats(timeRange);
+  
+  const { 
+    data: recentActivities,
+    isError: isActivitiesError,
+    isLoading: isActivitiesLoading 
+  } = useRecentActivities();
 
   // Show error toasts only once when errors occur
-  useEffect(() => {
-    if (isClientStatsError || isInteractionStatsError || isActivitiesError) {
-      toast.error("Error loading dashboard data. Please try again later.");
-    }
-  }, [isClientStatsError, isInteractionStatsError, isActivitiesError]);
+  if (isClientStatsError || isInteractionStatsError || isActivitiesError) {
+    toast.error("Error loading dashboard data. Please try again later.");
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
@@ -89,9 +88,7 @@ const Index = () => {
                 } transition-colors duration-200`}
                 disabled={isInteractionStatsLoading}
               >
-                {range === "1d" ? "1 DAY" :
-                 range === "1m" ? "1 MONTH" :
-                 range === "1y" ? "1 YEAR" : "ALL TIME"}
+                {range.toUpperCase()}
               </button>
             ))}
           </div>
@@ -125,7 +122,7 @@ const Index = () => {
         </div>
 
         <ActivityList 
-          activities={recentActivities} 
+          activities={recentActivities || []} 
           isLoading={isActivitiesLoading}
         />
         <ActionButtons />
