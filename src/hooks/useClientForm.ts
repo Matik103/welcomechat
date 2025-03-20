@@ -3,10 +3,11 @@ import { useForm } from "react-hook-form";
 import { useClientFormValidation } from "./useClientFormValidation";
 import { Client } from "@/types/client";
 import { useState, useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 export const useClientForm = (initialData?: Client | null, isClientView = false) => {
   const [tempLogoFile, setTempLogoFile] = useState<File | null>(null);
-  const { getValidationSchema } = useClientFormValidation();
+  const { schema } = useClientFormValidation(isClientView);
   
   // Setup form with validation schema
   const form = useForm({
@@ -17,7 +18,7 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
       logo_url: initialData?.logo_url || "",
       logo_storage_path: initialData?.logo_storage_path || "",
     },
-    resolver: getValidationSchema(isClientView)
+    resolver: zodResolver(schema)
   });
 
   // Sync form with initialData when it changes
