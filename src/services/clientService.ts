@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { sendEmail } from "@/utils/emailUtils";
@@ -6,6 +7,7 @@ import { sanitizeForSQL } from "@/utils/inputSanitizer";
 import { toast } from "sonner";
 import { createClientActivity } from "./clientActivityService";
 import { syncWidgetSettingsWithAgent } from "@/utils/aiAgentSync";
+import { createOpenAIAssistant } from "@/utils/openAIUtils";
 
 // Handles the process of creating a new client
 export const createClient = async (data: ClientFormData): Promise<string> => {
@@ -77,6 +79,23 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       toast.error("Failed to send invitation email, but client was created successfully.");
     }
 
+    // Create OpenAI assistant if agent name and description are provided
+    if (widgetSettings.agent_name) {
+      try {
+        await createOpenAIAssistant(
+          clientId, 
+          widgetSettings.agent_name, 
+          widgetSettings.agent_description || "",
+          data.client_name
+        );
+        console.log("OpenAI assistant created/updated successfully");
+      } catch (assistantError) {
+        console.error("Error creating/updating OpenAI assistant:", assistantError);
+        // Don't fail client creation if assistant creation fails
+        toast.error("Failed to create OpenAI assistant, but client was created successfully.");
+      }
+    }
+
     // Log client creation activity
     await createClientActivity(
       clientId,
@@ -136,6 +155,23 @@ export const updateClient = async (
     if (updateClientError) {
       console.error("Error updating client:", updateClientError);
       throw updateClientError;
+    }
+
+    // Create or update OpenAI assistant if agent name is provided
+    if (widgetSettings.agent_name) {
+      try {
+        await createOpenAIAssistant(
+          clientId, 
+          widgetSettings.agent_name, 
+          widgetSettings.agent_description || "",
+          data.client_name
+        );
+        console.log("OpenAI assistant created/updated successfully");
+      } catch (assistantError) {
+        console.error("Error creating/updating OpenAI assistant:", assistantError);
+        // Don't fail client update if assistant update fails
+        toast.error("Failed to update OpenAI assistant, but client was updated successfully.");
+      }
     }
 
     return clientId;
