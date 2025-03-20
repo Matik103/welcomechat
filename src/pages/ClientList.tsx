@@ -37,6 +37,7 @@ const ClientList = () => {
         const { data, error, count } = await supabase
           .from("clients")
           .select("*", { count: "exact" })
+          .neq("status", "deleted") // Filter out clients with "deleted" status
           .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
           .order("created_at", { ascending: false });
 
