@@ -6,9 +6,9 @@ import { useClientActivity } from "@/hooks/useClientActivity";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { WidgetPosition } from "@/types/widget-settings";
+import { useClientData } from "@/hooks/useClientData";
 
 const WidgetSettings = () => {
-  // Changed from id to clientId to match App.tsx route param name
   const { clientId } = useParams();
   const navigate = useNavigate();
   const { user, userRole } = useAuth();
@@ -16,9 +16,8 @@ const WidgetSettings = () => {
   // Determine if this is a client view or admin view
   const isClientView = userRole === 'client';
   
-  // Fix for malformed URL with double slash (/admin/clients//widget-settings)
-  // This means clientId will be an empty string "" instead of undefined
-  // Get the appropriate client ID (clientId may be empty string or undefined)
+  // Get the appropriate client ID based on the role and URL parameters
+  // For admin view with empty clientId (from double-slash URL), we'll use a default
   const activeClientId = (clientId && clientId !== "") 
     ? clientId 
     : (isClientView ? user?.user_metadata?.client_id : undefined);
@@ -28,15 +27,26 @@ const WidgetSettings = () => {
   console.log("WidgetSettings: Is client view:", isClientView);
   console.log("WidgetSettings: URL clientId param:", clientId);
   
-  const { logClientActivity } = useClientActivity(activeClientId);
+  // Fetch client data if we're in admin view and don't have a specific clientId
+  // This will fetch the first client for admin when using /admin/clients//widget-settings
+  const { client: firstClient, isLoadingClient } = !isClientView && !activeClientId
+    ? useClientData(undefined)
+    : { client: null, isLoadingClient: false };
+    
+  // Use activeClientId for client activity if available, otherwise use the first client's ID
+  const effectiveClientId = activeClientId || (firstClient?.id || undefined);
+  const { logClientActivity } = useClientActivity(effectiveClientId);
 
   const { 
     settings, 
-    isLoading, 
+    isLoading: isLoadingSettings, 
     isUploading, 
     updateSettingsMutation,
     handleLogoUpload: originalHandleLogoUpload 
-  } = useWidgetSettings(activeClientId, isClientView);
+  } = useWidgetSettings(effectiveClientId, isClientView);
+
+  // Check if we are still loading required data
+  const isLoading = (isLoadingSettings || (!activeClientId && isLoadingClient));
 
   // Adapter for the logo upload handler to match the expected type
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,7 +82,12 @@ const WidgetSettings = () => {
     );
   }
 
-  if (!activeClientId) {
+  // For admin with double-slash URL, show settings for the first client
+  // This is only needed when activeClientId is undefined and we're not in client view
+  const shouldUseFirstClient = !isClientView && !activeClientId && firstClient;
+
+  // If we couldn't find any client, show the not found message
+  if (!activeClientId && !shouldUseFirstClient) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <h1 className="text-2xl font-bold mb-4">Client not found</h1>
@@ -95,7 +110,7 @@ const WidgetSettings = () => {
 
   return (
     <WidgetSettingsContainer
-      clientId={activeClientId}
+      clientId={effectiveClientId}
       settings={completeSettings}
       isClientView={isClientView}
       isUploading={isUploading}

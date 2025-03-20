@@ -8,7 +8,7 @@ interface ClientActionsProps {
 }
 
 export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) => {
-  // Make sure clientId is not empty or undefined before using it in the path
+  // Use a valid URL regardless of whether clientId is empty or not
   const widgetSettingsPath = clientId && clientId.trim() !== "" 
     ? `/admin/clients/${clientId}/widget-settings`
     : `/admin/clients//widget-settings`;
