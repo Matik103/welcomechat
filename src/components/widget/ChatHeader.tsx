@@ -16,8 +16,8 @@ export function ChatHeader({
   textColor, 
   onClose 
 }: ChatHeaderProps) {
-  // Display name logic - use provided name or "Assistant" if empty
-  const displayName = agentName || 'Assistant';
+  // Display name logic - use provided name or "Chat" if empty
+  const displayName = agentName || 'Chat';
   
   return (
     <div 

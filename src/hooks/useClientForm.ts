@@ -21,7 +21,7 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
                    typeof initialData.widget_settings === 'object' && 
                    (initialData.widget_settings as any).agent_name ? 
                    (initialData.widget_settings as any).agent_name : 
-                   initialData?.agent_name || "Assistant";
+                   initialData?.agent_name || "Chat";
 
   // Get logo url from widget settings
   const logoUrl = initialData?.widget_settings && 
@@ -59,7 +59,7 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
                        typeof initialData.widget_settings === 'object' && 
                        (initialData.widget_settings as any).agent_name ? 
                        (initialData.widget_settings as any).agent_name : 
-                       initialData.agent_name || "Assistant";
+                       initialData.agent_name || "Chat";
 
       const logoUrl = initialData.widget_settings && 
                      typeof initialData.widget_settings === 'object' ? 

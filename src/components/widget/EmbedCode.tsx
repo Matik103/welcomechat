@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -16,10 +15,8 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   const codeRef = useRef<HTMLPreElement>(null);
   const [copied, setCopied] = useState(false);
   
-  // Get the Supabase project reference from the URL
   const projectRef = SUPABASE_URL.split("https://")[1]?.split(".supabase.co")[0];
 
-  // Syntax highlighting effect
   useEffect(() => {
     if (codeRef.current) {
       const keywords = ["window", "script", "const", "let", "var", "function", "return", "new", "true", "false", "import", "from", "document", "addEventListener", "querySelector", "createElement", "appendChild", "classList", "toggle", "add"];
@@ -30,10 +27,8 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         html = html.replace(regex, `<span class="text-purple-600">${keyword}</span>`);
       });
       
-      // Highlight strings
       html = html.replace(/"(.*?)"/g, '<span class="text-green-600">"$1"</span>');
       
-      // Highlight properties
       html = html.replace(/(\w+):/g, '<span class="text-blue-600">$1</span>:');
       
       codeRef.current.innerHTML = html;
@@ -44,9 +39,8 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     try {
       const chatApiEndpoint = `https://${projectRef}.supabase.co/functions/v1/chat`;
       
-      // Pre-define logoHtml variable for both places it's used
       const logoHtmlCode = settings.logo_url ? 
-        `<img src="${settings.logo_url}" alt="Assistant" class="widget-logo" />` : 
+        `<img src="${settings.logo_url}" alt="Chat" class="widget-logo" />` : 
         '';
       
       const embedCode = `<!-- Welcome.Chat Widget CSS -->
@@ -56,7 +50,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 <script>
     window.WelcomeChatWidgetConfig = {
         branding: {
-            name: 'Assistant',
+            name: 'Chat',
             logo: '${settings.logo_url}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
@@ -151,7 +145,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         chatContent.innerHTML = \`
             <div class="chat-header">
                 ${logoHtmlCode}
-                <span class="chat-title">Assistant</span>
+                <span class="chat-title">Chat</span>
             </div>
             <div class="chat-messages"></div>
             <div class="chat-input">
@@ -200,7 +194,6 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         description: "The widget code has been copied to your clipboard.",
       });
       
-      // Call the onCopy callback if provided
       if (onCopy) {
         onCopy();
       }
@@ -214,9 +207,8 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
     }
   };
   
-  // Pre-define logoHtml variable for the main display as well
   const logoHtmlDisplay = settings.logo_url ? 
-    `<img src="${settings.logo_url}" alt="Assistant" class="widget-logo" />` : 
+    `<img src="${settings.logo_url}" alt="Chat" class="widget-logo" />` : 
     '';
   
   return (
@@ -232,7 +224,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 <script>
     window.WelcomeChatWidgetConfig = {
         branding: {
-            name: 'Assistant',
+            name: 'Chat',
             logo: '${settings.logo_url}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
@@ -324,12 +316,12 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         chatContent.classList.add('chat-content');
         
         // Add logo if available
-        const logoHtml = '${settings.logo_url ? `<img src="${settings.logo_url}" alt="Assistant" class="widget-logo" />` : ''}';
+        const logoHtml = '${settings.logo_url ? `<img src="${settings.logo_url}" alt="Chat" class="widget-logo" />` : ''}';
         
         chatContent.innerHTML = \`
             <div class="chat-header">
                 ${logoHtmlDisplay}
-                <span class="chat-title">Assistant</span>
+                <span class="chat-title">Chat</span>
             </div>
             <div class="chat-messages"></div>
             <div class="chat-input">

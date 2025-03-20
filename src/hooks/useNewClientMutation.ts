@@ -29,7 +29,7 @@ export const useNewClientMutation = () => {
           client_name: validatedData.client_name.trim(),
           email: validatedData.email.trim().toLowerCase(),
           widget_settings: {
-            agent_name: validatedData.widget_settings.agent_name?.trim() || "Assistant",
+            agent_name: validatedData.widget_settings.agent_name?.trim() || "Chat",
             agent_description: validatedData.widget_settings.agent_description?.trim() || "",
             logo_url: validatedData.widget_settings.logo_url || ""
           }
