@@ -7,6 +7,7 @@ export interface DocumentProcessingResult {
   documentId?: string;
   error?: string;
   metadata?: Json;
+  content?: string; // Added to fix useDocumentProcessor error
 }
 
 export interface DocumentProcessingOptions {
@@ -53,3 +54,5 @@ export interface ValidationResult {
   message: string;
   status?: 'success' | 'error' | 'warning' | 'info' | 'pending';
 }
+
+export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown';

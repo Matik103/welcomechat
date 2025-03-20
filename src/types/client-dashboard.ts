@@ -12,6 +12,7 @@ export interface InteractionStats {
   activeDays: number;
   averageResponseTime: number;
   topQueries: Array<{query_text: string; frequency: number}>;
+  successRate?: number; // Added for compatibility with frontend code
 }
 
 // Alias for backward compatibility
@@ -46,4 +47,5 @@ export interface ChatInteraction {
   timestamp?: string; // Alternative field name
   agent_name?: string;
   metadata?: any;
+  clientId?: string; // Added for compatibility
 }
