@@ -7,7 +7,7 @@ export interface DocumentProcessingResult {
   documentId?: string;
   error?: string;
   metadata?: Json;
-  content?: string; // Added to fix useDocumentProcessor error
+  content?: string;
 }
 
 export interface DocumentProcessingOptions {
@@ -23,9 +23,11 @@ export interface DocumentUploadFormProps {
 }
 
 export interface DocumentLinksListProps {
-  documentLinks: DocumentLink[];
+  links: DocumentLink[];
   isLoading: boolean;
-  onDelete: (linkId: number) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+  isDeleteLoading?: boolean;
+  deletingId?: number | null;
 }
 
 export interface DocumentLink {
@@ -55,4 +57,18 @@ export interface ValidationResult {
   status?: 'success' | 'error' | 'warning' | 'info' | 'pending';
 }
 
-export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown';
+export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'granted' | 'pending' | 'denied';
+
+// Define DriveLinksProps for the DriveLinks component
+export interface DriveLinksProps {
+  documents: DocumentLink[];
+  isLoading: boolean;
+  isUploading: boolean;
+  addDocumentLink: (data: DocumentLinkFormData) => Promise<void>;
+  deleteDocumentLink: (linkId: number) => Promise<void>;
+  uploadDocument: (file: File) => Promise<void>;
+  isClientView?: boolean;
+  isValidating?: boolean;
+  deletingId?: number | null;
+  isDeleteLoading?: boolean;
+}

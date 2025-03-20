@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useDriveAccessCheck } from '@/hooks/useDriveAccessCheck';
+import { AccessStatus } from '@/types/document-processing';
 
 interface DocumentLinksProps {
   documentLinks: DocumentLink[];
@@ -284,7 +285,7 @@ const DocumentLinkRow = ({
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => refreshStatus()} 
+            onClick={() => refreshStatus()}
             disabled={isLoading}
             className="h-6 w-6"
           >

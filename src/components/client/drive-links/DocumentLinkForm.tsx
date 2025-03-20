@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ValidationResult } from './ValidationResult';
 import { Loader2 } from 'lucide-react';
 import { useDriveAccessCheck } from '@/hooks/useDriveAccessCheck';
-import { AccessStatus } from '@/types/client';
+import { AccessStatus } from '@/types/document-processing';
 
 // Schema for form validation
 const documentLinkSchema = z.object({
@@ -26,7 +26,7 @@ interface DocumentLinkFormProps {
 }
 
 export const DocumentLinkForm = ({ onSubmit, isSubmitting, agentName }: DocumentLinkFormProps) => {
-  const { accessStatus, isLoading, error, refreshStatus } = useDriveAccessCheck(0);
+  const { accessStatus, isLoading, validationResult, validateDriveLink } = useDriveAccessCheck(0);
   
   const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<z.infer<typeof documentLinkSchema>>({
     resolver: zodResolver(documentLinkSchema),
