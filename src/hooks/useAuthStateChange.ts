@@ -38,8 +38,8 @@ export default function useAuthStateChange({
               setUserRole('user'); // Default to user on error
             }
           }
-        } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
-          // Reset auth state on sign out or user deletion
+        } else if (event === 'SIGNED_OUT') {
+          // Reset auth state on sign out
           setSession(null);
           setUser(null);
           setUserRole(null);
