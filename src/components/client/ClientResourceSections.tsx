@@ -6,7 +6,7 @@ import { DriveLinks } from '@/components/client/DriveLinks';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentProcessing } from '@/hooks/useDocumentProcessing';
-import { ExtendedActivityType } from '@/types/extended-supabase';
+import { ExtendedActivityType } from '@/types/activity';
 import { Json } from '@/integrations/supabase/types';
 import { ValidationResult } from '@/types/document-processing';
 import { WebsiteUrlFormData } from '@/types/website-url';
@@ -31,25 +31,25 @@ export const ClientResourceSections = ({
   const [validatingUrl, setValidatingUrl] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
 
-  // Get website URLs
+  // Get website URLs - explicitly handle mutation props
   const {
     websiteUrls,
     isLoading: isLoadingUrls,
-    addWebsiteUrl: addWebsiteUrlMutation,
-    deleteWebsiteUrl: deleteWebsiteUrlMutation
+    addWebsiteUrlMutation,
+    deleteWebsiteUrlMutation
   } = useWebsiteUrls(clientId);
 
-  // Get document links
+  // Get document links - explicitly handle mutation props
   const {
     documentLinks,
     isLoading: isLoadingDocs,
-    addDocumentLink: addDocumentLinkMutation,
-    deleteDocumentLink: deleteDocumentLinkMutation
+    addDocumentLink,
+    deleteDocumentLink
   } = useDocumentLinks(clientId);
 
   // Get document processing
   const {
-    uploadDocument: uploadDocumentMutation,
+    uploadDocument,
     isUploading
   } = useDocumentProcessing(clientId, agentName);
 
@@ -133,7 +133,7 @@ export const ClientResourceSections = ({
    */
   const handleAddDocumentLink = async (data: DocumentLinkFormData) => {
     try {
-      await addDocumentLinkMutation.mutateAsync(data);
+      await addDocumentLink.mutateAsync(data);
       
       await logClientActivity(
         'document_link_added',
@@ -158,7 +158,7 @@ export const ClientResourceSections = ({
   const handleDeleteDocumentLink = async (linkId: number) => {
     try {
       const linkToDelete = documentLinks?.find(link => link.id === linkId);
-      await deleteDocumentLinkMutation.mutateAsync(linkId);
+      await deleteDocumentLink.mutateAsync(linkId);
       
       if (linkToDelete) {
         await logClientActivity(
@@ -184,7 +184,7 @@ export const ClientResourceSections = ({
    */
   const handleUploadDocument = async (file: File) => {
     try {
-      await uploadDocumentMutation.mutateAsync(file);
+      await uploadDocument(file);
       
       await logClientActivity(
         'document_uploaded',

@@ -46,7 +46,7 @@ export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
   const activeDays = stats.activeDays ?? stats.active_days;
   const averageResponseTime = stats.averageResponseTime ?? stats.average_response_time;
   const topQueries = stats.topQueries ?? stats.top_queries;
-  const successRate = stats.successRate;
+  const successRate = stats.successRate ?? stats.success_rate;
 
   return (
     <Card>

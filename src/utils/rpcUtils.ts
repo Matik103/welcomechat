@@ -36,9 +36,10 @@ export const execSql = async (sqlQuery: string, params?: any) => {
  */
 export const callRpcFunction = async <T = any>(functionName: string, params?: any): Promise<T> => {
   try {
-    // Use type assertion with any to allow any function name
-    const { data, error } = await supabase.rpc(functionName as any, params as any);
-
+    // Using any to bypass TypeScript's strict checking for RPC function names
+    // This is necessary because we need to call functions dynamically
+    const { data, error } = await (supabase.rpc as any)(functionName, params);
+    
     if (error) {
       console.error(`Error calling RPC function ${functionName}:`, error);
       throw error;

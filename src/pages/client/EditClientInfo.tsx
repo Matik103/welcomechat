@@ -72,9 +72,10 @@ const EditClientInfo = () => {
 
           <ClientResourceSections 
             clientId={clientId}
-            agentName={client?.agent_name || client?.name}
+            agentName={client?.agent_name || client?.name || ''}
             className="mt-6"
             isClientView={true}
+            logClientActivity={logClientActivity}
           />
         </div>
       </div>
