@@ -1,23 +1,31 @@
 
 -- Add missing columns to ai_agents table
 -- This migration adds all the columns being accessed by the application
-ALTER TABLE ai_agents 
-  ADD COLUMN IF NOT EXISTS content text,
-  ADD COLUMN IF NOT EXISTS agent_description text,
-  ADD COLUMN IF NOT EXISTS settings jsonb DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS logo_url text,
-  ADD COLUMN IF NOT EXISTS logo_storage_path text,
-  ADD COLUMN IF NOT EXISTS ai_prompt text,
-  ADD COLUMN IF NOT EXISTS query_text text,
-  ADD COLUMN IF NOT EXISTS url text,
-  ADD COLUMN IF NOT EXISTS response_time_ms integer,
-  ADD COLUMN IF NOT EXISTS is_error boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS error_type text,
-  ADD COLUMN IF NOT EXISTS error_message text,
-  ADD COLUMN IF NOT EXISTS error_status text,
-  ADD COLUMN IF NOT EXISTS interaction_type text;
+ALTER TABLE IF EXISTS ai_agents 
+ADD COLUMN IF NOT EXISTS content text,
+ADD COLUMN IF NOT EXISTS agent_description text,
+ADD COLUMN IF NOT EXISTS embedding vector(1536),
+ADD COLUMN IF NOT EXISTS settings jsonb DEFAULT '{}'::jsonb,
+ADD COLUMN IF NOT EXISTS logo_url text,
+ADD COLUMN IF NOT EXISTS logo_storage_path text,
+ADD COLUMN IF NOT EXISTS ai_prompt text,
+ADD COLUMN IF NOT EXISTS query_text text,
+ADD COLUMN IF NOT EXISTS url text,
+ADD COLUMN IF NOT EXISTS response_time_ms integer,
+ADD COLUMN IF NOT EXISTS is_error boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS error_type text,
+ADD COLUMN IF NOT EXISTS error_message text,
+ADD COLUMN IF NOT EXISTS error_status text,
+ADD COLUMN IF NOT EXISTS interaction_type text,
+ADD COLUMN IF NOT EXISTS topic text,
+ADD COLUMN IF NOT EXISTS sentiment text,
+ADD COLUMN IF NOT EXISTS size integer,
+ADD COLUMN IF NOT EXISTS type text,
+ADD COLUMN IF NOT EXISTS uploadDate timestamp with time zone,
+ADD COLUMN IF NOT EXISTS status text;
 
 -- Create a helper function to get common queries
+DROP FUNCTION IF EXISTS get_common_queries(uuid, text, integer);
 CREATE OR REPLACE FUNCTION get_common_queries(
   client_id_param uuid,
   agent_name_param text,
@@ -45,6 +53,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create a function to get agent dashboard stats
+DROP FUNCTION IF EXISTS get_agent_dashboard_stats(uuid, text);
 CREATE OR REPLACE FUNCTION get_agent_dashboard_stats(
   client_id_param uuid,
   agent_name_param text
@@ -102,3 +111,7 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql;
+
+-- Grant execute permissions to authenticated users
+GRANT EXECUTE ON FUNCTION get_common_queries(uuid, text, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_agent_dashboard_stats(uuid, text) TO authenticated;
