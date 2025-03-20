@@ -16,7 +16,12 @@ UPDATE public.ai_agents
 SET agent_description = REPLACE(agent_description, '"', '')
 WHERE agent_description LIKE '%"%';
 
--- Update settings jsonb field in ai_agents to remove quotation marks from agent_name property
+-- Also update client_name in clients table
+UPDATE public.clients
+SET client_name = REPLACE(client_name, '"', '')
+WHERE client_name LIKE '%"%';
+
+-- Update settings jsonb field in ai_agents to remove quotation marks from various properties
 UPDATE public.ai_agents
 SET settings = jsonb_set(
   settings,
@@ -25,6 +30,43 @@ SET settings = jsonb_set(
   false
 )
 WHERE settings->>'agent_name' LIKE '%"%';
+
+UPDATE public.ai_agents
+SET settings = jsonb_set(
+  settings,
+  '{agent_description}',
+  to_jsonb(REPLACE(settings->>'agent_description', '"', '')),
+  false
+)
+WHERE settings->>'agent_description' LIKE '%"%';
+
+UPDATE public.ai_agents
+SET settings = jsonb_set(
+  settings,
+  '{client_name}',
+  to_jsonb(REPLACE(settings->>'client_name', '"', '')),
+  false
+)
+WHERE settings->>'client_name' LIKE '%"%';
+
+-- Also check and sanitize widget_settings in clients table
+UPDATE public.clients
+SET widget_settings = jsonb_set(
+  widget_settings,
+  '{agent_name}',
+  to_jsonb(REPLACE(widget_settings->>'agent_name', '"', '')),
+  false
+)
+WHERE widget_settings->>'agent_name' LIKE '%"%';
+
+UPDATE public.clients
+SET widget_settings = jsonb_set(
+  widget_settings,
+  '{agent_description}',
+  to_jsonb(REPLACE(widget_settings->>'agent_description', '"', '')),
+  false
+)
+WHERE widget_settings->>'agent_description' LIKE '%"%';
 
 -- Log this operation in the client_activities table
 INSERT INTO public.client_activities (
@@ -36,8 +78,8 @@ INSERT INTO public.client_activities (
 )
 SELECT 
   a.client_id,
-  'client_updated'::activity_type_enum as activity_type,
-  'Removed quotation marks from agent names and descriptions',
+  'system_update'::activity_type_enum as activity_type,
+  'Removed quotation marks from agent names, descriptions, and client names',
   jsonb_build_object(
     'migration_type', 'sanitize_agent_names',
     'migration_date', NOW()

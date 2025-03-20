@@ -4,10 +4,11 @@ import { WidgetSettings } from "@/types/widget-settings";
 import { checkAndRefreshAuth } from "@/services/authService";
 
 /**
- * Removes quotation marks from a string
+ * Removes quotation marks and other potentially problematic characters from a string
  */
-function sanitizeAgentName(name: string): string {
-  return name.replace(/"/g, '');
+function sanitizeString(str: string | null | undefined): string {
+  if (!str) return '';
+  return str.replace(/["`']/g, '');
 }
 
 /**
@@ -22,13 +23,14 @@ export async function syncWidgetSettingsWithAgent(
     // Ensure we have a valid auth session
     await checkAndRefreshAuth();
     
-    // Sanitize agent name to remove quotation marks
-    const sanitizedAgentName = settings.agent_name ? sanitizeAgentName(settings.agent_name) : settings.agent_name;
+    // Sanitize strings to remove quotation marks and other potentially problematic characters
+    const sanitizedAgentName = sanitizeString(settings.agent_name);
+    const sanitizedClientName = sanitizeString(clientName);
     
     console.log("Syncing widget settings with AI agent:", { 
       clientId, 
       settings: { ...settings, agent_name: sanitizedAgentName },
-      clientName 
+      clientName: sanitizedClientName 
     });
     
     // First check if an AI agent exists for this client
@@ -49,7 +51,7 @@ export async function syncWidgetSettingsWithAgent(
       ...(agentData?.settings ? agentData.settings as Record<string, any> : {}),
       logo_url: settings.logo_url,
       agent_name: sanitizedAgentName,
-      client_name: clientName || "",
+      client_name: sanitizedClientName || "",
       updated_at: new Date().toISOString()
     };
     
