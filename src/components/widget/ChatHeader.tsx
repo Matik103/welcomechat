@@ -16,8 +16,8 @@ export function ChatHeader({
   textColor, 
   onClose 
 }: ChatHeaderProps) {
-  // Log the received agent name for debugging
-  console.log("ChatHeader received agent name:", agentName);
+  // Always use the provided agentName if available, otherwise use "AI Assistant"
+  const displayName = agentName || 'AI Assistant';
   
   return (
     <div 
@@ -28,7 +28,7 @@ export function ChatHeader({
         {logoUrl && (
           <img 
             src={logoUrl} 
-            alt={agentName}
+            alt={displayName}
             className="w-6 h-6 object-contain rounded"
             onError={(e) => {
               console.error("Error loading logo in chat header:", logoUrl);
@@ -36,7 +36,7 @@ export function ChatHeader({
             }}
           />
         )}
-        <span className="font-medium truncate max-w-[180px]">{agentName || 'AI Assistant'}</span>
+        <span className="font-medium truncate max-w-[180px]">{displayName}</span>
       </div>
       <button 
         onClick={onClose}

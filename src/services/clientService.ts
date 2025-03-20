@@ -172,9 +172,10 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       widget_settings: widgetSettings
     });
     
+    // Create the client record - remove the agent_name field
     const { data: newClients, error } = await supabase
       .from("clients")
-      .insert([{
+      .insert({
         client_name: data.client_name,
         email: data.email,
         // Store the agent_description and logo in widget_settings
@@ -184,7 +185,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         drive_link_refresh_rate: 60,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      }])
+      })
       .select('*');
 
     if (error) {
