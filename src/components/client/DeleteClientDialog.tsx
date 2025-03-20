@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
 import { toast } from "sonner";
@@ -22,9 +23,16 @@ export const DeleteClientDialog = ({
   onClientsUpdated
 }: DeleteClientDialogProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const CONFIRMATION_TEXT = "schedule deletion";
 
   const handleDelete = async () => {
     if (!client) return;
+    
+    if (confirmText.toLowerCase() !== CONFIRMATION_TEXT) {
+      toast.error("Please type 'schedule deletion' to confirm");
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -52,6 +60,7 @@ export const DeleteClientDialog = ({
       toast.error(`Failed to delete client: ${error.message}`);
     } finally {
       setIsDeleting(false);
+      setConfirmText("");
     }
   };
 
@@ -69,12 +78,25 @@ export const DeleteClientDialog = ({
             Email: <strong>{client?.email}</strong>
           </AlertDialogDescription>
         </AlertDialogHeader>
+        
+        <div className="my-4">
+          <p className="text-sm font-medium mb-2">
+            Please type <strong className="text-destructive">{CONFIRMATION_TEXT}</strong> to confirm:
+          </p>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Type confirmation text here"
+            className="w-full"
+          />
+        </div>
+        
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => setConfirmText("")}>Cancel</AlertDialogCancel>
           <Button
             variant="destructive"
             onClick={handleDelete}
-            disabled={isDeleting}
+            disabled={isDeleting || confirmText.toLowerCase() !== CONFIRMATION_TEXT}
           >
             {isDeleting ? (
               <>
