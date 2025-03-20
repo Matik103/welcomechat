@@ -13,13 +13,13 @@ BEGIN
     settings
   ) VALUES (
     NEW.id,
-    COALESCE(NEW.agent_name, 'AI Assistant'),
+    COALESCE(NEW.agent_name, ''),
     NEW.widget_settings->>'agent_description',
     '',
     NEW.widget_settings->>'logo_url',
     NEW.widget_settings->>'logo_storage_path',
     jsonb_build_object(
-      'agent_name', COALESCE(NEW.agent_name, 'AI Assistant'),
+      'agent_name', COALESCE(NEW.agent_name, ''),
       'agent_description', NEW.widget_settings->>'agent_description',
       'logo_url', NEW.widget_settings->>'logo_url',
       'logo_storage_path', NEW.widget_settings->>'logo_storage_path',
@@ -51,12 +51,12 @@ BEGIN
     
     UPDATE public.ai_agents
     SET 
-      name = COALESCE(NEW.agent_name, 'AI Assistant'),
+      name = COALESCE(NEW.agent_name, ''),
       agent_description = NEW.widget_settings->>'agent_description',
       logo_url = NEW.widget_settings->>'logo_url',
       logo_storage_path = NEW.widget_settings->>'logo_storage_path',
       settings = jsonb_build_object(
-        'agent_name', COALESCE(NEW.agent_name, 'AI Assistant'),
+        'agent_name', COALESCE(NEW.agent_name, ''),
         'agent_description', NEW.widget_settings->>'agent_description',
         'logo_url', NEW.widget_settings->>'logo_url',
         'logo_storage_path', NEW.widget_settings->>'logo_storage_path',
@@ -83,13 +83,13 @@ EXECUTE FUNCTION public.update_ai_agent_on_client_update();
 INSERT INTO public.ai_agents (client_id, name, agent_description, content, logo_url, logo_storage_path, settings)
 SELECT 
   c.id,
-  COALESCE(c.agent_name, 'AI Assistant'),
+  COALESCE(c.agent_name, ''),
   c.widget_settings->>'agent_description',
   '',
   c.widget_settings->>'logo_url',
   c.widget_settings->>'logo_storage_path',
   jsonb_build_object(
-    'agent_name', COALESCE(c.agent_name, 'AI Assistant'),
+    'agent_name', COALESCE(c.agent_name, ''),
     'agent_description', c.widget_settings->>'agent_description',
     'logo_url', c.widget_settings->>'logo_url',
     'logo_storage_path', c.widget_settings->>'logo_storage_path',

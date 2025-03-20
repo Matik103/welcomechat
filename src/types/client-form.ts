@@ -16,7 +16,7 @@ export const clientFormSchema = z.object({
 
 export type ClientFormData = z.infer<typeof clientFormSchema>;
 
-// Add the missing ClientFormErrors type
+// Define ClientFormErrors type
 export type ClientFormErrors = {
   [K in keyof ClientFormData]?: string;
 };

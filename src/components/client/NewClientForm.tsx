@@ -67,15 +67,15 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
 
       <Card>
         <CardHeader>
-          <CardTitle>AI Assistant Settings</CardTitle>
+          <CardTitle>Chat Widget Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="agent_name">Assistant Name</Label>
+            <Label htmlFor="widget_settings.agent_name">Widget Name</Label>
             <Input
-              id="agent_name"
+              id="widget_settings.agent_name"
               {...form.register("widget_settings.agent_name")}
-              placeholder="Enter assistant name"
+              placeholder="Enter widget name"
               disabled={isSubmitting}
             />
             {errors.widget_settings?.agent_name && (
@@ -84,11 +84,11 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="agent_description">Assistant Description</Label>
+            <Label htmlFor="widget_settings.agent_description">Widget Description</Label>
             <Textarea
-              id="agent_description"
+              id="widget_settings.agent_description"
               {...form.register("widget_settings.agent_description")}
-              placeholder="Describe your assistant's purpose and personality"
+              placeholder="Describe your widget's purpose and personality"
               disabled={isSubmitting}
             />
             {errors.widget_settings?.agent_description && (

@@ -1,5 +1,5 @@
 
--- Remove agent_description column from clients table if it exists
+-- Migration to remove agent_description column from clients table if it exists
 DO $$
 BEGIN
     IF EXISTS (
@@ -69,7 +69,7 @@ DROP FUNCTION IF EXISTS create_new_client(text, text, text, text, text, jsonb, t
 CREATE OR REPLACE FUNCTION create_new_client(
   p_client_name TEXT,
   p_email TEXT,
-  p_agent_name TEXT DEFAULT 'AI Assistant',
+  p_agent_name TEXT DEFAULT '',
   p_logo_url TEXT DEFAULT NULL,
   p_logo_storage_path TEXT DEFAULT NULL,
   p_widget_settings JSONB DEFAULT '{}'::jsonb,
@@ -196,12 +196,12 @@ BEGIN
     
     UPDATE public.ai_agents
     SET 
-      name = COALESCE(NEW.agent_name, 'AI Assistant'),
+      name = COALESCE(NEW.agent_name, ''),
       agent_description = NEW.widget_settings->>'agent_description',
       logo_url = NEW.widget_settings->>'logo_url',
       logo_storage_path = NEW.widget_settings->>'logo_storage_path',
       settings = jsonb_build_object(
-        'agent_name', COALESCE(NEW.agent_name, 'AI Assistant'),
+        'agent_name', COALESCE(NEW.agent_name, ''),
         'agent_description', NEW.widget_settings->>'agent_description',
         'logo_url', NEW.widget_settings->>'logo_url',
         'logo_storage_path', NEW.widget_settings->>'logo_storage_path',
