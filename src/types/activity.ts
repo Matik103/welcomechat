@@ -42,7 +42,8 @@ export type ActivityType =
   | "document_processing_completed"
   | "document_processing_failed"
   | "signed_out"
-  | "embed_code_copied";
+  | "embed_code_copied"
+  | "ai_agent_table_created";
 
 // Extended activity types that include all possible types used in the application
 export type ExtendedActivityType = ActivityType;

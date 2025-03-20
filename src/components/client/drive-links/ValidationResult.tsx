@@ -1,43 +1,97 @@
 
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import React, { useState, useEffect } from 'react';
+import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 interface ValidationResultProps {
-  error: string | null;
-  isValidated: boolean;
+  link: string;
+  type: 'website' | 'google-drive';
 }
 
-export const ValidationResult = ({
-  error,
-  isValidated,
-}: ValidationResultProps) => {
-  if (error) {
+export const ValidationResult = ({ link, type }: ValidationResultProps) => {
+  const [isValid, setIsValid] = useState<boolean | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const validateLink = async () => {
+      // Reset validation state
+      setIsValid(null);
+      setErrorMessage(null);
+      
+      // Check if there's a link to validate
+      if (!link || link.trim() === '') return;
+      
+      setIsValidating(true);
+      
+      try {
+        // Simple validation based on link format
+        if (type === 'google-drive') {
+          // Basic validation for Google Drive links
+          const isDriveLink = link.includes('drive.google.com') || 
+                             link.includes('docs.google.com') ||
+                             link.includes('sheets.google.com');
+          
+          if (!isDriveLink) {
+            setIsValid(false);
+            setErrorMessage('Link does not appear to be a Google Drive link.');
+          } else {
+            setIsValid(true);
+          }
+        } else {
+          // Basic validation for website URLs
+          try {
+            new URL(link);
+            setIsValid(true);
+          } catch (e) {
+            setIsValid(false);
+            setErrorMessage('Invalid URL format.');
+          }
+        }
+      } catch (err) {
+        console.error('Error validating link:', err);
+        setIsValid(false);
+        setErrorMessage('Error validating link.');
+      } finally {
+        setIsValidating(false);
+      }
+    };
+
+    // Add a delay to avoid validating while user is typing
+    const timer = setTimeout(() => {
+      if (link && link.trim() !== '') {
+        validateLink();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [link, type]);
+
+  if (!link || link.trim() === '') return null;
+  
+  if (isValidating) {
     return (
-      <Alert 
-        variant={error.includes("Note:") ? "warning" : "destructive"} 
-        className={error.includes("Note:") ? "bg-amber-50 border-amber-200" : ""}
-      >
-        {error.includes("Note:") ? (
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-        ) : (
-          <AlertTriangle className="h-4 w-4" />
-        )}
-        <AlertDescription className={error.includes("Note:") ? "text-amber-700" : ""}>
-          {error}
-        </AlertDescription>
-      </Alert>
+      <div className="flex items-center text-gray-500 mt-1">
+        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+        <span className="text-xs">Validating link...</span>
+      </div>
     );
   }
   
-  if (isValidated) {
+  if (isValid === true) {
     return (
-      <Alert variant="success" className="bg-green-50 border-green-200">
-        <CheckCircle2 className="h-4 w-4 text-green-600" />
-        <AlertTitle className="text-green-800">Link Validated</AlertTitle>
-        <AlertDescription className="text-green-700">
-          This is a valid document link format.
-        </AlertDescription>
-      </Alert>
+      <div className="flex items-center text-green-600 mt-1">
+        <CheckCircle className="h-4 w-4 mr-1" />
+        <span className="text-xs">Valid link format</span>
+      </div>
+    );
+  }
+  
+  if (isValid === false) {
+    return (
+      <div className="flex items-center text-red-500 mt-1">
+        <AlertCircle className="h-4 w-4 mr-1" />
+        <span className="text-xs">{errorMessage || 'Invalid link'}</span>
+      </div>
     );
   }
   
