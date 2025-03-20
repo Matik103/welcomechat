@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,24 +27,37 @@ const clientFormSchema = z.object({
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
 
-export function NewClientForm() {
+interface NewClientFormProps {
+  onSubmit?: (data: ClientFormData) => Promise<void>;
+  isSubmitting?: boolean;
+  initialData?: Partial<ClientFormData>;
+}
+
+export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: NewClientFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      client_name: '',
-      email: '',
+      client_name: initialData?.client_name || '',
+      email: initialData?.email || '',
       company: '',
       description: '',
       widget_settings: {
-        agent_name: '',
-        agent_description: '',
+        agent_name: initialData?.widget_settings?.agent_name || '',
+        agent_description: initialData?.widget_settings?.agent_description || '',
       },
     },
   });
 
-  const onSubmit = async (data: ClientFormValues) => {
+  const handleSubmit = async (data: ClientFormValues) => {
+    // If an external onSubmit handler is provided, use it
+    if (onSubmit) {
+      await onSubmit(data as ClientFormData);
+      return;
+    }
+
+    // Otherwise, use the default implementation
     setIsLoading(true);
     try {
       // Ensure required fields are present for the ClientFormData type
@@ -72,7 +84,7 @@ export function NewClientForm() {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
       <div className="space-y-4">
         <div>
           <Label htmlFor="client_name">Client Name *</Label>
@@ -80,7 +92,7 @@ export function NewClientForm() {
             id="client_name"
             {...form.register('client_name')}
             placeholder="Enter client name"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
           />
           {form.formState.errors.client_name && (
             <p className="text-sm text-red-500 mt-1">
@@ -96,7 +108,7 @@ export function NewClientForm() {
             type="email"
             {...form.register('email')}
             placeholder="Enter email address"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
           />
           {form.formState.errors.email && (
             <p className="text-sm text-red-500 mt-1">
@@ -111,7 +123,7 @@ export function NewClientForm() {
             id="company"
             {...form.register('company')}
             placeholder="Enter company name"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
           />
         </div>
 
@@ -121,7 +133,7 @@ export function NewClientForm() {
             id="description"
             {...form.register('description')}
             placeholder="Enter client description"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
           />
         </div>
 
@@ -134,7 +146,7 @@ export function NewClientForm() {
               id="agent_name"
               {...form.register('widget_settings.agent_name')}
               placeholder="Enter chat name"
-              disabled={isLoading}
+              disabled={isLoading || isSubmitting}
             />
           </div>
 
@@ -144,14 +156,14 @@ export function NewClientForm() {
               id="agent_description"
               {...form.register('widget_settings.agent_description')}
               placeholder="Enter chat description"
-              disabled={isLoading}
+              disabled={isLoading || isSubmitting}
             />
           </div>
         </div>
       </div>
 
-      <Button type="submit" disabled={isLoading}>
-        {isLoading ? 'Creating...' : 'Create Client'}
+      <Button type="submit" disabled={isLoading || isSubmitting}>
+        {isLoading || isSubmitting ? 'Creating...' : 'Create Client'}
       </Button>
     </form>
   );
