@@ -31,7 +31,10 @@ export const ActivityList = ({ activities, isLoading = false }: ActivityListProp
           <p className="text-gray-500 py-4">No recent activities</p>
         ) : (
           activities.map((activity, index) => (
-            <ActivityItem key={`${activity.created_at}-${index}`} item={activity} />
+            <ActivityItem 
+              key={`${activity.created_at}-${index}`} 
+              item={activity} 
+            />
           ))
         )}
       </div>

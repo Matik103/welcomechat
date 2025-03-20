@@ -19,6 +19,7 @@ const Index = () => {
     const setup = async () => {
       try {
         await setupRealtimeActivities();
+        console.log("Realtime activities set up successfully");
       } catch (error) {
         console.error("Failed to set up realtime activities:", error);
       }
@@ -43,7 +44,10 @@ const Index = () => {
     });
     
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) {
+        console.log("Removing activity subscription channel");
+        supabase.removeChannel(channel);
+      }
     };
   }, [refetchActivities]);
   
@@ -67,6 +71,15 @@ const Index = () => {
       toast.error("Error loading dashboard data. Please try again later.");
     }
   }, [isClientStatsError, isInteractionStatsError, isActivitiesError]);
+
+  // Log for debugging
+  useEffect(() => {
+    console.log("Dashboard data:", {
+      clientStats,
+      interactionStats,
+      recentActivities: recentActivities?.length
+    });
+  }, [clientStats, interactionStats, recentActivities]);
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">

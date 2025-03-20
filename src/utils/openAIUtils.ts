@@ -1,6 +1,7 @@
 
 // Utility functions for OpenAI API interactions
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /**
  * Creates or updates an OpenAI assistant for a client
@@ -31,14 +32,25 @@ export const createOpenAIAssistant = async (
     
     if (error) {
       console.error('OpenAI assistant creation error:', error);
+      toast.error('Failed to create OpenAI assistant');
       throw new Error(error.message || 'Failed to create OpenAI assistant');
     }
     
     console.log('OpenAI assistant response:', data);
     
+    if (!data || !data.assistant_id) {
+      const errorMsg = 'Invalid response from OpenAI assistant creation';
+      console.error(errorMsg, data);
+      toast.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+    
+    // Success notification
+    toast.success('OpenAI assistant created successfully');
     return data.assistant_id;
   } catch (error) {
     console.error('Error in createOpenAIAssistant:', error);
+    toast.error(`OpenAI assistant creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     throw error;
   }
 };

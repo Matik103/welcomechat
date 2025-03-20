@@ -35,7 +35,18 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
       };
     }
     
+    if (!data || !data.success) {
+      const errorMessage = data?.error || "Unknown error occurred";
+      console.error("Email sending failed:", errorMessage);
+      toast.error(`Failed to send email: ${errorMessage}`);
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+    
     console.log("Email sent successfully:", data);
+    toast.success(`Email sent successfully to ${options.to}`);
     return {
       success: true,
       message: `Email sent successfully to ${options.to}`
