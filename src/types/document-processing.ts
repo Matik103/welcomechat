@@ -1,75 +1,30 @@
 
 import { Json } from "@/integrations/supabase/types";
 
-export interface DocumentProcessingResult {
-  success: boolean;
-  status: 'completed' | 'processing' | 'failed';
-  documentId?: string;
-  error?: string;
-  metadata?: Json;
-  content?: string;
-}
-
 export interface DocumentProcessingOptions {
-  processingMethod?: string;
   clientId: string;
   agentName?: string;
-  onUploadProgress?: (progress: number) => void;
-  metadata?: Json;
+  documentType?: string;
+  webhook?: string;
+  maxPages?: number;
 }
 
-export interface DocumentUploadFormProps {
-  onSubmitDocument: (file: File) => Promise<void>;
-  isUploading: boolean;
+export interface DocumentProcessingResult {
+  success: boolean;
+  status: string;
+  documentId: string;
+  content?: string;
+  metadata?: Record<string, any>;
+  error?: string;
 }
 
-export interface DocumentLinksListProps {
-  links: DocumentLink[];
-  isLoading: boolean;
-  onDelete: (id: number) => Promise<void>;
-  isDeleteLoading?: boolean;
-  deletingId?: number | null;
-}
-
-export interface DocumentLink {
-  id: number;
-  client_id: string;
-  link: string;
-  document_type: string;
-  refresh_rate: number;
-  access_status?: string;
-  notified_at?: string;
-  created_at: string;
-}
-
-// Make all properties required to match the implementation
 export interface DocumentLinkFormData {
+  document_type: "text" | "google_doc" | "google_sheet" | "google_drive" | "pdf" | "other";
   link: string;
-  document_type: string;
   refresh_rate: number;
 }
 
-export interface AgentNameWarningProps {
-  show: boolean;
-}
-
-export interface ValidationResult {
-  isValid: boolean;
-  message: string;
-  status?: 'success' | 'error' | 'warning' | 'info' | 'pending';
-}
-
-export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'granted' | 'pending' | 'denied';
-
-export interface DriveLinksProps {
-  documents: DocumentLink[];
-  isLoading: boolean;
-  isUploading: boolean;
-  isValidating?: boolean;
-  addDocumentLink: (data: DocumentLinkFormData) => Promise<void>;
-  deleteDocumentLink: (linkId: number) => Promise<void>;
-  uploadDocument: (file: File) => Promise<void>;
-  isClientView?: boolean;
-  deletingId?: number | null;
-  isDeleteLoading?: boolean;
+export interface DocumentUploadFormData {
+  document_type: "text" | "pdf" | "other";
+  file: File;
 }

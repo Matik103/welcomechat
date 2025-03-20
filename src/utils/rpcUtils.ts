@@ -22,7 +22,7 @@ export const execSql = async (sqlQuery: string, params?: any) => {
       if (sqlQuery.toLowerCase().includes('exists')) {
         formattedQuery = `SELECT json_build_object('exists', (${sqlQuery}))`;
       } else {
-        formattedQuery = `SELECT coalesce(json_agg(t), '[]'::json) FROM (${sqlQuery}) t`;
+        formattedQuery = `SELECT COALESCE(json_agg(t), '[]'::json) FROM (${sqlQuery}) t`;
       }
     }
     

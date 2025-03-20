@@ -43,4 +43,6 @@ export interface WebsiteUrlsProps {
   isAdding?: boolean;
   isDeleting?: boolean;
   agentName?: string;
+  addWebsiteUrl?: (data: { url: string; refresh_rate: number; }) => Promise<void>;
+  deleteWebsiteUrl?: (urlId: number) => Promise<void>;
 }

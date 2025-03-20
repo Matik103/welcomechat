@@ -70,3 +70,6 @@ export interface ClientActivityProps {
   isLoading: boolean;
   className?: string;
 }
+
+// Add ClientStatus type for DeleteClientDialog.tsx
+export type ClientStatus = 'active' | 'inactive' | 'deleted';

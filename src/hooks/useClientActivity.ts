@@ -13,7 +13,7 @@ export const useClientActivity = (clientId: string | undefined) => {
     async (
       activity_type: ExtendedActivityType,
       description: string,
-      metadata?: Json
+      metadata?: Record<string, any>
     ) => {
       if (!clientId) {
         console.warn('No client ID provided for activity logging');
