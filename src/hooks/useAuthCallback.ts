@@ -1,113 +1,90 @@
 
-import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { Session, User } from "@supabase/supabase-js";
-import { UserRole } from "@/types/auth";
-import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { getDashboardRoute } from '@/utils/authUtils';
+import { UserRole } from '@/types/app';
 
-type AuthCallbackProps = {
-  isCallbackUrl: boolean;
-  setSession: (session: Session | null) => void;
-  setUser: (user: User | null) => void;
-  setUserRole: (role: UserRole | null) => void;
-  setIsLoading: (isLoading: boolean) => void;
-};
-
-export const useAuthCallback = ({
-  isCallbackUrl,
-  setSession,
-  setUser,
-  setUserRole,
-  setIsLoading
-}: AuthCallbackProps) => {
+export const useAuthCallback = () => {
+  const { setSession, setUser, setUserRole, setIsLoading } = useAuth();
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isCallbackUrl) return;
-    
-    // Set a flag in sessionStorage to prevent processing the callback multiple times
-    const callbackProcessed = sessionStorage.getItem('auth_callback_processed');
-    if (callbackProcessed === 'true') {
-      console.log("Auth callback already processed, skipping");
-      setIsLoading(false); // Ensure loading state is cleared
-      return;
-    }
-    
-    // Set a processing flag to indicate we're handling the callback
-    sessionStorage.setItem('auth_callback_processing', 'true');
-    
-    // Keep the loading state true while processing callback
-    setIsLoading(true);
-    
-    const handleCallback = async () => {
+    // One-time check on initial load
+    const checkAuthState = async () => {
+      setIsLoading(true);
       try {
-        console.log("Auth callback processing started");
+        // Get the session from Supabase
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        // Get the session from the URL
-        const { data: { session: callbackSession }, error: sessionError } = 
-          await supabase.auth.getSession();
-          
-        if (sessionError || !callbackSession) {
-          console.error("Error getting session from callback URL:", sessionError);
-          sessionStorage.removeItem('auth_callback_processing');
-          navigate('/auth', { replace: true });
+        if (sessionError) {
+          console.error("Auth callback - Session error:", sessionError);
+          throw sessionError;
+        }
+        
+        if (!session) {
+          console.log("Auth callback - No session found");
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
           setIsLoading(false);
           return;
         }
         
-        // Set session and user data immediately
-        setSession(callbackSession);
-        setUser(callbackSession.user);
+        // Set the session and user in context
+        setSession(session);
+        setUser(session.user);
         
-        // Check if Google SSO user
-        const isGoogleUser = callbackSession.user?.app_metadata?.provider === 'google';
-        
-        let userRole: UserRole;
-        if (isGoogleUser) {
-          console.log("Google SSO user detected in callback");
-          userRole = 'admin';
-        } else {
-          // For non-Google users, check client status
-          userRole = await determineUserRole(callbackSession.user);
+        // Determine the user's role
+        if (session.user) {
+          try {
+            // Check user roles table
+            const { data: roleData, error: roleError } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
+            
+            if (roleError) {
+              console.error("Auth callback - Error fetching role:", roleError);
+            }
+            
+            // If role found in the database, use it
+            if (roleData && roleData.role) {
+              setUserRole(roleData.role as UserRole);
+              console.log("User role from database:", roleData.role);
+              
+              // Redirect to the appropriate dashboard if on the auth page
+              const currentPath = window.location.pathname;
+              if (currentPath === '/auth') {
+                const dashboardPath = getDashboardRoute(roleData.role as UserRole);
+                navigate(dashboardPath);
+              }
+              
+              setIsLoading(false);
+              return;
+            }
+            
+            // Default fallback if no role found - treat as basic user
+            setUserRole('user');
+            console.log("No role found in database, defaulting to 'user'");
+          } catch (err) {
+            console.error("Auth callback - Error determining role:", err);
+            setUserRole('user');
+          }
         }
-        
-        setUserRole(userRole);
-        
-        // Store the role in sessionStorage
-        sessionStorage.setItem('user_role_set', userRole);
-        
-        // Mark callback as processed to prevent re-processing
-        sessionStorage.setItem('auth_callback_processed', 'true');
-        
-        console.log(`User identified as ${userRole}, redirecting to appropriate dashboard`);
-        
-        // Get the appropriate dashboard route based on role
-        const dashboardRoute = getDashboardRoute(userRole);
-        
-        // Clear processing flag before navigation
-        sessionStorage.removeItem('auth_callback_processing');
-        
-        // Navigate to the appropriate dashboard
-        navigate(dashboardRoute, { replace: true });
-        
-        // Set loading to false after navigation is queued
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error handling auth callback:", error);
-        sessionStorage.removeItem('auth_callback_processing');
-        navigate('/auth', { replace: true });
+      } catch (err: any) {
+        console.error("Auth callback - General error:", err);
+        setError(err.message);
+      } finally {
         setIsLoading(false);
       }
     };
     
-    // Add a small delay to allow other auth processes to settle
-    const timeoutId = setTimeout(() => {
-      handleCallback();
-    }, 300);
-    
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [isCallbackUrl, navigate, setSession, setUser, setUserRole, setIsLoading]);
+    checkAuthState();
+  }, [setSession, setUser, setUserRole, setIsLoading, navigate]);
+  
+  return { error };
 };
