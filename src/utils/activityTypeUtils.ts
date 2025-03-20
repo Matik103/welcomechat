@@ -57,7 +57,7 @@ export const mapActivityType = (
     case "invitation_sent":
     case "invitation_accepted":
       // These types already exist in the database enum
-      dbActivityType = extendedType as ActivityType;
+      dbActivityType = extendedType;
       break;
       
     // Extended types that need mapping
