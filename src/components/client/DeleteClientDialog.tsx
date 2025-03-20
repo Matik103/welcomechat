@@ -24,6 +24,7 @@ export const DeleteClientDialog = ({
 }: DeleteClientDialogProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const CONFIRMATION_TEXT = "schedule deletion";
 
   const handleDelete = async () => {
@@ -52,6 +53,9 @@ export const DeleteClientDialog = ({
         throw error;
       }
 
+      // Send deletion notification email
+      await sendDeletionEmail(client);
+      
       toast.success("Client scheduled for deletion");
       onClientsUpdated();
       onOpenChange(false);
@@ -61,6 +65,37 @@ export const DeleteClientDialog = ({
     } finally {
       setIsDeleting(false);
       setConfirmText("");
+    }
+  };
+
+  const sendDeletionEmail = async (client: Client) => {
+    if (!client.email || !client.client_name) {
+      console.error("Missing client email or name for deletion notification");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-deletion-email', {
+        body: {
+          clientId: client.id,
+          clientName: client.client_name,
+          email: client.email,
+          agentName: client.agent_name
+        }
+      });
+
+      if (error) {
+        console.error("Error sending deletion email:", error);
+        toast.error("Failed to send deletion notification email");
+      } else {
+        console.log("Deletion email sent successfully:", data);
+      }
+    } catch (error) {
+      console.error("Error invoking send-deletion-email function:", error);
+      toast.error("Failed to send deletion notification email");
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
