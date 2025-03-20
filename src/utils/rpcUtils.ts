@@ -7,9 +7,13 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const execSql = async (query: string, params: Record<string, any> = {}) => {
   try {
+    // Convert parameters to a format that can be passed to the SQL query
+    // We need to convert the params object to a JSON string
+    const paramsJson = JSON.stringify(params);
+    
     const { data, error } = await supabase.rpc('exec_sql', {
       sql_query: query,
-      params: params
+      query_params: paramsJson
     });
     
     if (error) {
@@ -39,9 +43,13 @@ export const tableExists = async (tableName: string): Promise<boolean> => {
     
     const result = await execSql(query, { tableName });
     
-    return result && Array.isArray(result) && 
-           result.length > 0 && 
-           result[0].exists === true;
+    if (result && Array.isArray(result) && result.length > 0) {
+      // Check if the 'exists' property is true
+      if (typeof result[0] === 'object' && result[0] !== null && 'exists' in result[0]) {
+        return result[0].exists === true;
+      }
+    }
+    return false;
   } catch (error) {
     console.error(`Error checking if table ${tableName} exists:`, error);
     return false;

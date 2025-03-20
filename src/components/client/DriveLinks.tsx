@@ -1,249 +1,354 @@
 
-import { useState, useEffect } from 'react';
-import { DriveLinkForm } from './drive-links/DriveLinkForm';
-import { DriveLinksList } from './drive-links/DriveLinksList';
-import { DocumentLink } from '@/types/client';
-import { Button } from '@/components/ui/button';
-import { Loader2, Upload } from 'lucide-react';
-import { FileUploader } from './FileUploader';
-import { useClientActivity } from '@/hooks/useClientActivity';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { useDocumentProcessor } from '@/hooks/useDocumentProcessor';
+import { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Plus, Upload, Link, FileQuestion, AlertTriangle } from "lucide-react";
+import { AccessStatus, DocumentLink } from "@/types/client";
+import { useDriveAccessCheck } from "@/hooks/useDriveAccessCheck";
+import { ActivityType, Json } from "@/integrations/supabase/types";
 
 interface DriveLinksProps {
   driveLinks: DocumentLink[];
-  onAdd: (data: { link: string; refresh_rate: number; document_type: string }) => Promise<void>;
+  onAdd: (data: { link: string; refresh_rate: number; document_type?: string }) => Promise<void>;
   onDelete: (linkId: number) => Promise<void>;
+  onUpload: (data: { file: File; agentName: string }) => Promise<void>;
   isLoading: boolean;
   isAdding: boolean;
   isDeleting: boolean;
   agentName: string;
+  logActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
-export const DriveLinks = ({ 
-  driveLinks, 
-  onAdd, 
-  onDelete, 
-  isLoading, 
-  isAdding, 
-  isDeleting,
-  agentName
-}: DriveLinksProps) => {
-  const { logClientActivity } = useClientActivity();
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [showFileUploader, setShowFileUploader] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [clientInfo, setClientInfo] = useState({ clientName: '', agentName: '' });
-  const { processDocument, isProcessing } = useDocumentProcessor();
-  const [processingLinkId, setProcessingLinkId] = useState<number | null>(null);
+// Drive Link Form component
+const DriveLinkForm = ({ onAdd, isAdding }: {
+  onAdd: (data: { link: string; refresh_rate: number; document_type?: string }) => Promise<void>;
+  isAdding: boolean;
+}) => {
+  const [link, setLink] = useState('');
+  const [refreshRate, setRefreshRate] = useState(30);
+  const [documentType, setDocumentType] = useState('google_drive');
 
-  useEffect(() => {
-    if (agentName) {
-      const fetchClientInfo = async () => {
-        try {
-          const { data, error } = await supabase
-            .from("ai_agents")
-            .select("client_name, name")
-            .eq("name", agentName)
-            .single();
-
-          if (error) {
-            console.error("Error fetching client info:", error);
-            return;
-          }
-
-          setClientInfo({
-            clientName: data.client_name || '',
-            agentName: data.name || ''
-          });
-        } catch (err) {
-          console.error("Failed to fetch client info:", err);
-        }
-      };
-
-      fetchClientInfo();
-    }
-  }, [agentName]);
-
-  const handleAddLink = async (data: { 
-    link: string; 
-    document_type: "google_drive" | "text" | "google_doc" | "google_sheet" | "pdf" | "other"; 
-    refresh_rate: number; 
-  }) => {
-    try {
-      // Ensure data has required format
-      const formattedData = {
-        link: data.link,
-        refresh_rate: data.refresh_rate || 30,
-        document_type: data.document_type || 'google_drive'
-      };
-      
-      await onAdd(formattedData);
-      setShowAddForm(false);
-      
-      await logClientActivity(
-        "drive_link_added",
-        `Added ${data.document_type || 'document'} link: ${data.link}`,
-        {
-          link: data.link,
-          refresh_rate: data.refresh_rate,
-          document_type: data.document_type
-        }
-      );
-      
-      toast.success(`${data.document_type || 'Document'} link added successfully`);
-    } catch (error) {
-      console.error("Error adding drive link:", error);
-      toast.error("Failed to add document link");
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      const deletedLink = driveLinks.find(link => link.id === id);
-      await onDelete(id);
-      
-      if (deletedLink) {
-        await logClientActivity(
-          "drive_link_deleted",
-          `Deleted ${deletedLink.document_type || 'document'} link: ${deletedLink.link}`,
-          {
-            link: deletedLink.link,
-            document_type: deletedLink.document_type
-          }
-        );
-      }
-      
-      toast.success("Document link deleted successfully");
-    } catch (error) {
-      console.error("Error deleting drive link:", error);
-      toast.error("Failed to delete document link");
-    }
-  };
-
-  const handleFileUpload = async (file: File) => {
-    if (!file) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!link) return;
     
-    setIsUploading(true);
-    
-    try {
-      await processDocument({
-        file,
-        agentName,
-      });
-      
-      await logClientActivity(
-        "document_uploaded",
-        `Uploaded document: ${file.name}`,
-        {
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type
-        }
-      );
-      
-      setShowFileUploader(false);
-      toast.success("Document uploaded successfully");
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      toast.error("Failed to upload document");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleProcessLink = async (link: DocumentLink) => {
-    setProcessingLinkId(link.id);
-    
-    try {
-      await processDocument({
-        file: new File([""], "placeholder.txt"), // Dummy file
-        agentName: agentName,
-        metadata: {
-          documentUrl: link.link,
-          documentType: link.document_type,
-          documentId: link.id.toString()
-        }
-      });
-      
-      toast.success("Document processed successfully");
-      
-      await logClientActivity(
-        "document_processed",
-        `Processed document: ${link.document_type} link`,
-        {
-          link: link.link,
-          document_type: link.document_type
-        }
-      );
-    } catch (error) {
-      console.error("Error processing document:", error);
-      toast.error("Failed to process document");
-    } finally {
-      setProcessingLinkId(null);
-    }
+    await onAdd({ link, refresh_rate: refreshRate, document_type: documentType });
+    setLink('');
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 justify-between">
-        <h3 className="text-lg font-medium">Document Links</h3>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => {
-              setShowAddForm(false);
-              setShowFileUploader(!showFileUploader);
-            }}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="link">Drive Link</Label>
+        <Input
+          id="link"
+          placeholder="Paste a Google Drive link here"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="documentType">Document Type</Label>
+        <Select value={documentType} onValueChange={setDocumentType}>
+          <SelectTrigger id="documentType">
+            <SelectValue placeholder="Select document type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="google_drive">Google Drive Folder</SelectItem>
+            <SelectItem value="google_doc">Google Doc</SelectItem>
+            <SelectItem value="google_sheet">Google Sheet</SelectItem>
+            <SelectItem value="text">Text Document</SelectItem>
+            <SelectItem value="pdf">PDF</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="refreshRate">Refresh Interval (days)</Label>
+        <Select value={String(refreshRate)} onValueChange={(value) => setRefreshRate(Number(value))}>
+          <SelectTrigger id="refreshRate">
+            <SelectValue placeholder="Select refresh interval" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">1 day</SelectItem>
+            <SelectItem value="7">7 days</SelectItem>
+            <SelectItem value="14">14 days</SelectItem>
+            <SelectItem value="30">30 days</SelectItem>
+            <SelectItem value="60">60 days</SelectItem>
+            <SelectItem value="90">90 days</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button type="submit" disabled={isAdding || !link}>
+        {isAdding ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding...
+          </>
+        ) : (
+          <>
+            <Plus className="mr-2 h-4 w-4" /> Add Link
+          </>
+        )}
+      </Button>
+    </form>
+  );
+};
+
+// Drive Links List component
+const DriveLinksList = ({ 
+  driveLinks, 
+  onDelete, 
+  isDeleting,
+  logActivity
+}: {
+  driveLinks: DocumentLink[];
+  onDelete: (linkId: number) => Promise<void>;
+  isDeleting: boolean;
+  logActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
+}) => {
+  const handleDelete = async (linkId: number) => {
+    if (isDeleting) return;
+    
+    try {
+      await logActivity(
+        "document_link_deleted", 
+        `Document link deleted`, 
+        { link_id: linkId }
+      );
+      await onDelete(linkId);
+    } catch (error) {
+      console.error("Error deleting link:", error);
+    }
+  };
+
+  if (driveLinks.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <FileQuestion className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+        <p className="text-gray-500">No document links added yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {driveLinks.map((link) => (
+        <LinkItem
+          key={link.id}
+          link={link}
+          onDelete={() => handleDelete(link.id)}
+          isDeleting={isDeleting}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Link Item component
+const LinkItem = ({ 
+  link, 
+  onDelete, 
+  isDeleting 
+}: {
+  link: DocumentLink;
+  onDelete: () => Promise<void>;
+  isDeleting: boolean;
+}) => {
+  const { accessStatus } = useDriveAccessCheck(link.id);
+  
+  const getAccessStatusColor = (status: AccessStatus) => {
+    switch (status) {
+      case 'accessible':
+        return 'text-green-600';
+      case 'inaccessible':
+        return 'text-red-600';
+      default:
+        return 'text-gray-500';
+    }
+  };
+
+  const getAccessStatusIcon = (status: AccessStatus) => {
+    if (status === 'accessible') {
+      return null;
+    }
+    if (status === 'inaccessible') {
+      return <AlertTriangle className="h-4 w-4 text-red-600 ml-2" />;
+    }
+    return null;
+  };
+
+  return (
+    <div className="flex items-center justify-between p-3 border rounded-md">
+      <div className="flex items-center space-x-2">
+        <Link className="h-5 w-5 text-blue-600" />
+        <div>
+          <a 
+            href={link.link} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline font-medium"
           >
-            <Upload className="h-4 w-4 mr-2" />
-            {showFileUploader ? "Cancel Upload" : "Upload File"}
-          </Button>
-          <Button 
-            size="sm" 
-            onClick={() => {
-              setShowFileUploader(false);
-              setShowAddForm(!showAddForm);
-            }}
-            variant={showAddForm ? "outline" : "default"}
-          >
-            {showAddForm ? "Cancel" : "Add Link"}
-          </Button>
+            {link.link.length > 50 ? `${link.link.substring(0, 50)}...` : link.link}
+          </a>
+          <div className="flex items-center">
+            <span className={`text-xs ${getAccessStatusColor(accessStatus)}`}>
+              Status: {accessStatus === 'unknown' ? 'Checking...' : accessStatus}
+            </span>
+            {getAccessStatusIcon(accessStatus)}
+          </div>
         </div>
       </div>
-      
-      {showFileUploader && (
-        <FileUploader 
-          onUpload={handleFileUpload} 
-          isUploading={isUploading} 
-          accept=".pdf,.doc,.docx,.txt,.md"
-        />
-      )}
-      
-      {showAddForm && (
-        <DriveLinkForm 
-          onSubmit={handleAddLink}
-          isSubmitting={isAdding}
-        />
-      )}
-      
-      {isLoading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <DriveLinksList 
-          links={driveLinks} 
-          onDelete={handleDelete} 
-          onProcess={handleProcessLink}
-          isDeleting={isDeleting}
-          isProcessing={isProcessing}
-          processingLinkId={processingLinkId}
-          deletingLinkId={null}
-        />
-      )}
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={onDelete}
+        disabled={isDeleting}
+      >
+        {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove"}
+      </Button>
     </div>
+  );
+};
+
+// File uploader component
+const FileUploader = ({ 
+  onUpload, 
+  isUploading, 
+  agentName,
+  logActivity 
+}: {
+  onUpload: (data: { file: File; agentName: string }) => Promise<void>;
+  isUploading: boolean;
+  agentName: string;
+  logActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
+}) => {
+  const [file, setFile] = useState<File | null>(null);
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
+    }
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+    
+    try {
+      await logActivity(
+        "document_uploaded", 
+        `Document uploaded: ${file.name}`, 
+        { 
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type
+        }
+      );
+      
+      await onUpload({ 
+        file: file, 
+        agentName: agentName
+      });
+      
+      setFile(null);
+      if (e.target instanceof HTMLFormElement) {
+        e.target.reset();
+      }
+    } catch (error) {
+      console.error("Error uploading file:", error);
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="file">Upload PDF Document</Label>
+        <Input 
+          id="file" 
+          type="file" 
+          accept=".pdf,.docx,.doc,.txt" 
+          onChange={handleFileChange}
+          required
+        />
+        <p className="text-xs text-gray-500">
+          Maximum file size: 10MB. Supported formats: PDF, DOCX, DOC, TXT
+        </p>
+      </div>
+      
+      <Button type="submit" disabled={isUploading || !file}>
+        {isUploading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...
+          </>
+        ) : (
+          <>
+            <Upload className="mr-2 h-4 w-4" /> Upload Document
+          </>
+        )}
+      </Button>
+    </form>
+  );
+};
+
+// Main DriveLinks component
+export const DriveLinks = ({
+  driveLinks,
+  onAdd,
+  onDelete,
+  onUpload,
+  isLoading,
+  isAdding,
+  isDeleting,
+  agentName,
+  logActivity
+}: DriveLinksProps) => {
+  return (
+    <Card className="overflow-hidden">
+      <Tabs defaultValue="links" className="w-full">
+        <TabsList className="w-full grid grid-cols-2">
+          <TabsTrigger value="links">Google Drive Links</TabsTrigger>
+          <TabsTrigger value="upload">Upload Document</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="links" className="p-6">
+          <div className="space-y-6">
+            <DriveLinkForm onAdd={onAdd} isAdding={isAdding} />
+            
+            <div className="mt-6">
+              <h3 className="text-lg font-medium mb-4">Existing Links</h3>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <DriveLinksList 
+                  driveLinks={driveLinks} 
+                  onDelete={onDelete}
+                  isDeleting={isDeleting}
+                  logActivity={logActivity}
+                />
+              )}
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="upload" className="p-6">
+          <FileUploader 
+            onUpload={onUpload} 
+            isUploading={isAdding} 
+            agentName={agentName}
+            logActivity={logActivity}
+          />
+        </TabsContent>
+      </Tabs>
+    </Card>
   );
 };
