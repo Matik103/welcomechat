@@ -29,7 +29,18 @@ serve(async (req) => {
     
     const supabase = createClient(
       supabaseUrl,
-      supabaseServiceKey
+      supabaseServiceKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        },
+        global: {
+          headers: {
+            'X-Client-Info': 'create-client-user-edge-function'
+          }
+        }
+      }
     );
     
     // Parse the request body
@@ -60,6 +71,8 @@ serve(async (req) => {
     // Generate a temporary password for this client
     const tempPassword = generateSecurePassword();
     
+    console.log("Attempting to store temp password for client:", client_id);
+    
     // Store the temporary password in the database using service role
     const { error: tempPasswordError } = await supabase
       .from("client_temp_passwords")
@@ -73,6 +86,8 @@ serve(async (req) => {
       console.error("Error saving temporary password:", tempPasswordError);
       throw tempPasswordError;
     }
+    
+    console.log("Successfully stored temp password, now creating user");
     
     // Attempt to create auth user (or update existing one)
     try {
@@ -89,9 +104,10 @@ serve(async (req) => {
             user_type: 'client'
           }
         });
+        console.log("Updated existing user:", existingUser.id);
       } else {
         // Create new user
-        await supabase.auth.admin.createUser({
+        const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
           email,
           password: tempPassword,
           email_confirm: true,
@@ -100,6 +116,13 @@ serve(async (req) => {
             user_type: 'client'
           }
         });
+        
+        if (createUserError) {
+          console.error("Error creating user:", createUserError);
+          throw createUserError;
+        }
+        
+        console.log("Created new user:", newUser?.user?.id);
       }
       
       // Ensure there's a user_role record for this user
@@ -107,17 +130,24 @@ serve(async (req) => {
         (await supabase.auth.admin.listUsers()).data?.users?.find(u => u.email === email);
       
       if (userAccount) {
-        await supabase
+        const { error: roleError } = await supabase
           .from("user_roles")
           .upsert({
             user_id: userAccount.id,
             role: "client",
             client_id: client_id
           });
+          
+        if (roleError) {
+          console.error("Error setting user role:", roleError);
+          // Continue, we've still created the user and temp password
+        } else {
+          console.log("Successfully set user role for:", userAccount.id);
+        }
       }
     } catch (authError) {
       console.error("Auth operation error:", authError);
-      // Continue, as we still created the client record
+      // Continue, as we still created the client record and temp password
     }
     
     return new Response(
