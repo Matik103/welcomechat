@@ -1,45 +1,36 @@
 
-// Types for Llama Parse API integration
+/**
+ * Types for the LlamaParse document processing service
+ */
 
-export interface LlamaParseConfig {
-  apiKey: string;
-  endpoint: string;
+export interface LlamaParseResult {
+  content: string;
+  metadata: LlamaParseMetadata;
+}
+
+export interface LlamaParseMetadata {
+  documentId?: string;
+  author?: string;
+  createdAt?: string;
+  title?: string;
+  pages?: number;
+  language?: string;
+  fileType?: string;
+  fileName?: string;
+  fileSize?: number;
+  status?: 'success' | 'failed' | 'processing';
+  errorMessage?: string;
 }
 
 export interface LlamaParseRequest {
-  file: File | Blob;
-  mimeType?: string;
-  fileName?: string;
-  options?: {
-    verbose?: boolean;
-    language?: string;
-    outputFormat?: "json" | "markdown" | "text";
-  };
+  file: File;
+  metadata?: Record<string, any>;
 }
 
 export interface LlamaParseResponse {
-  id: string;
-  status: "success" | "processing" | "failed";
-  data?: {
-    content: string;
-    metadata: {
-      title?: string;
-      author?: string;
-      createdAt?: string;
-      pages?: number;
-      words?: number;
-    };
-  };
-  error?: {
-    message: string;
-    code: string;
-  };
-}
-
-export interface DocumentProcessingResult {
-  status: "success" | "failed";
-  documentId?: string;
+  status: 'success' | 'failed' | 'processing';
   content?: string;
-  metadata?: Record<string, any>;
+  documentId?: string;
   error?: string;
+  metadata?: Record<string, any>;
 }

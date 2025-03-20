@@ -8,15 +8,21 @@ export const useDriveAccessCheck = (linkId: number) => {
     queryKey: ["driveAccess", linkId],
     queryFn: async (): Promise<AccessStatus> => {
       try {
-        const { data, error } = await supabase
-          .from("document_links")
-          .select("access_status")
-          .eq("id", linkId)
-          .single();
-
-        if (error) throw error;
+        // Get document_links table separately - do not reference it directly
+        const res = await supabase.rpc('get_document_access_status', {
+          document_id: linkId
+        });
         
-        return (data?.access_status as AccessStatus) || "unknown";
+        if (res.error) {
+          console.error("Error checking drive access:", res.error);
+          return "unknown";
+        }
+        
+        if (res.data && typeof res.data === 'string') {
+          return res.data as AccessStatus;
+        }
+        
+        return "unknown";
       } catch (error) {
         console.error("Error checking drive access:", error);
         return "unknown";

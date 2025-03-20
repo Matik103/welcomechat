@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface DocumentLinksProps {
   driveLinks: DocumentLink[];
-  onAdd: (data: { link: string; refresh_rate: number; document_type?: string }) => Promise<void>;
+  onAdd: (data: { link: string; refresh_rate: number; document_type: string }) => Promise<void>;
   onDelete: (linkId: number) => Promise<void>;
   onUpload?: (file: File, agentName: string) => Promise<void>;
   isLoading: boolean;
@@ -97,6 +97,22 @@ export const DocumentLinks = ({
     }
   };
 
+  const handleSubmit = async (formData: { 
+    link?: string; 
+    document_type?: "google_drive" | "text" | "google_doc" | "google_sheet" | "pdf" | "other"; 
+    refresh_rate?: number; 
+  }) => {
+    // Ensure all required properties are set with defaults if not provided
+    const data = {
+      link: formData.link || '',
+      refresh_rate: formData.refresh_rate || 30,
+      document_type: formData.document_type || 'google_drive'
+    };
+    
+    await onAdd(data);
+    setShowForm(false);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -112,10 +128,7 @@ export const DocumentLinks = ({
 
       {showForm && (
         <DocumentLinkForm 
-          onSubmit={async (data) => {
-            await onAdd(data);
-            setShowForm(false);
-          }}
+          onSubmit={handleSubmit}
           isSubmitting={isAdding}
           agentName={agentName}
         />

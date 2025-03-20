@@ -1,82 +1,73 @@
 
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
-import { useClientData } from "@/hooks/useClientData";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { ClientDetails } from "@/components/client/ClientDetails";
+import { useClient } from "@/hooks/useClient";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Database, User } from "lucide-react";
-import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { useClientActivity } from "@/hooks/useClientActivity";
+import { toast } from 'sonner';
 
 const ResourceSettings = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const clientId = user?.user_metadata?.client_id;
-  const { client, isLoadingClient, error } = useClientData(clientId);
+  
+  const { client, isLoadingClient, error } = useClient(clientId);
   const { logClientActivity } = useClientActivity(clientId);
-
-  console.log("ResourceSettings: client ID from auth:", clientId);
+  
+  useEffect(() => {
+    if (error) {
+      toast.error("Failed to load your data");
+      console.error("Error loading client data:", error);
+    }
+  }, [error]);
 
   if (isLoadingClient) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
   }
 
-  if (error) {
+  if (!client && !isLoadingClient) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <Card className="bg-red-50 border-red-200">
-          <CardContent className="pt-6">
-            <p className="text-red-700">Error loading client data: {error.message}</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-3xl mx-auto text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Client Information Not Found</h1>
+          <p className="text-gray-600 mb-6">We couldn't find your client information. Please contact support if this issue persists.</p>
+          <Link to="/client/dashboard" className="text-blue-500 hover:underline">
+            Return to Dashboard
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-4 mb-6">
-        <Link 
-          to="/client/view"
-          className="text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-2xl font-bold">Resource Settings</h1>
-      </div>
-      
-      <Card className="mb-8">
-        <CardHeader className="flex flex-row items-center gap-2">
-          <User className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Client Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ClientDetails 
-            client={client} 
-            clientId={clientId} 
-            isClientView={true}
-            logClientActivity={logClientActivity}
-          />
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => navigate('/client/dashboard')}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Resources & Knowledge</h1>
+            <p className="text-gray-500">Manage the knowledge sources for your AI assistant</p>
+          </div>
+        </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Database className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Resources</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ClientResourceSections
-            clientId={clientId}
-            isClientView={true}
-            logClientActivity={logClientActivity}
-          />
-        </CardContent>
-      </Card>
+        <ClientResourceSections 
+          clientId={clientId}
+          agentName={client?.agent_name || client?.name}
+          className="mt-6"
+          isClientView={true}
+        />
+      </div>
     </div>
   );
 };
