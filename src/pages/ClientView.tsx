@@ -29,6 +29,7 @@ import { useClientActivity } from '@/hooks/useClientActivity';
 import { useRecentActivities } from '@/hooks/useRecentActivities';
 
 const ClientView = () => {
+  // Rename the param to clientId to match App.tsx route definition
   const { clientId = '' } = useParams();
   const [clientData, setClientData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
