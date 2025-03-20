@@ -743,6 +743,7 @@ export type Database = {
           error_message: string | null
           id: string
           metadata: Json | null
+          processing_method: string | null
           status: string
           updated_at: string
         }
@@ -757,6 +758,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           metadata?: Json | null
+          processing_method?: string | null
           status?: string
           updated_at?: string
         }
@@ -771,6 +773,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           metadata?: Json | null
+          processing_method?: string | null
           status?: string
           updated_at?: string
         }

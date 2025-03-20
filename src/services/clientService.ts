@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { sendEmail } from "@/utils/emailUtils";
 import { generateClientTempPassword } from "@/utils/passwordUtils";
+import { sanitizeForSQL } from "@/utils/inputSanitizer";
 import { toast } from "sonner";
 import { createClientActivity } from "./clientActivityService";
 
@@ -11,23 +12,26 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   console.log("Creating client with data:", { ...data, widget_settings: "..." });
   
   try {
+    // Sanitize agent name to prevent SQL issues
+    const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
+    
     // Create the client record in the database
     const { data: newClient, error } = await supabase
       .from("clients")
       .insert({
         client_name: data.client_name,
         email: data.email,
-        agent_name: data.agent_name || 'AI Assistant',
+        agent_name: sanitizedAgentName,
         // Only spread widget_settings if it's a valid object
         widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
           ? {
               ...data.widget_settings,
-              agent_description: data.agent_description || "",
+              agent_description: sanitizeForSQL(data.agent_description) || "",
               logo_url: data.logo_url || "",
               logo_storage_path: data.logo_storage_path || ""
             }
           : {
-              agent_description: data.agent_description || "",
+              agent_description: sanitizeForSQL(data.agent_description) || "",
               logo_url: data.logo_url || "",
               logo_storage_path: data.logo_storage_path || ""
             }
@@ -117,25 +121,28 @@ export const updateClient = async (
       throw getError;
     }
 
+    // Sanitize agent name to prevent SQL issues
+    const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
+
     // Prepare update data with widget_settings correctly handled
     const updateData: any = {
       client_name: data.client_name,
       email: data.email,
-      agent_name: data.agent_name || 'AI Assistant',
+      agent_name: sanitizedAgentName,
     };
 
     // Only include widget_settings if it exists and is an object
     if (typeof data.widget_settings === 'object' && data.widget_settings !== null) {
       updateData.widget_settings = {
         ...data.widget_settings,
-        agent_description: data.agent_description || "",
+        agent_description: sanitizeForSQL(data.agent_description) || "",
         logo_url: data.logo_url || "",
         logo_storage_path: data.logo_storage_path || ""
       };
     } else {
       // If widget_settings doesn't exist or is not an object, create a new one
       updateData.widget_settings = {
-        agent_description: data.agent_description || "",
+        agent_description: sanitizeForSQL(data.agent_description) || "",
         logo_url: data.logo_url || "",
         logo_storage_path: data.logo_storage_path || ""
       };
