@@ -38,11 +38,18 @@ export const useNewClientMutation = () => {
         return result;
       } catch (error) {
         console.error("Error creating client:", error);
-        throw new Error(error instanceof Error ? error.message : "Failed to create client");
+        // Ensure we always have a meaningful error message
+        if (error instanceof Error) {
+          throw error;
+        } else {
+          throw new Error("Failed to create client. Please try again.");
+        }
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      // Make sure we have a user-friendly error message
+      const errorMessage = error.message || "Failed to create client. Please try again.";
+      toast.error(errorMessage);
     },
   });
 };

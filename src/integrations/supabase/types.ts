@@ -187,15 +187,7 @@ export type Database = {
           uploadDate?: string | null
           url?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "ai_agents_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       ai_agents_backup: {
         Row: {
@@ -435,15 +427,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "client_activities_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       client_invitations: {
         Row: {
@@ -497,15 +481,7 @@ export type Database = {
           token?: string
           used_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "client_recovery_tokens_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       client_temp_passwords: {
         Row: {
@@ -534,81 +510,6 @@ export type Database = {
           temp_password?: string
           used?: boolean | null
           used_at?: string | null
-        }
-        Relationships: []
-      }
-      clients: {
-        Row: {
-          agent_name: string | null
-          client_name: string
-          company: string | null
-          created_at: string | null
-          deleted_at: string | null
-          deletion_scheduled_at: string | null
-          description: string | null
-          drive_link: string | null
-          drive_link_added_at: string | null
-          drive_link_refresh_rate: number | null
-          email: string
-          google_drive_links_added_at: string | null
-          id: string
-          last_active: string | null
-          status: string | null
-          updated_at: string | null
-          website: string | null
-          website_url: string | null
-          website_url_added_at: string | null
-          website_url_refresh_rate: number | null
-          website_urls_added_at: string | null
-          widget_settings: Json | null
-        }
-        Insert: {
-          agent_name?: string | null
-          client_name?: string
-          company?: string | null
-          created_at?: string | null
-          deleted_at?: string | null
-          deletion_scheduled_at?: string | null
-          description?: string | null
-          drive_link?: string | null
-          drive_link_added_at?: string | null
-          drive_link_refresh_rate?: number | null
-          email: string
-          google_drive_links_added_at?: string | null
-          id?: string
-          last_active?: string | null
-          status?: string | null
-          updated_at?: string | null
-          website?: string | null
-          website_url?: string | null
-          website_url_added_at?: string | null
-          website_url_refresh_rate?: number | null
-          website_urls_added_at?: string | null
-          widget_settings?: Json | null
-        }
-        Update: {
-          agent_name?: string | null
-          client_name?: string
-          company?: string | null
-          created_at?: string | null
-          deleted_at?: string | null
-          deletion_scheduled_at?: string | null
-          description?: string | null
-          drive_link?: string | null
-          drive_link_added_at?: string | null
-          drive_link_refresh_rate?: number | null
-          email?: string
-          google_drive_links_added_at?: string | null
-          id?: string
-          last_active?: string | null
-          status?: string | null
-          updated_at?: string | null
-          website?: string | null
-          website_url?: string | null
-          website_url_added_at?: string | null
-          website_url_refresh_rate?: number | null
-          website_urls_added_at?: string | null
-          widget_settings?: Json | null
         }
         Relationships: []
       }
@@ -679,15 +580,7 @@ export type Database = {
           query_text?: string
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "common_queries_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       deals: {
         Row: {
@@ -837,15 +730,7 @@ export type Database = {
           message?: string
           status?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "error_logs_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       frenniy: {
         Row: {
@@ -959,15 +844,7 @@ export type Database = {
           notified_at?: string | null
           refresh_rate?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "google_drive_links_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       great_deal: {
         Row: {
@@ -2962,15 +2839,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_roles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       vahalas: {
         Row: {
@@ -3270,15 +3139,7 @@ export type Database = {
           refresh_rate?: number
           url?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "website_urls_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       wechate: {
         Row: {

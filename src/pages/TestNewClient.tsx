@@ -31,7 +31,8 @@ export default function TestNewClient() {
       toast.success("Client created successfully");
     } catch (error) {
       console.error("Error creating client:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create client");
+      // Ensure we always have a meaningful error message to display
+      toast.error(error instanceof Error && error.message ? error.message : "Failed to create client");
     }
   };
 
