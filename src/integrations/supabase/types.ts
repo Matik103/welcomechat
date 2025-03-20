@@ -740,6 +740,7 @@ export type Database = {
           document_id: string
           document_type: string
           document_url: string
+          error: string | null
           error_message: string | null
           id: string
           metadata: Json | null
@@ -755,6 +756,7 @@ export type Database = {
           document_id: string
           document_type: string
           document_url: string
+          error?: string | null
           error_message?: string | null
           id?: string
           metadata?: Json | null
@@ -770,6 +772,7 @@ export type Database = {
           document_id?: string
           document_type?: string
           document_url?: string
+          error?: string | null
           error_message?: string | null
           id?: string
           metadata?: Json | null
