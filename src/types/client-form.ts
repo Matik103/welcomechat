@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 // Base schema for widget settings
@@ -21,7 +20,7 @@ export const widgetSettingsSchema = z.object({
 // Main form schema
 export const clientFormSchema = z.object({
   client_name: z.string()
-    .min(1, "Name is required")
+    .min(1, "Client name is required")
     .transform(val => val.trim()),
   email: z.string()
     .email("Invalid email address")
@@ -60,6 +59,6 @@ export type ClientFormErrors = {
 // Type for form submission response
 export interface ClientFormSubmissionResponse {
   success: boolean;
-  agentId?: string;
+  clientId?: string;
   error?: string;
-}
+} 
