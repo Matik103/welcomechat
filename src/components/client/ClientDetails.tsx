@@ -22,10 +22,12 @@ interface AgentUpdateResult {
   descriptionUpdated: boolean;
 }
 
-// Function to sanitize strings by removing quotation marks
+// Function to sanitize strings by removing quotation marks and other potentially problematic characters
 function sanitizeString(str: string | undefined | null): string {
   if (!str) return '';
-  return str.replace(/"/g, '');
+  
+  // Remove double quotes, single quotes, backticks and other potentially problematic characters
+  return str.replace(/["`']/g, '');
 }
 
 export const ClientDetails = ({ 
