@@ -27,10 +27,10 @@ export const ActivityList = ({ activities, isLoading = false }: ActivityListProp
       </div>
     ) : (
       <div className="divide-y divide-gray-100">
-        {activities?.length === 0 ? (
+        {!activities || activities.length === 0 ? (
           <p className="text-gray-500 py-4">No recent activities</p>
         ) : (
-          activities?.map((activity, index) => (
+          activities.map((activity, index) => (
             <ActivityItem key={`${activity.created_at}-${index}`} item={activity} />
           ))
         )}

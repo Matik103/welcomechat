@@ -1,252 +1,102 @@
 
 import { useState } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CheckCircle2, Loader2, Plus } from "lucide-react";
-import { useUrlAccessCheck, UrlAccessResult } from "@/hooks/useUrlAccessCheck";
-import { useStoreWebsiteContent } from "@/hooks/useStoreWebsiteContent";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ValidationResult } from "./ValidationResult";
-import { ScrapabilityInfo } from "./ScrapabilityInfo";
+
+const websiteUrlSchema = z.object({
+  url: z.string().url("Please enter a valid URL"),
+});
+
+type WebsiteUrlFormValues = z.infer<typeof websiteUrlSchema>;
 
 interface WebsiteUrlFormProps {
-  onAdd: (data: { url: string; refresh_rate: number }) => Promise<void>;
-  onCancel: () => void;
-  isAddLoading: boolean;
-  clientId?: string;
-  agentName?: string;
-  isProcessing: boolean;
+  clientId: string;
+  onAddSuccess?: () => void;
+  webstoreHook: any;
 }
 
-export const WebsiteUrlForm = ({
-  onAdd,
-  onCancel,
-  isAddLoading,
-  clientId,
-  agentName,
-  isProcessing,
-}: WebsiteUrlFormProps) => {
-  const [newUrl, setNewUrl] = useState("");
-  const [newRefreshRate, setNewRefreshRate] = useState(30);
-  const [error, setError] = useState<string | null>(null);
-  const { checkUrlAccess, isChecking, lastResult } = useUrlAccessCheck();
-  const { storeWebsiteContent, isStoring } = useStoreWebsiteContent();
-  const [isValidated, setIsValidated] = useState(false);
-  const [isContentStored, setIsContentStored] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: WebsiteUrlFormProps) => {
+  const [adding, setAdding] = useState(false);
+  const { addWebsite, storeWebsiteContent, isStoring } = webstoreHook;
 
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewUrl(e.target.value);
-    setIsValidated(false);
-    setIsContentStored(false);
-    setError(null);
-  };
+  const form = useForm<WebsiteUrlFormValues>({
+    resolver: zodResolver(websiteUrlSchema),
+    defaultValues: {
+      url: "",
+    },
+  });
 
-  const validateUrl = async () => {
-    if (!newUrl) {
-      setError("Please enter a URL");
-      return false;
+  const onSubmit = async (values: WebsiteUrlFormValues) => {
+    if (!clientId) {
+      toast.error("Client ID is missing");
+      return;
     }
 
-    // Normalize URL with proper protocol if missing
-    let normalizedUrl = newUrl;
-    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-      normalizedUrl = 'https://' + normalizedUrl;
-    }
-
+    setAdding(true);
     try {
-      new URL(normalizedUrl);
-    } catch (e) {
-      setError("Please enter a valid URL");
-      return false;
-    }
+      const newWebsite = {
+        client_id: clientId,
+        url: values.url,
+        scrapable: true,
+        refresh_rate: 30,
+      };
 
-    try {
-      console.log("Validating URL:", normalizedUrl);
-      const result = await checkUrlAccess(normalizedUrl);
+      const result = await addWebsite(newWebsite);
       
-      console.log("URL validation result:", result);
-      
-      if (!result.isAccessible) {
-        setError(`URL is not accessible: ${result.error || "Unknown error"}`);
-        return false;
-      }
-      
-      setIsValidated(true);
-      
-      if (clientId && agentName && result.content) {
-        try {
-          console.log("Storing website content for:", { clientId, agentName, normalizedUrl });
-          const storeResult = await storeWebsiteContent(
-            clientId,
-            agentName,
-            normalizedUrl,
-            result.content
-          );
-          
-          if (storeResult.success) {
-            setIsContentStored(true);
-            toast.success("Website content imported to AI agent knowledge base");
-          } else {
-            console.warn("Could not store content:", storeResult.error);
-            
-            // Attempt to use Firecrawl if direct extraction failed
-            if (!isProcessing && clientId && agentName) {
-              toast.info("Trying advanced web scraping with Firecrawl...");
-              // The actual processing will be handled by the WebsiteUrls component
-              // using the FirecrawlService when the URL is added to the database
-            }
-          }
-        } catch (storeError) {
-          console.error("Error storing content:", storeError);
+      if (result && result.length > 0) {
+        const website = result[0];
+        // Store the website content in AI agents table
+        const storeResult = await storeWebsiteContent(website);
+        
+        if (storeResult && storeResult.success) {
+          // Clear the form
+          form.reset();
+          if (onAddSuccess) onAddSuccess();
+        } else if (storeResult && storeResult.error) {
+          console.error("Failed to store website content:", storeResult.error);
         }
-      } else {
-        console.warn("Not storing content due to missing clientId, agentName, or content", {
-          hasClientId: !!clientId,
-          hasAgentName: !!agentName,
-          hasContent: !!result.content,
-          contentLength: result.content?.length || 0
-        });
       }
-      
-      return true;
-    } catch (e) {
-      console.error("Failed to validate URL:", e);
-      setError("Failed to validate URL");
-      return false;
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("handleSubmit called with URL:", newUrl);
-    setError(null);
-    
-    if (!isValidated) {
-      const isValid = await validateUrl();
-      if (!isValid) return;
-    }
-    
-    try {
-      setIsSubmitting(true);
-      
-      // Normalize URL with proper protocol if missing
-      let normalizedUrl = newUrl;
-      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-        normalizedUrl = 'https://' + normalizedUrl;
-      }
-      
-      console.log("Submitting website URL:", normalizedUrl, newRefreshRate);
-      
-      await onAdd({
-        url: normalizedUrl,
-        refresh_rate: newRefreshRate,
-      });
-    } catch (error) {
-      console.error("Error adding URL:", error);
-      setError(error instanceof Error ? error.message : "Failed to add URL");
+    } catch (error: any) {
+      console.error("Error adding website URL:", error);
+      toast.error(`Failed to add website URL: ${error.message}`);
     } finally {
-      setIsSubmitting(false);
+      setAdding(false);
     }
-  };
-
-  const getProcessingText = () => {
-    if (isProcessing) {
-      // For website URLs, we always use Firecrawl
-      return "Processing with Firecrawl...";
-    }
-    
-    if (isStoring) {
-      return "Importing...";
-    }
-    
-    if (isAddLoading || isSubmitting) {
-      return "Adding...";
-    }
-    
-    return "Add URL";
   };
 
   return (
-    <form className="border border-gray-200 rounded-md p-4 bg-gray-50" onSubmit={handleSubmit}>
-      <div className="space-y-4">
-        <ValidationResult error={error} isValidated={isValidated} lastResult={lastResult} />
-        <ScrapabilityInfo 
-          lastResult={lastResult as UrlAccessResult} 
-          isValidated={isValidated} 
-          isContentStored={isContentStored} 
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="url"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Website URL</FormLabel>
+              <FormControl>
+                <Input placeholder="https://example.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        
-        <div className="space-y-2">
-          <Label htmlFor="website-url">Website URL</Label>
-          <div className="flex gap-2">
-            <Input
-              id="website-url"
-              type="url"
-              placeholder="https://example.com"
-              value={newUrl}
-              onChange={handleUrlChange}
-              required
-              className="flex-1"
-            />
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={validateUrl}
-              disabled={isChecking || !newUrl || isValidated}
-            >
-              {isChecking ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-              )}
-              Validate
-            </Button>
-          </div>
-          <p className="text-xs text-gray-500">
-            Enter complete URL including https:// (e.g., https://example.com)
-          </p>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="refresh-rate">Refresh Rate (days)</Label>
-          <Input
-            id="refresh-rate"
-            type="number"
-            min="1"
-            value={newRefreshRate}
-            onChange={(e) => setNewRefreshRate(parseInt(e.target.value))}
-            required
-          />
-        </div>
-        
-        <div className="flex items-center justify-end gap-2 mt-4">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onCancel}
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit"
-            disabled={isAddLoading || isSubmitting || !newUrl || (isChecking && !isValidated) || isProcessing}
-          >
-            {(isAddLoading || isSubmitting || isProcessing || isStoring) ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                {getProcessingText()}
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4 mr-2" />
-                Add URL
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    </form>
+        <Button type="submit" disabled={adding || isStoring} className="w-full">
+          {(adding || isStoring) ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {adding ? "Adding..." : "Storing..."}
+            </>
+          ) : (
+            "Add Website"
+          )}
+        </Button>
+      </form>
+    </Form>
   );
 };

@@ -24,20 +24,6 @@ export function BrandingSettings({
   return (
     <div className="space-y-4">
       <div>
-        <Label htmlFor="agent_name">Agent Name</Label>
-        <Input
-          id="agent_name"
-          value={settings.agent_name}
-          onChange={(e) => onSettingsChange({ agent_name: e.target.value })}
-          placeholder="Your AI assistant's name"
-          className="mt-1"
-        />
-        <p className="text-sm text-gray-500 mt-1">
-          This is the name that will appear in the chat header.
-        </p>
-      </div>
-
-      <div>
         <Label>Logo</Label>
         <LogoManagement
           logoUrl={settings.logo_url}

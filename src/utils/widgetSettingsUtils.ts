@@ -9,7 +9,6 @@ import { checkAndRefreshAuth } from "@/services/authService";
  */
 export function convertSettingsToJson(settings: IWidgetSettings): { [key: string]: Json } {
   return {
-    agent_name: settings.agent_name || defaultSettings.agent_name,
     logo_url: settings.logo_url || '',
     logo_storage_path: settings.logo_storage_path || '',
     chat_color: settings.chat_color || defaultSettings.chat_color,

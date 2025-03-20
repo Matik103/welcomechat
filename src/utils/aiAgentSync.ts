@@ -2,13 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { WidgetSettings } from "@/types/widget-settings";
 import { checkAndRefreshAuth } from "@/services/authService";
-
-/**
- * Removes quotation marks from a string
- */
-function sanitizeAgentName(name: string): string {
-  return name.replace(/"/g, '');
-}
+import { generateAiPrompt } from "./activityTypeUtils";
 
 /**
  * Syncs the widget settings with the AI agent data in the database
@@ -22,19 +16,12 @@ export async function syncWidgetSettingsWithAgent(
     // Ensure we have a valid auth session
     await checkAndRefreshAuth();
     
-    // Sanitize agent name to remove quotation marks
-    const sanitizedAgentName = settings.agent_name ? sanitizeAgentName(settings.agent_name) : settings.agent_name;
-    
-    console.log("Syncing widget settings with AI agent:", { 
-      clientId, 
-      settings: { ...settings, agent_name: sanitizedAgentName },
-      clientName 
-    });
+    console.log("Syncing widget settings with AI agent:", { clientId, settings, clientName });
     
     // First check if an AI agent exists for this client
     const { data: agentData, error: agentError } = await supabase
       .from("ai_agents")
-      .select("id, name, settings")
+      .select("id, name, settings, agent_description, logo_url, logo_storage_path")
       .eq("client_id", clientId)
       .maybeSingle();
     
@@ -43,23 +30,35 @@ export async function syncWidgetSettingsWithAgent(
       return false;
     }
     
-    // Fix: Create a typed settings object instead of using spread
+    // Fix: Create a typed settings object with all necessary properties
     const agentSettings = {
       // Only copy specific properties from existing settings if they exist
       ...(agentData?.settings ? agentData.settings as Record<string, any> : {}),
+      agent_name: settings.agent_name,
+      agent_description: settings.agent_description || "",
       logo_url: settings.logo_url,
-      agent_name: sanitizedAgentName,
-      client_name: clientName || "",
+      logo_storage_path: settings.logo_storage_path,
       updated_at: new Date().toISOString()
     };
     
     if (agentData?.id) {
-      // Update existing AI agent
+      // Generate an updated AI prompt with agent_name and clientName
+      const aiPrompt = generateAiPrompt(
+        settings.agent_name, // Use the agent_name from settings
+        settings.agent_description || "", 
+        clientName
+      );
+      
+      // Update existing AI agent with all properties
       const { error: updateError } = await supabase
         .from("ai_agents")
         .update({
-          name: sanitizedAgentName, // Update name to match widget settings, ensuring no quotation marks
-          settings: agentSettings
+          name: settings.agent_name, // Update the agent name
+          agent_description: settings.agent_description || "",
+          logo_url: settings.logo_url,
+          logo_storage_path: settings.logo_storage_path,
+          settings: agentSettings,
+          ai_prompt: aiPrompt
         })
         .eq("id", agentData.id);
       
@@ -68,11 +67,30 @@ export async function syncWidgetSettingsWithAgent(
         return false;
       }
       
-      console.log("Successfully updated AI agent with widget settings");
+      console.log("Successfully updated AI agent with widget settings and new prompt");
       return true;
     } else {
-      console.log("No AI agent found for this client. Widget settings will be updated without agent sync.");
-      return false;
+      // Create a new AI agent with all properties
+      const { error: createError } = await supabase
+        .from("ai_agents")
+        .insert({
+          client_id: clientId,
+          name: settings.agent_name,
+          agent_description: settings.agent_description || "",
+          logo_url: settings.logo_url,
+          logo_storage_path: settings.logo_storage_path,
+          content: "",
+          settings: agentSettings,
+          interaction_type: "config"
+        });
+        
+      if (createError) {
+        console.error("Error creating new AI agent:", createError);
+        return false;
+      }
+      
+      console.log("Successfully created new AI agent with widget settings");
+      return true;
     }
   } catch (error) {
     console.error("Error in syncWidgetSettingsWithAgent:", error);
