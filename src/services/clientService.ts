@@ -10,6 +10,14 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   console.log("Creating client with data:", data);
   
   try {
+    // Prepare widget_settings object correctly
+    const widgetSettings = {
+      ...(typeof data.widget_settings === 'object' && data.widget_settings !== null ? data.widget_settings : {}),
+      agent_description: data.agent_description || "",
+      logo_url: data.logo_url || "",
+      logo_storage_path: data.logo_storage_path || ""
+    };
+    
     // Use the database function to create client and AI agent records
     const { data: result, error } = await supabase.rpc('create_new_client', {
       p_client_name: data.client_name,
@@ -18,7 +26,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       p_agent_description: data.agent_description || '',
       p_logo_url: data.logo_url || '',
       p_logo_storage_path: data.logo_storage_path || '',
-      p_widget_settings: data.widget_settings || {}
+      p_widget_settings: widgetSettings
     });
 
     if (error) {

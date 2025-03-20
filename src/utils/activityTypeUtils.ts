@@ -1,5 +1,5 @@
-
-import { ActivityType } from "@/types/activity";
+import { ActivityType, ExtendedActivityType } from "@/types/activity";
+import { Json } from "@/integrations/supabase/types";
 
 /**
  * Generates a descriptive message based on the activity type
@@ -71,7 +71,6 @@ export const getActivityTypeMessage = (type: ActivityType, details: any = {}): s
 
 // Function to generate an AI prompt based on the agent name and description
 export const generateAiPrompt = (agentName: string, agentDescription: string, clientName?: string): string => {
-  // System prompt template to ensure assistants only respond to client-specific questions
   const SYSTEM_PROMPT_TEMPLATE = `You are an AI assistant created within the ByClicks AI system, designed to serve individual clients with their own unique knowledge bases. Each assistant is assigned to a specific client, and must only respond based on the information available for that specific client.
 
 Rules & Limitations:
@@ -89,17 +88,14 @@ Rules & Limitations:
 - Technical questions about your own system or how you are built.
 - Anything unrelated to the client you are assigned to serve.`;
   
-  // Create a client-specific prompt
   let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${agentName || 'AI Assistant'}, an AI assistant for ${clientName || 'your client'}.`;
   
-  // Add agent description if provided
   if (agentDescription && agentDescription.trim() !== '') {
     prompt += ` ${agentDescription}`;
   } else {
     prompt += ` Your goal is to provide clear, concise, and accurate information to users based on the knowledge provided to you.`;
   }
   
-  // Add instructions for responding to off-limit questions
   prompt += `\n\nAs an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.
 
 When asked questions outside your knowledge base or off-limit topics, respond with something like:
@@ -110,4 +106,38 @@ When asked questions outside your knowledge base or off-limit topics, respond wi
 You have access to a knowledge base of documents and websites that have been processed and stored for your reference. When answering questions, prioritize information from this knowledge base when available.`;
 
   return prompt;
+};
+
+/**
+ * Maps ExtendedActivityType to ActivityType and enhances metadata if needed
+ * This function ensures that custom activity types are properly mapped to database enum values
+ */
+export const mapActivityType = (
+  activityType: ExtendedActivityType, 
+  metadata: Json = {}
+): { dbActivityType: ActivityType; enhancedMetadata: Json } => {
+  const metadataObj = typeof metadata === 'object' && metadata !== null ? metadata : {};
+  
+  let enhancedMetadata = { ...(metadataObj as Record<string, any>) };
+  
+  let dbActivityType = activityType as ActivityType;
+  
+  switch (activityType) {
+    case "agent_name_updated":
+      dbActivityType = "ai_agent_updated";
+      enhancedMetadata.field = "agent_name";
+      break;
+    case "agent_error":
+      dbActivityType = "system_update";
+      enhancedMetadata.error = true;
+      break;
+    case "error_logged":
+      dbActivityType = "system_update";
+      enhancedMetadata.error = true;
+      break;
+    default:
+      break;
+  }
+  
+  return { dbActivityType, enhancedMetadata };
 };

@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { ClientStatus } from "@/types/activity";
 
 interface DeleteClientDialogProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export const DeleteClientDialog = ({
       const { error } = await supabase
         .from("clients")
         .update({
-          status: "deleted",
+          status: "deleted" as ClientStatus,
           deletion_scheduled_at: deletionDate.toISOString(),
         })
         .eq("id", client.id);
