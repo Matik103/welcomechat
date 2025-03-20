@@ -54,8 +54,9 @@ export const DeleteClientDialog = ({
       const deletionDate = new Date();
       deletionDate.setDate(deletionDate.getDate() + 30);
 
+      // Update the ai_agents table instead of clients
       const { error } = await supabase
-        .from("clients")
+        .from("ai_agents")
         .update({
           status: "deleted" as ClientStatus,
           deletion_scheduled_at: deletionDate.toISOString(),
@@ -158,7 +159,7 @@ export const DeleteClientDialog = ({
         clientId: client.id,
         clientName: client.client_name,
         email: client.email,
-        agentName: client.agent_name
+        agentName: client.name
       });
       
       const { data, error } = await supabase.functions.invoke('send-deletion-email', {
@@ -166,7 +167,7 @@ export const DeleteClientDialog = ({
           clientId: client.id,
           clientName: client.client_name,
           email: client.email,
-          agentName: client.agent_name
+          agentName: client.name
         }
       });
 

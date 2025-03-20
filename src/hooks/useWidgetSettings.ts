@@ -42,8 +42,9 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       
       await checkAndRefreshAuth();
       
+      // Updated to query ai_agents instead of clients
       const { data, error } = await supabase
-        .from("clients")
+        .from("ai_agents")
         .select("*")
         .eq("id", clientId)
         .single();
@@ -64,14 +65,22 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
   useEffect(() => {
     if (client) {
       console.log("Client data:", client);
-      console.log("Widget settings from client:", client.widget_settings);
+      console.log("Settings from client:", client.settings);
       
-      if (client.widget_settings && isWidgetSettings(client.widget_settings)) {
+      // Extract widget settings from the settings field
+      if (client.settings && client.settings.widget_settings && isWidgetSettings(client.settings.widget_settings)) {
         console.log("Valid widget settings detected, applying to state");
-        setSettings(client.widget_settings as IWidgetSettings);
+        setSettings(client.settings.widget_settings as IWidgetSettings);
       } else {
-        console.log("Invalid or missing widget settings, using defaults");
-        setSettings(defaultSettings);
+        console.log("Invalid or missing widget settings, using defaults with agent name");
+        // Use agent name from ai_agents if available
+        setSettings({
+          ...defaultSettings,
+          agent_name: client.name || defaultSettings.agent_name,
+          agent_description: client.agent_description || defaultSettings.agent_description,
+          logo_url: client.logo_url || defaultSettings.logo_url,
+          logo_storage_path: client.logo_storage_path || defaultSettings.logo_storage_path
+        });
       }
     }
   }, [client]);
@@ -88,8 +97,9 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       
       let clientName = "";
       try {
+        // Get client name from ai_agents
         const { data, error } = await supabase
-          .from("clients")
+          .from("ai_agents")
           .select("client_name")
           .eq("id", clientId)
           .single();
@@ -119,10 +129,18 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
           });
       });
       
+      // Update the ai_agents table with the new settings
       const { error, data } = await supabase
-        .from("clients")
+        .from("ai_agents")
         .update({
-          widget_settings: settingsJson
+          name: newSettings.agent_name || "Assistant", // Update the name field directly
+          agent_description: newSettings.agent_description || "", // Update agent_description directly
+          logo_url: newSettings.logo_url || "",
+          logo_storage_path: newSettings.logo_storage_path || "",
+          settings: {
+            ...client?.settings,
+            widget_settings: settingsJson
+          }
         })
         .eq("id", clientId)
         .select();
@@ -145,8 +163,8 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
           "updated widget settings", 
           { 
             updated_fields: Object.keys(settings).filter(key => 
-              client?.widget_settings && 
-              settings[key as keyof IWidgetSettings] !== client.widget_settings[key]
+              client?.settings?.widget_settings && 
+              settings[key as keyof IWidgetSettings] !== client.settings.widget_settings[key]
             ) 
           }
         );

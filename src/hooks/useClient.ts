@@ -34,14 +34,16 @@ export const useClient = (id?: string) => {
         updated_at: agentData.updated_at,
         deletion_scheduled_at: agentData.deletion_scheduled_at,
         deleted_at: agentData.deleted_at,
-        status: agentData.status,
+        status: agentData.status || "active",
         company: agentData.company || "",
         description: agentData.agent_description || "",
+        name: agentData.name || "Assistant",
         widget_settings: {
           agent_name: agentData.name || "Assistant",
           agent_description: agentData.agent_description || "",
           logo_url: agentData.logo_url || "",
-          logo_storage_path: agentData.logo_storage_path || ""
+          logo_storage_path: agentData.logo_storage_path || "",
+          ...(agentData.settings?.widget_settings || {})
         }
       };
       

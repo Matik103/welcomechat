@@ -28,3 +28,26 @@ export const createClientActivity = async (
     throw error;
   }
 };
+
+// Add this function for documentProcessingService.ts
+export const logAgentError = async (
+  agentId: string,
+  errorType: string,
+  errorMessage: string,
+  metadata: Json = {}
+): Promise<void> => {
+  try {
+    await createClientActivity(
+      agentId,
+      "agent_error",
+      `Error: ${errorType} - ${errorMessage.substring(0, 100)}`,
+      {
+        error_type: errorType,
+        error_message: errorMessage,
+        ...metadata
+      }
+    );
+  } catch (error) {
+    console.error("Failed to log agent error:", error);
+  }
+};
