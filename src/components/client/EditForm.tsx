@@ -49,7 +49,7 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
           className={errors.name ? "border-red-500" : ""}
         />
         {errors.name && (
-          <p className="text-sm text-red-500">{errors.name.message}</p>
+          <p className="text-sm text-red-500">{String(errors.name.message)}</p>
         )}
       </div>
 
@@ -64,7 +64,7 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
           className={errors.email ? "border-red-500" : ""}
         />
         {errors.email && (
-          <p className="text-sm text-red-500">{errors.email.message}</p>
+          <p className="text-sm text-red-500">{String(errors.email.message)}</p>
         )}
       </div>
 

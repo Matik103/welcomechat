@@ -1,82 +1,96 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Session, User, AuthError } from '@supabase/supabase-js';
 import { UserRole } from '@/types/app';
+import useAuthInitialize from '@/hooks/useAuthInitialize';
+import useAuthStateChange from '@/hooks/useAuthStateChange';
+import useAuthSafetyTimeout from '@/hooks/useAuthSafetyTimeout';
 
-interface AuthContextType {
-  user: User | null;
-  userRole: UserRole;
-  session: Session | null;
+export interface AuthState {
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  session: Session | null;
+  user: User | null;
+  userRole: UserRole | null;
+  authInitialized: boolean;
+}
+
+export interface AuthContextType extends AuthState {
+  login: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  logout: () => Promise<void>;
+  setSession: (session: Session | null) => void;
+  setUser: (user: User | null) => void;
+  setUserRole: (role: UserRole | null) => void;
+  setIsLoading: (loading: boolean) => void;
+  setAuthInitialized: (initialized: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>('user');
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [authInitialized, setAuthInitialized] = useState<boolean>(false);
 
-  useEffect(() => {
-    // Set up the auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
+  // Initialize auth state
+  useAuthInitialize({ 
+    setSession, 
+    setUser, 
+    setUserRole, 
+    setIsLoading, 
+    setAuthInitialized 
+  });
 
-      if (newSession?.user) {
-        // Default to admin role for all users until we implement proper roles
-        setUserRole('admin');
-      } else {
-        setUserRole('user');
-      }
-      
-      setIsLoading(false);
+  // Handle auth state changes
+  useAuthStateChange({ 
+    setSession, 
+    setUser, 
+    setUserRole 
+  });
+
+  // Safety timeout for auth initialization
+  useAuthSafetyTimeout({ 
+    isLoading, 
+    authInitialized, 
+    setIsLoading, 
+    setAuthInitialized 
+  });
+
+  // Login function
+  const login = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
-
-    // Initial session check
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Default to admin role for all users until we implement proper roles
-        setUserRole('admin');
-      }
-      
-      setIsLoading(false);
-    };
-
-    checkSession();
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    return { data, error };
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
+  // Logout function
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
+    setUserRole(null);
   };
 
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+  const value = {
+    session,
+    user,
+    userRole,
+    isLoading,
+    authInitialized,
+    login,
+    logout,
+    setSession,
+    setUser,
+    setUserRole,
+    setIsLoading,
+    setAuthInitialized
   };
 
-  return (
-    <AuthContext.Provider value={{ user, session, userRole, isLoading, signIn, signOut, signUp }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

@@ -47,7 +47,6 @@ export const getCurrentUser = async () => {
  * Creates a role for a user in the database
  * @param userId User's Supabase ID
  * @param role Role to assign
- * @param clientId Optional client ID for client roles
  * @returns Promise<boolean> indicating success
  */
 export const createUserRole = async (

@@ -2,7 +2,7 @@
 import { UserRole } from "./app";
 
 // Re-export the UserRole from app types for backward compatibility
-export { UserRole };
+export type { UserRole };
 
 /**
  * Type for authentication state
