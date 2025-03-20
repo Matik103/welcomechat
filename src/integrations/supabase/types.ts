@@ -95,37 +95,97 @@ export type Database = {
       }
       ai_agents: {
         Row: {
+          agent_description: string | null
+          ai_prompt: string | null
           assistant_id: string | null
           client_id: string | null
+          content: string | null
           created_at: string | null
           description: string | null
+          embedding: string | null
+          error_message: string | null
+          error_status: string | null
+          error_type: string | null
           id: string
+          interaction_type: string | null
+          is_error: boolean | null
+          logo_storage_path: string | null
+          logo_url: string | null
           metadata: Json | null
           name: string
+          query_text: string | null
+          response_time_ms: number | null
+          sentiment: string | null
+          settings: Json | null
+          size: number | null
           status: string | null
+          topic: string | null
+          type: string | null
           updated_at: string | null
+          uploadDate: string | null
+          url: string | null
         }
         Insert: {
+          agent_description?: string | null
+          ai_prompt?: string | null
           assistant_id?: string | null
           client_id?: string | null
+          content?: string | null
           created_at?: string | null
           description?: string | null
+          embedding?: string | null
+          error_message?: string | null
+          error_status?: string | null
+          error_type?: string | null
           id?: string
+          interaction_type?: string | null
+          is_error?: boolean | null
+          logo_storage_path?: string | null
+          logo_url?: string | null
           metadata?: Json | null
           name: string
+          query_text?: string | null
+          response_time_ms?: number | null
+          sentiment?: string | null
+          settings?: Json | null
+          size?: number | null
           status?: string | null
+          topic?: string | null
+          type?: string | null
           updated_at?: string | null
+          uploadDate?: string | null
+          url?: string | null
         }
         Update: {
+          agent_description?: string | null
+          ai_prompt?: string | null
           assistant_id?: string | null
           client_id?: string | null
+          content?: string | null
           created_at?: string | null
           description?: string | null
+          embedding?: string | null
+          error_message?: string | null
+          error_status?: string | null
+          error_type?: string | null
           id?: string
+          interaction_type?: string | null
+          is_error?: boolean | null
+          logo_storage_path?: string | null
+          logo_url?: string | null
           metadata?: Json | null
           name?: string
+          query_text?: string | null
+          response_time_ms?: number | null
+          sentiment?: string | null
+          settings?: Json | null
+          size?: number | null
           status?: string | null
+          topic?: string | null
+          type?: string | null
           updated_at?: string | null
+          uploadDate?: string | null
+          url?: string | null
         }
         Relationships: [
           {
@@ -479,6 +539,7 @@ export type Database = {
       }
       clients: {
         Row: {
+          agent_name: string | null
           client_name: string
           company: string | null
           created_at: string | null
@@ -502,6 +563,7 @@ export type Database = {
           widget_settings: Json | null
         }
         Insert: {
+          agent_name?: string | null
           client_name: string
           company?: string | null
           created_at?: string | null
@@ -525,6 +587,7 @@ export type Database = {
           widget_settings?: Json | null
         }
         Update: {
+          agent_name?: string | null
           client_name?: string
           company?: string | null
           created_at?: string | null
@@ -3316,18 +3379,32 @@ export type Database = {
         }
         Returns: undefined
       }
-      create_new_client: {
-        Args: {
-          p_client_name: string
-          p_email: string
-          p_agent_name: string
-          p_widget_settings: Json
-          p_status: string
-          p_website_url_refresh_rate: number
-          p_drive_link_refresh_rate: number
-        }
-        Returns: string
-      }
+      create_new_client:
+        | {
+            Args: {
+              p_client_name: string
+              p_email: string
+              p_agent_name: string
+              p_widget_settings: Json
+              p_status: string
+              p_website_url_refresh_rate: number
+              p_drive_link_refresh_rate: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_client_name: string
+              p_email: string
+              p_agent_name?: string
+              p_agent_description?: string
+              p_logo_url?: string
+              p_logo_storage_path?: string
+              p_widget_settings?: Json
+              p_status?: string
+            }
+            Returns: string
+          }
       exec_sql: {
         Args: {
           sql_query: string
