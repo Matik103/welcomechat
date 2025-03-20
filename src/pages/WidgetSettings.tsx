@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
-import { useState } from "react";
 import { WidgetPosition } from "@/types/widget-settings";
 
 const WidgetSettings = () => {
