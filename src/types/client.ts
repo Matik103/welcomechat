@@ -50,7 +50,7 @@ export interface DocumentLink {
   refresh_rate: number;
   created_at: string;
   document_type: string;
-  access_status?: string;
+  access_status?: AccessStatus;
   notified_at?: string;
 }
 
@@ -67,3 +67,15 @@ export type DriveLink = DocumentLink;
 
 // Define AccessStatus type for document links
 export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown';
+
+// Define ChatInteraction interface for consistent chat history data
+export interface ChatInteraction {
+  id: string;
+  clientId: string;
+  timestamp: string;
+  query: string;
+  response: string;
+  agentName?: string;
+  responseTimeMs?: number;
+  metadata?: Json;
+}

@@ -3,51 +3,43 @@ import { useState } from "react";
 import { WebsiteUrlForm } from "@/components/client/website-urls/WebsiteUrlForm";
 import { WebsiteUrlsList } from "@/components/client/website-urls/WebsiteUrlsList";
 import { WebsiteUrl } from "@/types/client";
-import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
-import { useDocumentProcessor } from "@/hooks/useDocumentProcessor";
 import { toast } from "sonner";
 import { useStoreWebsiteContent } from "@/hooks/useStoreWebsiteContent";
+import { ActivityType } from "@/types/activity";
+import { Json } from "@/integrations/supabase/types";
+import { useDocumentProcessor } from "@/hooks/useDocumentProcessor";
 
 interface WebsiteUrlsProps {
   clientId: string;
   agentName?: string;
-  isClientView?: boolean;
-  logClientActivity: (activity_type: any, description: string, metadata?: any) => Promise<void>;
+  onAdd: (data: any) => Promise<any>;
+  onDelete: (urlId: any) => Promise<any>;
+  isLoading: boolean;
+  isAdding: boolean;
+  isDeleting: boolean;
+  logClientActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
 export const WebsiteUrls = ({ 
   clientId, 
-  agentName, 
-  isClientView = false,
+  agentName = "AI Assistant", 
+  onAdd,
+  onDelete,
+  isLoading,
+  isAdding,
+  isDeleting,
   logClientActivity
 }: WebsiteUrlsProps) => {
-  const { 
-    websiteUrls, 
-    addWebsiteUrlMutation, 
-    deleteWebsiteUrlMutation, 
-    isLoading 
-  } = useWebsiteUrls(clientId);
-  
   const [showAddForm, setShowAddForm] = useState(false);
-  const { processDocument, isProcessing } = useDocumentProcessor();
   const [processingUrlId, setProcessingUrlId] = useState<number | null>(null);
   const webstoreHook = useStoreWebsiteContent(clientId);
+  const { processDocument, isProcessing } = useDocumentProcessor(clientId);
+  const [websiteUrls, setWebsiteUrls] = useState<WebsiteUrl[]>([]);
 
   const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
-      const newUrl = await addWebsiteUrlMutation.mutateAsync(data);
+      const newUrl = await onAdd(data);
       setShowAddForm(false);
-      
-      // Process the website content
-      if (agentName && newUrl) {
-        processDocument({
-          documentUrl: data.url,
-          documentType: "website_url",
-          clientId: clientId,
-          agentName: agentName,
-          documentId: newUrl.id.toString()
-        });
-      }
       
       // Log activity
       await logClientActivity(
@@ -57,16 +49,18 @@ export const WebsiteUrls = ({
       );
       
       toast.success("Website URL added successfully");
+      return newUrl;
     } catch (error) {
       console.error("Error adding website URL:", error);
       toast.error("Failed to add website URL");
+      throw error;
     }
   };
 
   const handleDelete = async (id: number) => {
     try {
       const deletedUrl = websiteUrls.find(url => url.id === id);
-      await deleteWebsiteUrlMutation.mutateAsync(id);
+      await onDelete(id);
       
       if (deletedUrl) {
         await logClientActivity(
@@ -93,11 +87,13 @@ export const WebsiteUrls = ({
     
     try {
       await processDocument({
-        documentUrl: url.url,
-        documentType: "website_url",
-        clientId: clientId,
+        file: new File([], "website_content.txt"), // Dummy file
         agentName: agentName,
-        documentId: url.id.toString()
+        metadata: {
+          url: url.url,
+          documentType: "website_url",
+          documentId: url.id.toString()
+        }
       });
       
       toast.success("Website URL processed successfully");
@@ -123,9 +119,9 @@ export const WebsiteUrls = ({
           urls={websiteUrls}
           onDelete={handleDelete}
           onProcess={handleProcessUrl}
-          isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+          isDeleteLoading={isDeleting}
           isProcessing={isProcessing}
-          deletingId={deleteWebsiteUrlMutation.variables}
+          deletingId={null}
         />
       )}
       

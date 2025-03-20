@@ -85,8 +85,9 @@ const AddEditClient = ({ isClientView = false }: AddEditClientProps) => {
           {clientId && (
             <ClientResourceSections 
               clientId={clientId} 
+              agentName={client?.agent_name || client?.name}
+              className="mt-6"
               isClientView={isClientView}
-              logClientActivity={logClientActivity}
             />
           )}
         </div>

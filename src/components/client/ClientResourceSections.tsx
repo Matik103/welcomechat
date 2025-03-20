@@ -11,19 +11,23 @@ import { WebsiteUrls } from './WebsiteUrls';
 import { DocumentLinks } from './DocumentLinks';
 import { agentNameToClassName } from '@/utils/stringUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { ActivityType } from '@/types/activity';
+import { Json } from '@/integrations/supabase/types';
 
 interface ClientResourceSectionsProps {
   clientId: string;
   clientName?: string;
   agentName?: string;
   className?: string;
+  isClientView?: boolean;
 }
 
 export const ClientResourceSections = ({ 
   clientId, 
   clientName, 
   agentName = "Agent", 
-  className 
+  className,
+  isClientView = false
 }: ClientResourceSectionsProps) => {
   const { logClientActivity } = useClientActivity(clientId);
   const [activeTab, setActiveTab] = useState('documents');
@@ -31,24 +35,20 @@ export const ClientResourceSections = ({
   // Fetch drive links and website URLs
   const {
     driveLinks,
-    isLoading,
-    error,
-    refetch,
-    addDriveLink,
-    deleteDriveLink,
-    isAdding,
-    isDeleting
+    isLoading: isLoadingDriveLinks,
+    isError: isErrorDriveLinks,
+    refetchDriveLinks,
+    addDriveLinkMutation,
+    deleteDriveLinkMutation,
   } = useDriveLinks(clientId);
 
   const {
     websiteUrls,
-    isLoading: isLoadingUrls,
-    error: urlsError,
-    refetch: refetchUrls,
-    addWebsiteUrl,
-    deleteWebsiteUrl,
-    isAdding: isAddingUrl,
-    isDeleting: isDeletingUrl
+    isLoading: isLoadingWebsiteUrls,
+    isError: isErrorWebsiteUrls,
+    refetchWebsiteUrls,
+    addWebsiteUrlMutation,
+    deleteWebsiteUrlMutation,
   } = useWebsiteUrls(clientId);
 
   // Fetch agent name if not provided
@@ -85,6 +85,22 @@ export const ClientResourceSections = ({
     setActiveTab(value);
   };
 
+  const handleAddDriveLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
+    return await addDriveLinkMutation.mutateAsync(data);
+  };
+
+  const handleDeleteDriveLink = async (linkId: number) => {
+    return await deleteDriveLinkMutation.mutateAsync(linkId);
+  };
+
+  const handleAddWebsiteUrl = async (data: any) => {
+    return await addWebsiteUrlMutation.mutateAsync(data);
+  };
+
+  const handleDeleteWebsiteUrl = async (urlId: any) => {
+    return await deleteWebsiteUrlMutation.mutateAsync(urlId);
+  };
+
   return (
     <div className={className}>
       <Tabs value={activeTab} onValueChange={handleTabChange}>
@@ -101,11 +117,11 @@ export const ClientResourceSections = ({
           >
             <DocumentLinks
               driveLinks={driveLinks}
-              onAdd={(data) => addDriveLink(data)}
-              onDelete={(linkId) => deleteDriveLink(linkId)}
-              isLoading={isLoading}
-              isAdding={isAdding}
-              isDeleting={isDeleting}
+              onAdd={handleAddDriveLink}
+              onDelete={handleDeleteDriveLink}
+              isLoading={isLoadingDriveLinks}
+              isAdding={addDriveLinkMutation.isPending}
+              isDeleting={deleteDriveLinkMutation.isPending}
               agentName={agentNameState}
             />
           </DocumentResourcesSection>
@@ -115,15 +131,17 @@ export const ClientResourceSections = ({
           <WebsiteResourcesSection
             clientId={clientId}
             logActivity={logClientActivity}
+            agentName={agentNameState}
           >
             <WebsiteUrls
-              websiteUrls={websiteUrls}
-              onAdd={(data) => addWebsiteUrl(data)}
-              onDelete={(urlId) => deleteWebsiteUrl(urlId)}
-              isLoading={isLoadingUrls}
-              isAdding={isAddingUrl}
-              isDeleting={isDeletingUrl}
+              clientId={clientId}
+              onAdd={handleAddWebsiteUrl}
+              onDelete={handleDeleteWebsiteUrl}
+              isLoading={isLoadingWebsiteUrls}
+              isAdding={addWebsiteUrlMutation.isPending}
+              isDeleting={deleteWebsiteUrlMutation.isPending}
               agentName={agentNameState}
+              logClientActivity={logClientActivity}
             />
           </WebsiteResourcesSection>
         </TabsContent>
