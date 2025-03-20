@@ -17,18 +17,21 @@ export const useClientActivity = (clientId?: string) => {
     }) => {
       if (!clientId) throw new Error("Client ID is required to log activities");
 
-      // Cast the activity_type as unknown first to work around the type issues
-      const { data, error } = await supabase
-        .from("client_activities")
-        .insert({
-          client_id: clientId,
-          activity_type: activity_type as unknown as string,
-          description,
-          metadata: metadata || {}
+      try {
+        // Using RPC function to handle activity logging to avoid type mismatches with supabase client
+        const { data, error } = await supabase.rpc('log_client_activity', {
+          p_client_id: clientId,
+          p_activity_type: activity_type,
+          p_description: description,
+          p_metadata: metadata || {}
         });
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error("Error logging activity:", error);
+        throw error;
+      }
     }
   });
 

@@ -1,52 +1,76 @@
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AccessStatus } from "@/integrations/supabase/types";
-import { execSql } from "@/utils/rpcUtils";
+import { AccessStatus } from "@/types/extended-supabase";
+import { Toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
-export const useDriveAccessCheck = (linkId: number) => {
-  const { data: accessStatus, isLoading, error, refetch } = useQuery({
-    queryKey: ["driveAccess", linkId],
-    queryFn: async (): Promise<AccessStatus> => {
+export function useDriveAccessCheck() {
+  const [isValidating, setIsValidating] = useState(false);
+
+  const checkLinkAccessMutation = useMutation({
+    mutationFn: async (link: string): Promise<AccessStatus> => {
+      setIsValidating(true);
       try {
-        // First try to use the dedicated RPC function
-        try {
-          const { data: rpcData, error: rpcError } = await supabase.rpc('get_document_access_status', {
-            document_id: linkId
-          });
-          
-          if (!rpcError && rpcData) {
-            return rpcData as AccessStatus;
+        const { data, error } = await supabase.functions.invoke(
+          "check-drive-access",
+          {
+            body: { link },
           }
-        } catch (rpcError) {
-          console.log("RPC method not available, falling back to SQL", rpcError);
+        );
+
+        if (error) {
+          console.error("Error checking drive access:", error);
+          return "inaccessible";
         }
-        
-        // Fall back to using execSql
-        const sql = `
-          SELECT access_status FROM document_links
-          WHERE id = $1
-        `;
-        
-        const res = await execSql(sql, { id: linkId });
-        
-        if (Array.isArray(res) && res.length > 0) {
-          return (res[0].access_status || 'unknown') as AccessStatus;
-        }
-        
-        return "unknown";
-      } catch (error) {
-        console.error("Error checking drive access:", error);
-        return "unknown";
+
+        return data.access_status as AccessStatus;
+      } catch (err) {
+        console.error("Error in drive access check:", err);
+        return "inaccessible";
+      } finally {
+        setIsValidating(false);
       }
     },
-    enabled: !!linkId,
+    onError: (error) => {
+      toast.error("Failed to validate drive link: " + error.message);
+      setIsValidating(false);
+    },
   });
 
-  return {
-    accessStatus: accessStatus || "unknown",
-    isLoading,
-    error,
-    refreshStatus: refetch
+  const validateDriveLink = async (link: string): Promise<AccessStatus> => {
+    if (!link) {
+      toast.error("Please provide a Google Drive link");
+      return "inaccessible";
+    }
+
+    // Very basic URL validation
+    if (!link.includes("drive.google.com")) {
+      toast.warning("This does not appear to be a Google Drive link");
+    }
+
+    try {
+      const result = await checkLinkAccessMutation.mutateAsync(link);
+      if (result === "accessible") {
+        toast.success("Drive link is accessible");
+      } else if (result === "inaccessible") {
+        toast.error(
+          "This drive link is not accessible. Please make sure it's public or accessible to anyone with the link."
+        );
+      } else {
+        toast.warning("Could not determine drive link accessibility");
+      }
+      return result;
+    } catch (error) {
+      toast.error("Error validating drive link");
+      return "inaccessible";
+    }
   };
-};
+
+  return {
+    validateDriveLink,
+    isValidating,
+    validationResult: checkLinkAccessMutation.data || null,
+  };
+}

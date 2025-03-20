@@ -1,92 +1,62 @@
 
 import { ExtendedActivityType } from "@/types/extended-supabase";
 
-/**
- * Maps activity types to user-friendly descriptions
- */
-export const getActivityDescription = (activityType: ExtendedActivityType): string => {
-  const activityDescriptions: Record<ExtendedActivityType, string> = {
-    'chat_interaction': 'Chat interaction',
-    'client_created': 'Client created',
-    'client_updated': 'Client updated',
-    'client_deleted': 'Client deleted',
-    'client_recovered': 'Client recovered',
-    'widget_settings_updated': 'Widget settings updated',
-    'website_url_added': 'Website URL added',
-    'website_url_deleted': 'Website URL deleted',
-    'website_url_processed': 'Website processed',
-    'drive_link_added': 'Drive link added',
-    'drive_link_deleted': 'Drive link deleted',
-    'document_link_added': 'Document link added',
-    'document_link_deleted': 'Document link deleted',
-    'document_uploaded': 'Document uploaded',
-    'document_processed': 'Document processed',
-    'document_stored': 'Document stored',
-    'document_processing_started': 'Document processing started',
-    'document_processing_completed': 'Document processing completed',
-    'document_processing_failed': 'Document processing failed',
-    'error_logged': 'Error occurred',
-    'common_query_milestone': 'Common query milestone',
-    'interaction_milestone': 'Interaction milestone',
-    'growth_milestone': 'Growth milestone',
-    'webhook_sent': 'Webhook sent',
-    'ai_agent_created': 'AI agent created',
-    'agent_name_updated': 'Agent name updated',
-    'signed_out': 'User signed out',
-    'embed_code_copied': 'Embed code copied',
-    'logo_uploaded': 'Logo uploaded',
-    'system_update': 'System update',
-    'source_deleted': 'Source deleted',
-    'source_added': 'Source added'
-  };
-
-  return activityDescriptions[activityType] || 'Unknown activity';
+// Maps activity types to human-readable descriptions
+export const activityTypeLabels: Record<ExtendedActivityType, string> = {
+  chat_interaction: "Chat Interaction",
+  client_created: "Client Created",
+  client_updated: "Client Updated",
+  client_deleted: "Client Deleted",
+  client_recovered: "Client Recovered",
+  widget_settings_updated: "Widget Settings Updated",
+  website_url_added: "Website URL Added",
+  website_url_deleted: "Website URL Deleted",
+  website_url_processed: "Website URL Processed",
+  drive_link_added: "Drive Link Added",
+  drive_link_deleted: "Drive Link Deleted",
+  document_link_added: "Document Link Added",
+  document_link_deleted: "Document Link Deleted",
+  document_uploaded: "Document Uploaded",
+  document_processed: "Document Processed",
+  document_stored: "Document Stored",
+  document_processing_started: "Document Processing Started",
+  document_processing_completed: "Document Processing Completed",
+  document_processing_failed: "Document Processing Failed",
+  error_logged: "Error Logged",
+  common_query_milestone: "Common Query Milestone",
+  interaction_milestone: "Interaction Milestone",
+  growth_milestone: "Growth Milestone",
+  webhook_sent: "Webhook Sent",
+  ai_agent_created: "AI Agent Created",
+  agent_name_updated: "Agent Name Updated",
+  signed_out: "Signed Out",
+  embed_code_copied: "Embed Code Copied",
+  logo_uploaded: "Logo Uploaded",
+  system_update: "System Update",
+  source_deleted: "Source Deleted",
+  source_added: "Source Added",
+  email_sent: "Email Sent",  // Added missing email_sent activity type
+  url_deleted: "URL Deleted"  // Added url_deleted for backward compatibility
 };
 
-/**
- * Groups activity types into categories
- */
-export const getActivityCategory = (activityType: ExtendedActivityType): 'user' | 'system' | 'data' | 'interaction' => {
-  const userActivities: ExtendedActivityType[] = [
-    'client_created',
-    'client_updated',
-    'client_deleted',
-    'client_recovered',
-    'widget_settings_updated',
-    'signed_out',
-    'embed_code_copied',
-    'logo_uploaded',
-    'ai_agent_created',
-    'agent_name_updated'
-  ];
+// Return a human-readable description for an activity
+export const getActivityDescription = (type: ExtendedActivityType): string => {
+  return activityTypeLabels[type] || type.replace(/_/g, ' ');
+};
 
-  const dataActivities: ExtendedActivityType[] = [
-    'website_url_added',
-    'website_url_deleted',
-    'website_url_processed',
-    'drive_link_added',
-    'drive_link_deleted',
-    'document_link_added',
-    'document_link_deleted',
-    'document_uploaded',
-    'document_processed',
-    'document_stored',
-    'document_processing_started',
-    'document_processing_completed',
-    'document_processing_failed',
-    'source_deleted',
-    'source_added'
-  ];
-
-  const interactionActivities: ExtendedActivityType[] = [
-    'chat_interaction',
-    'common_query_milestone',
-    'interaction_milestone',
-    'growth_milestone'
-  ];
-
-  if (userActivities.includes(activityType)) return 'user';
-  if (dataActivities.includes(activityType)) return 'data';
-  if (interactionActivities.includes(activityType)) return 'interaction';
-  return 'system';
+// Generate AI prompt for agent based on settings
+export const generateAiPrompt = (
+  agentName: string,
+  description: string,
+  clientName: string
+): string => {
+  return `You are ${agentName}, an AI assistant${
+    description ? ` whose primary purpose is to ${description.toLowerCase()}` : ''
+  }. You work for ${clientName}.
+  
+  Please be professional, helpful, and accurate in your responses. If you don't know the answer to a question, it's better to say so than to guess.
+  
+  When asked who you are, respond by saying you're ${agentName}, ${
+    description ? `whose role is to ${description.toLowerCase()}` : 'an AI assistant'
+  }.`;
 };
