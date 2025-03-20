@@ -1,65 +1,51 @@
 
+import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatInteraction } from "@/types/agent";
-import { useState, useEffect } from "react";
 
-// Get chat history for a client
-export const useChatHistory = (clientId: string | undefined, limit: number = 10) => {
+/**
+ * Hook to fetch chat history for a specific client
+ */
+export const useChatHistory = (clientId?: string, limit: number = 10) => {
   return useQuery({
-    queryKey: ["chat-history", clientId, limit],
+    queryKey: ["chatHistory", clientId, limit],
     queryFn: async () => {
       if (!clientId) return [];
       
       try {
         console.log(`Fetching chat history for client: ${clientId}, limit: ${limit}`);
         
-        // First get the agent name for this client
-        const { data: agentData, error: agentError } = await supabase
-          .from("ai_agents")
-          .select("name")
-          .eq("id", clientId)
-          .single();
-          
-        if (agentError) {
-          console.error("Error fetching agent name:", agentError);
-          return [];
-        }
-        
-        const agentName = agentData?.name;
-        
-        if (!agentName) {
-          console.warn("No agent name found for client:", clientId);
-          return [];
-        }
-        
-        // Get chat interactions for this agent from ai_agents table
+        // First attempt: Try to get conversations from the client's interactions
         const { data, error } = await supabase
-          .from("ai_agents")
+          .from("ai_interactions")
           .select("*")
           .eq("client_id", clientId)
-          .eq("name", agentName)
-          .eq("interaction_type", "chat_interaction")
           .order("created_at", { ascending: false })
           .limit(limit);
-          
+        
         if (error) {
           console.error("Error fetching chat history:", error);
           throw error;
         }
         
-        // Transform the data into ChatInteraction format
-        const chatHistory: ChatInteraction[] = (data || []).map(item => ({
+        // Map the database records to our ChatInteraction type
+        const interactions: ChatInteraction[] = (data || []).map(item => ({
           id: item.id,
           client_id: item.client_id,
-          agent_name: item.name,
+          clientId: item.client_id, // Add this for compatibility
+          agent_name: item.agent_name,
           query: item.query_text || "",
-          response: item.content || "",
+          response: item.response_text || "",
           created_at: item.created_at,
-          metadata: item.settings || {},
+          timestamp: item.created_at, // Add this for compatibility
+          metadata: item.metadata,
+          responseTimeMs: item.response_time_ms
         }));
         
-        return chatHistory;
+        console.log(`Found ${interactions.length} interactions for client ${clientId}`);
+        
+        return interactions;
       } catch (error) {
         console.error("Error in useChatHistory:", error);
         return [];
@@ -69,46 +55,52 @@ export const useChatHistory = (clientId: string | undefined, limit: number = 10)
   });
 };
 
-// Get chat sessions/days for a client
-export const useChatSessions = (clientId: string | undefined) => {
+/**
+ * Hook to fetch chat sessions for a client
+ */
+export const useChatSessions = (clientId?: string) => {
   return useQuery({
-    queryKey: ["chat-sessions", clientId],
+    queryKey: ["chatSessions", clientId],
     queryFn: async () => {
       if (!clientId) return [];
       
       try {
-        // Get the agent name for this client
-        const { data: agentData, error: agentError } = await supabase
-          .from("ai_agents")
-          .select("name")
-          .eq("id", clientId)
-          .single();
+        console.log(`Fetching chat sessions for client: ${clientId}`);
+        
+        // Try using the stored procedure if it exists
+        try {
+          const { data: sessionData, error: sessionError } = await supabase.rpc(
+            'get_chat_sessions_for_client',
+            { client_id_param: clientId }
+          );
           
-        if (agentError) {
-          console.error("Error fetching agent name for sessions:", agentError);
-          return [];
+          if (!sessionError && sessionData) {
+            console.log(`Found ${sessionData.length} chat sessions via RPC`);
+            return sessionData;
+          }
+        } catch (rpcError) {
+          console.warn("RPC get_chat_sessions_for_client not available:", rpcError);
         }
         
-        const agentName = agentData?.name;
-        
-        if (!agentName) {
-          console.warn("No agent name found for client sessions:", clientId);
-          return [];
-        }
-        
-        // Get distinct dates with chat interactions
+        // Fallback: Get sessions by querying the interactions directly
         const { data, error } = await supabase
-          .rpc('get_chat_sessions', { 
-            client_id_param: clientId,
-            agent_name_param: agentName
-          });
-          
+          .from("ai_interactions")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        
         if (error) {
           console.error("Error fetching chat sessions:", error);
           throw error;
         }
         
-        return data || [];
+        // Group by session ID if available, or create artificial sessions by date
+        const sessions = groupSessionsByDate(data || []);
+        
+        console.log(`Created ${sessions.length} artificial chat sessions`);
+        
+        return sessions;
       } catch (error) {
         console.error("Error in useChatSessions:", error);
         return [];
@@ -118,66 +110,75 @@ export const useChatSessions = (clientId: string | undefined) => {
   });
 };
 
-// Get chat interactions for a specific day
-export const useDailyChatInteractions = (clientId: string | undefined, date: string | null) => {
+/**
+ * Hook to fetch recent chat interactions (usually for dashboard/preview)
+ */
+export const useRecentChatInteractions = (clientId?: string, limit: number = 5) => {
   return useQuery({
-    queryKey: ["daily-chat", clientId, date],
+    queryKey: ["recentChatInteractions", clientId, limit],
     queryFn: async () => {
-      if (!clientId || !date) return [];
+      if (!clientId) return [];
       
       try {
-        // Get the agent name for this client
-        const { data: agentData, error: agentError } = await supabase
-          .from("ai_agents")
-          .select("name")
-          .eq("id", clientId)
-          .single();
-          
-        if (agentError) {
-          console.error("Error fetching agent name for daily chat:", agentError);
-          return [];
-        }
+        console.log(`Fetching recent chat interactions for client: ${clientId}`);
         
-        const agentName = agentData?.name;
-        
-        if (!agentName) {
-          console.warn("No agent name found for client daily chat:", clientId);
-          return [];
-        }
-        
-        // Get chat interactions for the specified date
         const { data, error } = await supabase
-          .from("ai_agents")
+          .from("ai_interactions")
           .select("*")
           .eq("client_id", clientId)
-          .eq("name", agentName)
-          .eq("interaction_type", "chat_interaction")
-          .gte("created_at", `${date}T00:00:00`)
-          .lt("created_at", `${date}T23:59:59`)
-          .order("created_at", { ascending: true });
-          
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        
         if (error) {
-          console.error("Error fetching daily chat interactions:", error);
+          console.error("Error fetching recent chat interactions:", error);
           throw error;
         }
         
-        // Transform the data into ChatInteraction format
-        const chatInteractions: ChatInteraction[] = (data || []).map(item => ({
+        // Map the database records to our ChatInteraction type
+        const interactions: ChatInteraction[] = (data || []).map(item => ({
           id: item.id,
           client_id: item.client_id,
-          agent_name: item.name,
+          clientId: item.client_id, // Add this for compatibility
+          agent_name: item.agent_name,
           query: item.query_text || "",
-          response: item.content || "",
+          response: item.response_text || "",
           created_at: item.created_at,
-          metadata: item.settings || {},
+          timestamp: item.created_at, // Add this for compatibility
+          metadata: item.metadata,
+          responseTimeMs: item.response_time_ms
         }));
         
-        return chatInteractions;
+        console.log(`Found ${interactions.length} recent interactions`);
+        
+        return interactions;
       } catch (error) {
-        console.error("Error in useDailyChatInteractions:", error);
+        console.error("Error in useRecentChatInteractions:", error);
         return [];
       }
     },
-    enabled: !!clientId && !!date,
+    enabled: !!clientId,
   });
+};
+
+// Helper function to group sessions by date
+const groupSessionsByDate = (interactions: any[]) => {
+  const dayGroups: Record<string, any[]> = {};
+  
+  interactions.forEach(interaction => {
+    const date = new Date(interaction.created_at).toLocaleDateString();
+    
+    if (!dayGroups[date]) {
+      dayGroups[date] = [];
+    }
+    
+    dayGroups[date].push(interaction);
+  });
+  
+  return Object.entries(dayGroups).map(([date, interactions]) => ({
+    id: date,
+    date,
+    interactions: interactions.length,
+    last_interaction: interactions[0].created_at,
+    first_interaction: interactions[interactions.length - 1].created_at
+  }));
 };

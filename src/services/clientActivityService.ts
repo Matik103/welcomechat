@@ -1,11 +1,11 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { ExtendedActivityType } from "@/types/activity";
+import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
 export const createClientActivity = async (
   agentId: string,
-  activity_type: ExtendedActivityType,
+  activity_type: ActivityType,
   description: string,
   metadata: Json = {}
 ): Promise<void> => {
@@ -34,7 +34,7 @@ export const logAgentError = async (
   agentId: string,
   errorType: string,
   errorMessage: string,
-  metadata: Json = {}
+  metadata: Record<string, any> = {}
 ): Promise<void> => {
   try {
     await createClientActivity(

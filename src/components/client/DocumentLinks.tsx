@@ -7,34 +7,56 @@ import { toast } from "sonner";
 interface DocumentLinksProps {
   clientId: string;
   isClientView?: boolean;
+  documents?: any[];
+  onAdd?: (data: { link: string; refresh_rate: number; document_type?: string }) => Promise<void>;
+  onDelete?: (linkId: number) => Promise<void>;
+  onUpload?: (file: File, agentName: string) => Promise<void>;
+  isLoading?: boolean;
+  agentName?: string;
 }
 
-export const DocumentLinks = ({ clientId, isClientView = false }: DocumentLinksProps) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [agentName, setAgentName] = useState<string>("");
+export const DocumentLinks = ({ 
+  clientId, 
+  isClientView = false,
+  documents: externalDocuments,
+  onAdd,
+  onDelete,
+  onUpload,
+  isLoading: externalLoading,
+  agentName: externalAgentName
+}: DocumentLinksProps) => {
+  const [isLoading, setIsLoading] = useState(externalLoading !== undefined ? externalLoading : true);
+  const [documents, setDocuments] = useState<any[]>(externalDocuments || []);
+  const [agentName, setAgentName] = useState<string>(externalAgentName || "");
 
   useEffect(() => {
+    if (externalDocuments !== undefined) {
+      setDocuments(externalDocuments);
+      return;
+    }
+
     const fetchData = async () => {
       if (!clientId) return;
       
       setIsLoading(true);
       
       try {
-        // Fetch agent name
-        const { data: agentData, error: agentError } = await supabase
-          .from("ai_agents")
-          .select("name")
-          .eq("id", clientId)
-          .single();
-          
-        if (agentError) {
-          console.error("Error fetching agent name:", agentError);
-        } else if (agentData?.name) {
-          setAgentName(agentData.name);
+        // Fetch agent name if not provided externally
+        if (!externalAgentName) {
+          const { data: agentData, error: agentError } = await supabase
+            .from("ai_agents")
+            .select("name")
+            .eq("id", clientId)
+            .single();
+            
+          if (agentError) {
+            console.error("Error fetching agent name:", agentError);
+          } else if (agentData?.name) {
+            setAgentName(agentData.name);
+          }
         }
         
-        // Fetch documents
+        // The table name here should be "client_documents" not "client_document"
         const { data: docsData, error: docsError } = await supabase
           .from("client_documents")
           .select("*")
@@ -55,8 +77,8 @@ export const DocumentLinks = ({ clientId, isClientView = false }: DocumentLinksP
     };
     
     fetchData();
-  }, [clientId]);
-  
+  }, [clientId, externalDocuments, externalAgentName]);
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-4">

@@ -28,7 +28,7 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
-      agent_name: initialData?.agent_name || "",
+      agent_name: initialData?.name || initialData?.agent_name || initialData?.widget_settings?.agent_name || "",
     },
   });
 
@@ -37,7 +37,8 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
     if (initialData) {
       setValue("client_name", initialData.client_name || "");
       setValue("email", initialData.email || "");
-      setValue("agent_name", initialData.agent_name || "");
+      setValue("agent_name", initialData.name || initialData.agent_name || 
+        (initialData.widget_settings && initialData.widget_settings.agent_name) || "");
     }
   }, [initialData, setValue]);
 
