@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { execSql } from "@/utils/rpcUtils";
 
 const ClientAuth = () => {
   const [loading, setLoading] = useState(false);
@@ -45,14 +46,17 @@ const ClientAuth = () => {
       // Async function to reactivate the account
       const reactivateAccount = async () => {
         try {
-          // Clear the deletion_scheduled_at field for this client
-          const { error } = await supabase
-            .from('clients')
-            .update({ deletion_scheduled_at: null })
-            .eq('id', clientId);
+          // Use execSql instead of directly calling the clients table
+          const reactivateQuery = `
+            UPDATE clients 
+            SET deletion_scheduled_at = NULL 
+            WHERE id = '${clientId}'
+          `;
+          
+          const result = await execSql(reactivateQuery);
             
-          if (error) {
-            console.error("Error reactivating account:", error);
+          if (!result) {
+            console.error("Error reactivating account");
             toast.error("Failed to reactivate your account. Please contact support.");
           } else {
             toast.success("Your account has been successfully reactivated!");

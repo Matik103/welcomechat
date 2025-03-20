@@ -1,64 +1,98 @@
 
-import { UserRole } from "@/types/auth";
+import { supabase } from "@/integrations/supabase/client";
+import { UserRole } from '@/types/auth';
 
 /**
- * Utility functions for authentication
+ * Determines the user role based on user metadata or database role
  */
+export const determineUserRole = async (user: any): Promise<UserRole | null> => {
+  if (!user) return null;
 
-export const isValidRole = (role: string): role is UserRole => {
-  return role === 'admin' || role === 'client';
-};
+  try {
+    // First check if the role is already in user metadata
+    if (user.user_metadata?.role) {
+      return user.user_metadata.role as UserRole;
+    }
 
-/**
- * Determines the user role based on user data
- */
-export const determineUserRole = async (user: any): Promise<UserRole> => {
-  if (!user) return 'client';
-  
-  // Check if user has a role in metadata
-  if (user.user_metadata?.role && isValidRole(user.user_metadata.role)) {
-    return user.user_metadata.role as UserRole;
-  }
-  
-  // Check if user has a client_id in metadata (indicates client role)
-  if (user.user_metadata?.client_id) {
-    return 'client';
-  }
-  
-  // Default to admin for Google users or when no other role is found
-  if (user.app_metadata?.provider === 'google') {
+    // Check database for role
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching user role:', error);
+      return null;
+    }
+
+    if (data?.role) {
+      return data.role as UserRole;
+    }
+
+    // Check if user is associated with a client
+    if (user.user_metadata?.client_id) {
+      return 'client';
+    }
+
+    // Default to admin for now (this can be customized based on your app logic)
     return 'admin';
+  } catch (error) {
+    console.error('Error determining user role:', error);
+    return null;
   }
-  
-  // Default role
-  return 'admin';
 };
 
 /**
  * Gets the appropriate dashboard route based on user role
  */
-export const getDashboardRoute = (role: UserRole): string => {
-  switch (role) {
-    case 'admin':
-      return '/admin/clients';
-    case 'client':
-      return '/client/dashboard';
-    default:
-      return '/auth';
+export const getDashboardRoute = (role: UserRole | null): string => {
+  if (role === 'admin') {
+    return '/admin/dashboard';
+  } else if (role === 'client') {
+    return '/client/dashboard';
+  }
+  return '/auth';
+};
+
+/**
+ * Creates or updates a user's role in the database
+ */
+export const createUserRole = async (userId: string, role: UserRole): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('user_roles')
+      .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
+
+    if (error) {
+      console.error('Error creating user role:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in createUserRole:', error);
+    return false;
   }
 };
 
 /**
- * Creates a user role in the database
+ * Updates the user's metadata with their role
  */
-export const createUserRole = async (userId: string, role: UserRole): Promise<boolean> => {
+export const updateUserRoleMetadata = async (userId: string, role: UserRole): Promise<boolean> => {
   try {
-    // Implementation would call supabase to create user role
-    // This is a placeholder that would be replaced with actual implementation
-    console.log(`Creating role ${role} for user ${userId}`);
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { role }
+    });
+
+    if (error) {
+      console.error('Error updating user metadata:', error);
+      return false;
+    }
+
     return true;
   } catch (error) {
-    console.error('Error creating user role:', error);
+    console.error('Error in updateUserRoleMetadata:', error);
     return false;
   }
 };

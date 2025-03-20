@@ -1,5 +1,6 @@
+
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { 
   MessageSquare, 
   Calendar, 
@@ -32,7 +33,9 @@ const ClientView = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { chatHistory, isLoading: isLoadingChatHistory, debug } = useClientChatHistory(clientId);
   const { logClientActivity } = useClientActivity(clientId);
-  const { activities, isLoading: isLoadingActivities } = useRecentActivities(clientId);
+  const { data: activitiesData, isLoading: isLoadingActivities } = useRecentActivities();
+  // Extract activities from the hook result
+  const activities = activitiesData || [];
 
   useEffect(() => {
     const fetchClient = async () => {

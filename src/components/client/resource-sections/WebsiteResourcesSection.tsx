@@ -113,6 +113,9 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
         onAdd={addWebsiteUrl}
         onDelete={deleteWebsiteUrl}
         isClientView={isClientView}
+        isAdding={addWebsiteUrlMutation.isPending}
+        isDeleting={deleteWebsiteUrlMutation.isPending}
+        agentName="AI Assistant"
       />
     </Card>
   );

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -9,8 +10,7 @@ import { ClientFormData } from "@/types/client";
 import { createClientActivity } from "@/services/clientActivityService";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-// Use the type directly from integrations/supabase/types
-import { ActivityType } from "@/integrations/supabase/types";
+import { ExtendedActivityType } from "@/types/activity";
 
 const AddEditClient = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -19,6 +19,7 @@ const AddEditClient = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [client, setClient] = useState<ClientFormData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { client: clientData, isLoading, error } = useClient(clientId || '');
 
   useEffect(() => {
     if (clientId) {
@@ -33,22 +34,13 @@ const AddEditClient = () => {
   const fetchClientData = async (clientId: string) => {
     setLoading(true);
     try {
-      const { data, error } = await useClient(clientId);
-      if (error) {
-        console.error("Error fetching client:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch client details. Please try again.",
-          variant: "destructive",
-        });
-      }
-      if (data) {
+      if (clientData) {
         setClient({
-          client_name: data.client_name,
-          email: data.email,
-          company: data.company,
-          description: data.description,
-          widget_settings: data.widget_settings,
+          client_name: clientData.client_name,
+          email: clientData.email,
+          company: clientData.company,
+          description: clientData.description,
+          widget_settings: clientData.widget_settings,
         });
       }
     } finally {
@@ -97,7 +89,9 @@ const AddEditClient = () => {
           Back to Clients
         </Button>
       </div>
-      <PageHeading title={isEditMode ? "Edit Client" : "Add Client"} />
+      <PageHeading>
+        {isEditMode ? "Edit Client" : "Add Client"}
+      </PageHeading>
       {loading ? (
         <div>Loading...</div>
       ) : (

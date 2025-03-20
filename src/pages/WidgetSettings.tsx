@@ -5,6 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
+import { useState } from "react";
+import { defaultSettings } from "@/types/widget-settings";
 
 const WidgetSettings = () => {
   const { id } = useParams();
@@ -28,8 +30,23 @@ const WidgetSettings = () => {
     isLoading, 
     isUploading, 
     updateSettingsMutation,
-    handleLogoUpload 
+    handleLogoUpload: originalHandleLogoUpload 
   } = useWidgetSettings(clientId, isClientView);
+
+  // Adapter for the logo upload handler to match the expected type
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      await originalHandleLogoUpload(event.target.files[0]);
+    }
+  };
+
+  // Adapter for the update settings mutation to match the expected type
+  const adaptedUpdateMutation = {
+    isPending: updateSettingsMutation.isPending,
+    mutateAsync: async (newSettings: typeof defaultSettings) => {
+      await updateSettingsMutation.mutateAsync(newSettings);
+    }
+  };
 
   const handleBack = () => {
     if (isClientView) {
@@ -64,13 +81,19 @@ const WidgetSettings = () => {
     );
   }
 
+  // Ensure settings has all required properties
+  const completeSettings = {
+    ...defaultSettings,
+    ...settings
+  };
+
   return (
     <WidgetSettingsContainer
       clientId={clientId}
-      settings={settings}
+      settings={completeSettings}
       isClientView={isClientView}
       isUploading={isUploading}
-      updateSettingsMutation={updateSettingsMutation}
+      updateSettingsMutation={adaptedUpdateMutation}
       handleBack={handleBack}
       handleLogoUpload={handleLogoUpload}
       logClientActivity={logClientActivity}
