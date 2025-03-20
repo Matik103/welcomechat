@@ -53,18 +53,17 @@ export const useClientMutation = (id: string | undefined) => {
         }
       } else {
         // Create new client
-        let clientId;
-        let emailSent = false;
-        let errorMessage = null;
-        
         try {
           // Create the client record which also handles sending the invitation email
           console.log("Calling createClient with sanitized data...");
-          clientId = await createClient(sanitizedData);
+          const clientId = await createClient(sanitizedData);
           console.log("Client created successfully with ID:", clientId);
           
-          // The email is already sent in createClient, so we don't need to send it again here
-          emailSent = true;
+          return {
+            clientId,
+            emailSent: true,
+            errorMessage: null
+          };
         } catch (error: any) {
           console.error("Error in client creation process:", error);
           
@@ -76,12 +75,6 @@ export const useClientMutation = (id: string | undefined) => {
           // Re-throw with a clearer message
           throw new Error(`Failed to create client: ${error.message}`);
         }
-        
-        return {
-          clientId,
-          emailSent,
-          errorMessage
-        };
       }
     }
   });

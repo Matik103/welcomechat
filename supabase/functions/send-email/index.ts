@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -86,7 +87,7 @@ serve(async (req) => {
     const toArray = Array.isArray(to) ? to : [to];
     
     // Send the email
-    const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
+    const fromAddress = from || "Welcome.Chat <onboarding@resend.dev>";
     console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
     
     try {

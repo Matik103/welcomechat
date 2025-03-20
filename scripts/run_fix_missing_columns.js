@@ -45,9 +45,16 @@ function runMigration(sqlFilePath) {
 const success = runMigration(migrationFile);
 
 if (success) {
-  console.log("Column fix migration complete. The database schema has been updated to include all required columns.");
-  console.log("Please restart your development server to see the changes take effect.");
+  console.log("\n=== DATABASE FIXES APPLIED SUCCESSFULLY ===");
+  console.log("✅ Added agent_name column to clients table");
+  console.log("✅ Added all required columns to ai_agents table");
+  console.log("✅ Created database functions for client creation and queries");
+  console.log("✅ Fixed existing records to have valid agent_name");
+  console.log("\nPlease restart your development server to see the changes take effect.");
 } else {
-  console.error("Migration failed. Please check the error messages above.");
+  console.error("\n=== DATABASE MIGRATION FAILED ===");
+  console.error("Please check the error messages above and try again.");
+  console.error("If you're using Supabase, make sure your database connection URL is correct.");
+  console.error("You can find your DB URL in the Supabase dashboard under Project Settings > Database.");
   process.exit(1);
 }
