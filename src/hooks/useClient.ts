@@ -1,84 +1,75 @@
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
-import { Client, WidgetSettings } from "@/types/client";
-import { execSql } from "@/utils/rpcUtils";
-import { safeParse } from "@/utils/stringUtils";
+import { Client } from '@/types/client';
+import { execSql } from '@/utils/rpcUtils';
 
-export const useClient = (id?: string) => {
-  const { data: client, isLoading: isLoadingClient, error, refetch: refetchClient } = useQuery({
-    queryKey: ["client", id],
-    queryFn: async () => {
-      if (!id) return null;
+export const useClient = (clientId: string) => {
+  const { 
+    data: client, 
+    isLoading, 
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['client', clientId],
+    queryFn: async (): Promise<Client | null> => {
+      if (!clientId) return null;
       
-      console.log("Fetching client with ID:", id);
-      
-      // Use SQL query via RPC to get client data from ai_agents table
-      const sql = `
-        SELECT * FROM ai_agents
-        WHERE id = $1
-        LIMIT 1
-      `;
-      
-      const data = await execSql(sql, { id });
-      
-      if (!Array.isArray(data) || data.length === 0) {
-        console.error("No client data found for ID:", id);
+      try {
+        // Use execSql to get client data from ai_agents table
+        const query = `
+          SELECT * FROM ai_agents 
+          WHERE id = '${clientId}'
+          LIMIT 1
+        `;
+        
+        const result = await execSql(query);
+        
+        if (!result || !Array.isArray(result) || result.length === 0) {
+          return null;
+        }
+        
+        const clientData = result[0];
+        
+        // Map data to Client type
+        return {
+          id: clientData.id || '',
+          client_name: clientData.client_name || '',
+          email: clientData.email || '',
+          logo_url: clientData.logo_url || '',
+          logo_storage_path: clientData.logo_storage_path || '',
+          created_at: clientData.created_at || '',
+          updated_at: clientData.updated_at || '',
+          deletion_scheduled_at: clientData.deletion_scheduled_at || null,
+          deleted_at: clientData.deleted_at || null,
+          status: clientData.status || 'active',
+          company: clientData.company || '',
+          agent_description: clientData.agent_description || '',
+          name: clientData.name || '',
+          agent_name: clientData.name || '',
+          last_active: clientData.last_active || null,
+          widget_settings: clientData.settings || {},
+          // Safely access nested properties
+          settings: {
+            primary_color: clientData.settings?.primary_color || '#3B82F6',
+            background_color: clientData.settings?.background_color || '#FFFFFF',
+            text_color: clientData.settings?.text_color || '#111827',
+            secondary_color: clientData.settings?.secondary_color || '#E5E7EB',
+            position: clientData.settings?.position || 'right',
+            welcome_message: clientData.settings?.welcome_message || 'Hi there! How can I help you today?',
+            response_time_text: clientData.settings?.response_time_text || 'Usually responds in a few minutes',
+            agent_name: clientData.name || 'AI Assistant',
+            agent_description: clientData.agent_description || '',
+            logo_url: clientData.logo_url || '',
+          }
+        };
+      } catch (error) {
+        console.error("Error fetching client:", error);
         return null;
       }
-      
-      const agentData = data[0];
-      
-      // Extract widget_settings from settings if available
-      const settings = agentData.settings || {};
-      const widgetSettings: WidgetSettings = {
-        agent_name: agentData.name || "Assistant",
-        agent_description: agentData.agent_description || "",
-        logo_url: agentData.logo_url || "",
-        logo_storage_path: agentData.logo_storage_path || ""
-      };
-
-      // Safely handle settings as it could be a string or object
-      const parsedSettings = typeof settings === 'string' ? safeParse(settings) : settings;
-      
-      // If settings exists and has widget properties, merge them
-      if (typeof parsedSettings === 'object') {
-        // Copy known widget properties
-        if ('chat_color' in parsedSettings) widgetSettings.chat_color = parsedSettings.chat_color;
-        if ('background_color' in parsedSettings) widgetSettings.background_color = parsedSettings.background_color;
-        if ('text_color' in parsedSettings) widgetSettings.text_color = parsedSettings.text_color;
-        if ('secondary_color' in parsedSettings) widgetSettings.secondary_color = parsedSettings.secondary_color;
-        if ('position' in parsedSettings) widgetSettings.position = parsedSettings.position;
-        if ('welcome_text' in parsedSettings) widgetSettings.welcome_text = parsedSettings.welcome_text;
-        if ('response_time_text' in parsedSettings) widgetSettings.response_time_text = parsedSettings.response_time_text;
-      }
-      
-      // Convert agent data to client format
-      const clientData: Client = {
-        id: agentData.id,
-        client_name: agentData.client_name || "",
-        email: agentData.email || "",
-        logo_url: agentData.logo_url || "",
-        logo_storage_path: agentData.logo_storage_path || "",
-        created_at: agentData.created_at,
-        updated_at: agentData.updated_at,
-        deletion_scheduled_at: agentData.deletion_scheduled_at,
-        deleted_at: agentData.deleted_at,
-        status: agentData.status || "active",
-        company: agentData.company || "",
-        description: agentData.agent_description || "",
-        name: agentData.name || "Assistant",
-        agent_name: agentData.name || "Assistant",
-        last_active: agentData.last_active,
-        widget_settings: widgetSettings
-      };
-      
-      console.log("Client data fetched from AI agent:", clientData);
-      
-      return clientData;
     },
-    enabled: !!id,
+    enabled: !!clientId,
   });
 
-  return { client, isLoadingClient, error, refetchClient };
+  return { client, isLoading, error, refetch };
 };

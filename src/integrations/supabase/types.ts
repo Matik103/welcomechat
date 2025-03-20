@@ -291,6 +291,106 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_documents: {
+        Row: {
+          agent_name: string
+          client_id: string
+          content: string | null
+          created_at: string | null
+          document_id: string
+          document_type: string
+          document_url: string
+          error: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          processing_method: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          agent_name: string
+          client_id: string
+          content?: string | null
+          created_at?: string | null
+          document_id: string
+          document_type: string
+          document_url: string
+          error?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          processing_method?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          agent_name?: string
+          client_id?: string
+          content?: string | null
+          created_at?: string | null
+          document_id?: string
+          document_type?: string
+          document_url?: string
+          error?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          processing_method?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_interactions: {
+        Row: {
+          agent_name: string
+          client_id: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          query_text: string
+          response_text: string
+          response_time_ms: number | null
+        }
+        Insert: {
+          agent_name: string
+          client_id: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          query_text: string
+          response_text: string
+          response_time_ms?: number | null
+        }
+        Update: {
+          agent_name?: string
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          query_text?: string
+          response_text?: string
+          response_time_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_interactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       airtable: {
         Row: {
           content: string | null
@@ -659,6 +759,47 @@ export type Database = {
           metadata?: Json | null
         }
         Relationships: []
+      }
+      document_links: {
+        Row: {
+          access_status: string | null
+          client_id: string
+          created_at: string | null
+          document_type: string | null
+          id: number
+          link: string
+          notified_at: string | null
+          refresh_rate: number
+        }
+        Insert: {
+          access_status?: string | null
+          client_id: string
+          created_at?: string | null
+          document_type?: string | null
+          id?: number
+          link: string
+          notified_at?: string | null
+          refresh_rate?: number
+        }
+        Update: {
+          access_status?: string | null
+          client_id?: string
+          created_at?: string | null
+          document_type?: string | null
+          id?: number
+          link?: string
+          notified_at?: string | null
+          refresh_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_processing_jobs: {
         Row: {
@@ -3358,12 +3499,43 @@ export type Database = {
         }
         Returns: Json
       }
+      get_ai_interactions: {
+        Args: {
+          client_id_param: string
+          limit_param?: number
+        }
+        Returns: {
+          agent_name: string
+          client_id: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          query_text: string
+          response_text: string
+          response_time_ms: number | null
+        }[]
+      }
       get_average_response_time: {
         Args: {
           client_id_param: string
           agent_name_param: string
         }
         Returns: number
+      }
+      get_chat_sessions_for_client: {
+        Args: {
+          client_id_param: string
+        }
+        Returns: {
+          agent_name: string
+          client_id: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          query_text: string
+          response_text: string
+          response_time_ms: number | null
+        }[]
       }
       get_common_queries: {
         Args: {
@@ -3375,6 +3547,12 @@ export type Database = {
           query_text: string
           frequency: number
         }[]
+      }
+      get_document_access_status: {
+        Args: {
+          document_id: number
+        }
+        Returns: string
       }
       get_recent_error_logs: {
         Args: {
@@ -3389,6 +3567,22 @@ export type Database = {
           error_status: string
           query_text: string
           created_at: string
+        }[]
+      }
+      get_recent_interactions: {
+        Args: {
+          client_id_param: string
+          limit_param?: number
+        }
+        Returns: {
+          agent_name: string
+          client_id: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          query_text: string
+          response_text: string
+          response_time_ms: number | null
         }[]
       }
       get_total_interactions: {

@@ -45,4 +45,5 @@ export interface DocumentProcessingResult {
   documentId?: string;
   error?: string;
   content?: string;
+  status?: 'success' | 'failed' | 'processing' | 'pending';
 }

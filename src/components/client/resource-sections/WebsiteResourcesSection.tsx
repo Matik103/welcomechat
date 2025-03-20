@@ -16,18 +16,6 @@ export const WebsiteResourcesSection = ({
   clientId,
   logActivity
 }: WebsiteResourcesSectionProps) => {
-  const trackActivity = async (urlId: number) => {
-    try {
-      await logActivity(
-        "website_url_deleted",
-        `Website URL was deleted`,
-        { url_id: urlId, client_id: clientId }
-      );
-    } catch (error) {
-      console.error("Error logging website URL deletion:", error);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <Alert>

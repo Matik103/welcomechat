@@ -10,8 +10,7 @@ export const initializeRpcFunctions = async () => {
     
     // Check if the exec_sql function exists
     const { data: execSqlData, error: execSqlError } = await supabase.rpc('exec_sql', {
-      sql_query: 'SELECT 1 as test',
-      query_params: '{}'
+      sql_query: 'SELECT 1 as test'
     });
     
     if (execSqlError) {
@@ -28,8 +27,7 @@ export const initializeRpcFunctions = async () => {
           WHERE schemaname = 'public' 
           AND tablename = 'document_links'
         ) as exists
-      `,
-      query_params: '{}'
+      `
     });
     
     if (tableError) {
@@ -39,15 +37,23 @@ export const initializeRpcFunctions = async () => {
       console.log("document_links table exists:", exists);
     }
     
-    // Check if get_document_access_status function exists
-    const { data: accessStatusData, error: accessStatusError } = await supabase.rpc('get_document_access_status', {
-      document_id: 0
-    });
+    // Check if required functions exist
+    try {
+      await supabase.rpc('get_document_access_status', {
+        document_id: 0
+      });
+      console.log("get_document_access_status function exists");
+    } catch (error) {
+      console.warn("get_document_access_status function check failed:", error);
+    }
     
-    if (accessStatusError && !accessStatusError.message.includes("does not exist")) {
-      console.error("Error checking get_document_access_status function:", accessStatusError);
-    } else {
-      console.log("get_document_access_status function check completed");
+    try {
+      await supabase.rpc('get_ai_interactions', {
+        client_id_param: '00000000-0000-0000-0000-000000000000'
+      });
+      console.log("get_ai_interactions function exists");
+    } catch (error) {
+      console.warn("get_ai_interactions function check failed:", error);
     }
     
     console.log("Supabase RPC functions initialized successfully");

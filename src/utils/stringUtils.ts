@@ -1,38 +1,55 @@
 
 /**
- * Converts an agent name to a valid class name by removing special characters 
- * and spaces, and making it lowercase
+ * Utility functions for string manipulation
  */
-export const agentNameToClassName = (agentName: string): string => {
-  if (!agentName) return '';
-  
-  // Replace spaces with underscores, remove special characters, and convert to lowercase
-  return agentName
-    .replace(/\s+/g, '_')
-    .replace(/[^\w_]/g, '')
-    .toLowerCase();
+
+/**
+ * Truncates a string to a specified length and adds ellipsis if needed
+ * @param str String to truncate
+ * @param length Maximum length
+ * @returns Truncated string
+ */
+export const truncateString = (str: string, length: number): string => {
+  if (!str) return '';
+  if (str.length <= length) return str;
+  return str.substring(0, length) + '...';
 };
 
 /**
- * Safely converts a value to a JSON string
+ * Formats a date string to a human-readable format
+ * @param dateString ISO date string
+ * @returns Formatted date string
  */
-export const safeStringify = (obj: any): string => {
-  try {
-    return JSON.stringify(obj);
-  } catch (error) {
-    console.error('Failed to stringify object:', error);
-    return '{}';
-  }
+export const formatDate = (dateString: string): string => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 };
 
 /**
- * Safely parses a JSON string to an object
+ * Converts camelCase to Title Case with spaces
+ * @param str String in camelCase
+ * @returns Title Case string
  */
-export const safeParse = (str: string): any => {
-  try {
-    return JSON.parse(str);
-  } catch (error) {
-    console.error('Failed to parse JSON string:', error);
-    return {};
-  }
+export const camelToTitleCase = (str: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (str) => str.toUpperCase());
+};
+
+/**
+ * Sanitizes a string for SQL use
+ * @param str String to sanitize
+ * @returns Sanitized string
+ */
+export const sanitizeForSQL = (str: string): string => {
+  if (!str) return '';
+  return str.replace(/['"\\;]/g, '');
 };
