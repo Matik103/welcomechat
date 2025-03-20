@@ -5,7 +5,7 @@ import { Session, User, AuthError } from '@supabase/supabase-js';
 import { UserRole } from '@/types/app';
 import useAuthInitialize from '@/hooks/useAuthInitialize';
 import useAuthStateChange from '@/hooks/useAuthStateChange';
-import useAuthSafetyTimeout from '@/hooks/useAuthSafetyTimeout';
+import { useAuthSafetyTimeout } from '@/hooks/useAuthSafetyTimeout';
 
 export interface AuthState {
   isLoading: boolean;
@@ -17,7 +17,10 @@ export interface AuthState {
 
 export interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   logout: () => Promise<void>;
+  signOut: () => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   setSession: (session: Session | null) => void;
   setUser: (user: User | null) => void;
   setUserRole: (role: UserRole | null) => void;
@@ -50,12 +53,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserRole 
   });
 
+  // Get the current URL path to check if we're on an auth page
+  const isAuthPage = window.location.pathname.includes('/auth') || 
+                      window.location.pathname.includes('/login') || 
+                      window.location.pathname.includes('/register');
+
   // Safety timeout for auth initialization
   useAuthSafetyTimeout({ 
     isLoading, 
-    authInitialized, 
     setIsLoading, 
-    setAuthInitialized 
+    isAuthPage,
+    session
   });
 
   // Login function
@@ -67,12 +75,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { data, error };
   };
 
+  // Alias for login
+  const signIn = login;
+
   // Logout function
   const logout = async () => {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
     setUserRole(null);
+  };
+
+  // Alias for logout
+  const signOut = logout;
+
+  // Signup function
+  const signUp = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    return { data, error };
   };
 
   const value = {
@@ -82,7 +105,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     authInitialized,
     login,
+    signIn,
     logout,
+    signOut,
+    signUp,
     setSession,
     setUser,
     setUserRole,
