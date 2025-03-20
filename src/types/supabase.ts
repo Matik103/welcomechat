@@ -1,4 +1,3 @@
-
 export interface Client {
   id: string;
   created_at: string;
@@ -6,7 +5,6 @@ export interface Client {
   client_name: string;
   company: string;
   description: string | null;
-  agent_name: string | null;
   status: 'active' | 'inactive' | 'deleted';
   deleted_at: string | null;
   deletion_scheduled_at: string | null;

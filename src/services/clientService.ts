@@ -20,18 +20,36 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 /**
  * Helper function to sanitize strings for SQL queries
  */
-const sanitizeForSQL = (value: string | undefined): string | undefined => {
-  if (!value) return value;
+function sanitizeForSQL(str: string): string {
+  if (!str) return "";
   
-  // Thoroughly sanitize by replacing double quotes with single quotes
-  const sanitized = value.replace(/"/g, "'");
-  
-  // Also escape backslashes which could cause issues
-  const fullyEscaped = sanitized.replace(/\\/g, "\\\\");
-  
-  console.log(`Sanitized SQL value from "${value}" to "${fullyEscaped}"`);
-  return fullyEscaped;
-};
+  try {
+    // Remove any existing SQL escaping
+    let sanitized = str.replace(/''/g, "'");
+    
+    // Escape single quotes by doubling them
+    sanitized = sanitized.replace(/'/g, "''");
+    
+    // Remove any double quotes
+    sanitized = sanitized.replace(/"/g, "");
+    
+    // Remove any backslashes
+    sanitized = sanitized.replace(/\\/g, "");
+    
+    // Trim whitespace
+    sanitized = sanitized.trim();
+    
+    console.log("Sanitization steps:", {
+      original: str,
+      sanitized,
+    });
+    
+    return sanitized;
+  } catch (error) {
+    console.error("Error sanitizing string:", error);
+    return "";
+  }
+}
 
 /**
  * Updates an existing client 
@@ -146,290 +164,239 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
 };
 
 /**
+ * Generates a temporary password for new clients
+ */
+function generateTempPassword(): string {
+  const length = 12;
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
+}
+
+/**
  * Creates a new client
  */
-export const createClient = async (data: ClientFormData): Promise<string> => {
+export const createClient = async (clientData: {
+  clientName: string;
+  email: string;
+  agentName?: string;
+  agentDescription?: string;
+  logoUrl?: string;
+  logoStoragePath?: string;
+  chatColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  secondaryColor?: string;
+  position?: string;
+  welcomeText?: string;
+  responseTimeText?: string;
+}): Promise<Client | null> => {
   try {
-    console.log("Creating client with data:", data);
+    console.log("Starting client creation with data:", clientData);
     
-    // Extra safety - sanitize again to be absolutely sure we don't have double quotes
-    const sanitizedAgentDescription = sanitizeForSQL(data.agent_description);
-    
-    // Use provided agent_name or default to "AI Assistant"
-    const agentName = data.agent_name || "AI Assistant";
-    
-    // Prepare widget settings, ensuring it's an object
-    const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
-      ? { 
-          ...data.widget_settings,
-          agent_name: agentName,
-          agent_description: sanitizedAgentDescription,
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path 
-        } 
-      : { 
-          agent_name: agentName,
-          agent_description: sanitizedAgentDescription,
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path
-        };
+    const {
+      clientName,
+      email,
+      agentName,
+      agentDescription,
+      logoUrl,
+      logoStoragePath,
+      chatColor,
+      backgroundColor,
+      textColor,
+      secondaryColor,
+      position,
+      welcomeText,
+      responseTimeText
+    } = clientData;
 
-    console.log("Widget settings:", JSON.stringify(widgetSettings));
+    // Generate temporary password
+    const tempPassword = generateTempPassword();
+    console.log("Generated temporary password");
 
-    // Log the data being inserted to validate sanitization
-    console.log("Final insert data:", {
-      client_name: data.client_name,
-      email: data.email,
+    // Prepare widget settings
+    const widgetSettings = {
       agent_name: agentName,
-      widget_settings: widgetSettings
-    });
-    
-    // Create the client record
-    const { data: newClients, error } = await supabase
+      agent_description: agentDescription,
+      logo_url: logoUrl,
+      logo_storage_path: logoStoragePath,
+      chat_color: chatColor,
+      background_color: backgroundColor,
+      text_color: textColor,
+      secondary_color: secondaryColor,
+      position: position,
+      welcome_text: welcomeText,
+      response_time_text: responseTimeText
+    };
+    console.log("Prepared widget settings:", widgetSettings);
+
+    // Insert new client with only essential fields
+    console.log("Attempting to insert new client...");
+    const { data: newClient, error: insertError } = await supabase
       .from("clients")
       .insert({
-        client_name: data.client_name,
-        email: data.email,
-        agent_name: agentName,
-        // Store the agent_name, agent_description and logo in widget_settings
-        widget_settings: widgetSettings,
+        client_name: clientName,
+        email: email,
         status: 'active',
-        website_url_refresh_rate: 60,
-        drive_link_refresh_rate: 60,
+        agent_name: agentName || 'AI Assistant', // Required field
+        widget_settings: widgetSettings, // Save widget settings in clients table
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .select('*');
+      .select()
+      .single();
 
-    if (error) {
-      console.error("Error creating client:", error);
-      console.error("Error code:", error.code);
-      console.error("Error message:", error.message);
-      console.error("Error details:", error.details);
-      throw error;
+    if (insertError) {
+      console.error("Error creating client:", insertError);
+      throw new Error(`Failed to create client: ${insertError.message}`);
     }
+    console.log("Client created successfully:", newClient);
 
-    if (!newClients || newClients.length === 0) {
-      throw new Error("Failed to create client - no data returned");
-    }
-
-    const clientId = newClients[0].id;
-    console.log("Created client with ID:", clientId);
-
-    // Create AI agent for this client
-    try {
-      await supabase
-        .from("ai_agents")
-        .insert({
-          client_id: clientId,
-          name: agentName,
-          agent_description: sanitizedAgentDescription,
-          content: "",
-          interaction_type: "config",
-          settings: {
-            agent_name: agentName,
-            agent_description: sanitizedAgentDescription,
-            client_name: data.client_name,
-            logo_url: data.logo_url,
-            logo_storage_path: data.logo_storage_path,
-            updated_at: new Date().toISOString()
-          },
-          is_error: false,
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path
-        });
-    } catch (agentError) {
-      console.error("Error creating AI agent:", agentError);
-      // Continue even if agent creation fails
-    }
-
-    // Create Supabase auth user immediately after client creation
-    try {
-      const sessionResponse = await supabase.auth.getSession();
-      const accessToken = sessionResponse.data.session?.access_token;
-      
-      if (!accessToken) {
-        throw new Error("No auth session found - please log in again");
-      }
-
-      // Create the auth user using the edge function with the correct URL
-      const functionUrl = `${SUPABASE_URL}/functions/v1/create-client-user`;
-      console.log("Calling edge function at:", functionUrl);
-      
-      const createUserResponse = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+    // Create AI agent with all settings
+    console.log("Attempting to create AI agent...");
+    const { error: agentError } = await supabase
+      .from("ai_agents")
+      .insert({
+        client_id: newClient.id,
+        name: agentName || 'AI Assistant',
+        agent_description: agentDescription || "",
+        content: "",
+        interaction_type: "config",
+        settings: {
+          agent_name: agentName || 'AI Assistant',
+          agent_description: agentDescription,
+          logo_url: logoUrl,
+          logo_storage_path: logoStoragePath,
+          client_id: newClient.id,
+          client_name: clientName,
+          created_at: new Date().toISOString()
         },
-        body: JSON.stringify({
-          email: data.email,
-          client_id: clientId,
-          client_name: data.client_name,
-          agent_description: data.agent_description || "",
-          logo_url: data.logo_url || "",
-          logo_storage_path: data.logo_storage_path || ""
-        })
+        widget_settings: widgetSettings,
+        logo_url: logoUrl || "",
+        logo_storage_path: logoStoragePath || "",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
 
-      if (!createUserResponse.ok) {
-        const errorText = await createUserResponse.text();
-        console.error("Error response from create-client-user:", errorText);
-        throw new Error(`Failed to create auth user: ${errorText}`);
-      }
+    if (agentError) {
+      console.error("Error creating AI agent:", agentError);
+      // Even if agent creation fails, we still want to return the client
+      return newClient;
+    }
+    console.log("AI agent created successfully");
 
-      const responseText = await createUserResponse.text();
-      console.log("Create user response:", responseText);
-      
-      const responseData = JSON.parse(responseText);
-      const tempPassword = responseData.temp_password;
-
-      if (!tempPassword) {
-        console.error("Response data:", responseData);
-        throw new Error('No temporary password received from server');
-      }
-
-      // Send welcome email with the temporary password
+    // Send invitation email
+    try {
+      console.log("Attempting to send invitation email...");
       await sendClientInvitationEmail({
-        clientId,
-        clientName: data.client_name,
-        email: data.email,
-        tempPassword
+        clientId: newClient.id,
+        clientName: clientName,
+        email: email,
+        tempPassword: tempPassword
       });
-
-    } catch (authError) {
-      console.error("Error setting up client authentication:", authError);
-      // Delete the client record if auth setup fails
-      await supabase.from("clients").delete().eq("id", clientId);
-      throw new Error(`Failed to set up client authentication: ${authError.message}`);
+      console.log("Invitation email sent successfully");
+    } catch (emailError) {
+      console.error("Error sending invitation email:", emailError);
+      // Don't throw here, as the client and agent were created successfully
     }
 
-    return clientId;
+    return newClient;
   } catch (error) {
     console.error("Error in createClient:", error);
-    console.error("Error details:", JSON.stringify(error, null, 2));
-    throw error;
+    return null;
   }
-};
-
-/**
- * Generates a secure temporary password
- */
-const generateTempPassword = (): string => {
-  // Create a consistent and secure temporary password
-  // Format: Welcome + current year + ! (e.g., Welcome2024!)
-  const year = new Date().getFullYear();
-  return `Welcome${year}!`;
 };
 
 /**
  * Sends an invitation email to a new client
  */
-export const sendClientInvitationEmail = async (params: { 
-  clientId: string, 
-  clientName: string, 
-  email: string,
-  tempPassword: string
+export const sendClientInvitationEmail = async (params: {
+  clientId: string;
+  clientName: string;
+  email: string;
+  tempPassword: string;
 }): Promise<void> => {
   const { clientId, clientName, email, tempPassword } = params;
   
   try {
-    console.log("Preparing to send welcome email...");
-    const loginUrl = `${window.location.origin}/client/dashboard`;
+    console.log("Starting to send invitation email to:", email);
     
-    // Prepare email content
-    const emailSubject = `Welcome to Welcome.Chat!`;
-    
-    const emailHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    </head>
-    <body style="background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; padding: 20px;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-        <!-- Header -->
-        <div style="background-color: #4299e1; padding: 30px 40px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Welcome to Welcome.Chat!</h1>
+    // Get the current user's email for the from address
+    const { data: { user } } = await supabase.auth.getUser();
+    const fromEmail = user?.email || "admin@welcome.chat";
+    console.log("Using from email:", fromEmail);
+
+    // Prepare the email content
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #2d3748; margin-bottom: 20px;">Welcome to Welcome.Chat!</h1>
+        
+        <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+          Hello ${clientName},
+        </p>
+        
+        <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+          Your Welcome.Chat account has been created. You can now access your dashboard and start managing your AI agent.
+        </p>
+        
+        <div style="background: #f7fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <p style="margin: 0 0 10px; color: #4a5568; font-size: 14px;">Your Account Details:</p>
+          <p style="margin: 0; color: #2d3748; font-weight: 600; font-size: 16px;">Email: ${email}</p>
+          
+          <p style="margin: 0 0 10px; color: #4a5568; font-size: 14px;">Temporary Password:</p>
+          <p style="margin: 0; color: #2d3748; font-weight: 600; font-size: 16px; font-family: monospace; background: #edf2f7; padding: 8px 12px; border-radius: 4px;">${tempPassword}</p>
         </div>
         
-        <!-- Content -->
-        <div style="padding: 40px;">
-          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">Hello ${clientName},</p>
-          
-          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">Your AI assistant account has been created and is ready for configuration. Here are your login credentials:</p>
-          
-          <!-- Credentials Box -->
-          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 30px 0;">
-            <p style="margin: 0 0 10px; color: #4a5568; font-size: 14px;">Email Address:</p>
-            <p style="margin: 0 0 20px; color: #2d3748; font-weight: 600; font-size: 16px;">${email}</p>
-            
-            <p style="margin: 0 0 10px; color: #4a5568; font-size: 14px;">Temporary Password:</p>
-            <p style="margin: 0; color: #2d3748; font-weight: 600; font-size: 16px; font-family: monospace; background: #edf2f7; padding: 8px 12px; border-radius: 4px;">${tempPassword}</p>
-          </div>
-          
-          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">To get started:</p>
-          
-          <ol style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 30px; padding-left: 20px;">
-            <li style="margin-bottom: 10px;">Click the "Sign In" button below</li>
-            <li style="margin-bottom: 10px;">Enter your email and temporary password exactly as shown above</li>
-            <li style="margin-bottom: 10px;">You'll be taken to your client dashboard</li>
-            <li style="margin-bottom: 10px;">Configure your AI assistant's settings</li>
-          </ol>
-          
-          <!-- CTA Button -->
-          <div style="text-align: center; margin: 35px 0;">
-            <a href="${loginUrl}" style="display: inline-block; background-color: #4299e1; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">Sign In</a>
-          </div>
-          
-          <!-- Security Notice -->
-          <div style="border-left: 4px solid #f6ad55; background-color: #fffaf0; padding: 15px; margin: 30px 0; color: #744210; font-size: 14px; line-height: 1.6;">
-            <p style="margin: 0 0 10px;"><strong>Security Notice:</strong></p>
-            <p style="margin: 0;">This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
-          </div>
-          
-          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 30px 0 0;">Best regards,<br>The Welcome.Chat Team</p>
-        </div>
+        <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+          This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.
+        </p>
         
-        <!-- Footer -->
-        <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-          <p style="color: #718096; font-size: 14px; margin: 0;">© ${new Date().getFullYear()} Welcome.Chat. All rights reserved.</p>
+        <div style="text-align: center; margin-top: 30px;">
+          <a href="${SUPABASE_URL}/auth/login" style="display: inline-block; background: #4299e1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">Login to Your Account</a>
         </div>
       </div>
-    </body>
-    </html>
     `;
-    
-    // Get the session token
-    const sessionResponse = await supabase.auth.getSession();
-    const accessToken = sessionResponse.data.session?.access_token;
-    
-    if (!accessToken) {
-      throw new Error("No auth session found - please log in again");
-    }
-    
-    // Use fetch for send-email function to avoid CORS issues
-    const emailResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/send-email`, {
+    console.log("Email content prepared");
+
+    // Send the email using the Edge Function
+    console.log("Sending email via Edge Function...");
+    const emailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
       },
       body: JSON.stringify({
-        to: [email],
-        subject: emailSubject,
-        html: emailHtml,
-        from: "Welcome.Chat <admin@welcome.chat>"
+        to: email,
+        subject: "Welcome to Welcome.Chat - Your Account Details",
+        html: emailContent,
+        from: `Welcome.Chat <${fromEmail}>`
       })
     });
-    
+
     if (!emailResponse.ok) {
+      const errorText = await emailResponse.text();
+      console.error("Email sending failed:", errorText);
       throw new Error(`Failed to send invitation email (HTTP ${emailResponse.status})`);
     }
-    
-    console.log("Invitation email sent successfully");
-  } catch (error: any) {
+
+    const responseData = await emailResponse.json();
+    console.log("Email sent successfully:", responseData);
+
+    // Log the email sending activity
+    console.log("Logging email sending activity...");
+    await supabase.from("client_activities").insert({
+      client_id: clientId,
+      activity_type: "client_created",
+      description: "sent an invitation email",
+      metadata: { email }
+    });
+    console.log("Activity logged successfully");
+
+  } catch (error) {
     console.error("Error sending invitation:", error);
     throw new Error(`Failed to send invitation: ${error.message}`);
   }

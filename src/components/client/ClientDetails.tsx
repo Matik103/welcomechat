@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -48,12 +47,12 @@ export const ClientDetails = ({
       console.log(`Agent logo URL: ${logoUrl}`);
       
       // Use a default agent name if not provided
-      const finalAgentName = agentName || 'AI Assistant';
+      const finalAgentName = agentName || 'AI';
       
       // Check if AI agent exists for this client
       const { data: existingAgents, error: queryError } = await supabase
         .from("ai_agents")
-        .select("id, name, agent_description, logo_url, logo_storage_path")
+        .select("id, name, agent_description")
         .eq("client_id", clientId)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -68,25 +67,29 @@ export const ClientDetails = ({
         agent_description: agentDescription || "",
         client_id: clientId,
         client_name: clientName || "",
-        updated_at: new Date().toISOString(),
         logo_url: logoUrl || "",
-        logo_storage_path: logoStoragePath || ""
+        logo_storage_path: logoStoragePath || "",
+        updated_at: new Date().toISOString()
       };
 
       if (existingAgents && existingAgents.length > 0) {
-        const nameChanged = existingAgents[0].name !== finalAgentName;
-        const descriptionChanged = existingAgents[0].agent_description !== agentDescription;
+        const existingAgent = existingAgents[0];
+        const nameChanged = existingAgent.name !== finalAgentName;
+        const descriptionChanged = existingAgent.agent_description !== agentDescription;
         
         const { error: updateError } = await supabase
           .from("ai_agents")
           .update({ 
             name: finalAgentName,
-            agent_description: agentDescription,
+            agent_description: agentDescription || "",
+            content: "",
+            interaction_type: "config",
             settings: settings,
-            logo_url: logoUrl,
-            logo_storage_path: logoStoragePath
+            logo_url: logoUrl || "",
+            logo_storage_path: logoStoragePath || "",
+            updated_at: new Date().toISOString()
           })
-          .eq("id", existingAgents[0].id);
+          .eq("id", existingAgent.id);
         
         if (updateError) {
           console.error("Error updating AI agent:", updateError);
@@ -109,13 +112,14 @@ export const ClientDetails = ({
           .insert({
             client_id: clientId,
             name: finalAgentName,
-            agent_description: agentDescription,
+            agent_description: agentDescription || "",
             content: "",
             interaction_type: "config",
             settings: settings,
-            is_error: false,
-            logo_url: logoUrl,
-            logo_storage_path: logoStoragePath
+            logo_url: logoUrl || "",
+            logo_storage_path: logoStoragePath || "",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           });
         
         if (insertError) {
@@ -287,9 +291,11 @@ export const ClientDetails = ({
             if (result.clientId) {
               await ensureAiAgentExists(
                 result.clientId, 
+                data.agent_name,
                 data.agent_description,
-                logoUrl || data.logo_url,
-                logoStoragePath || data.logo_storage_path
+                data.logo_url,
+                data.logo_storage_path,
+                data.client_name
               );
             }
             
