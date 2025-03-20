@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -53,7 +54,12 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
   const handleSubmit = async (data: ClientFormValues) => {
     // If an external onSubmit handler is provided, use it
     if (onSubmit) {
-      await onSubmit(data as ClientFormData);
+      try {
+        await onSubmit(data as ClientFormData);
+      } catch (error) {
+        console.error("Error in form submission:", error);
+        toast.error(error instanceof Error ? error.message : "An error occurred");
+      }
       return;
     }
 
