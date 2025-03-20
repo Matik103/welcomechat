@@ -38,6 +38,23 @@ export const useNewClientMutation = () => {
           }
         });
 
+        // Log the client creation to ensure it shows up in Recent Activity
+        try {
+          await supabase.from("client_activities").insert({
+            client_id: clientId,
+            activity_type: "client_created",
+            description: "New client created with AI agent",
+            metadata: {
+              client_name: validatedData.client_name.trim(),
+              email: validatedData.email.trim().toLowerCase(),
+              agent_name: validatedData.widget_settings.agent_name?.trim() || "AI Assistant"
+            }
+          });
+        } catch (activityError) {
+          console.error("Error logging client creation activity:", activityError);
+          // Continue even if activity logging fails
+        }
+
         // Create OpenAI assistant using the client's chatbot settings
         if (validatedData.widget_settings.agent_name || validatedData.widget_settings.agent_description) {
           try {
@@ -109,5 +126,8 @@ export const useNewClientMutation = () => {
       const errorMessage = error.message || "Failed to create client. Please try again.";
       toast.error(errorMessage);
     },
+    onSuccess: () => {
+      toast.success("Client created successfully! An email with credentials has been sent.");
+    }
   });
 };

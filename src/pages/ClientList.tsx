@@ -2,8 +2,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
@@ -18,7 +16,7 @@ export default function ClientList() {
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
 
   // Fetch clients from ai_agents table where interaction_type is 'config'
-  const { data: clients, isLoading, error } = useQuery({
+  const { data: clients, isLoading, error, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: async (): Promise<Client[]> => {
       try {
@@ -55,7 +53,7 @@ export default function ClientList() {
         // Map the results to Client objects
         return results.map((record: any) => {
           // Ensure we have valid data by checking and providing defaults
-          const id = record.id || record.client_id || '';
+          const id = record.client_id || record.id || '';
           const clientName = record.client_name || '';
           const email = record.email || '';
           const logoUrl = record.logo_url || '';
@@ -98,7 +96,14 @@ export default function ClientList() {
         return [];
       }
     },
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    refetchOnWindowFocus: true,
   });
+
+  // Refresh the client list when component mounts
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   useEffect(() => {
     if (clients) {
