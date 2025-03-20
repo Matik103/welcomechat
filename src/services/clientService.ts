@@ -12,8 +12,9 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   console.log("Creating client with data:", { ...data, widget_settings: "..." });
   
   try {
-    // Sanitize agent name to prevent SQL issues
+    // Double-sanitize agent name to prevent SQL issues
     const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
+    console.log("Using sanitized agent name:", sanitizedAgentName);
     
     // Create the client record in the database
     const { data: newClient, error } = await supabase

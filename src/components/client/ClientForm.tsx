@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -34,7 +33,10 @@ const clientFormSchema = z.object({
     .refine(val => !val.includes('"'), "Agent name cannot contain double quotes")
     .refine(val => !val.includes("'"), "Agent name cannot contain single quotes")
     .optional(),
-  agent_description: z.string().optional(),
+  agent_description: z.string()
+    .transform(val => val.trim())
+    .refine(val => !val.includes('"'), "Agent description cannot contain double quotes")
+    .optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
 });
@@ -48,7 +50,10 @@ const clientViewSchema = z.object({
     .transform(val => val.trim())
     .refine(val => !val.includes('"'), "Agent name cannot contain double quotes")
     .refine(val => !val.includes("'"), "Agent name cannot contain single quotes"),
-  agent_description: z.string().min(1, "Agent description is required"),
+  agent_description: z.string()
+    .min(1, "Agent description is required")
+    .transform(val => val.trim())
+    .refine(val => !val.includes('"'), "Agent description cannot contain double quotes"),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
 });
@@ -208,7 +213,7 @@ export const ClientForm = ({
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
         {!isClientView && (
-          <p className="text-xs text-gray-500 mt-1">Optional - "AI Assistant" will be used if not specified. Client can set this later.</p>
+          <p className="text-xs text-gray-500 mt-1">Optional - "AI Assistant" will be used if not specified. Client can set this later. Do not use quotes.</p>
         )}
       </div>
       
@@ -242,7 +247,7 @@ export const ClientForm = ({
           <p className="text-sm text-red-500">{errors.agent_description.message}</p>
         )}
         {!isClientView && (
-          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later.</p>
+          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later. Do not use quotes.</p>
         )}
       </div>
 
