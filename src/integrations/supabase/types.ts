@@ -93,6 +93,50 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agents: {
+        Row: {
+          assistant_id: string | null
+          client_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assistant_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assistant_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agents_backup: {
         Row: {
           agent_description: string | null
