@@ -1,35 +1,44 @@
 
-import { useState } from "react";
-import { createClientActivity } from "@/services/clientActivityService";
-import { ExtendedActivityType } from "@/types/activity";
+import { useMutation } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { ExtendedActivityType } from "@/types/extended-supabase";
 import { Json } from "@/integrations/supabase/types";
 
-export const useClientActivity = (agentId: string) => {
-  const [isLogging, setIsLogging] = useState(false);
+export const useClientActivity = (clientId?: string) => {
+  const logActivity = useMutation({
+    mutationFn: async ({
+      activity_type,
+      description,
+      metadata
+    }: {
+      activity_type: ExtendedActivityType;
+      description: string;
+      metadata?: Json;
+    }) => {
+      if (!clientId) throw new Error("Client ID is required to log activities");
 
-  const logActivity = async (
-    activityType: ExtendedActivityType,
-    description: string,
-    metadata: Json = {}
-  ): Promise<void> => {
-    if (!agentId) return;
+      const { data, error } = await supabase
+        .from("client_activities")
+        .insert({
+          client_id: clientId,
+          activity_type: activity_type as unknown as string, // Type cast to match Supabase expectations
+          description,
+          metadata: metadata || {}
+        });
 
-    setIsLogging(true);
-    try {
-      await createClientActivity(agentId, activityType, description, metadata);
-    } catch (error) {
-      console.error(`Error logging activity ${activityType}:`, error);
-    } finally {
-      setIsLogging(false);
+      if (error) throw error;
+      return data;
     }
-  };
-
-  // Add alias for backward compatibility
-  const logClientActivity = logActivity;
+  });
 
   return {
     logActivity,
-    logClientActivity, // Add this alias to maintain compatibility with existing code
-    isLogging
+    logClientActivity: async (
+      activity_type: ExtendedActivityType,
+      description: string,
+      metadata?: Json
+    ) => {
+      return logActivity.mutateAsync({ activity_type, description, metadata });
+    }
   };
 };
