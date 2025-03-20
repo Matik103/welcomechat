@@ -145,15 +145,15 @@ export function ClientRegistrationForm({ onSubmit, initialData }: ClientRegistra
 
       <Card>
         <CardHeader>
-          <CardTitle>Bot Settings</CardTitle>
+          <CardTitle>Chatbot Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="bot_name">Bot Name</Label>
+            <Label htmlFor="bot_name">Chatbot Name</Label>
             <Input
               id="bot_name"
               {...form.register("bot_settings.bot_name")}
-              placeholder="Enter bot name"
+              placeholder="Enter chatbot name"
               disabled={isLoading}
             />
             {form.formState.errors.bot_settings?.bot_name && (
@@ -164,17 +164,17 @@ export function ClientRegistrationForm({ onSubmit, initialData }: ClientRegistra
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bot_personality">Bot Personality</Label>
+            <Label htmlFor="bot_personality">Chatbot Personality</Label>
             <Textarea
               id="bot_personality"
               {...form.register("bot_settings.bot_personality")}
-              placeholder="Describe your bot's personality"
+              placeholder="Describe your chatbot's personality"
               disabled={isLoading}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bot_logo">Bot Logo</Label>
+            <Label htmlFor="bot_logo">Chatbot Logo</Label>
             <div className="flex items-center gap-4">
               <Input
                 id="bot_logo"

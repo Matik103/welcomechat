@@ -1,7 +1,9 @@
+
 import { useNavigate } from "react-router-dom";
 import { ClientRegistrationForm } from "@/components/forms/ClientRegistrationForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createOpenAIAssistant } from "@/utils/openAIUtils";
 
 export default function NewClient() {
   const navigate = useNavigate();
@@ -48,21 +50,23 @@ export default function NewClient() {
       const { data: agentData, error } = await supabase
         .from("ai_agents")
         .insert({
-          name: data.bot_settings.bot_name,
+          name: data.bot_settings.bot_name || "AI Assistant",
           agent_description: data.bot_settings.bot_personality,
           logo_url: logo_url,
           status: 'active',
           content: '',
           interaction_type: 'config',
+          client_name: data.client_name, // Save client name in ai_agents table
+          email: data.email, // Save email in ai_agents table
           settings: {
             client_name: data.client_name,
             email: data.email,
-            bot_name: data.bot_settings.bot_name,
+            bot_name: data.bot_settings.bot_name || "AI Assistant",
             bot_personality: data.bot_settings.bot_personality,
             logo_url: logo_url
           }
         })
-        .select("id")
+        .select("id, client_id")
         .single();
 
       if (error) {
@@ -71,16 +75,29 @@ export default function NewClient() {
         return;
       }
 
+      // Create OpenAI assistant for the new agent
+      try {
+        await createOpenAIAssistant(
+          agentData.client_id,
+          data.bot_settings.bot_name || "AI Assistant",
+          data.bot_settings.bot_personality || "",
+          data.client_name
+        );
+      } catch (openaiError) {
+        console.error("Error creating OpenAI assistant:", openaiError);
+        // We continue even if OpenAI assistant creation fails
+      }
+
       // Log the activity
       const { error: activityError } = await supabase
         .from('client_activities')
         .insert({
           activity_type: 'ai_agent_created',
-          description: `Created new AI agent: ${data.bot_settings.bot_name}`,
+          description: `Created new AI agent: ${data.bot_settings.bot_name || "AI Assistant"}`,
           metadata: {
             client_name: data.client_name,
             email: data.email,
-            bot_name: data.bot_settings.bot_name,
+            bot_name: data.bot_settings.bot_name || "AI Assistant",
             logo_url: logo_url
           }
         });
@@ -105,4 +122,4 @@ export default function NewClient() {
       <ClientRegistrationForm onSubmit={handleSubmit} />
     </div>
   );
-} 
+}
