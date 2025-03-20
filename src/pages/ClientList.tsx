@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
@@ -17,7 +16,6 @@ import { checkAndRefreshAuth } from "@/services/authService";
 import { createClientActivity } from "@/services/clientActivityService";
 import { ClientActions } from "@/components/client/ClientActions";
 
-// This function properly types the clients array
 const ClientList = () => {
   const [search, setSearch] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
@@ -39,7 +37,7 @@ const ClientList = () => {
         const { data, error, count } = await supabase
           .from("clients")
           .select("*", { count: "exact" })
-          .neq("status", "deleted") // Filter out clients with "deleted" status
+          .neq("status", "deleted")
           .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
           .order("created_at", { ascending: false });
 
@@ -63,7 +61,6 @@ const ClientList = () => {
     fetchClients();
   }, [page, toast]);
 
-  // Add proper type checking for client.agent_name
   const renderAgentName = (client: Client) => {
     const agentName = client.agent_name || "AI Assistant";
     return (
@@ -90,7 +87,7 @@ const ClientList = () => {
   const getBadgeVariant = (status: string) => {
     switch (status) {
       case "active":
-        return "default"; // Changed from "success" to "default"
+        return "default";
       case "inactive":
         return "secondary";
       case "deleted":
@@ -112,7 +109,6 @@ const ClientList = () => {
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
     
-    // Log that admin viewed the delete dialog
     createClientActivity(
       client.id,
       "client_updated",
@@ -126,7 +122,6 @@ const ClientList = () => {
   };
 
   const handleEditClick = (client: Client) => {
-    // Log activity before navigating
     createClientActivity(
       client.id,
       "client_updated",
@@ -142,9 +137,8 @@ const ClientList = () => {
   };
 
   const handleClientCreated = () => {
-    // Log activity when navigating to create a new client
     createClientActivity(
-      "system", // Using "system" as client_id for system-wide activities
+      "system",
       "system_update",
       "Admin initiated new client creation",
       { 
@@ -171,7 +165,6 @@ const ClientList = () => {
 
       <div className="flex justify-between items-center mt-4">
         <div>
-          {/* Pagination controls */}
           <Button
             variant="outline"
             disabled={page === 1}
@@ -269,7 +262,6 @@ const ClientList = () => {
         onOpenChange={setIsDeleteDialogOpen}
         client={selectedClient}
         onClientsUpdated={() => {
-          // Log deletion activity
           if (selectedClient) {
             createClientActivity(
               selectedClient.id,
