@@ -21,13 +21,19 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     // Ensure we have a widget_settings object
     const widgetSettings = data.widget_settings || {};
     
+    // Validate required fields to prevent null values
+    if (!data.client_name || !data.email) {
+      throw new Error("Client name and email are required");
+    }
+    
     // Insert client data into clients table
     const { data: clientData, error: clientError } = await supabase
       .from("clients")
       .insert({
         client_name: data.client_name,
         email: data.email,
-        widget_settings: widgetSettings
+        widget_settings: widgetSettings,
+        agent_name: widgetSettings.agent_name || 'AI Assistant' // Provide default value
       })
       .select("id")
       .single();
@@ -103,7 +109,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       `New client ${data.client_name} created`,
       { 
         email: data.email,
-        agent_name: widgetSettings.agent_name,
+        agent_name: widgetSettings.agent_name || 'AI Assistant',
         has_agent_description: !!widgetSettings.agent_description
       }
     );
