@@ -1,6 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { ActivityType } from "@/integrations/supabase/types";
 import { Json } from "@/integrations/supabase/types";
+import { ExtendedActivityType } from "@/types/activity";
 
 /**
  * Creates a client activity entry in the database
@@ -12,7 +13,7 @@ import { Json } from "@/integrations/supabase/types";
  */
 export const createClientActivity = async (
   clientId: string,
-  activityType: ActivityType,
+  activityType: ExtendedActivityType,
   description: string,
   metadata: Record<string, any> = {}
 ): Promise<any> => {
