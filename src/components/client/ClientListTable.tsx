@@ -9,15 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ClientActions } from "./ClientActions";
-
-interface Client {
-  id: string;
-  client_name: string;
-  agent_name: string;
-  status: string;
-  updated_at: string;
-  email: string;
-}
+import { Client } from "@/types/client";
 
 interface ClientListTableProps {
   clients: Client[];

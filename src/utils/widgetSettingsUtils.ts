@@ -1,6 +1,7 @@
 
-import { JsonObject } from "@/types/supabase-extensions";
+import { JsonObject, toJson } from "@/types/supabase-extensions";
 import { WidgetSettings, defaultSettings } from "@/types/widget-settings";
+import { execSql } from "@/utils/rpcUtils";
 
 /**
  * Extracts and normalizes widget settings from client data
@@ -74,31 +75,35 @@ export const normalizeWidgetSettings = (settings: Partial<WidgetSettings>): Widg
  */
 export const getWidgetSettings = async (clientId: string): Promise<WidgetSettings> => {
   try {
-    // First try to get settings from the clients table
-    const { data: clientData, error: clientError } = await supabase
-      .from('clients')
-      .select('widget_settings, agent_name, logo_url, logo_storage_path')
-      .eq('id', clientId)
-      .single();
+    // Use execSql instead of direct Supabase access
+    const clientQuery = `
+      SELECT widget_settings, agent_name, logo_url, logo_storage_path
+      FROM clients
+      WHERE id = $1
+      LIMIT 1
+    `;
     
-    if (clientError) {
-      console.error("Error fetching client widget settings:", clientError);
-      // Fallback to ai_agents table
-      const { data: agentData, error: agentError } = await supabase
-        .from('ai_agents')
-        .select('settings, name, logo_url, logo_storage_path, agent_description')
-        .eq('client_id', clientId)
-        .single();
-      
-      if (agentError) {
-        console.error("Error fetching agent settings:", agentError);
-        return defaultSettings;
-      }
-      
-      return extractWidgetSettings(agentData);
+    const clientResult = await execSql(clientQuery, [clientId]);
+    
+    if (clientResult && Array.isArray(clientResult) && clientResult.length > 0) {
+      return extractWidgetSettings(clientResult[0]);
     }
     
-    return extractWidgetSettings(clientData);
+    // Fallback to ai_agents table
+    const agentQuery = `
+      SELECT settings, name, logo_url, logo_storage_path, agent_description
+      FROM ai_agents
+      WHERE client_id = $1 AND interaction_type = 'config'
+      LIMIT 1
+    `;
+    
+    const agentResult = await execSql(agentQuery, [clientId]);
+    
+    if (agentResult && Array.isArray(agentResult) && agentResult.length > 0) {
+      return extractWidgetSettings(agentResult[0]);
+    }
+    
+    return defaultSettings;
   } catch (error) {
     console.error("Error in getWidgetSettings:", error);
     return defaultSettings;
@@ -110,36 +115,41 @@ export const getWidgetSettings = async (clientId: string): Promise<WidgetSetting
  */
 export const updateWidgetSettings = async (clientId: string, settings: WidgetSettings): Promise<boolean> => {
   try {
-    // Update settings in clients table
-    const { error: clientError } = await supabase
-      .from('clients')
-      .update({ 
-        widget_settings: settings,
-        agent_name: settings.agent_name
-      })
-      .eq('id', clientId);
+    // Update settings in clients table using execSql
+    const clientQuery = `
+      UPDATE clients
+      SET 
+        widget_settings = $1,
+        agent_name = $2
+      WHERE id = $3
+    `;
     
-    if (clientError) {
-      console.error("Error updating client widget settings:", clientError);
-      return false;
-    }
+    await execSql(clientQuery, [
+      JSON.stringify(settings),
+      settings.agent_name,
+      clientId
+    ]);
     
-    // Also sync settings to ai_agents table if it exists
-    const { error: agentError } = await supabase
-      .from('ai_agents')
-      .update({ 
-        settings: settings,
-        name: settings.agent_name,
-        agent_description: settings.agent_description,
-        logo_url: settings.logo_url,
-        logo_storage_path: settings.logo_storage_path
-      })
-      .eq('client_id', clientId);
+    // Also sync settings to ai_agents table
+    const agentQuery = `
+      UPDATE ai_agents
+      SET 
+        settings = $1,
+        name = $2,
+        agent_description = $3,
+        logo_url = $4,
+        logo_storage_path = $5
+      WHERE client_id = $6 AND interaction_type = 'config'
+    `;
     
-    if (agentError) {
-      console.warn("Could not sync settings to ai_agents table:", agentError);
-      // This is not critical, we still consider the update successful
-    }
+    await execSql(agentQuery, [
+      JSON.stringify(settings),
+      settings.agent_name,
+      settings.agent_description,
+      settings.logo_url,
+      settings.logo_storage_path,
+      clientId
+    ]);
     
     return true;
   } catch (error) {
