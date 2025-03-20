@@ -29,7 +29,6 @@ export interface ClientFormData {
   client_name: string;
   email: string;
   agent_name?: string;
-  agent_description?: string; // Only in form data, stored in widget_settings
   widget_settings?: Json;
   company?: string;
   description?: string;
