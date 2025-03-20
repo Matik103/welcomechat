@@ -1,122 +1,211 @@
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Loader2, FilePlus, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
+import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
+import { DocumentLink } from '@/types/client';
+import { formatDistanceToNow } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { useDriveAccessCheck } from '@/hooks/useDriveAccessCheck';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DocumentLinksProps {
-  clientId: string;
-  isClientView?: boolean;
-  documents?: any[];
-  onAdd?: (data: { link: string; refresh_rate: number; document_type?: string }) => Promise<void>;
-  onDelete?: (linkId: number) => Promise<void>;
+  driveLinks: DocumentLink[];
+  onAdd: (data: { link: string; refresh_rate: number; document_type?: string }) => Promise<void>;
+  onDelete: (linkId: number) => Promise<void>;
   onUpload?: (file: File, agentName: string) => Promise<void>;
-  isLoading?: boolean;
-  agentName?: string;
+  isLoading: boolean;
+  isAdding: boolean;
+  isDeleting: boolean;
+  agentName: string;
 }
 
-export const DocumentLinks = ({ 
-  clientId, 
-  isClientView = false,
-  documents: externalDocuments,
+export const DocumentLinks = ({
+  driveLinks,
   onAdd,
   onDelete,
   onUpload,
-  isLoading: externalLoading,
-  agentName: externalAgentName
+  isLoading,
+  isAdding,
+  isDeleting,
+  agentName
 }: DocumentLinksProps) => {
-  const [isLoading, setIsLoading] = useState(externalLoading !== undefined ? externalLoading : true);
-  const [documents, setDocuments] = useState<any[]>(externalDocuments || []);
-  const [agentName, setAgentName] = useState<string>(externalAgentName || "");
+  const [showForm, setShowForm] = useState(false);
+  const [clientInfo, setClientInfo] = useState<{ client_name?: string; agent_name?: string }>({});
 
   useEffect(() => {
-    if (externalDocuments !== undefined) {
-      setDocuments(externalDocuments);
-      return;
-    }
-
-    const fetchData = async () => {
-      if (!clientId) return;
-      
-      setIsLoading(true);
-      
-      try {
-        // Fetch agent name if not provided externally
-        if (!externalAgentName) {
-          const { data: agentData, error: agentError } = await supabase
-            .from("ai_agents")
-            .select("name")
-            .eq("id", clientId)
+    if (agentName) {
+      const fetchClientInfo = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("ai_agents") 
+            .select("client_name, name")
+            .eq("name", agentName)
             .single();
-            
-          if (agentError) {
-            console.error("Error fetching agent name:", agentError);
-          } else if (agentData?.name) {
-            setAgentName(agentData.name);
-          }
-        }
-        
-        // The table name here should be "client_documents" not "client_document"
-        const { data: docsData, error: docsError } = await supabase
-          .from("client_documents")
-          .select("*")
-          .eq("client_id", clientId)
-          .order("created_at", { ascending: false });
-          
-        if (docsError) {
-          throw docsError;
-        }
-        
-        setDocuments(docsData || []);
-      } catch (error) {
-        console.error("Error fetching documents:", error);
-        toast.error("Failed to load documents");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, [clientId, externalDocuments, externalAgentName]);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-4">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  if (documents.length === 0) {
-    return (
-      <div className="text-center py-4 text-gray-500">
-        No documents found.
-      </div>
-    );
-  }
-  
+          if (error) {
+            console.error("Error fetching client info:", error);
+            return;
+          }
+
+          setClientInfo({
+            client_name: data.client_name,
+            agent_name: data.name
+          });
+        } catch (err) {
+          console.error("Failed to fetch client info:", err);
+        }
+      };
+
+      fetchClientInfo();
+    }
+  }, [agentName]);
+
+  const accessStatusColors = {
+    accessible: "bg-green-100 text-green-800",
+    inaccessible: "bg-red-100 text-red-800",
+    unknown: "bg-gray-100 text-gray-800"
+  };
+
+  const documentTypes = {
+    "google_doc": "Google Doc",
+    "google_sheet": "Google Sheet",
+    "google_drive": "Google Drive",
+    "pdf": "PDF",
+    "text": "Text",
+    "other": "Other"
+  };
+
+  const handleFormToggle = () => {
+    setShowForm(!showForm);
+  };
+
+  const checkDriveAccess = async (linkId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from("document_links")
+        .update({ access_status: "unknown" })
+        .eq("id", linkId)
+        .select();
+
+      if (error) {
+        console.error("Error updating access status:", error);
+      }
+    } catch (err) {
+      console.error("Failed to check drive access:", err);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <ul className="space-y-2">
-        {documents.map((doc) => (
-          <li key={doc.id} className="p-3 bg-gray-50 rounded-md flex justify-between items-center">
-            <div>
-              <h4 className="font-medium">{doc.file_name}</h4>
-              <p className="text-sm text-gray-500">
-                {new Date(doc.created_at).toLocaleDateString()}
-              </p>
-            </div>
-            <a 
-              href={doc.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:text-blue-700"
-            >
-              View
-            </a>
-          </li>
-        ))}
-      </ul>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium">Document Links</h3>
+        <Button 
+          onClick={handleFormToggle} 
+          variant={showForm ? "outline" : "default"}
+          size="sm"
+        >
+          {showForm ? "Cancel" : "Add Document Link"}
+        </Button>
+      </div>
+
+      {showForm && (
+        <DocumentLinkForm 
+          onSubmit={async (data) => {
+            await onAdd(data);
+            setShowForm(false);
+          }}
+          isSubmitting={isAdding}
+          agentName={agentName}
+        />
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : driveLinks.length === 0 ? (
+        <Card className="p-6 text-center text-muted-foreground">
+          <div className="flex flex-col items-center space-y-2">
+            <FilePlus className="h-12 w-12 mb-2" />
+            <p>No document links added yet</p>
+            <p className="text-sm">Add a Google Drive link or upload a document to get started</p>
+          </div>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {driveLinks.map((link) => {
+            const DocumentAccessStatus = () => {
+              const { accessStatus, isLoading } = useDriveAccessCheck(link.id);
+              
+              return (
+                <Badge 
+                  className={`${accessStatusColors[accessStatus]} ml-2`}
+                  variant="outline"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  ) : (
+                    accessStatus === 'inaccessible' && (
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                    )
+                  )}
+                  {accessStatus === 'accessible' ? 'Accessible' : 
+                   accessStatus === 'inaccessible' ? 'Access Error' : 'Unknown'}
+                </Badge>
+              );
+            };
+
+            return (
+              <Card key={link.id} className="p-4">
+                <div className="flex justify-between">
+                  <div className="space-y-1 flex-1 mr-2">
+                    <div className="flex items-center">
+                      <Badge variant="outline" className="text-xs">
+                        {documentTypes[link.document_type as keyof typeof documentTypes] || "Document"}
+                      </Badge>
+                      <DocumentAccessStatus />
+                    </div>
+                    <a 
+                      href={link.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline break-all"
+                    >
+                      {link.link}
+                    </a>
+                    <p className="text-xs text-muted-foreground">
+                      Added {formatDistanceToNow(new Date(link.created_at), { addSuffix: true })}
+                      {link.refresh_rate && ` • Refresh every ${link.refresh_rate} days`}
+                    </p>
+                  </div>
+                  <div className="flex space-x-1">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => checkDriveAccess(link.id)}
+                      title="Check access"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => onDelete(link.id)}
+                      disabled={isDeleting}
+                      className="text-destructive hover:text-destructive"
+                      title="Delete link"
+                    >
+                      {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

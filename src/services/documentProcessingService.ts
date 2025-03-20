@@ -1,118 +1,137 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { DocumentProcessingResult, LlamaParseResponse } from "@/types/llamaparse";
+import { LlamaParseConfig, LlamaParseRequest, LlamaParseResponse, DocumentProcessingResult } from "@/types/llamaparse";
 import { createClientActivity, logAgentError } from "./clientActivityService";
-import { ActivityType } from "@/types/activity";
 
-/**
- * Processes a document file for a specific client
- */
-export const processDocument = async (
-  clientId: string,
+export const processDocumentWithLlamaParse = async (
   file: File,
-  agentName: string
+  clientId: string,
+  agentName?: string
 ): Promise<DocumentProcessingResult> => {
   try {
-    // Log that document processing has started
+    // Log document processing started
     await createClientActivity(
       clientId,
-      "document_processing_started" as ActivityType,
+      "document_processing_started",
       `Started processing document: ${file.name}`,
       {
-        file_name: file.name,
-        file_size: file.size,
-        file_type: file.type,
-        agent_name: agentName
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type
       }
     );
 
-    // First, upload the file to storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("client-documents")
-      .upload(`${clientId}/${Date.now()}_${file.name}`, file);
+    // Fetch the LlamaParse API key from the environment
+    const { data, error } = await supabase
+      .functions
+      .invoke("get-llamaparse-api-key", {
+        body: { clientId }
+      });
 
-    if (uploadError) {
+    if (error || !data?.apiKey) {
+      console.error("Error fetching LlamaParse API key:", error || "No API key returned");
       await logAgentError(
         clientId,
-        "document_upload_failed",
-        `Failed to upload document: ${uploadError.message}`,
-        { file_name: file.name }
+        "llamaparse_api_key_error",
+        "Failed to fetch LlamaParse API key",
+        { error: error?.message || "No API key returned" }
       );
-      return { status: "failed", error: uploadError.message };
+      return { status: "failed", error: "Configuration error" };
     }
 
-    // Log document stored successfully
-    await createClientActivity(
-      clientId,
-      "document_stored" as ActivityType,
-      `Document stored successfully: ${file.name}`,
-      {
-        file_name: file.name,
-        storage_path: uploadData.path
-      }
-    );
+    // Create a form data object
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("mimeType", file.type);
 
-    // Get public URL for the uploaded file
-    const { data: publicUrlData } = supabase.storage
-      .from("client-documents")
-      .getPublicUrl(uploadData.path);
+    // Set up the API call to LlamaParse
+    const response = await fetch("https://api.llamaindex.ai/v1/process_file", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${data.apiKey}`
+      },
+      body: formData
+    });
 
-    // Store document record in database
-    const { data: documentData, error: documentError } = await supabase
-      .from("client_documents")
+    // Handle API response
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("LlamaParse API error:", errorData);
+      await logAgentError(
+        clientId,
+        "llamaparse_api_error",
+        errorData.error?.message || "Unknown LlamaParse API error",
+        errorData
+      );
+      return { status: "failed", error: errorData.error?.message || "Processing failed" };
+    }
+
+    // Parse successful response
+    const result = await response.json();
+
+    // Store document in database
+    const { data: docData, error: docError } = await supabase
+      .from("ai_documents")
       .insert({
         client_id: clientId,
+        agent_name: agentName,
         file_name: file.name,
-        file_type: file.type,
-        file_size: file.size,
-        storage_path: uploadData.path,
-        url: publicUrlData.publicUrl,
-        status: "processed"
+        content: result.data?.content || "",
+        document_id: result.id,
+        status: "processed",
+        metadata: {
+          title: result.data?.metadata?.title,
+          author: result.data?.metadata?.author,
+          pages: result.data?.metadata?.pages,
+          words: result.data?.metadata?.words,
+          fileSize: file.size,
+          fileType: file.type
+        }
       })
-      .select()
+      .select("id")
       .single();
 
-    if (documentError) {
-      return { status: "failed", error: documentError.message };
+    if (docError) {
+      console.error("Error storing document:", docError);
+      await createClientActivity(
+        clientId,
+        "document_processing_failed",
+        `Failed to store processed document: ${file.name}`,
+        {
+          fileName: file.name,
+          error: docError.message
+        }
+      );
+      return { status: "failed", error: "Failed to store document" };
     }
 
-    // Log document processing complete
+    // Log document processing completion
     await createClientActivity(
       clientId,
-      "document_processing_completed" as ActivityType,
-      `Document processed: ${file.name}`,
+      "document_processing_completed",
+      `Successfully processed document: ${file.name}`,
       {
-        document_id: documentData.id,
-        file_name: file.name,
-        url: publicUrlData.publicUrl
+        fileName: file.name,
+        documentId: result.id,
+        title: result.data?.metadata?.title,
+        pages: result.data?.metadata?.pages
       }
     );
 
     return {
       status: "success",
-      documentId: documentData.id,
-      metadata: {
-        fileName: file.name,
-        url: publicUrlData.publicUrl
-      }
+      documentId: docData.id.toString(),
+      content: result.data?.content,
+      metadata: result.data?.metadata
     };
   } catch (error: any) {
-    console.error("Error processing document:", error);
-    
-    // Log the error
-    await createClientActivity(
+    console.error("Document processing error:", error);
+    await logAgentError(
       clientId,
-      "document_processing_failed" as ActivityType,
-      `Failed to process document: ${file.name}`,
-      {
-        file_name: file.name,
-        error_message: error.message
-      }
+      "document_processing_error",
+      error.message || "Unknown error during document processing",
+      { fileName: file.name }
     );
-    
-    return {
-      status: "failed",
-      error: error.message
-    };
+    return { status: "failed", error: error.message || "Unknown error" };
   }
 };

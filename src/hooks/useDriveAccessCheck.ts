@@ -9,7 +9,7 @@ export const useDriveAccessCheck = (linkId: number) => {
     queryFn: async (): Promise<AccessStatus> => {
       try {
         const { data, error } = await supabase
-          .from("google_drive_links")
+          .from("document_links")
           .select("access_status")
           .eq("id", linkId)
           .single();

@@ -45,7 +45,7 @@ export const logAgentError = async (
         error_type: errorType,
         error_message: errorMessage,
         ...metadata
-      }
+      } as Json
     );
   } catch (error) {
     console.error("Failed to log agent error:", error);
