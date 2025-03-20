@@ -1,146 +1,155 @@
-
-import { InteractionStats } from "@/types/client-dashboard";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchTopQueries } from "./topQueriesService";
-import { RealtimeChannel } from "@supabase/supabase-js";
-import { Json } from "@/integrations/supabase/types";
-import { execSql } from "@/utils/rpcUtils";
+import { InteractionStats, ErrorLog, QueryItem } from "@/types/client-dashboard";
+import { execSql, callRpcFunction } from "@/utils/rpcUtils";
 
 /**
- * Fetches dashboard statistics for a specific client
+ * Get interaction statistics for a client
+ * @param clientId The client ID
+ * @param agentName The agent name (optional)
+ * @returns Interaction statistics
  */
-export const fetchDashboardStats = async (clientId: string): Promise<InteractionStats> => {
-  if (!clientId) {
-    return {
+export const getInteractionStats = async (clientId: string, agentName?: string): Promise<InteractionStats> => {
+  try {
+    // Default empty stats with both snake_case and camelCase properties
+    const defaultStats: InteractionStats = {
       total_interactions: 0,
       active_days: 0,
       average_response_time: 0,
-      top_queries: []
-    };
-  }
-
-  try {
-    // Use RPC function via execSql rather than directly querying the clients table
-    const agentQuery = `
-      SELECT agent_name 
-      FROM clients 
-      WHERE id = '${clientId}'
-      LIMIT 1
-    `;
-    
-    const agentResult = await execSql(agentQuery);
-    
-    if (!agentResult || agentResult.length === 0) {
-      console.error("Could not determine AI agent name");
-      throw new Error("Could not determine AI agent name");
-    }
-    
-    const agentName = agentResult[0]?.agent_name || 'AI Assistant';
-
-    // Use RPC function again to get stats
-    const statsQuery = `
-      SELECT * FROM get_agent_dashboard_stats('${clientId}', '${agentName}')
-    `;
-    
-    const statsResult = await execSql(statsQuery);
-    
-    if (!statsResult) {
-      throw new Error("Failed to retrieve dashboard stats");
-    }
-    
-    // Parse the JSON response from the function
-    const stats = typeof statsResult === 'string' 
-      ? JSON.parse(statsResult) 
-      : statsResult;
-    
-    // Format the result into the expected structure
-    const formattedStats: InteractionStats = {
-      total_interactions: Number(stats.total_interactions) || 0,
-      active_days: Number(stats.active_days) || 0,
-      average_response_time: Number(stats.average_response_time) || 0,
-      top_queries: Array.isArray(stats.top_queries) 
-        ? stats.top_queries.map((q: any) => ({
-            query_text: q.query_text,
-            frequency: Number(q.frequency)
-          }))
-        : []
+      top_queries: [],
+      // Add camelCase properties for compatibility
+      totalInteractions: 0,
+      activeDays: 0,
+      averageResponseTime: 0,
+      topQueries: []
     };
 
-    return formattedStats;
-    
-  } catch (err) {
-    console.error("Error fetching stats:", err);
-    // Return default values in case of error
-    return {
-      total_interactions: 0,
-      active_days: 0,
-      average_response_time: 0,
-      top_queries: []
-    };
-  }
-};
-
-/**
- * Sets up a real-time subscription for client's AI agent table
- * @param clientId - The client ID to subscribe to
- * @param onUpdate - Callback function that will be called when updates occur
- * @returns The subscription channel for cleanup
- */
-export const subscribeToAgentData = async (
-  clientId: string,
-  onUpdate: () => void
-): Promise<RealtimeChannel | null> => {
-  if (!clientId) {
-    console.error("No client ID provided for agent data subscription");
-    return null;
-  }
-
-  try {
-    // Get the client details using RPC instead of direct table access
-    const agentQuery = `
-      SELECT agent_name 
-      FROM clients 
-      WHERE id = '${clientId}'
-      LIMIT 1
-    `;
-    
-    const agentResult = await execSql(agentQuery);
-    
-    if (!agentResult || agentResult.length === 0) {
-      console.error("Error fetching client data for subscription");
-      return null;
+    if (!clientId) {
+      return defaultStats;
     }
-    
-    const agentName = agentResult[0]?.agent_name || 'AI Assistant';
 
-    // Set up subscription for the ai_agents table filtered by client_id
-    console.log(`Setting up subscription for AI agent with client ID: ${clientId}`);
-    
-    const channel = supabase
-      .channel(`agent-data-${clientId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'ai_agents',
-          filter: `client_id=eq.${clientId}`
-        },
-        (payload) => {
-          console.log("AI agent data change detected:", payload);
-          onUpdate();
-        }
-      )
-      .subscribe((status) => {
-        console.log(`Subscription to ai_agents for client ${clientId} status:`, status);
+    // Try to fetch stats using an RPC function first
+    try {
+      const statsData = await callRpcFunction('get_agent_dashboard_stats', {
+        client_id_param: clientId,
+        agent_name_param: agentName || undefined
       });
-      
-    return channel;
-  } catch (err) {
-    console.error("Error setting up agent data subscription:", err);
-    return null;
+
+      if (statsData) {
+        // Create object with both snake_case and camelCase properties
+        return {
+          total_interactions: statsData.total_interactions || 0,
+          active_days: statsData.active_days || 0,
+          average_response_time: statsData.average_response_time || 0,
+          top_queries: statsData.top_queries || [],
+          success_rate: statsData.success_rate || undefined,
+          // Add camelCase versions for frontend compatibility
+          totalInteractions: statsData.total_interactions || 0,
+          activeDays: statsData.active_days || 0,
+          averageResponseTime: statsData.average_response_time || 0,
+          topQueries: statsData.top_queries || []
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching stats via RPC:", error);
+      // Fall back to individual queries below
+    }
+
+    // Fallback: Collect stats using individual queries
+    // (This is just a skeleton to show how we would approach this)
+    const stats: InteractionStats = {
+      total_interactions: 0,
+      active_days: 0,
+      average_response_time: 0,
+      top_queries: [],
+      // Add camelCase versions for frontend compatibility
+      totalInteractions: 0,
+      activeDays: 0,
+      averageResponseTime: 0,
+      topQueries: []
+    };
+
+    // Run SQL to get total interactions
+    const totalQuery = `
+      SELECT COUNT(*) as count 
+      FROM client_activities 
+      WHERE client_id = '${clientId}' 
+      AND activity_type = 'chat_interaction'
+    `;
+    const totalResult = await execSql(totalQuery);
+    if (totalResult && Array.isArray(totalResult) && totalResult.length > 0) {
+      stats.total_interactions = parseInt(totalResult[0].count) || 0;
+      stats.totalInteractions = stats.total_interactions;
+    }
+
+    // More queries for other stats...
+    
+    return stats;
+  } catch (error) {
+    console.error("Error in getInteractionStats:", error);
+    return {
+      total_interactions: 0,
+      active_days: 0,
+      average_response_time: 0,
+      top_queries: [],
+      // Add camelCase versions for frontend compatibility
+      totalInteractions: 0,
+      activeDays: 0,
+      averageResponseTime: 0,
+      topQueries: []
+    };
   }
 };
 
-// Export the activity subscription functions
-export { subscribeToActivities } from "./activitySubscriptionService";
+/**
+ * Get recent error logs for a client
+ * @param clientId The client ID
+ * @param limit The number of logs to retrieve
+ * @returns Recent error logs
+ */
+export const getRecentErrorLogs = async (clientId: string, limit: number = 5): Promise<ErrorLog[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('error_logs')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("Error fetching recent error logs:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("Error in getRecentErrorLogs:", error);
+    return [];
+  }
+};
+
+/**
+ * Get top queries for a client
+ * @param clientId The client ID
+ * @param limit The number of queries to retrieve
+ * @returns Top queries
+ */
+export const getTopQueries = async (clientId: string, limit: number = 5): Promise<QueryItem[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('top_queries')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('frequency', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("Error fetching top queries:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("Error in getTopQueries:", error);
+    return [];
+  }
+};

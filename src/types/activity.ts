@@ -2,6 +2,9 @@
 import { Json } from "@/integrations/supabase/types";
 import { ExtendedActivityType } from "./extended-supabase";
 
+// Export ExtendedActivityType for other modules to use
+export { ExtendedActivityType };
+
 /**
  * Type definition for activity types
  */
@@ -33,3 +36,6 @@ export interface ActivityLogProps {
 export interface ActivityItemProps {
   activity: ClientActivity;
 }
+
+// Client status enum
+export type ClientStatus = 'active' | 'inactive' | 'pending' | 'deleted';

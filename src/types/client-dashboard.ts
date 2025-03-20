@@ -5,7 +5,7 @@ export interface InteractionStats {
   active_days: number;
   average_response_time: number;
   top_queries: Array<{query_text: string; frequency: number}>;
-  successRate?: number; // Optional field for backward compatibility
+  success_rate?: number; // Optional field for backward compatibility
   
   // Camel case aliases for frontend compatibility
   totalInteractions: number;
@@ -34,4 +34,16 @@ export interface QueryItem {
   last_asked?: string;
   client_id?: string;
   created_at?: string;
+}
+
+// Define ChatInteraction to include both query_text and other properties
+export interface ChatInteraction {
+  id: string;
+  query?: string;
+  query_text?: string; // For compatibility
+  response?: string;
+  created_at: string;
+  timestamp?: string; // Alternative field name
+  agent_name?: string;
+  metadata?: any;
 }
