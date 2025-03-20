@@ -72,7 +72,7 @@ export const DeleteClientDialog = ({
       if (emailResult.success) {
         toast.success(`Client scheduled for deletion and notification email sent to ${client.email}`);
       } else {
-        toast.error("Client scheduled for deletion but failed to send notification email");
+        toast.error(`Client scheduled for deletion but failed to send notification email: ${emailResult.message || "Unknown error"}`);
       }
       
       // Let the parent component know to update the list and log the activity

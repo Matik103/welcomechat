@@ -27,6 +27,11 @@ serve(async (req) => {
     const { clientId, clientName, email, agentName } = await req.json();
     console.log("Processing deletion email for:", { clientId, clientName, email });
 
+    if (!resendApiKey) {
+      console.error("RESEND_API_KEY environment variable is not set");
+      throw new Error("Email service configuration is missing");
+    }
+
     // Create recovery token
     const { data, error } = await supabase
       .from("client_recovery_tokens")
