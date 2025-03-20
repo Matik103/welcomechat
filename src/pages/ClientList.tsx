@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
@@ -34,8 +35,9 @@ const ClientList = () => {
       setLoading(true);
       try {
         await checkAndRefreshAuth();
+        // Query ai_agents instead of clients
         const { data, error, count } = await supabase
-          .from("clients")
+          .from("ai_agents")
           .select("*", { count: "exact" })
           .neq("status", "deleted")
           .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
@@ -51,7 +53,29 @@ const ClientList = () => {
           return;
         }
 
-        setClients(data || []);
+        // Convert the AI agents data to Client type
+        const clientData: Client[] = (data || []).map(agent => ({
+          id: agent.id,
+          client_name: agent.client_name || "",
+          email: agent.email || "",
+          logo_url: agent.logo_url || "",
+          logo_storage_path: agent.logo_storage_path || "",
+          created_at: agent.created_at,
+          updated_at: agent.updated_at,
+          deletion_scheduled_at: agent.deletion_scheduled_at,
+          deleted_at: agent.deleted_at,
+          status: agent.status || "active",
+          company: agent.company || "",
+          description: agent.agent_description || "",
+          name: agent.name,
+          widget_settings: {
+            agent_name: agent.name,
+            agent_description: agent.agent_description || "",
+            ...(agent.settings?.widget_settings || {})
+          }
+        }));
+
+        setClients(clientData);
         setTotalPages(Math.ceil((count || 0) / PAGE_SIZE));
       } finally {
         setLoading(false);
@@ -62,7 +86,7 @@ const ClientList = () => {
   }, [page, toast]);
 
   const renderAgentName = (client: Client) => {
-    const agentName = client.agent_name || "AI Assistant";
+    const agentName = client.name || "AI Assistant";
     return (
       <span className="inline-flex items-center gap-1">
         <BotIcon className="w-4 h-4 text-primary" />
@@ -76,7 +100,7 @@ const ClientList = () => {
     return (
       client.client_name.toLowerCase().includes(searchTerm) ||
       client.email.toLowerCase().includes(searchTerm) ||
-      (client.agent_name || "AI Assistant").toLowerCase().includes(searchTerm)
+      (client.name || "AI Assistant").toLowerCase().includes(searchTerm)
     );
   });
 

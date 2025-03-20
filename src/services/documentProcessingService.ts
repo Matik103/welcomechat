@@ -1,9 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { ExtendedActivityType } from "@/types/activity";
-import { createClientActivity } from "@/services/clientActivityService";
+import { LlamaparseResult } from "@/types/llamaparse";
 import { logAgentError } from "@/services/clientActivityService";
+import { createClientActivity } from "@/services/clientActivityService";
 import { toast } from "sonner";
-import { Json } from "@/integrations/supabase/types";
 
 /**
  * Tracks the status of document processing and logs activities
@@ -376,7 +375,94 @@ export const migrateDocumentProcessingSystem = async (): Promise<void> => {
   }
 };
 
-// Export a function to update our scripts
+/**
+ * Process document content using Llamaparse
+ */
+export const processDocumentContent = async ({
+  clientId,
+  agentName,
+  documentId,
+  documentUrl,
+  documentType,
+  content
+}: {
+  clientId: string;
+  agentName: string;
+  documentId: string;
+  documentUrl: string;
+  documentType: string;
+  content: string;
+}): Promise<boolean> => {
+  try {
+    console.log(`Processing document content for ${documentId}, type: ${documentType}`);
+    
+    // Store the document content in ai_agents table
+    const { data, error } = await supabase
+      .from("ai_agents")
+      .insert({
+        client_id: clientId,
+        name: agentName,
+        content,
+        interaction_type: "document_content",
+        url: documentUrl,
+        settings: {
+          document_id: documentId,
+          document_type: documentType,
+          processed_at: new Date().toISOString()
+        }
+      })
+      .select("id")
+      .single();
+    
+    if (error) {
+      console.error("Error storing document content:", error);
+      await logAgentError(
+        clientId,
+        "document_processing",
+        `Failed to store document content: ${error.message}`,
+        {
+          document_id: documentId,
+          document_url: documentUrl,
+          document_type: documentType
+        }
+      );
+      return false;
+    }
+    
+    console.log("Document content stored successfully with ID:", data.id);
+    
+    // Log the activity
+    await createClientActivity(
+      clientId,
+      "system_update",
+      `Document content processed for ${documentId}`,
+      {
+        document_id: documentId,
+        document_type: documentType,
+        document_url: documentUrl,
+        content_length: content.length
+      }
+    );
+    
+    return true;
+  } catch (error) {
+    console.error("Error in processDocumentContent:", error);
+    await logAgentError(
+      clientId,
+      "document_processing",
+      `Error processing document content: ${error instanceof Error ? error.message : String(error)}`,
+      {
+        document_id: documentId,
+        document_url: documentUrl
+      }
+    );
+    return false;
+  }
+};
+
+/**
+ * Export a function to update our scripts
+ */
 export const updateDocumentScripts = async (): Promise<void> => {
   console.log('Updating document processing scripts');
   

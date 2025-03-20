@@ -20,15 +20,15 @@ export const useClientChatHistory = (clientId: string | undefined, limit: number
       if (!clientId) return;
       
       try {
-        // Get the client's agent name
-        const { data: clientData, error: clientError } = await supabase
-          .from("clients")
-          .select("agent_name")
+        // Get the agent name from the ai_agents table
+        const { data, error } = await supabase
+          .from("ai_agents")
+          .select("name")
           .eq("id", clientId)
           .single();
-          
-        if (clientError) {
-          console.error("Error fetching client agent name:", clientError);
+        
+        if (error) {
+          console.error("Error fetching agent name:", error);
           return;
         }
         
@@ -36,7 +36,7 @@ export const useClientChatHistory = (clientId: string | undefined, limit: number
         const { count, error: countError } = await supabase
           .from("ai_agents")
           .select("*", { count: 'exact', head: true })
-          .eq("client_id", clientId);
+          .eq("id", clientId);
           
         if (countError) {
           console.error("Error counting client AI agent entries:", countError);
@@ -44,12 +44,12 @@ export const useClientChatHistory = (clientId: string | undefined, limit: number
         }
         
         setDebugInfo({
-          agentName: clientData?.agent_name || null,
+          agentName: data?.name || null,
           count: count
         });
         
         console.log(`Debug info for client ${clientId}:`, {
-          agentName: clientData?.agent_name,
+          agentName: data?.name,
           aiAgentCount: count
         });
       } catch (error) {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Upload } from "lucide-react";
@@ -51,8 +52,8 @@ export const DriveLinks = ({
       try {
         console.log("Fetching client data for ID:", clientId);
         const { data, error } = await supabase
-          .from("clients")
-          .select("client_name, agent_name")
+          .from("ai_agents")
+          .select("client_name, name")
           .eq("id", clientId)
           .single();
 
@@ -63,10 +64,13 @@ export const DriveLinks = ({
 
         if (data) {
           console.log("Fetched client data:", data);
-          setClientData(data);
-          if (data.agent_name) {
-            console.log("Setting agent name:", data.agent_name);
-            setAgentName(data.agent_name);
+          setClientData({
+            client_name: data.client_name,
+            agent_name: data.name
+          });
+          if (data.name) {
+            console.log("Setting agent name:", data.name);
+            setAgentName(data.name);
           } else {
             console.log("No agent name found in client data");
             setAgentName(null);

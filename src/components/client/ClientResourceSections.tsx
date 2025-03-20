@@ -52,16 +52,16 @@ export const ClientResourceSections = ({
       
       try {
         const { data, error } = await supabase
-          .from("clients")
-          .select("agent_name")
+          .from("ai_agents")
+          .select("name")
           .eq("id", clientId)
           .single();
         
         if (error) {
           console.error("Error fetching agent name:", error);
         } else {
-          console.log("Fetched agent name:", data.agent_name);
-          setAgentName(data.agent_name);
+          console.log("Fetched agent name:", data.name);
+          setAgentName(data.name);
         }
       } catch (error) {
         console.error("Error in fetchAgentName:", error);
