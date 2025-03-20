@@ -112,7 +112,7 @@ export const mapActivityType = (
 /**
  * Generates a standardized AI prompt from agent name and description
  */
-export const generateAiPrompt = (agentName: string, agentDescription: string): string => {
+export const generateAiPrompt = (agentName: string, agentDescription: string, clientName?: string): string => {
   // System prompt template to ensure assistants only respond to client-specific questions
   const SYSTEM_PROMPT_TEMPLATE = `You are an AI assistant created within the ByClicks AI system, designed to serve individual clients with their own unique knowledge bases. Each assistant is assigned to a specific client, and must only respond based on the information available for that specific client.
 
@@ -141,15 +141,19 @@ Rules & Limitations:
     prompt += ` Your goal is to provide clear, concise, and accurate information to users based on the knowledge provided to you.`;
   }
   
+  // Add client name to response if provided
+  const businessName = clientName || agentName;
+  
   // Add instructions for responding to off-limit questions
   prompt += `\n\nAs an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.
 
 When asked questions outside your knowledge base or off-limit topics, respond with something like:
-- "I'm here to assist with questions related to ${agentName}'s business. How can I help you with that?"
-- "I focus on providing support for ${agentName}. If you need assistance with something else, I recommend checking an appropriate resource."
-- "I'm designed to assist with ${agentName}'s needs. Let me know how I can help with that!"
+- "I'm here to assist with questions related to ${businessName}'s business. How can I help you with that?"
+- "I focus on providing support for ${businessName}. If you need assistance with something else, I recommend checking an appropriate resource."
+- "I'm designed to assist with ${businessName}'s needs. Let me know how I can help with that!"
 
 You have access to a knowledge base of documents and websites that have been processed and stored for your reference. When answering questions, prioritize information from this knowledge base when available.`;
 
   return prompt;
 }
+

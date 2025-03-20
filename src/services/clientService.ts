@@ -51,7 +51,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   if (data.agent_name) {
     try {
       // Generate AI prompt based on agent name and description
-      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description || "");
+      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description || "", data.client_name);
       
       console.log("Generated AI prompt:", aiPrompt);
       
