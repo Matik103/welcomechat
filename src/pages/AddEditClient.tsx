@@ -17,7 +17,7 @@ const AddEditClient = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(false);
-  const [client, setClient] = useState<Client | null>(null); // Changed to Client type to match what ClientForm expects
+  const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const { client: clientData, isLoading, error } = useClient(clientId || '');
 
@@ -29,7 +29,7 @@ const AddEditClient = () => {
       setIsEditMode(false);
       setLoading(false);
     }
-  }, [clientId]);
+  }, [clientId, clientData]);
 
   const fetchClientData = async (clientId: string) => {
     setLoading(true);
