@@ -48,5 +48,5 @@ export interface Activity {
   is_read: boolean;
 }
 
-// Client status types
+// Client status types - include "deleted" status
 export type ClientStatus = "active" | "inactive" | "deleted";

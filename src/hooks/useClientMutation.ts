@@ -32,7 +32,9 @@ export const useClientMutation = (id: string | undefined) => {
         ...data,
         // Ensure widget_settings is an object
         widget_settings: {
-          ...(data.widget_settings && typeof data.widget_settings === 'object' ? data.widget_settings : {}),
+          ...(data.widget_settings && typeof data.widget_settings === 'object' 
+              ? data.widget_settings 
+              : {}),
           agent_description: sanitizeForSQL(data.agent_description) || '',
         }
       };
