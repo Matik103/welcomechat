@@ -46,7 +46,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
       
       // Pre-define logoHtml variable for both places it's used
       const logoHtmlCode = settings.logo_url ? 
-        `<img src="${settings.logo_url}" alt="AI Assistant" class="widget-logo" />` : 
+        `<img src="${settings.logo_url}" alt="Chat Widget" class="widget-logo" />` : 
         '';
       
       const embedCode = `<!-- Welcome.Chat Widget CSS -->
@@ -56,7 +56,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 <script>
     window.WelcomeChatWidgetConfig = {
         branding: {
-            name: 'AI Assistant',
+            name: '',
             logo: '${settings.logo_url}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
@@ -151,7 +151,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         chatContent.innerHTML = \`
             <div class="chat-header">
                 ${logoHtmlCode}
-                <span class="chat-title">AI Assistant</span>
+                <span class="chat-title">Chat Widget</span>
             </div>
             <div class="chat-messages"></div>
             <div class="chat-input">
@@ -216,7 +216,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
   
   // Pre-define logoHtml variable for the main display as well
   const logoHtmlDisplay = settings.logo_url ? 
-    `<img src="${settings.logo_url}" alt="AI Assistant" class="widget-logo" />` : 
+    `<img src="${settings.logo_url}" alt="Chat Widget" class="widget-logo" />` : 
     '';
   
   return (
@@ -232,7 +232,7 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
 <script>
     window.WelcomeChatWidgetConfig = {
         branding: {
-            name: 'AI Assistant',
+            name: '',
             logo: '${settings.logo_url}',
             welcomeText: '${settings.welcome_text}',
             responseTimeText: '${settings.response_time_text}'
@@ -324,12 +324,12 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         chatContent.classList.add('chat-content');
         
         // Add logo if available
-        const logoHtml = '${settings.logo_url ? `<img src="${settings.logo_url}" alt="AI Assistant" class="widget-logo" />` : ''}';
+        const logoHtml = '${settings.logo_url ? `<img src="${settings.logo_url}" alt="Chat Widget" class="widget-logo" />` : ''}';
         
         chatContent.innerHTML = \`
             <div class="chat-header">
                 ${logoHtmlDisplay}
-                <span class="chat-title">AI Assistant</span>
+                <span class="chat-title">Chat Widget</span>
             </div>
             <div class="chat-messages"></div>
             <div class="chat-input">
