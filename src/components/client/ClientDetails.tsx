@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -147,7 +148,6 @@ export const ClientDetails = ({
     client_name: string; 
     email: string; 
     agent_name?: string;
-    agent_description?: string;
     logo_url?: string;
     logo_storage_path?: string;
     _tempLogoFile?: File | null;
@@ -158,15 +158,19 @@ export const ClientDetails = ({
       const tempLogoFile = data._tempLogoFile;
       delete data._tempLogoFile;
       
+      // Get agent description from the widget settings if available
+      const widgetSettings = client?.widget_settings || {};
+      const agentDescription = typeof widgetSettings === 'object' && widgetSettings !== null 
+        ? (widgetSettings as any).agent_description || ""
+        : "";
+      
       const nameChanged = client?.agent_name !== data.agent_name;
-      const descriptionChanged = client?.agent_description !== data.agent_description;
       
       if (clientId && isClientView) {
         await clientMutation.mutateAsync({
           client_name: data.client_name,
           email: data.email,
           agent_name: data.agent_name || 'AI Assistant',
-          agent_description: data.agent_description,
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path
         });
@@ -175,7 +179,7 @@ export const ClientDetails = ({
         agentUpdateResult = await ensureAiAgentExists(
           clientId, 
           data.agent_name,
-          data.agent_description,
+          agentDescription,
           data.logo_url,
           data.logo_storage_path,
           data.client_name
@@ -190,7 +194,7 @@ export const ClientDetails = ({
               "created a new AI agent",
               { 
                 agent_name: data.agent_name,
-                agent_description: data.agent_description,
+                agent_description: agentDescription,
                 logo_url: data.logo_url
               }
             );
@@ -200,7 +204,7 @@ export const ClientDetails = ({
               "updated their AI agent settings",
               { 
                 agent_name: data.agent_name,
-                agent_description: data.agent_description,
+                agent_description: agentDescription,
                 logo_url: data.logo_url,
                 name_changed: agentUpdateResult.nameUpdated,
                 description_changed: agentUpdateResult.descriptionUpdated
@@ -230,7 +234,6 @@ export const ClientDetails = ({
           client_name: data.client_name,
           email: data.email,
           agent_name: data.agent_name || 'AI Assistant',
-          agent_description: data.agent_description,
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path
         });
@@ -238,7 +241,7 @@ export const ClientDetails = ({
         await ensureAiAgentExists(
           clientId, 
           data.agent_name,
-          data.agent_description,
+          agentDescription,
           data.logo_url,
           data.logo_storage_path,
           data.client_name
@@ -254,7 +257,6 @@ export const ClientDetails = ({
           const result = await clientMutation.mutateAsync({
             client_name: data.client_name,
             email: data.email,
-            agent_description: data.agent_description,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path
           });
@@ -276,7 +278,7 @@ export const ClientDetails = ({
                   widget_settings: {
                     logo_url: logoUrl,
                     logo_storage_path: logoStoragePath,
-                    agent_description: data.agent_description || ""
+                    agent_description: ""
                   }
                 })
                 .eq("id", result.clientId);
@@ -292,7 +294,7 @@ export const ClientDetails = ({
               await ensureAiAgentExists(
                 result.clientId, 
                 data.agent_name,
-                data.agent_description,
+                "",  // New clients don't have agent description yet
                 data.logo_url,
                 data.logo_storage_path,
                 data.client_name
