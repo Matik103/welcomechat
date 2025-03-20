@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ExtendedActivityType } from "@/types/activity";
 import { createClientActivity } from "@/services/clientActivityService";
@@ -255,7 +254,7 @@ export const getClientDocuments = async (
       // Fix TypeScript errors by safely accessing settings properties
       const settings = doc.settings as Record<string, any> || {};
       return {
-        id: doc.id,
+        id: String(doc.id), // Make sure ID is a string
         name: settings.file_name as string || 'Unknown file',
         type: settings.file_type as string || 'unknown',
         size: settings.file_size as number || 0,

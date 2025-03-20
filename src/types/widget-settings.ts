@@ -1,7 +1,7 @@
 
 import { Json } from "@/integrations/supabase/types";
 
-export type WidgetPosition = "bottom-right" | "bottom-left" | "top-right" | "top-left";
+export type WidgetPosition = "bottom-right" | "bottom-left" | "top-right" | "top-left" | "left" | "right";
 
 export interface WidgetSettings {
   logo_url: string;
