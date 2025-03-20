@@ -1,148 +1,135 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useClient } from "./useClient";
+import { AIAgent } from "@/types/supabase";
 
-interface Document {
-  id: string | number;
-  name: string;
-  type: string;
-  size: number;
-  url: any;
-  uploadDate: any;
-  status: "processing" | "completed" | "failed";
+interface StoreDocumentResult {
+  success: boolean;
+  message: string;
+  id?: string;
 }
 
-export function useStoreDocumentContent(clientId: string | undefined) {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const { client } = useClient(clientId);
+export function useStoreDocumentContent(clientId: string, agentName: string) {
+  const [isStoring, setIsStoring] = useState(false);
 
-  // Fetch documents from the database
-  const {
-    data: dbDocuments,
-    isLoading: isQueryLoading,
-    error: queryError,
-    refetch,
-  } = useQuery({
-    queryKey: ["documents", clientId],
-    queryFn: async () => {
-      if (!clientId) return null;
-
-      setIsLoading(true);
-      setError(null);
-
+  const storeMutation = useMutation({
+    mutationFn: async (documentData: {
+      content: string;
+      url: string;
+      title: string;
+      type: string;
+      size?: number;
+    }): Promise<StoreDocumentResult> => {
       try {
+        setIsStoring(true);
+        
+        const { content, url, title, type, size } = documentData;
+        
+        if (!content) {
+          return {
+            success: false,
+            message: "No content provided for storing"
+          };
+        }
+        
+        console.log(`Storing document "${title}" (${size || 0} bytes) from ${url} for client ${clientId}`);
+        
+        // Extract domain from the URL for metadata
+        let domain = '';
+        try {
+          domain = new URL(url).hostname;
+        } catch (e) {
+          console.log("Not a valid URL, using as-is");
+          domain = url;
+        }
+        
+        // Create a new record in the ai_agents table with the document content
         const { data, error } = await supabase
+          .from("ai_agents")
+          .insert({
+            client_id: clientId,
+            name: agentName,
+            content: content,
+            url: url,
+            interaction_type: "document",
+            settings: {
+              title: title,
+              domain: domain,
+              source_url: url,
+              document_type: type,
+              size: size || 0,
+              stored_at: new Date().toISOString()
+            },
+            status: "active",
+            type: type,
+            size: size || 0,
+            uploadDate: new Date().toISOString()
+          })
+          .select();
+        
+        if (error) {
+          console.error("Error storing document content:", error);
+          return {
+            success: false,
+            message: `Error storing document: ${error.message}`
+          };
+        }
+        
+        // Get the document agent record for logging
+        const { data: agentData } = await supabase
           .from("ai_agents")
           .select("name, settings, url, created_at")
           .eq("client_id", clientId)
-          .order("created_at", { ascending: false })
-          .limit(10);
-
-        if (error) {
-          console.error("Error fetching documents:", error);
-          setError(error);
-          toast.error("Failed to load documents");
-          return null;
-        }
-
-        if (!data) {
-          console.warn("No documents found for client:", clientId);
-          return [];
-        }
-
-        // Transform the data into the Document interface
-        const documentList = data.map((document) => {
-          const settings = document.settings as any;
-          const documentJson = {
-            id: String(document.id), // Convert to string here
-            name: document.name,
-            type: document.type,
-            size: document.size,
-            url: document.url,
-            uploadDate: document.uploadDate,
-            status: document.status
-          };
-          return documentJson;
-        });
-
-        return documentList;
+          .eq("name", agentName)
+          .eq("interaction_type", "config")
+          .single();
+        
+        // Log activity of document storage
+        const docInfo = data[0];
+        await supabase
+          .from("client_activities")
+          .insert({
+            client_id: clientId,
+            activity_type: "document_stored",
+            description: `Stored document content: ${title}`,
+            metadata: {
+              url: url,
+              title: title,
+              agent_name: agentName,
+              document_type: type,
+              size: size || 0,
+              // Safe access for agentData properties
+              agent_id: docInfo?.id || null,
+              agent_url: agentData?.url || null,
+              agent_created: agentData?.created_at || null,
+              document_status: "active"
+            }
+          });
+        
+        console.log("Document content stored successfully with ID:", docInfo?.id);
+        
+        return {
+          success: true,
+          message: "Document content stored successfully",
+          id: docInfo?.id
+        };
       } catch (err: any) {
-        console.error("Unexpected error fetching documents:", err);
-        setError(err);
-        toast.error("Failed to load documents due to an unexpected error");
-        return null;
+        console.error("Error in storeDocumentContent:", err);
+        return {
+          success: false,
+          message: `Failed to store document: ${err.message}`
+        };
       } finally {
-        setIsLoading(false);
+        setIsStoring(false);
       }
-    },
-    enabled: !!clientId,
+    }
   });
 
-  useEffect(() => {
-    if (dbDocuments) {
-      setDocuments(dbDocuments);
-    }
-  }, [dbDocuments]);
-
-  useEffect(() => {
-    if (queryError) {
-      setError(queryError);
-      toast.error("Failed to load documents");
-    }
-  }, [queryError]);
-
-  const addDocument = (newDocument: Document) => {
-    setDocuments((prevDocuments) => [...prevDocuments, newDocument]);
-  };
-
-  const updateDocument = (updatedDocument: Document) => {
-    setDocuments((prevDocuments) =>
-      prevDocuments.map((doc) =>
-        doc.id === updatedDocument.id ? updatedDocument : doc
-      )
-    );
-  };
-
-  const deleteDocument = async (documentId: string) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { error } = await supabase
-        .from("ai_agents")
-        .delete()
-        .eq("id", documentId);
-
-      if (error) {
-        console.error("Error deleting document:", error);
-        setError(error);
-        toast.error("Failed to delete document");
-      } else {
-        setDocuments((prevDocuments) =>
-          prevDocuments.filter((doc) => doc.id !== documentId)
-        );
-        toast.success("Document deleted successfully");
-      }
-    } catch (err: any) {
-      console.error("Unexpected error deleting document:", err);
-      setError(err);
-      toast.error("Failed to delete document due to an unexpected error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return {
-    documents,
-    isLoading: isLoading || isQueryLoading,
-    error,
-    addDocument,
-    updateDocument,
-    deleteDocument,
-    refetch,
+    storeDocumentContent: storeMutation.mutate,
+    isStoring: isStoring || storeMutation.isPending,
+    error: storeMutation.error
   };
 }
