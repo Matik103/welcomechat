@@ -13,6 +13,7 @@ export const createClientFormSchema = z.object({
       message: "Agent name cannot contain single quotes"
     })
     .optional(),
+  agent_description: z.string().optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
 });
