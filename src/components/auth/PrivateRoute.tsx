@@ -23,7 +23,7 @@ export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (userRole !== "admin") {
-    return <Navigate to="/client/dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
