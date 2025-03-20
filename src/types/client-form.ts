@@ -29,7 +29,7 @@ export type ClientFormErrors = {
 };
 
 // Extended type with nested errors for widget settings
-export interface ClientFormErrorsWithNested extends ClientFormErrors {
+export interface ClientFormErrorsWithNested extends Omit<ClientFormErrors, 'widget_settings'> {
   widget_settings?: {
     agent_name?: string;
     agent_description?: string;
