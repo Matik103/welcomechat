@@ -17,7 +17,7 @@ export const createClientActivity = async (
     // Create the record with the mapped activity type
     const { error } = await supabase.from("client_activities").insert({
       client_id: clientId,
-      activity_type: dbActivityType,
+      activity_type: dbActivityType as any, // Use type assertion to bypass TypeScript error
       description,
       metadata: enhancedMetadata || {}
     });
