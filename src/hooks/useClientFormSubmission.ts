@@ -16,6 +16,7 @@ interface ClientFormData {
   logo_url?: string;
   logo_storage_path?: string;
   _tempLogoFile?: File | null;
+  widget_settings?: Json;
 }
 
 export const useClientFormSubmission = (
@@ -35,9 +36,7 @@ export const useClientFormSubmission = (
       delete data._tempLogoFile;
       
       // Get agent description from the widget settings if available
-      const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
-        ? data.widget_settings
-        : {};
+      const widgetSettings = data.widget_settings || {};
       
       const agentDescription = typeof widgetSettings === 'object' && widgetSettings !== null 
         ? (widgetSettings as any).agent_description || ""
@@ -49,7 +48,8 @@ export const useClientFormSubmission = (
           email: data.email,
           agent_name: data.agent_name || 'AI Assistant',
           logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path
+          logo_storage_path: data.logo_storage_path,
+          widget_settings: data.widget_settings
         });
         
         let agentUpdateResult = { updated: false, created: false, descriptionUpdated: false, nameUpdated: false };
@@ -112,7 +112,8 @@ export const useClientFormSubmission = (
           email: data.email,
           agent_name: data.agent_name || 'AI Assistant',
           logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path
+          logo_storage_path: data.logo_storage_path,
+          widget_settings: data.widget_settings
         });
         
         await ensureAiAgentExists(
@@ -135,7 +136,10 @@ export const useClientFormSubmission = (
             client_name: data.client_name,
             email: data.email,
             logo_url: data.logo_url,
-            logo_storage_path: data.logo_storage_path
+            logo_storage_path: data.logo_storage_path,
+            widget_settings: {
+              agent_description: agentDescription
+            }
           });
           
           let logoUrl = "";
@@ -155,7 +159,7 @@ export const useClientFormSubmission = (
                   widget_settings: {
                     logo_url: logoUrl,
                     logo_storage_path: logoStoragePath,
-                    agent_description: ""
+                    agent_description: agentDescription
                   }
                 })
                 .eq("id", result.clientId);
@@ -171,7 +175,7 @@ export const useClientFormSubmission = (
               await ensureAiAgentExists(
                 result.clientId, 
                 data.agent_name,
-                "",  // New clients don't have agent description yet
+                agentDescription,
                 data.logo_url,
                 data.logo_storage_path,
                 data.client_name
