@@ -13,7 +13,7 @@ export interface WidgetSettings {
   position: WidgetPosition;
   welcome_text: string;
   response_time_text: string;
-  // agent_name removed as it's no longer used
+  agent_name: string; // Added agent_name back to widget settings
 }
 
 export const isWidgetSettings = (settings: unknown): settings is WidgetSettings => {
@@ -38,7 +38,8 @@ export const defaultSettings: WidgetSettings = {
   secondary_color: "#f0f0f0",
   position: "bottom-right",
   welcome_text: "Hi there! How can I help you today?",
-  response_time_text: "Usually responds within a few minutes"
+  response_time_text: "Usually responds within a few minutes",
+  agent_name: "AI Assistant" // Added default agent name
 };
 
 // Helper function to convert widget settings to JSON for database storage
