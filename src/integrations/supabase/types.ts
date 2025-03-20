@@ -99,9 +99,18 @@ export type Database = {
           ai_prompt: string | null
           assistant_id: string | null
           client_id: string | null
+          client_name: string | null
+          company: string | null
           content: string | null
           created_at: string | null
+          deleted_at: string | null
+          deletion_scheduled_at: string | null
           description: string | null
+          drive_link: string | null
+          drive_link_added_at: string | null
+          drive_link_refresh_rate: number | null
+          drive_urls: string[] | null
+          email: string | null
           embedding: string | null
           error_message: string | null
           error_status: string | null
@@ -109,6 +118,7 @@ export type Database = {
           id: string
           interaction_type: string | null
           is_error: boolean | null
+          last_active: string | null
           logo_storage_path: string | null
           logo_url: string | null
           metadata: Json | null
@@ -124,15 +134,26 @@ export type Database = {
           updated_at: string | null
           uploadDate: string | null
           url: string | null
+          urls: string[] | null
+          website_url_refresh_rate: number | null
         }
         Insert: {
           agent_description?: string | null
           ai_prompt?: string | null
           assistant_id?: string | null
           client_id?: string | null
+          client_name?: string | null
+          company?: string | null
           content?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deletion_scheduled_at?: string | null
           description?: string | null
+          drive_link?: string | null
+          drive_link_added_at?: string | null
+          drive_link_refresh_rate?: number | null
+          drive_urls?: string[] | null
+          email?: string | null
           embedding?: string | null
           error_message?: string | null
           error_status?: string | null
@@ -140,6 +161,7 @@ export type Database = {
           id?: string
           interaction_type?: string | null
           is_error?: boolean | null
+          last_active?: string | null
           logo_storage_path?: string | null
           logo_url?: string | null
           metadata?: Json | null
@@ -155,15 +177,26 @@ export type Database = {
           updated_at?: string | null
           uploadDate?: string | null
           url?: string | null
+          urls?: string[] | null
+          website_url_refresh_rate?: number | null
         }
         Update: {
           agent_description?: string | null
           ai_prompt?: string | null
           assistant_id?: string | null
           client_id?: string | null
+          client_name?: string | null
+          company?: string | null
           content?: string | null
           created_at?: string | null
+          deleted_at?: string | null
+          deletion_scheduled_at?: string | null
           description?: string | null
+          drive_link?: string | null
+          drive_link_added_at?: string | null
+          drive_link_refresh_rate?: number | null
+          drive_urls?: string[] | null
+          email?: string | null
           embedding?: string | null
           error_message?: string | null
           error_status?: string | null
@@ -171,6 +204,7 @@ export type Database = {
           id?: string
           interaction_type?: string | null
           is_error?: boolean | null
+          last_active?: string | null
           logo_storage_path?: string | null
           logo_url?: string | null
           metadata?: Json | null
@@ -186,6 +220,8 @@ export type Database = {
           updated_at?: string | null
           uploadDate?: string | null
           url?: string | null
+          urls?: string[] | null
+          website_url_refresh_rate?: number | null
         }
         Relationships: []
       }
@@ -485,7 +521,7 @@ export type Database = {
       }
       client_temp_passwords: {
         Row: {
-          client_id: string
+          agent_id: string
           created_at: string | null
           email: string
           id: string
@@ -494,7 +530,7 @@ export type Database = {
           used_at: string | null
         }
         Insert: {
-          client_id: string
+          agent_id: string
           created_at?: string | null
           email: string
           id?: string
@@ -503,7 +539,7 @@ export type Database = {
           used_at?: string | null
         }
         Update: {
-          client_id?: string
+          agent_id?: string
           created_at?: string | null
           email?: string
           id?: string

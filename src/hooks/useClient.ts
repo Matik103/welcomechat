@@ -11,50 +11,43 @@ export const useClient = (id?: string) => {
       
       console.log("Fetching client with ID:", id);
       
-      // Get basic client data first
-      const { data: clientData, error: clientError } = await supabase
-        .from("clients")
+      // Get client data from ai_agents table
+      const { data: agentData, error: agentError } = await supabase
+        .from("ai_agents")
         .select("*")
         .eq("id", id)
         .single();
         
-      if (clientError) {
-        console.error("Error fetching client:", clientError);
-        throw clientError;
+      if (agentError) {
+        console.error("Error fetching client:", agentError);
+        throw agentError;
       }
       
-      // Get the agent description and logo from the ai_agents table
-      const { data: agentData } = await supabase
-        .from("ai_agents")
-        .select("agent_description, logo_url, logo_storage_path")
-        .eq("client_id", id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      // Extract agent_description and logo from widget_settings safely
-      let widgetLogoUrl = "";
-      let widgetLogoStoragePath = "";
-      
-      if (
-        clientData.widget_settings && 
-        typeof clientData.widget_settings === 'object' && 
-        clientData.widget_settings !== null
-      ) {
-        widgetLogoUrl = (clientData.widget_settings as any).logo_url || "";
-        widgetLogoStoragePath = (clientData.widget_settings as any).logo_storage_path || "";
-      }
-      
-      // Combine the data and return the client with the logo
-      const combinedData: Client = {
-        ...clientData,
-        logo_url: agentData?.logo_url || widgetLogoUrl || "",
-        logo_storage_path: agentData?.logo_storage_path || widgetLogoStoragePath || "",
+      // Convert agent data to client format
+      const clientData: Client = {
+        id: agentData.id,
+        client_name: agentData.client_name || "",
+        email: agentData.email || "",
+        logo_url: agentData.logo_url || "",
+        logo_storage_path: agentData.logo_storage_path || "",
+        created_at: agentData.created_at,
+        updated_at: agentData.updated_at,
+        deletion_scheduled_at: agentData.deletion_scheduled_at,
+        deleted_at: agentData.deleted_at,
+        status: agentData.status,
+        company: agentData.company || "",
+        description: agentData.agent_description || "",
+        widget_settings: {
+          agent_name: agentData.name || "Assistant",
+          agent_description: agentData.agent_description || "",
+          logo_url: agentData.logo_url || "",
+          logo_storage_path: agentData.logo_storage_path || ""
+        }
       };
       
-      console.log("Client data merged with agent logo:", combinedData);
+      console.log("Client data fetched from AI agent:", clientData);
       
-      return combinedData as Client;
+      return clientData;
     },
     enabled: !!id,
   });

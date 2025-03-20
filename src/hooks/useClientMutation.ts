@@ -31,9 +31,9 @@ export const useClientMutation = (id: string | undefined) => {
       if (id) {
         // Update existing client
         try {
-          const clientId = await updateClient(id, sanitizedData);
+          const agentId = await updateClient(id, sanitizedData);
           await logClientUpdateActivity(id);
-          return clientId;
+          return agentId;
         } catch (error) {
           console.error("Error updating client in mutation:", error);
           console.error("Error details:", JSON.stringify(error, null, 2));
@@ -44,11 +44,11 @@ export const useClientMutation = (id: string | undefined) => {
         try {
           // Create the client record which also handles sending the invitation email
           console.log("Calling createClient with sanitized data...");
-          const clientId = await createClient(sanitizedData);
-          console.log("Client created successfully with ID:", clientId);
+          const agentId = await createClient(sanitizedData);
+          console.log("Client created successfully with ID:", agentId);
           
           return {
-            clientId,
+            agentId,
             emailSent: true,
             errorMessage: null
           };
