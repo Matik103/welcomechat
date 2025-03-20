@@ -32,9 +32,10 @@ export const useClientDashboard = (clientId: string, agentName: string) => {
             COUNT(*) as total_interactions,
             COUNT(DISTINCT DATE(created_at)) as active_days,
             ROUND(AVG(response_time_ms)::numeric / 1000, 2) as average_response_time
-          FROM ai_interactions
+          FROM ai_agents
           WHERE client_id = '${clientId}'
-          AND agent_name = '${agentName}'
+          AND name = '${agentName}'
+          AND interaction_type = 'chat_interaction'
           AND response_time_ms IS NOT NULL
         `;
         
@@ -43,9 +44,9 @@ export const useClientDashboard = (clientId: string, agentName: string) => {
         // Get top queries
         const topQueriesQuery = `
           SELECT query_text, COUNT(*) as frequency
-          FROM ai_interactions
+          FROM ai_agents
           WHERE client_id = '${clientId}'
-          AND agent_name = '${agentName}'
+          AND name = '${agentName}'
           GROUP BY query_text
           ORDER BY frequency DESC
           LIMIT 5
