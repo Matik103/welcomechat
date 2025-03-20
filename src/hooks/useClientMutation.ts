@@ -12,11 +12,10 @@ import { toast } from "sonner";
 const sanitizeForSQL = (value: string | undefined): string | undefined => {
   if (!value) return value;
   
-  // Replace all double quotes with single quotes to prevent SQL syntax errors
-  // PostgreSQL uses double quotes for identifiers
+  // Always replace double quotes with single quotes to prevent SQL syntax errors
   let sanitized = value.replace(/"/g, "'");
   
-  // Also escape any potential SQL injection characters
+  // Also escape any other potential SQL injection characters
   sanitized = sanitized.replace(/\\/g, "\\\\"); // escape backslashes
   
   console.log(`Sanitized from "${value}" to "${sanitized}"`);
