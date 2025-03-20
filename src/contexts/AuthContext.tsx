@@ -64,20 +64,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
+      setIsLoading(true);
+      
+      // First update local state (optimistic update)
+      const wasAdmin = userRole === 'admin';
+      
       setSession(null);
       setUser(null);
       setUserRole(null);
-      window.location.href = '/auth';
+      
+      // Clear session storage
+      sessionStorage.removeItem('user_role_set');
+      sessionStorage.removeItem('auth_callback_processed');
+      sessionStorage.removeItem('auth_callback_processing');
+      
+      // Then call the API to sign out server-side
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Don't force a redirect - rely on the auth state change listener
+      // This prevents full page reloads
     } catch (error) {
       console.error('Sign out error:', error);
       toast.error('Sign out error. Please try again.');
-      setSession(null);
-      setUser(null);
-      setUserRole(null);
-      window.location.href = '/auth';
     } finally {
       setIsLoading(false);
     }
