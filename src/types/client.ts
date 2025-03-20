@@ -29,7 +29,7 @@ export interface ClientFormData {
   client_name: string;
   email: string;
   agent_name?: string;
-  agent_description?: string;
+  agent_description?: string; // Keep in the form data but not sent to clients table
   widget_settings?: Json;
   company?: string;
   description?: string;

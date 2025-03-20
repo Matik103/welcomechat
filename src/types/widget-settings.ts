@@ -14,7 +14,7 @@ export interface WidgetSettings {
   welcome_text: string;
   response_time_text: string;
   agent_name: string; // Agent name for the widget
-  agent_description: string; // Added agent_description
+  agent_description: string; // Agent description stored only in ai_agents table
 }
 
 export const isWidgetSettings = (settings: unknown): settings is WidgetSettings => {
