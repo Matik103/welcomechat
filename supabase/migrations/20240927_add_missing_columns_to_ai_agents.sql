@@ -1,3 +1,4 @@
+
 -- Add missing columns to ai_agents table
 -- This migration adds all the columns being accessed by the application
 ALTER TABLE ai_agents 

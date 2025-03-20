@@ -17,7 +17,7 @@ interface Website {
 
 export function useStoreWebsiteContent(clientId: string | undefined) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isStoring, setIsStoring] = useState(false); // Added missing isStoring state
+  const [isStoring, setIsStoring] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch websites
@@ -35,7 +35,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
       
       try {
         const { data, error } = await supabase
-          .from("website_urls") // Fix: Use website_urls instead of client_websites
+          .from("website_urls") // Use website_urls instead of client_websites
           .select("*")
           .eq("client_id", clientId);
         
@@ -66,7 +66,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
       await checkAndRefreshAuth();
       
       const { data, error } = await supabase
-        .from("website_urls") // Fix: Use website_urls instead of client_websites
+        .from("website_urls") // Use website_urls instead of client_websites
         .insert([newWebsite])
         .select();
       
@@ -98,7 +98,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
       await checkAndRefreshAuth();
       
       const { error } = await supabase
-        .from("website_urls") // Fix: Use website_urls instead of client_websites
+        .from("website_urls") // Use website_urls instead of client_websites
         .delete()
         .eq("id", websiteId);
       
@@ -129,7 +129,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
       await checkAndRefreshAuth();
       
       const { error } = await supabase
-        .from("website_urls") // Fix: Use website_urls instead of client_websites
+        .from("website_urls") // Use website_urls instead of client_websites
         .update(updatedWebsite)
         .eq("id", updatedWebsite.id);
       
@@ -168,7 +168,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
     try {
       // Create a JSON object with website details
       const websiteJson = {
-        id: String(website.id), // Convert to string here
+        id: String(website.id), 
         name: website.name || `Website ${website.id}`,
         url: website.url,
         scrapable: website.scrapable,
@@ -216,7 +216,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
   return {
     websites,
     isLoading: isLoading || isWebsitesLoading,
-    isStoring, // Add the isStoring property
+    isStoring,
     error,
     refetchWebsites: refetch,
     addWebsite: addWebsiteMutation.mutateAsync,
