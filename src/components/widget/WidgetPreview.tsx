@@ -20,7 +20,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Fetch agent content for preview responses with empty string instead of "AI Assistant"
   const { agentContent, sources, isLoading: isAgentLoading } = useAgentContent(
     clientId, 
     "" // Use empty string instead of "AI Assistant"
@@ -38,11 +37,9 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     setExpanded(!expanded);
   };
 
-  // Simulate a typing effect for responses
   const typeResponse = (response: string) => {
     setIsTyping(true);
     
-    // Add an empty message that will be filled character by character
     const newMessageIndex = messages.length;
     setMessages(prev => [...prev, { text: "", isUser: false }]);
     
@@ -62,24 +59,20 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         clearInterval(typingInterval);
         setIsTyping(false);
       }
-    }, 15); // typing speed - adjust as needed
+    }, 15);
   };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isTyping) return;
 
-    // Add user message
     setMessages(prev => [...prev, { text: inputValue, isUser: true }]);
     const userQuery = inputValue;
     setInputValue("");
     
-    // If we have a client ID, try to make a real request to our API
     if (clientId) {
       try {
-        // Show typing indicator
         setIsTyping(true);
         
-        // Call the OpenAI-powered chat function with empty string instead of "AI Assistant"
         const response = await fetch('https://mgjodiqecnnltsgorife.supabase.co/functions/v1/chat', {
           method: 'POST',
           headers: {
@@ -87,37 +80,31 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           },
           body: JSON.stringify({
             prompt: userQuery,
-            agent_name: "", // Use empty string
+            agent_name: "",
             client_id: clientId,
-            context: agentContent.substring(0, 3000) // Send first 3000 chars as context
+            context: agentContent.substring(0, 3000)
           })
         });
         
         if (response.ok) {
           const data = await response.json();
-          // Use typing effect for the response
           typeResponse(data.generatedText || "I couldn't generate a response. Please try again.");
         } else {
-          // Fallback to simulated response if API call fails
           simulateResponse(userQuery);
         }
       } catch (error) {
         console.error("Error calling chat API:", error);
-        // Fallback to simulated response
         simulateResponse(userQuery);
       }
     } else {
-      // No client ID, use simulated response
       simulateResponse(userQuery);
     }
   };
-  
+
   const simulateResponse = (userQuery: string) => {
-    // Use agent content to create a more realistic preview
     setTimeout(() => {
       let responseText = "I'm your AI assistant. This is a preview of how the widget will look on your website.";
       
-      // If we have agent content, use it to create a more realistic preview
       if (agentContent && agentContent.length > 0) {
         if (userQuery.toLowerCase().includes("what") && 
             (userQuery.toLowerCase().includes("know") || 
@@ -132,11 +119,9 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
             : "I have access to your organization's knowledge base.";
           responseText = `${sourceInfo} How can I help you today?`;
         } else {
-          // Find a relevant snippet from the agent content
           const words = userQuery.toLowerCase().split(' ').filter(w => w.length > 3);
           let relevantContent = agentContent;
           
-          // Try to find a relevant section based on the query
           for (const word of words) {
             const index = agentContent.toLowerCase().indexOf(word);
             if (index > -1) {
@@ -151,7 +136,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         }
       }
       
-      // Use typing effect for the response
       typeResponse(responseText);
     }, 1000);
   };
@@ -179,7 +163,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         {expanded ? (
           <>
             <ChatHeader 
-              agentName="" // Use empty string
+              agentName=""
               logoUrl={settings.logo_url}
               backgroundColor={settings.chat_color}
               textColor={settings.text_color}
@@ -224,7 +208,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
             {settings.logo_url ? (
               <img 
                 src={settings.logo_url} 
-                alt="AI Assistant" 
+                alt="Assistant" 
                 className="w-8 h-8 object-contain"
                 onError={(e) => {
                   e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";
