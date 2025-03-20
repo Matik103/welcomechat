@@ -13,7 +13,7 @@ This migration addresses TypeScript errors related to the `ai_agents` table in t
 1. Run the following command to create the ai_agents table in the database:
 
 ```bash
-node scripts/add-ai-agents-table.js
+node scripts/run_add_missing_columns.js
 ```
 
 2. Restart your development server to apply the TypeScript changes:
