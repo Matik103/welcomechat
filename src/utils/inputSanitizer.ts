@@ -1,54 +1,23 @@
 
 /**
- * Utility functions for sanitizing user input to prevent SQL injection and syntax errors
+ * Sanitizes user input to prevent SQL injection and other issues
+ * @param input The input string to sanitize
+ * @returns The sanitized string
  */
-
-/**
- * Sanitizes strings that will be used in SQL queries
- * Replaces double quotes with single quotes to prevent SQL syntax errors
- * @param value String to sanitize
- * @returns Sanitized string
- */
-export const sanitizeForSQL = (value: string | undefined): string | undefined => {
-  if (!value) return value;
+export const sanitizeForSQL = (input: string | null | undefined): string => {
+  if (input === null || input === undefined) {
+    return '';
+  }
   
-  // Always replace double quotes with single quotes to prevent SQL syntax errors
-  let sanitized = value.replace(/"/g, "'");
+  // Replace all double quotes with single quotes to avoid SQL syntax errors
+  let sanitized = input.replace(/"/g, "'");
   
-  // Also escape any other potential SQL injection characters
-  sanitized = sanitized.replace(/\\/g, "\\\\"); // escape backslashes
+  // Also replace any potential SQL injection patterns
+  sanitized = sanitized.replace(/--/g, ""); // SQL comments
+  sanitized = sanitized.replace(/;/g, ""); // SQL command terminator
+  
+  // Log the sanitization for debugging
+  console.log(`Sanitized input from "${input}" to "${sanitized}"`);
   
   return sanitized;
-};
-
-/**
- * Checks if a string contains any double quotes
- * @param value String to check
- * @returns True if the string contains double quotes
- */
-export const containsDoubleQuotes = (value: string | undefined): boolean => {
-  if (!value) return false;
-  return value.includes('"');
-};
-
-/**
- * Sanitizes user input in real-time by replacing double quotes with single quotes
- * @param event Change event from input or textarea
- */
-export const sanitizeInputOnChange = (
-  event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  setValue?: (value: string) => void
-): void => {
-  // Replace double quotes with single quotes
-  const sanitizedValue = event.target.value.replace(/"/g, "'");
-  
-  // Update the input value
-  if (sanitizedValue !== event.target.value) {
-    event.target.value = sanitizedValue;
-    
-    // If a setValue function is provided, call it with the sanitized value
-    if (setValue) {
-      setValue(sanitizedValue);
-    }
-  }
 };
