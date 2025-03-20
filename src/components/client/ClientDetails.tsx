@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -59,7 +58,7 @@ export const ClientDetails = ({
       
       const formattedAgentName = sanitizedAgentName;
       
-      const aiPrompt = generateAiPrompt(sanitizedAgentName, sanitizedAgentDescription || "", sanitizedClientName || "");
+      const aiPrompt = generateAiPrompt(sanitizedAgentName, sanitizedAgentDescription || "", sanitizedClientName);
       
       const { data: existingAgents, error: queryError } = await supabase
         .from("ai_agents")
