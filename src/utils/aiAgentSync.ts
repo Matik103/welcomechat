@@ -8,13 +8,14 @@ import { checkAndRefreshAuth } from "@/services/authService";
  */
 export async function syncWidgetSettingsWithAgent(
   clientId: string,
-  settings: WidgetSettings
+  settings: WidgetSettings,
+  clientName?: string
 ): Promise<boolean> {
   try {
     // Ensure we have a valid auth session
     await checkAndRefreshAuth();
     
-    console.log("Syncing widget settings with AI agent:", { clientId, settings });
+    console.log("Syncing widget settings with AI agent:", { clientId, settings, clientName });
     
     // First check if an AI agent exists for this client
     const { data: agentData, error: agentError } = await supabase
@@ -34,6 +35,7 @@ export async function syncWidgetSettingsWithAgent(
       ...(agentData?.settings ? agentData.settings as Record<string, any> : {}),
       logo_url: settings.logo_url,
       agent_name: settings.agent_name,
+      client_name: clientName || "",
       updated_at: new Date().toISOString()
     };
     
