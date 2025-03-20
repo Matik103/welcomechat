@@ -4,6 +4,8 @@ import { ClientFormData, clientFormSchema } from "@/types/client-form";
 import { createClient } from "@/services/clientService";
 import { toast } from "sonner";
 import { createOpenAIAssistant } from "@/utils/openAIUtils";
+import { sendEmail } from "@/utils/emailUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useNewClientMutation = () => {
   return useMutation({
@@ -50,6 +52,45 @@ export const useNewClientMutation = () => {
             // We continue even if OpenAI assistant creation fails
             // The client is still created, and the assistant can be created later
           }
+        }
+
+        // Create user account and send welcome email with credentials
+        try {
+          // Call the edge function to create a user and generate temporary password
+          const { data: userData, error: userError } = await supabase.functions.invoke("create-client-user", {
+            body: {
+              email: validatedData.email.trim().toLowerCase(),
+              client_id: clientId,
+              client_name: validatedData.client_name.trim(),
+              agent_name: validatedData.widget_settings.agent_name?.trim() || "AI Assistant",
+              agent_description: validatedData.widget_settings.agent_description?.trim() || "",
+            }
+          });
+
+          if (userError) {
+            console.error("Error creating user account:", userError);
+            throw new Error("Failed to create user account");
+          }
+
+          if (userData && userData.temp_password) {
+            // Send welcome email with the temporary password
+            await sendEmail({
+              to: validatedData.email.trim().toLowerCase(),
+              subject: "Welcome to Welcome.Chat - Your Account Details",
+              template: "client-invitation",
+              params: {
+                clientName: validatedData.client_name.trim(),
+                email: validatedData.email.trim().toLowerCase(),
+                tempPassword: userData.temp_password,
+                productName: "Welcome.Chat"
+              }
+            });
+            console.log("Welcome email sent successfully");
+          }
+        } catch (emailError) {
+          console.error("Error sending welcome email:", emailError);
+          // We continue even if email sending fails
+          // The client is still created, and the email can be sent manually later
         }
 
         return clientId;
