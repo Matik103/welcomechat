@@ -19,6 +19,7 @@ serve(async (req) => {
 
   try {
     const { token } = await req.json();
+    console.log("Verifying recovery token:", token);
 
     // Get the recovery token details
     const { data: tokenData, error: tokenError } = await supabase
@@ -28,6 +29,7 @@ serve(async (req) => {
       .single();
 
     if (tokenError || !tokenData) {
+      console.error("Invalid or expired recovery token:", tokenError);
       return new Response(
         JSON.stringify({ error: "Invalid or expired recovery token" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
@@ -36,6 +38,7 @@ serve(async (req) => {
 
     // Check if token has already been used
     if (tokenData.used_at) {
+      console.log("Token has already been used:", tokenData.used_at);
       return new Response(
         JSON.stringify({ error: "This recovery link has already been used" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
@@ -44,6 +47,7 @@ serve(async (req) => {
 
     // Check if token is expired
     if (new Date(tokenData.expires_at) < new Date()) {
+      console.log("Token has expired:", tokenData.expires_at);
       return new Response(
         JSON.stringify({ error: "This recovery link has expired" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
@@ -58,11 +62,14 @@ serve(async (req) => {
       .single();
 
     if (clientError || !clientData) {
+      console.error("Client not found:", clientError);
       return new Response(
         JSON.stringify({ error: "Client not found" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 }
       );
     }
+
+    console.log("Recovering client:", clientData.client_name);
 
     // Update client status to active
     const { error: updateError } = await supabase
@@ -74,6 +81,7 @@ serve(async (req) => {
       .eq("id", tokenData.client_id);
 
     if (updateError) {
+      console.error("Failed to recover client account:", updateError);
       return new Response(
         JSON.stringify({ error: "Failed to recover client account" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
@@ -100,6 +108,8 @@ serve(async (req) => {
           recovered_at: new Date().toISOString()
         }
       });
+
+    console.log("Client successfully recovered");
 
     return new Response(
       JSON.stringify({ 
