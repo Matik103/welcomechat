@@ -5,25 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getWidgetSettings, updateWidgetSettings } from '@/utils/widgetSettingsUtils';
 import { useClientActivity } from './useClientActivity';
+import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
 
 export const useWidgetSettings = (clientId?: string, isClientView = false) => {
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const { logClientActivity } = useClientActivity(clientId);
-
-  // Default settings
-  const defaultSettings = {
-    primary_color: '#3B82F6',
-    background_color: '#FFFFFF',
-    text_color: '#111827',
-    secondary_color: '#E5E7EB',
-    position: 'right',
-    welcome_message: 'Hi there! How can I help you today?',
-    response_time_text: 'Usually responds in a few minutes',
-    agent_name: 'AI Assistant',
-    agent_description: '',
-    logo_url: '',
-  };
 
   // Get widget settings for the client
   const { 
@@ -69,7 +56,7 @@ export const useWidgetSettings = (clientId?: string, isClientView = false) => {
 
   // Mutation to update widget settings
   const updateSettingsMutation = useMutation({
-    mutationFn: async (newSettings: any) => {
+    mutationFn: async (newSettings: WidgetSettings) => {
       if (!clientId) throw new Error('Client ID is required');
       
       // Merge with existing settings
@@ -143,6 +130,7 @@ export const useWidgetSettings = (clientId?: string, isClientView = false) => {
       
       // Update widget settings with new logo URL
       await updateSettingsMutation.mutateAsync({
+        ...defaultSettings,
         logo_url: publicUrl,
         logo_storage_path: storagePath
       });
