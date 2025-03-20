@@ -12,40 +12,44 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
   console.log("Creating client with data:", { ...data, widget_settings: "..." });
   
   try {
-    // Double-sanitize agent name to prevent SQL issues
+    // Ensure agent name is properly sanitized for SQL
     const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
     console.log("Using sanitized agent name:", sanitizedAgentName);
     
-    // Create the client record in the database
-    const { data: newClient, error } = await supabase
-      .from("clients")
-      .insert({
-        client_name: data.client_name,
-        email: data.email,
-        agent_name: sanitizedAgentName,
-        // Only spread widget_settings if it's a valid object
-        widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
-          ? {
-              ...data.widget_settings,
-              agent_description: sanitizeForSQL(data.agent_description) || "",
-              logo_url: data.logo_url || "",
-              logo_storage_path: data.logo_storage_path || ""
-            }
-          : {
-              agent_description: sanitizeForSQL(data.agent_description) || "",
-              logo_url: data.logo_url || "",
-              logo_storage_path: data.logo_storage_path || ""
-            }
-      })
-      .select()
-      .single();
+    // Also sanitize agent_description
+    const sanitizedAgentDescription = sanitizeForSQL(data.agent_description || '');
+    console.log("Using sanitized agent description:", sanitizedAgentDescription);
+    
+    // Prepare widget settings with sanitized values
+    const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
+      ? { ...data.widget_settings }
+      : {};
+    
+    // Create the client record in the database using raw SQL with parameter binding
+    // This avoids SQL syntax errors with special characters
+    const { data: newClient, error } = await supabase.rpc(
+      'create_new_client',
+      {
+        p_client_name: data.client_name,
+        p_email: data.email,
+        p_agent_name: sanitizedAgentName,
+        p_agent_description: sanitizedAgentDescription,
+        p_logo_url: data.logo_url || null,
+        p_logo_storage_path: data.logo_storage_path || null,
+        p_widget_settings: {
+          agent_description: sanitizedAgentDescription,
+          logo_url: data.logo_url || "",
+          logo_storage_path: data.logo_storage_path || ""
+        }
+      }
+    );
 
     if (error) {
       console.error("Error creating client:", error);
       throw error;
     }
 
-    const clientId = newClient.id;
+    const clientId = newClient;
     console.log(`Client created with ID: ${clientId}`);
 
     // Generate a temporary password

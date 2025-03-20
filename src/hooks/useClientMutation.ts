@@ -28,25 +28,23 @@ export const useClientMutation = (id: string | undefined) => {
       // Thoroughly sanitize agent_name to prevent SQL issues
       if (data.agent_name) {
         sanitizedData.agent_name = sanitizeForSQL(data.agent_name);
-        // Log before and after for debugging
         console.log("Agent name before sanitization:", data.agent_name);
         console.log("Agent name after sanitization:", sanitizedData.agent_name);
       } else {
-        // Ensure default value is also sanitized
+        // Make sure the default value is also sanitized
         sanitizedData.agent_name = sanitizeForSQL('AI Assistant');
         console.log("Using default sanitized agent name:", sanitizedData.agent_name);
       }
       
       // Handle agent_description separately to avoid type errors
       if (data.agent_description) {
-        sanitizedData.agent_description = sanitizeForSQL(data.agent_description) || '';
+        sanitizedData.agent_description = sanitizeForSQL(data.agent_description);
         // Add to widget_settings as well
         if (typeof sanitizedData.widget_settings === 'object') {
           (sanitizedData.widget_settings as Record<string, any>).agent_description = 
             sanitizedData.agent_description;
         }
         
-        // Log before and after sanitization for debugging
         console.log("Agent description before sanitization:", data.agent_description);
         console.log("Agent description after sanitization:", sanitizedData.agent_description);
       }
