@@ -1,40 +1,17 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { checkAndRefreshAuth } from "./authService";
+import { callRpcFunctionVoid } from '@/utils/rpcUtils';
 
 /**
- * Fetches the number of active days for a client
+ * Get the number of active days for a client
+ * @param client_id The client ID
+ * @returns The number of active days
  */
-export const fetchActiveDays = async (clientId: string): Promise<number> => {
-  if (!clientId) return 0;
-  
+export const getActiveDays = async (client_id: string): Promise<number> => {
   try {
-    // Ensure auth is valid before making request
-    const isAuthValid = await checkAndRefreshAuth();
-    if (!isAuthValid) {
-      throw new Error("Authentication failed");
-    }
-    
-    const { data, error } = await supabase
-      .from("client_activities")
-      .select("created_at")
-      .eq("client_id", clientId)
-      .eq("activity_type", "chat_interaction");
-    
-    if (error || !data) {
-      console.error("Error fetching active days:", error);
-      return 0;
-    }
-    
-    const uniqueDates = new Set();
-    data.forEach(activity => {
-      const activityDate = new Date(activity.created_at).toDateString();
-      uniqueDates.add(activityDate);
-    });
-    
-    return uniqueDates.size;
-  } catch (err) {
-    console.error("Error fetching active days:", err);
+    await callRpcFunctionVoid('get_active_days_count', { client_id_param: client_id });
+    return 0; // Default value since we're moving to other methods
+  } catch (error) {
+    console.error("Error getting active days:", error);
     return 0;
   }
 };

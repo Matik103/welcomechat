@@ -40,7 +40,7 @@ export const useClientDashboard = (clientId: string, agentName?: string) => {
     chatHistory,
     isLoading: isLoadingChatHistory,
     error: chatHistoryError,
-  } = useClientChatHistory(clientId, agentName);
+  } = useClientChatHistory(clientId);
 
   // Calculate loading and error states
   const isLoading = isLoadingStats || isLoadingChatHistory;

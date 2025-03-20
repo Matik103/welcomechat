@@ -51,3 +51,21 @@ export const callRpcFunction = async <T = any>(functionName: string, params?: an
     throw error;
   }
 };
+
+/**
+ * Call RPC function with void return type
+ * Don't check result for truthiness
+ */
+export const callRpcFunctionVoid = async (functionName: string, params?: any): Promise<void> => {
+  try {
+    const { error } = await (supabase.rpc as any)(functionName, params);
+    
+    if (error) {
+      console.error(`Error calling RPC function ${functionName}:`, error);
+      throw error;
+    }
+  } catch (error) {
+    console.error(`Error in callRpcFunctionVoid for ${functionName}:`, error);
+    throw error;
+  }
+};
