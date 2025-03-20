@@ -16,10 +16,10 @@ export const fetchTotalInteractions = async (clientId: string): Promise<number> 
     }
     
     const { count, error } = await supabase
-      .from("client_activities")
+      .from("ai_agents")
       .select("*", { count: "exact", head: true })
       .eq("client_id", clientId)
-      .eq("activity_type", "chat_interaction");
+      .eq("interaction_type", "chat_interaction");
     
     if (error) {
       console.error("Error counting interactions:", error);

@@ -17,18 +17,15 @@ export const useClientChatHistory = (clientId: string) => {
     queryFn: async () => {
       if (!clientId) return [];
       
-      try {
-        const data = await fetchChatHistory(clientId);
-        setChatHistoryLength(data.length);
-        return data;
-      } catch (err) {
-        console.error('Error fetching chat history:', err);
-        return [];
-      }
+      // Use fetchChatHistory which now queries the ai_agents table
+      const data = await fetchChatHistory(clientId);
+      setChatHistoryLength(data.length);
+      return data;
     },
     enabled: !!clientId,
   });
 
+  // Provide debug info for troubleshooting
   const debug = {
     clientId,
     chatHistoryLength

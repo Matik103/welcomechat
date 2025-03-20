@@ -20,8 +20,9 @@ export const useClientStats = () => {
       
       // Get total clients (independent of time range)
       const { count: totalClientCount, error: countError } = await supabase
-        .from("clients")
+        .from("ai_agents")
         .select("*", { count: "exact", head: true })
+        .eq("interaction_type", "config")
         .is("deletion_scheduled_at", null);
       
       if (countError) throw countError;
