@@ -8,6 +8,7 @@ import { Client } from "@/types/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ClientStatus } from "@/types/activity";
+import { createClientActivity } from "@/services/clientActivityService";
 
 interface DeleteClientDialogProps {
   isOpen: boolean;
@@ -37,6 +38,18 @@ export const DeleteClientDialog = ({
 
     setIsDeleting(true);
     try {
+      // Log activity that deletion has been initiated
+      await createClientActivity(
+        client.id,
+        "client_updated",
+        `Client ${client.client_name} deletion initiated`,
+        { 
+          action: "deletion_started",
+          client_name: client.client_name,
+          admin_action: true
+        }
+      );
+
       // Schedule the client for deletion in 30 days
       const deletionDate = new Date();
       deletionDate.setDate(deletionDate.getDate() + 30);
@@ -57,10 +70,26 @@ export const DeleteClientDialog = ({
       await sendDeletionEmail(client);
       
       toast.success("Client scheduled for deletion");
+      
+      // Let the parent component know to update the list and log the activity
       onClientsUpdated();
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error deleting client:", error);
+      
+      // Log the failed deletion attempt
+      await createClientActivity(
+        client.id,
+        "system_update",
+        `Failed to schedule deletion for client ${client.client_name}`,
+        { 
+          error: error.message,
+          action: "deletion_failed",
+          client_name: client.client_name,
+          admin_action: true
+        }
+      );
+      
       toast.error(`Failed to delete client: ${error.message}`);
     } finally {
       setIsDeleting(false);
@@ -71,11 +100,38 @@ export const DeleteClientDialog = ({
   const sendDeletionEmail = async (client: Client) => {
     if (!client.email || !client.client_name) {
       console.error("Missing client email or name for deletion notification");
+      
+      // Log the failed email attempt
+      await createClientActivity(
+        client.id,
+        "system_update",
+        `Failed to send deletion email to client ${client.client_name}`,
+        { 
+          error: "Missing client email or name",
+          action: "deletion_email_failed",
+          client_name: client.client_name,
+          admin_action: true
+        }
+      );
+      
       return;
     }
 
     setIsSendingEmail(true);
     try {
+      // Log that we're attempting to send the email
+      await createClientActivity(
+        client.id,
+        "email_sent",
+        `Sending deletion notification email to ${client.client_name}`,
+        { 
+          recipient_email: client.email,
+          email_type: "deletion_notification",
+          client_name: client.client_name,
+          admin_action: true
+        }
+      );
+      
       const { data, error } = await supabase.functions.invoke('send-deletion-email', {
         body: {
           clientId: client.id,
@@ -87,12 +143,55 @@ export const DeleteClientDialog = ({
 
       if (error) {
         console.error("Error sending deletion email:", error);
+        
+        // Log the failed email
+        await createClientActivity(
+          client.id,
+          "system_update",
+          `Failed to send deletion email to client ${client.client_name}`,
+          { 
+            error: error.message,
+            action: "deletion_email_failed",
+            client_name: client.client_name,
+            recipient_email: client.email,
+            admin_action: true
+          }
+        );
+        
         toast.error("Failed to send deletion notification email");
       } else {
         console.log("Deletion email sent successfully:", data);
+        
+        // Log successful email
+        await createClientActivity(
+          client.id,
+          "email_sent",
+          `Deletion notification email sent to ${client.client_name}`,
+          { 
+            recipient_email: client.email,
+            email_type: "deletion_notification",
+            client_name: client.client_name,
+            admin_action: true,
+            successful: true
+          }
+        );
       }
     } catch (error) {
       console.error("Error invoking send-deletion-email function:", error);
+      
+      // Log the error
+      await createClientActivity(
+        client.id,
+        "system_update",
+        `Error sending deletion email to client ${client.client_name}`,
+        { 
+          error: String(error),
+          action: "deletion_email_error",
+          client_name: client.client_name,
+          admin_action: true
+        }
+      );
+      
       toast.error("Failed to send deletion notification email");
     } finally {
       setIsSendingEmail(false);
