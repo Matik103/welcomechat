@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -9,7 +8,8 @@ import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { LogoUpload } from "./LogoUpload";
+import { LogoManagement } from "@/components/widget/LogoManagement";
+import { toast } from "sonner";
 
 interface ClientFormProps {
   initialData?: Client | null;
@@ -18,38 +18,31 @@ interface ClientFormProps {
     email: string; 
     agent_name?: string; 
     agent_description?: string;
-    logo_file?: File;
+    logo_url?: string;
+    logo_storage_path?: string;
   }) => Promise<void>;
   isLoading?: boolean;
   isClientView?: boolean;
-  onLogoUpload?: (file: File) => Promise<void>;
 }
 
 const clientFormSchema = z.object({
-  client_name: z.string().min(1, "Client name is required")
-    .refine(name => !name.match(/['"`\\]/), { 
-      message: 'Client name cannot include quotes or backslashes' 
-    }),
+  client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().optional()
-    .refine(name => !name || !name.match(/['"`\\]/), { 
-      message: 'Agent name cannot include quotes or backslashes' 
-    }),
-  agent_description: z.string().optional()
-    .refine(desc => !desc || !desc.match(/["'\\]/g), {
-      message: 'Agent description cannot include quotes or backslashes'
-    }),
+  agent_name: z.string().optional(),
+  agent_description: z.string().optional(),
+  logo_url: z.string().optional(),
+  logo_storage_path: z.string().optional(),
 });
 
 export const ClientForm = ({ 
   initialData, 
   onSubmit, 
   isLoading = false, 
-  isClientView = false,
-  onLogoUpload
+  isClientView = false
 }: ClientFormProps) => {
   const [isUploading, setIsUploading] = useState(false);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [tempLogoFile, setTempLogoFile] = useState<File | null>(null);
+  const [localLogoPreview, setLocalLogoPreview] = useState<string | null>(null);
   
   const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
@@ -58,10 +51,11 @@ export const ClientForm = ({
       email: initialData?.email || "",
       agent_name: initialData?.agent_name || "",
       agent_description: initialData?.agent_description || "",
+      logo_url: initialData?.logo_url || "",
+      logo_storage_path: initialData?.logo_storage_path || "",
     },
   });
 
-  // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
       console.log("Setting form values with initial data:", initialData);
@@ -70,52 +64,86 @@ export const ClientForm = ({
         email: initialData.email || "",
         agent_name: initialData.agent_name || "",
         agent_description: initialData.agent_description || "",
+        logo_url: initialData.logo_url || "",
+        logo_storage_path: initialData.logo_storage_path || "",
       });
     }
   }, [initialData, reset]);
 
-  // For debugging: log the current form values
   const currentValues = watch();
   useEffect(() => {
     console.log("Current form values:", currentValues);
   }, [currentValues]);
   
-  // Handle logo upload
-  const handleLogoUpload = async (file: File) => {
-    if (!onLogoUpload) return;
+  const clientId = initialData?.id;
+  
+  const handleLogoSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
     
-    setIsUploading(true);
-    try {
-      setLogoFile(file);
-      if (onLogoUpload) {
-        await onLogoUpload(file);
-      }
-    } finally {
-      setIsUploading(false);
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Logo file must be less than 5MB");
+      return;
     }
+    
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please select a valid image file (JPG, PNG, GIF, SVG, WebP)");
+      return;
+    }
+    
+    setTempLogoFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const previewUrl = e.target?.result as string;
+      setLocalLogoPreview(previewUrl);
+    };
+    reader.readAsDataURL(file);
+    
+    toast.success("Logo selected. It will be uploaded when you save the client.");
   };
   
-  // Handle form submission
-  const handleFormSubmit = handleSubmit(async (data) => {
-    await onSubmit({
-      ...data,
-      logo_file: logoFile || undefined
-    });
-  });
-
-  // Get logo URL from widget_settings safely
-  const getLogoUrl = (): string | null | undefined => {
-    if (!initialData?.widget_settings) return null;
-    
-    if (typeof initialData.widget_settings === 'object' && initialData.widget_settings !== null) {
-      return (initialData.widget_settings as any).logo_url;
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!clientId) {
+      handleLogoSelection(event);
+      return;
     }
     
-    return null;
+    import("@/utils/widgetSettingsUtils").then(({ handleLogoUploadEvent }) => {
+      handleLogoUploadEvent(
+        event,
+        clientId,
+        (url: string, storagePath: string) => {
+          setValue("logo_url", url);
+          setValue("logo_storage_path", storagePath);
+          toast.success("Logo uploaded successfully");
+        },
+        (error: Error) => {
+          toast.error(`Upload failed: ${error.message}`);
+        },
+        () => setIsUploading(true),
+        () => setIsUploading(false)
+      );
+    });
+  };
+  
+  const handleRemoveLogo = () => {
+    setValue("logo_url", "");
+    setValue("logo_storage_path", "");
+    setTempLogoFile(null);
+    setLocalLogoPreview(null);
+  };
+
+  const handleFormSubmit = async (data: any) => {
+    await onSubmit({
+      ...data,
+      _tempLogoFile: tempLogoFile
+    });
   };
 
   return (
-    <form onSubmit={handleFormSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name <span className="text-red-500">*</span>
@@ -157,10 +185,24 @@ export const ClientForm = ({
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
-        {!isClientView && (
-          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
-        )}
-        <p className="text-xs text-gray-500">Please avoid using quotes (', ", `) in the agent name.</p>
+        <p className="text-xs text-gray-500 mt-1">
+          {!isClientView ? "Optional - client can set this later" : "The name of your AI assistant"}
+        </p>
+      </div>
+      
+      <div className="space-y-2">
+        <Label className="text-sm font-medium text-gray-900">
+          AI Agent Logo
+        </Label>
+        <LogoManagement
+          logoUrl={localLogoPreview || watch("logo_url") || ""}
+          isUploading={isUploading}
+          onLogoUpload={handleLogoUpload}
+          onRemoveLogo={handleRemoveLogo}
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          The logo will appear in the chat header for your AI assistant
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -180,20 +222,11 @@ export const ClientForm = ({
         {!isClientView && (
           <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
         )}
-        <p className="text-xs text-gray-500">Please avoid using quotes (', ", `) in the description.</p>
       </div>
-      
-      {onLogoUpload && (
-        <LogoUpload
-          logoUrl={getLogoUrl()}
-          onLogoUpload={handleLogoUpload}
-          isUploading={isUploading}
-        />
-      )}
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">
-        <Button type="submit" disabled={isLoading || isUploading}>
-          {(isLoading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button type="submit" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isClientView 
             ? "Save Changes"
             : initialData 

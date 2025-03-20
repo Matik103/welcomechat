@@ -1,7 +1,6 @@
 
 import { RefObject } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface ChatMessagesProps {
   messages: { text: string; isUser: boolean }[];
@@ -10,8 +9,6 @@ interface ChatMessagesProps {
   secondaryColor: string;
   isTyping?: boolean;
   messagesEndRef?: RefObject<HTMLDivElement>;
-  logoUrl?: string;
-  agentName: string;
 }
 
 export function ChatMessages({ 
@@ -20,94 +17,39 @@ export function ChatMessages({
   textColor, 
   secondaryColor,
   isTyping = false,
-  messagesEndRef,
-  logoUrl,
-  agentName
+  messagesEndRef
 }: ChatMessagesProps) {
-  // Helper function to generate initials from agent name
-  const getInitials = (name: string) => {
-    if (!name) return "AI";
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  };
-
   return (
     <div 
-      className="flex-1 p-4 overflow-y-auto"
+      className="flex-1 p-3 overflow-y-auto"
       style={{ backgroundColor }}
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         {messages.map((message, index) => (
           <div 
             key={index}
-            className={`flex ${message.isUser ? 'justify-end' : 'justify-start'} items-end gap-2`}
+            className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
           >
-            {!message.isUser && (
-              <Avatar className="w-8 h-8 border border-gray-200 shadow-sm">
-                {logoUrl ? (
-                  <AvatarImage 
-                    src={logoUrl} 
-                    alt={agentName} 
-                    className="object-cover w-full h-full"
-                    onError={(e) => {
-                      console.error("Error loading logo in message avatar:", logoUrl);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : null}
-                <AvatarFallback 
-                  className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}
-                >
-                  {getInitials(agentName)}
-                </AvatarFallback>
-              </Avatar>
-            )}
-            
             <div 
-              className={`max-w-[75%] rounded-xl p-3 ${
+              className={`max-w-[80%] rounded-lg p-3 ${
                 message.isUser 
-                  ? 'bg-indigo-600 text-white rounded-tr-none' 
-                  : 'bg-gray-100 rounded-tl-none'
+                  ? 'bg-indigo-600 text-white' 
+                  : 'bg-gray-100'
               }`}
               style={{
                 backgroundColor: message.isUser ? secondaryColor : 'rgb(243, 244, 246)',
-                color: message.isUser ? 'white' : textColor,
-                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                color: message.isUser ? 'white' : textColor
               }}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+              <p className="text-sm">{message.text}</p>
             </div>
-            
-            {message.isUser && (
-              <Avatar className="w-8 h-8 bg-gray-400 text-white">
-                <AvatarFallback>You</AvatarFallback>
-              </Avatar>
-            )}
           </div>
         ))}
         
         {isTyping && (
-          <div className="flex justify-start items-end gap-2">
-            <Avatar className="w-8 h-8 border border-gray-200">
-              {logoUrl ? (
-                <AvatarImage 
-                  src={logoUrl} 
-                  alt={agentName} 
-                  className="object-cover w-full h-full"
-                  onError={(e) => {
-                    console.error("Error loading logo in typing indicator:", logoUrl);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              ) : null}
-              <AvatarFallback 
-                className={`text-xs bg-indigo-100 text-indigo-800 font-medium ${logoUrl ? 'hidden' : ''}`}
-              >
-                {getInitials(agentName)}
-              </AvatarFallback>
-            </Avatar>
-            
+          <div className="flex justify-start">
             <div 
-              className="max-w-[75%] rounded-xl p-3 bg-gray-100 rounded-tl-none"
+              className="max-w-[80%] rounded-lg p-3 bg-gray-100"
               style={{ color: textColor }}
             >
               <div className="flex items-center space-x-1">

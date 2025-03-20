@@ -36,12 +36,21 @@ export function useStoreWebsiteContent() {
         };
       }
       
-      // Prepare metadata
+      // Normalize URL
+      let normalizedUrl = url;
+      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+      
+      // Prepare metadata with more detailed information
       const metadata = {
         source: "website",
-        url: url,
+        url: normalizedUrl,
         imported_at: new Date().toISOString(),
-        content_type: "text"
+        content_type: "text",
+        extraction_method: "direct", // Direct method vs Firecrawl
+        content_length: content.length,
+        title: extractTitleFromContent(content) || normalizedUrl
       };
       
       // Insert the content into AI agents table using exact agent name as provided
@@ -51,7 +60,7 @@ export function useStoreWebsiteContent() {
           client_id: clientId,
           name: agentName, // Use exact name without modification
           content: content,
-          url: url,
+          url: normalizedUrl,
           interaction_type: "imported_content",
           settings: metadata,
           is_error: false
@@ -79,6 +88,28 @@ export function useStoreWebsiteContent() {
       };
     } finally {
       setIsStoring(false);
+    }
+  };
+
+  // Helper function to extract title from HTML content
+  const extractTitleFromContent = (content: string): string | null => {
+    try {
+      // Try to extract title from HTML content
+      const titleMatch = content.match(/<title>(.*?)<\/title>/i);
+      if (titleMatch && titleMatch[1]) {
+        return titleMatch[1].trim();
+      }
+      
+      // Try to extract first heading
+      const headingMatch = content.match(/<h1>(.*?)<\/h1>/i);
+      if (headingMatch && headingMatch[1]) {
+        return headingMatch[1].trim();
+      }
+      
+      return null;
+    } catch (error) {
+      console.error("Error extracting title:", error);
+      return null;
     }
   };
 
