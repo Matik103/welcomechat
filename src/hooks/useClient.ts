@@ -33,6 +33,7 @@ export const useClient = (id?: string) => {
         .maybeSingle();
       
       // Extract agent_description and logo from widget_settings safely
+      let widgetAgentDescription = "";
       let widgetLogoUrl = "";
       let widgetLogoStoragePath = "";
       
@@ -41,18 +42,20 @@ export const useClient = (id?: string) => {
         typeof clientData.widget_settings === 'object' && 
         clientData.widget_settings !== null
       ) {
+        widgetAgentDescription = (clientData.widget_settings as any).agent_description || "";
         widgetLogoUrl = (clientData.widget_settings as any).logo_url || "";
         widgetLogoStoragePath = (clientData.widget_settings as any).logo_storage_path || "";
       }
       
-      // Combine the data and return the client with the logo
+      // Combine the data and return the client with the agent description and logo
       const combinedData: Client = {
         ...clientData,
+        agent_description: agentData?.agent_description || widgetAgentDescription || "",
         logo_url: agentData?.logo_url || widgetLogoUrl || "",
         logo_storage_path: agentData?.logo_storage_path || widgetLogoStoragePath || "",
       };
       
-      console.log("Client data merged with agent logo:", combinedData);
+      console.log("Client data merged with agent description and logo:", combinedData);
       
       return combinedData as Client;
     },

@@ -1,3 +1,4 @@
+
 import { WidgetSettings } from "./widget-settings";
 import { Json } from "@/integrations/supabase/types";
 
@@ -27,18 +28,16 @@ export interface WebsiteUrl {
 export interface ClientFormData {
   client_name: string;
   email: string;
-  widget_settings?: {
-    agent_name?: string;
-    agent_description?: string;
-    logo_url?: string;
-    logo_storage_path?: string;
-  };
+  agent_name?: string;
+  agent_description?: string;
+  widget_settings?: Json;
   company?: string;
   description?: string;
-  _tempLogoFile?: File | null;
+  logo_url?: string;
+  logo_storage_path?: string;
 }
 
-export interface Client extends Omit<ClientFormData, 'widget_settings'> {
+export interface Client extends ClientFormData {
   id: string;
   created_at?: string;
   updated_at?: string;
@@ -50,8 +49,4 @@ export interface Client extends Omit<ClientFormData, 'widget_settings'> {
   drive_link?: string;
   drive_link_added_at?: string;
   website_url_added_at?: string;
-  agent_name?: string;
-  logo_url?: string;
-  logo_storage_path?: string;
-  widget_settings?: Json;
 }

@@ -1,185 +1,210 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.1";
 import { Resend } from "npm:resend@2.0.0";
-
-// Create a Supabase client with the Auth context of the function
-const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Use the API key from environment variables
-const resendApiKey = Deno.env.get("RESEND_API_KEY") || "";
-const resend = new Resend(resendApiKey);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-application-name",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
+interface DeletionEmailRequest {
+  clientId: string;
+  clientName: string;
+  email: string;
+  agentName?: string;
+}
+
 serve(async (req) => {
-  // Handle preflight CORS request
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
-
+  
   try {
-    // Validate that we have the API key before proceeding
+    console.log("Send deletion email function started");
+    
+    // Use the Resend API key from environment variables - fallback to direct value for testing
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") || "re_36V5aruC_9aScEQmCQqnYzGtuuhg1WFN2";
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY environment variable is not set or empty");
-      throw new Error("Email service configuration is missing (RESEND_API_KEY)");
+      console.error("ERROR: Missing RESEND_API_KEY environment variable");
+      return new Response(
+        JSON.stringify({ error: "Resend API key not configured" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
     }
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("Supabase credentials are missing");
-      throw new Error("Database configuration is missing");
-    }
-
-    // Parse the request body
-    let body;
+    
+    console.log("Initializing Resend client with API key");
+    const resend = new Resend(resendApiKey);
+    
+    // Parse request body
+    let body: DeletionEmailRequest;
     try {
       body = await req.json();
-    } catch (parseError) {
-      console.error("Error parsing request body:", parseError);
-      throw new Error("Invalid request format: " + parseError.message);
+      console.log("Request body parsed successfully:", { 
+        clientId: body.clientId,
+        clientName: body.clientName, 
+        email: body.email
+      });
+    } catch (e) {
+      console.error("Error parsing JSON:", e);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
-
-    const { clientId, clientName, email, agentName } = body;
+    
+    const { clientId, clientName, email } = body;
     
     // Validate required parameters
     if (!clientId || !clientName || !email) {
-      console.error("Missing required parameters:", { clientId, clientName, email });
-      throw new Error("Missing required parameters: clientId, clientName, and email are required");
+      const missingParams = [];
+      if (!clientId) missingParams.push("clientId");
+      if (!clientName) missingParams.push("clientName");
+      if (!email) missingParams.push("email");
+      
+      console.error("Missing required parameters:", missingParams.join(", "));
+      return new Response(
+        JSON.stringify({ error: `Missing required parameters: ${missingParams.join(", ")}` }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
     }
-
-    console.log("Processing deletion email for:", { clientId, clientName, email });
-
-    // Create recovery token
-    const { data, error } = await supabase
-      .from("client_recovery_tokens")
-      .insert({
-        client_id: clientId,
-        token: crypto.randomUUID(),
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating recovery token:", error);
-      throw new Error(`Error creating recovery token: ${error.message}`);
-    }
-
-    const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://welcomeai.io";
-    const recoveryLink = `${publicSiteUrl}/recover-client?token=${data.token}`;
-    const deletionDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    const formattedDeletionDate = deletionDate.toLocaleDateString('en-US', {
+    
+    // Create recovery URL that redirects to client dashboard with auto-reactivation parameter
+    const recoveryUrl = `${req.headers.get("origin") || "https://welcomechat.ai"}/client/dashboard?auto_reactivate=true&client_id=${clientId}`;
+    
+    // Calculate the expiration date (30 days from now)
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 30);
+    const formattedDate = expirationDate.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
-
-    const agentInfo = agentName ? ` with AI assistant "${agentName}"` : '';
-
-    console.log("Sending email with recovery link:", recoveryLink);
-    console.log("Using Resend API Key (first 5 chars):", resendApiKey.substring(0, 5));
-
-    try {
-      // Send the email using Resend
-      const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "Welcome.Chat <admin@welcome.chat>",
-        to: email,
-        subject: "Important: Your Account Is Scheduled for Deletion",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-            <h1 style="color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px;">Account Deletion Notice</h1>
-            
-            <p>Hello,</p>
-            
-            <p>We're reaching out to inform you that your client account "${clientName}"${agentInfo} has been scheduled for deletion.</p>
-            
-            <div style="background-color: #f8f8f8; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p style="margin: 0;"><strong>Scheduled deletion date:</strong> ${formattedDeletionDate}</p>
-            </div>
-            
-            <p>If this was done in error, or if you wish to restore your account, you can recover it by clicking the button below within the next 30 days:</p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${recoveryLink}" style="background-color: #4CAF50; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">Recover My Account</a>
-            </div>
-            
-            <p>If you don't take any action, your account and all associated data will be permanently deleted after the scheduled date.</p>
-            
-            <p>If you have any questions or concerns, please contact our support team.</p>
-            
-            <p>Best regards,<br>Welcome.Chat Team</p>
-            
-            <div style="font-size: 12px; color: #777; margin-top: 30px; padding-top: 10px; border-top: 1px solid #eee;">
-              <p>If you did request this deletion, no action is required. Your account will be automatically deleted on the scheduled date.</p>
-            </div>
-          </div>
-        `,
-      });
-
-      if (emailError) {
-        console.error("Email sending error from Resend:", emailError);
-        throw emailError;
-      }
-
-      console.log("Email sent successfully:", emailData);
-
-      // Log client activity for email sent
-      await supabase
-        .from("client_activities")
-        .insert({
-          client_id: clientId,
-          activity_type: "email_sent",
-          description: `Deletion notification email sent to ${clientName}`,
-          metadata: { 
-            email_type: "deletion_notification",
-            recipient_email: email,
-            recovery_token: data.token,
-            deletion_date: formattedDeletionDate
-          }
-        });
-
-      return new Response(JSON.stringify({ success: true, data: emailData }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    } catch (emailSendError) {
-      console.error("Resend API email sending error:", emailSendError);
-      
-      // Log the failure
-      await supabase
-        .from("client_activities")
-        .insert({
-          client_id: clientId,
-          activity_type: "email_error",
-          description: `Failed to send deletion notification email to ${clientName}`,
-          metadata: { 
-            error: emailSendError.message || "Unknown error",
-            recipient_email: email,
-            recovery_token: data.token
-          }
-        });
-        
-      throw new Error(`Resend API error: ${emailSendError.message || "Unknown email service error"}`);
-    }
-  } catch (error) {
-    console.error("Error in send-deletion-email:", error);
     
-    // Return a more detailed error response
+    // Prepare email content with a professional template
+    const emailSubject = `Important: Your Welcome.Chat Account is Scheduled for Deletion`;
+    
+    const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <title>Account Deletion Notice</title>
+    </head>
+    <body style="background-color: #f6f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <!-- Header -->
+        <div style="background-color: #4f46e5; padding: 30px 40px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Account Deletion Notice</h1>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 40px;">
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">Hello ${clientName},</p>
+          
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">We're writing to inform you that your Welcome.Chat account has been scheduled for deletion. If this was not intended or if you wish to recover your account, you have 30 days to take action.</p>
+          
+          <!-- Important Info Box -->
+          <div style="background-color: #fff7ed; border: 1px solid #fdba74; border-radius: 8px; padding: 20px; margin: 30px 0;">
+            <p style="margin: 0 0 10px; color: #c2410c; font-weight: 600; font-size: 16px;">Important Information:</p>
+            <ul style="color: #4a5568; margin: 0; padding-left: 20px;">
+              <li style="margin-bottom: 8px;">Your account will be permanently deleted on <strong>${formattedDate}</strong></li>
+              <li style="margin-bottom: 8px;">All associated data will be permanently removed</li>
+              <li style="margin-bottom: 8px;">This action cannot be undone after the 30-day period</li>
+            </ul>
+          </div>
+          
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">If you wish to recover your account, please click the button below or contact our support team directly at <a href="mailto:admin@welcome.chat" style="color: #4f46e5; text-decoration: none;">admin@welcome.chat</a>.</p>
+          
+          <!-- CTA Button -->
+          <div style="text-align: center; margin: 35px 0;">
+            <a href="${recoveryUrl}" style="display: inline-block; background-color: #4f46e5; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">Recover My Account</a>
+          </div>
+          
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 30px 0 0;">If you intended to delete your account, no further action is required.</p>
+          
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 20px 0 0;">Thank you for your attention to this matter.</p>
+          
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 20px 0 0;">Best regards,<br>The Welcome.Chat Team</p>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #718096; font-size: 14px; margin: 0;">© ${new Date().getFullYear()} Welcome.Chat. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+    
+    // Send the email
+    try {
+      console.log("Attempting to send email via Resend to:", email);
+      
+      const { data, error } = await resend.emails.send({
+        from: "Welcome.Chat <admin@welcome.chat>",
+        to: [email],
+        subject: emailSubject,
+        html: emailHtml
+      });
+      
+      if (error) {
+        console.error("Resend API error:", error);
+        return new Response(
+          JSON.stringify({ error: error.message || "Failed to send email" }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
+      }
+      
+      console.log("Email sent successfully:", data);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          data: data
+        }), 
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    } catch (sendError) {
+      console.error("Error sending email:", sendError);
+      return new Response(
+        JSON.stringify({ error: sendError.message || "Failed to send email" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+  } catch (error: any) {
+    console.error("Error in send-deletion-email function:", error);
+    
     return new Response(
       JSON.stringify({ 
-        success: false, 
-        error: error.message || "Unknown error occurred",
-        details: error.stack || "No stack trace available"
-      }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        error: error.message || "Failed to process deletion email request"
+      }), 
+      {
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
   }

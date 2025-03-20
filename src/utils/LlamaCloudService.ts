@@ -1,6 +1,4 @@
 
-import { supabase } from "@/integrations/supabase/client";
-
 interface ParseResponse {
   success: boolean;
   error?: string;
@@ -43,10 +41,13 @@ Example Responses for Off-Limit Questions:
     try {
       console.log(`LlamaParse: Starting document parsing for ${documentType} at ${documentUrl}`);
       
-      // Call the Supabase Edge Function directly instead of using a relative API path
-      const { data, error } = await supabase.functions.invoke('process-document', {
+      // This will be handled by the edge function with the API key
+      const response = await fetch('/api/process-document', {
         method: 'POST',
-        body: {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           documentUrl,
           documentType,
           useLlamaParse: true,
@@ -56,18 +57,32 @@ Example Responses for Off-Limit Questions:
             chunk_size: 2000, // Optimal chunk size for OpenAI models
             include_metadata: true // Include document metadata
           }
-        },
+        }),
       });
 
-      if (error) {
-        console.error('Error parsing document with LlamaCloud:', error);
+      // Handle non-JSON responses first
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const rawText = await response.text();
+        console.error('Received non-JSON response from LlamaParse:', rawText.substring(0, 500));
         return {
           success: false,
-          error: error.message || 'Failed to parse document with LlamaCloud',
+          error: `LlamaParse returned non-JSON response: ${rawText.substring(0, 200)}...`,
         };
       }
 
-      console.log('LlamaParse: Successfully parsed document, content:', data);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Error parsing document with LlamaCloud:', data);
+        return {
+          success: false,
+          error: data.error || 'Failed to parse document with LlamaCloud',
+        };
+      }
+
+      console.log('LlamaParse: Successfully parsed document, content length:', 
+        data.content ? data.content.length : 'unknown');
       
       return {
         success: true,

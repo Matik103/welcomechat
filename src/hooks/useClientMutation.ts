@@ -6,63 +6,51 @@ import {
   createClient,
   logClientUpdateActivity
 } from "@/services/clientService";
-import { sanitizeForSQL } from "@/utils/inputSanitizer";
 import { toast } from "sonner";
 
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      console.log("Data before mutation:", data);
-      
-      // Create a deep copy of the data to avoid mutating the original object
-      const sanitizedData: ClientFormData = {
+      // Use agent name and description exactly as provided without any modifications
+      const updatedData = {
         ...data,
-        widget_settings: {
-          ...data.widget_settings,
-          // Ensure agent_name is sanitized if present in widget_settings
-          agent_name: data.widget_settings?.agent_name ? 
-            sanitizeForSQL(data.widget_settings.agent_name) : 
-            'AI Assistant'
-        }
+        agent_name: data.agent_name, // Use the exact agent name as provided
+        agent_description: data.agent_description // Include agent_description
       };
-      
-      console.log("Data after sanitization:", sanitizedData);
 
       if (id) {
         // Update existing client
-        try {
-          const clientId = await updateClient(id, sanitizedData);
-          await logClientUpdateActivity(id);
-          return clientId;
-        } catch (error) {
-          console.error("Error updating client in mutation:", error);
-          console.error("Error details:", JSON.stringify(error, null, 2));
-          throw error;
-        }
+        const clientId = await updateClient(id, updatedData);
+        await logClientUpdateActivity(id);
+        return clientId;
       } else {
         // Create new client
+        let clientId;
+        let emailSent = false;
+        let errorMessage = null;
+        
         try {
           // Create the client record which also handles sending the invitation email
-          console.log("Calling createClient with sanitized data...");
-          const clientId = await createClient(sanitizedData);
+          clientId = await createClient(updatedData);
           console.log("Client created successfully with ID:", clientId);
           
-          return {
-            clientId,
-            emailSent: true,
-            errorMessage: null
-          };
+          // The email is already sent in createClient, so we don't need to send it again here
+          emailSent = true;
         } catch (error: any) {
           console.error("Error in client creation process:", error);
-          
-          // Add more detailed logs to track what's happening
-          if (error.code) {
-            console.error(`SQL Error code: ${error.code}, message: ${error.message}`);
-          }
-          
-          // Re-throw with a clearer message
           throw new Error(`Failed to create client: ${error.message}`);
         }
+        
+        if (!emailSent && errorMessage) {
+          // If client was created but email failed, still return client ID but with error info
+          console.log(`Client created but email failed: ${errorMessage}`);
+        }
+        
+        return {
+          clientId,
+          emailSent,
+          errorMessage
+        };
       }
     }
   });

@@ -1,13 +1,11 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 export const useRecentActivities = () => {
   const queryClient = useQueryClient();
-  const subscriptionRef = useRef<any>(null);
   
-  // Query recent activities
   const query = useQuery({
     queryKey: ["recent-activities"],
     queryFn: async () => {
@@ -38,41 +36,10 @@ export const useRecentActivities = () => {
         client_name: activity.clients?.client_name || "Unknown Client"
       }));
     },
-    refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
+    refetchInterval: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
-    staleTime: 30 * 1000, // Data stays fresh for 30 seconds
+    staleTime: 60 * 1000,
   });
-
-  // Setup realtime subscription only once
-  useEffect(() => {
-    // Skip if we already have a subscription
-    if (subscriptionRef.current) return;
-    
-    console.log("Setting up realtime subscription for activities");
-    
-    const channel = supabase
-      .channel('recent-activities-realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'client_activities',
-      }, (_payload) => {
-        // Invalidate the cache to trigger a refetch
-        console.log("Activity changed, invalidating query cache");
-        queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
-      })
-      .subscribe();
-    
-    subscriptionRef.current = channel;
-    
-    return () => {
-      console.log("Removing realtime subscription for activities");
-      if (subscriptionRef.current) {
-        supabase.removeChannel(subscriptionRef.current);
-        subscriptionRef.current = null;
-      }
-    };
-  }, [queryClient]);
 
   return query;
 };

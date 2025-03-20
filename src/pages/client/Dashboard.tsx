@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
@@ -32,10 +32,10 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   
   // Redirect if not authenticated
   useEffect(() => {
-    if (!user && !loadTimeout) {
+    if (!user) {
       navigate("/auth", { replace: true });
     }
-  }, [user, navigate, loadTimeout]);
+  }, [user, navigate]);
 
   // Get client ID from user metadata if not provided
   const effectiveClientId = clientId || user?.user_metadata?.client_id;
@@ -52,8 +52,8 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     refreshDashboard
   } = useClientDashboard(effectiveClientId);
 
-  // Handle auth error - use a memoized callback to prevent unnecessary re-renders
-  const handleAuthError = useCallback(() => {
+  // Handle auth error
+  useEffect(() => {
     if (authError) {
       toast.error("Your session has expired. Please sign in again.");
       // Give the toast time to display before signing out
@@ -65,18 +65,8 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     }
   }, [authError, signOut]);
 
-  // Use effect with the memoized callback
-  useEffect(() => {
-    return handleAuthError();
-  }, [handleAuthError]);
-
-  // Use memo for the refresh handler to prevent unnecessary re-renders
-  const handleRefresh = useCallback(() => {
-    refreshDashboard();
-  }, [refreshDashboard]);
-
   // Very minimal loading state - only show if we don't have a user yet
-  if (!user && !loadTimeout) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -95,7 +85,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={handleRefresh}
+            onClick={refreshDashboard}
             className="flex items-center gap-1 text-gray-600"
             disabled={isRefreshing}
           >

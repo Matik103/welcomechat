@@ -12,9 +12,9 @@ export const AgentNameWarning = ({ show }: AgentNameWarningProps) => {
   return (
     <Alert variant="warning" className="bg-amber-50 border-amber-200">
       <AlertTriangle className="h-4 w-4 text-amber-600" />
-      <AlertTitle className="text-amber-800">AI Assistant Configuration Required</AlertTitle>
+      <AlertTitle className="text-amber-800">Agent Name Required</AlertTitle>
       <AlertDescription className="text-amber-700">
-        AI Assistant is not fully configured. Please complete your AI Assistant setup in client settings before adding documents.
+        Agent name is not configured. Please set up an AI Agent Name in client settings before adding documents.
       </AlertDescription>
     </Alert>
   );
