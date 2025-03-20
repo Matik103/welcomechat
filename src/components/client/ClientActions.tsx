@@ -8,6 +8,11 @@ interface ClientActionsProps {
 }
 
 export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) => {
+  // Make sure clientId is not empty or undefined before using it in the path
+  const widgetSettingsPath = clientId && clientId.trim() !== "" 
+    ? `/admin/clients/${clientId}/widget-settings`
+    : `/admin/clients//widget-settings`;
+    
   return (
     <div className="flex items-center justify-end gap-2">
       <Link
@@ -18,7 +23,7 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
         <Eye className="w-4 h-4" />
       </Link>
       <Link
-        to={`/admin/clients/${clientId}/widget-settings`}
+        to={widgetSettingsPath}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
         title="Widget Settings"
       >

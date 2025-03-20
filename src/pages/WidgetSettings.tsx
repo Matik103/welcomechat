@@ -16,12 +16,17 @@ const WidgetSettings = () => {
   // Determine if this is a client view or admin view
   const isClientView = userRole === 'client';
   
-  // Get the appropriate client ID
-  const activeClientId = clientId || (isClientView ? user?.user_metadata?.client_id : undefined);
+  // Fix for malformed URL with double slash (/admin/clients//widget-settings)
+  // This means clientId will be an empty string "" instead of undefined
+  // Get the appropriate client ID (clientId may be empty string or undefined)
+  const activeClientId = (clientId && clientId !== "") 
+    ? clientId 
+    : (isClientView ? user?.user_metadata?.client_id : undefined);
   
   console.log("WidgetSettings: Using client ID:", activeClientId);
   console.log("WidgetSettings: User role:", userRole);
   console.log("WidgetSettings: Is client view:", isClientView);
+  console.log("WidgetSettings: URL clientId param:", clientId);
   
   const { logClientActivity } = useClientActivity(activeClientId);
 
@@ -51,7 +56,7 @@ const WidgetSettings = () => {
   const handleBack = () => {
     if (isClientView) {
       navigate('/client/dashboard');
-    } else if (clientId) {
+    } else if (clientId && clientId !== "") {
       // Admin is viewing a specific client's widget settings
       navigate(`/admin/clients/${clientId}`);
     } else {
