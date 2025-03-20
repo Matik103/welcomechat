@@ -9,10 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const execSql = async (sqlQuery: string, params?: any) => {
   try {
+    // Need to use a generic call since "execute_sql" isn't in the typed list
     const { data, error } = await supabase.rpc('execute_sql', {
       sql_query: sqlQuery,
       query_params: params || {}
-    });
+    } as any);
 
     if (error) {
       console.error('Error executing SQL:', error);

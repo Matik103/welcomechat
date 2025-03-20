@@ -46,3 +46,9 @@ export interface DocumentLinkFormData {
 export interface AgentNameWarningProps {
   show: boolean;
 }
+
+export interface ValidationResult {
+  isValid: boolean;
+  message: string;
+  status: 'success' | 'error' | 'warning' | 'info' | 'pending';
+}

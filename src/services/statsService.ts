@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchTopQueries } from "./topQueriesService";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { Json } from "@/integrations/supabase/types";
+import { execSql } from "@/utils/rpcUtils";
 
 /**
  * Fetches dashboard statistics for a specific client
@@ -19,74 +20,53 @@ export const fetchDashboardStats = async (clientId: string): Promise<Interaction
   }
 
   try {
-    // Get the client details to find the agent name
-    const { data: client, error: clientError } = await supabase
-      .from("clients")
-      .select("agent_name")
-      .eq("id", clientId)
-      .single();
-
-    if (clientError || !client?.agent_name) {
-      console.error("Error fetching client data:", clientError);
+    // Use RPC function via execSql rather than directly querying the clients table
+    const agentQuery = `
+      SELECT agent_name 
+      FROM clients 
+      WHERE id = '${clientId}'
+      LIMIT 1
+    `;
+    
+    const agentResult = await execSql(agentQuery);
+    
+    if (!agentResult || agentResult.length === 0) {
+      console.error("Could not determine AI agent name");
       throw new Error("Could not determine AI agent name");
     }
-
-    // Use the ai_agents table to get statistics
-    const { data, error } = await supabase
-      .from("ai_agents")
-      .select("id, response_time_ms, query_text, created_at, settings")
-      .eq("client_id", clientId)
-      .eq("name", client.agent_name)
-      .eq("interaction_type", "chat_interaction")
-      .eq("is_error", false);
-
-    if (error) {
-      console.error(`Error fetching data from ai_agents:`, error);
-      throw error;
-    }
-
-    // Calculate total interactions
-    const totalInteractions = data?.length || 0;
-
-    // Calculate active days (unique days when interactions occurred)
-    const uniqueDates = new Set();
-    if (data && data.length > 0) {
-      data.forEach((interaction) => {
-        if (interaction.created_at) {
-          const dateStr = new Date(interaction.created_at).toDateString();
-          uniqueDates.add(dateStr);
-        }
-      });
-    }
-    const activeDays = uniqueDates.size;
-
-    // Calculate average response time
-    let totalResponseTime = 0;
-    let responsesWithTime = 0;
     
-    if (data && data.length > 0) {
-      data.forEach((interaction) => {
-        if (interaction.response_time_ms) {
-          totalResponseTime += interaction.response_time_ms;
-          responsesWithTime++;
-        }
-      });
+    const agentName = agentResult[0]?.agent_name || 'AI Assistant';
+
+    // Use RPC function again to get stats
+    const statsQuery = `
+      SELECT * FROM get_agent_dashboard_stats('${clientId}', '${agentName}')
+    `;
+    
+    const statsResult = await execSql(statsQuery);
+    
+    if (!statsResult) {
+      throw new Error("Failed to retrieve dashboard stats");
     }
     
-    const avgResponseTime = responsesWithTime > 0 
-      ? Number((totalResponseTime / responsesWithTime / 1000).toFixed(2)) 
-      : 0;
-
-    // Fetch top queries
-    const topQueriesList = await fetchTopQueries(clientId);
-
-    // Return the combined stats
-    return {
-      total_interactions: totalInteractions,
-      active_days: activeDays,
-      average_response_time: avgResponseTime,
-      top_queries: topQueriesList
+    // Parse the JSON response from the function
+    const stats = typeof statsResult === 'string' 
+      ? JSON.parse(statsResult) 
+      : statsResult;
+    
+    // Format the result into the expected structure
+    const formattedStats: InteractionStats = {
+      total_interactions: Number(stats.total_interactions) || 0,
+      active_days: Number(stats.active_days) || 0,
+      average_response_time: Number(stats.average_response_time) || 0,
+      top_queries: Array.isArray(stats.top_queries) 
+        ? stats.top_queries.map((q: any) => ({
+            query_text: q.query_text,
+            frequency: Number(q.frequency)
+          }))
+        : []
     };
+
+    return formattedStats;
     
   } catch (err) {
     console.error("Error fetching stats:", err);
@@ -116,17 +96,22 @@ export const subscribeToAgentData = async (
   }
 
   try {
-    // Get the client details to find the agent table name
-    const { data: client, error: clientError } = await supabase
-      .from("clients")
-      .select("agent_name")
-      .eq("id", clientId)
-      .single();
-
-    if (clientError || !client?.agent_name) {
-      console.error("Error fetching client data for subscription:", clientError);
+    // Get the client details using RPC instead of direct table access
+    const agentQuery = `
+      SELECT agent_name 
+      FROM clients 
+      WHERE id = '${clientId}'
+      LIMIT 1
+    `;
+    
+    const agentResult = await execSql(agentQuery);
+    
+    if (!agentResult || agentResult.length === 0) {
+      console.error("Error fetching client data for subscription");
       return null;
     }
+    
+    const agentName = agentResult[0]?.agent_name || 'AI Assistant';
 
     // Set up subscription for the ai_agents table filtered by client_id
     console.log(`Setting up subscription for AI agent with client ID: ${clientId}`);

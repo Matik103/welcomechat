@@ -1,29 +1,54 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "@/types/auth";
+import { toast } from "sonner";
+import { execSql } from "@/utils/rpcUtils";
 
 /**
- * Checks if the authentication session is valid and refreshes if needed
- * @returns Promise<boolean> indicating if auth is valid
+ * Check and refresh authentication token if needed
  */
-export const checkAndRefreshAuth = async (): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session) {
-      console.log("Auth session error or missing:", error);
-      // Session is invalid, try refreshing
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.error("Failed to refresh auth session:", refreshError);
-        return false;
-      }
+export const checkAndRefreshAuth = async () => {
+  const { data } = await supabase.auth.getSession();
+  
+  // If session exists but is about to expire, refresh it
+  if (data?.session) {
+    const expiresAt = data.session.expires_at;
+    const now = Math.floor(Date.now() / 1000);
+    const timeUntilExpiry = expiresAt - now;
+    
+    // If token expires in less than 5 minutes (300 seconds), refresh it
+    if (timeUntilExpiry < 300) {
+      console.log("Auth token expiring soon, refreshing...");
+      await supabase.auth.refreshSession();
     }
-    return true;
-  } catch (err) {
-    console.error("Error checking auth session:", err);
-    return false;
   }
-}
+};
+
+/**
+ * Get the current authenticated user role
+ */
+export const getCurrentUserRole = async (): Promise<string | null> => {
+  try {
+    await checkAndRefreshAuth();
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    
+    // Use SQL query via RPC instead of direct table access
+    const query = `
+      SELECT role FROM user_roles WHERE user_id = '${user.id}' LIMIT 1
+    `;
+    
+    const result = await execSql(query);
+    
+    if (result && result.length > 0) {
+      return result[0].role;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error getting user role:", error);
+    return null;
+  }
+};
 
 /**
  * Gets the current user

@@ -1,5 +1,38 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { execSql } from "./rpcUtils";
+
+/**
+ * Check if a table exists in the database
+ * @param tableName The name of the table to check
+ * @returns True if the table exists
+ */
+export const tableExists = async (tableName: string): Promise<boolean> => {
+  try {
+    const query = `
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = '${tableName}'
+      ) as exists
+    `;
+    
+    const result = await execSql(query);
+    
+    // Parse the result correctly
+    if (result && result.length > 0) {
+      // Convert to boolean - the exists field might be returned in various formats
+      const exists = result[0]?.exists;
+      if (typeof exists === 'boolean') return exists;
+      if (typeof exists === 'string') return exists.toLowerCase() === 'true';
+      return Boolean(exists);
+    }
+    
+    return false;
+  } catch (error) {
+    console.error(`Error checking if table ${tableName} exists:`, error);
+    return false;
+  }
+};
 
 /**
  * Initialize the RPC functions needed for the application
