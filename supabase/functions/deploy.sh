@@ -33,4 +33,12 @@ supabase functions deploy get_client_agent_names --no-verify-jwt
 echo "Deploying log_agent_error function..."
 supabase functions deploy log_agent_error --no-verify-jwt
 
+# Deploy the chat function
+echo "Deploying chat function..."
+supabase functions deploy chat --no-verify-jwt
+
+# Deploy the create-openai-assistant function
+echo "Deploying create-openai-assistant function..."
+supabase functions deploy create-openai-assistant --no-verify-jwt
+
 echo "Deployment complete!" 
