@@ -54,11 +54,11 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
         // Store the website content in AI agents table
         const storeResult = await storeWebsiteContent(website);
         
-        if (storeResult.success) {
+        if (storeResult && storeResult.success) {
           // Clear the form
           form.reset();
           if (onAddSuccess) onAddSuccess();
-        } else {
+        } else if (storeResult && storeResult.error) {
           console.error("Failed to store website content:", storeResult.error);
         }
       }
