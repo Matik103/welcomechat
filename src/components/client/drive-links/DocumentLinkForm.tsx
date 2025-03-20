@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +64,7 @@ export const DocumentLinkForm = ({
     setError(null);
     
     if (!agentName) {
-      setError("Agent name is not configured. Please set up an AI Agent Name in client settings before adding document links.");
+      setError("Agent name is not configured. Please set up an Agent Name in client settings before adding document links.");
       return;
     }
     
@@ -114,7 +113,7 @@ export const DocumentLinkForm = ({
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Agent name is not configured. Please set up an AI Agent Name in client settings before adding document links.
+              Agent name is not configured. Please set up an Agent Name in client settings before adding document links.
             </AlertDescription>
           </Alert>
         )}

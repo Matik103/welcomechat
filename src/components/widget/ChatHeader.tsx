@@ -16,8 +16,8 @@ export function ChatHeader({
   textColor, 
   onClose 
 }: ChatHeaderProps) {
-  // Always use the provided agentName if available, otherwise use "AI Assistant"
-  const displayName = agentName || 'AI Assistant';
+  // Always use the provided agentName if available, otherwise use empty string
+  const displayName = agentName || '';
   
   return (
     <div 

@@ -1,9 +1,9 @@
 
 -- Migration to set a default name for all AI agents
 
--- Update all null or empty agent names to 'AI Assistant'
+-- Update all null or empty agent names to empty string
 UPDATE ai_agents
-SET name = 'AI Assistant'
+SET name = ''
 WHERE name IS NULL OR name = '';
 
 -- Set default agent name in clients table to NULL

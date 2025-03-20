@@ -26,7 +26,7 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
     onSubmit,
     initialData: {
       widget_settings: {
-        agent_name: "AI Assistant",
+        agent_name: "",
         agent_description: "",
         logo_url: "",
       },
@@ -76,7 +76,7 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
 
       <Card>
         <CardHeader>
-          <CardTitle>AI Assistant Settings</CardTitle>
+          <CardTitle>Assistant Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -86,7 +86,7 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
               {...form.register("widget_settings.agent_name")}
               placeholder="Enter assistant name"
               disabled={isSubmitting}
-              defaultValue="AI Assistant"
+              defaultValue=""
             />
             {errors.widget_settings?.agent_name && (
               <p className="text-sm text-red-500">{errors.widget_settings.agent_name}</p>

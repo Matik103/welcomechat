@@ -20,7 +20,7 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
       client_name: "",
       email: "",
       widget_settings: {
-        agent_name: "AI Assistant", // Default value
+        agent_name: "", // Default empty string
         agent_description: "",
         logo_url: "",
       },
@@ -57,12 +57,10 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
       // Ensure widget_settings exists and has default values
       if (!data.widget_settings) {
         data.widget_settings = {
-          agent_name: "AI Assistant",
+          agent_name: "",
           agent_description: "",
           logo_url: "",
         };
-      } else if (!data.widget_settings.agent_name) {
-        data.widget_settings.agent_name = "AI Assistant";
       }
 
       // Clean up the data before submission
@@ -70,7 +68,7 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
         client_name: data.client_name.trim(),
         email: data.email.toLowerCase().trim(),
         widget_settings: {
-          agent_name: data.widget_settings.agent_name?.trim() || "AI Assistant",
+          agent_name: data.widget_settings.agent_name?.trim() || "",
           agent_description: data.widget_settings.agent_description?.trim() || "",
           logo_url: data.widget_settings.logo_url || "",
         },

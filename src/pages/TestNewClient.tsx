@@ -17,15 +17,13 @@ export default function TestNewClient() {
         return;
       }
       
-      // Ensure widget_settings is defined with a default agent_name
+      // Ensure widget_settings is defined with default values
       if (!data.widget_settings) {
         data.widget_settings = {
-          agent_name: "AI Assistant",
+          agent_name: "",
           agent_description: "",
           logo_url: "",
         };
-      } else if (!data.widget_settings.agent_name) {
-        data.widget_settings.agent_name = "AI Assistant";
       }
       
       const result = await createClient(data);
@@ -45,7 +43,7 @@ export default function TestNewClient() {
         isSubmitting={isPending}
         initialData={{
           widget_settings: {
-            agent_name: "AI Assistant",
+            agent_name: "",
             agent_description: "",
             logo_url: "",
           }
