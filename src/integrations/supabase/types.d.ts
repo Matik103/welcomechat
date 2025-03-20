@@ -39,6 +39,13 @@ export interface Database {
           uploadDate: string | null
           url: string | null
           webhook_url: string | null
+          client_name: string | null
+          email: string | null
+          company: string | null
+          deleted_at: string | null
+          deletion_scheduled_at: string | null
+          widget_settings: Json | null
+          last_active: string | null
         }
         Insert: {
           ai_prompt?: string | null
@@ -69,6 +76,13 @@ export interface Database {
           uploadDate?: string | null
           url?: string | null
           webhook_url?: string | null
+          client_name?: string | null
+          email?: string | null
+          company?: string | null
+          deleted_at?: string | null
+          deletion_scheduled_at?: string | null
+          widget_settings?: Json | null
+          last_active?: string | null
         }
         Update: {
           ai_prompt?: string | null
@@ -99,16 +113,15 @@ export interface Database {
           uploadDate?: string | null
           url?: string | null
           webhook_url?: string | null
+          client_name?: string | null
+          email?: string | null
+          company?: string | null
+          deleted_at?: string | null
+          deletion_scheduled_at?: string | null
+          widget_settings?: Json | null
+          last_active?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "ai_agents_client_id_fkey"
-            columns: ["client_id"]
-            isOne: true
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       client_activities: {
         Row: {
@@ -466,3 +479,6 @@ export type ActivityType =
   | 'source_deleted';
 
 export type AccessStatus = 'granted' | 'pending' | 'denied' | 'unknown';
+
+export type UserRole = 'admin' | 'client';
+export type ExtendedActivityType = ActivityType | string;

@@ -1,7 +1,7 @@
 
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "@/types/auth";
+import { UserRole } from "@/integrations/supabase/types";
 
 /**
  * Determines the user role by checking for client records
@@ -21,9 +21,10 @@ export const determineUserRole = async (user: User): Promise<UserRole> => {
   try {
     // For email/password users, check if they are clients
     const { data: clientData, error: clientError } = await supabase
-      .from('clients')
+      .from('ai_agents')
       .select('id, email')
       .eq('email', user.email)
+      .eq('interaction_type', 'config')
       .maybeSingle();
     
     if (clientError) {
@@ -32,7 +33,7 @@ export const determineUserRole = async (user: User): Promise<UserRole> => {
     }
     
     // If we found a client record with this email, they're a client
-    if (clientData) {
+    if (clientData && clientData.id) {
       console.log("User determined to be a client:", user.email);
       
       // Store the client_id in user metadata if it's not already there
@@ -104,16 +105,17 @@ export const createUserRole = async (
 };
 
 /**
- * Check if email exists in clients table
+ * Check if email exists in ai_agents table
  */
 export const isClientInDatabase = async (email: string): Promise<boolean> => {
   if (!email) return false;
   
   try {
     const { data, error } = await supabase
-      .from('clients')
+      .from('ai_agents')
       .select('id')
       .eq('email', email)
+      .eq('interaction_type', 'config')
       .maybeSingle();
       
     if (error) {

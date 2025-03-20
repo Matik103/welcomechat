@@ -1,81 +1,54 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ChatInteraction } from "@/types/extended-supabase";
-import { fetchRecentInteractions } from "@/services/aiInteractionService";
+import { ChatInteraction } from "@/types/client-dashboard";
 
 export const useClientChatData = (clientId: string) => {
-  // Get chat history
-  const {
-    data: chatHistory,
-    isLoading: isLoadingChatHistory,
-    error: chatHistoryError,
-    refetch: refetchChatHistory
-  } = useQuery({
-    queryKey: ["chatHistory", clientId],
-    queryFn: async (): Promise<ChatInteraction[]> => {
+  // Fetch client chat data
+  return useQuery({
+    queryKey: ["client-chat-data", clientId],
+    queryFn: async () => {
+      if (!clientId) {
+        return {
+          chatInteractions: [],
+          error: null,
+        };
+      }
       try {
-        // Query AI interactions with type 'chat_interaction'
+        // Query chat interactions for this client
         const { data, error } = await supabase
-          .from('ai_agents')
-          .select('*')
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'chat_interaction')
-          .order('created_at', { ascending: false })
-          .limit(20);
+          .from("ai_agents")
+          .select("id, query_text, content, created_at, name, response_time_ms")
+          .eq("client_id", clientId)
+          .eq("interaction_type", "chat_interaction")
+          .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
-        // Map response to ChatInteraction format
-        return (data || []).map(interaction => ({
-          id: String(interaction.id),
-          clientId: String(interaction.client_id),
-          timestamp: String(interaction.created_at),
-          query: String(interaction.query_text || ''),
-          response: String(interaction.content || ''),
-          agentName: String(interaction.name || 'AI Assistant'),
-          responseTimeMs: Number(interaction.response_time_ms || 0),
-          metadata: interaction.metadata || {}
+        // Transform data to match ChatInteraction type
+        const chatInteractions: ChatInteraction[] = data.map((item) => ({
+          id: item.id,
+          query_text: item.query_text || "",
+          response: item.content || "",
+          created_at: item.created_at || "",
+          agent_name: item.name || "AI Assistant",
+          client_id: clientId,
         }));
+
+        return {
+          chatInteractions,
+          error: null,
+        };
       } catch (error) {
-        console.error("Error fetching chat history:", error);
-        return [];
+        console.error("Error fetching client chat data:", error);
+        return {
+          chatInteractions: [],
+          error,
+        };
       }
     },
-    enabled: !!clientId
+    enabled: !!clientId,
   });
-
-  // Get recent interactions (most recent few)
-  const {
-    data: recentInteractions,
-    isLoading: isLoadingRecentInteractions,
-    error: recentInteractionsError,
-    refetch: refetchRecentInteractions
-  } = useQuery({
-    queryKey: ["recentInteractions", clientId],
-    queryFn: () => fetchRecentInteractions(clientId, 5),
-    enabled: !!clientId
-  });
-
-  // Function to get chat sessions (grouped chats) - fake implementation for now
-  const getChatSessions = async () => {
-    // This is just a placeholder until a real implementation is needed
-    return chatHistory || [];
-  };
-
-  // For now, reuse the recent interactions as an alias
-  const getRecentInteractions = async (limit = 5) => {
-    return recentInteractions?.slice(0, limit) || [];
-  };
-
-  return {
-    chatHistory: chatHistory || [],
-    recentInteractions: recentInteractions || [],
-    isLoading: isLoadingChatHistory || isLoadingRecentInteractions,
-    error: chatHistoryError || recentInteractionsError,
-    refetchChatHistory,
-    refetchRecentInteractions,
-    getChatSessions,
-    getRecentInteractions
-  };
 };
