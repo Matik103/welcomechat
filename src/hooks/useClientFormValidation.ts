@@ -29,6 +29,7 @@ export const clientViewSchema = createClientFormSchema.extend({
     .refine(val => !val.includes("'"), {
       message: "Agent name cannot contain single quotes"
     }),
+  agent_description: z.string().min(1, "Agent description is required"),
 });
 
 export const useClientFormValidation = (isClientView: boolean = false) => {

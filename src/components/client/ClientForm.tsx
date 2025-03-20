@@ -4,6 +4,7 @@ import { useClientForm } from "@/hooks/useClientForm";
 import { ClientNameField } from "./form-fields/ClientNameField";
 import { EmailField } from "./form-fields/EmailField";
 import { AgentNameField } from "./form-fields/AgentNameField";
+import { AgentDescriptionField } from "./form-fields/AgentDescriptionField";
 import { LogoField } from "./form-fields/LogoField";
 import { FormActions } from "./form-fields/FormActions";
 
@@ -39,6 +40,7 @@ export const ClientForm = ({
       <ClientNameField form={form} />
       <EmailField form={form} />
       <AgentNameField form={form} isClientView={isClientView} />
+      <AgentDescriptionField form={form} isClientView={isClientView} />
       <LogoField form={form} onLogoFileChange={handleLogoChange} />
       
       <FormActions 
