@@ -77,13 +77,19 @@ export const DeleteClientDialog = ({
         if (emailResult.success) {
           toast.success(`Client scheduled for deletion and notification email sent to ${client.email}`);
         } else {
-          toast.error(`Client scheduled for deletion but failed to send notification email: ${emailResult.message || "Unknown error"}`);
           console.error("Email sending failed:", emailResult);
+          toast.error(`Client scheduled for deletion but failed to send notification email: ${emailResult.error || "Unknown error"}`, {
+            description: emailResult.details ? `Details: ${emailResult.details.substring(0, 200)}` : undefined,
+            duration: 6000
+          });
         }
       } catch (emailErr: any) {
         toast.dismiss(toastId);
-        toast.error(`Failed to send notification email: ${emailErr.message || "Unknown error"}`);
         console.error("Email sending exception:", emailErr);
+        toast.error(`Failed to send notification email: ${emailErr.message || "Unknown error"}`, {
+          description: "Please check Edge Function logs for more details",
+          duration: 6000
+        });
       } finally {
         setIsSendingEmail(false);
       }
@@ -114,7 +120,7 @@ export const DeleteClientDialog = ({
     }
   };
 
-  const sendDeletionEmail = async (client: Client): Promise<{success: boolean, message?: string}> => {
+  const sendDeletionEmail = async (client: Client): Promise<{success: boolean, error?: string, details?: string}> => {
     if (!client.email || !client.client_name) {
       console.error("Missing client email or name for deletion notification");
       
@@ -131,7 +137,7 @@ export const DeleteClientDialog = ({
         }
       );
       
-      return { success: false, message: "Missing client email or name" };
+      return { success: false, error: "Missing client email or name" };
     }
 
     try {
@@ -148,6 +154,13 @@ export const DeleteClientDialog = ({
         }
       );
       
+      console.log("Invoking Edge Function with payload:", {
+        clientId: client.id,
+        clientName: client.client_name,
+        email: client.email,
+        agentName: client.agent_name
+      });
+      
       const { data, error } = await supabase.functions.invoke('send-deletion-email', {
         body: {
           clientId: client.id,
@@ -158,7 +171,7 @@ export const DeleteClientDialog = ({
       });
 
       if (error) {
-        console.error("Error sending deletion email:", error);
+        console.error("Error invoking send-deletion-email function:", error);
         
         // Log the failed email
         await createClientActivity(
@@ -174,9 +187,23 @@ export const DeleteClientDialog = ({
           }
         );
         
-        return { success: false, message: `Error: ${error.message}` };
+        return { 
+          success: false, 
+          error: `Edge Function Error: ${error.message}`,
+          details: `Status: ${error.status || 'unknown'}, Name: ${error.name || 'unknown'}`
+        };
       } else {
         console.log("Deletion email sent successfully:", data);
+        
+        // Check if the response indicates an error
+        if (data && !data.success) {
+          console.error("Function returned failure:", data);
+          return { 
+            success: false, 
+            error: data.error || "Function reported failure", 
+            details: data.details || "No details provided"
+          };
+        }
         
         // Log successful email
         await createClientActivity(
@@ -195,7 +222,7 @@ export const DeleteClientDialog = ({
         return { success: true };
       }
     } catch (error: any) {
-      console.error("Error invoking send-deletion-email function:", error);
+      console.error("Exception invoking send-deletion-email function:", error);
       
       // Log the error
       await createClientActivity(
@@ -210,7 +237,11 @@ export const DeleteClientDialog = ({
         }
       );
       
-      return { success: false, message: `Error: ${error.message || "Unknown error"}` };
+      return { 
+        success: false, 
+        error: `Error: ${error.message || "Unknown error"}`,
+        details: error.stack || "No stack trace available"
+      };
     }
   };
 
