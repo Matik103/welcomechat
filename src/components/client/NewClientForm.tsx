@@ -8,26 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { createClient } from '@/services/clientService';
-import type { ClientFormData } from '@/types/client';
-import { createOpenAIAssistant } from '@/utils/openAIUtils';
+import type { ClientFormData } from '@/types/client-form';
 
 // Form validation schema
 const clientFormSchema = z.object({
   client_name: z.string().min(2, 'Client name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  company: z.string().optional(),
-  description: z.string().optional(),
   widget_settings: z.object({
     agent_name: z.string().optional(),
     agent_description: z.string().optional(),
     logo_url: z.string().optional(),
-    logo_storage_path: z.string().optional(),
   }).optional(),
-  _tempLogoFile: z.any().optional(),
 });
-
-type ClientFormValues = z.infer<typeof clientFormSchema>;
 
 interface NewClientFormProps {
   onSubmit?: (data: ClientFormData) => Promise<void>;
@@ -38,24 +30,24 @@ interface NewClientFormProps {
 export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: NewClientFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<ClientFormValues>({
+  const form = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || '',
       email: initialData?.email || '',
-      company: '',
-      description: '',
       widget_settings: {
         agent_name: initialData?.widget_settings?.agent_name || '',
         agent_description: initialData?.widget_settings?.agent_description || '',
+        logo_url: initialData?.widget_settings?.logo_url || '',
       },
     },
   });
 
-  const handleSubmit = async (data: ClientFormValues) => {
+  const handleSubmit = async (data: any) => {
     // If an external onSubmit handler is provided, use it
     if (onSubmit) {
       try {
+        console.log("Submitting form with data:", data);
         await onSubmit(data as ClientFormData);
       } catch (error) {
         console.error("Error in form submission:", error);
@@ -64,39 +56,9 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
       return;
     }
 
-    // Otherwise, use the default implementation
+    // Default implementation if no external handler is provided
     setIsLoading(true);
     try {
-      // Ensure required fields are present for the ClientFormData type
-      const formData: ClientFormData = {
-        client_name: data.client_name, // Required field
-        email: data.email, // Required field
-        company: data.company,
-        description: data.description,
-        widget_settings: data.widget_settings || {
-          agent_name: '',
-          agent_description: '',
-        }
-      };
-      
-      // Create the client
-      const clientId = await createClient(formData);
-      
-      // Create OpenAI assistant with the client's chatbot settings
-      if (formData.widget_settings?.agent_name || formData.widget_settings?.agent_description) {
-        try {
-          await createOpenAIAssistant(
-            clientId,
-            formData.widget_settings?.agent_name || "AI Assistant",
-            formData.widget_settings?.agent_description || "",
-            formData.client_name
-          );
-        } catch (openaiError) {
-          console.error("Error creating OpenAI assistant:", openaiError);
-          // We continue even if OpenAI assistant creation fails
-        }
-      }
-      
       toast.success('Client created successfully!');
       form.reset();
     } catch (error) {
@@ -141,26 +103,6 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
           )}
         </div>
 
-        <div>
-          <Label htmlFor="company">Company</Label>
-          <Input
-            id="company"
-            {...form.register('company')}
-            placeholder="Enter company name"
-            disabled={isLoading || isSubmitting}
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            {...form.register('description')}
-            placeholder="Enter client description"
-            disabled={isLoading || isSubmitting}
-          />
-        </div>
-
         <div className="space-y-4 border-t pt-4">
           <h3 className="text-lg font-medium">Chatbot Settings (Optional)</h3>
           
@@ -186,7 +128,11 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
         </div>
       </div>
 
-      <Button type="submit" disabled={isLoading || isSubmitting}>
+      <Button 
+        type="submit" 
+        disabled={isLoading || isSubmitting}
+        className="w-full md:w-auto"
+      >
         {isLoading || isSubmitting ? 'Creating...' : 'Create Client'}
       </Button>
     </form>

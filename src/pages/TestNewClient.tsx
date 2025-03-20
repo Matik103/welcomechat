@@ -5,9 +5,12 @@ import { useNewClientMutation } from "@/hooks/useNewClientMutation";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { PageHeading } from "@/components/dashboard/PageHeading";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function TestNewClient() {
   const { mutateAsync: createClient, isPending } = useNewClientMutation();
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
@@ -31,29 +34,44 @@ export default function TestNewClient() {
       const result = await createClient(data);
       console.log("Form submission result:", result);
       toast.success("Client created successfully");
+      setSuccess(true);
     } catch (error) {
       console.error("Error creating client:", error);
-      // Ensure we always have a meaningful error message to display
       toast.error(error instanceof Error && error.message ? error.message : "Failed to create client");
     }
+  };
+
+  const handleReset = () => {
+    setSuccess(false);
   };
 
   return (
     <div className="container mx-auto py-8 max-w-3xl">
       <PageHeading>Create New Client</PageHeading>
-      <Card className="p-6 mt-6">
-        <NewClientForm 
-          onSubmit={handleSubmit} 
-          isSubmitting={isPending}
-          initialData={{
-            widget_settings: {
-              agent_name: "",
-              agent_description: "",
-              logo_url: "",
-            }
-          }}  
-        />
-      </Card>
+      
+      {success ? (
+        <Card className="p-6 mt-6">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold mb-4 text-green-600">Client Created Successfully!</h2>
+            <p className="mb-6">An email with login credentials has been sent to the client.</p>
+            <Button onClick={handleReset}>Create Another Client</Button>
+          </div>
+        </Card>
+      ) : (
+        <Card className="p-6 mt-6">
+          <NewClientForm 
+            onSubmit={handleSubmit} 
+            isSubmitting={isPending}
+            initialData={{
+              widget_settings: {
+                agent_name: "",
+                agent_description: "",
+                logo_url: "",
+              }
+            }}  
+          />
+        </Card>
+      )}
     </div>
   );
 }
