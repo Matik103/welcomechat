@@ -78,7 +78,7 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
               placeholder="Enter widget name"
               disabled={isSubmitting}
             />
-            {errors.widget_settings?.agent_name && (
+            {errors.widget_settings && typeof errors.widget_settings === 'object' && errors.widget_settings.agent_name && (
               <p className="text-sm text-red-500">{errors.widget_settings.agent_name}</p>
             )}
           </div>
@@ -91,7 +91,7 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
               placeholder="Describe your widget's purpose and personality"
               disabled={isSubmitting}
             />
-            {errors.widget_settings?.agent_description && (
+            {errors.widget_settings && typeof errors.widget_settings === 'object' && errors.widget_settings.agent_description && (
               <p className="text-sm text-red-500">{errors.widget_settings.agent_description}</p>
             )}
           </div>
