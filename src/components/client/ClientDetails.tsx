@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -22,6 +23,12 @@ interface AgentUpdateResult {
   descriptionUpdated: boolean;
 }
 
+// Function to sanitize strings by removing quotation marks
+function sanitizeString(str: string | undefined | null): string {
+  if (!str) return '';
+  return str.replace(/"/g, '');
+}
+
 export const ClientDetails = ({ 
   client, 
   clientId, 
@@ -40,14 +47,19 @@ export const ClientDetails = ({
     clientName?: string
   ): Promise<AgentUpdateResult> => {
     try {
-      console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
-      console.log(`Agent description: ${agentDescription}`);
-      console.log(`Client name: ${clientName}`);
+      // Sanitize inputs to remove any quotation marks
+      const sanitizedAgentName = sanitizeString(agentName);
+      const sanitizedAgentDescription = sanitizeString(agentDescription);
+      const sanitizedClientName = sanitizeString(clientName);
+      
+      console.log(`Ensuring AI agent exists for client ${clientId} with name ${sanitizedAgentName}`);
+      console.log(`Agent description: ${sanitizedAgentDescription}`);
+      console.log(`Client name: ${sanitizedClientName}`);
       console.log(`Agent logo URL: ${logoUrl}`);
       
-      const formattedAgentName = agentName;
+      const formattedAgentName = sanitizedAgentName;
       
-      const aiPrompt = generateAiPrompt(agentName, agentDescription || "", clientName || "");
+      const aiPrompt = generateAiPrompt(sanitizedAgentName, sanitizedAgentDescription || "", sanitizedClientName || "");
       
       const { data: existingAgents, error: queryError } = await supabase
         .from("ai_agents")
@@ -62,22 +74,22 @@ export const ClientDetails = ({
       }
 
       const settings = {
-        agent_description: agentDescription || "",
+        agent_description: sanitizedAgentDescription || "",
         client_id: clientId,
-        client_name: clientName || "",
+        client_name: sanitizedClientName || "",
         updated_at: new Date().toISOString(),
         logo_url: logoUrl || "",
         logo_storage_path: logoStoragePath || ""
       };
 
       if (existingAgents && existingAgents.length > 0) {
-        const descriptionChanged = existingAgents[0].agent_description !== agentDescription;
+        const descriptionChanged = existingAgents[0].agent_description !== sanitizedAgentDescription;
         
         const { error: updateError } = await supabase
           .from("ai_agents")
           .update({ 
             name: formattedAgentName,
-            agent_description: agentDescription,
+            agent_description: sanitizedAgentDescription,
             ai_prompt: aiPrompt,
             settings: settings,
             logo_url: logoUrl,
@@ -90,7 +102,7 @@ export const ClientDetails = ({
           throw updateError;
         } else {
           console.log(`Updated agent name from ${existingAgents[0].name} to ${formattedAgentName}`);
-          console.log(`Updated agent description to: ${agentDescription}`);
+          console.log(`Updated agent description to: ${sanitizedAgentDescription}`);
           console.log(`Updated agent logo URL to: ${logoUrl}`);
           console.log(`Generated AI prompt: ${aiPrompt}`);
           
@@ -102,7 +114,7 @@ export const ClientDetails = ({
           .insert({
             client_id: clientId,
             name: formattedAgentName,
-            agent_description: agentDescription,
+            agent_description: sanitizedAgentDescription,
             ai_prompt: aiPrompt,
             content: "",
             interaction_type: "config",
@@ -117,7 +129,7 @@ export const ClientDetails = ({
           throw insertError;
         } else {
           console.log(`Created new AI agent with name ${formattedAgentName}`);
-          console.log(`Set agent description to: ${agentDescription}`);
+          console.log(`Set agent description to: ${sanitizedAgentDescription}`);
           console.log(`Set agent logo URL to: ${logoUrl}`);
           console.log(`Generated AI prompt: ${aiPrompt}`);
           return { updated: false, created: true, descriptionUpdated: true };

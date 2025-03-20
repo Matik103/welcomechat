@@ -4,6 +4,13 @@ import { WidgetSettings } from "@/types/widget-settings";
 import { checkAndRefreshAuth } from "@/services/authService";
 
 /**
+ * Removes quotation marks from a string
+ */
+function sanitizeAgentName(name: string): string {
+  return name.replace(/"/g, '');
+}
+
+/**
  * Syncs the widget settings with the AI agent data in the database
  */
 export async function syncWidgetSettingsWithAgent(
@@ -15,7 +22,14 @@ export async function syncWidgetSettingsWithAgent(
     // Ensure we have a valid auth session
     await checkAndRefreshAuth();
     
-    console.log("Syncing widget settings with AI agent:", { clientId, settings, clientName });
+    // Sanitize agent name to remove quotation marks
+    const sanitizedAgentName = settings.agent_name ? sanitizeAgentName(settings.agent_name) : settings.agent_name;
+    
+    console.log("Syncing widget settings with AI agent:", { 
+      clientId, 
+      settings: { ...settings, agent_name: sanitizedAgentName },
+      clientName 
+    });
     
     // First check if an AI agent exists for this client
     const { data: agentData, error: agentError } = await supabase
@@ -34,7 +48,7 @@ export async function syncWidgetSettingsWithAgent(
       // Only copy specific properties from existing settings if they exist
       ...(agentData?.settings ? agentData.settings as Record<string, any> : {}),
       logo_url: settings.logo_url,
-      agent_name: settings.agent_name,
+      agent_name: sanitizedAgentName,
       client_name: clientName || "",
       updated_at: new Date().toISOString()
     };
@@ -44,7 +58,7 @@ export async function syncWidgetSettingsWithAgent(
       const { error: updateError } = await supabase
         .from("ai_agents")
         .update({
-          name: settings.agent_name, // Update name to match widget settings
+          name: sanitizedAgentName, // Update name to match widget settings, ensuring no quotation marks
           settings: agentSettings
         })
         .eq("id", agentData.id);

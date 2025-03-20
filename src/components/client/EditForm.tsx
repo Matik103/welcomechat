@@ -20,7 +20,8 @@ const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
   agent_name: z.string().min(1, "Agent name is required")
-    .refine(name => !name.includes('"'), { message: 'Agent name cannot include double quotes (")' }),
+    .refine(name => !name.includes('"'), { message: 'Agent name cannot include double quotes (")' })
+    .transform(name => name.replace(/"/g, '')), // Remove any quotes if they slip through
 });
 
 export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormProps) {
@@ -38,7 +39,8 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
     if (initialData) {
       setValue("client_name", initialData.client_name || "");
       setValue("email", initialData.email || "");
-      setValue("agent_name", initialData.agent_name || "");
+      // Sanitize agent_name to remove quotes
+      setValue("agent_name", initialData.agent_name ? initialData.agent_name.replace(/"/g, '') : "");
     }
   }, [initialData, setValue]);
 
@@ -81,6 +83,10 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
           id="agent_name"
           {...register("agent_name")}
           className={errors.agent_name ? "border-red-500" : ""}
+          onChange={(e) => {
+            // Remove quotes on input change
+            e.target.value = e.target.value.replace(/"/g, '');
+          }}
         />
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
