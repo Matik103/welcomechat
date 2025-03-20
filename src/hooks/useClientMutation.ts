@@ -6,21 +6,8 @@ import {
   createClient,
   logClientUpdateActivity
 } from "@/services/clientService";
+import { sanitizeForSQL } from "@/utils/inputSanitizer";
 import { toast } from "sonner";
-
-// Function to thoroughly sanitize strings that will be used in SQL queries
-const sanitizeForSQL = (value: string | undefined): string | undefined => {
-  if (!value) return value;
-  
-  // Always replace double quotes with single quotes to prevent SQL syntax errors
-  let sanitized = value.replace(/"/g, "'");
-  
-  // Also escape any other potential SQL injection characters
-  sanitized = sanitized.replace(/\\/g, "\\\\"); // escape backslashes
-  
-  console.log(`Sanitized from "${value}" to "${sanitized}"`);
-  return sanitized;
-};
 
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
@@ -46,6 +33,11 @@ export const useClientMutation = (id: string | undefined) => {
           (sanitizedData.widget_settings as Record<string, any>).agent_description = 
             sanitizedData.agent_description;
         }
+      }
+      
+      // Sanitize agent_name to prevent SQL issues
+      if (data.agent_name) {
+        sanitizedData.agent_name = sanitizeForSQL(data.agent_name);
       }
       
       // Log before and after sanitization for debugging
