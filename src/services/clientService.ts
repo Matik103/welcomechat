@@ -1,6 +1,4 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
 import { generateAiPrompt } from "@/utils/activityTypeUtils";
@@ -20,22 +18,10 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 };
 
 /**
- * Helper function to sanitize strings for SQL queries
- */
-const sanitizeForSQL = (value: string | undefined): string | undefined => {
-  if (!value) return value;
-  // Replace double quotes with single quotes
-  return value.replace(/"/g, "'");
-};
-
-/**
- * Updates an existing client 
+ * Updates an existing client
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);
-  
-  // Sanitize agent_name to prevent SQL errors
-  const sanitizedAgentName = sanitizeForSQL(data.agent_name);
   
   // Update the client record (including logo fields)
   const { error } = await supabase
@@ -43,7 +29,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
     .update({
       client_name: data.client_name,
       email: data.email,
-      agent_name: sanitizedAgentName,
+      agent_name: data.agent_name, // Use the exact name provided by the user
       // Store agent_description and logo info in widget_settings
       widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
         ? { 
@@ -62,10 +48,10 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   if (error) throw error;
   
   // Update agent description and logo in ai_agents table if agent_name exists
-  if (sanitizedAgentName) {
+  if (data.agent_name) {
     try {
       // Generate AI prompt based on agent name and description
-      const aiPrompt = generateAiPrompt(sanitizedAgentName, data.agent_description || "");
+      const aiPrompt = generateAiPrompt(data.agent_name, data.agent_description || "", data.client_name);
       
       console.log("Generated AI prompt:", aiPrompt);
       
@@ -81,9 +67,9 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         await supabase
           .from("ai_agents")
           .update({
-            name: sanitizedAgentName,
-            agent_description: data.agent_description,
-            ai_prompt: aiPrompt,
+            name: data.agent_name, // Use the exact name provided by the user
+            agent_description: data.agent_description, // Use the agent_description column
+            ai_prompt: aiPrompt, // Save the generated AI prompt
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
             settings: {
@@ -101,10 +87,10 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
           .from("ai_agents")
           .insert({
             client_id: id,
-            name: sanitizedAgentName,
+            name: data.agent_name, // Use the exact name provided by the user
             content: "",
-            agent_description: data.agent_description,
-            ai_prompt: aiPrompt,
+            agent_description: data.agent_description, // Use the agent_description column
+            ai_prompt: aiPrompt, // Save the generated AI prompt
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
             settings: {
@@ -151,24 +137,24 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
 export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
+
+    // Use agent name exactly as provided without any modifications
+    const finalAgentName = data.agent_name || null;
     
-    // Sanitize agent_name to prevent SQL errors
-    const sanitizedAgentName = sanitizeForSQL(data.agent_name) || 'agent_' + Date.now();
-    
-    console.log("Using sanitized agent name:", sanitizedAgentName);
+    console.log("Using agent name:", finalAgentName);
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
       ? { 
           ...data.widget_settings,
-          agent_description: data.agent_description,
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path 
+          agent_description: data.agent_description || null,
+          logo_url: data.logo_url || null,
+          logo_storage_path: data.logo_storage_path || null 
         } 
       : { 
-          agent_description: data.agent_description,
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path
+          agent_description: data.agent_description || null,
+          logo_url: data.logo_url || null,
+          logo_storage_path: data.logo_storage_path || null
         };
 
     // Create the client record
@@ -177,7 +163,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       .insert([{
         client_name: data.client_name,
         email: data.email,
-        agent_name: sanitizedAgentName,
+        agent_name: finalAgentName,
         // Store the agent_description and logo in widget_settings
         widget_settings: widgetSettings,
         status: 'active',
@@ -209,11 +195,8 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         throw new Error("No auth session found - please log in again");
       }
 
-      // Create the auth user using the edge function with the correct URL
-      const functionUrl = `${SUPABASE_URL}/functions/v1/create-client-user`;
-      console.log("Calling edge function at:", functionUrl);
-      
-      const createUserResponse = await fetch(functionUrl, {
+      // Create the auth user using the edge function
+      const createUserResponse = await fetch(`https://mgjodiqecnnltsgorife.supabase.co/functions/v1/create-client-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -223,7 +206,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           email: data.email,
           client_id: clientId,
           client_name: data.client_name,
-          agent_name: sanitizedAgentName,
+          agent_name: finalAgentName,
           agent_description: data.agent_description || "",
           logo_url: data.logo_url || "",
           logo_storage_path: data.logo_storage_path || ""
@@ -239,7 +222,15 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       const responseText = await createUserResponse.text();
       console.log("Create user response:", responseText);
       
-      const responseData = JSON.parse(responseText);
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error("Error parsing response as JSON:", jsonError);
+        console.log("Raw response:", responseText);
+        throw new Error('Invalid response format from server');
+      }
+      
       const tempPassword = responseData.temp_password;
 
       if (!tempPassword) {
@@ -252,11 +243,11 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         clientId,
         clientName: data.client_name,
         email: data.email,
-        agentName: sanitizedAgentName,
+        agentName: finalAgentName || "AI Assistant",
         tempPassword
       });
 
-    } catch (authError) {
+    } catch (authError: any) {
       console.error("Error setting up client authentication:", authError);
       // Delete the client record if auth setup fails
       await supabase.from("clients").delete().eq("id", clientId);
@@ -264,7 +255,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     }
 
     return clientId;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in createClient:", error);
     throw error;
   }
