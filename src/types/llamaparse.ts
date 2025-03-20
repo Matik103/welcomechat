@@ -34,3 +34,15 @@ export interface LlamaParseResponse {
   error?: string;
   metadata?: Record<string, any>;
 }
+
+export interface LlamaParseConfig {
+  apiKey: string;
+  baseUrl?: string;
+}
+
+export interface DocumentProcessingResult {
+  success: boolean;
+  documentId?: string;
+  error?: string;
+  content?: string;
+}

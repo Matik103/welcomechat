@@ -1,145 +1,141 @@
 
-import { useState } from "react";
-import { WebsiteUrlForm } from "@/components/client/website-urls/WebsiteUrlForm";
-import { WebsiteUrlsList } from "@/components/client/website-urls/WebsiteUrlsList";
+import { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Plus, Trash2, Globe } from "lucide-react";
 import { WebsiteUrl } from "@/types/client";
-import { toast } from "sonner";
-import { useStoreWebsiteContent } from "@/hooks/useStoreWebsiteContent";
-import { ActivityType } from "@/types/activity";
-import { Json } from "@/integrations/supabase/types";
-import { useDocumentProcessor } from "@/hooks/useDocumentProcessor";
+import { ActivityType, Json } from "@/integrations/supabase/types";
 
 interface WebsiteUrlsProps {
-  clientId: string;
-  agentName?: string;
-  onAdd: (data: any) => Promise<any>;
-  onDelete: (urlId: any) => Promise<any>;
+  urls: WebsiteUrl[];
+  onAdd: (data: { url: string; refresh_rate: number }) => Promise<void>;
+  onDelete: (urlId: number) => Promise<void>;
   isLoading: boolean;
   isAdding: boolean;
   isDeleting: boolean;
-  logClientActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
+  logActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
-export const WebsiteUrls = ({ 
-  clientId, 
-  agentName = "AI Assistant", 
+export const WebsiteUrls = ({
+  urls,
   onAdd,
   onDelete,
   isLoading,
   isAdding,
   isDeleting,
-  logClientActivity
+  logActivity
 }: WebsiteUrlsProps) => {
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [processingUrlId, setProcessingUrlId] = useState<number | null>(null);
-  const webstoreHook = useStoreWebsiteContent(clientId);
-  const { processDocument, isProcessing } = useDocumentProcessor(clientId);
-  const [websiteUrls, setWebsiteUrls] = useState<WebsiteUrl[]>([]);
-
-  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
-    try {
-      const newUrl = await onAdd(data);
-      setShowAddForm(false);
-      
-      // Log activity
-      await logClientActivity(
-        "website_url_added",
-        `Added website URL: ${data.url}`,
-        { url: data.url, refresh_rate: data.refresh_rate }
-      );
-      
-      toast.success("Website URL added successfully");
-      return newUrl;
-    } catch (error) {
-      console.error("Error adding website URL:", error);
-      toast.error("Failed to add website URL");
-      throw error;
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      const deletedUrl = websiteUrls.find(url => url.id === id);
-      await onDelete(id);
-      
-      if (deletedUrl) {
-        await logClientActivity(
-          "website_url_deleted",
-          `Deleted website URL: ${deletedUrl.url}`,
-          { url: deletedUrl.url }
-        );
-      }
-      
-      toast.success("Website URL deleted successfully");
-    } catch (error) {
-      console.error("Error deleting website URL:", error);
-      toast.error("Failed to delete website URL");
-    }
-  };
-
-  const handleProcessUrl = async (url: WebsiteUrl) => {
-    if (!agentName) {
-      toast.error("Cannot process URL: Agent name is missing");
-      return;
-    }
+  const [newUrl, setNewUrl] = useState('');
+  const [refreshRate, setRefreshRate] = useState(30);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUrl) return;
     
-    setProcessingUrlId(url.id);
-    
+    await onAdd({
+      url: newUrl,
+      refresh_rate: refreshRate
+    });
+    setNewUrl('');
+  };
+  
+  const handleDelete = async (urlId: number) => {
     try {
-      await processDocument({
-        file: new File([], "website_content.txt"), // Dummy file
-        agentName: agentName,
-        metadata: {
-          url: url.url,
-          documentType: "website_url",
-          documentId: url.id.toString()
-        }
+      await logActivity("website_url_deleted", "Website URL deleted", { 
+        url_id: urlId 
       });
-      
-      toast.success("Website URL processed successfully");
-      
-      // Log activity
-      await logClientActivity(
-        "website_url_processed",
-        `Processed website URL: ${url.url}`,
-        { url: url.url }
-      );
+      await onDelete(urlId);
     } catch (error) {
-      console.error("Error processing website URL:", error);
-      toast.error("Failed to process website URL");
-    } finally {
-      setProcessingUrlId(null);
+      console.error("Error deleting URL:", error);
     }
   };
-
+  
   return (
-    <div className="space-y-4">
-      {websiteUrls.length > 0 && (
-        <WebsiteUrlsList
-          urls={websiteUrls}
-          onDelete={handleDelete}
-          onProcess={handleProcessUrl}
-          isDeleteLoading={isDeleting}
-          isProcessing={isProcessing}
-          deletingId={null}
-        />
-      )}
+    <Card className="p-6">
+      <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+        <div className="space-y-2">
+          <Label htmlFor="url">Website URL</Label>
+          <Input
+            id="url"
+            placeholder="https://example.com"
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            required
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="refreshRate">Refresh Interval (days)</Label>
+          <Select value={String(refreshRate)} onValueChange={(value) => setRefreshRate(Number(value))}>
+            <SelectTrigger id="refreshRate">
+              <SelectValue placeholder="Select refresh interval" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1 day</SelectItem>
+              <SelectItem value="7">7 days</SelectItem>
+              <SelectItem value="14">14 days</SelectItem>
+              <SelectItem value="30">30 days</SelectItem>
+              <SelectItem value="60">60 days</SelectItem>
+              <SelectItem value="90">90 days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <Button type="submit" disabled={isAdding || !newUrl}>
+          {isAdding ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding...
+            </>
+          ) : (
+            <>
+              <Plus className="mr-2 h-4 w-4" /> Add URL
+            </>
+          )}
+        </Button>
+      </form>
       
-      {showAddForm ? (
-        <WebsiteUrlForm
-          clientId={clientId}
-          onAddSuccess={() => setShowAddForm(false)}
-          webstoreHook={webstoreHook}
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowAddForm(true)}
-          className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
-        >
-          + Add Website URL
-        </button>
-      )}
-    </div>
+      <div>
+        <h3 className="text-lg font-medium mb-4">Existing URLs</h3>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : urls.length === 0 ? (
+          <div className="text-center py-8">
+            <Globe className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+            <p className="text-gray-500">No website URLs added yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {urls.map((url) => (
+              <div key={url.id} className="flex items-center justify-between p-3 border rounded-md">
+                <div className="flex items-center space-x-2">
+                  <Globe className="h-5 w-5 text-blue-600" />
+                  <a 
+                    href={url.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    {url.url.length > 50 ? `${url.url.substring(0, 50)}...` : url.url}
+                  </a>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleDelete(url.id)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 };

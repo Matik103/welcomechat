@@ -1,224 +1,331 @@
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Loader2, FilePlus, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
-import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
-import { DocumentLink } from '@/types/client';
-import { formatDistanceToNow } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  Loader2, 
+  Plus, 
+  Upload, 
+  Link as LinkIcon, 
+  FileQuestion, 
+  AlertTriangle 
+} from "lucide-react";
+import { ActivityType, Json } from '@/integrations/supabase/types';
+import { AccessStatus, DocumentLink } from '@/types/client';
 import { useDriveAccessCheck } from '@/hooks/useDriveAccessCheck';
-import { supabase } from '@/integrations/supabase/client';
+import { execSql } from '@/utils/rpcUtils';
 
 interface DocumentLinksProps {
-  driveLinks: DocumentLink[];
-  onAdd: (data: { link: string; refresh_rate: number; document_type: string }) => Promise<void>;
+  onAdd: (data: { link: string; refresh_rate: number; document_type?: string }) => Promise<void>;
   onDelete: (linkId: number) => Promise<void>;
-  onUpload?: (file: File, agentName: string) => Promise<void>;
+  onUpload: (file: File, agentName: string) => Promise<void>;
   isLoading: boolean;
   isAdding: boolean;
   isDeleting: boolean;
   agentName: string;
+  logActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
+  clientId: string;
 }
 
 export const DocumentLinks = ({
-  driveLinks,
   onAdd,
   onDelete,
   onUpload,
   isLoading,
   isAdding,
   isDeleting,
-  agentName
+  agentName,
+  logActivity,
+  clientId
 }: DocumentLinksProps) => {
-  const [showForm, setShowForm] = useState(false);
-  const [clientInfo, setClientInfo] = useState<{ client_name?: string; agent_name?: string }>({});
-
-  useEffect(() => {
-    if (agentName) {
-      const fetchClientInfo = async () => {
-        try {
-          const { data, error } = await supabase
-            .from("ai_agents") 
-            .select("client_name, name")
-            .eq("name", agentName)
-            .single();
-
-          if (error) {
-            console.error("Error fetching client info:", error);
-            return;
-          }
-
-          setClientInfo({
-            client_name: data.client_name,
-            agent_name: data.name
-          });
-        } catch (err) {
-          console.error("Failed to fetch client info:", err);
-        }
-      };
-
-      fetchClientInfo();
-    }
-  }, [agentName]);
-
-  const accessStatusColors = {
-    accessible: "bg-green-100 text-green-800",
-    inaccessible: "bg-red-100 text-red-800",
-    unknown: "bg-gray-100 text-gray-800"
-  };
-
-  const documentTypes = {
-    "google_doc": "Google Doc",
-    "google_sheet": "Google Sheet",
-    "google_drive": "Google Drive",
-    "pdf": "PDF",
-    "text": "Text",
-    "other": "Other"
-  };
-
-  const handleFormToggle = () => {
-    setShowForm(!showForm);
-  };
-
-  const checkDriveAccess = async (linkId: number) => {
+  const [links, setLinks] = useState<DocumentLink[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("links");
+  
+  // Fetch document links
+  const fetchLinks = async () => {
     try {
-      const { data, error } = await supabase
-        .from("document_links")
-        .update({ access_status: "unknown" })
-        .eq("id", linkId)
-        .select();
-
-      if (error) {
-        console.error("Error updating access status:", error);
+      setLoading(true);
+      // Use SQL query via RPC to get document links
+      const sql = `
+        SELECT * FROM document_links
+        WHERE client_id = $1
+        ORDER BY created_at DESC
+      `;
+      
+      const data = await execSql(sql, { client_id: clientId });
+      
+      if (Array.isArray(data)) {
+        setLinks(data as DocumentLink[]);
+      } else {
+        setLinks([]);
       }
-    } catch (err) {
-      console.error("Failed to check drive access:", err);
+    } catch (error) {
+      console.error("Error fetching document links:", error);
+      setLinks([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Initialize component
+  useState(() => {
+    fetchLinks();
+  });
+  
+  // Form state
+  const [link, setLink] = useState("");
+  const [refreshRate, setRefreshRate] = useState(30);
+  const [documentType, setDocumentType] = useState<string>("google_drive");
+  const [file, setFile] = useState<File | null>(null);
+  
+  // Handle form submission
+  const handleLinkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!link) return;
+    
+    try {
+      await onAdd({ link, refresh_rate: refreshRate, document_type: documentType });
+      setLink("");
+      fetchLinks(); // Refresh the list
+    } catch (error) {
+      console.error("Error adding document link:", error);
+    }
+  };
+  
+  // Handle file upload
+  const handleFileUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+    
+    try {
+      await onUpload(file, agentName);
+      setFile(null);
+      if (e.target instanceof HTMLFormElement) {
+        e.target.reset();
+      }
+    } catch (error) {
+      console.error("Error uploading document:", error);
+    }
+  };
+  
+  return (
+    <Card className="overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="w-full grid grid-cols-2">
+          <TabsTrigger value="links">Document Links</TabsTrigger>
+          <TabsTrigger value="upload">Upload Document</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="links" className="p-6">
+          <form onSubmit={handleLinkSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="link">Document Link</Label>
+              <Input
+                id="link"
+                placeholder="Paste a Google Drive or document link here"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="documentType">Document Type</Label>
+              <Select value={documentType} onValueChange={setDocumentType}>
+                <SelectTrigger id="documentType">
+                  <SelectValue placeholder="Select document type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="google_drive">Google Drive Folder</SelectItem>
+                  <SelectItem value="google_doc">Google Doc</SelectItem>
+                  <SelectItem value="google_sheet">Google Sheet</SelectItem>
+                  <SelectItem value="text">Text Document</SelectItem>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="refreshRate">Refresh Interval (days)</Label>
+              <Select 
+                value={String(refreshRate)} 
+                onValueChange={(value) => setRefreshRate(Number(value))}
+              >
+                <SelectTrigger id="refreshRate">
+                  <SelectValue placeholder="Select refresh interval" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 day</SelectItem>
+                  <SelectItem value="7">7 days</SelectItem>
+                  <SelectItem value="14">14 days</SelectItem>
+                  <SelectItem value="30">30 days</SelectItem>
+                  <SelectItem value="60">60 days</SelectItem>
+                  <SelectItem value="90">90 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button type="submit" disabled={isAdding || !link}>
+              {isAdding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" /> Add Link
+                </>
+              )}
+            </Button>
+          </form>
+          
+          <div className="mt-6">
+            <h3 className="text-lg font-medium mb-4">Your Document Links</h3>
+            {isLoading || loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : links.length === 0 ? (
+              <div className="text-center py-8">
+                <FileQuestion className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+                <p className="text-gray-500">No document links added yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {links.map((link) => (
+                  <LinkItem
+                    key={link.id}
+                    link={link}
+                    onDelete={onDelete}
+                    isDeleting={isDeleting}
+                    logActivity={logActivity}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="upload" className="p-6">
+          <form onSubmit={handleFileUpload} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="file">Upload Document</Label>
+              <Input 
+                id="file" 
+                type="file" 
+                accept=".pdf,.docx,.doc,.txt" 
+                onChange={(e) => e.target.files && setFile(e.target.files[0])}
+                required
+              />
+              <p className="text-xs text-gray-500">
+                Maximum file size: 10MB. Supported formats: PDF, DOCX, DOC, TXT
+              </p>
+            </div>
+            
+            <Button type="submit" disabled={isAdding || !file}>
+              {isAdding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" /> Upload Document
+                </>
+              )}
+            </Button>
+          </form>
+        </TabsContent>
+      </Tabs>
+    </Card>
+  );
+};
+
+// Link item component for displaying individual document links
+interface LinkItemProps {
+  link: DocumentLink;
+  onDelete: (linkId: number) => Promise<void>;
+  isDeleting: boolean;
+  logActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
+}
+
+const LinkItem = ({ link, onDelete, isDeleting, logActivity }: LinkItemProps) => {
+  const { accessStatus } = useDriveAccessCheck(link.id);
+  
+  const handleDelete = async () => {
+    try {
+      await logActivity(
+        "document_link_deleted", 
+        `Document link deleted: ${link.link}`, 
+        { 
+          link_id: link.id,
+          document_type: link.document_type
+        }
+      );
+      await onDelete(link.id);
+    } catch (error) {
+      console.error("Error deleting document link:", error);
+    }
+  };
+  
+  // Determine colors and icons based on access status
+  const getAccessStatusColor = (status: AccessStatus) => {
+    switch (status) {
+      case 'accessible':
+        return 'text-green-600';
+      case 'inaccessible':
+        return 'text-red-600';
+      default:
+        return 'text-gray-500';
     }
   };
 
-  const handleSubmit = async (formData: { 
-    link?: string; 
-    document_type?: "google_drive" | "text" | "google_doc" | "google_sheet" | "pdf" | "other"; 
-    refresh_rate?: number; 
-  }) => {
-    // Ensure all required properties are set with defaults if not provided
-    const data = {
-      link: formData.link || '',
-      refresh_rate: formData.refresh_rate || 30,
-      document_type: formData.document_type || 'google_drive'
-    };
-    
-    await onAdd(data);
-    setShowForm(false);
+  const getAccessStatusIcon = (status: AccessStatus) => {
+    if (status === 'inaccessible') {
+      return <AlertTriangle className="h-4 w-4 text-red-600 ml-2" />;
+    }
+    return null;
   };
-
+  
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Document Links</h3>
-        <Button 
-          onClick={handleFormToggle} 
-          variant={showForm ? "outline" : "default"}
-          size="sm"
-        >
-          {showForm ? "Cancel" : "Add Document Link"}
-        </Button>
-      </div>
-
-      {showForm && (
-        <DocumentLinkForm 
-          onSubmit={handleSubmit}
-          isSubmitting={isAdding}
-          agentName={agentName}
-        />
-      )}
-
-      {isLoading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : driveLinks.length === 0 ? (
-        <Card className="p-6 text-center text-muted-foreground">
-          <div className="flex flex-col items-center space-y-2">
-            <FilePlus className="h-12 w-12 mb-2" />
-            <p>No document links added yet</p>
-            <p className="text-sm">Add a Google Drive link or upload a document to get started</p>
+    <div className="flex items-center justify-between p-3 border rounded-md">
+      <div className="flex items-center space-x-2">
+        <LinkIcon className="h-5 w-5 text-blue-600" />
+        <div>
+          <a 
+            href={link.link} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            {link.link.length > 50 ? `${link.link.substring(0, 50)}...` : link.link}
+          </a>
+          <div className="flex items-center">
+            <span className={`text-xs ${getAccessStatusColor(accessStatus)}`}>
+              Status: {accessStatus === 'unknown' ? 'Checking...' : accessStatus}
+            </span>
+            {getAccessStatusIcon(accessStatus)}
           </div>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {driveLinks.map((link) => {
-            const DocumentAccessStatus = () => {
-              const { accessStatus, isLoading } = useDriveAccessCheck(link.id);
-              
-              return (
-                <Badge 
-                  className={`${accessStatusColors[accessStatus]} ml-2`}
-                  variant="outline"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  ) : (
-                    accessStatus === 'inaccessible' && (
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                    )
-                  )}
-                  {accessStatus === 'accessible' ? 'Accessible' : 
-                   accessStatus === 'inaccessible' ? 'Access Error' : 'Unknown'}
-                </Badge>
-              );
-            };
-
-            return (
-              <Card key={link.id} className="p-4">
-                <div className="flex justify-between">
-                  <div className="space-y-1 flex-1 mr-2">
-                    <div className="flex items-center">
-                      <Badge variant="outline" className="text-xs">
-                        {documentTypes[link.document_type as keyof typeof documentTypes] || "Document"}
-                      </Badge>
-                      <DocumentAccessStatus />
-                    </div>
-                    <a 
-                      href={link.link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline break-all"
-                    >
-                      {link.link}
-                    </a>
-                    <p className="text-xs text-muted-foreground">
-                      Added {formatDistanceToNow(new Date(link.created_at), { addSuffix: true })}
-                      {link.refresh_rate && ` • Refresh every ${link.refresh_rate} days`}
-                    </p>
-                  </div>
-                  <div className="flex space-x-1">
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => checkDriveAccess(link.id)}
-                      title="Check access"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => onDelete(link.id)}
-                      disabled={isDeleting}
-                      className="text-destructive hover:text-destructive"
-                      title="Delete link"
-                    >
-                      {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
         </div>
-      )}
+      </div>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={handleDelete}
+        disabled={isDeleting}
+      >
+        {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove"}
+      </Button>
     </div>
   );
 };

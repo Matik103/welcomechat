@@ -2,6 +2,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Client, WidgetSettings } from "@/types/client";
+import { execSql } from "@/utils/rpcUtils";
+import { safeParse } from "@/utils/stringUtils";
 
 export const useClient = (id?: string) => {
   const { data: client, isLoading: isLoadingClient, error, refetch: refetchClient } = useQuery({
@@ -11,17 +13,21 @@ export const useClient = (id?: string) => {
       
       console.log("Fetching client with ID:", id);
       
-      // Get client data from ai_agents table
-      const { data: agentData, error: agentError } = await supabase
-        .from("ai_agents")
-        .select("*")
-        .eq("id", id)
-        .single();
-        
-      if (agentError) {
-        console.error("Error fetching client:", agentError);
-        throw agentError;
+      // Use SQL query via RPC to get client data from ai_agents table
+      const sql = `
+        SELECT * FROM ai_agents
+        WHERE id = $1
+        LIMIT 1
+      `;
+      
+      const data = await execSql(sql, { id });
+      
+      if (!Array.isArray(data) || data.length === 0) {
+        console.error("No client data found for ID:", id);
+        return null;
       }
+      
+      const agentData = data[0];
       
       // Extract widget_settings from settings if available
       const settings = agentData.settings || {};
@@ -32,16 +38,19 @@ export const useClient = (id?: string) => {
         logo_storage_path: agentData.logo_storage_path || ""
       };
 
+      // Safely handle settings as it could be a string or object
+      const parsedSettings = typeof settings === 'string' ? safeParse(settings) : settings;
+      
       // If settings exists and has widget properties, merge them
-      if (typeof settings === 'object') {
+      if (typeof parsedSettings === 'object') {
         // Copy known widget properties
-        if (settings.chat_color) widgetSettings.chat_color = settings.chat_color;
-        if (settings.background_color) widgetSettings.background_color = settings.background_color;
-        if (settings.text_color) widgetSettings.text_color = settings.text_color;
-        if (settings.secondary_color) widgetSettings.secondary_color = settings.secondary_color;
-        if (settings.position) widgetSettings.position = settings.position;
-        if (settings.welcome_text) widgetSettings.welcome_text = settings.welcome_text;
-        if (settings.response_time_text) widgetSettings.response_time_text = settings.response_time_text;
+        if ('chat_color' in parsedSettings) widgetSettings.chat_color = parsedSettings.chat_color;
+        if ('background_color' in parsedSettings) widgetSettings.background_color = parsedSettings.background_color;
+        if ('text_color' in parsedSettings) widgetSettings.text_color = parsedSettings.text_color;
+        if ('secondary_color' in parsedSettings) widgetSettings.secondary_color = parsedSettings.secondary_color;
+        if ('position' in parsedSettings) widgetSettings.position = parsedSettings.position;
+        if ('welcome_text' in parsedSettings) widgetSettings.welcome_text = parsedSettings.welcome_text;
+        if ('response_time_text' in parsedSettings) widgetSettings.response_time_text = parsedSettings.response_time_text;
       }
       
       // Convert agent data to client format

@@ -1,149 +1,166 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDriveLinks } from '@/hooks/useDriveLinks';
-import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
-import { useClientActivity } from '@/hooks/useClientActivity';
-import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
-import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
-import { DriveLinks } from './DriveLinks';
-import { WebsiteUrls } from './WebsiteUrls';
-import { DocumentLinks } from './DocumentLinks';
-import { agentNameToClassName } from '@/utils/stringUtils';
-import { supabase } from '@/integrations/supabase/client';
-import { ActivityType } from '@/types/activity';
-import { Json } from '@/integrations/supabase/types';
+import { useDriveLinks } from "@/hooks/useDriveLinks";
+import { WebsiteUrls } from "@/components/client/WebsiteUrls";
+import { DriveLinks } from "@/components/client/DriveLinks";
+import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
+import { useDocumentProcessing } from "@/hooks/useDocumentProcessing";
+import { DocumentResourcesSection } from "@/components/client/resource-sections/DocumentResourcesSection";
+import { WebsiteResourcesSection } from "@/components/client/resource-sections/WebsiteResourcesSection";
+import { ActivityType, Json } from "@/integrations/supabase/types";
+import { agentNameToClassName } from "@/utils/stringUtils";
 
 interface ClientResourceSectionsProps {
   clientId: string;
-  clientName?: string;
   agentName?: string;
   className?: string;
   isClientView?: boolean;
+  logClientActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
-export const ClientResourceSections = ({ 
-  clientId, 
-  clientName, 
-  agentName = "Agent", 
-  className,
-  isClientView = false
+export const ClientResourceSections = ({
+  clientId,
+  agentName = "AI Assistant",
+  className = "",
+  isClientView = false,
+  logClientActivity
 }: ClientResourceSectionsProps) => {
-  const { logClientActivity } = useClientActivity(clientId);
-  const [activeTab, setActiveTab] = useState('documents');
-  
-  // Fetch drive links and website URLs
-  const {
-    driveLinks,
-    isLoading: isLoadingDriveLinks,
-    isError: isErrorDriveLinks,
-    refetchDriveLinks,
-    addDriveLinkMutation,
-    deleteDriveLinkMutation,
-  } = useDriveLinks(clientId);
-
+  const [activeTab, setActiveTab] = useState("websites");
   const {
     websiteUrls,
-    isLoading: isLoadingWebsiteUrls,
-    isError: isErrorWebsiteUrls,
+    isLoading: isLoadingWebsites,
+    error: websiteError,
     refetchWebsiteUrls,
     addWebsiteUrlMutation,
     deleteWebsiteUrlMutation,
+    isAdding: isAddingWebsite,
+    isDeleting: isDeletingWebsite
   } = useWebsiteUrls(clientId);
 
-  // Fetch agent name if not provided
-  const [agentNameState, setAgentNameState] = useState(agentName);
+  const {
+    driveLinks,
+    isLoading: isLoadingDriveLinks,
+    error: driveLinksError,
+    refetch: refetchDriveLinks,
+    addDriveLink,
+    deleteDriveLink,
+    isAdding: isAddingDriveLink,
+    isDeleting: isDeletingDriveLink
+  } = useDriveLinks(clientId);
 
-  useEffect(() => {
-    async function fetchAgentName() {
-      try {
-        const { data, error } = await supabase
-          .from("ai_agents")
-          .select("name")
-          .eq("id", clientId)
-          .single();
+  const { uploadDocument, isUploading } = useDocumentProcessing(clientId, agentName);
 
-        if (error) {
-          console.error("Error fetching agent name:", error);
-          return;
+  const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
+    try {
+      await logClientActivity(
+        "website_url_added",
+        `Website URL added: ${data.url}`,
+        {
+          url: data.url,
+          refresh_rate: data.refresh_rate,
+          client_id: clientId
         }
-
-        if (data && data.name) {
-          setAgentNameState(data.name);
-        }
-      } catch (err) {
-        console.error("Failed to fetch agent name:", err);
-      }
+      );
+      
+      return await addWebsiteUrlMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error adding website URL:", error);
+      throw error;
     }
-
-    if (!agentName) {
-      fetchAgentName();
-    }
-  }, [clientId, agentName]);
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
   };
 
-  const handleAddDriveLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
-    return await addDriveLinkMutation.mutateAsync(data);
-  };
-
-  const handleDeleteDriveLink = async (linkId: number) => {
-    return await deleteDriveLinkMutation.mutateAsync(linkId);
-  };
-
-  const handleAddWebsiteUrl = async (data: any) => {
-    return await addWebsiteUrlMutation.mutateAsync(data);
-  };
-
-  const handleDeleteWebsiteUrl = async (urlId: any) => {
+  const handleDeleteWebsiteUrl = async (urlId: number) => {
     return await deleteWebsiteUrlMutation.mutateAsync(urlId);
   };
 
+  const handleAddDriveLink = async (data: { link: string; refresh_rate: number; document_type?: string }) => {
+    try {
+      await logClientActivity(
+        "document_link_added",
+        `Document link added: ${data.link}`,
+        {
+          link: data.link,
+          refresh_rate: data.refresh_rate,
+          document_type: data.document_type || 'google_drive',
+          client_id: clientId
+        }
+      );
+      
+      return await addDriveLink(data);
+    } catch (error) {
+      console.error("Error adding drive link:", error);
+      throw error;
+    }
+  };
+
+  const handleDeleteDriveLink = async (linkId: number) => {
+    return await deleteDriveLink(linkId);
+  };
+
+  const handleUploadDocument = async (data: { file: File; agentName: string }) => {
+    try {
+      const result = await uploadDocument(data.file, clientId, data.agentName);
+      
+      // Already logging activity in the uploadDocument function
+      
+      return result;
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      throw error;
+    }
+  };
+
+  const sanitizedClassName = agentNameToClassName(agentName);
+
   return (
-    <div className={className}>
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="websites">Websites</TabsTrigger>
+    <div className={`space-y-6 ${className} ${sanitizedClassName}`}>
+      <Tabs 
+        defaultValue="websites" 
+        value={activeTab} 
+        onValueChange={setActiveTab}
+        className="w-full"
+      >
+        <TabsList className="w-full grid grid-cols-2">
+          <TabsTrigger value="websites">Website URLs</TabsTrigger>
+          <TabsTrigger value="documents">Document Resources</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="documents">
-          <DocumentResourcesSection
+        <TabsContent value="websites" className="mt-6">
+          <WebsiteResourcesSection 
             clientId={clientId}
             logActivity={logClientActivity}
-            agentName={agentNameState}
           >
-            <DocumentLinks
+            <WebsiteUrls 
+              urls={websiteUrls}
+              onAdd={handleAddWebsiteUrl}
+              onDelete={handleDeleteWebsiteUrl}
+              isLoading={isLoadingWebsites}
+              isAdding={isAddingWebsite}
+              isDeleting={isDeletingWebsite}
+              logActivity={logClientActivity}
+            />
+          </WebsiteResourcesSection>
+        </TabsContent>
+        
+        <TabsContent value="documents" className="mt-6">
+          <DocumentResourcesSection 
+            clientId={clientId}
+            logActivity={logClientActivity}
+            agentName={agentName}
+          >
+            <DriveLinks 
               driveLinks={driveLinks}
               onAdd={handleAddDriveLink}
               onDelete={handleDeleteDriveLink}
+              onUpload={handleUploadDocument}
               isLoading={isLoadingDriveLinks}
-              isAdding={addDriveLinkMutation.isPending}
-              isDeleting={deleteDriveLinkMutation.isPending}
-              agentName={agentNameState}
+              isAdding={isAddingDriveLink || isUploading}
+              isDeleting={isDeletingDriveLink}
+              agentName={agentName}
+              logActivity={logClientActivity}
             />
           </DocumentResourcesSection>
-        </TabsContent>
-        
-        <TabsContent value="websites">
-          <WebsiteResourcesSection
-            clientId={clientId}
-            logActivity={logClientActivity}
-            agentName={agentNameState}
-          >
-            <WebsiteUrls
-              clientId={clientId}
-              onAdd={handleAddWebsiteUrl}
-              onDelete={handleDeleteWebsiteUrl}
-              isLoading={isLoadingWebsiteUrls}
-              isAdding={addWebsiteUrlMutation.isPending}
-              isDeleting={deleteWebsiteUrlMutation.isPending}
-              agentName={agentNameState}
-              logClientActivity={logClientActivity}
-            />
-          </WebsiteResourcesSection>
         </TabsContent>
       </Tabs>
     </div>

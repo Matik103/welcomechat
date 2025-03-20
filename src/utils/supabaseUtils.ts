@@ -2,113 +2,56 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Creates and registers a PostgreSQL function with Supabase via RPC
- * Useful for dynamically creating functions that can be reused
+ * Initialize the RPC functions needed for the application
  */
-export const createRpcFunction = async (
-  functionName: string, 
-  functionBody: string, 
-  parameters: { name: string; type: string; defaultValue?: string }[] = [],
-  returnType: string = 'json',
-  options: { isStrict?: boolean; volatility?: 'IMMUTABLE' | 'STABLE' | 'VOLATILE' } = {}
-): Promise<boolean> => {
+export const initializeRpcFunctions = async () => {
   try {
-    const paramsList = parameters.map(p => {
-      if (p.defaultValue) {
-        return `${p.name} ${p.type} DEFAULT ${p.defaultValue}`;
-      }
-      return `${p.name} ${p.type}`;
-    }).join(', ');
+    console.log("Initializing Supabase RPC functions...");
     
-    const volatility = options.volatility || 'VOLATILE';
-    const strictFlag = options.isStrict ? 'STRICT' : '';
-    
-    const sql = `
-      CREATE OR REPLACE FUNCTION ${functionName}(${paramsList}) 
-      RETURNS ${returnType} 
-      LANGUAGE plpgsql 
-      ${volatility}
-      ${strictFlag}
-      AS $function$
-      BEGIN
-        ${functionBody}
-      END;
-      $function$;
-    `;
-    
-    // Execute the SQL to create the function
-    const { data, error } = await supabase.rpc('exec_sql', { 
-      sql_query: sql 
+    // Check if the exec_sql function exists
+    const { data: execSqlData, error: execSqlError } = await supabase.rpc('exec_sql', {
+      sql_query: 'SELECT 1 as test',
+      query_params: '{}'
     });
     
-    if (error) {
-      console.error(`Error creating function ${functionName}:`, error);
-      return false;
+    if (execSqlError) {
+      console.error("Error checking exec_sql function:", execSqlError);
+    } else {
+      console.log("exec_sql function is available:", execSqlData);
     }
     
-    return true;
-  } catch (error) {
-    console.error(`Failed to create function ${functionName}:`, error);
-    return false;
-  }
-};
-
-/**
- * Get document access status function - creates a reusable RPC for checking document status
- */
-export const createGetDocumentAccessStatusFunction = async (): Promise<boolean> => {
-  return await createRpcFunction(
-    'get_document_access_status',
-    `
-      DECLARE
-        status TEXT;
-      BEGIN
-        SELECT access_status INTO status FROM document_links WHERE id = document_id;
-        RETURN status;
-      EXCEPTION
-        WHEN OTHERS THEN
-          RETURN 'unknown';
-      END;
-    `,
-    [{ name: 'document_id', type: 'INTEGER' }],
-    'TEXT',
-    { volatility: 'STABLE', isStrict: true }
-  );
-};
-
-/**
- * Get AI interactions function - creates a reusable RPC for fetching interactions
- */
-export const createGetAiInteractionsFunction = async (): Promise<boolean> => {
-  return await createRpcFunction(
-    'get_ai_interactions',
-    `
-      BEGIN
-        RETURN QUERY 
-        SELECT * FROM ai_agents 
-        WHERE client_id = client_id_param 
-        AND interaction_type = 'chat'
-        ORDER BY created_at DESC;
-      END;
-    `,
-    [{ name: 'client_id_param', type: 'UUID' }],
-    'SETOF ai_agents',
-    { volatility: 'STABLE', isStrict: true }
-  );
-};
-
-/**
- * Create and initialize all necessary RPC functions
- */
-export const initializeRpcFunctions = async (): Promise<void> => {
-  try {
-    await createGetDocumentAccessStatusFunction();
-    await createGetAiInteractionsFunction();
+    // Check if document_links table exists
+    const { data: tableData, error: tableError } = await supabase.rpc('exec_sql', {
+      sql_query: `
+        SELECT EXISTS (
+          SELECT FROM pg_tables 
+          WHERE schemaname = 'public' 
+          AND tablename = 'document_links'
+        ) as exists
+      `,
+      query_params: '{}'
+    });
     
-    // Add more function initializations here as needed
+    if (tableError) {
+      console.error("Error checking document_links table:", tableError);
+    } else {
+      const exists = Array.isArray(tableData) && tableData.length > 0 && tableData[0].exists;
+      console.log("document_links table exists:", exists);
+    }
     
-    console.log('RPC functions initialized successfully');
+    // Check if get_document_access_status function exists
+    const { data: accessStatusData, error: accessStatusError } = await supabase.rpc('get_document_access_status', {
+      document_id: 0
+    });
+    
+    if (accessStatusError && !accessStatusError.message.includes("does not exist")) {
+      console.error("Error checking get_document_access_status function:", accessStatusError);
+    } else {
+      console.log("get_document_access_status function check completed");
+    }
+    
+    console.log("Supabase RPC functions initialized successfully");
   } catch (error) {
-    console.error('Failed to initialize RPC functions:', error);
+    console.error("Error initializing RPC functions:", error);
   }
 };

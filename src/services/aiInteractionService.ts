@@ -1,70 +1,123 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { ChatInteraction } from '@/types/client';
+import { supabase } from "@/integrations/supabase/client";
+import { ChatInteraction } from "@/types/client";
+import { execSql } from "@/utils/rpcUtils";
 
-// Get chat sessions for a client using RPC instead of direct table access
-export const getChatSessions = async (clientId: string): Promise<ChatInteraction[]> => {
+/**
+ * Fetch chat history for a client
+ */
+export const fetchChatHistory = async (clientId: string): Promise<ChatInteraction[]> => {
   try {
-    const { data, error } = await supabase.rpc('get_ai_interactions', {
-      client_id_param: clientId
-    });
-
-    if (error) {
-      console.error('Error fetching chat sessions:', error);
+    // Use SQL query via RPC to get chat history safely
+    const sql = `
+      SELECT id, client_id, agent_name, query_text, content as response, 
+             created_at, response_time_ms, metadata
+      FROM ai_agents
+      WHERE client_id = $1
+        AND interaction_type = 'chat_interaction'
+      ORDER BY created_at DESC
+      LIMIT 50
+    `;
+    
+    const data = await execSql(sql, { client_id: clientId });
+    
+    if (!Array.isArray(data)) {
+      console.error("Unexpected response format:", data);
       return [];
     }
-
-    if (!data || !Array.isArray(data)) {
-      return [];
-    }
-
-    // Transform data to match ChatInteraction interface
-    return data.map(item => ({
+    
+    // Map the data to our ChatInteraction type
+    const interactions: ChatInteraction[] = data.map(item => ({
       id: item.id,
       clientId: item.client_id,
+      query: item.query_text,
+      response: item.response,
       timestamp: item.created_at,
-      query: item.query_text || '',
-      response: item.response_text || '',
-      agentName: item.agent_name || '',
+      agentName: item.agent_name,
       responseTimeMs: item.response_time_ms,
       metadata: item.metadata
     }));
+    
+    return interactions;
   } catch (error) {
-    console.error('Error in getChatSessions:', error);
+    console.error("Error fetching chat history:", error);
     return [];
   }
 };
 
-// Get recent interaction history
-export const getRecentInteractions = async (clientId: string, limit = 10): Promise<ChatInteraction[]> => {
+/**
+ * Fetch recent chat interactions for a client
+ */
+export const fetchRecentInteractions = async (
+  clientId: string, 
+  limit: number = 5
+): Promise<ChatInteraction[]> => {
   try {
-    const { data, error } = await supabase.rpc('get_recent_interactions', {
-      client_id_param: clientId,
-      limit_param: limit
-    });
-
-    if (error) {
-      console.error('Error fetching recent interactions:', error);
+    // Use SQL query via RPC to get recent interactions safely
+    const sql = `
+      SELECT id, client_id, agent_name, query_text, content as response, 
+             created_at, response_time_ms, metadata
+      FROM ai_agents
+      WHERE client_id = $1
+        AND interaction_type = 'chat_interaction'
+      ORDER BY created_at DESC
+      LIMIT $2
+    `;
+    
+    const data = await execSql(sql, { client_id: clientId, limit });
+    
+    if (!Array.isArray(data)) {
+      console.error("Unexpected response format:", data);
       return [];
     }
-
-    if (!data || !Array.isArray(data)) {
-      return [];
-    }
-
-    // Transform data to match ChatInteraction interface
-    return data.map(item => ({
+    
+    // Map the data to our ChatInteraction type
+    const interactions: ChatInteraction[] = data.map(item => ({
       id: item.id,
       clientId: item.client_id,
+      query: item.query_text,
+      response: item.response,
       timestamp: item.created_at,
-      query: item.query_text || '',
-      response: item.response_text || '',
-      agentName: item.agent_name || '',
+      agentName: item.agent_name,
       responseTimeMs: item.response_time_ms,
       metadata: item.metadata
     }));
+    
+    return interactions;
   } catch (error) {
-    console.error('Error in getRecentInteractions:', error);
+    console.error("Error fetching recent chat interactions:", error);
     return [];
+  }
+};
+
+/**
+ * Log a new chat interaction
+ */
+export const logChatInteraction = async (
+  clientId: string,
+  agentName: string,
+  query: string,
+  response: string,
+  responseTimeMs?: number,
+  metadata?: Record<string, any>
+): Promise<string> => {
+  try {
+    // Insert directly to ai_agents table with interaction_type = 'chat_interaction'
+    const { data, error } = await supabase.from('ai_agents').insert({
+      client_id: clientId,
+      name: agentName,
+      interaction_type: 'chat_interaction',
+      query_text: query,
+      content: response,
+      response_time_ms: responseTimeMs,
+      metadata: metadata || {}
+    }).select('id').single();
+    
+    if (error) throw error;
+    
+    return data.id;
+  } catch (error) {
+    console.error("Error logging chat interaction:", error);
+    throw error;
   }
 };
