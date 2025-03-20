@@ -28,7 +28,7 @@ export const useClientMutation = (id: string | undefined) => {
       console.log("Data before mutation:", data);
       
       // Create a deep copy of the data to avoid mutating the original object
-      const sanitizedData = {
+      const sanitizedData: ClientFormData = {
         ...data,
         agent_description: sanitizeForSQL(data.agent_description),
         // Ensure widget_settings is an object with the agent_description
