@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +52,7 @@ export const DocumentUploadForm = ({
     e.preventDefault();
     
     if (!agentName) {
-      setError("Agent name is not configured. Please set up an AI Agent Name in client settings before uploading documents.");
+      setError("Agent name is not configured. Please set up an Agent Name in client settings before uploading documents.");
       toast.error("Agent name is not configured");
       return;
     }

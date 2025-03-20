@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
@@ -21,10 +20,10 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Fetch agent content for preview responses
+  // Fetch agent content for preview responses with empty string instead of "AI Assistant"
   const { agentContent, sources, isLoading: isAgentLoading } = useAgentContent(
     clientId, 
-    "AI Assistant" // Use a fixed value for agent name
+    "" // Use empty string instead of "AI Assistant"
   );
 
   const scrollToBottom = () => {
@@ -80,7 +79,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         // Show typing indicator
         setIsTyping(true);
         
-        // Call the OpenAI-powered chat function
+        // Call the OpenAI-powered chat function with empty string instead of "AI Assistant"
         const response = await fetch('https://mgjodiqecnnltsgorife.supabase.co/functions/v1/chat', {
           method: 'POST',
           headers: {
@@ -88,7 +87,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           },
           body: JSON.stringify({
             prompt: userQuery,
-            agent_name: "AI Assistant", // Use fixed value
+            agent_name: "", // Use empty string
             client_id: clientId,
             context: agentContent.substring(0, 3000) // Send first 3000 chars as context
           })
@@ -180,7 +179,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         {expanded ? (
           <>
             <ChatHeader 
-              agentName="AI Assistant" 
+              agentName="" // Use empty string
               logoUrl={settings.logo_url}
               backgroundColor={settings.chat_color}
               textColor={settings.text_color}

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -188,6 +187,18 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
       () => setIsUploading(true),
       () => setIsUploading(false)
     );
+  };
+
+  const defaultSettings = {
+    agent_name: "",
+    agent_description: "",
+    welcome_text: "Hi 👋, how can I help?",
+    chat_color: "#3f83f8",
+    background_color: "#ffffff",
+    text_color: "#ffffff",
+    secondary_color: "#6366f1",
+    logo_url: "",
+    logo_storage_path: ""
   };
 
   return {

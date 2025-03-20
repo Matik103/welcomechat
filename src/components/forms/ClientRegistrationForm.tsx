@@ -16,11 +16,11 @@ const clientRegistrationSchema = z.object({
   company: z.string().optional(),
   description: z.string().optional(),
   bot_settings: z.object({
-    bot_name: z.string().min(1, "Bot name is required").default("AI Assistant"),
+    bot_name: z.string().optional().default(""),
     bot_personality: z.string().optional(),
     bot_logo: z.any().optional(),
   }).default({
-    bot_name: "AI Assistant",
+    bot_name: "",
     bot_personality: "",
     bot_logo: null,
   }),
@@ -45,7 +45,7 @@ export function ClientRegistrationForm({ onSubmit, initialData }: ClientRegistra
       company: initialData?.company || "",
       description: initialData?.description || "",
       bot_settings: {
-        bot_name: initialData?.bot_settings?.bot_name || "AI Assistant",
+        bot_name: initialData?.bot_settings?.bot_name || "",
         bot_personality: initialData?.bot_settings?.bot_personality || "",
         bot_logo: null,
       },
@@ -145,17 +145,16 @@ export function ClientRegistrationForm({ onSubmit, initialData }: ClientRegistra
 
       <Card>
         <CardHeader>
-          <CardTitle>AI Bot Settings</CardTitle>
+          <CardTitle>Bot Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="bot_name">Bot Name *</Label>
+            <Label htmlFor="bot_name">Bot Name</Label>
             <Input
               id="bot_name"
               {...form.register("bot_settings.bot_name")}
               placeholder="Enter bot name"
               disabled={isLoading}
-              defaultValue="AI Assistant"
             />
             {form.formState.errors.bot_settings?.bot_name && (
               <p className="text-sm text-red-500 mt-1">

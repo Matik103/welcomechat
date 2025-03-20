@@ -3,7 +3,7 @@ import { z } from "zod";
 
 // Schema for widget settings
 export const widgetSettingsSchema = z.object({
-  agent_name: z.string().optional().default("AI Assistant"),
+  agent_name: z.string().optional().default(""),
   agent_description: z.string().optional().default(""),
   logo_url: z.string().optional().default(""),
 });
@@ -13,7 +13,7 @@ export const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
   widget_settings: widgetSettingsSchema.optional().default({
-    agent_name: "AI Assistant",
+    agent_name: "",
     agent_description: "",
     logo_url: "",
   }),
