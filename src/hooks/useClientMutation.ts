@@ -32,17 +32,26 @@ export const useClientMutation = (id: string | undefined) => {
         ...data,
         // Ensure widget_settings is an object
         widget_settings: {
-          ...(data.widget_settings && typeof data.widget_settings === 'object' 
+          ...(typeof data.widget_settings === 'object' && data.widget_settings !== null 
               ? data.widget_settings 
               : {}),
-          agent_description: sanitizeForSQL(data.agent_description) || '',
         }
       };
+      
+      // Handle agent_description separately to avoid type errors
+      if (data.agent_description) {
+        sanitizedData.agent_description = sanitizeForSQL(data.agent_description) || '';
+        // Add to widget_settings as well
+        if (typeof sanitizedData.widget_settings === 'object') {
+          (sanitizedData.widget_settings as Record<string, any>).agent_description = 
+            sanitizedData.agent_description;
+        }
+      }
       
       // Log before and after sanitization for debugging
       if (data.agent_description) {
         console.log("Agent description before sanitization:", data.agent_description);
-        console.log("Agent description after sanitization:", sanitizedData.widget_settings.agent_description);
+        console.log("Agent description after sanitization:", sanitizedData.agent_description);
       }
       console.log("Data after sanitization:", sanitizedData);
 
