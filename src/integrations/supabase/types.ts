@@ -3507,6 +3507,10 @@ export type Database = {
           records_updated: number
         }[]
       }
+      fix_agent_quotes: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_active_days: {
         Args: {
           client_id_param: string
