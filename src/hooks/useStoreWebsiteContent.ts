@@ -10,6 +10,7 @@ interface Website {
   client_id: string;
   url: string;
   scrapable: boolean;
+  refresh_rate: number;
   lastFetched?: string;
   created_at?: string;
   name?: string; // Add name property that was missing
@@ -48,6 +49,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
         // Add name property to each website for compatibility
         return (data || []).map(site => ({
           ...site,
+          scrapable: true, // Add default scrapable property
           name: `Website ${site.id}` // Default name based on ID if none provided
         })) as Website[];
       } finally {
