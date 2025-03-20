@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,14 +32,18 @@ export const Header = () => {
         <div className="flex justify-between items-center h-16">
           <nav className="flex items-center gap-6">
             <Link 
-              to="/" 
-              className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname === '/' ? 'text-gray-900' : ''}`}
+              to="/admin/dashboard" 
+              className={`text-gray-600 hover:text-gray-900 font-medium ${
+                location.pathname === '/admin/dashboard' || location.pathname === '/' ? 'text-gray-900' : ''
+              }`}
             >
               Dashboard
             </Link>
             <Link 
               to="/admin/clients" 
-              className={`text-gray-600 hover:text-gray-900 font-medium ${location.pathname.includes('/admin/clients') ? 'text-gray-900' : ''}`}
+              className={`text-gray-600 hover:text-gray-900 font-medium ${
+                location.pathname.includes('/admin/clients') ? 'text-gray-900' : ''
+              }`}
             >
               Clients
             </Link>
@@ -57,7 +62,7 @@ export const Header = () => {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/settings" className="w-full cursor-pointer">
+                <Link to="/admin/settings" className="w-full cursor-pointer">
                   <Settings className="h-4 w-4 mr-2" />
                   Account Settings
                 </Link>
