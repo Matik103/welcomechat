@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -36,7 +37,14 @@ const clientFormSchema = z.object({
         message: "Agent name cannot contain double quotes - please use single quotes instead"
       }
     ),
-  agent_description: z.string().optional(),
+  agent_description: z.string()
+    .optional()
+    .refine(
+      value => !value || !value.includes('"'), 
+      {
+        message: "Agent description cannot contain double quotes - please use single quotes instead"
+      }
+    ),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
 });
@@ -144,9 +152,8 @@ export const ClientForm = ({
 
   const handleFormSubmit = async (data: any) => {
     console.log("ClientForm submitting data:", data);
-    console.log("Agent name value:", data.agent_name);
-    console.log("Agent name type:", typeof data.agent_name);
     
+    // Extra safety - sanitize here as well by replacing double quotes with single quotes
     if (data.agent_name) {
       data.agent_name = data.agent_name.replace(/"/g, "'");
     }
@@ -239,7 +246,7 @@ export const ClientForm = ({
           <p className="text-sm text-red-500">{errors.agent_description.message}</p>
         )}
         {!isClientView && (
-          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
+          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later. Avoid using double quotes.</p>
         )}
       </div>
 

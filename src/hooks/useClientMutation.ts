@@ -12,9 +12,9 @@ import { toast } from "sonner";
 const sanitizeForSQL = (value: string | undefined): string | undefined => {
   if (!value) return value;
   
-  // Replace all double quotes with single quotes
+  // Properly replace all double quotes with single quotes
   // This is critical because PostgreSQL uses double quotes for identifiers
-  // and Supabase can have issues with them in string literals
+  // This ensures we don't have SQL syntax errors when inserting agent names
   return value.replace(/"/g, "'");
 };
 
@@ -22,21 +22,17 @@ export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       console.log("Data before mutation:", data);
-      console.log("Data JSON stringified:", JSON.stringify(data));
-      console.log("Agent name type:", typeof data.agent_name);
       
       // Create a deep copy of the data to avoid mutating the original object
       const sanitizedData = {
         ...data,
         agent_name: sanitizeForSQL(data.agent_name),
-        // Also sanitize the agent_description to be safe
         agent_description: sanitizeForSQL(data.agent_description)
       };
       
-      console.log("Data after sanitization:", sanitizedData);
-      console.log("Data after sanitization JSON stringified:", JSON.stringify(sanitizedData));
-      console.log("Agent name before:", data.agent_name);
+      console.log("Agent name before sanitization:", data.agent_name);
       console.log("Agent name after sanitization:", sanitizedData.agent_name);
+      console.log("Data after sanitization:", sanitizedData);
 
       if (id) {
         // Update existing client
