@@ -91,10 +91,10 @@ function App() {
           <Route path="/admin/clients" element={<ClientList />} />
           <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/clients/new" element={<AddEditClient />} />
-          <Route path="/admin/clients/:id" element={<ClientView />} />
-          <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
-          <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
-          <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
+          <Route path="/admin/clients/:clientId" element={<ClientView />} />
+          <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
+          <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
+          <Route path="/admin/clients/:clientId/edit-info" element={<EditClientInfo />} />
           
           {/* Redirect old admin routes to new structure */}
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />

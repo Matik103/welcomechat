@@ -9,7 +9,8 @@ import { useState } from "react";
 import { WidgetPosition } from "@/types/widget-settings";
 
 const WidgetSettings = () => {
-  const { id } = useParams();
+  // Changed from id to clientId to match App.tsx route param name
+  const { clientId } = useParams();
   const navigate = useNavigate();
   const { user, userRole } = useAuth();
 
@@ -17,13 +18,13 @@ const WidgetSettings = () => {
   const isClientView = userRole === 'client';
   
   // Get the appropriate client ID
-  const clientId = id || (isClientView ? user?.user_metadata?.client_id : undefined);
+  const activeClientId = clientId || (isClientView ? user?.user_metadata?.client_id : undefined);
   
-  console.log("WidgetSettings: Using client ID:", clientId);
+  console.log("WidgetSettings: Using client ID:", activeClientId);
   console.log("WidgetSettings: User role:", userRole);
   console.log("WidgetSettings: Is client view:", isClientView);
   
-  const { logClientActivity } = useClientActivity(clientId);
+  const { logClientActivity } = useClientActivity(activeClientId);
 
   const { 
     settings, 
@@ -31,7 +32,7 @@ const WidgetSettings = () => {
     isUploading, 
     updateSettingsMutation,
     handleLogoUpload: originalHandleLogoUpload 
-  } = useWidgetSettings(clientId, isClientView);
+  } = useWidgetSettings(activeClientId, isClientView);
 
   // Adapter for the logo upload handler to match the expected type
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,9 +52,9 @@ const WidgetSettings = () => {
   const handleBack = () => {
     if (isClientView) {
       navigate('/client/dashboard');
-    } else if (id) {
+    } else if (clientId) {
       // Admin is viewing a specific client's widget settings
-      navigate(`/admin/clients/${id}`);
+      navigate(`/admin/clients/${clientId}`);
     } else {
       navigate('/admin/clients');
     }
@@ -67,7 +68,7 @@ const WidgetSettings = () => {
     );
   }
 
-  if (!clientId) {
+  if (!activeClientId) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <h1 className="text-2xl font-bold mb-4">Client not found</h1>
@@ -90,7 +91,7 @@ const WidgetSettings = () => {
 
   return (
     <WidgetSettingsContainer
-      clientId={clientId}
+      clientId={activeClientId}
       settings={completeSettings}
       isClientView={isClientView}
       isUploading={isUploading}
