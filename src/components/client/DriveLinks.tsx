@@ -7,14 +7,13 @@ import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinks
 import { DocumentUploadForm } from '@/components/client/drive-links/DocumentUploadForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentNameWarning } from '@/components/client/drive-links/AgentNameWarning';
-import { DocumentLink } from '@/hooks/useDocumentLinks';
+import { DocumentLink, DocumentLinkFormData } from '@/types/document-processing';
 
 interface DriveLinksProps {
   documents: DocumentLink[];
   isLoading: boolean;
-  isValidating: boolean;
   isUploading: boolean;
-  addDocumentLink: (data: { link: string; document_type: string; refresh_rate: number; }) => Promise<void>;
+  addDocumentLink: (data: DocumentLinkFormData) => Promise<void>;
   deleteDocumentLink: (linkId: number) => Promise<void>;
   uploadDocument: (file: File) => Promise<void>;
   isClientView?: boolean;
@@ -23,7 +22,6 @@ interface DriveLinksProps {
 export const DriveLinks = ({
   documents,
   isLoading,
-  isValidating,
   isUploading,
   addDocumentLink,
   deleteDocumentLink,
@@ -33,7 +31,7 @@ export const DriveLinks = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeTab, setActiveTab] = useState('list');
 
-  const handleSubmitLink = async (data: { link: string; document_type: string; refresh_rate: number; }) => {
+  const handleSubmitLink = async (data: DocumentLinkFormData) => {
     await addDocumentLink(data);
     setShowAddForm(false);
   };
@@ -67,7 +65,7 @@ export const DriveLinks = ({
             <DocumentLinkForm
               onSubmit={handleSubmitLink}
               onCancel={() => setShowAddForm(false)}
-              isValidating={isValidating}
+              isValidating={false}
             />
           </div>
         ) : (

@@ -8,7 +8,7 @@ import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentProcessing } from '@/hooks/useDocumentProcessing';
 import { ExtendedActivityType } from '@/types/extended-supabase';
 import { Json } from '@/integrations/supabase/types';
-import { ValidationResult } from '@/types/website-url';
+import { ValidationResult } from '@/types/document-processing';
 
 interface ClientResourceSectionsProps {
   clientId: string;
@@ -41,13 +41,13 @@ export const ClientResourceSections = ({
   const {
     documentLinks,
     isLoading: isLoadingDocs,
-    addDocumentLinkMutation,
-    deleteDocumentLinkMutation
+    addDocumentLink,
+    deleteDocumentLink
   } = useDocumentLinks(clientId);
 
   // Get document processing
   const {
-    uploadDocumentMutation,
+    uploadDocument,
     isUploading
   } = useDocumentProcessing(clientId, agentName);
 
@@ -58,13 +58,8 @@ export const ClientResourceSections = ({
       // Mock validation for now
       const result: ValidationResult = {
         isValid: true,
-        details: {
-          scrapability: 'high',
-          contentType: 'text/html',
-          statusCode: 200,
-          pageSize: '50KB',
-          estimatedTokens: 5000
-        }
+        message: "URL validated successfully",
+        status: 'success'
       };
       setValidationResult(result);
       return result;
@@ -72,7 +67,8 @@ export const ClientResourceSections = ({
       console.error('Error validating URL:', error);
       const errorResult: ValidationResult = {
         isValid: false,
-        message: 'Failed to validate URL'
+        message: 'Failed to validate URL',
+        status: 'error'
       };
       setValidationResult(errorResult);
       return errorResult;
@@ -86,7 +82,7 @@ export const ClientResourceSections = ({
    */
   const addWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
-      const result = await addWebsiteUrlMutation.mutateAsync(data);
+      await addWebsiteUrlMutation.mutateAsync(data);
       
       await logClientActivity(
         'website_url_added',
@@ -133,9 +129,9 @@ export const ClientResourceSections = ({
   /**
    * Enhanced addDocumentLink with activity logging
    */
-  const addDocumentLink = async (data: { link: string; document_type: string; refresh_rate: number }) => {
+  const handleAddDocumentLink = async (data: { link: string; document_type: string; refresh_rate: number }) => {
     try {
-      await addDocumentLinkMutation.mutateAsync(data);
+      await addDocumentLink(data);
       
       await logClientActivity(
         'document_link_added',
@@ -157,10 +153,10 @@ export const ClientResourceSections = ({
   /**
    * Enhanced deleteDocumentLink with activity logging
    */
-  const deleteDocumentLink = async (linkId: number) => {
+  const handleDeleteDocumentLink = async (linkId: number) => {
     try {
       const linkToDelete = documentLinks?.find(link => link.id === linkId);
-      await deleteDocumentLinkMutation.mutateAsync(linkId);
+      await deleteDocumentLink(linkId);
       
       if (linkToDelete) {
         await logClientActivity(
@@ -184,9 +180,9 @@ export const ClientResourceSections = ({
   /**
    * Enhanced uploadDocument with activity logging
    */
-  const uploadDocument = async (file: File) => {
+  const handleUploadDocument = async (file: File) => {
     try {
-      await uploadDocumentMutation.mutateAsync(file);
+      await uploadDocument(file);
       
       await logClientActivity(
         'document_uploaded',
@@ -221,8 +217,8 @@ export const ClientResourceSections = ({
           <WebsiteUrls
             urls={websiteUrls || []}
             isLoading={isLoadingUrls}
-            addWebsiteUrl={addWebsiteUrl}
-            deleteWebsiteUrl={deleteWebsiteUrl}
+            addWebsiteUrlMutation={addWebsiteUrlMutation}
+            deleteWebsiteUrlMutation={deleteWebsiteUrlMutation}
             isClientView={isClientView}
           />
         </TabsContent>
@@ -231,11 +227,10 @@ export const ClientResourceSections = ({
           <DriveLinks
             documents={documentLinks || []}
             isLoading={isLoadingDocs}
-            isValidating={false}
             isUploading={isUploading}
-            addDocumentLink={addDocumentLink}
-            deleteDocumentLink={deleteDocumentLink}
-            uploadDocument={uploadDocument}
+            addDocumentLink={handleAddDocumentLink}
+            deleteDocumentLink={handleDeleteDocumentLink}
+            uploadDocument={handleUploadDocument}
             isClientView={isClientView}
           />
         </TabsContent>

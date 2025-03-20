@@ -1,120 +1,108 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { DashboardStats } from '@/types/client-dashboard';
+import { callRpcFunction } from '@/utils/rpcUtils';
+import { InteractionStats } from '@/types/client-dashboard';
 import { ChatInteraction } from '@/types/extended-supabase';
 
-export const useClientDashboard = (clientId: string, agentName: string) => {
-  // Fetch dashboard stats for the client
-  const {
-    data: stats,
-    isLoading: isLoadingStats,
-    error: statsError,
-    refetch: refetchStats,
-  } = useQuery({
-    queryKey: ['agentStats', clientId, agentName],
-    queryFn: async (): Promise<DashboardStats> => {
+/**
+ * Hook to fetch dashboard statistics for a client
+ */
+export const useClientDashboard = (clientId: string, agentName?: string) => {
+  // Fetch dashboard stats
+  const { data: statsData, isLoading: isStatsLoading, error: statsError } = useQuery({
+    queryKey: ['dashboard-stats', clientId, agentName],
+    queryFn: async () => {
       try {
-        // Call the stored procedure to get agent dashboard stats
-        const { data, error } = await supabase.rpc('get_agent_dashboard_stats', {
-          client_id_param: clientId, 
-          agent_name_param: agentName
-        });
-
-        if (error) {
-          console.error('Error fetching agent stats:', error);
-          throw error;
-        }
-
-        if (!data) {
-          return {
-            totalInteractions: 0,
-            activeDays: 0,
-            averageResponseTime: 0,
-            topQueries: []
+        if (!clientId) return null;
+        
+        let stats: InteractionStats;
+        
+        if (agentName) {
+          // Get agent-specific stats if agentName is provided
+          const data = await callRpcFunction<any>('get_agent_dashboard_stats', {
+            client_id_param: clientId,
+            agent_name_param: agentName
+          });
+          
+          // Transform to provide both snake_case and camelCase properties for compatibility
+          stats = {
+            total_interactions: data.total_interactions,
+            active_days: data.active_days,
+            average_response_time: data.average_response_time,
+            top_queries: data.top_queries || [],
+            successRate: data.success_rate,
+            // Add camelCase aliases
+            totalInteractions: data.total_interactions,
+            activeDays: data.active_days,
+            averageResponseTime: data.average_response_time,
+            topQueries: data.top_queries || []
+          };
+        } else {
+          // Get client-level stats if no agentName is provided
+          const data = await callRpcFunction<any>('get_client_dashboard_stats', {
+            client_id_param: clientId
+          });
+          
+          // Transform to provide both snake_case and camelCase properties for compatibility
+          stats = {
+            total_interactions: data.total_interactions,
+            active_days: data.active_days,
+            average_response_time: data.average_response_time,
+            top_queries: data.top_queries || [],
+            successRate: data.success_rate,
+            // Add camelCase aliases
+            totalInteractions: data.total_interactions,
+            activeDays: data.active_days,
+            averageResponseTime: data.average_response_time,
+            topQueries: data.top_queries || []
           };
         }
-
-        // Parse the result which is a JSON object containing the dashboard stats
-        const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
-
-        // Map the result to our DashboardStats type
-        return {
-          totalInteractions: Number(parsedData.total_interactions || 0),
-          activeDays: Number(parsedData.active_days || 0),
-          averageResponseTime: Number(parsedData.average_response_time || 0),
-          topQueries: Array.isArray(parsedData.top_queries) 
-            ? parsedData.top_queries.map((q: any) => ({
-                query_text: String(q.query_text || ''),
-                frequency: Number(q.frequency || 0)
-              }))
-            : []
-        };
+        
+        return stats;
       } catch (error) {
-        console.error('Error in dashboard stats query:', error);
-        return {
-          totalInteractions: 0,
-          activeDays: 0,
-          averageResponseTime: 0,
-          topQueries: []
-        };
+        console.error('Error fetching dashboard stats:', error);
+        return null;
       }
     },
-    enabled: !!clientId && !!agentName,
+    enabled: !!clientId
   });
 
   // Fetch recent chat interactions
-  const {
-    data: chatHistory,
-    isLoading: isLoadingChat,
-    error: chatError,
-  } = useQuery({
-    queryKey: ['clientChatHistory', clientId],
-    queryFn: async (): Promise<ChatInteraction[]> => {
+  const { data: chatData, isLoading: isChatLoading } = useQuery({
+    queryKey: ['chat-history', clientId, agentName],
+    queryFn: async () => {
       try {
-        // Query the ai_agents table for recent chat interactions for this client
-        const { data, error } = await supabase
-          .from('ai_agents')
-          .select('*')
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'chat_interaction')
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (error) throw error;
-
-        // Map the results to our ChatInteraction type
-        return (data || []).map(interaction => ({
-          id: String(interaction.id),
-          clientId: String(interaction.client_id),
-          timestamp: String(interaction.created_at),
-          query: String(interaction.query_text || ''),
-          response: String(interaction.content || ''),
-          agentName: String(interaction.name || 'AI Assistant'),
-          responseTimeMs: Number(interaction.response_time_ms || 0),
-          metadata: interaction.metadata || {}
-        }));
+        if (!clientId) return [];
+        
+        // Get interactions
+        const interactions = await callRpcFunction<any[]>('get_ai_interactions', {
+          client_id_param: clientId,
+          agent_name_param: agentName || null,
+          limit_param: 10
+        });
+        
+        return interactions.map(interaction => ({
+          id: interaction.id,
+          clientId: interaction.client_id,
+          timestamp: interaction.created_at,
+          query: interaction.query_text,
+          response: interaction.response_text || 'No response',
+          agentName: interaction.agent_name,
+          responseTimeMs: interaction.response_time_ms
+        })) as ChatInteraction[];
       } catch (error) {
         console.error('Error fetching chat history:', error);
         return [];
       }
     },
-    enabled: !!clientId,
+    enabled: !!clientId
   });
 
-  const isLoading = isLoadingStats || isLoadingChat;
-
   return {
-    agentName,
-    stats: stats || {
-      totalInteractions: 0,
-      activeDays: 0,
-      averageResponseTime: 0,
-      topQueries: []
-    },
-    chatHistory: chatHistory || [],
-    recentInteractions: chatHistory || [],
-    isLoading,
+    stats: statsData || null,
+    chatHistory: chatData || [],
+    recentInteractions: chatData?.slice(0, 5) || [],
+    isLoading: isStatsLoading || isChatLoading,
+    error: statsError
   };
 };

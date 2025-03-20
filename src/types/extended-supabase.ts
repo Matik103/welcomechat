@@ -37,12 +37,13 @@ export type ExtendedActivityType =
   | "system_update"
   | "source_deleted"
   | "source_added"
-  | "email_sent"; // Added email_sent activity type
+  | "url_deleted"
+  | "email_sent"; // Added these activities
 
 /**
  * Access status type for document links
  */
-export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown';
+export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'granted' | 'pending' | 'denied';
 
 /**
  * Extended interface for chat interactions
@@ -52,10 +53,12 @@ export interface ChatInteraction {
   clientId: string;
   timestamp: string;
   query: string;
+  query_text?: string; // For compatibility
   response: string;
   agentName?: string;
   responseTimeMs?: number;
   metadata?: Json;
+  created_at?: string; // For compatibility
 }
 
 /**
