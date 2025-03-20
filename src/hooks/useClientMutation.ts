@@ -27,16 +27,18 @@ export const useClientMutation = (id: string | undefined) => {
       
       // Get agent_description from widget_settings if it exists
       let agentDescription = "";
-      if (typeof sanitizedData.widget_settings === 'object' && sanitizedData.widget_settings !== null) {
+      if (sanitizedData.widget_settings && typeof sanitizedData.widget_settings === 'object') {
         const widgetSettings = sanitizedData.widget_settings as Record<string, any>;
         agentDescription = widgetSettings.agent_description || "";
       }
       
       // Store agent_description in widget_settings
-      sanitizedData.widget_settings = {
-        ...sanitizedData.widget_settings,
-        agent_description: sanitizeForSQL(agentDescription)
-      };
+      if (sanitizedData.widget_settings && typeof sanitizedData.widget_settings === 'object') {
+        sanitizedData.widget_settings = {
+          ...sanitizedData.widget_settings,
+          agent_description: sanitizeForSQL(agentDescription)
+        };
+      }
       
       // Thoroughly sanitize agent_name to prevent SQL issues
       if (data.agent_name) {
