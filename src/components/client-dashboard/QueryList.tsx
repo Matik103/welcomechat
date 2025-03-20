@@ -61,7 +61,9 @@ export const QueryList: React.FC<QueryListProps> = ({ queries, isLoading }) => {
                       </span>
                     </TableCell>
                     <TableCell className="text-right text-xs text-gray-500">
-                      {format(new Date(query.last_asked), 'MMM d, yyyy')}
+                      {query.last_asked ? 
+                        format(new Date(query.last_asked), 'MMM d, yyyy') : 
+                        format(new Date(query.created_at || new Date()), 'MMM d, yyyy')}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -1,6 +1,6 @@
 
 import { useState, useCallback } from 'react';
-import { DocumentProcessingResult } from '@/types/document-processing';
+import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
 import { processDocumentWithLlamaParse } from '@/services/documentProcessingService';
 
 export const useDocumentProcessor = (clientId: string, agentName?: string) => {

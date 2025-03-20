@@ -80,13 +80,17 @@ const ClientList = () => {
           return;
         }
 
-        // Get the total count
-        const count = countResult?.[0]?.count ? parseInt(countResult[0].count) : 0;
+        // Get the total count - handle as string or number
+        let count = 0;
+        if (countResult && countResult.length > 0) {
+          const countValue = countResult[0].count;
+          count = typeof countValue === 'string' ? parseInt(countValue) : countValue;
+        }
         
         // Convert the AI agents data to Client type
         const clientData: Client[] = data.map(agent => ({
-          id: agent.id,
-          client_id: agent.client_id || agent.id,
+          id: String(agent.id),
+          client_id: agent.client_id || String(agent.id),
           client_name: agent.client_name || "",
           email: agent.email || "",
           logo_url: agent.logo_url || "",
@@ -106,7 +110,7 @@ const ClientList = () => {
             agent_description: agent.agent_description || "",
             logo_url: agent.logo_url || "",
             logo_storage_path: agent.logo_storage_path || "",
-            ...(agent.settings || {})
+            ...(agent.settings && typeof agent.settings === 'object' ? agent.settings : {})
           }
         }));
 

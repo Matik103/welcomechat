@@ -1,6 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "@/integrations/supabase/types";
+import { UserRole } from "@/utils/authUtils";
 
 /**
  * Get the current user's role

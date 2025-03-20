@@ -15,7 +15,7 @@ export interface DocumentProcessingOptions {
   clientId: string;
   agentName?: string;
   onUploadProgress?: (progress: number) => void;
-  metadata?: Json; // Added this missing property
+  metadata?: Json;
 }
 
 export interface DocumentUploadFormProps {
@@ -42,7 +42,7 @@ export interface DocumentLink {
   created_at: string;
 }
 
-// Updated to make all properties required
+// Make all properties required to match the implementation
 export interface DocumentLinkFormData {
   link: string;
   document_type: string;
@@ -61,7 +61,6 @@ export interface ValidationResult {
 
 export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'granted' | 'pending' | 'denied';
 
-// Updated DriveLinksProps to include isValidating
 export interface DriveLinksProps {
   documents: DocumentLink[];
   isLoading: boolean;

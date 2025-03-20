@@ -23,10 +23,11 @@ export const getWidgetSettings = async (clientId: string): Promise<WidgetSetting
     const result = await execSql(query);
     
     if (result && result.length > 0 && result[0].settings) {
+      const settingsValue = result[0].settings;
       // Merge the default settings with the stored settings
       return {
         ...defaultSettings,
-        ...(typeof result[0].settings === 'object' ? result[0].settings : {})
+        ...(typeof settingsValue === 'object' ? settingsValue : {})
       };
     }
     
@@ -85,5 +86,15 @@ export const updateWidgetSettings = async (
  * @returns A JSON object
  */
 export const widgetSettingsToJson = (settings: Partial<WidgetSettings>): Json => {
-  return settings as unknown as Json;
+  // Convert the settings to a plain object that can be safely serialized
+  const settingsObject: Record<string, Json> = {};
+  
+  // Only include properties that are present
+  Object.entries(settings).forEach(([key, value]) => {
+    if (value !== undefined) {
+      settingsObject[key] = value as Json;
+    }
+  });
+  
+  return settingsObject as Json;
 };

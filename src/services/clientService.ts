@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { sendEmail } from "@/utils/emailUtils";
@@ -8,6 +7,7 @@ import { toast } from "sonner";
 import { createClientActivity } from "./clientActivityService";
 import { syncWidgetSettingsWithAgent } from "@/utils/aiAgentSync";
 import { createOpenAIAssistant } from "@/utils/openAIUtils";
+import { widgetSettingsToJson } from "@/utils/widgetSettingsUtils";
 
 // Handles the process of creating a new client
 export const createClient = async (data: ClientFormData): Promise<string> => {
@@ -26,6 +26,9 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       throw new Error("Client name and email are required");
     }
     
+    // Convert widget settings to JSON for database storage
+    const settingsJson = widgetSettingsToJson(widgetSettings);
+    
     // Insert client data into ai_agents table
     const { data: agentData, error: agentError } = await supabase
       .from("ai_agents")
@@ -36,7 +39,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         agent_description: widgetSettings.agent_description || '',
         logo_url: widgetSettings.logo_url || '',
         logo_storage_path: widgetSettings.logo_storage_path || '',
-        settings: widgetSettings,
+        settings: settingsJson,
         interaction_type: 'config',
         status: 'active'
       })
@@ -178,7 +181,7 @@ export const updateClient = async (
         agent_description: widgetSettings.agent_description || '',
         logo_url: widgetSettings.logo_url || '',
         logo_storage_path: widgetSettings.logo_storage_path || '',
-        settings: widgetSettings
+        settings: widgetSettingsToJson(widgetSettings)
       })
       .eq("id", agentId);
 

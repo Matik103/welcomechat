@@ -1,7 +1,6 @@
-
-import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "@/integrations/supabase/types";
+
+export type UserRole = 'admin' | 'client';
 
 /**
  * Determines the user role by checking for client records
@@ -127,5 +126,27 @@ export const isClientInDatabase = async (email: string): Promise<boolean> => {
   } catch (err) {
     console.error("Error in isClientInDatabase:", err);
     return false;
+  }
+};
+
+/**
+ * Get user role from the database
+ */
+export const getUserRole = async (): Promise<UserRole | null> => {
+  try {
+    const { data: userRoles, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .single();
+
+    if (error) {
+      console.error("Error fetching user role:", error);
+      return null;
+    }
+
+    return userRoles.role as UserRole;
+  } catch (error) {
+    console.error("Error in getUserRole:", error);
+    return null;
   }
 };
