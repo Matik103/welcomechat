@@ -1,7 +1,6 @@
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 interface StoreDocumentResult {
   success: boolean;
@@ -70,35 +69,15 @@ export function useStoreDocumentContent() {
         };
       }
       
-      // Extract file type for better processing
-      const fileName = file.name.toLowerCase();
-      let documentType = "unknown";
-      
-      if (fileName.endsWith('.pdf')) {
-        documentType = 'pdf';
-      } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
-        documentType = 'document';
-      } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv')) {
-        documentType = 'spreadsheet';
-      } else if (fileName.endsWith('.pptx') || fileName.endsWith('.ppt')) {
-        documentType = 'presentation';
-      } else if (fileName.endsWith('.txt')) {
-        documentType = 'text';
-      }
-      
       // Prepare metadata
       const metadata = {
         source: "file_upload",
         file_name: file.name,
         file_type: file.type,
         file_size: file.size,
-        document_type: documentType,
         uploaded_at: new Date().toISOString(),
-        url: fileUrl,
-        processing_status: "pending" // Will be updated by the document processor
+        url: fileUrl
       };
-      
-      console.log(`Creating AI agent record for document: ${file.name}`);
       
       // Insert the content into AI agents table using exact agent name as provided
       const { data, error } = await supabase
@@ -106,9 +85,9 @@ export function useStoreDocumentContent() {
         .insert({
           client_id: clientId,
           name: validAgentName, // Use the valid agent name
-          content: `File uploaded: ${file.name}. Processing with LlamaParse...`,
+          content: `File uploaded: ${file.name}`,
           url: fileUrl,
-          interaction_type: "document_upload",
+          interaction_type: "file_upload",
           settings: metadata,
           is_error: false
         })
@@ -117,15 +96,11 @@ export function useStoreDocumentContent() {
       
       if (error) {
         console.error("Error storing document content:", error);
-        toast.error(`Failed to store document in knowledge base: ${error.message}`);
         return {
           success: false,
           error: error.message
         };
       }
-      
-      // Request processing of the document
-      toast.info(`Document uploaded. Starting text extraction with LlamaParse...`);
       
       return {
         success: true,
@@ -133,7 +108,6 @@ export function useStoreDocumentContent() {
       };
     } catch (error) {
       console.error("Error in storeDocumentContent:", error);
-      toast.error(`An unexpected error occurred: ${error instanceof Error ? error.message : "Unknown error"}`);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error"

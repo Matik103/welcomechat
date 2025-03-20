@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
-import { UserRole } from "@/types/app";
+import { UserRole } from "@/types/auth";
 
 export function useAuthState() {
   const [session, setSession] = useState<Session | null>(null);

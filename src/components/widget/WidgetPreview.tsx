@@ -6,14 +6,16 @@ import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { MessageCircle, Loader2 } from "lucide-react";
 import { useAgentContent } from "@/hooks/useAgentContent";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
   clientId?: string;
+  fullscreen?: boolean;
 }
 
-export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
-  const [expanded, setExpanded] = useState(false);
+export function WidgetPreview({ settings, clientId, fullscreen = false }: WidgetPreviewProps) {
+  const [expanded, setExpanded] = useState(fullscreen);
   const [messages, setMessages] = useState<{ text: string; isUser: boolean }[]>([
     { text: settings.welcome_text || "Hi 👋, how can I help?", isUser: false }
   ]);
@@ -26,6 +28,13 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     clientId, 
     settings.agent_name
   );
+
+  // When fullscreen prop changes, update expanded state
+  useEffect(() => {
+    if (fullscreen) {
+      setExpanded(true);
+    }
+  }, [fullscreen]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -157,9 +166,14 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     }, 1000);
   };
 
+  // Determine the appropriate width and height based on fullscreen mode
+  const containerClasses = fullscreen 
+    ? "w-full h-full rounded-lg overflow-hidden shadow-xl" 
+    : "relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex justify-end items-end p-4 bg-gray-50";
+
   return (
-    <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex justify-end items-end p-4 bg-gray-50">
-      {!expanded && (
+    <div className={containerClasses}>
+      {!expanded && !fullscreen && (
         <div className="absolute bottom-16 right-16 text-xs text-gray-500 z-0 pointer-events-none">
           <div className="bg-white p-2 rounded-lg shadow-md animate-pulse">
             Click the chat icon to expand the widget
@@ -170,10 +184,11 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
       <div 
         className={`
           transition-all duration-300 ease-in-out z-10
-          ${expanded ? 'w-80 h-[450px] rounded-lg' : 'w-14 h-14 rounded-full cursor-pointer'}
+          ${expanded ? (fullscreen ? 'w-full h-full' : 'w-96 h-[500px]') : 'w-14 h-14 rounded-full cursor-pointer'}
           shadow-lg
           flex flex-col
           overflow-hidden
+          rounded-lg
         `}
         style={{ backgroundColor: expanded ? settings.background_color : settings.chat_color }}
       >
@@ -184,7 +199,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
               logoUrl={settings.logo_url}
               backgroundColor={settings.chat_color}
               textColor={settings.text_color}
-              onClose={handleToggleExpand}
+              onClose={fullscreen ? () => {} : handleToggleExpand}
             />
             
             {isAgentLoading && (
@@ -202,6 +217,8 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                   secondaryColor={settings.secondary_color}
                   isTyping={isTyping}
                   messagesEndRef={messagesEndRef}
+                  logoUrl={settings.logo_url}
+                  agentName={settings.agent_name}
                 />
                 
                 <ChatInput 
@@ -212,6 +229,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                   secondaryColor={settings.secondary_color}
                   textColor={settings.text_color}
                   disabled={isTyping}
+                  fullscreen={fullscreen}
                 />
               </>
             )}
@@ -220,19 +238,25 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           <button
             onClick={handleToggleExpand}
             style={{ backgroundColor: settings.chat_color }}
-            className="w-full h-full flex items-center justify-center text-white"
+            className="w-full h-full flex items-center justify-center text-white relative group overflow-hidden"
           >
             {settings.logo_url ? (
-              <img 
-                src={settings.logo_url} 
-                alt={settings.agent_name} 
-                className="w-8 h-8 object-contain"
-                onError={(e) => {
-                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";
-                }}
-              />
+              <div className="relative w-full h-full flex items-center justify-center">
+                <img 
+                  src={settings.logo_url} 
+                  alt={settings.agent_name} 
+                  className="w-8 h-8 object-contain transition-transform group-hover:scale-110"
+                  onError={(e) => {
+                    e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";
+                  }}
+                />
+                {/* Pulse effect around the logo */}
+                <div className="absolute w-full h-full rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-0 rounded-full bg-white opacity-20 animate-ping"></div>
+                </div>
+              </div>
             ) : (
-              <MessageCircle className="w-6 h-6" />
+              <MessageCircle className="w-6 h-6 transition-transform group-hover:scale-110" />
             )}
           </button>
         )}

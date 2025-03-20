@@ -1,26 +1,41 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "@/types/app";
+import { UserRole } from "@/types/auth";
 
 /**
- * Checks if the authentication session is valid and refreshes if needed
- * @returns Promise<boolean> indicating if auth is valid
+ * Checks and refreshes auth session if needed
+ * Returns true if the session is valid, false otherwise
  */
 export const checkAndRefreshAuth = async (): Promise<boolean> => {
   try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session) {
-      console.log("Auth session error or missing:", error);
-      // Session is invalid, try refreshing
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.error("Failed to refresh auth session:", refreshError);
+    // Get the current session
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      console.error("No active session found");
+      return false;
+    }
+    
+    // Check if token expires soon (within next 5 minutes)
+    const expiresAt = session.expires_at;
+    const now = Math.floor(Date.now() / 1000); // Current time in seconds
+    const fiveMinutesFromNow = now + 300; // 5 minutes = 300 seconds
+    
+    if (expiresAt && expiresAt < fiveMinutesFromNow) {
+      console.log("Session is about to expire, refreshing...");
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error("Error refreshing session:", error);
         return false;
       }
+      
+      console.log("Session refreshed successfully");
+      return !!data.session;
     }
+    
     return true;
-  } catch (err) {
-    console.error("Error checking auth session:", err);
+  } catch (error) {
+    console.error("Error checking/refreshing auth session:", error);
     return false;
   }
 }
@@ -44,22 +59,57 @@ export const getCurrentUser = async () => {
 }
 
 /**
+ * Checks if a user's email exists in the clients table
+ * @param email The email to check
+ * @returns Promise<boolean> indicating if the client exists
+ */
+export const checkIfClientExists = async (email: string): Promise<boolean> => {
+  try {
+    if (!email) return false;
+    
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+      
+    if (error) {
+      console.error("Error checking client existence:", error);
+      return false;
+    }
+    
+    return !!data;
+  } catch (err) {
+    console.error("Error in checkIfClientExists:", err);
+    return false;
+  }
+}
+
+/**
  * Creates a role for a user in the database
  * @param userId User's Supabase ID
  * @param role Role to assign
+ * @param clientId Optional client ID for client roles
  * @returns Promise<boolean> indicating success
  */
 export const createUserRole = async (
   userId: string, 
-  role: UserRole
+  role: UserRole, 
+  clientId?: string
 ): Promise<boolean> => {
   try {
+    const roleData: any = {
+      user_id: userId,
+      role: role
+    };
+    
+    if (clientId && role === 'client') {
+      roleData.client_id = clientId;
+    }
+    
     const { error } = await supabase
       .from('user_roles')
-      .insert({
-        user_id: userId,
-        role: role
-      });
+      .insert(roleData);
       
     if (error) {
       console.error("Error creating user role:", error);
