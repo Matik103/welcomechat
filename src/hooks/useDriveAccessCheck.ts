@@ -1,8 +1,6 @@
 
 import { useState, useCallback } from 'react';
 import { AccessStatus } from '@/types/document-processing';
-import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { callRpcFunction } from '@/utils/rpcUtils';
 
 export const useDriveAccessCheck = (documentId: number) => {

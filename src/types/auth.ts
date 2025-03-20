@@ -14,3 +14,30 @@ export interface AuthContextType {
   isLoading: boolean;
   userRole: UserRole | null;
 }
+
+/**
+ * Page heading props
+ */
+export interface PageHeadingProps {
+  title?: string;
+  description?: string;
+  children?: React.ReactNode;
+}
+
+/**
+ * Client form props
+ */
+export interface ClientFormProps {
+  onSubmit: (data: any) => Promise<void>;
+  initialValues?: any;
+  isEditMode?: boolean;
+  children?: React.ReactNode;
+}
+
+/**
+ * Client search bar props
+ */
+export interface ClientSearchBarProps {
+  onSearch?: (query: string) => void;
+  className?: string;
+}
