@@ -3,6 +3,8 @@ import { NewClientForm } from "@/components/client/NewClientForm";
 import { ClientFormData } from "@/types/client-form";
 import { useNewClientMutation } from "@/hooks/useNewClientMutation";
 import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { PageHeading } from "@/components/dashboard/PageHeading";
 
 export default function TestNewClient() {
   const { mutateAsync: createClient, isPending } = useNewClientMutation();
@@ -37,19 +39,21 @@ export default function TestNewClient() {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">Test New Client Form</h1>
-      <NewClientForm 
-        onSubmit={handleSubmit} 
-        isSubmitting={isPending}
-        initialData={{
-          widget_settings: {
-            agent_name: "",
-            agent_description: "",
-            logo_url: "",
-          }
-        }}  
-      />
+    <div className="container mx-auto py-8 max-w-3xl">
+      <PageHeading>Create New Client</PageHeading>
+      <Card className="p-6 mt-6">
+        <NewClientForm 
+          onSubmit={handleSubmit} 
+          isSubmitting={isPending}
+          initialData={{
+            widget_settings: {
+              agent_name: "",
+              agent_description: "",
+              logo_url: "",
+            }
+          }}  
+        />
+      </Card>
     </div>
   );
 }
