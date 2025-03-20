@@ -41,7 +41,7 @@ export const useRecentActivities = () => {
         // Fetch client names
         const { data: clientsData, error: clientsError } = await supabase
           .from("ai_agents")
-          .select("client_id, client_name")
+          .select("client_id, name")
           .in("client_id", clientIds)
           .eq("interaction_type", "config");
         
@@ -53,8 +53,8 @@ export const useRecentActivities = () => {
         const clientNameMap = new Map();
         if (clientsData) {
           clientsData.forEach(client => {
-            if (client.client_id && client.client_name) {
-              clientNameMap.set(client.client_id, client.client_name);
+            if (client.client_id && client.name) {
+              clientNameMap.set(client.client_id, client.name);
             }
           });
         }
@@ -71,13 +71,10 @@ export const useRecentActivities = () => {
         }));
       }
 
-      return activities.map(activity => ({
-        ...activity,
-        client_name: "Unknown Client"
-      }));
+      return activities || [];
     },
-    refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
-    refetchOnWindowFocus: false,
+    refetchInterval: 1 * 60 * 1000, // Refetch every minute
+    refetchOnWindowFocus: true,
     staleTime: 30 * 1000, // Data stays fresh for 30 seconds
   });
 
