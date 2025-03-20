@@ -13,7 +13,11 @@ const sanitizeString = (value: string | null | undefined): string => {
   if (!value) return '';
   
   // Thoroughly replace double quotes with single quotes to prevent SQL errors
-  const sanitized = value.replace(/"/g, "'");
+  let sanitized = value.replace(/"/g, "'");
+  
+  // Also escape backslashes which could cause issues
+  sanitized = sanitized.replace(/\\/g, "\\\\");
+  
   console.log(`Edge function: Sanitizing "${value}" to "${sanitized}"`);
   return sanitized;
 };
@@ -128,6 +132,11 @@ serve(async (req) => {
     
     console.log("Edge function: Using sanitized agent name:", sanitizedAgentName);
     console.log("Edge function: Raw agent name value:", agent_name);
+    
+    // Debug check for any remaining double quotes
+    if (sanitizedAgentName.includes('"')) {
+      console.error("CRITICAL: Agent name still contains double quotes after sanitization!");
+    }
     
     if (!email || !client_id) {
       console.error("Missing required fields:", { 

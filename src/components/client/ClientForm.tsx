@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -86,9 +85,6 @@ export const ClientForm = ({
   }, [initialData, reset]);
 
   const currentValues = watch();
-  useEffect(() => {
-    console.log("Current form values:", currentValues);
-  }, [currentValues]);
   
   const clientId = initialData?.id;
   
@@ -207,6 +203,12 @@ export const ClientForm = ({
           id="agent_name"
           {...register("agent_name")}
           className={errors.agent_name ? "border-red-500" : ""}
+          onChange={(e) => {
+            // Replace double quotes with single quotes on input
+            const value = e.target.value.replace(/"/g, "'");
+            e.target.value = value;
+            setValue("agent_name", value);
+          }}
         />
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
@@ -241,6 +243,12 @@ export const ClientForm = ({
           className={errors.agent_description ? "border-red-500" : ""}
           placeholder="Describe the purpose and capabilities of this AI agent"
           rows={4}
+          onChange={(e) => {
+            // Replace double quotes with single quotes on input
+            const value = e.target.value.replace(/"/g, "'");
+            e.target.value = value;
+            setValue("agent_description", value);
+          }}
         />
         {errors.agent_description && (
           <p className="text-sm text-red-500">{errors.agent_description.message}</p>

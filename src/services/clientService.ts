@@ -26,8 +26,12 @@ const sanitizeForSQL = (value: string | undefined): string | undefined => {
   
   // Thoroughly sanitize by replacing double quotes with single quotes
   const sanitized = value.replace(/"/g, "'");
-  console.log(`Sanitized value from "${value}" to "${sanitized}"`);
-  return sanitized;
+  
+  // Also escape backslashes which could cause issues
+  const fullyEscaped = sanitized.replace(/\\/g, "\\\\");
+  
+  console.log(`Sanitized SQL value from "${value}" to "${fullyEscaped}"`);
+  return fullyEscaped;
 };
 
 /**
@@ -41,6 +45,15 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   const sanitizedAgentDescription = sanitizeForSQL(data.agent_description);
   
   console.log("Using sanitized agent name in updateClient:", sanitizedAgentName);
+  
+  // Check for any remaining double quotes and log a warning
+  if (sanitizedAgentName && sanitizedAgentName.includes('"')) {
+    console.warn("WARNING: Agent name still contains double quotes after sanitization!");
+  }
+  
+  if (sanitizedAgentDescription && sanitizedAgentDescription.includes('"')) {
+    console.warn("WARNING: Agent description still contains double quotes after sanitization!");
+  }
   
   // Update the client record (including logo fields)
   const { error } = await supabase
@@ -164,6 +177,15 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     console.log("Using sanitized agent name in createClient:", sanitizedAgentName);
     console.log("Original agent name:", data.agent_name);
     console.log("Sanitized agent name:", sanitizedAgentName);
+    
+    // Print a mock SQL query to debug exactly how this would be sent to PostgreSQL
+    console.log("Debug SQL query that would be executed:");
+    console.log(`INSERT INTO clients (agent_name) VALUES ('${sanitizedAgentName}')`);
+    
+    // Check for any remaining double quotes and log a warning
+    if (sanitizedAgentName && sanitizedAgentName.includes('"')) {
+      console.warn("CRITICAL WARNING: Agent name still contains double quotes after sanitization!");
+    }
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
