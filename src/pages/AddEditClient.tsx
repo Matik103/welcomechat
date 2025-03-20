@@ -6,7 +6,7 @@ import { PageHeading } from "@/components/dashboard/PageHeading";
 import { useClient } from "@/hooks/useClient";
 import { createClient, updateClient, logClientUpdateActivity } from "@/services/clientService";
 import { useToast } from "@/components/ui/use-toast";
-import { ClientFormData } from "@/types/client";
+import { ClientFormData, Client } from "@/types/client";
 import { createClientActivity } from "@/services/clientActivityService";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -17,7 +17,7 @@ const AddEditClient = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(false);
-  const [client, setClient] = useState<ClientFormData | null>(null);
+  const [client, setClient] = useState<Client | null>(null); // Changed to Client type to match what ClientForm expects
   const [loading, setLoading] = useState(true);
   const { client: clientData, isLoading, error } = useClient(clientId || '');
 
@@ -35,13 +35,8 @@ const AddEditClient = () => {
     setLoading(true);
     try {
       if (clientData) {
-        setClient({
-          client_name: clientData.client_name,
-          email: clientData.email,
-          company: clientData.company,
-          description: clientData.description,
-          widget_settings: clientData.widget_settings,
-        });
+        // Make sure we're setting the full Client object, not just ClientFormData
+        setClient(clientData);
       }
     } finally {
       setLoading(false);
