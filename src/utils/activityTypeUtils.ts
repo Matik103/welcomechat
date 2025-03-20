@@ -1,4 +1,3 @@
-
 import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
@@ -31,31 +30,32 @@ export const mapActivityType = (
     case "client_updated":
     case "client_deleted":
     case "client_recovered":
-    case "widget_settings_updated":
-    case "website_url_added":
-    case "drive_link_added":
-    case "url_deleted":
-    case "drive_link_deleted":
-    case "invitation_sent":
-    case "invitation_accepted":
     case "webhook_sent":
-    case "document_stored":
-    case "document_processed":
-    case "document_processing_started":
-    case "document_processing_completed":
-    case "document_processing_failed":
+    case "email_sent":
+    case "system_update":
     case "ai_agent_created":
     case "ai_agent_updated":
-    case "logo_uploaded":
-    case "system_update":
+    case "chat_interaction":
+    case "agent_error":
+    case "schema_update":
+    case "drive_link_added":
+    case "drive_link_deleted":
+    case "website_url_added":
+    case "url_deleted":
     case "document_link_added":
     case "document_link_deleted":
     case "document_uploaded":
     case "signed_out":
     case "embed_code_copied":
     case "widget_previewed":
-    case "chat_interaction":
-    case "email_sent":
+    case "logo_uploaded":
+    case "document_stored":
+    case "document_processed":
+    case "document_processing_started":
+    case "document_processing_completed":
+    case "document_processing_failed":
+    case "invitation_sent":
+    case "invitation_accepted":
       // These types already exist in the database enum
       dbActivityType = extendedType as ActivityType;
       break;
@@ -67,7 +67,6 @@ export const mapActivityType = (
       break;
       
     case "error_logged":
-    case "agent_error":
       dbActivityType = "system_update";
       (metadataObj as Record<string, any>).error_type = extendedType;
       break;
