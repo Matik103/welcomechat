@@ -8,8 +8,7 @@ import { QueryList } from "@/components/client-dashboard/QueryList";
 import { useClientDashboard } from "@/hooks/useClientDashboard";
 import { Loader2, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { ErrorLog, QueryItem } from "@/types/client-dashboard";
-import { toast } from "sonner";
+import { QueryItem } from "@/types/client-dashboard";
 import { Button } from "@/components/ui/button";
 
 export interface ClientDashboardProps {
@@ -46,7 +45,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     recentInteractions,
     isLoading,
     agentName
-  } = useClientDashboard(effectiveClientId, user?.user_metadata?.agent_name || 'AI Assistant');
+  } = useClientDashboard(effectiveClientId || '', user?.user_metadata?.agent_name || 'AI Assistant');
 
   // Convert stats to the expected format for the InteractionStats component
   const formattedStats: any = stats ? {
@@ -62,7 +61,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   };
 
   // Format top queries for the QueryList component
-  const queries: QueryItem[] = stats?.topQueries.map(q => ({
+  const queries: QueryItem[] = stats?.topQueries?.map(q => ({
     id: `query-${Math.random().toString(36).substr(2, 9)}`,
     query_text: q.query_text,
     frequency: q.frequency
@@ -139,7 +138,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
                 <div className="flex items-center justify-center h-40">
                   <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                 </div>
-              ) : recentInteractions.length === 0 ? (
+              ) : recentInteractions?.length === 0 ? (
                 <p className="text-center text-gray-500 py-10">No recent interactions found</p>
               ) : (
                 <div className="space-y-4">
