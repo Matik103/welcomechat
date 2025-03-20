@@ -29,4 +29,8 @@ supabase functions deploy get_client_agent_data --no-verify-jwt
 echo "Deploying get_client_agent_names function..."
 supabase functions deploy get_client_agent_names --no-verify-jwt
 
+# Deploy the error logging function
+echo "Deploying log_agent_error function..."
+supabase functions deploy log_agent_error --no-verify-jwt
+
 echo "Deployment complete!" 
