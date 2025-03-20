@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.48.1';
@@ -287,4 +288,147 @@ serve(async (req) => {
     }
 
     // Continue with original code for webhook or standard completion
-    // ... keep existing code
+    if (webhook_url) {
+      try {
+        console.log(`Using webhook URL: ${webhook_url}`);
+        
+        // Call webhook with the prompt
+        const webhookResponse = await fetch(webhook_url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            prompt, 
+            context: agentContext,
+            client_id,
+            agent_name
+          }),
+        });
+        
+        if (!webhookResponse.ok) {
+          throw new Error(`Webhook returned ${webhookResponse.status}`);
+        }
+        
+        const webhookData = await webhookResponse.json();
+        console.log(`Webhook response received (${JSON.stringify(webhookData).length} chars)`);
+        
+        // Log interaction in the database if client_id is provided
+        if (client_id) {
+          try {
+            await supabase
+              .from("agent_queries")
+              .insert({
+                client_id,
+                agent_name: agent_name || 'AI Assistant',
+                query: prompt,
+                response: webhookData.generatedText || webhookData.response || '',
+                query_time: new Date().toISOString(),
+                metadata: { webhook_url }
+              });
+            console.log("Webhook interaction logged to database");
+          } catch (logError) {
+            console.error("Failed to log webhook interaction:", logError);
+          }
+        }
+        
+        return new Response(JSON.stringify(webhookData), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (webhookError) {
+        console.error("Webhook error:", webhookError);
+        return new Response(JSON.stringify({ error: `Webhook error: ${webhookError.message}` }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else if (openAIApiKey) {
+      // Default to using OpenAI API directly
+      try {
+        console.log("Using OpenAI API directly");
+        
+        // Get system prompt
+        const systemPrompt = getClientSystemPrompt(clientName, agent_name || "AI Assistant");
+        
+        // Prepare context message if exists
+        const messages = [
+          {
+            role: "system",
+            content: systemPrompt + (agentContext ? `\n\nClient knowledge: ${agentContext}` : '')
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ];
+        
+        // Call OpenAI API
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 1000
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("OpenAI API error:", errorData);
+          throw new Error(`OpenAI API error: ${JSON.stringify(errorData)}`);
+        }
+        
+        const data = await response.json();
+        console.log("OpenAI response received");
+        
+        const generatedText = data.choices[0].message.content;
+        
+        // Log interaction in the database if client_id is provided
+        if (client_id) {
+          try {
+            await supabase
+              .from("agent_queries")
+              .insert({
+                client_id,
+                agent_name: agent_name || 'AI Assistant',
+                query: prompt,
+                response: generatedText,
+                query_time: new Date().toISOString(),
+                metadata: { model: "gpt-4o-mini" }
+              });
+            console.log("OpenAI interaction logged to database");
+          } catch (logError) {
+            console.error("Failed to log OpenAI interaction:", logError);
+          }
+        }
+        
+        return new Response(JSON.stringify({ generatedText }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (openaiError) {
+        console.error("OpenAI API error:", openaiError);
+        return new Response(JSON.stringify({ error: `OpenAI API error: ${openaiError.message}` }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      console.error("No webhook URL or OpenAI API key provided");
+      return new Response(JSON.stringify({ error: 'No webhook URL or OpenAI API key configured' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  } catch (error) {
+    console.error("Error processing request:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
