@@ -1,208 +1,58 @@
 
-import { uploadWidgetLogo } from "@/utils/widgetSettingsUtils";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { Client } from "@/types/client";
+import { useState } from "react";
+import { useClientMutation } from "./useClientMutation";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
-import { useClientData } from "./useClientData";
-import { useAiAgentManagement } from "./useAiAgentManagement";
-
-interface ClientFormData {
-  client_name: string;
-  email: string;
-  agent_name?: string;
-  agent_description?: string;
-  logo_url?: string;
-  logo_storage_path?: string;
-  _tempLogoFile?: File | null;
-  widget_settings?: Json;
-}
+import { toast } from "sonner";
 
 export const useClientFormSubmission = (
   clientId: string | undefined,
   isClientView: boolean,
   logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>
 ) => {
-  const navigate = useNavigate();
-  const { clientMutation, refetchClient } = useClientData(clientId);
-  const { ensureAiAgentExists } = useAiAgentManagement();
-
-  const handleSubmit = async (data: ClientFormData) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const clientMutation = useClientMutation(clientId);
+  
+  const handleSubmit = async (data: any) => {
+    setIsLoading(true);
     try {
-      console.log("Submitting client form data:", data);
+      // Check for agent name or description changes to log appropriate activity
+      const widgetSettings = data.widget_settings || {};
+
+      await clientMutation.mutateAsync(data);
       
-      const tempLogoFile = data._tempLogoFile;
-      delete data._tempLogoFile;
-      
-      if (clientId && isClientView) {
-        await clientMutation.mutateAsync({
-          client_name: data.client_name,
-          email: data.email,
-          agent_name: data.agent_name || 'AI Assistant',
-          agent_description: data.agent_description || '',
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path,
-        });
-        
-        let agentUpdateResult = { updated: false, created: false, descriptionUpdated: false, nameUpdated: false };
-        agentUpdateResult = await ensureAiAgentExists(
-          clientId, 
-          data.agent_name,
-          data.agent_description || "",
-          data.logo_url,
-          data.logo_storage_path,
-          data.client_name
-        );
-        
-        refetchClient();
-        
-        try {
-          if (agentUpdateResult.created) {
-            await logClientActivity(
-              "ai_agent_created", 
-              "created a new AI agent",
-              { 
-                agent_name: data.agent_name,
-                agent_description: data.agent_description,
-                logo_url: data.logo_url
-              }
-            );
-          } else if (agentUpdateResult.nameUpdated || agentUpdateResult.descriptionUpdated) {
-            await logClientActivity(
-              "ai_agent_updated", 
-              "updated their AI agent settings",
-              { 
-                agent_name: data.agent_name,
-                agent_description: data.agent_description,
-                logo_url: data.logo_url,
-                name_changed: agentUpdateResult.nameUpdated,
-                description_changed: agentUpdateResult.descriptionUpdated
-              }
-            );
-          } else {
-            const updatedFields = [];
-            if (data.client_name !== data.client_name) updatedFields.push('client_name');
-            if (data.email !== data.email) updatedFields.push('email');
-            if (data.logo_url !== data.logo_url) updatedFields.push('logo_url');
-            
-            if (updatedFields.length > 0) {
-              await logClientActivity(
-                "client_updated", 
-                "updated their client information",
-                { updated_fields: updatedFields }
-              );
+      // Log activity based on user role and changes made
+      if (isClientView) {
+        await logClientActivity(
+          "client_updated", 
+          "Updated client information",
+          {
+            widget_settings: {
+              agent_name: widgetSettings.agent_name,
+              agent_description: widgetSettings.agent_description,
+              logo_url: widgetSettings.logo_url
             }
           }
-        } catch (logError) {
-          console.error("Error logging activity:", logError);
-        }
-        
-        toast.success("Client information saved successfully");
-      } else if (clientId) {
-        await clientMutation.mutateAsync({
-          client_name: data.client_name,
-          email: data.email,
-          agent_name: data.agent_name || 'AI Assistant',
-          agent_description: data.agent_description || '',
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path,
-        });
-        
-        await ensureAiAgentExists(
-          clientId, 
-          data.agent_name,
-          data.agent_description || "",
-          data.logo_url,
-          data.logo_storage_path,
-          data.client_name
         );
-        
-        toast.success("Client updated successfully");
-        navigate("/admin/clients");
+        toast.success("Your information has been updated");
       } else {
-        const toastId = "client-creation";
-        toast.loading("Creating client account...", { id: toastId });
-        
-        try {
-          const result = await clientMutation.mutateAsync({
-            client_name: data.client_name,
-            email: data.email,
-            agent_name: data.agent_name || 'AI Assistant',
-            agent_description: data.agent_description || '',
-            logo_url: data.logo_url,
-            logo_storage_path: data.logo_storage_path,
-          });
-          
-          let logoUrl = "";
-          let logoStoragePath = "";
-          
-          if (tempLogoFile && typeof result === 'object' && 'clientId' in result && result.clientId) {
-            try {
-              const uploadResult = await uploadWidgetLogo(tempLogoFile, result.clientId);
-              logoUrl = uploadResult.publicUrl;
-              logoStoragePath = uploadResult.storagePath;
-              
-              // Update the ai_agents table with logo info
-              await supabase
-                .from("ai_agents")
-                .update({
-                  logo_url: logoUrl,
-                  logo_storage_path: logoStoragePath,
-                })
-                .eq("client_id", result.clientId);
-                
-              console.log("Updated agent with logo:", logoUrl);
-            } catch (logoError) {
-              console.error("Error uploading logo:", logoError);
-            }
-          }
-          
-          if (typeof result === 'object' && 'clientId' in result) {
-            if (result.clientId) {
-              await ensureAiAgentExists(
-                result.clientId, 
-                data.agent_name,
-                data.agent_description || "",
-                logoUrl || data.logo_url,
-                logoStoragePath || data.logo_storage_path,
-                data.client_name
-              );
-            }
-            
-            if (result.emailSent) {
-              toast.dismiss(toastId);
-              toast.success("Client created and invitation email sent successfully");
-            } else {
-              toast.dismiss(toastId);
-              const errorDetail = result.errorMessage ? `: ${result.errorMessage}` : "";
-              toast.warning(`Client created but failed to send invitation email${errorDetail}. Please try sending it manually later.`);
-            }
-            
-            navigate("/admin/clients");
-          } else {
-            toast.dismiss(toastId);
-            toast.success("Client created successfully");
-            navigate("/admin/clients");
-          }
-        } catch (createError: any) {
-          toast.dismiss(toastId);
-          console.error("Error creating client:", createError);
-          toast.error(`Failed to create client: ${createError.message}`);
+        if (clientId) {
+          toast.success("Client updated successfully");
+        } else {
+          toast.success("Client created successfully and invitation sent");
         }
       }
     } catch (error: any) {
       console.error("Error submitting client form:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
-      console.error("Error stack:", error.stack);
-      const errorDetails = error?.code ? ` (${error.code}: ${error.message})` : "";
-      toast.error("Failed to save client information" + (errorDetails || ": " + (error?.message || "Unknown error")));
+      toast.error(`Failed to ${clientId ? "update" : "create"} client: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
-
+  
   return {
     handleSubmit,
-    isLoading: clientMutation.isPending
+    isLoading,
+    clientMutation
   };
 };

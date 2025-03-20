@@ -16,14 +16,32 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
                           (initialData.widget_settings as any).agent_description || "" : 
                           "";
   
+  // Get agent_name from widget_settings or from the top-level property
+  const agentName = initialData?.widget_settings && 
+                   typeof initialData.widget_settings === 'object' && 
+                   (initialData.widget_settings as any).agent_name ? 
+                   (initialData.widget_settings as any).agent_name : 
+                   initialData?.agent_name || "AI Assistant";
+
+  // Get logo url from widget settings
+  const logoUrl = initialData?.widget_settings && 
+                 typeof initialData.widget_settings === 'object' ? 
+                 (initialData.widget_settings as any).logo_url || "" : 
+                 initialData?.logo_url || "";
+
+  const logoStoragePath = initialData?.widget_settings && 
+                         typeof initialData.widget_settings === 'object' ? 
+                         (initialData.widget_settings as any).logo_storage_path || "" : 
+                         initialData?.logo_storage_path || "";
+  
   // Setup form with validation schema
   const form = useForm({
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
-      agent_name: initialData?.agent_name || "AI Assistant",
-      logo_url: initialData?.logo_url || "",
-      logo_storage_path: initialData?.logo_storage_path || "",
+      agent_name: agentName,
+      logo_url: logoUrl,
+      logo_storage_path: logoStoragePath,
       agent_description: agentDescription
     },
     resolver: zodResolver(schema)
@@ -37,12 +55,28 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
                               (initialData.widget_settings as any).agent_description || "" : 
                               "";
       
+      const agentName = initialData.widget_settings && 
+                       typeof initialData.widget_settings === 'object' && 
+                       (initialData.widget_settings as any).agent_name ? 
+                       (initialData.widget_settings as any).agent_name : 
+                       initialData.agent_name || "AI Assistant";
+
+      const logoUrl = initialData.widget_settings && 
+                     typeof initialData.widget_settings === 'object' ? 
+                     (initialData.widget_settings as any).logo_url || "" : 
+                     initialData.logo_url || "";
+
+      const logoStoragePath = initialData.widget_settings && 
+                             typeof initialData.widget_settings === 'object' ? 
+                             (initialData.widget_settings as any).logo_storage_path || "" : 
+                             initialData.logo_storage_path || "";
+      
       form.reset({
         client_name: initialData.client_name || "",
         email: initialData.email || "",
-        agent_name: initialData.agent_name || "AI Assistant",
-        logo_url: initialData.logo_url || "",
-        logo_storage_path: initialData.logo_storage_path || "",
+        agent_name: agentName,
+        logo_url: logoUrl,
+        logo_storage_path: logoStoragePath,
         agent_description: agentDescription
       });
     }
@@ -59,19 +93,22 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
     }
   };
 
-  // Prepare form data for submission - now separating client data from agent data
+  // Prepare form data for submission - now separating client data from widget settings
   const prepareFormData = (data: any) => {
+    // Create widget settings object
+    const widgetSettings = {
+      agent_name: data.agent_name,
+      agent_description: data.agent_description,
+      logo_url: data.logo_url || "",
+      logo_storage_path: data.logo_storage_path || ""
+    };
+    
     // Only include client-specific data at the top level
     const formData = {
       client_name: data.client_name,
       email: data.email,
       _tempLogoFile: tempLogoFile,
-      
-      // AI agent specific data
-      agent_name: data.agent_name,
-      agent_description: data.agent_description, 
-      logo_url: data.logo_url || "",
-      logo_storage_path: data.logo_storage_path || ""
+      widget_settings: widgetSettings
     };
     
     return formData;
