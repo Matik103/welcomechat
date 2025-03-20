@@ -45,4 +45,4 @@ export const useNewClientMutation = () => {
       toast.error(error.message);
     },
   });
-}; 
+};
