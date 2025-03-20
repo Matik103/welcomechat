@@ -1,3 +1,4 @@
+
 import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
@@ -65,7 +66,7 @@ export const getActivityTypeMessage = (type: ActivityType, details: any = {}): s
     case "widget_previewed":
       return "Chat widget previewed";
     default:
-      return `${type.replace(/_/g, ' ')}`;
+      return `${String(type).replace(/_/g, ' ')}`;
   }
 };
 
@@ -116,12 +117,15 @@ export const mapActivityType = (
   activityType: ExtendedActivityType, 
   metadata: Json = {}
 ): { dbActivityType: ActivityType; enhancedMetadata: Json } => {
+  // Handle case where metadata might be a string or other non-object type
   const metadataObj = typeof metadata === 'object' && metadata !== null ? metadata : {};
   
   let enhancedMetadata = { ...(metadataObj as Record<string, any>) };
   
+  // Default to the original type (assuming most types are valid)
   let dbActivityType = activityType as ActivityType;
   
+  // Map extended types to standard database enum types
   switch (activityType) {
     case "agent_name_updated":
       dbActivityType = "ai_agent_updated";
@@ -136,6 +140,7 @@ export const mapActivityType = (
       enhancedMetadata.error = true;
       break;
     default:
+      // For standard types, no mapping needed
       break;
   }
   

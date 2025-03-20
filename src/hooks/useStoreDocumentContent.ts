@@ -86,8 +86,8 @@ export function useStoreDocumentContent(clientId: string, agentName: string) {
           .eq("interaction_type", "config")
           .single();
         
-        // Log activity of document storage - using direct insert with "as any" to bypass type checking
-        // due to possible enum mismatches in the database
+        // Log activity of document storage
+        // Type assertion to any to bypass type checking due to activity_type
         const docInfo = data[0];
         await supabase
           .from("client_activities")

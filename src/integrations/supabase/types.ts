@@ -553,7 +553,7 @@ export type Database = {
           google_drive_links_added_at: string | null
           id: string
           last_active: string | null
-          status: Database["public"]["Enums"]["client_status"] | null
+          status: string | null
           updated_at: string | null
           website: string | null
           website_url: string | null
@@ -577,7 +577,7 @@ export type Database = {
           google_drive_links_added_at?: string | null
           id?: string
           last_active?: string | null
-          status?: Database["public"]["Enums"]["client_status"] | null
+          status?: string | null
           updated_at?: string | null
           website?: string | null
           website_url?: string | null
@@ -601,7 +601,7 @@ export type Database = {
           google_drive_links_added_at?: string | null
           id?: string
           last_active?: string | null
-          status?: Database["public"]["Enums"]["client_status"] | null
+          status?: string | null
           updated_at?: string | null
           website?: string | null
           website_url?: string | null
@@ -5532,6 +5532,14 @@ export type Database = {
         | "document_processing_failed"
         | "system_update"
         | "ai_agent_updated"
+        | "document_stored"
+        | "document_processed"
+        | "document_link_added"
+        | "document_link_deleted"
+        | "document_uploaded"
+        | "signed_out"
+        | "embed_code_copied"
+        | "widget_previewed"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"
