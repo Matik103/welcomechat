@@ -28,7 +28,8 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         p_logo_storage_path: data.logo_storage_path || null,
         p_widget_settings: {
           logo_url: data.logo_url || "",
-          logo_storage_path: data.logo_storage_path || ""
+          logo_storage_path: data.logo_storage_path || "",
+          agent_description: data.agent_description || ""
         }
       }
     );
@@ -133,6 +134,11 @@ export const updateClient = async (
     // Add logo data to widget_settings
     widgetSettings.logo_url = data.logo_url || "";
     widgetSettings.logo_storage_path = data.logo_storage_path || "";
+    
+    // Add agent_description to widget_settings if provided
+    if (data.agent_description !== undefined) {
+      widgetSettings.agent_description = data.agent_description;
+    }
     
     // Set the final widget_settings in update data
     updateData.widget_settings = widgetSettings;

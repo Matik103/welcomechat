@@ -25,6 +25,15 @@ export const useClientMutation = (id: string | undefined) => {
         }
       };
       
+      // If agent_description is provided, add it to widget_settings
+      if (data.agent_description) {
+        sanitizedData.widget_settings = {
+          ...sanitizedData.widget_settings,
+          agent_description: sanitizeForSQL(data.agent_description)
+        };
+        console.log("Added agent_description to widget_settings:", sanitizedData.widget_settings.agent_description);
+      }
+      
       // Thoroughly sanitize agent_name to prevent SQL issues
       if (data.agent_name) {
         sanitizedData.agent_name = sanitizeForSQL(data.agent_name);

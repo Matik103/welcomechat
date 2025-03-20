@@ -33,6 +33,7 @@ try {
   
   console.log('\n✅ Migration completed successfully! Client schema has been fixed to properly handle agent descriptions.');
   console.log('✅ The create_new_client function has been updated to use widget_settings for agent_description.');
+  console.log('✅ agent_description column has been removed from clients table if it existed.');
   console.log('\nPlease restart your development server to see the changes take effect.');
 } catch (error) {
   console.error('\n❌ Migration failed:', error.message);

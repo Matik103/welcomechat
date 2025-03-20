@@ -29,7 +29,7 @@ export interface ClientFormData {
   client_name: string;
   email: string;
   agent_name?: string;
-  agent_description?: string; // Keep in the form data but not sent to clients table
+  agent_description?: string; // Only in form data, stored in widget_settings
   widget_settings?: Json;
   company?: string;
   description?: string;
@@ -37,7 +37,7 @@ export interface ClientFormData {
   logo_storage_path?: string;
 }
 
-export interface Client extends ClientFormData {
+export interface Client extends Omit<ClientFormData, 'agent_description'> {
   id: string;
   created_at?: string;
   updated_at?: string;
