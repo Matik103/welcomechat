@@ -7,17 +7,7 @@ import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinks
 import { DocumentUploadForm } from '@/components/client/drive-links/DocumentUploadForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentNameWarning } from '@/components/client/drive-links/AgentNameWarning';
-import { DocumentLink, DocumentLinkFormData } from '@/types/document-processing';
-
-interface DriveLinksProps {
-  documents: DocumentLink[];
-  isLoading: boolean;
-  isUploading: boolean;
-  addDocumentLink: (data: DocumentLinkFormData) => Promise<void>;
-  deleteDocumentLink: (linkId: number) => Promise<void>;
-  uploadDocument: (file: File) => Promise<void>;
-  isClientView?: boolean;
-}
+import { DocumentLink, DocumentLinkFormData, DriveLinksProps } from '@/types/document-processing';
 
 export const DriveLinks = ({
   documents,
@@ -26,7 +16,10 @@ export const DriveLinks = ({
   addDocumentLink,
   deleteDocumentLink,
   uploadDocument,
-  isClientView = false
+  isClientView = false,
+  isValidating = false,
+  deletingId = null,
+  isDeleteLoading = false
 }: DriveLinksProps) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeTab, setActiveTab] = useState('list');
@@ -64,8 +57,8 @@ export const DriveLinks = ({
           <div className="mb-4">
             <DocumentLinkForm
               onSubmit={handleSubmitLink}
-              onCancel={() => setShowAddForm(false)}
-              isValidating={false}
+              isSubmitting={isValidating}
+              agentName="AI Assistant"
             />
           </div>
         ) : (
@@ -77,9 +70,11 @@ export const DriveLinks = ({
 
             <TabsContent value="list" className="space-y-4">
               <DocumentLinksList
-                documentLinks={documents}
+                links={documents}
                 isLoading={isLoading}
                 onDelete={handleDeleteLink}
+                isDeleteLoading={isDeleteLoading}
+                deletingId={deletingId}
               />
             </TabsContent>
 

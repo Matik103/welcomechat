@@ -1,38 +1,39 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { useClientActivity } from '@/hooks/useClientActivity';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useClientActivity } from '@/hooks/useClientActivity';
+import { useToast } from '@/components/ui/use-toast';
 
-export const SignOutSection = ({ clientId }: { clientId?: string }) => {
-  const navigate = useNavigate();
-  const { signOut } = useAuth();
-  const { logActivity } = useClientActivity(clientId);
+export function SignOutSection() {
+  const { signOut, user } = useAuth();
+  const { logClientActivity } = useClientActivity(user?.id);
+  const { toast } = useToast();
 
   const handleSignOut = async () => {
     try {
-      // Log the sign out activity if clientId is provided
-      if (clientId) {
-        await logActivity.mutateAsync({
-          activity_type: 'signed_out',
-          description: 'User signed out of the platform',
-          metadata: { timestamp: new Date().toISOString() }
-        });
-      }
+      // Log the sign out activity
+      await logClientActivity(
+        'signed_out',
+        'User signed out',
+        { user_id: user?.id }
+      );
       
-      // Sign out and redirect
+      // Sign out
       await signOut();
-      toast.success('You have been signed out successfully');
       
-      // Navigate to the homepage after sign out
-      navigate('/');
+      toast({
+        title: 'Signed out successfully',
+        description: 'You have been signed out of your account.',
+      });
     } catch (error) {
-      console.error('Error during sign out:', error);
-      toast.error('Failed to sign out. Please try again.');
+      console.error('Error signing out:', error);
+      toast({
+        title: 'Error signing out',
+        description: 'There was a problem signing out. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -41,20 +42,14 @@ export const SignOutSection = ({ clientId }: { clientId?: string }) => {
       <CardHeader>
         <CardTitle>Sign Out</CardTitle>
         <CardDescription>
-          Sign out of your account to end your session
+          Sign out from your account
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-gray-500">
-          When you sign out, your current session will be terminated. You'll need to sign in again to access your account.
-        </p>
-      </CardContent>
-      <Separator />
-      <CardFooter className="flex justify-between pt-6">
-        <Button variant="destructive" onClick={handleSignOut}>
+        <Button onClick={handleSignOut} variant="destructive">
           Sign Out
         </Button>
-      </CardFooter>
+      </CardContent>
     </Card>
   );
-};
+}

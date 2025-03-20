@@ -29,7 +29,7 @@ export interface ErrorLog {
 }
 
 export interface QueryItem {
-  id: string;
+  id?: string;
   query_text: string;
   frequency: number;
   last_asked?: string;
@@ -48,4 +48,5 @@ export interface ChatInteraction {
   agent_name?: string;
   metadata?: any;
   clientId?: string; // Added for compatibility
+  client_id?: string; // Original field name
 }

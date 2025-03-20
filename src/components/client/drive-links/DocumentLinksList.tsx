@@ -1,99 +1,95 @@
 
-import { DocumentLink } from "@/types/client";
-import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, File, Folder } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import React from 'react';
+import { DocumentLink } from '@/types/document-processing';
+import { Button } from '@/components/ui/button';
+import { Loader2, Trash2 } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { formatDate } from '@/utils/stringUtils';
+import { Card } from '@/components/ui/card';
 
-interface DocumentLinksListProps {
+export interface DocumentLinksListProps {
   links: DocumentLink[];
-  onDelete: (id: number) => void;
-  isDeleteLoading: boolean;
-  deletingId: number | null;
+  isLoading: boolean;
+  onDelete: (id: number) => Promise<void>;
+  isDeleteLoading?: boolean;
+  deletingId?: number | null;
 }
 
 export const DocumentLinksList = ({
   links,
+  isLoading,
   onDelete,
-  isDeleteLoading,
-  deletingId
+  isDeleteLoading = false,
+  deletingId = null
 }: DocumentLinksListProps) => {
-  if (links.length === 0) {
+  if (isLoading) {
     return (
-      <div className="text-center p-4 text-gray-500 italic">
-        No document links added yet
+      <div className="text-center py-4">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="mt-2 text-sm text-muted-foreground">Loading document links...</p>
       </div>
     );
   }
 
-  const getIconForDocumentType = (link: DocumentLink) => {
-    const isFolder = link.document_type === "google_drive_folder" || link.link.includes('/folders/');
-    
-    if (isFolder) {
-      return <Folder className="h-4 w-4 text-blue-500" />;
-    }
-    
-    return <File className="h-4 w-4 text-blue-500" />;
-  };
+  if (links.length === 0) {
+    return (
+      <Card className="p-4 text-center text-muted-foreground">
+        No document links have been added yet
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-2">
-      <h3 className="font-medium text-sm">Document Links</h3>
-      
-      <div className="border border-gray-200 divide-y divide-gray-200 rounded-md">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Link</TableHead>
+          <TableHead>Type</TableHead>
+          <TableHead>Added</TableHead>
+          <TableHead className="w-[100px]">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {links.map((link) => (
-          <div key={link.id} className="p-3 flex items-center justify-between bg-white">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center">
-                {getIconForDocumentType(link)}
-                <a
-                  href={link.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-2 font-medium text-blue-600 hover:underline truncate"
-                >
-                  {link.link}
-                </a>
-              </div>
-              
-              <div className="mt-1 flex items-center text-xs text-gray-500">
-                <span>
-                  Refresh rate: {link.refresh_rate} days
-                </span>
-                <span className="mx-2">•</span>
-                <span>
-                  Added {link.created_at ? formatDistanceToNow(new Date(link.created_at), { addSuffix: true }) : 'recently'}
-                </span>
-                {link.document_type && (
-                  <>
-                    <span className="mx-2">•</span>
-                    <span className="capitalize">
-                      {link.document_type === "google_drive_folder" 
-                        ? "Google Drive Folder" 
-                        : link.document_type.replace(/_/g, ' ')}
-                    </span>
-                  </>
+          <TableRow key={link.id}>
+            <TableCell>
+              <a
+                href={link.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                {link.link.length > 40 ? `${link.link.substring(0, 37)}...` : link.link}
+              </a>
+            </TableCell>
+            <TableCell>{link.document_type}</TableCell>
+            <TableCell>{formatDate(link.created_at)}</TableCell>
+            <TableCell>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(link.id)}
+                disabled={isDeleteLoading && deletingId === link.id}
+                className="p-0 h-8 w-8"
+              >
+                {isDeleteLoading && deletingId === link.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 text-destructive" />
                 )}
-              </div>
-            </div>
-            
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-red-600 hover:text-red-800 hover:bg-red-50"
-              onClick={() => onDelete(link.id)}
-              disabled={isDeleteLoading && deletingId === link.id}
-            >
-              {isDeleteLoading && deletingId === link.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-              <span className="sr-only">Delete</span>
-            </Button>
-          </div>
+                <span className="sr-only">Delete</span>
+              </Button>
+            </TableCell>
+          </TableRow>
         ))}
-      </div>
-    </div>
+      </TableBody>
+    </Table>
   );
 };

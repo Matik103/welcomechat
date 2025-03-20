@@ -1,11 +1,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getInteractionStats } from "@/services/statsService";
-import { getTopQueries } from "@/services/statsService";
-import { getRecentErrorLogs } from "@/services/statsService";
 import { useClientChatHistory } from "@/hooks/useClientChatHistory";
-import { InteractionStats, QueryItem, ErrorLog } from "@/types/client-dashboard";
-import { ChatInteraction } from "@/types/client-dashboard";
+import { InteractionStats, ChatInteraction } from "@/types/client-dashboard";
 
 export const useClientDashboard = (clientId: string, agentName?: string) => {
   // Get interaction stats

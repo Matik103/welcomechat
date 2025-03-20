@@ -39,11 +39,3 @@ export interface LlamaParseConfig {
   apiKey: string;
   baseUrl?: string;
 }
-
-export interface DocumentProcessingResult {
-  success: boolean;
-  documentId?: string;
-  error?: string;
-  content?: string;
-  status?: 'success' | 'failed' | 'processing' | 'pending';
-}
