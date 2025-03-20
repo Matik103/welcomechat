@@ -1,8 +1,9 @@
+
 /**
  * Extended types for the client application
  */
 
-import { Json } from "@/integrations/supabase/types";
+import { Json } from "@/types/supabase-extensions";
 
 export interface Client {
   id: string;
@@ -19,7 +20,7 @@ export interface Client {
   description?: string;
   widget_settings: WidgetSettings;
   name?: string; // This is the agent_name
-  agent_name?: string; // Adding this field to match what's expected
+  agent_name: string; // Adding this field to match what's expected
   last_active?: string; // Adding this field to fix ClientList errors
 }
 
@@ -124,4 +125,11 @@ export interface ClientDetailsProps {
   clientId: string;
   isClientView: boolean;
   logClientActivity: (activity_type: ActivityType, description: string, metadata?: any) => Promise<any>;
+}
+
+export interface ClientFormProps {
+  initialData?: Client | null;
+  onSubmit: (data: ClientFormData) => Promise<void>;
+  isLoading?: boolean;
+  isClientView?: boolean;
 }

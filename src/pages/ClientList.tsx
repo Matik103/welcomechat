@@ -163,7 +163,10 @@ export default function ClientList() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <ClientListTable clients={filteredClients} />
+        <ClientListTable 
+          clients={filteredClients} 
+          onDeleteClick={(client) => {}} 
+        />
       )}
 
       {!isLoading && filteredClients.length === 0 && (

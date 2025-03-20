@@ -1,58 +1,34 @@
 
-import { Search, ChevronDown } from "lucide-react";
+import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Search } from "lucide-react";
 
-interface ClientSearchBarProps {
-  searchQuery: string;
-  onSearchChange: (value: string) => void;
-  onSort: (field: string) => void;
+export interface ClientSearchBarProps {
+  onSearch: (query: string) => void;
+  className?: string;
 }
 
-export const ClientSearchBar = ({
-  searchQuery,
-  onSearchChange,
-  onSort,
-}: ClientSearchBarProps) => {
+export const ClientSearchBar = ({ onSearch, className = "" }: ClientSearchBarProps) => {
+  const [searchValue, setSearchValue] = useState("");
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchValue(value);
+    onSearch(value);
+  };
+
   return (
-    <div className="flex items-center gap-4 flex-1">
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <Input
-          type="text"
-          placeholder="Search clients..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-10"
-        />
+    <div className={`relative ${className}`}>
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Search className="h-4 w-4 text-gray-400" />
       </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="flex items-center gap-2">
-            Sort by <ChevronDown className="w-4 h-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem onClick={() => onSort("client_name")}>
-            Client Name
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onSort("agent_name")}>
-            AI Agent Name
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onSort("status")}>
-            Status
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onSort("updated_at")}>
-            Last Updated
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Input
+        type="text"
+        placeholder="Search clients by name, email or agent name..."
+        value={searchValue}
+        onChange={handleChange}
+        className="pl-10"
+      />
     </div>
   );
 };

@@ -1,9 +1,10 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { ExtendedActivityType } from "@/types/activity";
-import { Json } from "@/integrations/supabase/types";
-import { JsonObject } from "@/types/supabase-extensions";
+import { JsonObject, toJson } from "@/types/supabase-extensions";
 import { WidgetSettings } from "@/types/widget-settings";
+import { execSql } from "@/utils/rpcUtils";
 
 /**
  * Creates a new client in the database.
@@ -17,13 +18,13 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const { data: newClient, error } = await supabase.rpc(
       "create_new_client",
       {
-        client_name_param: data.client_name,
-        email_param: data.email,
-        agent_name_param: sanitizedAgentName,
-        agent_description_param: sanitizedAgentDescription,
-        logo_url_param: data.widget_settings?.logo_url || null,
-        logo_storage_path_param: data.widget_settings?.logo_storage_path || null,
-        widget_settings_param: data.widget_settings as Json,
+        p_client_name: data.client_name,
+        p_email: data.email,
+        p_agent_name: sanitizedAgentName,
+        p_agent_description: sanitizedAgentDescription,
+        p_logo_url: data.widget_settings?.logo_url || null,
+        p_logo_storage_path: data.widget_settings?.logo_storage_path || null,
+        p_widget_settings: toJson(data.widget_settings || {}),
       }
     );
 
@@ -55,33 +56,44 @@ export const updateClient = async (
     const sanitizedAgentName = data.widget_settings?.agent_name?.replace(/["']/g, "") || "";
     const sanitizedAgentDescription = data.widget_settings?.agent_description?.replace(/["']/g, "") || "";
 
-    const { error } = await supabase.from("clients").update({
-      client_name: data.client_name,
-      email: data.email,
-      widget_settings: data.widget_settings as Json,
-    }).eq("id", clientId);
+    // Use execSql instead of direct supabase access to clients table
+    const query = `
+      UPDATE clients
+      SET 
+        client_name = $1,
+        email = $2,
+        widget_settings = $3
+      WHERE id = $4
+    `;
+    
+    await execSql(query, [
+      data.client_name, 
+      data.email, 
+      JSON.stringify(data.widget_settings || {}),
+      clientId
+    ]);
 
-    if (error) {
-      console.error("Error updating client:", error);
-      throw new Error(error.message);
-    }
-
-    // Also update ai_agents table if it exists
-    const { error: agentError } = await supabase
-      .from('ai_agents')
-      .update({
-        name: sanitizedAgentName,
-        agent_description: sanitizedAgentDescription,
-        logo_url: data.widget_settings?.logo_url || null,
-        logo_storage_path: data.widget_settings?.logo_storage_path || null,
-        settings: data.widget_settings as Json,
-      })
-      .eq('client_id', clientId);
-
-    if (agentError) {
-      console.warn("Could not sync settings to ai_agents table:", agentError);
-      // This is not critical, we still consider the update successful
-    }
+    // Also update ai_agents table if it exists - also using execSql
+    const agentQuery = `
+      UPDATE ai_agents
+      SET 
+        name = $1,
+        agent_description = $2,
+        logo_url = $3,
+        logo_storage_path = $4,
+        settings = $5
+      WHERE client_id = $6
+    `;
+    
+    await execSql(agentQuery, [
+      sanitizedAgentName,
+      sanitizedAgentDescription,
+      data.widget_settings?.logo_url || null,
+      data.widget_settings?.logo_storage_path || null,
+      JSON.stringify(data.widget_settings || {}),
+      clientId
+    ]);
+    
   } catch (error: any) {
     console.error("Error updating client:", error);
     throw new Error(error?.message || "Failed to update client");
@@ -95,19 +107,28 @@ export const logClientUpdateActivity = async (
   clientId: string
 ): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from("client_activities")
-      .insert({
-        client_id: clientId,
-        activity_type: "client_updated",
-        description: "Updated client information",
-        metadata: {},
-      });
-
-    if (error) {
-      console.error("Error logging client update activity:", error);
-      throw new Error(error.message);
-    }
+    // Use execSql to insert into client_activities
+    const query = `
+      INSERT INTO client_activities (
+        client_id,
+        activity_type,
+        description,
+        metadata
+      ) VALUES (
+        $1,
+        $2,
+        $3,
+        $4
+      )
+    `;
+    
+    await execSql(query, [
+      clientId,
+      'client_updated',
+      'Updated client information',
+      '{}'
+    ]);
+    
   } catch (error: any) {
     console.error("Error in logClientUpdateActivity:", error);
     throw new Error(
@@ -125,19 +146,22 @@ export const scheduleClientDeletion = async (
   try {
     const deletionScheduledTime = new Date();
     deletionScheduledTime.setDate(deletionScheduledTime.getDate() + 30);
-
-    const { error } = await supabase
-      .from("clients")
-      .update({
-        deletion_scheduled_at: deletionScheduledTime.toISOString(),
-        status: "deletion_scheduled",
-      })
-      .eq("id", clientId);
-
-    if (error) {
-      console.error("Error scheduling client deletion:", error);
-      throw new Error(error.message);
-    }
+    
+    // Use execSql
+    const query = `
+      UPDATE clients
+      SET 
+        deletion_scheduled_at = $1,
+        status = $2
+      WHERE id = $3
+    `;
+    
+    await execSql(query, [
+      deletionScheduledTime.toISOString(),
+      'deletion_scheduled',
+      clientId
+    ]);
+    
   } catch (error: any) {
     console.error("Error in scheduleClientDeletion:", error);
     throw new Error(
@@ -151,40 +175,24 @@ export const scheduleClientDeletion = async (
  */
 export const deleteClient = async (clientId: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from("clients")
-      .update({
-        deleted_at: new Date().toISOString(),
-        status: "deleted",
-      })
-      .eq("id", clientId);
-
-    if (error) {
-      console.error("Error deleting client:", error);
-      throw new Error(error.message);
-    }
+    // Use execSql
+    const query = `
+      UPDATE clients
+      SET 
+        deleted_at = $1,
+        status = $2
+      WHERE id = $3
+    `;
+    
+    await execSql(query, [
+      new Date().toISOString(),
+      'deleted',
+      clientId
+    ]);
+    
   } catch (error: any) {
     console.error("Error in deleteClient:", error);
     throw new Error(error?.message || "Failed to delete client");
-  }
-};
-
-/**
- * Retrieves all clients from the database.
- */
-export const getAllClients = async (): Promise<any[]> => {
-  try {
-    const { data, error } = await supabase.from("clients").select("*");
-
-    if (error) {
-      console.error("Error fetching clients:", error);
-      throw new Error(error.message);
-    }
-
-    return data || [];
-  } catch (error: any) {
-    console.error("Error in getAllClients:", error);
-    throw new Error(error?.message || "Failed to fetch clients");
   }
 };
 
@@ -193,18 +201,22 @@ export const getAllClients = async (): Promise<any[]> => {
  */
 export const getClientById = async (clientId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("id", clientId)
-      .single();
-
-    if (error) {
-      console.error("Error fetching client:", error);
+    // Use execSql
+    const query = `
+      SELECT *
+      FROM clients
+      WHERE id = $1
+      LIMIT 1
+    `;
+    
+    const result = await execSql(query, [clientId]);
+    
+    if (!result || !Array.isArray(result) || result.length === 0) {
       return null;
     }
-
-    return data || null;
+    
+    return result[0];
+    
   } catch (error: any) {
     console.error("Error in getClientById:", error);
     return null;
@@ -212,11 +224,15 @@ export const getClientById = async (clientId: string): Promise<any | null> => {
 };
 
 /**
- * Sends an invitation email to the client.
+ * Send an email invitation to a client.
+ * Note: This API endpoint might need to be updated to match available functionality.
  */
 export const inviteClient = async (email: string): Promise<any> => {
   try {
-    const { data, error } = await supabase.auth.inviteUserByEmail(email);
+    // Use a Supabase Edge Function instead
+    const { data, error } = await supabase.functions.invoke("create-client-user", {
+      body: { email }
+    });
 
     if (error) {
       console.error("Error inviting client:", error);
@@ -232,11 +248,13 @@ export const inviteClient = async (email: string): Promise<any> => {
 
 /**
  * Resends an invitation email to the client.
+ * Note: This needs to be updated to use the current Supabase resend method.
  */
 export const resendInvite = async (email: string): Promise<any> => {
   try {
+    // Use a more modern API for resending
     const { data, error } = await supabase.auth.resend({
-      type: "invite",
+      type: "signup",
       email: email,
     });
 
