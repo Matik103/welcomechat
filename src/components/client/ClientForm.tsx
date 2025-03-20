@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -25,18 +26,11 @@ interface ClientFormProps {
   isClientView?: boolean;
 }
 
-const sanitizeInput = (input: string): string => {
-  return input.replace(/["`']/g, '');
-};
-
 const clientFormSchema = z.object({
-  client_name: z.string().min(1, "Client name is required")
-    .transform(sanitizeInput),
+  client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().optional()
-    .transform(value => value ? sanitizeInput(value) : value),
-  agent_description: z.string().optional()
-    .transform(value => value ? sanitizeInput(value) : value),
+  agent_name: z.string().optional(),
+  agent_description: z.string().optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
 });
@@ -54,53 +48,61 @@ export const ClientForm = ({
   const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      client_name: initialData?.client_name ? sanitizeInput(initialData.client_name) : "",
+      client_name: initialData?.client_name || "",
       email: initialData?.email || "",
-      agent_name: initialData?.agent_name ? sanitizeInput(initialData.agent_name) : "",
-      agent_description: initialData?.agent_description ? sanitizeInput(initialData.agent_description) : "",
+      agent_name: initialData?.agent_name || "",
+      agent_description: initialData?.agent_description || "",
       logo_url: initialData?.logo_url || "",
       logo_storage_path: initialData?.logo_storage_path || "",
     },
   });
 
+  // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
       console.log("Setting form values with initial data:", initialData);
       reset({
-        client_name: initialData.client_name ? sanitizeInput(initialData.client_name) : "",
+        client_name: initialData.client_name || "",
         email: initialData.email || "",
-        agent_name: initialData.agent_name ? sanitizeInput(initialData.agent_name) : "",
-        agent_description: initialData.agent_description ? sanitizeInput(initialData.agent_description) : "",
+        agent_name: initialData.agent_name || "",
+        agent_description: initialData.agent_description || "",
         logo_url: initialData.logo_url || "",
         logo_storage_path: initialData.logo_storage_path || "",
       });
     }
   }, [initialData, reset]);
 
+  // For debugging: log the current form values
   const currentValues = watch();
   useEffect(() => {
     console.log("Current form values:", currentValues);
   }, [currentValues]);
   
+  // Get client ID for logo upload
   const clientId = initialData?.id;
   
+  // Handle logo selection for new clients (no ID yet)
   const handleLogoSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
+    // Check file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Logo file must be less than 5MB");
       return;
     }
     
+    // Check file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       toast.error("Please select a valid image file (JPG, PNG, GIF, SVG, WebP)");
       return;
     }
     
+    // Save the file for later upload
     setTempLogoFile(file);
     
+    // Generate a preview URL
     const reader = new FileReader();
     reader.onload = (e) => {
       const previewUrl = e.target?.result as string;
@@ -111,12 +113,15 @@ export const ClientForm = ({
     toast.success("Logo selected. It will be uploaded when you save the client.");
   };
   
+  // Handle logo upload for existing clients
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!clientId) {
+      // For new clients, store the file temporarily
       handleLogoSelection(event);
       return;
     }
     
+    // For existing clients, use the regular upload flow
     import("@/utils/widgetSettingsUtils").then(({ handleLogoUploadEvent }) => {
       handleLogoUploadEvent(
         event,
@@ -135,6 +140,7 @@ export const ClientForm = ({
     });
   };
   
+  // Handle logo removal
   const handleRemoveLogo = () => {
     setValue("logo_url", "");
     setValue("logo_storage_path", "");
@@ -142,15 +148,13 @@ export const ClientForm = ({
     setLocalLogoPreview(null);
   };
 
+  // Custom submit handler that includes the temp logo file
   const handleFormSubmit = async (data: any) => {
+    // Pass the temp logo file along with the form data
     await onSubmit({
       ...data,
-      _tempLogoFile: tempLogoFile
+      _tempLogoFile: tempLogoFile // Will be handled in ClientDetails.tsx
     });
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    e.target.value = sanitizeInput(e.target.value);
   };
 
   return (
@@ -163,12 +167,10 @@ export const ClientForm = ({
           id="client_name"
           {...register("client_name")}
           className={errors.client_name ? "border-red-500" : ""}
-          onChange={handleInputChange}
         />
         {errors.client_name && (
           <p className="text-sm text-red-500">{errors.client_name.message}</p>
         )}
-        <p className="text-xs text-gray-500">Special characters like quotes (", ', `) will be removed.</p>
       </div>
 
       <div className="space-y-2">
@@ -194,16 +196,13 @@ export const ClientForm = ({
           id="agent_name"
           {...register("agent_name")}
           className={errors.agent_name ? "border-red-500" : ""}
-          onChange={handleInputChange}
         />
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
-        <p className="text-xs text-gray-500">
-          {!isClientView 
-            ? "Optional - client can set this later. Special characters like quotes will be removed."
-            : "Special characters like quotes (", ', `) will be removed."}
-        </p>
+        {!isClientView && (
+          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
+        )}
       </div>
       
       <div className="space-y-2">
@@ -231,16 +230,13 @@ export const ClientForm = ({
           className={errors.agent_description ? "border-red-500" : ""}
           placeholder="Describe the purpose and capabilities of this AI agent"
           rows={4}
-          onChange={handleInputChange}
         />
         {errors.agent_description && (
           <p className="text-sm text-red-500">{errors.agent_description.message}</p>
         )}
-        <p className="text-xs text-gray-500">
-          {!isClientView 
-            ? "Optional - client can set this later. Special characters like quotes will be removed."
-            : "Special characters like quotes (", ', `) will be removed."}
-        </p>
+        {!isClientView && (
+          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">
