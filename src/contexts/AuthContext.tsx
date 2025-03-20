@@ -1,128 +1,105 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Session, User, AuthError } from '@supabase/supabase-js';
-import { UserRole } from '@/types/app';
-import useAuthInitialize from '@/hooks/useAuthInitialize';
-import useAuthStateChange from '@/hooks/useAuthStateChange';
-import { useAuthSafetyTimeout } from '@/hooks/useAuthSafetyTimeout';
-
-export interface AuthState {
-  isLoading: boolean;
-  session: Session | null;
-  user: User | null;
-  userRole: UserRole | null;
-  authInitialized: boolean;
-}
-
-export interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  logout: () => Promise<void>;
-  signOut: () => Promise<void>;
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  setSession: (session: Session | null) => void;
-  setUser: (user: User | null) => void;
-  setUserRole: (role: UserRole | null) => void;
-  setIsLoading: (loading: boolean) => void;
-  setAuthInitialized: (initialized: boolean) => void;
-}
+import { createContext, useContext } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useLocation } from "react-router-dom";
+import { useAuthState } from "@/hooks/useAuthState";
+import { AuthContextType } from "@/types/auth";
+import { toast } from "sonner";
+import { determineUserRole } from "@/utils/authUtils";
+import { useAuthStateChange } from "@/hooks/useAuthStateChange";
+import { useAuthCallback } from "@/hooks/useAuthCallback";
+import { useAuthInitialize } from "@/hooks/useAuthInitialize";
+import { useAuthSafetyTimeout } from "@/hooks/useAuthSafetyTimeout";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [authInitialized, setAuthInitialized] = useState<boolean>(false);
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const { 
+    session, setSession,
+    user, setUser,
+    userRole, setUserRole,
+    isLoading, setIsLoading,
+    authInitialized, setAuthInitialized
+  } = useAuthState();
+  
+  const location = useLocation();
+  const isCallbackUrl = location.pathname.includes('/auth/callback');
+  const isAuthPage = location.pathname === '/auth';
 
-  // Initialize auth state
-  useAuthInitialize({ 
-    setSession, 
-    setUser, 
-    setUserRole, 
-    setIsLoading, 
-    setAuthInitialized 
-  });
-
-  // Handle auth state changes
-  useAuthStateChange({ 
-    setSession, 
-    setUser, 
-    setUserRole 
-  });
-
-  // Get the current URL path to check if we're on an auth page
-  const isAuthPage = window.location.pathname.includes('/auth') || 
-                      window.location.pathname.includes('/login') || 
-                      window.location.pathname.includes('/register');
-
-  // Safety timeout for auth initialization
-  useAuthSafetyTimeout({ 
-    isLoading, 
-    setIsLoading, 
+  // Safety timeout to prevent infinite loading
+  useAuthSafetyTimeout({
+    isLoading,
+    setIsLoading,
     isAuthPage,
     session
   });
 
-  // Login function
-  const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
-  };
+  // Handle OAuth callback
+  useAuthCallback({
+    isCallbackUrl,
+    setSession,
+    setUser,
+    setUserRole,
+    setIsLoading
+  });
 
-  // Alias for login
-  const signIn = login;
-
-  // Logout function
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setUser(null);
-    setUserRole(null);
-  };
-
-  // Alias for logout
-  const signOut = logout;
-
-  // Signup function
-  const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    return { data, error };
-  };
-
-  const value = {
-    session,
-    user,
-    userRole,
-    isLoading,
+  // Initialize authentication state
+  useAuthInitialize({
     authInitialized,
-    login,
-    signIn,
-    logout,
-    signOut,
-    signUp,
+    isCallbackUrl,
     setSession,
     setUser,
     setUserRole,
     setIsLoading,
     setAuthInitialized
+  });
+
+  // Handle authentication state changes
+  useAuthStateChange({
+    setSession,
+    setUser,
+    setUserRole,
+    setIsLoading
+  });
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
+      window.location.href = '/auth';
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast.error('Sign out error. Please try again.');
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
+      window.location.href = '/auth';
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      signOut, 
+      isLoading, 
+      userRole 
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

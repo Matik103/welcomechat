@@ -53,9 +53,11 @@ export const useAuthSafetyTimeout = ({
           const userRole = sessionStorage.getItem('user_role_set');
           if (userRole === 'admin') {
             navigate('/admin/dashboard', { replace: true });
+          } else if (userRole === 'client') {
+            navigate('/client/dashboard', { replace: true });
           } else {
-            // Default to regular dashboard if user role
-            navigate('/dashboard', { replace: true });
+            // Default to admin dashboard if no role found
+            navigate('/admin/dashboard', { replace: true });
           }
         }
       }
