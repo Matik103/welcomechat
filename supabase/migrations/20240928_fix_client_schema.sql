@@ -24,7 +24,14 @@ UPDATE public.clients
 SET widget_settings = '{}'::jsonb 
 WHERE widget_settings IS NULL;
 
--- Update create_new_client function to use widget_settings for agent_description
+-- Ensure the agent_description column exists in ai_agents table
+ALTER TABLE public.ai_agents 
+ADD COLUMN IF NOT EXISTS agent_description TEXT;
+
+-- Drop the function and remake it to NOT accept agent_description parameter
+DROP FUNCTION IF EXISTS create_new_client(text, text, text, text, text, text, jsonb, text);
+
+-- Update create_new_client function to only manage client table
 CREATE OR REPLACE FUNCTION create_new_client(
   p_client_name TEXT,
   p_email TEXT,
@@ -99,12 +106,12 @@ BEGIN
   ) VALUES (
     new_client_id,
     p_agent_name,
-    p_widget_settings->>'agent_description',
+    final_widget_settings->>'agent_description',
     '',
     'config',
     jsonb_build_object(
       'agent_name', p_agent_name,
-      'agent_description', p_widget_settings->>'agent_description',
+      'agent_description', final_widget_settings->>'agent_description',
       'client_name', p_client_name,
       'logo_url', p_logo_url,
       'logo_storage_path', p_logo_storage_path,
@@ -137,6 +144,53 @@ BEGIN
 END;
 $$;
 
+-- Create update_ai_agent_on_client_update function
+CREATE OR REPLACE FUNCTION public.update_ai_agent_on_client_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+BEGIN
+  IF (OLD.agent_name IS DISTINCT FROM NEW.agent_name) OR 
+     (OLD.widget_settings->>'agent_description' IS DISTINCT FROM NEW.widget_settings->>'agent_description') OR
+     (OLD.widget_settings->>'logo_url' IS DISTINCT FROM NEW.widget_settings->>'logo_url') OR
+     (OLD.widget_settings->>'logo_storage_path' IS DISTINCT FROM NEW.widget_settings->>'logo_storage_path') THEN
+    
+    UPDATE public.ai_agents
+    SET 
+      name = COALESCE(NEW.agent_name, 'AI Assistant'),
+      agent_description = NEW.widget_settings->>'agent_description',
+      logo_url = NEW.widget_settings->>'logo_url',
+      logo_storage_path = NEW.widget_settings->>'logo_storage_path',
+      settings = jsonb_build_object(
+        'agent_name', COALESCE(NEW.agent_name, 'AI Assistant'),
+        'agent_description', NEW.widget_settings->>'agent_description',
+        'logo_url', NEW.widget_settings->>'logo_url',
+        'logo_storage_path', NEW.widget_settings->>'logo_storage_path',
+        'updated_at', NOW()
+      ),
+      updated_at = NOW()
+    WHERE client_id = NEW.id;
+  END IF;
+  
+  RETURN NEW;
+END;
+$function$;
+
+-- Create trigger for the update function if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger 
+    WHERE tgname = 'update_ai_agent_trigger'
+  ) THEN
+    CREATE TRIGGER update_ai_agent_trigger
+    AFTER UPDATE ON public.clients
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_ai_agent_on_client_update();
+  END IF;
+END $$;
+
 -- Add script to run this migration
 INSERT INTO client_activities (
   client_id,
@@ -147,7 +201,7 @@ INSERT INTO client_activities (
 SELECT 
   id,
   'system_update',
-  'Fixed client schema for agent description',
+  'Moved agent description to ai_agents table',
   jsonb_build_object(
     'migration_date', NOW(),
     'migration_name', '20240928_fix_client_schema'

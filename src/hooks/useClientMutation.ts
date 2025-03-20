@@ -36,19 +36,6 @@ export const useClientMutation = (id: string | undefined) => {
         console.log("Using default sanitized agent name:", sanitizedData.agent_name);
       }
       
-      // Handle agent_description by adding it to widget_settings
-      if (data.agent_description) {
-        const sanitizedDescription = sanitizeForSQL(data.agent_description);
-        
-        // Store agent_description in widget_settings
-        if (typeof sanitizedData.widget_settings === 'object') {
-          sanitizedData.widget_settings.agent_description = sanitizedDescription;
-        }
-        
-        console.log("Agent description before sanitization:", data.agent_description);
-        console.log("Agent description after sanitization:", sanitizedDescription);
-      }
-      
       console.log("Data after sanitization:", sanitizedData);
 
       if (id) {
