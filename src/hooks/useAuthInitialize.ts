@@ -1,134 +1,148 @@
-import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Session, User } from "@supabase/supabase-js";
-import { UserRole } from "@/types/auth";
-import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
+import { useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { determineUserRole } from '@/utils/authUtils';
+import { UserRole } from '@/types/app';
 
-type AuthInitializeProps = {
-  authInitialized: boolean;
-  isCallbackUrl: boolean;
-  setSession: (session: Session | null) => void;
-  setUser: (user: User | null) => void;
-  setUserRole: (role: UserRole | null) => void;
-  setIsLoading: (isLoading: boolean) => void;
-  setAuthInitialized: (initialized: boolean) => void;
-};
-
-export const useAuthInitialize = ({
-  authInitialized,
-  isCallbackUrl,
-  setSession,
-  setUser,
-  setUserRole,
-  setIsLoading,
-  setAuthInitialized
-}: AuthInitializeProps) => {
-  const navigate = useNavigate();
-  const location = useLocation();
+export const useAuthInitialize = () => {
+  const { setSession, setUser, setUserRole, setIsLoading, setAuthInitialized } = useAuth();
 
   useEffect(() => {
-    let mounted = true;
-
     const initializeAuth = async () => {
-      // Skip init if already initialized or handling callback
-      if (authInitialized || isCallbackUrl) return;
-      
       try {
-        console.log("Initializing auth state");
-        
-        // Keep loading state true until we've completed all checks
         setIsLoading(true);
         
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        // Get the current session
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (!mounted) return;
-
-        if (currentSession?.user) {
-          console.log("Session found during init:", currentSession.user.email);
+        if (error) {
+          console.error("Error getting session:", error);
+          throw error;
+        }
+        
+        // If there is a session, set the user and session
+        if (session) {
+          setSession(session);
+          setUser(session.user);
           
-          setSession(currentSession);
-          setUser(currentSession.user);
-          
-          // Always check for client status
-          const determinedUserRole = await determineUserRole(currentSession.user);
-          console.log("User role determined in init:", determinedUserRole, "for", currentSession.user.email);
-          setUserRole(determinedUserRole);
-          sessionStorage.setItem('user_role_set', determinedUserRole);
-          
-          // Handle redirects if on auth page or at root
-          const isAuthPage = location.pathname === '/auth';
-          const isRootPage = location.pathname === '/';
-          const isOldAdminPage = !location.pathname.startsWith('/admin/') && 
-                               !location.pathname.startsWith('/client/') && 
-                               location.pathname !== '/auth';
-          
-          if (isAuthPage || isRootPage || isOldAdminPage) {
-            // Get the appropriate dashboard route
-            const dashboardRoute = getDashboardRoute(determinedUserRole);
-            console.log("Redirecting to dashboard in init:", dashboardRoute);
-            // Navigate to the appropriate dashboard
-            navigate(dashboardRoute, { replace: true });
-          }
-          
-          // Set initialized first, then clear loading state to prevent flicker
-          setAuthInitialized(true);
-          setTimeout(() => {
-            if (mounted) setIsLoading(false);
-          }, 300);
-        } else {
-          console.log("No active session found during init");
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          sessionStorage.removeItem('user_role_set');
-          
-          const isAuthPage = location.pathname === '/auth';
-          const isSetupPage = location.pathname.startsWith('/client/setup');
+          // Determine the user role
+          try {
+            // First check user_roles table
+            const { data: roleData, error: roleError } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
               
-          if (!isAuthPage && !isSetupPage) {
-            console.log("No session, redirecting to auth page in init");
-            navigate('/auth', { replace: true });
+            if (roleError) {
+              console.error("Error getting user role:", roleError);
+            }
+            
+            // If role found in the database, use it
+            if (roleData && roleData.role) {
+              setUserRole(roleData.role as UserRole);
+            } else {
+              // Otherwise, determine role from other factors (like Google auth)
+              const role = await determineUserRole(session.user);
+              setUserRole(role);
+              
+              // Create a role record if one doesn't exist
+              if (!roleData) {
+                try {
+                  await supabase
+                    .from('user_roles')
+                    .insert({
+                      user_id: session.user.id,
+                      role: role
+                    });
+                } catch (insertError) {
+                  console.error("Error creating user role:", insertError);
+                }
+              }
+            }
+          } catch (roleErr) {
+            console.error("Error determining user role:", roleErr);
+            // Default to standard user role
+            setUserRole('user');
           }
-          
-          setAuthInitialized(true);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error("Error in initializeAuth:", error);
-        if (mounted) {
+        } else {
+          // No session
           setSession(null);
           setUser(null);
           setUserRole(null);
-          setAuthInitialized(true);
-          setIsLoading(false);
-          sessionStorage.removeItem('user_role_set');
-          
-          // Redirect to auth page on error
-          const isAuthPage = location.pathname === '/auth';
-          const isSetupPage = location.pathname.startsWith('/client/setup');
-          
-          if (!isAuthPage && !isSetupPage) {
-            navigate('/auth', { replace: true });
-          }
         }
+      } catch (err) {
+        console.error("Error initializing auth:", err);
+        setSession(null);
+        setUser(null);
+        setUserRole(null);
+      } finally {
+        setIsLoading(false);
+        setAuthInitialized(true);
       }
     };
-
+    
     initializeAuth();
-
+    
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (session) {
+            setSession(session);
+            setUser(session.user);
+            
+            // Determine the user role
+            try {
+              // Check user_roles table
+              const { data: roleData, error: roleError } = await supabase
+                .from('user_roles')
+                .select('role')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+                
+              if (roleError) {
+                console.error("Error getting user role (auth change):", roleError);
+              }
+              
+              // If role found in database, use it
+              if (roleData && roleData.role) {
+                setUserRole(roleData.role as UserRole);
+              } else {
+                // Otherwise determine from other factors
+                const role = await determineUserRole(session.user);
+                setUserRole(role);
+                
+                // Create a role record if one doesn't exist
+                if (!roleData) {
+                  try {
+                    await supabase
+                      .from('user_roles')
+                      .insert({
+                        user_id: session.user.id,
+                        role: role
+                      });
+                  } catch (insertError) {
+                    console.error("Error creating user role (auth change):", insertError);
+                  }
+                }
+              }
+            } catch (roleErr) {
+              console.error("Error determining user role (auth change):", roleErr);
+              setUserRole('user');
+            }
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+        }
+      }
+    );
+    
+    // Clean up the subscription
     return () => {
-      mounted = false;
+      subscription.unsubscribe();
     };
-  }, [
-    navigate, 
-    location.pathname, 
-    authInitialized, 
-    setSession, 
-    setUser, 
-    setUserRole, 
-    setIsLoading, 
-    setAuthInitialized, 
-    isCallbackUrl
-  ]);
+  }, [setSession, setUser, setUserRole, setIsLoading, setAuthInitialized]);
 };

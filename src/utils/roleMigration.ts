@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "@/types/auth";
+import { UserRole } from "@/types/app";
 import { createUserRole } from "./authUtils";
 import { User } from "@supabase/supabase-js";
 
@@ -40,7 +40,7 @@ export const migrateExistingAdmins = async (): Promise<{ success: boolean, count
           const isGoogleUser = user.app_metadata?.provider === 'google';
           
           // Google SSO users are always admins
-          const role = isGoogleUser ? 'admin' : (user.app_metadata?.role || 'admin');
+          const role = isGoogleUser ? 'admin' : 'user';
           
           // Use the createUserRole function with the correct parameters
           const success = await createUserRole(user.id, role as UserRole);
