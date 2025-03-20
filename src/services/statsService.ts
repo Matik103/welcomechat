@@ -28,7 +28,11 @@ export const getInteractionStats = async (clientId: string): Promise<Interaction
     if (result && typeof result === 'object') {
       // Extract top queries from result or fallback to empty array
       const topQueries = Array.isArray(result.top_queries) 
-        ? result.top_queries 
+        ? result.top_queries.map(q => ({
+            id: `query-${q.query_text.substring(0, 10)}`,
+            query_text: q.query_text,
+            frequency: q.frequency || 1
+          }))
         : [];
 
       // Convert to fully-typed InteractionStats

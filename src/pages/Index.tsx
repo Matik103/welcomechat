@@ -10,9 +10,11 @@ import { toast } from "sonner";
 import { setupRealtimeActivities } from "@/utils/setupRealtimeActivities";
 import { subscribeToAllActivities } from "@/services/activitySubscriptionService";
 import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Index = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
+  const [showError, setShowError] = useState(false);
   
   // Set up real-time functionality on component mount
   useEffect(() => {
@@ -69,6 +71,9 @@ const Index = () => {
   useEffect(() => {
     if (isClientStatsError || isInteractionStatsError || isActivitiesError) {
       toast.error("Error loading dashboard data. Please try again later.");
+      setShowError(true);
+    } else {
+      setShowError(false);
     }
   }, [isClientStatsError, isInteractionStatsError, isActivitiesError]);
 
@@ -88,6 +93,14 @@ const Index = () => {
           <h1 className="text-2xl font-bold text-gray-900">AI Chatbot Admin System</h1>
           <p className="text-gray-500">Monitor and manage your AI chatbot clients</p>
         </div>
+
+        {showError && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              There was an error loading some dashboard data. The displayed information may be incomplete.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="flex justify-end mb-4">
           <div className="flex gap-2">
