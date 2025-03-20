@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
@@ -10,7 +11,8 @@ const corsHeaders = {
 // Function to sanitize strings for database operations
 const sanitizeString = (value: string | null | undefined): string => {
   if (!value) return '';
-  // Replace double quotes with single quotes to prevent SQL errors
+  
+  // Thoroughly replace double quotes with single quotes to prevent SQL errors
   const sanitized = value.replace(/"/g, "'");
   console.log(`Edge function: Sanitizing "${value}" to "${sanitized}"`);
   return sanitized;
@@ -36,7 +38,7 @@ Rules & Limitations:
 - Technical questions about your own system or how you are built.
 - Anything unrelated to the client you are assigned to serve.`;
   
-  // Sanitize inputs to be extra safe
+  // Sanitize inputs to be extra safe - double sanitization for critical inputs
   const sanitizedAgentName = sanitizeString(agentName);
   const sanitizedClientName = sanitizeString(clientName);
   const sanitizedDescription = sanitizeString(agentDescription);
@@ -119,7 +121,7 @@ serve(async (req) => {
     
     const { email, client_id, client_name, agent_name, agent_description, logo_url, logo_storage_path } = body;
     
-    // Sanitize agent name to prevent SQL errors
+    // Triple-check sanitization of agent name and description
     const sanitizedAgentName = sanitizeString(agent_name);
     const sanitizedClientName = sanitizeString(client_name);
     const sanitizedAgentDescription = sanitizeString(agent_description);

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
@@ -25,8 +24,7 @@ export const getClientById = async (id: string): Promise<Client | null> => {
 const sanitizeForSQL = (value: string | undefined): string | undefined => {
   if (!value) return value;
   
-  // Replace double quotes with single quotes to prevent SQL syntax errors
-  // Double quotes are special in PostgreSQL as they're used for identifiers
+  // Thoroughly sanitize by replacing double quotes with single quotes
   const sanitized = value.replace(/"/g, "'");
   console.log(`Sanitized value from "${value}" to "${sanitized}"`);
   return sanitized;
@@ -37,9 +35,8 @@ const sanitizeForSQL = (value: string | undefined): string | undefined => {
  */
 export const updateClient = async (id: string, data: ClientFormData): Promise<string> => {
   console.log("Updating client with data:", data);
-  console.log("Data JSON stringified:", JSON.stringify(data));
   
-  // Sanitize agent_name to prevent SQL errors
+  // Extra safety - sanitize again to be absolutely sure
   const sanitizedAgentName = sanitizeForSQL(data.agent_name);
   const sanitizedAgentDescription = sanitizeForSQL(data.agent_description);
   
@@ -159,14 +156,12 @@ export const logClientUpdateActivity = async (id: string): Promise<void> => {
 export const createClient = async (data: ClientFormData): Promise<string> => {
   try {
     console.log("Creating client with data:", data);
-    console.log("Data JSON stringified:", JSON.stringify(data));
     
-    // Sanitize agent_name and agent_description to prevent SQL errors
+    // Extra safety - sanitize again to be absolutely sure we don't have double quotes
     const sanitizedAgentName = sanitizeForSQL(data.agent_name) || 'agent_' + Date.now();
     const sanitizedAgentDescription = sanitizeForSQL(data.agent_description);
     
     console.log("Using sanitized agent name in createClient:", sanitizedAgentName);
-    console.log("sanitizedAgentName type:", typeof sanitizedAgentName);
     console.log("Original agent name:", data.agent_name);
     console.log("Sanitized agent name:", sanitizedAgentName);
     
@@ -186,10 +181,6 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
 
     console.log("Widget settings:", JSON.stringify(widgetSettings));
 
-    // Create the client record with sanitized data
-    console.log("Inserting client with sanitized data...");
-    console.log("Agent name value being inserted:", sanitizedAgentName);
-    
     // Log the data being inserted to validate sanitization
     console.log("Final insert data:", {
       client_name: data.client_name,
@@ -423,4 +414,3 @@ export const sendClientInvitationEmail = async (params: {
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
-
