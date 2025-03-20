@@ -1,13 +1,13 @@
 
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "@/types/auth";
+import { UserRole } from "@/types/app";
 
 /**
- * Determines the user role by checking for client records
+ * Determines the user role by checking for user privileges
  */
 export const determineUserRole = async (user: User): Promise<UserRole> => {
-  if (!user) return 'admin'; // Default fallback
+  if (!user) return 'user'; // Default fallback
   
   // Check if the user authenticated via Google SSO
   const isGoogleUser = user.app_metadata?.provider === 'google';
@@ -19,42 +19,12 @@ export const determineUserRole = async (user: User): Promise<UserRole> => {
   }
   
   try {
-    // For email/password users, check if they are clients
-    const { data: clientData, error: clientError } = await supabase
-      .from('clients')
-      .select('id, email')
-      .eq('email', user.email)
-      .maybeSingle();
-    
-    if (clientError) {
-      console.error("Error checking client status:", clientError);
-      return 'admin'; // Default to admin on error
-    }
-    
-    // If we found a client record with this email, they're a client
-    if (clientData) {
-      console.log("User determined to be a client:", user.email);
-      
-      // Store the client_id in user metadata if it's not already there
-      if (!user.user_metadata?.client_id && clientData.id) {
-        try {
-          await supabase.auth.updateUser({
-            data: { client_id: clientData.id }
-          });
-        } catch (err) {
-          console.error("Error updating user metadata with client_id:", err);
-        }
-      }
-      
-      return 'client';
-    }
-    
-    // If no client record found, assume they're an admin
-    console.log("User determined to be an admin:", user.email);
-    return 'admin';
+    // For email/password users, default to user role
+    console.log("User determined to be a standard user:", user.email);
+    return 'user'; // Default to user on error
   } catch (err) {
     console.error("Error in determineUserRole:", err);
-    return 'admin'; // Default to admin on error
+    return 'user'; // Default to user on error
   }
 };
 
@@ -62,8 +32,8 @@ export const determineUserRole = async (user: User): Promise<UserRole> => {
  * Redirects to appropriate dashboard based on role
  */
 export const forceRedirectBasedOnRole = (role: UserRole) => {
-  if (role === 'client') {
-    window.location.href = '/client/dashboard';
+  if (role === 'user') {
+    window.location.href = '/dashboard';
   } else {
     window.location.href = '/admin/dashboard';
   }
@@ -73,7 +43,7 @@ export const forceRedirectBasedOnRole = (role: UserRole) => {
  * Get dashboard route based on user role
  */
 export const getDashboardRoute = (role: UserRole): string => {
-  return role === 'client' ? '/client/dashboard' : '/admin/dashboard';
+  return role === 'user' ? '/dashboard' : '/admin/dashboard';
 };
 
 /**
@@ -99,31 +69,6 @@ export const createUserRole = async (
     return true;
   } catch (err) {
     console.error("Error in createUserRole:", err);
-    return false;
-  }
-};
-
-/**
- * Check if email exists in clients table
- */
-export const isClientInDatabase = async (email: string): Promise<boolean> => {
-  if (!email) return false;
-  
-  try {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-      
-    if (error) {
-      console.error("Error checking client existence:", error);
-      return false;
-    }
-    
-    return !!data;
-  } catch (err) {
-    console.error("Error in isClientInDatabase:", err);
     return false;
   }
 };

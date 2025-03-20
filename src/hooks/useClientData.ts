@@ -1,35 +1,53 @@
 
-import { useClient } from "./useClient";
-import { useClientMutation } from "./useClientMutation";
-import { ClientFormData } from "@/types/client";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
-export const useClientData = (id: string | undefined) => {
+/**
+ * Custom hook to fetch data for the current user - modified to work without the clients table
+ */
+export const useClientData = () => {
   const { user, userRole } = useAuth();
-  
-  // Only use the user metadata client ID in specific cases:
-  // 1. We're in client view (userRole is 'client')
-  // 2. No ID was explicitly provided
-  let clientId = id;
-  if (!clientId && userRole === 'client' && user?.user_metadata?.client_id) {
-    clientId = user.user_metadata.client_id;
-  }
-  
-  // Log this info for debugging
-  console.log("useClientData: id param =", id);
-  console.log("useClientData: user metadata client_id =", user?.user_metadata?.client_id);
-  console.log("useClientData: user role =", userRole);
-  console.log("useClientData: using clientId =", clientId);
-  
-  const { client, isLoadingClient, error, refetchClient } = useClient(clientId);
-  const clientMutation = useClientMutation(clientId);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [userData, setUserData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  return {
-    client,
-    isLoadingClient,
-    error,
-    clientMutation,
-    clientId,
-    refetchClient
-  };
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user || userRole !== "user") {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Instead of fetching from clients table, we'll get user profile data
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        setUserData(data || {
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || "User"
+        });
+      } catch (err: any) {
+        console.error("Error fetching user data:", err);
+        setError(err.message);
+        toast.error("Failed to load user data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user, userRole]);
+
+  return { userData, isLoading, error };
 };

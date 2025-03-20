@@ -1,134 +1,79 @@
-import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Session, User } from "@supabase/supabase-js";
-import { UserRole } from "@/types/auth";
-import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
 
-type AuthInitializeProps = {
-  authInitialized: boolean;
-  isCallbackUrl: boolean;
+import { useEffect } from 'react';
+import { determineUserRole } from '@/utils/authUtils';
+import { supabase } from '@/integrations/supabase/client';
+import { UserRole } from '@/types/app';
+import { User, Session } from '@supabase/supabase-js';
+
+interface AuthInitializeProps {
   setSession: (session: Session | null) => void;
   setUser: (user: User | null) => void;
   setUserRole: (role: UserRole | null) => void;
-  setIsLoading: (isLoading: boolean) => void;
+  setIsLoading: (loading: boolean) => void;
   setAuthInitialized: (initialized: boolean) => void;
-};
+}
 
-export const useAuthInitialize = ({
-  authInitialized,
-  isCallbackUrl,
+export default function useAuthInitialize({
   setSession,
   setUser,
   setUserRole,
   setIsLoading,
   setAuthInitialized
-}: AuthInitializeProps) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
+}: AuthInitializeProps) {
   useEffect(() => {
-    let mounted = true;
-
+    // Define the auth initialization function
     const initializeAuth = async () => {
-      // Skip init if already initialized or handling callback
-      if (authInitialized || isCallbackUrl) return;
-      
       try {
-        console.log("Initializing auth state");
+        // Get the current session
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        // Keep loading state true until we've completed all checks
-        setIsLoading(true);
+        if (error) {
+          console.error('Error getting session:', error);
+          throw error;
+        }
         
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-
-        if (currentSession?.user) {
-          console.log("Session found during init:", currentSession.user.email);
+        if (session) {
+          // If we have a session, get the user
+          const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
           
-          setSession(currentSession);
-          setUser(currentSession.user);
-          
-          // Always check for client status
-          const determinedUserRole = await determineUserRole(currentSession.user);
-          console.log("User role determined in init:", determinedUserRole, "for", currentSession.user.email);
-          setUserRole(determinedUserRole);
-          sessionStorage.setItem('user_role_set', determinedUserRole);
-          
-          // Handle redirects if on auth page or at root
-          const isAuthPage = location.pathname === '/auth';
-          const isRootPage = location.pathname === '/';
-          const isOldAdminPage = !location.pathname.startsWith('/admin/') && 
-                               !location.pathname.startsWith('/client/') && 
-                               location.pathname !== '/auth';
-          
-          if (isAuthPage || isRootPage || isOldAdminPage) {
-            // Get the appropriate dashboard route
-            const dashboardRoute = getDashboardRoute(determinedUserRole);
-            console.log("Redirecting to dashboard in init:", dashboardRoute);
-            // Navigate to the appropriate dashboard
-            navigate(dashboardRoute, { replace: true });
+          if (userError) {
+            console.error('Error getting user:', userError);
+            throw userError;
           }
           
-          // Set initialized first, then clear loading state to prevent flicker
-          setAuthInitialized(true);
-          setTimeout(() => {
-            if (mounted) setIsLoading(false);
-          }, 300);
+          if (currentUser) {
+            // Set the session and user
+            setSession(session);
+            setUser(currentUser);
+            
+            // Determine user role
+            let role = await determineUserRole(currentUser);
+            setUserRole(role);
+          } else {
+            // No valid user, reset auth state
+            setSession(null);
+            setUser(null);
+            setUserRole(null);
+          }
         } else {
-          console.log("No active session found during init");
+          // No session, reset auth state
           setSession(null);
           setUser(null);
           setUserRole(null);
-          sessionStorage.removeItem('user_role_set');
-          
-          const isAuthPage = location.pathname === '/auth';
-          const isSetupPage = location.pathname.startsWith('/client/setup');
-              
-          if (!isAuthPage && !isSetupPage) {
-            console.log("No session, redirecting to auth page in init");
-            navigate('/auth', { replace: true });
-          }
-          
-          setAuthInitialized(true);
-          setIsLoading(false);
         }
-      } catch (error) {
-        console.error("Error in initializeAuth:", error);
-        if (mounted) {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          setAuthInitialized(true);
-          setIsLoading(false);
-          sessionStorage.removeItem('user_role_set');
-          
-          // Redirect to auth page on error
-          const isAuthPage = location.pathname === '/auth';
-          const isSetupPage = location.pathname.startsWith('/client/setup');
-          
-          if (!isAuthPage && !isSetupPage) {
-            navigate('/auth', { replace: true });
-          }
-        }
+      } catch (err) {
+        console.error('Auth initialization error:', err);
+        // Reset on error
+        setSession(null);
+        setUser(null);
+        setUserRole(null);
+      } finally {
+        setIsLoading(false);
+        setAuthInitialized(true);
       }
     };
 
+    // Run the initialize function
     initializeAuth();
-
-    return () => {
-      mounted = false;
-    };
-  }, [
-    navigate, 
-    location.pathname, 
-    authInitialized, 
-    setSession, 
-    setUser, 
-    setUserRole, 
-    setIsLoading, 
-    setAuthInitialized, 
-    isCallbackUrl
-  ]);
-};
+  }, [setSession, setUser, setUserRole, setIsLoading, setAuthInitialized]);
+}
