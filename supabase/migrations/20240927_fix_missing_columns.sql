@@ -1,199 +1,126 @@
 
--- First, check if agent_name column exists in clients table, if not add it
-DO $$
+-- Fix the clients table - Make sure agent_name exists
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS agent_name TEXT DEFAULT 'AI Assistant';
+
+-- Fix the ai_agents table - Add all missing columns
+ALTER TABLE public.ai_agents 
+ADD COLUMN IF NOT EXISTS agent_description TEXT,
+ADD COLUMN IF NOT EXISTS content TEXT,
+ADD COLUMN IF NOT EXISTS embedding VECTOR(1536),
+ADD COLUMN IF NOT EXISTS url TEXT,
+ADD COLUMN IF NOT EXISTS interaction_type TEXT,
+ADD COLUMN IF NOT EXISTS query_text TEXT,
+ADD COLUMN IF NOT EXISTS response_time_ms INTEGER,
+ADD COLUMN IF NOT EXISTS is_error BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS error_type TEXT,
+ADD COLUMN IF NOT EXISTS error_message TEXT,
+ADD COLUMN IF NOT EXISTS error_status TEXT DEFAULT 'pending',
+ADD COLUMN IF NOT EXISTS topic TEXT,
+ADD COLUMN IF NOT EXISTS sentiment TEXT,
+ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'::jsonb,
+ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+ADD COLUMN IF NOT EXISTS logo_url TEXT,
+ADD COLUMN IF NOT EXISTS logo_storage_path TEXT,
+ADD COLUMN IF NOT EXISTS ai_prompt TEXT,
+ADD COLUMN IF NOT EXISTS size INTEGER,
+ADD COLUMN IF NOT EXISTS type TEXT,
+ADD COLUMN IF NOT EXISTS "uploadDate" TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS status TEXT;
+
+-- Make sure client interface type has agent_name in all existing rows
+UPDATE public.clients 
+SET agent_name = 'AI Assistant' 
+WHERE agent_name IS NULL;
+
+-- Helper function to get common queries
+DROP FUNCTION IF EXISTS get_common_queries(uuid, text, integer);
+CREATE OR REPLACE FUNCTION get_common_queries(
+  client_id_param uuid,
+  agent_name_param text,
+  limit_param integer
+) 
+RETURNS TABLE (
+  query_text text,
+  frequency bigint
+) AS $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'clients' AND column_name = 'agent_name'
-  ) THEN
-    ALTER TABLE public.clients ADD COLUMN agent_name TEXT;
+  RETURN QUERY
+  SELECT 
+    a.query_text,
+    COUNT(*) as frequency
+  FROM ai_agents a
+  WHERE 
+    a.client_id = client_id_param
+    AND (agent_name_param IS NULL OR a.name = agent_name_param)
+    AND a.interaction_type = 'chat_interaction'
+    AND a.query_text IS NOT NULL
+  GROUP BY a.query_text
+  ORDER BY frequency DESC
+  LIMIT limit_param;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create function to get agent dashboard stats
+DROP FUNCTION IF EXISTS get_agent_dashboard_stats(uuid, text);
+CREATE OR REPLACE FUNCTION get_agent_dashboard_stats(
+  client_id_param uuid,
+  agent_name_param text
+) 
+RETURNS json AS $$
+DECLARE
+  total_interactions integer;
+  active_days integer;
+  avg_response_time numeric;
+  top_queries json;
+BEGIN
+  -- Get total interactions
+  SELECT COUNT(*) INTO total_interactions
+  FROM ai_agents
+  WHERE client_id = client_id_param
+    AND name = agent_name_param
+    AND interaction_type = 'chat_interaction'
+    AND is_error = false;
     
-    -- Set default value for existing rows
-    UPDATE public.clients SET agent_name = 'AI Assistant' WHERE agent_name IS NULL;
-  END IF;
-END$$;
+  -- Get active days
+  SELECT COUNT(DISTINCT DATE(created_at)) INTO active_days
+  FROM ai_agents
+  WHERE client_id = client_id_param
+    AND name = agent_name_param
+    AND interaction_type = 'chat_interaction';
+    
+  -- Get average response time
+  SELECT COALESCE(AVG(response_time_ms)::numeric / 1000, 0) INTO avg_response_time
+  FROM ai_agents
+  WHERE client_id = client_id_param
+    AND name = agent_name_param
+    AND interaction_type = 'chat_interaction'
+    AND response_time_ms IS NOT NULL;
+    
+  -- Get top queries
+  SELECT json_agg(q) INTO top_queries
+  FROM (
+    SELECT query_text, COUNT(*) as frequency
+    FROM ai_agents
+    WHERE client_id = client_id_param
+      AND name = agent_name_param
+      AND interaction_type = 'chat_interaction'
+      AND query_text IS NOT NULL
+    GROUP BY query_text
+    ORDER BY frequency DESC
+    LIMIT 5
+  ) q;
+  
+  -- Return stats as JSON
+  RETURN json_build_object(
+    'total_interactions', total_interactions,
+    'active_days', active_days,
+    'average_response_time', avg_response_time,
+    'top_queries', COALESCE(top_queries, '[]'::json)
+  );
+END;
+$$ LANGUAGE plpgsql;
 
--- Add missing columns to ai_agents table
-DO $$
-BEGIN
-  -- Add agent_description if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'agent_description'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN agent_description TEXT;
-  END IF;
-
-  -- Add content column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'content'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN content TEXT;
-  END IF;
-
-  -- Add url column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'url'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN url TEXT;
-  END IF;
-
-  -- Add settings column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'settings'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN settings JSONB DEFAULT '{}'::jsonb;
-  END IF;
-
-  -- Add query_text column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'query_text'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN query_text TEXT;
-  END IF;
-
-  -- Add response_time_ms column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'response_time_ms'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN response_time_ms INTEGER;
-  END IF;
-
-  -- Add is_error column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'is_error'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN is_error BOOLEAN DEFAULT FALSE;
-  END IF;
-
-  -- Add error_type column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'error_type'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN error_type TEXT;
-  END IF;
-
-  -- Add error_message column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'error_message'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN error_message TEXT;
-  END IF;
-
-  -- Add error_status column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'error_status'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN error_status TEXT;
-  END IF;
-
-  -- Add logo_url column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'logo_url'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN logo_url TEXT;
-  END IF;
-
-  -- Add logo_storage_path column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'logo_storage_path'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN logo_storage_path TEXT;
-  END IF;
-
-  -- Add interaction_type column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'interaction_type'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN interaction_type TEXT;
-  END IF;
-
-  -- Add size column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'size'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN size INTEGER;
-  END IF;
-
-  -- Add type column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'type'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN type TEXT;
-  END IF;
-
-  -- Add uploadDate column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'uploadDate'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN "uploadDate" TIMESTAMP WITH TIME ZONE;
-  END IF;
-
-  -- Add status column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'status'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN status TEXT;
-  END IF;
-
-  -- Add topic column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'topic'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN topic TEXT;
-  END IF;
-
-  -- Add sentiment column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'sentiment'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN sentiment TEXT;
-  END IF;
-
-  -- Add embedding column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'embedding'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN embedding VECTOR(1536);
-  END IF;
-
-  -- Add ai_prompt column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'ai_agents' AND column_name = 'ai_prompt'
-  ) THEN
-    ALTER TABLE public.ai_agents ADD COLUMN ai_prompt TEXT;
-  END IF;
-END$$;
-
--- Log the migration in client_activities
-INSERT INTO public.client_activities (
-  client_id,
-  activity_type,
-  description,
-  metadata
-) VALUES (
-  'system',
-  'schema_update',
-  'Fixed missing columns in clients and ai_agents tables',
-  '{"migration": "20240927_fix_missing_columns", "tables_updated": ["clients", "ai_agents"]}'
-);
+-- Grant execute permissions to authenticated users
+GRANT EXECUTE ON FUNCTION get_common_queries(uuid, text, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_agent_dashboard_stats(uuid, text) TO authenticated;

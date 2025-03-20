@@ -49,4 +49,6 @@ export interface Client extends ClientFormData {
   drive_link?: string;
   drive_link_added_at?: string;
   website_url_added_at?: string;
+  // Add agent_name as an optional field to avoid TypeScript errors
+  agent_name?: string;
 }
