@@ -6,57 +6,63 @@ import {
   createClient,
   logClientUpdateActivity
 } from "@/services/clientService";
+import { sanitizeForSQL } from "@/utils/inputSanitizer";
 import { toast } from "sonner";
-
-// Function to sanitize strings by removing quotation marks
-function sanitizeString(str: string | null | undefined): string | null {
-  if (str === null || str === undefined) return null;
-  return str.replace(/"/g, '');
-}
 
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      // Sanitize agent name and description to remove quotation marks
-      const sanitizedData = {
+      console.log("Data before mutation:", data);
+      
+      // Create a deep copy of the data to avoid mutating the original object
+      const sanitizedData: ClientFormData = {
         ...data,
-        agent_name: data.agent_name ? sanitizeString(data.agent_name) : null,
-        agent_description: data.agent_description ? sanitizeString(data.agent_description) : null
+        widget_settings: {
+          ...data.widget_settings,
+          // Ensure agent_name is sanitized if present in widget_settings
+          agent_name: data.widget_settings?.agent_name ? 
+            sanitizeForSQL(data.widget_settings.agent_name) : 
+            'AI Assistant'
+        }
       };
+      
+      console.log("Data after sanitization:", sanitizedData);
 
       if (id) {
         // Update existing client
-        const clientId = await updateClient(id, sanitizedData);
-        await logClientUpdateActivity(id);
-        return clientId;
+        try {
+          const clientId = await updateClient(id, sanitizedData);
+          await logClientUpdateActivity(id);
+          return clientId;
+        } catch (error) {
+          console.error("Error updating client in mutation:", error);
+          console.error("Error details:", JSON.stringify(error, null, 2));
+          throw error;
+        }
       } else {
         // Create new client
-        let clientId;
-        let emailSent = false;
-        let errorMessage = null;
-        
         try {
           // Create the client record which also handles sending the invitation email
-          clientId = await createClient(sanitizedData);
+          console.log("Calling createClient with sanitized data...");
+          const clientId = await createClient(sanitizedData);
           console.log("Client created successfully with ID:", clientId);
           
-          // The email is already sent in createClient, so we don't need to send it again here
-          emailSent = true;
+          return {
+            clientId,
+            emailSent: true,
+            errorMessage: null
+          };
         } catch (error: any) {
           console.error("Error in client creation process:", error);
+          
+          // Add more detailed logs to track what's happening
+          if (error.code) {
+            console.error(`SQL Error code: ${error.code}, message: ${error.message}`);
+          }
+          
+          // Re-throw with a clearer message
           throw new Error(`Failed to create client: ${error.message}`);
         }
-        
-        if (!emailSent && errorMessage) {
-          // If client was created but email failed, still return client ID but with error info
-          console.log(`Client created but email failed: ${errorMessage}`);
-        }
-        
-        return {
-          clientId,
-          emailSent,
-          errorMessage
-        };
       }
     }
   });

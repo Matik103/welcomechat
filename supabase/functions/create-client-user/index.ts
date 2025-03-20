@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
@@ -7,8 +8,22 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
+// Function to sanitize strings for database operations
+const sanitizeString = (value: string | null | undefined): string => {
+  if (!value) return '';
+  
+  // Thoroughly replace double quotes with single quotes to prevent SQL errors
+  let sanitized = value.replace(/"/g, "'");
+  
+  // Also escape backslashes which could cause issues
+  sanitized = sanitized.replace(/\\/g, "\\\\");
+  
+  console.log(`Edge function: Sanitizing "${value}" to "${sanitized}"`);
+  return sanitized;
+};
+
 // Function to generate an AI prompt based on the agent name and description
-const generateAiPrompt = (agentName: string | null, agentDescription: string, clientName: string): string => {
+const generateAiPrompt = (agentName: string, agentDescription: string, clientName: string): string => {
   // System prompt template to ensure assistants only respond to client-specific questions
   const SYSTEM_PROMPT_TEMPLATE = `You are an AI assistant created within the ByClicks AI system, designed to serve individual clients with their own unique knowledge bases. Each assistant is assigned to a specific client, and must only respond based on the information available for that specific client.
 
@@ -27,13 +42,17 @@ Rules & Limitations:
 - Technical questions about your own system or how you are built.
 - Anything unrelated to the client you are assigned to serve.`;
   
+  // Sanitize inputs to be extra safe - double sanitization for critical inputs
+  const sanitizedAgentName = sanitizeString(agentName);
+  const sanitizedClientName = sanitizeString(clientName);
+  const sanitizedDescription = sanitizeString(agentDescription);
+  
   // Create a client-specific prompt
-  const actualAgentName = agentName || "AI Assistant";
-  let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${actualAgentName}, an AI assistant for ${clientName}.`;
+  let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${sanitizedAgentName}, an AI assistant for ${sanitizedClientName}.`;
   
   // Add agent description if provided
-  if (agentDescription && agentDescription.trim() !== '') {
-    prompt += ` ${agentDescription}`;
+  if (sanitizedDescription && sanitizedDescription.trim() !== '') {
+    prompt += ` ${sanitizedDescription}`;
   } else {
     prompt += ` Your goal is to provide clear, concise, and accurate information to users based on the knowledge provided to you.`;
   }
@@ -42,9 +61,9 @@ Rules & Limitations:
   prompt += `\n\nAs an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.
 
 When asked questions outside your knowledge base or off-limit topics, respond with something like:
-- "I'm here to assist with questions related to ${clientName}'s business. How can I help you with that?"
-- "I focus on providing support for ${clientName}. If you need assistance with something else, I recommend checking an appropriate resource."
-- "I'm designed to assist with ${clientName}'s needs. Let me know how I can help with that!"
+- "I'm here to assist with questions related to ${sanitizedClientName}'s business. How can I help you with that?"
+- "I focus on providing support for ${sanitizedClientName}. If you need assistance with something else, I recommend checking an appropriate resource."
+- "I'm designed to assist with ${sanitizedClientName}'s needs. Let me know how I can help with that!"
 
 You have access to a knowledge base of documents and websites that have been processed and stored for your reference. When answering questions, prioritize information from this knowledge base when available.`;
 
@@ -80,15 +99,19 @@ serve(async (req) => {
     let body;
     try {
       body = await req.json();
-      console.log("Request body parsed:", {
+      console.log("Request body received:", {
         email: body.email,
         client_id: body.client_id,
-        client_name: body.client_name,
+        client_name: body.client_name
+      });
+      console.log("Agent details received:", {
         agent_name: body.agent_name,
+        agent_name_type: typeof body.agent_name,
         agent_description: body.agent_description,
         logo_url: body.logo_url,
         logo_storage_path: body.logo_storage_path
       });
+      console.log("Full request body (stringified):", JSON.stringify(body));
     } catch (parseError) {
       console.error("Failed to parse request body:", parseError);
       return new Response(
@@ -101,6 +124,19 @@ serve(async (req) => {
     }
     
     const { email, client_id, client_name, agent_name, agent_description, logo_url, logo_storage_path } = body;
+    
+    // Triple-check sanitization of agent name and description
+    const sanitizedAgentName = sanitizeString(agent_name);
+    const sanitizedClientName = sanitizeString(client_name);
+    const sanitizedAgentDescription = sanitizeString(agent_description);
+    
+    console.log("Edge function: Using sanitized agent name:", sanitizedAgentName);
+    console.log("Edge function: Raw agent name value:", agent_name);
+    
+    // Debug check for any remaining double quotes
+    if (sanitizedAgentName.includes('"')) {
+      console.error("CRITICAL: Agent name still contains double quotes after sanitization!");
+    }
     
     if (!email || !client_id) {
       console.error("Missing required fields:", { 
@@ -145,15 +181,15 @@ serve(async (req) => {
       console.log("User already exists, updating metadata and password:", email);
       userId = existingUser.id;
       
-      // Update user metadata and password
+      // Update user metadata with sanitized agent name
       const { error: updateError } = await supabase.auth.admin.updateUserById(
         userId,
         {
           password: tempPassword,
           user_metadata: { 
             client_id,
-            client_name,
-            agent_name, // Use agent name exactly as provided
+            client_name: sanitizedClientName,
+            agent_name: sanitizedAgentName,
             user_type: "client"
           }
         }
@@ -177,8 +213,8 @@ serve(async (req) => {
         email_confirm: true,
         user_metadata: { 
           client_id,
-          client_name,
-          agent_name, // Use agent name exactly as provided
+          client_name: sanitizedClientName,
+          agent_name: sanitizedAgentName,
           user_type: "client"
         },
         email_confirm_sent: false // Disable automatic confirmation email
@@ -199,7 +235,7 @@ serve(async (req) => {
       console.log("User created successfully with ID:", userId);
     }
     
-    // Create client role for this user
+    // Create user role for this user
     try {
       console.log("Creating user role for user:", userId);
       const { error: roleError } = await supabase
@@ -220,11 +256,11 @@ serve(async (req) => {
       console.warn("Error creating user role:", roleError);
     }
     
-    // Generate AI prompt
-    const aiPrompt = generateAiPrompt(agent_name, agent_description || "", client_name || "");
+    // Generate AI prompt with sanitized data
+    const aiPrompt = generateAiPrompt(sanitizedAgentName, sanitizedAgentDescription || "", sanitizedClientName || "");
     console.log("Generated AI prompt:", aiPrompt);
     
-    // Create AI agent entry for this client - using exact agent name and logo
+    // Create AI agent entry with sanitized agent name
     try {
       console.log("Creating AI agent for client:", client_id);
       console.log("Using logo URL:", logo_url);
@@ -234,14 +270,14 @@ serve(async (req) => {
         .from("ai_agents")
         .insert({
           client_id: client_id,
-          name: agent_name || "AI Assistant", // Use agent name exactly as provided or default
-          agent_description: agent_description || "",
+          name: sanitizedAgentName,
+          agent_description: sanitizedAgentDescription || "",
           ai_prompt: aiPrompt,
           logo_url: logo_url || "",
           logo_storage_path: logo_storage_path || "",
           settings: {
-            agent_description: agent_description || "",
-            client_name: client_name,
+            agent_description: sanitizedAgentDescription || "",
+            client_name: sanitizedClientName,
             logo_url: logo_url || "",
             logo_storage_path: logo_storage_path || "",
             created_at: new Date().toISOString()
@@ -262,8 +298,8 @@ serve(async (req) => {
         activity_type: "ai_agent_created",
         description: "AI agent was created during client signup",
         metadata: {
-          agent_name: agent_name,
-          agent_description: agent_description,
+          agent_name: sanitizedAgentName,
+          agent_description: sanitizedAgentDescription,
           logo_url: logo_url
         }
       });
@@ -286,10 +322,13 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("Error in create-client-user function:", err);
+    console.error("Error stack:", err.stack);
+    console.error("Error details:", JSON.stringify(err, null, 2));
     
     return new Response(
       JSON.stringify({ 
-        error: err.message || "Failed to create client user" 
+        error: err.message || "Failed to create client user",
+        details: JSON.stringify(err)
       }),
       { 
         status: 500, 

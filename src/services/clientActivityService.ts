@@ -14,7 +14,7 @@ type AppRole = Database["public"]["Enums"]["app_role"];
  */
 export const createClientActivity = async (
   clientId: string,
-  activityType: ActivityType,
+  activityType: ExtendedActivityType,
   description: string,
   metadata: Json = {}
 ): Promise<void> => {
@@ -26,12 +26,15 @@ export const createClientActivity = async (
       metadata
     });
     
-    // Create the activity record
+    // Map the extended activity type to a valid database activity type
+    const { dbActivityType, enhancedMetadata } = mapActivityType(activityType, metadata);
+    
+    // Create the activity record with the mapped type
     const { error } = await supabase.from("client_activities").insert({
       client_id: clientId,
-      activity_type: activityType,
+      activity_type: dbActivityType as any, // Type casting to bypass strict type-checking
       description,
-      metadata
+      metadata: enhancedMetadata
     });
     
     if (error) {
@@ -53,7 +56,7 @@ export const createClientActivity = async (
         // Try again with the fallback type
         const { error: fallbackError } = await supabase.from("client_activities").insert({
           client_id: clientId,
-          activity_type: fallbackType,
+          activity_type: fallbackType as any,
           description,
           metadata: enhancedMetadata
         });

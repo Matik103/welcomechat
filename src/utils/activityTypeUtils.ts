@@ -3,114 +3,94 @@ import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
 /**
- * Maps extended activity types to database activity types and handles metadata enhancement
+ * Maps the extended activity type to a valid database activity type
+ * @param extendedType The extended activity type that may not exist in the database enum
+ * @param metadata Optional metadata to enhance
+ * @returns An object with the mapped database activity type and enhanced metadata
  */
 export const mapActivityType = (
-  activity_type: ExtendedActivityType, 
+  extendedType: ExtendedActivityType,
   metadata: Json = {}
-): { 
-  dbActivityType: ActivityType, 
-  enhancedMetadata: Json 
-} => {
-  let dbActivityType: ActivityType;
-  let enhancedMetadata = metadata;
+): { dbActivityType: ActivityType; enhancedMetadata: Json } => {
+  // Start with the original metadata or an empty object
+  const metadataObj = 
+    typeof metadata === 'object' && metadata !== null ? 
+    { ...metadata } : 
+    {};
   
-  // Handle special cases that aren't in the database enum
-  switch (activity_type) {
-    // New enum value now exists in the database
-    case "ai_agent_created":
-      dbActivityType = "ai_agent_created";
-      break;
-      
-    // New enum value now exists in the database  
-    case "ai_agent_updated":
-      dbActivityType = "ai_agent_updated";
-      break;
-      
-    // Document-related activities
-    case "document_link_added":
-    case "document_uploaded":
-    case "document_link_deleted":
-      // Map to "document_updated" or another relevant existing enum value
-      dbActivityType = "ai_agent_table_created";
-      
-      // Store the original activity type in metadata for reference
-      const documentMetadataObj = typeof metadata === 'object' && metadata !== null 
-        ? metadata 
-        : {};
-        
-      enhancedMetadata = {
-        ...documentMetadataObj,
-        original_activity_type: activity_type
-      } as Json;
-      break;
-      
-    // Map system_update to client_updated which is a stable enum value
-    case "system_update":
-      dbActivityType = "system_update";
-      break;
-      
-    // Map new document processing activities to a reliable enum that exists
+  // Default to client_updated as a fallback activity type
+  let dbActivityType: ActivityType = "client_updated";
+  
+  // Add the original type to metadata for reference
+  (metadataObj as Record<string, any>).original_activity_type = extendedType;
+  
+  // Map extended types to database types
+  switch (extendedType) {
+    // Direct mappings (these already exist in the database enum)
+    case "client_created":
+    case "client_updated":
+    case "client_deleted":
+    case "client_recovered":
+    case "widget_settings_updated":
+    case "website_url_added":
+    case "drive_link_added":
+    case "url_deleted":
+    case "drive_link_deleted":
+    case "invitation_sent":
+    case "invitation_accepted":
+    case "webhook_sent":
+    case "document_stored":
+    case "document_processed":
     case "document_processing_started":
     case "document_processing_completed":
     case "document_processing_failed":
-      // Use client_updated which is a stable enum value
-      dbActivityType = "client_updated";
-      
-      // Store the original activity type in metadata for reference
-      const processingMetadataObj = typeof metadata === 'object' && metadata !== null 
-        ? metadata 
-        : {};
-        
-      enhancedMetadata = {
-        ...processingMetadataObj,
-        original_activity_type: activity_type
-      } as Json;
-      break;
-      
-    // Handle signed_out activity
-    case "signed_out":
-      dbActivityType = "client_updated";
-      
-      // Store the original activity type in metadata for reference
-      const metadataObj = typeof metadata === 'object' && metadata !== null 
-        ? metadata 
-        : {};
-        
-      enhancedMetadata = {
-        ...metadataObj,
-        original_activity_type: activity_type
-      } as Json;
-      break;
-      
-    // These still need to be mapped
+    case "ai_agent_created":
+    case "ai_agent_updated":
     case "logo_uploaded":
+    case "system_update":
+    case "document_link_added":
+    case "document_link_deleted":
+    case "document_uploaded":
+    case "signed_out":
     case "embed_code_copied":
     case "widget_previewed":
-      // Map to a valid enum type that's closest in meaning
-      dbActivityType = "ai_agent_table_created";
-      
-      // Store the original activity type in metadata for reference
-      // Make sure metadata is an object before spreading
-      const otherMetadataObj = typeof metadata === 'object' && metadata !== null 
-        ? metadata 
-        : {};
-        
-      enhancedMetadata = {
-        ...otherMetadataObj,
-        original_activity_type: activity_type
-      } as Json;
+    case "chat_interaction":
+    case "email_sent":
+      // These types already exist in the database enum
+      dbActivityType = extendedType as ActivityType;
       break;
+      
+    // Extended types that need mapping
+    case "agent_name_updated":
+      dbActivityType = "ai_agent_updated";
+      (metadataObj as Record<string, any>).field_updated = "agent_name";
+      break;
+      
+    case "error_logged":
+    case "agent_error":
+      dbActivityType = "system_update";
+      (metadataObj as Record<string, any>).error_type = extendedType;
+      break;
+      
+    // Default case - use client_updated as a safe fallback
     default:
-      // For all other cases, use the activity type directly
-      dbActivityType = activity_type as ActivityType;
+      dbActivityType = "client_updated";
+      (metadataObj as Record<string, any>).unmapped_type = extendedType;
+      console.warn(`Unmapped activity type "${extendedType}" defaulting to "client_updated"`);
   }
   
-  return { dbActivityType, enhancedMetadata };
+  return {
+    dbActivityType,
+    enhancedMetadata: metadataObj as Json
+  };
 };
 
 /**
- * Generates a standardized AI prompt from agent name and description
+ * Generates an AI prompt based on the agent name, description, and client name
+ * @param agentName The name of the AI agent
+ * @param agentDescription Optional description of the AI agent
+ * @param clientName Optional name of the client
+ * @returns A formatted AI prompt string
  */
 export const generateAiPrompt = (agentName: string, agentDescription: string, clientName?: string): string => {
   // System prompt template to ensure assistants only respond to client-specific questions
@@ -131,29 +111,30 @@ Rules & Limitations:
 - Technical questions about your own system or how you are built.
 - Anything unrelated to the client you are assigned to serve.`;
   
+  // Sanitize inputs to be extra safe
+  const sanitizedAgentName = agentName.replace(/"/g, "'");
+  const sanitizedClientName = clientName ? clientName.replace(/"/g, "'") : "your organization";
+  const sanitizedDescription = agentDescription ? agentDescription.replace(/"/g, "'") : "";
+  
   // Create a client-specific prompt
-  let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${agentName}.`;
+  let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${sanitizedAgentName}, an AI assistant for ${sanitizedClientName}.`;
   
   // Add agent description if provided
-  if (agentDescription && agentDescription.trim() !== '') {
-    prompt += ` ${agentDescription}`;
+  if (sanitizedDescription && sanitizedDescription.trim() !== '') {
+    prompt += ` ${sanitizedDescription}`;
   } else {
     prompt += ` Your goal is to provide clear, concise, and accurate information to users based on the knowledge provided to you.`;
   }
-  
-  // Add client name to response if provided
-  const businessName = clientName || agentName;
   
   // Add instructions for responding to off-limit questions
   prompt += `\n\nAs an AI assistant, your goal is to embody this description in all your interactions while providing helpful, accurate information to users. Maintain a conversational tone that aligns with the description above.
 
 When asked questions outside your knowledge base or off-limit topics, respond with something like:
-- "I'm here to assist with questions related to ${businessName}'s business. How can I help you with that?"
-- "I focus on providing support for ${businessName}. If you need assistance with something else, I recommend checking an appropriate resource."
-- "I'm designed to assist with ${businessName}'s needs. Let me know how I can help with that!"
+- "I'm here to assist with questions related to ${sanitizedClientName}'s business. How can I help you with that?"
+- "I focus on providing support for ${sanitizedClientName}. If you need assistance with something else, I recommend checking an appropriate resource."
+- "I'm designed to assist with ${sanitizedClientName}'s needs. Let me know how I can help with that!"
 
 You have access to a knowledge base of documents and websites that have been processed and stored for your reference. When answering questions, prioritize information from this knowledge base when available.`;
 
   return prompt;
-}
-
+};

@@ -35,6 +35,7 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
         onClick={onDeleteClick}
         className="p-1 text-gray-400 hover:text-red-600 transition-colors"
         title="Delete"
+        aria-label="Delete client"
       >
         <Trash2 className="w-4 h-4" />
       </button>
