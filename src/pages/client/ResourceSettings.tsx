@@ -1,14 +1,15 @@
 
-import { Card } from "@/components/ui/card";
-import { PageHeading } from "@/components/dashboard/PageHeading";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import React, { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useParams, useNavigate } from "react-router-dom";
 import { useClient } from "@/hooks/useClient";
-import { Link, useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
-import { Loader2 } from "lucide-react";
-import { logClientActivity } from "@/services/clientActivityService";
-import { Json } from "@/integrations/supabase/types";
+import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { createClientActivity } from "@/services/clientActivityService";
+// Use the type directly from integrations/supabase/types
 import { ActivityType } from "@/integrations/supabase/types";
 
 export default function ResourceSettings() {

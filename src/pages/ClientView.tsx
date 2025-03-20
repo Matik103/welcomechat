@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -25,13 +24,12 @@ import { useClientChatHistory } from '@/hooks/useClientChatHistory';
 import { ChatInteraction } from '@/types/agent';
 import { formatDate } from '@/utils/stringUtils';
 
-export default function ClientView() {
+const ClientView = () => {
   const { clientId = '' } = useParams();
   const [clientData, setClientData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { chatHistory, isLoading: isLoadingChatHistory, debug } = useClientChatHistory(clientId);
 
-  // Fetch client data
   useEffect(() => {
     const fetchClient = async () => {
       if (!clientId) return;
@@ -39,7 +37,6 @@ export default function ClientView() {
       try {
         setIsLoading(true);
         
-        // Use the execSql utility to fetch client data from ai_agents
         const query = `
           SELECT * FROM ai_agents 
           WHERE id = '${clientId}' 
@@ -61,7 +58,6 @@ export default function ClientView() {
     fetchClient();
   }, [clientId]);
 
-  // Get website URLs and document links
   const [websiteUrls, setWebsiteUrls] = useState<any[]>([]);
   const [documentLinks, setDocumentLinks] = useState<any[]>([]);
   
@@ -70,7 +66,6 @@ export default function ClientView() {
       if (!clientId) return;
       
       try {
-        // Fetch website URLs
         const websiteUrlsQuery = `
           SELECT * FROM website_urls 
           WHERE client_id = '${clientId}' 
@@ -82,7 +77,6 @@ export default function ClientView() {
           setWebsiteUrls(websiteUrlsResult);
         }
         
-        // Fetch document links
         const documentLinksQuery = `
           SELECT * FROM document_links 
           WHERE client_id = '${clientId}' 
@@ -124,11 +118,9 @@ export default function ClientView() {
     );
   }
 
-  // Format the client name and agent name
   const clientName = clientData.client_name || 'Unnamed Client';
   const agentName = clientData.name || 'AI Assistant';
 
-  // For convenience, extract some data
   const totalWebsiteUrls = websiteUrls.length;
   const totalDocumentLinks = documentLinks.length;
 
@@ -152,14 +144,18 @@ export default function ClientView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Main content - 8 columns on large screens */}
         <div className="lg:col-span-8 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Client Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <ClientDetails client={clientData} />
+              <ClientDetails 
+                client={clientData} 
+                clientId={clientId} 
+                isClientView={false}
+                logClientActivity={logActivity}
+              />
             </CardContent>
           </Card>
 
@@ -298,17 +294,15 @@ export default function ClientView() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ClientActivity clientId={clientId} limit={10} />
-            </CardContent>
-          </Card>
+          <div className="mt-10">
+            <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
+            <ClientActivity 
+              activities={activities || []} 
+              isLoading={isLoadingActivities} 
+            />
+          </div>
         </div>
 
-        {/* Sidebar - 4 columns on large screens */}
         <div className="lg:col-span-4 space-y-6">
           <ClientStats 
             clientId={clientId} 
@@ -343,4 +337,6 @@ export default function ClientView() {
       </div>
     </div>
   );
-}
+};
+
+export default ClientView;

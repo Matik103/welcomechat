@@ -1,8 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { checkAndRefreshAuth } from "./authService";
 import { DocumentProcessingOptions, DocumentProcessingResult } from "@/types/document-processing";
-import { v4 as uuidv4 } from "uuid";
 
 /**
  * Upload a document to storage and register it in the database
@@ -176,5 +173,79 @@ export const getDocumentStatus = async (documentId: string): Promise<string> => 
   } catch (error) {
     console.error("Error checking document status:", error);
     return 'error';
+  }
+};
+
+/**
+ * Process a document that was previously uploaded using LlamaParse
+ */
+export const processDocumentWithLlamaParse = async (
+  documentId: string,
+  options: DocumentProcessingOptions
+): Promise<DocumentProcessingResult> => {
+  try {
+    // This is a stub implementation to satisfy the TypeScript error
+    // Call the Supabase function to process the document
+    const { data, error } = await supabase.functions.invoke('process-document', {
+      body: {
+        documentId,
+        clientId: options.clientId,
+        agentName: options.agentName,
+        processingMethod: options.processingMethod || 'llamaparse'
+      },
+    });
+
+    if (error) {
+      console.error('Error processing document:', error);
+      return {
+        success: false,
+        status: 'failed',
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      status: 'completed',
+      documentId,
+      content: data?.content,
+      metadata: data?.metadata
+    };
+  } catch (error) {
+    console.error('Error in processDocumentWithLlamaParse:', error);
+    return {
+      success: false,
+      status: 'failed',
+      documentId,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+};
+
+/**
+ * Process a document that was previously uploaded using LlamaParse
+ */
+export const processDocumentByOptions = async (
+  documentId: string,
+  options: Record<string, any>
+): Promise<DocumentProcessingResult> => {
+  try {
+    // Convert options from a record to the correct type
+    const validOptions: DocumentProcessingOptions = {
+      clientId: options.clientId || "",
+      agentName: options.agentName,
+      processingMethod: options.processingMethod || "standard"
+    };
+    
+    // Call the actual processing function
+    return await processDocumentWithLlamaParse(documentId, validOptions);
+  } catch (error) {
+    console.error("Error processing document:", error);
+    return {
+      success: false,
+      status: "failed",
+      documentId,
+      error: error instanceof Error ? error.message : String(error)
+    };
   }
 };

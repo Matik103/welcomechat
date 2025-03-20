@@ -33,11 +33,14 @@ export interface ValidationResult {
   };
 }
 
-// Add WebsiteUrlsProps interface
+// Updated WebsiteUrlsProps interface with all required properties
 export interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
   isLoading: boolean;
-  addWebsiteUrl: (data: { url: string; refresh_rate: number; }) => Promise<void>;
-  deleteWebsiteUrl: (urlId: number) => Promise<void>;
+  onAdd: (data: { url: string; refresh_rate: number; }) => Promise<void>;
+  onDelete: (urlId: number) => Promise<void>;
   isClientView?: boolean;
+  isAdding?: boolean;
+  isDeleting?: boolean;
+  agentName?: string;
 }

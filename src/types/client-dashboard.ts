@@ -7,6 +7,7 @@ export interface QueryItem {
   frequency: number;
   created_at?: string;
   client_id?: string;
+  last_asked?: string; // Added missing property
 }
 
 export interface InteractionStats {
