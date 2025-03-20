@@ -1,6 +1,7 @@
+
 import { useMutation } from "@tanstack/react-query";
 import { ClientFormData, clientFormSchema } from "@/types/client-form";
-import { createClient } from "@/services/clientService";
+import { createAgent } from "@/services/clientService";
 import { toast } from "sonner";
 
 export const useNewClientMutation = () => {
@@ -13,8 +14,8 @@ export const useNewClientMutation = () => {
           throw new Error("Invalid form data");
         }
 
-        // Create the client with validated data
-        const result = await createClient({
+        // Create the AI agent with validated data
+        const result = await createAgent({
           client_name: validationResult.data.client_name.trim(),
           email: validationResult.data.email.trim().toLowerCase(),
           widget_settings: validationResult.data.widget_settings ? {
@@ -26,12 +27,12 @@ export const useNewClientMutation = () => {
 
         return result;
       } catch (error) {
-        console.error("Error creating client:", error);
-        throw new Error(error instanceof Error ? error.message : "Failed to create client");
+        console.error("Error creating AI agent:", error);
+        throw new Error(error instanceof Error ? error.message : "Failed to create AI agent");
       }
     },
     onError: (error: Error) => {
       toast.error(error.message);
     },
   });
-}; 
+};
