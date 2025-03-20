@@ -12,7 +12,7 @@ import { createClientActivity } from "@/services/clientActivityService";
 import { Loader2 } from "lucide-react";
 import { ExtendedActivityType } from "@/types/activity";
 import { PageHeading } from "@/components/dashboard/PageHeading";
-import { Json } from "@/integrations/supabase/types";
+import { JsonObject } from "@/types/supabase-extensions";
 
 export default function ResourceSettings() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -22,7 +22,7 @@ export default function ResourceSettings() {
   const logClientActivity = async (
     activityType: ExtendedActivityType,
     description: string,
-    metadata?: Json
+    metadata?: JsonObject
   ) => {
     if (!clientId) return;
     try {

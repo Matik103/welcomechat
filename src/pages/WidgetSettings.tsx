@@ -6,7 +6,7 @@ import { useClientActivity } from "@/hooks/useClientActivity";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useState } from "react";
-import { defaultSettings } from "@/types/widget-settings";
+import { defaultSettings, WidgetPosition } from "@/types/widget-settings";
 
 const WidgetSettings = () => {
   const { id } = useParams();
@@ -81,10 +81,12 @@ const WidgetSettings = () => {
     );
   }
 
-  // Ensure settings has all required properties
+  // Ensure settings has all required properties and correct types
   const completeSettings = {
     ...defaultSettings,
-    ...settings
+    ...settings,
+    // Ensure position is a valid WidgetPosition
+    position: (settings.position as WidgetPosition) || defaultSettings.position
   };
 
   return (
