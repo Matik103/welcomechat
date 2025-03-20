@@ -55,3 +55,43 @@ export const tableExists = async (tableName: string): Promise<boolean> => {
     return false;
   }
 };
+
+/**
+ * Helper function to safely parse JSON responses from RPC calls
+ */
+export const parseJsonResponse = <T>(data: any): T[] => {
+  if (!data) return [];
+  if (!Array.isArray(data)) return [];
+  
+  return data.map(item => {
+    // Handle various response formats
+    if (typeof item === 'string') {
+      try {
+        return JSON.parse(item);
+      } catch (e) {
+        return item as unknown as T;
+      }
+    }
+    return item as T;
+  });
+};
+
+/**
+ * Maps raw JSON data to a typed object
+ */
+export const mapJsonToObject = <T>(json: any, defaultValues: Partial<T> = {}): T => {
+  if (!json) return defaultValues as T;
+  
+  const result = { ...defaultValues };
+  
+  // For each property in the default values, try to extract it from the JSON
+  for (const key in defaultValues) {
+    if (Object.prototype.hasOwnProperty.call(defaultValues, key)) {
+      if (json[key] !== undefined) {
+        (result as any)[key] = json[key];
+      }
+    }
+  }
+  
+  return result as T;
+};

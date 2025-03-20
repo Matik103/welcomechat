@@ -1,75 +1,78 @@
 
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from "@/contexts/AuthContext";
+import { Card } from "@/components/ui/card";
+import { PageHeading } from "@/components/dashboard/PageHeading";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { useClient } from "@/hooks/useClient";
+import { Link, useParams } from "react-router-dom";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { toast } from 'sonner';
+import { Loader2 } from "lucide-react";
+import { logClientActivity } from "@/services/clientActivityService";
+import { Json } from "@/integrations/supabase/types";
+import { ActivityType } from "@/integrations/supabase/types";
 
-const ResourceSettings = () => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const clientId = user?.user_metadata?.client_id;
-  
-  const { client, isLoadingClient, error } = useClient(clientId);
-  const { logClientActivity } = useClientActivity(clientId);
-  
-  useEffect(() => {
-    if (error) {
-      toast.error("Failed to load your data");
-      console.error("Error loading client data:", error);
+export default function ResourceSettings() {
+  const { clientId } = useParams<{ clientId: string }>();
+  const { client, isLoading } = useClient(clientId || '');
+
+  // Log client activity
+  const handleLogActivity = async (
+    activityType: ActivityType,
+    description: string,
+    metadata?: Json
+  ) => {
+    if (!clientId) return;
+    try {
+      await logClientActivity(clientId, activityType, description, metadata);
+    } catch (error) {
+      console.error("Error logging activity:", error);
     }
-  }, [error]);
+  };
 
-  if (isLoadingClient) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!client && !isLoadingClient) {
+  if (!client) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Client Information Not Found</h1>
-          <p className="text-gray-600 mb-6">We couldn't find your client information. Please contact support if this issue persists.</p>
-          <Link to="/client/dashboard" className="text-blue-500 hover:underline">
-            Return to Dashboard
-          </Link>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <p className="text-lg text-muted-foreground mb-4">Client not found</p>
+        <Button asChild>
+          <Link to="/client/dashboard">Go to Dashboard</Link>
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-3xl mx-auto space-y-8">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate('/client/dashboard')}
-            className="text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Resources & Knowledge</h1>
-            <p className="text-gray-500">Manage the knowledge sources for your AI assistant</p>
-          </div>
+    <div className="container py-8 max-w-4xl">
+      <div className="flex justify-between items-center mb-6">
+        <PageHeading>Resources & Knowledge</PageHeading>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/client/dashboard">Back to Dashboard</Link>
+          </Button>
         </div>
-
-        <ClientResourceSections 
-          clientId={clientId}
-          agentName={client?.agent_name || client?.name}
-          className="mt-6"
-          isClientView={true}
-        />
       </div>
+
+      <Card className="p-6 mb-8">
+        <h2 className="text-lg font-semibold mb-2">Agent Knowledge Base</h2>
+        <p className="text-muted-foreground mb-4">
+          Manage the resources that provide your AI agent with knowledge. Add URLs to crawl and document links to process.
+        </p>
+        
+        <ClientResourceSections 
+          clientId={clientId || ''} 
+          agentName={client.agent_name || client.name || 'AI Assistant'}
+          className="mt-8"
+          isClientView={true}
+          logClientActivity={handleLogActivity}
+        />
+      </Card>
     </div>
   );
-};
-
-export default ResourceSettings;
+}

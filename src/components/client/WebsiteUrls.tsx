@@ -1,13 +1,23 @@
 
+import React from 'react';
 import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, Globe } from "lucide-react";
-import { WebsiteUrl } from "@/types/client";
-import { ActivityType, Json } from "@/integrations/supabase/types";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { WebsiteUrl } from '@/types/website-url';
+import { toast } from 'sonner';
+import { truncateString } from '@/utils/stringUtils';
+import { formatDate } from '@/utils/stringUtils';
 
 interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
@@ -16,7 +26,7 @@ interface WebsiteUrlsProps {
   isLoading: boolean;
   isAdding: boolean;
   isDeleting: boolean;
-  logActivity: (activityType: ActivityType, description: string, metadata?: Json) => Promise<void>;
+  agentName: string;
 }
 
 export const WebsiteUrls = ({
@@ -26,116 +36,128 @@ export const WebsiteUrls = ({
   isLoading,
   isAdding,
   isDeleting,
-  logActivity
+  agentName
 }: WebsiteUrlsProps) => {
   const [newUrl, setNewUrl] = useState('');
-  const [refreshRate, setRefreshRate] = useState(30);
-  
+
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUrl) return;
     
-    await onAdd({
-      url: newUrl,
-      refresh_rate: refreshRate
-    });
-    setNewUrl('');
-  };
-  
-  const handleDelete = async (urlId: number) => {
+    if (!newUrl) {
+      toast.error('Please enter a valid URL');
+      return;
+    }
+    
     try {
-      await logActivity("website_url_deleted", "Website URL deleted", { 
-        url_id: urlId 
+      // Attempt to validate URL
+      const url = newUrl.startsWith('http') ? newUrl : `https://${newUrl}`;
+      new URL(url);
+
+      await onAdd({ 
+        url, 
+        refresh_rate: 30 // Default refresh rate: 30 days
       });
-      await onDelete(urlId);
+      
+      setNewUrl('');
     } catch (error) {
-      console.error("Error deleting URL:", error);
+      console.error('Invalid URL:', error);
+      toast.error('Please enter a valid URL');
     }
   };
-  
+
+  // Handle delete
+  const handleDelete = async (urlId: number) => {
+    if (confirm('Are you sure you want to delete this URL?')) {
+      await onDelete(urlId);
+    }
+  };
+
   return (
-    <Card className="p-6">
-      <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="url">Website URL</Label>
-          <Input
-            id="url"
-            placeholder="https://example.com"
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-            required
-          />
+          <Label htmlFor="url">Add Website URL</Label>
+          <div className="flex gap-2">
+            <Input
+              id="url"
+              placeholder="https://example.com"
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              disabled={isAdding}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={isAdding || !newUrl}>
+              {isAdding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="refreshRate">Refresh Interval (days)</Label>
-          <Select value={String(refreshRate)} onValueChange={(value) => setRefreshRate(Number(value))}>
-            <SelectTrigger id="refreshRate">
-              <SelectValue placeholder="Select refresh interval" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">1 day</SelectItem>
-              <SelectItem value="7">7 days</SelectItem>
-              <SelectItem value="14">14 days</SelectItem>
-              <SelectItem value="30">30 days</SelectItem>
-              <SelectItem value="60">60 days</SelectItem>
-              <SelectItem value="90">90 days</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <Button type="submit" disabled={isAdding || !newUrl}>
-          {isAdding ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding...
-            </>
-          ) : (
-            <>
-              <Plus className="mr-2 h-4 w-4" /> Add URL
-            </>
-          )}
-        </Button>
       </form>
-      
+
       <div>
-        <h3 className="text-lg font-medium mb-4">Existing URLs</h3>
+        <h3 className="font-medium mb-2">Website URLs</h3>
         {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="text-center py-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="mt-2 text-sm text-muted-foreground">Loading website URLs...</p>
           </div>
         ) : urls.length === 0 ? (
-          <div className="text-center py-8">
-            <Globe className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-            <p className="text-gray-500">No website URLs added yet.</p>
-          </div>
+          <Card className="p-4 text-center text-muted-foreground">
+            No website URLs have been added yet.
+          </Card>
         ) : (
-          <div className="space-y-3">
-            {urls.map((url) => (
-              <div key={url.id} className="flex items-center justify-between p-3 border rounded-md">
-                <div className="flex items-center space-x-2">
-                  <Globe className="h-5 w-5 text-blue-600" />
-                  <a 
-                    href={url.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline font-medium"
-                  >
-                    {url.url.length > 50 ? `${url.url.substring(0, 50)}...` : url.url}
-                  </a>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => handleDelete(url.id)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                </Button>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>URL</TableHead>
+                <TableHead>Added</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {urls.map((url) => (
+                <TableRow key={url.id}>
+                  <TableCell>
+                    <a
+                      href={url.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {truncateString(url.url, 50)}
+                    </a>
+                  </TableCell>
+                  <TableCell>{formatDate(url.created_at)}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(url.id)}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      )}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
-    </Card>
+    </div>
   );
 };
