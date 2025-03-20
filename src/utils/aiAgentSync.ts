@@ -41,7 +41,7 @@ export async function syncWidgetSettingsWithAgent(
     if (agentData?.id) {
       // Generate an updated AI prompt with clientName
       const aiPrompt = generateAiPrompt(
-        "AI Assistant", 
+        "AI Assistant", // Use fixed name instead of settings.agent_name
         agentData.agent_description || "", 
         clientName
       );
