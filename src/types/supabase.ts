@@ -41,6 +41,12 @@ export interface AIAgent {
   logo_url?: string;
   logo_storage_path?: string;
   ai_prompt?: string;
+  
+  // Potential document properties
+  size?: number;
+  type?: string;
+  uploadDate?: string;
+  status?: string;
 }
 
 export type Database = {
@@ -57,6 +63,35 @@ export type Database = {
         Update: Partial<AIAgent>;
       };
       // ... other tables
+    };
+    Functions: {
+      get_common_queries: {
+        Args: {
+          client_id_param: string;
+          agent_name_param: string | null;
+          limit_param: number;
+        };
+        Returns: {
+          query_text: string;
+          frequency: number;
+        }[];
+      };
+      get_agent_dashboard_stats: {
+        Args: {
+          client_id_param: string;
+          agent_name_param: string;
+        };
+        Returns: {
+          total_interactions: number;
+          active_days: number;
+          average_response_time: number;
+          top_queries: {
+            query_text: string;
+            frequency: number;
+          }[];
+        };
+      };
+      // Add other database functions as needed
     };
   };
 }; 
