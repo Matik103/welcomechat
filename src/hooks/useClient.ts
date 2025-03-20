@@ -46,10 +46,9 @@ export const useClient = (clientId: string) => {
           deletion_scheduled_at: clientData.deletion_scheduled_at ? String(clientData.deletion_scheduled_at) : undefined,
           deleted_at: clientData.deleted_at ? String(clientData.deleted_at) : undefined,
           status: String(clientData.status || 'active'),
-          company: String(clientData.company || ''),
+          agent_name: String(clientData.name || ''),
           description: String(clientData.agent_description || ''),
           name: String(clientData.name || ''),
-          agent_name: String(clientData.name || ''),
           last_active: clientData.last_active ? String(clientData.last_active) : undefined,
           widget_settings: clientData.settings || {},
         };

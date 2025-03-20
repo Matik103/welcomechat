@@ -123,7 +123,10 @@ export default function ClientList() {
   if (error) {
     return (
       <div className="container mx-auto py-8">
-        <PageHeading title="Client Management" description="Error loading clients" />
+        <PageHeading 
+          title="Client Management" 
+          description="Error loading clients" 
+        />
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
           Failed to load clients. Please try refreshing the page.
         </div>
@@ -146,7 +149,10 @@ export default function ClientList() {
         </Link>
       </div>
 
-      <ClientSearchBar onSearch={handleSearch} className="mb-6" />
+      <ClientSearchBar 
+        onSearch={handleSearch} 
+        className="mb-6" 
+      />
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">

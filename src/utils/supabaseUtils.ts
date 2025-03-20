@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { callRpcFunction } from "./rpcUtils";
 
@@ -11,28 +10,26 @@ export const tableExists = async (tableName: string): Promise<boolean> => {
   try {
     const query = `
       SELECT EXISTS (
-        SELECT FROM information_schema.tables 
+        SELECT 1 FROM information_schema.tables 
         WHERE table_schema = 'public' 
         AND table_name = '${tableName}'
       ) as exists
     `;
     
-    const result = await callRpcFunction('exec_sql', {
-      sql_query: query
+    // Direct query with JSON result
+    const { data, error } = await supabase.rpc('exec_sql', {
+      sql_query: `SELECT json_build_object('exists', (${query}))`
     });
     
-    // Parse the result correctly - handle different return formats
-    if (result && typeof result === 'object') {
-      if (Array.isArray(result) && result.length > 0) {
-        // If an array is returned, extract the exists value
-        const exists = result[0]?.exists;
-        return typeof exists === 'boolean' ? exists : 
-               typeof exists === 'string' ? exists.toLowerCase() === 'true' : 
-               Boolean(exists);
-      } else if ('exists' in (result as any)) {
-        // If a direct object is returned
-        return Boolean((result as any).exists);
-      }
+    if (error) {
+      console.error(`Error checking if table ${tableName} exists:`, error);
+      return false;
+    }
+    
+    // Parse the result correctly
+    if (data && Array.isArray(data) && data.length > 0) {
+      const result = data[0] as Record<string, any>;
+      return result.exists === true;
     }
     
     return false;
@@ -49,52 +46,45 @@ export const initializeRpcFunctions = async () => {
   try {
     console.log("Initializing Supabase RPC functions...");
     
-    // Check if the exec_sql function exists - use a direct try/catch approach
+    // Check if the exec_sql function exists by running a simple query
     try {
-      const testResult = await callRpcFunction('exec_sql', {
-        sql_query: 'SELECT 1 as test'
+      const testResult = await supabase.rpc('exec_sql', {
+        sql_query: 'SELECT json_build_object(\'test\', 1)'
       });
       
-      if (!testResult) {
-        console.error("Error checking exec_sql function: No result returned");
+      if (testResult.error) {
+        console.error("Error checking exec_sql function:", testResult.error);
       } else {
-        console.log("exec_sql function is available:", testResult);
+        console.log("exec_sql function is available:", testResult.data);
       }
     } catch (error) {
       console.error("Error checking exec_sql function:", error);
     }
     
-    // Check if document_links table exists - use a direct query
+    // Check if document_links table exists using a direct query
     try {
-      const tableCheckResult = await callRpcFunction('exec_sql', {
+      const { data, error } = await supabase.rpc('exec_sql', {
         sql_query: `
-          SELECT EXISTS (
+          SELECT json_build_object('exists', EXISTS (
             SELECT FROM pg_tables 
             WHERE schemaname = 'public' 
             AND tablename = 'document_links'
-          ) as exists
+          ))
         `
       });
       
-      // The result may be in different formats depending on how the RPC function is implemented
-      let exists = false;
-      const data = tableCheckResult;
-      
-      if (Array.isArray(data) && data.length > 0 && data[0]) {
-        const firstItem = data[0] as Record<string, any>;
-        exists = Boolean(firstItem.exists);
-      } else if (typeof data === 'object' && data !== null) {
-        exists = Boolean((data as any).exists);
-      } else if (typeof data === 'boolean') {
-        exists = data;
+      if (error) {
+        console.error("Error checking document_links table:", error);
+      } else if (data && Array.isArray(data) && data.length > 0) {
+        const result = data[0] as Record<string, any>;
+        const exists = result.exists === true;
+        console.log("document_links table exists:", exists);
       }
-      
-      console.log("document_links table exists:", exists);
     } catch (error) {
       console.warn("document_links table check failed:", error);
     }
     
-    // Check if required functions exist
+    // Check required functions with safer approaches
     try {
       await callRpcFunction('get_document_access_status', {
         document_id: 0
