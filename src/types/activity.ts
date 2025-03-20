@@ -30,7 +30,8 @@ export type ActivityType =
   | "document_uploaded"
   | "signed_out"
   | "embed_code_copied"
-  | "widget_previewed";
+  | "widget_previewed"
+  | "email_sent";
 
 // Extended activity types for additional client activities
 export type ExtendedActivityType = ActivityType 
