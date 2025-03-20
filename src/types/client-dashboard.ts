@@ -1,52 +1,71 @@
 
+import { Json } from "@/integrations/supabase/types";
+
+export interface QueryItem {
+  id: string;
+  query_text: string;
+  frequency: number;
+  created_at?: string;
+  client_id?: string;
+}
+
 export interface InteractionStats {
-  // Snake case properties (original)
+  // Snake case properties (from API)
   total_interactions: number;
   active_days: number;
   average_response_time: number;
-  top_queries: Array<{query_text: string; frequency: number}>;
-  success_rate?: number; // Optional field for backward compatibility
+  top_queries: QueryItem[];
+  success_rate: number;
   
-  // Camel case aliases for frontend compatibility
+  // Camel case properties (for frontend)
   totalInteractions: number;
   activeDays: number;
   averageResponseTime: number;
-  topQueries: Array<{query_text: string; frequency: number}>;
-  successRate?: number; // Added for compatibility with frontend code
+  topQueries: QueryItem[];
+  successRate: number;
 }
 
-// Alias for backward compatibility
-export type DashboardStats = InteractionStats;
+export interface ChatInteraction {
+  id: string;
+  client_id?: string;
+  agent_name?: string;
+  query_text: string;
+  response: string;
+  response_time_ms?: number;
+  created_at: string;
+  topic?: string;
+  sentiment?: string;
+  is_error?: boolean;
+  error_type?: string;
+  error_message?: string;
+}
 
 export interface ErrorLog {
   id: string;
+  client_id: string;
   error_type: string;
   message: string;
+  status: 'pending' | 'resolved' | 'ignored';
   created_at: string;
-  status: string;
-  client_id?: string;
+  updated_at?: string;
+  handled_by?: string;
+  resolution_note?: string;
   query_text?: string;
+  source?: string;
 }
 
-export interface QueryItem {
-  id?: string;
-  query_text: string;
-  frequency: number;
-  last_asked?: string;
-  client_id?: string;
-  created_at?: string;
-}
-
-// Define ChatInteraction to include both query_text and other properties
-export interface ChatInteraction {
+export interface ClientActivity {
   id: string;
-  query?: string;
-  query_text?: string; // For compatibility
-  response?: string;
+  client_id: string;
+  client_name?: string;
+  activity_type: string;
+  description: string;
   created_at: string;
-  timestamp?: string; // Alternative field name
-  agent_name?: string;
-  metadata?: any;
-  clientId?: string; // Added for compatibility
-  client_id?: string; // Original field name
+  metadata: Json;
+}
+
+export interface ClientActivityProps {
+  activities: ClientActivity[];
+  isLoading: boolean;
+  className?: string;
 }
