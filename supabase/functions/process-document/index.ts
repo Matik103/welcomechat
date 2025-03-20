@@ -74,6 +74,35 @@ export function determineProcessingMethod(documentType: string, documentUrl: str
   throw new Error(`Unsupported document type: ${documentType}`);
 }
 
+// Helper function to store content in ai_agents table
+async function storeInAiAgents(
+  supabase: SupabaseClient,
+  clientId: string,
+  agentName: string,
+  content: string,
+  documentType: string,
+  documentUrl: string,
+  metadata: any = {}
+) {
+  const { error } = await supabase
+    .from("ai_agents")
+    .insert({
+      client_id: clientId,
+      name: agentName,
+      content: content,
+      url: documentUrl,
+      interaction_type: `${documentType}_content`,
+      settings: metadata,
+      is_error: false,
+      created_at: new Date().toISOString()
+    });
+
+  if (error) {
+    console.error('Error storing content in ai_agents:', error);
+    throw new Error(`Failed to store content in ai_agents: ${error.message}`);
+  }
+}
+
 // Process with LlamaParse
 export async function processWithLlamaParse(
   documentUrl: string,
@@ -87,41 +116,78 @@ export async function processWithLlamaParse(
   try {
     console.log(`Processing ${documentType} with LlamaParse:`, documentUrl);
 
-    const response = await fetch('https://api.llamaparse.com/v1/parse', {
+    // Step 1: Upload document
+    const uploadResponse = await fetch('https://api.cloud.llamaindex.ai/api/parsing/upload', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${Deno.env.get('LLAMAPARSE_API_KEY')}`
       },
       body: JSON.stringify({
-        url: documentUrl,
-        document_type: documentType
+        file_url: documentUrl,
+        file_type: documentType
       })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("LlamaParse API error:", errorText);
-      await updateJobStatus(supabase, jobId, "failed", `LlamaParse API error: ${response.status} ${response.statusText} - ${errorText}`);
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error("LlamaParse upload error:", errorText);
+      await updateJobStatus(supabase, jobId, "failed", `LlamaParse upload error: ${uploadResponse.status} ${uploadResponse.statusText}`);
       return {
         success: false,
-        error: `LlamaParse API error: ${response.status} ${response.statusText}`
+        error: `LlamaParse upload error: ${uploadResponse.status} ${uploadResponse.statusText}`
       };
     }
 
-    let llamaParseResult;
-    try {
-      llamaParseResult = await response.json();
-    } catch (jsonError) {
-      console.error("Failed to parse LlamaParse API response:", jsonError);
-      await updateJobStatus(supabase, jobId, "failed", `Failed to parse LlamaParse API response: ${jsonError.message}`);
-      return {
-        success: false,
-        error: `Failed to parse LlamaParse API response: ${jsonError.message}`
-      };
+    const uploadResult = await uploadResponse.json();
+    const llamaParseJobId = uploadResult.job_id;
+
+    // Step 2: Poll for job completion
+    let jobStatus;
+    let attempts = 0;
+    const maxAttempts = 30; // 5 minutes with 10-second intervals
+
+    while (attempts < maxAttempts) {
+      const statusResponse = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/job/${llamaParseJobId}`, {
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('LLAMAPARSE_API_KEY')}`
+        }
+      });
+
+      if (!statusResponse.ok) {
+        throw new Error(`Failed to check job status: ${statusResponse.statusText}`);
+      }
+
+      jobStatus = await statusResponse.json();
+
+      if (jobStatus.status === 'completed') {
+        break;
+      } else if (jobStatus.status === 'failed') {
+        throw new Error(`Job failed: ${jobStatus.error || 'Unknown error'}`);
+      }
+
+      // Wait 10 seconds before next attempt
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      attempts++;
     }
 
-    const extractedContent = llamaParseResult.content;
+    if (attempts >= maxAttempts) {
+      throw new Error('Job timed out after 5 minutes');
+    }
+
+    // Step 3: Get the parsed content
+    const resultResponse = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/result/${llamaParseJobId}`, {
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('LLAMAPARSE_API_KEY')}`
+      }
+    });
+
+    if (!resultResponse.ok) {
+      throw new Error(`Failed to get job result: ${resultResponse.statusText}`);
+    }
+
+    const result = await resultResponse.json();
+    const extractedContent = result.content;
 
     if (!extractedContent) {
       await updateJobStatus(supabase, jobId, "failed", "No content could be extracted from LlamaParse");
@@ -138,8 +204,8 @@ export async function processWithLlamaParse(
         content: extractedContent,
         processed_at: new Date().toISOString(),
         processing_method: "llamaparse",
-        llamaparse_job_id: jobId,
-        document_metadata: llamaParseResult.metadata || {}
+        llamaparse_job_id: llamaParseJobId,
+        document_metadata: result.metadata || {}
       })
       .eq('id', documentId);
 
@@ -161,11 +227,27 @@ export async function processWithLlamaParse(
       {
         document_url: documentUrl,
         processing_method: "llamaparse",
-        llamaparse_job_id: jobId
+        llamaparse_job_id: llamaParseJobId
       }
     );
 
     await updateJobStatus(supabase, jobId, "completed", "Document processed successfully with LlamaParse");
+
+    // After successful processing, store in ai_agents table
+    await storeInAiAgents(
+      supabase,
+      clientId,
+      agentName,
+      extractedContent,
+      documentType,
+      documentUrl,
+      {
+        document_id: documentId,
+        processing_method: 'llamaparse',
+        job_id: jobId,
+        llamaparse_job_id: llamaParseJobId
+      }
+    );
 
     return { success: true };
   } catch (error) {
@@ -189,8 +271,6 @@ export async function processWithFirecrawl(
   documentId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    let firecrawlEndpoint = "";
-    let requestData = {};
     const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
 
     if (!firecrawlApiKey) {
@@ -201,16 +281,7 @@ export async function processWithFirecrawl(
       };
     }
 
-    if (documentType === "website_url") {
-      firecrawlEndpoint = "https://api.firecrawl.dev/content/website";
-      requestData = {
-        url: documentUrl,
-        options: {
-          recursive: true,
-          formats: ["markdown"]
-        }
-      };
-    } else {
+    if (documentType !== "website_url") {
       await updateJobStatus(supabase, jobId, "failed", `Unsupported document type for Firecrawl: ${documentType}`);
       return {
         success: false,
@@ -218,39 +289,83 @@ export async function processWithFirecrawl(
       };
     }
 
-    const response = await fetch(firecrawlEndpoint, {
+    // Step 1: Start crawling job
+    const crawlResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${firecrawlApiKey}`
       },
-      body: JSON.stringify(requestData)
+      body: JSON.stringify({
+        url: documentUrl,
+        maxDepth: 2,
+        limit: 10,
+        scrapeOptions: {
+          recursive: true,
+          formats: ["markdown"]
+        }
+      })
     });
 
-    const rawResponseText = await response.text();
-    let firecrawlResult;
-    try {
-      firecrawlResult = JSON.parse(rawResponseText);
-    } catch (jsonError) {
-      console.error("Failed to parse Firecrawl API response:", jsonError);
-      console.error("Raw response:", rawResponseText);
-      await updateJobStatus(supabase, jobId, "failed", `Failed to parse Firecrawl API response: ${jsonError.message}`);
+    if (!crawlResponse.ok) {
+      const errorText = await crawlResponse.text();
+      console.error("Firecrawl API error:", errorText);
+      await updateJobStatus(supabase, jobId, "failed", `Firecrawl API error: ${crawlResponse.status} ${crawlResponse.statusText}`);
       return {
         success: false,
-        error: `Failed to parse Firecrawl API response: ${jsonError.message}`
+        error: `Firecrawl API error: ${crawlResponse.status} ${crawlResponse.statusText}`
       };
     }
 
-    if (!response.ok) {
-      console.error("Firecrawl API error:", firecrawlResult);
-      await updateJobStatus(supabase, jobId, "failed", `Firecrawl API error: ${firecrawlResult.error || response.statusText}`);
-      return {
-        success: false,
-        error: `Firecrawl API error: ${firecrawlResult.error || response.statusText}`
-      };
+    const crawlResult = await crawlResponse.json();
+    const crawlJobId = crawlResult.job_id;
+
+    // Step 2: Poll for job completion
+    let jobStatus;
+    let attempts = 0;
+    const maxAttempts = 30; // 5 minutes with 10-second intervals
+
+    while (attempts < maxAttempts) {
+      const statusResponse = await fetch(`https://api.firecrawl.dev/v1/crawl/${crawlJobId}`, {
+        headers: {
+          'Authorization': `Bearer ${firecrawlApiKey}`
+        }
+      });
+
+      if (!statusResponse.ok) {
+        throw new Error(`Failed to check job status: ${statusResponse.statusText}`);
+      }
+
+      jobStatus = await statusResponse.json();
+
+      if (jobStatus.status === 'completed') {
+        break;
+      } else if (jobStatus.status === 'failed') {
+        throw new Error(`Job failed: ${jobStatus.error || 'Unknown error'}`);
+      }
+
+      // Wait 10 seconds before next attempt
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      attempts++;
     }
 
-    const extractedContent = firecrawlResult.content;
+    if (attempts >= maxAttempts) {
+      throw new Error('Job timed out after 5 minutes');
+    }
+
+    // Step 3: Get the crawled content
+    const resultResponse = await fetch(`https://api.firecrawl.dev/v1/crawl/${crawlJobId}/content`, {
+      headers: {
+        'Authorization': `Bearer ${firecrawlApiKey}`
+      }
+    });
+
+    if (!resultResponse.ok) {
+      throw new Error(`Failed to get job result: ${resultResponse.statusText}`);
+    }
+
+    const result = await resultResponse.json();
+    const extractedContent = result.content;
 
     // Update AI agent content
     const { error: updateError } = await supabase
@@ -259,7 +374,7 @@ export async function processWithFirecrawl(
         content: extractedContent,
         processed_at: new Date().toISOString(),
         processing_method: "firecrawl",
-        document_metadata: firecrawlResult.metadata || {}
+        document_metadata: result.metadata || {}
       })
       .eq('id', documentId);
 
@@ -280,11 +395,28 @@ export async function processWithFirecrawl(
       `Successfully processed ${documentType} with Firecrawl: ${documentUrl}`,
       {
         document_url: documentUrl,
-        processing_method: "firecrawl"
+        processing_method: "firecrawl",
+        firecrawl_job_id: crawlJobId
       }
     );
 
     await updateJobStatus(supabase, jobId, "completed", "Document processed successfully with Firecrawl");
+
+    // After successful processing, store in ai_agents table
+    await storeInAiAgents(
+      supabase,
+      clientId,
+      agentName,
+      extractedContent,
+      documentType,
+      documentUrl,
+      {
+        document_id: documentId,
+        processing_method: 'firecrawl',
+        job_id: jobId,
+        firecrawl_job_id: crawlJobId
+      }
+    );
 
     return { success: true };
   } catch (error) {
