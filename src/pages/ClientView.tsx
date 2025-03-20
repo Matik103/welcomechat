@@ -23,12 +23,16 @@ import { execSql } from '@/utils/rpcUtils';
 import { useClientChatHistory } from '@/hooks/useClientChatHistory';
 import { ChatInteraction } from '@/types/agent';
 import { formatDate } from '@/utils/stringUtils';
+import { useClientActivity } from '@/hooks/useClientActivity';
+import { useRecentActivities } from '@/hooks/useRecentActivities';
 
 const ClientView = () => {
   const { clientId = '' } = useParams();
   const [clientData, setClientData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { chatHistory, isLoading: isLoadingChatHistory, debug } = useClientChatHistory(clientId);
+  const { logClientActivity } = useClientActivity(clientId);
+  const { activities, isLoading: isLoadingActivities } = useRecentActivities(clientId);
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -154,7 +158,7 @@ const ClientView = () => {
                 client={clientData} 
                 clientId={clientId} 
                 isClientView={false}
-                logClientActivity={logActivity}
+                logClientActivity={logClientActivity}
               />
             </CardContent>
           </Card>

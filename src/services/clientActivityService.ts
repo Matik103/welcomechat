@@ -1,47 +1,38 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { Json } from "@/integrations/supabase/types";
-import { ExtendedActivityType } from "@/types/activity";
+import { supabase } from '@/integrations/supabase/client';
+import { ExtendedActivityType } from '@/types/activity';
+import { callRpcFunction } from '@/utils/rpcUtils';
 
 /**
- * Creates a client activity entry in the database
+ * Creates a client activity record
  * @param clientId The client ID
- * @param activityType The type of activity
- * @param description A description of the activity
- * @param metadata Additional metadata about the activity
+ * @param activity_type The type of activity
+ * @param description Description of the activity
+ * @param metadata Additional metadata for the activity
  * @returns The created activity
  */
 export const createClientActivity = async (
   clientId: string,
-  activityType: ExtendedActivityType,
+  activity_type: ExtendedActivityType,
   description: string,
   metadata: Record<string, any> = {}
-): Promise<any> => {
+) => {
   try {
-    console.log(`Creating activity for client ${clientId}: ${activityType} - ${description}`);
-    
-    // Convert metadata to proper Json type
-    const metadataJson: Json = metadata as Json;
-    
-    const { data, error } = await supabase
-      .from("client_activities")
-      .insert({
-        client_id: clientId,
-        activity_type: activityType,
-        description,
-        metadata: metadataJson
-      })
-      .select("id, created_at")
-      .single();
-
-    if (error) {
-      console.error("Error creating client activity:", error);
-      return null;
+    if (!clientId) {
+      throw new Error('Client ID is required for activity logging');
     }
 
-    return data;
+    // Use callRpcFunction to avoid type checking issues
+    const result = await callRpcFunction('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: activity_type,
+      description_param: description,
+      metadata_param: metadata
+    });
+
+    return result;
   } catch (error) {
-    console.error("Error in createClientActivity:", error);
-    return null;
+    console.error('Error creating client activity:', error);
+    throw error;
   }
 };
