@@ -1,6 +1,6 @@
 
 -- Fix the clients table - Make sure agent_name exists
-ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS agent_name TEXT DEFAULT 'AI Assistant';
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS agent_name TEXT DEFAULT '';
 
 -- Fix the ai_agents table - Add all missing columns
 ALTER TABLE public.ai_agents 
@@ -30,7 +30,7 @@ ADD COLUMN IF NOT EXISTS status TEXT;
 
 -- Make sure client interface type has agent_name in all existing rows
 UPDATE public.clients 
-SET agent_name = 'AI Assistant' 
+SET agent_name = '' 
 WHERE agent_name IS NULL;
 
 -- Helper function to get common queries

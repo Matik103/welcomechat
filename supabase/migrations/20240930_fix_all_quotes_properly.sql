@@ -94,7 +94,7 @@ LIMIT 1;
 CREATE OR REPLACE FUNCTION create_new_client(
   p_client_name TEXT,
   p_email TEXT,
-  p_agent_name TEXT DEFAULT 'AI Assistant',
+  p_agent_name TEXT DEFAULT '',
   p_agent_description TEXT DEFAULT NULL,
   p_logo_url TEXT DEFAULT NULL,
   p_logo_storage_path TEXT DEFAULT NULL,
@@ -110,7 +110,7 @@ DECLARE
   final_widget_settings JSONB;
 BEGIN
   -- Sanitize inputs to prevent SQL issues
-  safe_agent_name := REPLACE(COALESCE(p_agent_name, 'AI Assistant'), '"', '');
+  safe_agent_name := REPLACE(COALESCE(p_agent_name, ''), '"', '');
   safe_agent_description := REPLACE(COALESCE(p_agent_description, ''), '"', '');
   
   -- Merge the provided widget_settings with the agent_description
@@ -203,7 +203,7 @@ BEGIN
   ) VALUES (
     new_client_id,
     'client_created',
-    'New client created with AI agent: ' || safe_agent_name,
+    'New client created with widget: ' || safe_agent_name,
     jsonb_build_object(
       'client_name', p_client_name,
       'agent_name', safe_agent_name,
