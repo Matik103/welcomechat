@@ -3392,7 +3392,7 @@ export type Database = {
         Args: {
           client_id_param: string
           agent_name_param: string
-          limit_param?: number
+          limit_param: number
         }
         Returns: {
           query_text: string

@@ -40,6 +40,7 @@ export interface AIAgent {
   updated_at?: string;
   logo_url?: string;
   logo_storage_path?: string;
+  ai_prompt?: string;
 }
 
 export type Database = {
