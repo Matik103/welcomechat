@@ -34,12 +34,20 @@ function runMigration(sqlFilePath) {
     execSync(command, { stdio: 'inherit' });
     
     console.log('Migration completed successfully!');
+    return true;
   } catch (error) {
     console.error('Migration failed:', error.message);
-    process.exit(1);
+    return false;
   }
 }
 
 // Run the migration
-runMigration(migrationFile);
-console.log("Column fix migration complete. The database schema has been updated to include all required columns.");
+const success = runMigration(migrationFile);
+
+if (success) {
+  console.log("Column fix migration complete. The database schema has been updated to include all required columns.");
+  console.log("Please restart your development server to see the changes take effect.");
+} else {
+  console.error("Migration failed. Please check the error messages above.");
+  process.exit(1);
+}
