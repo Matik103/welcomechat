@@ -1,3 +1,4 @@
+
 export interface Client {
   id: string;
   created_at: string;
@@ -14,6 +15,7 @@ export interface Client {
   widget_settings: any;
   urls: string[];
   drive_urls: string[];
+  email: string; // Add email field to match actual database schema
 }
 
 export type Database = {

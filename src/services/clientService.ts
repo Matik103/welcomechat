@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
@@ -48,6 +49,8 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
     .update({
       client_name: data.client_name,
       email: data.email,
+      // Add default agent_name even though we don't use it in UI anymore
+      agent_name: "AI Assistant", 
       // Store agent_description and logo info in widget_settings
       widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
         ? { 
@@ -169,15 +172,17 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     console.log("Final insert data:", {
       client_name: data.client_name,
       email: data.email,
+      agent_name: "AI Assistant", // Add default agent_name
       widget_settings: widgetSettings
     });
     
-    // Create the client record - remove the agent_name field
+    // Create the client record
     const { data: newClients, error } = await supabase
       .from("clients")
       .insert({
         client_name: data.client_name,
         email: data.email,
+        agent_name: "AI Assistant", // Add default agent_name
         // Store the agent_description and logo in widget_settings
         widget_settings: widgetSettings,
         status: 'active',

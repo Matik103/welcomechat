@@ -93,81 +93,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ai_agents: {
-        Row: {
-          agent_description: string | null
-          ai_prompt: string | null
-          client_id: string
-          content: string | null
-          created_at: string | null
-          embedding: string | null
-          error_message: string | null
-          error_status: string | null
-          error_type: string | null
-          id: string
-          interaction_type: string | null
-          is_error: boolean | null
-          logo_storage_path: string | null
-          logo_url: string | null
-          name: string
-          query_text: string | null
-          response_time_ms: number | null
-          sentiment: string | null
-          settings: Json | null
-          topic: string | null
-          updated_at: string | null
-          url: string | null
-        }
-        Insert: {
-          agent_description?: string | null
-          ai_prompt?: string | null
-          client_id: string
-          content?: string | null
-          created_at?: string | null
-          embedding?: string | null
-          error_message?: string | null
-          error_status?: string | null
-          error_type?: string | null
-          id?: string
-          interaction_type?: string | null
-          is_error?: boolean | null
-          logo_storage_path?: string | null
-          logo_url?: string | null
-          name: string
-          query_text?: string | null
-          response_time_ms?: number | null
-          sentiment?: string | null
-          settings?: Json | null
-          topic?: string | null
-          updated_at?: string | null
-          url?: string | null
-        }
-        Update: {
-          agent_description?: string | null
-          ai_prompt?: string | null
-          client_id?: string
-          content?: string | null
-          created_at?: string | null
-          embedding?: string | null
-          error_message?: string | null
-          error_status?: string | null
-          error_type?: string | null
-          id?: string
-          interaction_type?: string | null
-          is_error?: boolean | null
-          logo_storage_path?: string | null
-          logo_url?: string | null
-          name?: string
-          query_text?: string | null
-          response_time_ms?: number | null
-          sentiment?: string | null
-          settings?: Json | null
-          topic?: string | null
-          updated_at?: string | null
-          url?: string | null
-        }
-        Relationships: []
-      }
       ai_agents_backup: {
         Row: {
           agent_description: string | null
@@ -411,20 +336,6 @@ export type Database = {
             foreignKeyName: "client_activities_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "client_activities_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "client_activities_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -483,20 +394,6 @@ export type Database = {
           used_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "client_recovery_tokens_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "client_recovery_tokens_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
           {
             foreignKeyName: "client_recovery_tokens_client_id_fkey"
             columns: ["client_id"]
@@ -683,20 +580,6 @@ export type Database = {
             foreignKeyName: "common_queries_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "common_queries_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "common_queries_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -849,20 +732,6 @@ export type Database = {
             foreignKeyName: "error_logs_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "error_logs_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "error_logs_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -981,20 +850,6 @@ export type Database = {
           refresh_rate?: number
         }
         Relationships: [
-          {
-            foreignKeyName: "google_drive_links_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "google_drive_links_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
           {
             foreignKeyName: "google_drive_links_client_id_fkey"
             columns: ["client_id"]
@@ -3002,20 +2857,6 @@ export type Database = {
             foreignKeyName: "user_roles_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "user_roles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "user_roles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -3324,20 +3165,6 @@ export type Database = {
             foreignKeyName: "website_urls_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "website_urls_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "website_urls_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -3387,28 +3214,7 @@ export type Database = {
       }
     }
     Views: {
-      agent_name_audit: {
-        Row: {
-          agent_record_id: string | null
-          ai_agent_name: string | null
-          client_agent_name: string | null
-          client_id: string | null
-          client_name: string | null
-          created_at: string | null
-          interaction_type: string | null
-        }
-        Relationships: []
-      }
-      chatbot_names_audit: {
-        Row: {
-          agent_id: string | null
-          agent_name: string | null
-          client_agent_name: string | null
-          client_id: string | null
-          client_name: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       accept_invitation: {
