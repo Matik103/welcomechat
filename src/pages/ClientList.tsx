@@ -89,7 +89,7 @@ export default function ClientList() {
             widget_settings: widgetSettings,
             description: agentDescription,
             name,
-            agent_name: agentName,
+            agent_name: agentName || "",  // Ensure agent_name is never undefined
           };
         });
       } catch (err) {
@@ -123,10 +123,12 @@ export default function ClientList() {
   if (error) {
     return (
       <div className="container mx-auto py-8">
-        <PageHeading 
-          title="Client Management" 
-          description="Error loading clients" 
-        />
+        <PageHeading>
+          Client Management
+          <p className="text-sm font-normal text-muted-foreground">
+            Error loading clients
+          </p>
+        </PageHeading>
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
           Failed to load clients. Please try refreshing the page.
         </div>
@@ -137,10 +139,12 @@ export default function ClientList() {
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
-        <PageHeading 
-          title="Client Management" 
-          description="View and manage all your clients"
-        />
+        <PageHeading>
+          Client Management
+          <p className="text-sm font-normal text-muted-foreground">
+            View and manage all your clients
+          </p>
+        </PageHeading>
         <Link to="/admin/clients/new">
           <Button className="flex items-center gap-2">
             <Plus className="w-4 h-4" />

@@ -1,100 +1,70 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { WidgetSettings, defaultSettings } from "@/types/widget-settings";
-import { execSql } from "./rpcUtils";
 import { Json } from "@/integrations/supabase/types";
+import { WidgetSettings, defaultSettings } from "@/types/widget-settings";
 
 /**
- * Gets the widget settings for a client
- * @param clientId The client ID
- * @returns The widget settings
+ * Extracts and normalizes widget settings from client data
  */
-export const getWidgetSettings = async (clientId: string): Promise<WidgetSettings> => {
-  if (!clientId) {
-    return defaultSettings;
+export const extractWidgetSettings = (clientData: any): WidgetSettings => {
+  // Start with default settings
+  let settings = { ...defaultSettings };
+
+  if (!clientData) {
+    return settings;
   }
 
   try {
-    // Use SQL query via RPC instead of direct table access
-    const query = `
-      SELECT settings FROM ai_agents WHERE id = '${clientId}' LIMIT 1
-    `;
-    
-    const result = await execSql(query);
-    
-    if (result && result.length > 0 && result[0].settings) {
-      const settingsValue = result[0].settings;
-      // Merge the default settings with the stored settings
-      return {
-        ...defaultSettings,
-        ...(typeof settingsValue === 'object' ? settingsValue : {})
+    // Extract settings from widget_settings property if it exists
+    if (clientData.widget_settings && typeof clientData.widget_settings === 'object') {
+      settings = {
+        ...settings,
+        ...clientData.widget_settings
       };
     }
     
-    return defaultSettings;
-  } catch (error) {
-    console.error("Error fetching widget settings:", error);
-    return defaultSettings;
-  }
-};
-
-/**
- * Updates the widget settings for a client
- * @param clientId The client ID
- * @param settings The new settings to apply
- * @returns True if the update was successful
- */
-export const updateWidgetSettings = async (
-  clientId: string,
-  settings: Partial<WidgetSettings>
-): Promise<boolean> => {
-  if (!clientId) {
-    return false;
-  }
-
-  try {
-    // First get the current settings
-    const currentSettings = await getWidgetSettings(clientId);
-    
-    // Merge the current settings with the new settings
-    const updatedSettings = {
-      ...currentSettings,
-      ...settings
-    };
-    
-    // Update using SQL via RPC instead of direct table access
-    const updateQuery = `
-      UPDATE ai_agents 
-      SET settings = '${JSON.stringify(updatedSettings)}'::jsonb,
-          updated_at = NOW()
-      WHERE id = '${clientId}'
-      RETURNING id
-    `;
-    
-    const result = await execSql(updateQuery);
-    
-    return result && result.length > 0;
-  } catch (error) {
-    console.error("Error updating widget settings:", error);
-    return false;
-  }
-};
-
-/**
- * Converts widget settings to a JSON object compatible with the database
- * @param settings The widget settings
- * @returns A JSON object
- */
-export const widgetSettingsToJson = (settings: Partial<WidgetSettings>): Json => {
-  // Convert the settings to a plain object that can be safely serialized
-  const settingsObject: Record<string, Json> = {};
-  
-  // Only include properties that are present
-  Object.entries(settings).forEach(([key, value]) => {
-    if (value !== undefined) {
-      settingsObject[key] = value as Json;
+    // If there's a settings property and it's an object (from ai_agents table)
+    if (clientData.settings && typeof clientData.settings === 'object') {
+      settings = {
+        ...settings,
+        ...clientData.settings
+      };
     }
-  });
-  
-  return settingsObject as Json;
+
+    // Ensure agent name is set
+    if (clientData.agent_name && !settings.agent_name) {
+      settings.agent_name = clientData.agent_name;
+    } else if (clientData.name && !settings.agent_name) {
+      settings.agent_name = clientData.name;
+    }
+
+    // Ensure agent description is set
+    if (clientData.agent_description && !settings.agent_description) {
+      settings.agent_description = clientData.agent_description;
+    }
+
+    // Ensure logo URL is set
+    if (clientData.logo_url && !settings.logo_url) {
+      settings.logo_url = clientData.logo_url;
+    }
+
+    // Ensure logo storage path is set
+    if (clientData.logo_storage_path && !settings.logo_storage_path) {
+      settings.logo_storage_path = clientData.logo_storage_path;
+    }
+
+    return settings;
+  } catch (error) {
+    console.error("Error extracting widget settings:", error);
+    return defaultSettings;
+  }
+};
+
+/**
+ * Normalizes widget settings to ensure all required properties are present
+ */
+export const normalizeWidgetSettings = (settings: Partial<WidgetSettings>): WidgetSettings => {
+  return {
+    ...defaultSettings,
+    ...settings
+  };
 };

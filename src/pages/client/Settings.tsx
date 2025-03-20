@@ -1,5 +1,6 @@
+
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { execSql } from "@/utils/rpcUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { SecuritySection } from "@/components/settings/SecuritySection";
@@ -35,20 +36,25 @@ const ClientSettings = () => {
       
       try {
         console.log("Fetching client info for email:", user.email);
-        const { data, error } = await supabase
-          .from("clients")
-          .select("*")
-          .eq("email", user.email)
-          .maybeSingle();
-          
-        if (error) {
-          console.error("Error fetching client info:", error);
-          throw error;
+        
+        // Use execSql instead of directly accessing the clients table
+        const query = `
+          SELECT * FROM clients
+          WHERE email = '${user.email}'
+          LIMIT 1
+        `;
+        
+        const result = await execSql(query);
+        
+        if (!result || !Array.isArray(result) || result.length === 0) {
+          throw new Error("Client not found");
         }
         
-        console.log("Client info fetched:", data);
+        const clientData = result[0];
+        console.log("Client info fetched:", clientData);
+        
         if (isMounted) {
-          setClientInfo(data);
+          setClientInfo(clientData);
         }
       } catch (error: any) {
         console.error("Error in fetchClientInfo:", error);

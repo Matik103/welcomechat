@@ -2,29 +2,31 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useClient } from "@/hooks/useClient";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { createClientActivity } from "@/services/clientActivityService";
-// Use the type directly from integrations/supabase/types
-import { ActivityType } from "@/integrations/supabase/types";
+import { Loader2 } from "lucide-react";
+import { ExtendedActivityType } from "@/types/activity";
+import { PageHeading } from "@/components/dashboard/PageHeading";
+import { Json } from "@/integrations/supabase/types";
 
 export default function ResourceSettings() {
   const { clientId } = useParams<{ clientId: string }>();
   const { client, isLoading } = useClient(clientId || '');
 
   // Log client activity
-  const handleLogActivity = async (
-    activityType: ActivityType,
+  const logClientActivity = async (
+    activityType: ExtendedActivityType,
     description: string,
     metadata?: Json
   ) => {
     if (!clientId) return;
     try {
-      await logClientActivity(clientId, activityType, description, metadata);
+      await createClientActivity(clientId, activityType, description, metadata);
     } catch (error) {
       console.error("Error logging activity:", error);
     }
@@ -71,7 +73,7 @@ export default function ResourceSettings() {
           agentName={client.agent_name || client.name || 'AI Assistant'}
           className="mt-8"
           isClientView={true}
-          logClientActivity={handleLogActivity}
+          logClientActivity={logClientActivity}
         />
       </Card>
     </div>
