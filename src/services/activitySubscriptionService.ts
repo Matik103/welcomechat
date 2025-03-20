@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 /**
  * Sets up a real-time subscription for client activities
@@ -7,7 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
  * @param onUpdate - Callback function that will be called when updates occur
  * @returns The subscription channel for cleanup
  */
-export const subscribeToActivities = (clientId: string, onUpdate: () => void) => {
+export const subscribeToActivities = (
+  clientId: string, 
+  onUpdate: () => void
+): RealtimeChannel | null => {
   if (!clientId) {
     console.error("No client ID provided for activity subscription");
     return null;
@@ -38,21 +42,11 @@ export const subscribeToActivities = (clientId: string, onUpdate: () => void) =>
 };
 
 /**
- * Removes an activity subscription channel
- * @param channel - The channel to unsubscribe from
- */
-export const unsubscribeFromActivities = (channel: any) => {
-  if (channel) {
-    supabase.removeChannel(channel);
-  }
-};
-
-/**
  * Sets up a global subscription for all client activities across the system
  * @param onUpdate - Callback function that will be called when any activity is added
  * @returns The subscription channel for cleanup
  */
-export const subscribeToAllActivities = (onUpdate: () => void) => {
+export const subscribeToAllActivities = (onUpdate: () => void): RealtimeChannel => {
   console.log("Setting up global subscription for all client activities");
   
   const channel = supabase

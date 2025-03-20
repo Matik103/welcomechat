@@ -36,9 +36,9 @@ export const useRecentActivities = () => {
         client_name: activity.clients?.client_name || "Unknown Client"
       }));
     },
-    refetchInterval: 2 * 60 * 1000,
+    refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
     refetchOnWindowFocus: false,
-    staleTime: 60 * 1000,
+    staleTime: 60 * 1000, // Data stays fresh for 1 minute
   });
 
   return query;

@@ -5,10 +5,7 @@ export const setupRealtimeActivities = async () => {
   try {
     console.log("Setting up realtime activities...");
     
-    // Since 'execute_sql' RPC is not available, we need to find another approach
-    // For now, let's use Supabase's subscription functionality directly
-    
-    // Subscribe to client_activities table changes
+    // Set up subscription to client_activities table changes
     const subscription = supabase
       .channel('client_activities_changes')
       .on('postgres_changes', { 
@@ -16,9 +13,11 @@ export const setupRealtimeActivities = async () => {
         schema: 'public', 
         table: 'client_activities' 
       }, payload => {
-        console.log('Change received!', payload);
+        console.log('Activity change received!', payload);
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Realtime subscription status:", status);
+      });
     
     console.log("Realtime subscription set up successfully");
     
