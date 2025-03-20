@@ -97,8 +97,8 @@ const AddEditClient = () => {
       ) : (
         <ClientForm
           onSubmit={handleSubmit}
-          initialValues={client}
-          isEditMode={isEditMode}
+          initialData={client}
+          isLoading={loading}
         />
       )}
     </div>
