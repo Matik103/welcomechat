@@ -67,12 +67,25 @@ export const DeleteClientDialog = ({
       }
 
       // Send deletion notification email
-      const emailResult = await sendDeletionEmail(client);
+      setIsSendingEmail(true);
+      const toastId = toast.loading("Sending notification email...");
       
-      if (emailResult.success) {
-        toast.success(`Client scheduled for deletion and notification email sent to ${client.email}`);
-      } else {
-        toast.error(`Client scheduled for deletion but failed to send notification email: ${emailResult.message || "Unknown error"}`);
+      try {
+        const emailResult = await sendDeletionEmail(client);
+        
+        toast.dismiss(toastId);
+        if (emailResult.success) {
+          toast.success(`Client scheduled for deletion and notification email sent to ${client.email}`);
+        } else {
+          toast.error(`Client scheduled for deletion but failed to send notification email: ${emailResult.message || "Unknown error"}`);
+          console.error("Email sending failed:", emailResult);
+        }
+      } catch (emailErr: any) {
+        toast.dismiss(toastId);
+        toast.error(`Failed to send notification email: ${emailErr.message || "Unknown error"}`);
+        console.error("Email sending exception:", emailErr);
+      } finally {
+        setIsSendingEmail(false);
       }
       
       // Let the parent component know to update the list and log the activity
@@ -121,7 +134,6 @@ export const DeleteClientDialog = ({
       return { success: false, message: "Missing client email or name" };
     }
 
-    setIsSendingEmail(true);
     try {
       // Log that we're attempting to send the email
       await createClientActivity(
@@ -199,8 +211,6 @@ export const DeleteClientDialog = ({
       );
       
       return { success: false, message: `Error: ${error.message || "Unknown error"}` };
-    } finally {
-      setIsSendingEmail(false);
     }
   };
 

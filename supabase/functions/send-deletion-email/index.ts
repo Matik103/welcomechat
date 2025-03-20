@@ -60,6 +60,7 @@ serve(async (req) => {
     const agentInfo = agentName ? ` with AI assistant "${agentName}"` : '';
 
     console.log("Sending email with recovery link:", recoveryLink);
+    console.log("Using Resend API Key (first 5 chars):", resendApiKey.substring(0, 5));
 
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: "Welcome.Chat <admin@welcome.chat>",
