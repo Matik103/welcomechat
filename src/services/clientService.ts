@@ -1,17 +1,89 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { ClientFormData } from "@/types/client";
-import { sendEmail } from "@/utils/emailUtils";
-import { generateClientTempPassword } from "@/utils/passwordUtils";
-import { sanitizeForSQL } from "@/utils/inputSanitizer";
+import { ClientFormData } from "@/types/client-form";
 import { toast } from "sonner";
 import { createClientActivity } from "./clientActivityService";
-import { syncWidgetSettingsWithAgent } from "@/utils/aiAgentSync";
-import { createOpenAIAssistant } from "@/utils/openAIUtils";
 
-// Handles the process of creating a new client
+// Creates or updates a client
 export const createClient = async (data: ClientFormData): Promise<string> => {
-  console.log("Creating client with data:", { 
+  try {
+    // Insert data directly into ai_agents table
+    const { data: agentData, error: agentError } = await supabase
+      .from("ai_agents")
+      .insert({
+        client_name: data.client_name,
+        email: data.email,
+        name: data.widget_settings?.agent_name || "AI Assistant",
+        agent_description: data.widget_settings?.agent_description,
+        logo_url: data.widget_settings?.logo_url,
+        settings: data.widget_settings || {},
+        content: "",
+        interaction_type: "config",
+        status: "active"
+      })
+      .select("id")
+      .single();
+
+    if (agentError) {
+      console.error("Error creating AI agent:", agentError);
+      throw agentError;
+    }
+
+    const agentId = agentData.id;
+    console.log(`AI agent created with ID: ${agentId}`);
+
+    // Log AI agent creation activity
+    await createClientActivity(
+      agentId,
+      "ai_agent_created",
+      `New AI agent created: ${data.client_name}`,
+      { 
+        email: data.email,
+        agent_name: data.widget_settings?.agent_name,
+        has_agent_description: !!data.widget_settings?.agent_description
+      }
+    );
+
+    return agentId;
+  } catch (error) {
+    console.error("Error in createClient function:", error);
+    throw error;
+  }
+};
+
+// Updates an existing client
+export const updateClient = async (clientId: string, data: ClientFormData): Promise<string> => {
+  try {
+    // Update data in ai_agents table
+    const { error: updateError } = await supabase
+      .from("ai_agents")
+      .update({
+        client_name: data.client_name,
+        email: data.email,
+        name: data.widget_settings?.agent_name || "AI Assistant",
+        agent_description: data.widget_settings?.agent_description,
+        logo_url: data.widget_settings?.logo_url,
+        settings: {
+          ...data.widget_settings
+        }
+      })
+      .eq("id", clientId);
+
+    if (updateError) {
+      console.error("Error updating AI agent:", updateError);
+      throw updateError;
+    }
+
+    return clientId;
+  } catch (error) {
+    console.error("Error in updateClient function:", error);
+    throw error;
+  }
+};
+
+// Handles the process of creating a new AI agent
+export const createAgent = async (data: ClientFormData): Promise<string> => {
+  console.log("Creating AI agent with data:", { 
     client_name: data.client_name,
     email: data.email,
     widget_settings: data.widget_settings
@@ -21,86 +93,36 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     // Ensure we have a widget_settings object
     const widgetSettings = data.widget_settings || {};
     
-    // Insert client data into clients table
-    const { data: clientData, error: clientError } = await supabase
-      .from("clients")
+    // Insert data directly into ai_agents table
+    const { data: agentData, error: agentError } = await supabase
+      .from("ai_agents")
       .insert({
         client_name: data.client_name,
         email: data.email,
-        widget_settings: widgetSettings
+        name: widgetSettings.agent_name || "AI Assistant",
+        agent_description: widgetSettings.agent_description,
+        logo_url: widgetSettings.logo_url,
+        settings: widgetSettings,
+        content: "",
+        interaction_type: "config",
+        status: "active"
       })
       .select("id")
       .single();
 
-    if (clientError) {
-      console.error("Error creating client:", clientError);
-      throw clientError;
+    if (agentError) {
+      console.error("Error creating AI agent:", agentError);
+      throw agentError;
     }
 
-    const clientId = clientData.id;
-    console.log(`Client created with ID: ${clientId}`);
+    const agentId = agentData.id;
+    console.log(`AI agent created with ID: ${agentId}`);
 
-    // Generate a temporary password
-    const tempPassword = generateClientTempPassword();
-    console.log("Generated temp password");
-
-    // Store the temporary password in the database
-    const { error: tempPasswordError } = await supabase
-      .from("client_temp_passwords")
-      .insert({
-        client_id: clientId,
-        email: data.email,
-        temp_password: tempPassword
-      });
-
-    if (tempPasswordError) {
-      console.error("Error saving temporary password:", tempPasswordError);
-      throw tempPasswordError;
-    }
-    console.log("Saved temporary password to database");
-
-    try {
-      // Send invitation email with temporary password
-      const emailResult = await sendEmail({
-        to: data.email,
-        subject: "Welcome to Chat Bot - Your Account is Ready",
-        template: "client-invitation",
-        params: {
-          clientName: data.client_name,
-          email: data.email,
-          tempPassword: tempPassword,
-          productName: "Chat Bot"
-        }
-      });
-      console.log("Email sending result:", emailResult);
-    } catch (emailError) {
-      console.error("Error sending invitation email:", emailError);
-      // Log the error but don't fail the client creation
-      toast.error("Failed to send invitation email, but client was created successfully.");
-    }
-
-    // Create OpenAI assistant if agent name and description are provided
-    if (widgetSettings.agent_name) {
-      try {
-        await createOpenAIAssistant(
-          clientId, 
-          widgetSettings.agent_name, 
-          widgetSettings.agent_description || "",
-          data.client_name
-        );
-        console.log("OpenAI assistant created/updated successfully");
-      } catch (assistantError) {
-        console.error("Error creating/updating OpenAI assistant:", assistantError);
-        // Don't fail client creation if assistant creation fails
-        toast.error("Failed to create OpenAI assistant, but client was created successfully.");
-      }
-    }
-
-    // Log client creation activity
+    // Log AI agent creation activity
     await createClientActivity(
-      clientId,
-      "client_created",
-      `New client ${data.client_name} created`,
+      agentId,
+      "ai_agent_created",
+      `New AI agent created: ${data.client_name}`,
       { 
         email: data.email,
         agent_name: widgetSettings.agent_name,
@@ -108,75 +130,9 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       }
     );
 
-    return clientId;
+    return agentId;
   } catch (error) {
-    console.error("Error in createClient function:", error);
-    throw error;
-  }
-};
-
-// Handles the process of updating an existing client
-export const updateClient = async (
-  clientId: string,
-  data: ClientFormData
-): Promise<string> => {
-  console.log("Updating client with ID:", clientId, "and data:", { 
-    client_name: data.client_name,
-    email: data.email,
-    widget_settings: data.widget_settings
-  });
-  
-  try {
-    // First, get the current client to compare changes
-    const { data: currentClient, error: getError } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("id", clientId)
-      .single();
-
-    if (getError) {
-      console.error("Error getting current client:", getError);
-      throw getError;
-    }
-
-    // Ensure we have a widget_settings object
-    const widgetSettings = data.widget_settings || {};
-
-    // Update client data in clients table
-    const { error: updateClientError } = await supabase
-      .from("clients")
-      .update({
-        client_name: data.client_name,
-        email: data.email,
-        widget_settings: widgetSettings
-      })
-      .eq("id", clientId);
-
-    if (updateClientError) {
-      console.error("Error updating client:", updateClientError);
-      throw updateClientError;
-    }
-
-    // Create or update OpenAI assistant if agent name is provided
-    if (widgetSettings.agent_name) {
-      try {
-        await createOpenAIAssistant(
-          clientId, 
-          widgetSettings.agent_name, 
-          widgetSettings.agent_description || "",
-          data.client_name
-        );
-        console.log("OpenAI assistant created/updated successfully");
-      } catch (assistantError) {
-        console.error("Error creating/updating OpenAI assistant:", assistantError);
-        // Don't fail client update if assistant update fails
-        toast.error("Failed to update OpenAI assistant, but client was updated successfully.");
-      }
-    }
-
-    return clientId;
-  } catch (error) {
-    console.error("Error in updateClient function:", error);
+    console.error("Error in createAgent function:", error);
     throw error;
   }
 };
@@ -187,11 +143,11 @@ export const logClientUpdateActivity = async (clientId: string): Promise<void> =
     await createClientActivity(
       clientId,
       "client_updated",
-      "Client information updated",
+      "Agent information updated",
       { updated_at: new Date().toISOString() }
     );
   } catch (error) {
-    console.error("Error logging client update activity:", error);
+    console.error("Error logging agent update activity:", error);
     // Don't rethrow - we don't want to fail the update if logging fails
   }
 };
