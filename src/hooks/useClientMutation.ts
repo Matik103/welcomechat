@@ -14,8 +14,8 @@ export const useClientMutation = (id: string | undefined) => {
       // Use agent name and description exactly as provided without any modifications
       const updatedData = {
         ...data,
-        agent_name: data.agent_name, // Use the exact agent name as provided
-        agent_description: data.agent_description // Include agent_description
+        agent_name: data.agent_name || null, // Ensure it's null instead of undefined if not provided
+        agent_description: data.agent_description || null // Ensure it's null instead of undefined if not provided
       };
 
       if (id) {

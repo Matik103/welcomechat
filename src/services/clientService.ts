@@ -139,7 +139,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     console.log("Creating client with data:", data);
 
     // Use agent name exactly as provided without any modifications
-    const finalAgentName = data.agent_name || 'agent_' + Date.now();
+    const finalAgentName = data.agent_name || null;
     
     console.log("Using agent name:", finalAgentName);
     
@@ -147,14 +147,14 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
       ? { 
           ...data.widget_settings,
-          agent_description: data.agent_description,
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path 
+          agent_description: data.agent_description || null,
+          logo_url: data.logo_url || null,
+          logo_storage_path: data.logo_storage_path || null 
         } 
       : { 
-          agent_description: data.agent_description,
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path
+          agent_description: data.agent_description || null,
+          logo_url: data.logo_url || null,
+          logo_storage_path: data.logo_storage_path || null
         };
 
     // Create the client record
@@ -222,7 +222,15 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       const responseText = await createUserResponse.text();
       console.log("Create user response:", responseText);
       
-      const responseData = JSON.parse(responseText);
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error("Error parsing response as JSON:", jsonError);
+        console.log("Raw response:", responseText);
+        throw new Error('Invalid response format from server');
+      }
+      
       const tempPassword = responseData.temp_password;
 
       if (!tempPassword) {
@@ -235,11 +243,11 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         clientId,
         clientName: data.client_name,
         email: data.email,
-        agentName: finalAgentName,
+        agentName: finalAgentName || "AI Assistant",
         tempPassword
       });
 
-    } catch (authError) {
+    } catch (authError: any) {
       console.error("Error setting up client authentication:", authError);
       // Delete the client record if auth setup fails
       await supabase.from("clients").delete().eq("id", clientId);
@@ -247,7 +255,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     }
 
     return clientId;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in createClient:", error);
     throw error;
   }
@@ -376,4 +384,3 @@ export const sendClientInvitationEmail = async (params: {
     throw new Error(`Failed to send invitation: ${error.message}`);
   }
 };
-
