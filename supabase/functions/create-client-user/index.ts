@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // Function to generate an AI prompt based on the agent name and description
-const generateAiPrompt = (agentName: string, agentDescription: string, clientName: string): string => {
+const generateAiPrompt = (agentName: string | null, agentDescription: string, clientName: string): string => {
   // System prompt template to ensure assistants only respond to client-specific questions
   const SYSTEM_PROMPT_TEMPLATE = `You are an AI assistant created within the ByClicks AI system, designed to serve individual clients with their own unique knowledge bases. Each assistant is assigned to a specific client, and must only respond based on the information available for that specific client.
 
@@ -28,7 +28,8 @@ Rules & Limitations:
 - Anything unrelated to the client you are assigned to serve.`;
   
   // Create a client-specific prompt
-  let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${agentName}, an AI assistant for ${clientName}.`;
+  const actualAgentName = agentName || "AI Assistant";
+  let prompt = `${SYSTEM_PROMPT_TEMPLATE}\n\nYou are ${actualAgentName}, an AI assistant for ${clientName}.`;
   
   // Add agent description if provided
   if (agentDescription && agentDescription.trim() !== '') {
@@ -233,7 +234,7 @@ serve(async (req) => {
         .from("ai_agents")
         .insert({
           client_id: client_id,
-          name: agent_name, // Use agent name exactly as provided
+          name: agent_name || "AI Assistant", // Use agent name exactly as provided or default
           agent_description: agent_description || "",
           ai_prompt: aiPrompt,
           logo_url: logo_url || "",
