@@ -41,7 +41,7 @@ export const defaultSettings: WidgetSettings = {
   position: "bottom-right",
   welcome_text: "Hi there! How can I help you today?",
   response_time_text: "Usually responds within a few minutes",
-  agent_name: "Assistant", // Default agent name - changed from "AI Assistant"
+  agent_name: "Chat", // Default agent name - changed from "Assistant"
   agent_description: "" // Default empty agent description
 };
 
