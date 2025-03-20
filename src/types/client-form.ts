@@ -15,3 +15,18 @@ export const clientFormSchema = z.object({
 });
 
 export type ClientFormData = z.infer<typeof clientFormSchema>;
+
+// Add the missing ClientFormErrors type
+export type ClientFormErrors = {
+  [K in keyof ClientFormData]?: string;
+};
+
+// Extend the errors type to include nested widget_settings errors
+export type ExtendedClientFormErrors = ClientFormErrors & {
+  widget_settings?: {
+    agent_name?: string;
+    agent_description?: string;
+    logo_url?: string;
+    logo_storage_path?: string;
+  };
+};
