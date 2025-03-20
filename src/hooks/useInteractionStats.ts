@@ -26,17 +26,18 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       }
 
       // Get interactions for the selected time period
+      // We've changed to use chat_interaction activities from client_activities table
       const { data: currentPeriodInteractions, error: currentError } = await supabase
-        .from("ai_agents")
+        .from("client_activities")
         .select("*")
-        .eq('interaction_type', 'chat_interaction')
+        .eq('activity_type', 'chat_interaction')
         .gte("created_at", startDate.toISOString());
 
       if (currentError) throw currentError;
 
       const totalInteractions = currentPeriodInteractions?.length ?? 0;
 
-      // Get total clients for average calculation - using cached query if possible
+      // Get total clients for average calculation - using ai_agents with interaction_type=config
       const { data: allClients, error: clientsError } = await supabase
         .from("ai_agents")
         .select("DISTINCT client_id")
@@ -52,9 +53,9 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       const previousStartDate = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()));
       
       const { data: previousInteractions, error: prevError } = await supabase
-        .from("ai_agents")
+        .from("client_activities")
         .select("*")
-        .eq('interaction_type', 'chat_interaction')
+        .eq('activity_type', 'chat_interaction')
         .gte("created_at", previousStartDate.toISOString())
         .lt("created_at", startDate.toISOString());
 
@@ -81,6 +82,6 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
     },
     staleTime: 30000, // Data stays fresh for 30 seconds
     gcTime: 5 * 60 * 1000, // Cache data for 5 minutes (formerly cacheTime)
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 };

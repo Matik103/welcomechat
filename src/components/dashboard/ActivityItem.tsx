@@ -75,6 +75,8 @@ const getActivityIcon = (type: string, metadata: Json) => {
       return <ShieldAlert className="w-4 h-4 text-destructive" />;
     case 'scheduled_event':
       return <Calendar className="w-4 h-4 text-primary" />;
+    case 'chat_interaction':
+      return <Bot className="w-4 h-4 text-primary" />;
     default:
       return <Users className="w-4 h-4 text-primary" />;
   }
@@ -87,7 +89,7 @@ export const ActivityItem = ({ item }: ActivityItemProps) => (
     </div>
     <div className="flex-1">
       <p className="text-sm text-gray-900">
-        <span className="font-medium">{item.client_name}</span>{" "}
+        <span className="font-medium">{item.client_name || "Unknown Client"}</span>{" "}
         {item.description}
       </p>
       <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>

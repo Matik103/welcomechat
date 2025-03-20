@@ -18,7 +18,7 @@ export const useClientStats = () => {
     queryFn: async () => {
       const now = new Date();
       
-      // Get total clients (independent of time range)
+      // Get total clients from ai_agents table with interaction_type = config
       const { count: totalClientCount, error: countError } = await supabase
         .from("ai_agents")
         .select("*", { count: "exact", head: true })
@@ -69,8 +69,8 @@ export const useClientStats = () => {
         responseRate,
       };
     },
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
+    refetchInterval: 1 * 60 * 1000, // Refetch every minute
+    refetchOnWindowFocus: true,
+    staleTime: 1 * 60 * 1000, // Data stays fresh for 1 minute
   });
 };

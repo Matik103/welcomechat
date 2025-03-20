@@ -1,6 +1,5 @@
 
 import React from "react";
-import { format } from "date-fns";
 import { ActivityItem } from "./ActivityItem";
 import { Loader2 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
