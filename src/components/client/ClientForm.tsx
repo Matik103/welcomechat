@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,7 +28,11 @@ interface ClientFormProps {
 const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().optional(),
+  agent_name: z.string()
+    .min(1, "Agent name is required")
+    .transform(val => val.trim())
+    .refine(val => !val.includes('"'), "Agent name cannot contain double quotes")
+    .refine(val => !val.includes("'"), "Agent name cannot contain single quotes"),
   agent_description: z.string().optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
@@ -50,7 +53,7 @@ export const ClientForm = ({
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
-      agent_name: initialData?.agent_name || "AI Assistant",
+      agent_name: initialData?.agent_name || "AI",
       agent_description: initialData?.agent_description || "",
       logo_url: initialData?.logo_url || "",
       logo_storage_path: initialData?.logo_storage_path || "",
@@ -63,7 +66,7 @@ export const ClientForm = ({
       reset({
         client_name: initialData.client_name || "",
         email: initialData.email || "",
-        agent_name: initialData.agent_name || "AI Assistant",
+        agent_name: initialData.agent_name || "AI",
         agent_description: initialData.agent_description || "",
         logo_url: initialData.logo_url || "",
         logo_storage_path: initialData.logo_storage_path || "",
