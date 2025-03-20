@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,10 +12,12 @@ interface Website {
   scrapable: boolean;
   lastFetched?: string;
   created_at?: string;
+  name?: string; // Add name property that was missing
 }
 
 export function useStoreWebsiteContent(clientId: string | undefined) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isStoring, setIsStoring] = useState(false); // Added missing isStoring state
   const queryClient = useQueryClient();
 
   // Fetch websites
@@ -32,17 +35,21 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
       
       try {
         const { data, error } = await supabase
-          .from("client_websites")
+          .from("website_urls") // Fix: Use website_urls instead of client_websites
           .select("*")
           .eq("client_id", clientId);
         
         if (error) {
-          console.error("Error fetching client websites:", error);
+          console.error("Error fetching website urls:", error);
           throw error;
         }
         
         console.log("Client websites fetched:", data);
-        return data as Website[];
+        // Add name property to each website for compatibility
+        return (data || []).map(site => ({
+          ...site,
+          name: `Website ${site.id}` // Default name based on ID if none provided
+        })) as Website[];
       } finally {
         setIsLoading(false);
       }
@@ -59,7 +66,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
       await checkAndRefreshAuth();
       
       const { data, error } = await supabase
-        .from("client_websites")
+        .from("website_urls") // Fix: Use website_urls instead of client_websites
         .insert([newWebsite])
         .select();
       
@@ -91,7 +98,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
       await checkAndRefreshAuth();
       
       const { error } = await supabase
-        .from("client_websites")
+        .from("website_urls") // Fix: Use website_urls instead of client_websites
         .delete()
         .eq("id", websiteId);
       
@@ -122,7 +129,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
       await checkAndRefreshAuth();
       
       const { error } = await supabase
-        .from("client_websites")
+        .from("website_urls") // Fix: Use website_urls instead of client_websites
         .update(updatedWebsite)
         .eq("id", updatedWebsite.id);
       
@@ -148,7 +155,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
   const storeWebsiteContent = async (website: Website) => {
     if (!clientId) {
       console.warn("Client ID is missing, cannot store website content.");
-      return;
+      return { success: false, error: "Client ID is missing" };
     }
     
     console.log(`Storing website content for client: ${clientId}, website: ${website.url}`);
@@ -156,13 +163,13 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
     // Ensure we have a valid auth session
     await checkAndRefreshAuth();
     
-    setIsLoading(true);
+    setIsStoring(true);
     
     try {
       // Create a JSON object with website details
       const websiteJson = {
         id: String(website.id), // Convert to string here
-        name: website.name,
+        name: website.name || `Website ${website.id}`,
         url: website.url,
         scrapable: website.scrapable,
         lastFetched: website.lastFetched
@@ -173,7 +180,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
         .from("ai_agents")
         .insert({
           client_id: clientId,
-          name: website.name,
+          name: website.name || `Website ${website.id}`,
           content: JSON.stringify(websiteJson),
           url: website.url,
           interaction_type: "website_content",
@@ -183,16 +190,18 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
       
       if (agentError) {
         console.error("Error storing website content in ai_agents:", agentError);
-        throw agentError;
+        return { success: false, error: agentError.message };
       }
       
       console.log("Website content stored successfully in ai_agents");
       toast.success("Website content stored successfully");
+      return { success: true };
     } catch (error: any) {
       console.error("Error in storeWebsiteContent:", error);
       toast.error(`Failed to store website content: ${error.message}`);
+      return { success: false, error: error.message };
     } finally {
-      setIsLoading(false);
+      setIsStoring(false);
     }
   };
 
@@ -207,6 +216,7 @@ export function useStoreWebsiteContent(clientId: string | undefined) {
   return {
     websites,
     isLoading: isLoading || isWebsitesLoading,
+    isStoring, // Add the isStoring property
     error,
     refetchWebsites: refetch,
     addWebsite: addWebsiteMutation.mutateAsync,
