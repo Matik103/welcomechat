@@ -33,7 +33,7 @@ export const useClient = (clientId: string) => {
         
         if (!clientData) return null;
         
-        // Map data to Client type with proper type casting
+        // Map data to Client type with proper type casting and null checks
         return {
           id: String(clientData.id || ''),
           client_name: String(clientData.client_name || ''),
@@ -51,7 +51,7 @@ export const useClient = (clientId: string) => {
           agent_name: String(clientData.name || ''),
           last_active: clientData.last_active ? String(clientData.last_active) : null,
           widget_settings: clientData.settings || {},
-          // Safely access nested properties
+          // Safely access nested properties for settings
           settings: {
             primary_color: clientData.settings?.primary_color || '#3B82F6',
             background_color: clientData.settings?.background_color || '#FFFFFF',

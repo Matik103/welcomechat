@@ -1,67 +1,58 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { fetchChatHistory, fetchRecentInteractions } from '@/services/aiInteractionService';
-import { ChatInteraction } from '@/types/agent';
-import { execSql } from '@/utils/rpcUtils';
-
-interface DashboardStats {
-  totalInteractions: number;
-  activeDays: number;
-  averageResponseTime: number;
-  topQueries: Array<{ query_text: string; frequency: number }>;
-}
+import { useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { DashboardStats } from '@/types/client-dashboard';
+import { ChatInteraction } from '@/types/extended-supabase';
 
 export const useClientDashboard = (clientId: string, agentName: string) => {
   // Fetch dashboard stats for the client
-  const { data: stats, isLoading: isLoadingStats } = useQuery({
-    queryKey: ['dashboardStats', clientId, agentName],
+  const {
+    data: stats,
+    isLoading: isLoadingStats,
+    error: statsError,
+    refetch: refetchStats,
+  } = useQuery({
+    queryKey: ['agentStats', clientId, agentName],
     queryFn: async (): Promise<DashboardStats> => {
-      if (!clientId || !agentName) {
-        return {
-          totalInteractions: 0,
-          activeDays: 0,
-          averageResponseTime: 0,
-          topQueries: []
-        };
-      }
-
       try {
-        // Using SQL query via RPC since we don't have direct table access
-        const query = `
-          SELECT 
-            COUNT(*) as total_interactions,
-            COUNT(DISTINCT DATE(created_at)) as active_days,
-            ROUND(AVG(response_time_ms)::numeric / 1000, 2) as average_response_time
-          FROM ai_agents
-          WHERE client_id = '${clientId}'
-          AND name = '${agentName}'
-          AND interaction_type = 'chat_interaction'
-          AND response_time_ms IS NOT NULL
-        `;
-        
-        const baseStats = await execSql(query);
-        
-        // Get top queries
-        const topQueriesQuery = `
-          SELECT query_text, COUNT(*) as frequency
-          FROM ai_agents
-          WHERE client_id = '${clientId}'
-          AND name = '${agentName}'
-          GROUP BY query_text
-          ORDER BY frequency DESC
-          LIMIT 5
-        `;
-        
-        const topQueriesData = await execSql(topQueriesQuery);
-        
+        // Call the stored procedure to get agent dashboard stats
+        const { data, error } = await supabase.rpc('get_agent_dashboard_stats', {
+          client_id_param: clientId, 
+          agent_name_param: agentName
+        });
+
+        if (error) {
+          console.error('Error fetching agent stats:', error);
+          throw error;
+        }
+
+        if (!data) {
+          return {
+            totalInteractions: 0,
+            activeDays: 0,
+            averageResponseTime: 0,
+            topQueries: []
+          };
+        }
+
+        // Parse the result which is a JSON object containing the dashboard stats
+        const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+
+        // Map the result to our DashboardStats type
         return {
-          totalInteractions: parseInt(baseStats[0]?.total_interactions || '0'),
-          activeDays: parseInt(baseStats[0]?.active_days || '0'),
-          averageResponseTime: parseFloat(baseStats[0]?.average_response_time || '0'),
-          topQueries: topQueriesData || []
+          totalInteractions: Number(parsedData.total_interactions || 0),
+          activeDays: Number(parsedData.active_days || 0),
+          averageResponseTime: Number(parsedData.average_response_time || 0),
+          topQueries: Array.isArray(parsedData.top_queries) 
+            ? parsedData.top_queries.map((q: any) => ({
+                query_text: String(q.query_text || ''),
+                frequency: Number(q.frequency || 0)
+              }))
+            : []
         };
       } catch (error) {
-        console.error("Error fetching dashboard stats:", error);
+        console.error('Error in dashboard stats query:', error);
         return {
           totalInteractions: 0,
           activeDays: 0,
@@ -73,27 +64,57 @@ export const useClientDashboard = (clientId: string, agentName: string) => {
     enabled: !!clientId && !!agentName,
   });
 
-  // Fetch chat history
-  const { data: chatHistory = [], isLoading: isLoadingChatHistory } = useQuery({
-    queryKey: ['chatHistory', clientId],
-    queryFn: () => fetchChatHistory(clientId),
+  // Fetch recent chat interactions
+  const {
+    data: chatHistory,
+    isLoading: isLoadingChat,
+    error: chatError,
+  } = useQuery({
+    queryKey: ['clientChatHistory', clientId],
+    queryFn: async (): Promise<ChatInteraction[]> => {
+      try {
+        // Query the ai_agents table for recent chat interactions for this client
+        const { data, error } = await supabase
+          .from('ai_agents')
+          .select('*')
+          .eq('client_id', clientId)
+          .eq('interaction_type', 'chat_interaction')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+
+        // Map the results to our ChatInteraction type
+        return (data || []).map(interaction => ({
+          id: String(interaction.id),
+          clientId: String(interaction.client_id),
+          timestamp: String(interaction.created_at),
+          query: String(interaction.query_text || ''),
+          response: String(interaction.content || ''),
+          agentName: String(interaction.name || 'AI Assistant'),
+          responseTimeMs: Number(interaction.response_time_ms || 0),
+          metadata: interaction.metadata || {}
+        }));
+      } catch (error) {
+        console.error('Error fetching chat history:', error);
+        return [];
+      }
+    },
     enabled: !!clientId,
   });
 
-  // Fetch recent interactions
-  const { data: recentInteractions = [], isLoading: isLoadingRecentInteractions } = useQuery({
-    queryKey: ['recentInteractions', clientId],
-    queryFn: () => fetchRecentInteractions(clientId),
-    enabled: !!clientId,
-  });
-
-  const isLoading = isLoadingStats || isLoadingChatHistory || isLoadingRecentInteractions;
+  const isLoading = isLoadingStats || isLoadingChat;
 
   return {
     agentName,
-    stats,
-    chatHistory,
-    recentInteractions,
-    isLoading
+    stats: stats || {
+      totalInteractions: 0,
+      activeDays: 0,
+      averageResponseTime: 0,
+      topQueries: []
+    },
+    chatHistory: chatHistory || [],
+    recentInteractions: chatHistory || [],
+    isLoading,
   };
 };

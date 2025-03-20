@@ -1,241 +1,180 @@
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
-import { WidgetSettings as IWidgetSettings, isWidgetSettings } from "@/types/widget-settings";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { convertSettingsToJson, handleLogoUploadEvent } from "@/utils/widgetSettingsUtils";
-import { toast } from "sonner";
-import { checkAndRefreshAuth } from "@/services/authService";
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { getWidgetSettings, updateWidgetSettings } from '@/utils/widgetSettingsUtils';
+import { useClientActivity } from './useClientActivity';
 
-// Define the default settings here first so it's available throughout the hook
-const defaultSettings: IWidgetSettings = {
-  agent_name: "",
-  agent_description: "",
-  welcome_text: "Hi 👋, how can I help?",
-  chat_color: "#3f83f8",
-  background_color: "#ffffff",
-  text_color: "#ffffff",
-  secondary_color: "#6366f1",
-  logo_url: "",
-  logo_storage_path: "",
-  position: "bottom-right" as const,
-  response_time_text: "I typically respond right away"
-};
-
-export function useWidgetSettings(clientId: string | undefined, isClientView: boolean = false) {
-  const { toast: uiToast } = useToast();
+export const useWidgetSettings = (clientId?: string, isClientView = false) => {
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
-  const [settings, setSettings] = useState<IWidgetSettings>(defaultSettings);
   const { logClientActivity } = useClientActivity(clientId);
 
-  console.log("Client ID for widget settings:", clientId);
+  // Default settings
+  const defaultSettings = {
+    primary_color: '#3B82F6',
+    background_color: '#FFFFFF',
+    text_color: '#111827',
+    secondary_color: '#E5E7EB',
+    position: 'right',
+    welcome_message: 'Hi there! How can I help you today?',
+    response_time_text: 'Usually responds in a few minutes',
+    agent_name: 'AI Assistant',
+    agent_description: '',
+    logo_url: '',
+  };
 
-  const { data: client, isLoading, refetch } = useQuery({
-    queryKey: ["client", clientId],
+  // Get widget settings for the client
+  const { 
+    data: settings, 
+    isLoading, 
+    error, 
+    refetch
+  } = useQuery({
+    queryKey: ['widgetSettings', clientId],
     queryFn: async () => {
-      if (!clientId) return null;
-      
-      console.log("Fetching client data for ID:", clientId);
-      
-      await checkAndRefreshAuth();
-      
-      // Updated to query ai_agents instead of clients
-      const { data, error } = await supabase
-        .from("ai_agents")
-        .select("*")
-        .eq("id", clientId)
-        .single();
-      
-      if (error) {
-        console.error("Error fetching client:", error);
-        throw error;
+      if (!clientId) return defaultSettings;
+      try {
+        const result = await getWidgetSettings(clientId);
+        
+        // Ensure we have a valid object with all expected properties
+        if (!result) return defaultSettings;
+        
+        // If settings from the DB are a string, parse them
+        let parsedSettings = {}; 
+        if (typeof result === 'string') {
+          try {
+            parsedSettings = JSON.parse(result);
+          } catch (e) {
+            console.error('Failed to parse widget settings:', e);
+            parsedSettings = {};
+          }
+        } else if (typeof result === 'object') {
+          parsedSettings = result;
+        }
+        
+        // Merge with defaults to ensure all properties exist
+        return {
+          ...defaultSettings,
+          ...parsedSettings
+        };
+      } catch (error) {
+        console.error('Error fetching widget settings:', error);
+        return defaultSettings;
       }
-      
-      console.log("Client data fetched:", data);
-      return data;
     },
     enabled: !!clientId,
-    staleTime: 0,
-    retry: 1
   });
 
-  useEffect(() => {
-    if (client) {
-      console.log("Client data:", client);
-      console.log("Settings from client:", client.settings);
-      
-      // Extract widget settings from the settings field
-      if (client.settings && client.settings.widget_settings && isWidgetSettings(client.settings.widget_settings)) {
-        console.log("Valid widget settings detected, applying to state");
-        setSettings(client.settings.widget_settings as IWidgetSettings);
-      } else {
-        console.log("Invalid or missing widget settings, using defaults with agent name");
-        // Use agent name from ai_agents if available
-        setSettings({
-          ...defaultSettings,
-          agent_name: client.name || defaultSettings.agent_name,
-          agent_description: client.agent_description || defaultSettings.agent_description,
-          logo_url: client.logo_url || defaultSettings.logo_url,
-          logo_storage_path: client.logo_storage_path || defaultSettings.logo_storage_path
-        });
-      }
-    }
-  }, [client]);
-
+  // Mutation to update widget settings
   const updateSettingsMutation = useMutation({
-    mutationFn: async (newSettings: IWidgetSettings) => {
-      console.log("Saving widget settings:", newSettings);
+    mutationFn: async (newSettings: any) => {
+      if (!clientId) throw new Error('Client ID is required');
       
-      if (!clientId) {
-        throw new Error("No client ID available");
-      }
+      // Merge with existing settings
+      const updatedSettings = {
+        ...settings,
+        ...newSettings
+      };
       
-      await checkAndRefreshAuth();
+      // Update widget settings in database
+      const result = await updateWidgetSettings(clientId, updatedSettings);
       
-      let clientName = "";
-      try {
-        // Get client name from ai_agents
-        const { data, error } = await supabase
-          .from("ai_agents")
-          .select("client_name")
-          .eq("id", clientId)
-          .single();
-          
-        if (!error && data) {
-          clientName = data.client_name;
-          console.log("Got client name for settings sync:", clientName);
-        }
-      } catch (error) {
-        console.error("Error getting client name:", error);
-      }
+      // Log the activity
+      await logClientActivity(
+        'widget_settings_updated',
+        'Widget settings updated',
+        { settings: updatedSettings }
+      );
       
-      const settingsJson = convertSettingsToJson(newSettings);
-      console.log("Settings being saved to DB:", settingsJson);
-      
-      import("@/utils/aiAgentSync").then(({ syncWidgetSettingsWithAgent }) => {
-        syncWidgetSettingsWithAgent(clientId, newSettings, clientName)
-          .then(success => {
-            if (success) {
-              console.log("Widget settings synchronized with AI agent");
-            } else {
-              console.log("Could not synchronize widget settings with AI agent");
-            }
-          })
-          .catch(error => {
-            console.error("Error syncing widget settings with AI agent:", error);
-          });
-      });
-      
-      // Update the ai_agents table with the new settings
-      const { error, data } = await supabase
-        .from("ai_agents")
-        .update({
-          name: newSettings.agent_name || "Assistant", // Update the name field directly
-          agent_description: newSettings.agent_description || "", // Update agent_description directly
-          logo_url: newSettings.logo_url || "",
-          logo_storage_path: newSettings.logo_storage_path || "",
-          settings: {
-            ...client?.settings,
-            widget_settings: settingsJson
-          }
-        })
-        .eq("id", clientId)
-        .select();
-      
-      if (error) {
-        console.error("Error updating client:", error);
-        throw error;
-      }
-      
-      console.log("Update response:", data);
-      
-      queryClient.invalidateQueries({ queryKey: ["client", clientId] });
-      
-      return data;
+      return result;
     },
     onSuccess: () => {
-      if (isClientView) {
-        logClientActivity(
-          "widget_settings_updated", 
-          "updated widget settings", 
-          { 
-            updated_fields: Object.keys(settings).filter(key => 
-              client?.settings?.widget_settings && 
-              settings[key as keyof IWidgetSettings] !== client.settings.widget_settings[key]
-            ) 
-          }
-        );
-      }
+      toast.success('Widget settings updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['widgetSettings', clientId] });
       
-      uiToast({
-        title: "Settings saved successfully! 🎉",
-        description: "Your widget is ready to be embedded.",
-      });
+      // Also invalidate client data since widget settings are part of it
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
     },
     onError: (error) => {
-      console.error("Failed to save settings:", error);
-      uiToast({
-        title: "Failed to save settings",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+      console.error('Error updating widget settings:', error);
+      toast.error('Failed to update widget settings');
+    }
   });
 
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    await handleLogoUploadEvent(
-      event,
-      clientId,
-      (publicUrl, storagePath) => {
-        const newSettings = { 
-          ...settings, 
+  // Function to handle logo upload
+  const handleLogoUpload = async (file: File) => {
+    if (!clientId) {
+      toast.error('Client ID is required to upload a logo');
+      return;
+    }
+    
+    setIsUploading(true);
+    
+    try {
+      // Create a storage path
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${clientId}-logo-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const storagePath = `clients/${clientId}/logos/${fileName}`;
+      
+      // Upload the file to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(storagePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (uploadError) {
+        throw uploadError;
+      }
+      
+      // Get public URL for the uploaded file
+      const { data: publicUrlData } = supabase.storage
+        .from('client-assets')
+        .getPublicUrl(storagePath);
+      
+      const publicUrl = publicUrlData?.publicUrl;
+      
+      if (!publicUrl) {
+        throw new Error('Failed to get public URL for uploaded logo');
+      }
+      
+      // Update widget settings with new logo URL
+      await updateSettingsMutation.mutateAsync({
+        logo_url: publicUrl,
+        logo_storage_path: storagePath
+      });
+      
+      // Log the activity
+      await logClientActivity(
+        'logo_uploaded',
+        'Logo uploaded',
+        { 
           logo_url: publicUrl,
           logo_storage_path: storagePath
-        };
-        setSettings(newSettings);
-        updateSettingsMutation.mutateAsync(newSettings);
-
-        if (isClientView) {
-          logClientActivity(
-            "logo_uploaded", 
-            "uploaded a new logo for their widget", 
-            { logo_url: publicUrl, logo_storage_path: storagePath }
-          );
         }
-
-        setTimeout(() => {
-          refetch().then(() => {
-            console.log("Refetched client data after logo upload");
-            queryClient.invalidateQueries({ queryKey: ["client", clientId] });
-          });
-        }, 1000);
-
-        toast.success("Logo uploaded successfully! ✨");
-      },
-      (error) => {
-        toast.error(error.message || "Failed to upload logo");
-      },
-      () => setIsUploading(true),
-      () => setIsUploading(false)
-    );
+      );
+      
+      toast.success('Logo uploaded successfully');
+      return { publicUrl, storagePath };
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast.error('Failed to upload logo');
+      throw error;
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return {
-    settings,
-    setSettings,
+    settings: settings || defaultSettings,
     isLoading,
+    error,
+    updateSettingsMutation,
+    handleLogoUpload,
     isUploading,
-    client,
-    refetchClient: refetch,
-    updateSettingsMutation: {
-      isPending: updateSettingsMutation.isPending,
-      mutateAsync: async (newSettings: IWidgetSettings): Promise<void> => {
-        await updateSettingsMutation.mutateAsync(newSettings);
-      }
-    },
-    handleLogoUpload
+    refetch
   };
-}
+};

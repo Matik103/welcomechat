@@ -1,137 +1,160 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { LlamaParseConfig, LlamaParseRequest, LlamaParseResponse, DocumentProcessingResult } from "@/types/llamaparse";
-import { createClientActivity, logAgentError } from "./clientActivityService";
+import { DocumentProcessingResult, DocumentProcessingOptions } from "@/types/document-processing";
+import { v4 as uuidv4 } from "uuid";
+import { logAgentError } from "./clientActivityService";
+import { Json } from "@/integrations/supabase/types";
 
-export const processDocumentWithLlamaParse = async (
+// Upload document to Supabase storage and then process it
+export const uploadAndProcessDocument = async (
   file: File,
-  clientId: string,
-  agentName?: string
+  options: DocumentProcessingOptions
 ): Promise<DocumentProcessingResult> => {
-  try {
-    // Log document processing started
-    await createClientActivity(
-      clientId,
-      "document_processing_started",
-      `Started processing document: ${file.name}`,
-      {
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type
-      }
-    );
+  const { clientId, agentName = "AI Assistant", processingMethod = "firecrawl" } = options;
+  const documentId = uuidv4();
 
-    // Fetch the LlamaParse API key from the environment
-    const { data, error } = await supabase
-      .functions
-      .invoke("get-llamaparse-api-key", {
-        body: { clientId }
+  try {
+    // Step 1: Upload file to Supabase Storage
+    const fileName = `${clientId}/${documentId}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("document-processing")
+      .upload(fileName, file, {
+        cacheControl: "3600",
+        contentType: file.type,
       });
 
-    if (error || !data?.apiKey) {
-      console.error("Error fetching LlamaParse API key:", error || "No API key returned");
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
       await logAgentError(
         clientId,
-        "llamaparse_api_key_error",
-        "Failed to fetch LlamaParse API key",
-        { error: error?.message || "No API key returned" }
+        "document_upload_failed",
+        `Failed to upload document: ${uploadError.message}`,
+        { file_name: file.name }
       );
-      return { status: "failed", error: "Configuration error" };
+      
+      return {
+        success: false,
+        status: "failed",
+        error: `Upload failed: ${uploadError.message}`
+      };
     }
 
-    // Create a form data object
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("mimeType", file.type);
+    // Step 2: Get public URL for the uploaded file
+    const { data: publicUrlData } = supabase.storage
+      .from("document-processing")
+      .getPublicUrl(fileName);
 
-    // Set up the API call to LlamaParse
-    const response = await fetch("https://api.llamaindex.ai/v1/process_file", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${data.apiKey}`
-      },
-      body: formData
-    });
-
-    // Handle API response
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("LlamaParse API error:", errorData);
+    if (!publicUrlData || !publicUrlData.publicUrl) {
+      const errorMsg = "Failed to get public URL for uploaded document";
+      console.error(errorMsg);
+      
       await logAgentError(
-        clientId,
-        "llamaparse_api_error",
-        errorData.error?.message || "Unknown LlamaParse API error",
-        errorData
-      );
-      return { status: "failed", error: errorData.error?.message || "Processing failed" };
-    }
-
-    // Parse successful response
-    const result = await response.json();
-
-    // Store document in database
-    const { data: docData, error: docError } = await supabase
-      .from("ai_documents")
-      .insert({
-        client_id: clientId,
-        agent_name: agentName,
-        file_name: file.name,
-        content: result.data?.content || "",
-        document_id: result.id,
-        status: "processed",
-        metadata: {
-          title: result.data?.metadata?.title,
-          author: result.data?.metadata?.author,
-          pages: result.data?.metadata?.pages,
-          words: result.data?.metadata?.words,
-          fileSize: file.size,
-          fileType: file.type
-        }
-      })
-      .select("id")
-      .single();
-
-    if (docError) {
-      console.error("Error storing document:", docError);
-      await createClientActivity(
         clientId,
         "document_processing_failed",
-        `Failed to store processed document: ${file.name}`,
-        {
-          fileName: file.name,
-          error: docError.message
-        }
+        errorMsg,
+        { file_name: file.name }
       );
-      return { status: "failed", error: "Failed to store document" };
+      
+      return {
+        success: false,
+        status: "failed",
+        error: errorMsg
+      };
     }
 
-    // Log document processing completion
-    await createClientActivity(
-      clientId,
-      "document_processing_completed",
-      `Successfully processed document: ${file.name}`,
+    // Step 3: Call Edge Function to process the document
+    const { data: processingData, error: processingError } = await supabase.functions.invoke(
+      "process-document",
       {
-        fileName: file.name,
-        documentId: result.id,
-        title: result.data?.metadata?.title,
-        pages: result.data?.metadata?.pages
+        body: {
+          document_url: publicUrlData.publicUrl,
+          document_id: documentId,
+          document_type: file.type,
+          client_id: clientId,
+          agent_name: agentName,
+          processing_method: processingMethod
+        }
       }
     );
 
+    if (processingError) {
+      console.error("Processing error:", processingError);
+      
+      await logAgentError(
+        clientId,
+        "document_processing_failed",
+        `Failed to process document: ${processingError.message}`,
+        { file_name: file.name, document_id: documentId }
+      );
+      
+      return {
+        success: false,
+        status: "failed",
+        error: `Processing failed: ${processingError.message}`
+      };
+    }
+
+    // Step 4: Store document metadata in database
+    const { error: storeError } = await supabase.from("document_processing").insert({
+      document_id: documentId,
+      document_url: publicUrlData.publicUrl,
+      document_type: file.type,
+      client_id: clientId,
+      agent_name: agentName,
+      status: "processing",
+      processing_method: processingMethod,
+      metadata: {
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+        uploaded_at: new Date().toISOString()
+      }
+    });
+
+    if (storeError) {
+      console.error("Storage error:", storeError);
+      
+      await logAgentError(
+        clientId,
+        "document_metadata_storage_failed",
+        `Failed to store document metadata: ${storeError.message}`,
+        { file_name: file.name, document_id: documentId }
+      );
+      
+      return {
+        success: false,
+        status: "failed",
+        error: `Metadata storage failed: ${storeError.message}`
+      };
+    }
+
+    // Step 5: Return success with document ID
     return {
-      status: "success",
-      documentId: docData.id.toString(),
-      content: result.data?.content,
-      metadata: result.data?.metadata
+      success: true,
+      status: "processing",
+      documentId,
+      metadata: {
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+        uploaded_at: new Date().toISOString(),
+        document_url: publicUrlData.publicUrl
+      }
     };
   } catch (error: any) {
-    console.error("Document processing error:", error);
+    console.error("Unexpected error during document processing:", error);
+    
     await logAgentError(
       clientId,
-      "document_processing_error",
-      error.message || "Unknown error during document processing",
-      { fileName: file.name }
+      "document_processing_exception",
+      `Unexpected error during document processing: ${error.message}`,
+      { file_name: file.name }
     );
-    return { status: "failed", error: error.message || "Unknown error" };
+    
+    return {
+      success: false,
+      status: "failed",
+      error: `Unexpected error: ${error.message}`
+    };
   }
 };

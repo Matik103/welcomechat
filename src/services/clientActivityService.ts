@@ -2,133 +2,56 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ExtendedActivityType } from "@/types/extended-supabase";
 import { Json } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
-/**
- * Creates a client activity entry in the database
- */
-export const createClientActivity = async (
-  client_id: string,
-  activity_type: ExtendedActivityType,
-  description: string,
-  metadata?: Json
-): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('client_activities')
-      .insert({
-        client_id,
-        activity_type: activity_type as unknown as string, // Type cast to match Supabase expectations
-        description,
-        metadata: metadata || {}
-      });
-
-    if (error) {
-      console.error('Error creating client activity:', error);
-      throw error;
-    }
-  } catch (err) {
-    console.error('Error in createClientActivity:', err);
-    throw err;
-  }
-};
-
-/**
- * Logs a client activity and returns null to match expected void return type
- */
+// Log client activity to client_activities table
 export const logClientActivity = async (
-  client_id: string,
-  activity_type: ExtendedActivityType,
+  clientId: string,
+  activityType: ExtendedActivityType,
   description: string,
   metadata?: Json
-): Promise<void> => {
-  await createClientActivity(client_id, activity_type, description, metadata);
-};
-
-/**
- * Logs an error related to an AI agent
- */
-export const logAgentError = async (
-  client_id: string,
-  error_message: string,
-  error_type: string = "processing_error",
-  metadata?: Json
-): Promise<void> => {
-  await createClientActivity(
-    client_id,
-    "error_logged" as ExtendedActivityType,
-    error_message,
-    {
-      error_type,
-      ...metadata
-    }
-  );
-};
-
-/**
- * Fetches recent client activities
- */
-export const fetchRecentActivities = async (limit = 10) => {
+): Promise<null> => {
   try {
-    const { data, error } = await supabase
-      .from('client_activities')
-      .select(`
-        id,
-        client_id,
-        activity_type,
-        description,
-        created_at,
-        metadata
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    // Use RPC rather than insert to avoid type mismatches
+    const { data, error } = await supabase.rpc('log_client_activity', {
+      p_client_id: clientId,
+      p_activity_type: activityType,
+      p_description: description,
+      p_metadata: metadata || {}
+    });
 
     if (error) {
-      console.error('Error fetching recent activities:', error);
+      console.error("Error logging client activity:", error);
       throw error;
     }
 
-    // Enhance activities with client names
-    const activities = await enhanceActivitiesWithClientNames(data || []);
-    
-    return activities;
-  } catch (err) {
-    console.error('Error in fetchRecentActivities:', err);
-    throw err;
+    return null;
+  } catch (error) {
+    console.error("Error in logClientActivity:", error);
+    return null;
   }
 };
 
-/**
- * Enhances activities with client names from ai_agents
- */
-const enhanceActivitiesWithClientNames = async (activities: any[]) => {
-  if (!activities.length) return [];
-  
-  // Get all unique client IDs
-  const clientIds = [...new Set(activities.map(a => a.client_id))];
-  
+// Log error specific to an agent
+export const logAgentError = async (
+  clientId: string,
+  errorType: string,
+  errorMessage: string,
+  metadata?: Json
+): Promise<void> => {
   try {
-    // Fetch client names from ai_agents where interaction_type = 'config'
-    const { data: clients } = await supabase
-      .from('ai_agents')
-      .select('client_id, name')
-      .in('client_id', clientIds)
-      .eq('interaction_type', 'config');
-    
-    // Create a map of client IDs to names
-    const clientNameMap = new Map();
-    clients?.forEach(client => {
-      if (client.client_id) {
-        clientNameMap.set(client.client_id, client.name);
+    await logClientActivity(
+      clientId,
+      'error_logged',
+      `Error: ${errorType}`,
+      {
+        error_type: errorType,
+        message: errorMessage,
+        timestamp: new Date().toISOString(),
+        ...metadata
       }
-    });
-    
-    // Add client name to each activity
-    return activities.map(activity => ({
-      ...activity,
-      client_name: clientNameMap.get(activity.client_id) || 'Unknown Client'
-    }));
+    );
   } catch (error) {
-    console.error('Error enhancing activities with client names:', error);
-    return activities;
+    console.error("Failed to log agent error:", error);
   }
 };
