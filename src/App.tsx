@@ -14,7 +14,7 @@ import ClientSettings from "@/pages/client/Settings";
 import ClientDashboard from "@/pages/client/Dashboard";
 import AccountSettings from "@/pages/client/AccountSettings";
 import ResourceSettings from "@/pages/client/ResourceSettings";
-import EditClientInfo from "@/pages/client/EditClientInfo";
+import EditClientInfo from "@/pages/EditClientInfo";
 import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
 import { useEffect } from "react";
@@ -94,6 +94,7 @@ function App() {
           <Route path="/admin/clients/:id" element={<ClientView />} />
           <Route path="/admin/clients/:id/edit" element={<AddEditClient />} />
           <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
+          <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
           
           {/* Redirect old admin routes to new structure */}
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />

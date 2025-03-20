@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -34,7 +33,6 @@ const ClientView = () => {
   const { chatHistory, isLoading: isLoadingChatHistory, debug } = useClientChatHistory(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   const { data: activitiesData, isLoading: isLoadingActivities } = useRecentActivities();
-  // Extract activities from the hook result
   const activities = activitiesData || [];
 
   useEffect(() => {
@@ -142,9 +140,9 @@ const ClientView = () => {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link to={`/admin/clients/${clientId}/edit`}>
-              <Settings className="mr-2 h-4 w-4" />
-              Edit Client
+            <Link to={`/admin/clients/${clientId}/edit-info`}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Client Info
             </Link>
           </Button>
         </div>
