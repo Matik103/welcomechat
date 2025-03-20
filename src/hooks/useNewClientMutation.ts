@@ -1,7 +1,6 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { ClientFormData, clientFormSchema } from "@/types/client-form";
-import { createClient } from "@/services/clientService";
 import { toast } from "sonner";
 import { createOpenAIAssistant } from "@/utils/openAIUtils";
 import { sendEmail } from "@/utils/emailUtils";
@@ -27,16 +26,40 @@ export const useNewClientMutation = () => {
           };
         }
 
-        // Create the client with validated data
-        const clientId = await createClient({
-          client_name: validatedData.client_name.trim(),
-          email: validatedData.email.trim().toLowerCase(),
-          widget_settings: {
-            agent_name: validatedData.widget_settings.agent_name?.trim() || "AI Assistant",
+        // Create the client directly in the ai_agents table
+        const { data: newAgent, error } = await supabase
+          .from("ai_agents")
+          .insert({
+            name: validatedData.widget_settings.agent_name?.trim() || "AI Assistant",
             agent_description: validatedData.widget_settings.agent_description?.trim() || "",
-            logo_url: validatedData.widget_settings.logo_url || ""
-          }
-        });
+            logo_url: validatedData.widget_settings.logo_url || "",
+            status: 'active',
+            content: '',
+            interaction_type: 'config',
+            client_name: validatedData.client_name.trim(),
+            email: validatedData.email.trim().toLowerCase(),
+            settings: {
+              client_name: validatedData.client_name.trim(),
+              email: validatedData.email.trim().toLowerCase(),
+              agent_name: validatedData.widget_settings.agent_name?.trim() || "AI Assistant",
+              agent_description: validatedData.widget_settings.agent_description?.trim() || "",
+              logo_url: validatedData.widget_settings.logo_url || ""
+            }
+          })
+          .select("id, client_id")
+          .single();
+
+        if (error) {
+          console.error("Error creating client in ai_agents:", error);
+          throw new Error(error.message || "Failed to create client");
+        }
+
+        if (!newAgent) {
+          throw new Error("Failed to create client record");
+        }
+
+        // Get clientId - either from the client_id field or use the id if client_id is not set
+        const clientId = newAgent.client_id || newAgent.id;
 
         // Log the client creation to ensure it shows up in Recent Activity
         try {
