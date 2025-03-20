@@ -33,7 +33,7 @@ export function NewClientForm({ onSubmit, initialData, isSubmitting: externalIsS
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>AI Agent Information</CardTitle>
+          <CardTitle>Client Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
