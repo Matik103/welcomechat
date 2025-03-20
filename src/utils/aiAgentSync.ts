@@ -35,14 +35,13 @@ export async function syncWidgetSettingsWithAgent(
       // Only copy specific properties from existing settings if they exist
       ...(agentData?.settings ? agentData.settings as Record<string, any> : {}),
       logo_url: settings.logo_url,
-      agent_name: settings.agent_name,
       updated_at: new Date().toISOString()
     };
     
     if (agentData?.id) {
       // Generate an updated AI prompt with clientName
       const aiPrompt = generateAiPrompt(
-        settings.agent_name || agentData.name, 
+        "AI Assistant", 
         agentData.agent_description || "", 
         clientName
       );
@@ -51,7 +50,6 @@ export async function syncWidgetSettingsWithAgent(
       const { error: updateError } = await supabase
         .from("ai_agents")
         .update({
-          name: settings.agent_name, // Update name to match widget settings
           settings: agentSettings,
           ai_prompt: aiPrompt
         })

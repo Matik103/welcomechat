@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,11 +55,8 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
         console.log("Valid widget settings detected, applying to state");
         setSettings(client.widget_settings as IWidgetSettings);
       } else {
-        console.log("Invalid or missing widget settings, using defaults with agent name");
-        setSettings({
-          ...defaultSettings,
-          agent_name: client.agent_name || ""
-        });
+        console.log("Invalid or missing widget settings, using defaults");
+        setSettings(defaultSettings);
       }
     }
   }, [client]);
