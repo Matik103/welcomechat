@@ -55,20 +55,31 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const tempPassword = generateClientTempPassword();
     console.log("Generated temp password");
 
-    // Store the temporary password in the database
-    const { error: tempPasswordError } = await supabase
-      .from("client_temp_passwords")
-      .insert({
-        agent_id: agentId, // Using agent_id instead of client_id now
-        email: data.email,
-        temp_password: tempPassword
-      });
+    try {
+      // Call the Supabase Edge Function to securely store the temporary password and create the user
+      const { data: functionData, error: functionError } = await supabase.functions
+        .invoke('create-client-user', {
+          body: {
+            email: data.email,
+            client_id: agentId,
+            client_name: data.client_name,
+            agent_name: widgetSettings.agent_name || 'Assistant',
+            agent_description: widgetSettings.agent_description || '',
+            logo_url: widgetSettings.logo_url || '',
+            logo_storage_path: widgetSettings.logo_storage_path || ''
+          }
+        });
 
-    if (tempPasswordError) {
-      console.error("Error saving temporary password:", tempPasswordError);
-      throw tempPasswordError;
+      if (functionError) {
+        console.error("Error calling create-client-user function:", functionError);
+        throw functionError;
+      }
+
+      console.log("Edge function response:", functionData);
+    } catch (edgeFunctionError) {
+      console.error("Error in edge function call:", edgeFunctionError);
+      // Continue execution, as we'll still try to send an email directly
     }
-    console.log("Saved temporary password to database");
 
     try {
       // Send invitation email with temporary password
