@@ -14,7 +14,7 @@ export const AgentDescriptionField = ({ form, isClientView = false }: AgentDescr
   return (
     <div className="space-y-2">
       <Label htmlFor="agent_description" className="text-sm font-medium text-gray-900">
-        AI Agent Description {isClientView && <span className="text-red-500">*</span>}
+        Chatbot Description {isClientView && <span className="text-red-500">*</span>}
       </Label>
       <Textarea
         id="agent_description"

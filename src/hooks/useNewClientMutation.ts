@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ClientFormData, clientFormSchema } from "@/types/client-form";
 import { createClient } from "@/services/clientService";
 import { toast } from "sonner";
+import { createOpenAIAssistant } from "@/utils/openAIUtils";
 
 export const useNewClientMutation = () => {
   return useMutation({
@@ -25,17 +26,33 @@ export const useNewClientMutation = () => {
         }
 
         // Create the client with validated data
-        const result = await createClient({
+        const clientId = await createClient({
           client_name: validatedData.client_name.trim(),
           email: validatedData.email.trim().toLowerCase(),
           widget_settings: {
-            agent_name: validatedData.widget_settings.agent_name?.trim() || "Chat",
+            agent_name: validatedData.widget_settings.agent_name?.trim() || "AI Assistant",
             agent_description: validatedData.widget_settings.agent_description?.trim() || "",
             logo_url: validatedData.widget_settings.logo_url || ""
           }
         });
 
-        return result;
+        // Create OpenAI assistant using the client's chatbot settings
+        if (validatedData.widget_settings.agent_name || validatedData.widget_settings.agent_description) {
+          try {
+            await createOpenAIAssistant(
+              clientId,
+              validatedData.widget_settings.agent_name?.trim() || "AI Assistant",
+              validatedData.widget_settings.agent_description?.trim() || "",
+              validatedData.client_name.trim()
+            );
+          } catch (openaiError) {
+            console.error("Error creating OpenAI assistant:", openaiError);
+            // We continue even if OpenAI assistant creation fails
+            // The client is still created, and the assistant can be created later
+          }
+        }
+
+        return clientId;
       } catch (error) {
         console.error("Error creating client:", error);
         // Ensure we always have a meaningful error message

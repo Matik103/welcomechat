@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { createClient } from '@/services/clientService';
 import type { ClientFormData } from '@/types/client';
+import { createOpenAIAssistant } from '@/utils/openAIUtils';
 
 // Form validation schema
 const clientFormSchema = z.object({
@@ -78,7 +79,24 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
         }
       };
       
-      const result = await createClient(formData);
+      // Create the client
+      const clientId = await createClient(formData);
+      
+      // Create OpenAI assistant with the client's chatbot settings
+      if (formData.widget_settings?.agent_name || formData.widget_settings?.agent_description) {
+        try {
+          await createOpenAIAssistant(
+            clientId,
+            formData.widget_settings?.agent_name || "AI Assistant",
+            formData.widget_settings?.agent_description || "",
+            formData.client_name
+          );
+        } catch (openaiError) {
+          console.error("Error creating OpenAI assistant:", openaiError);
+          // We continue even if OpenAI assistant creation fails
+        }
+      }
+      
       toast.success('Client created successfully!');
       form.reset();
     } catch (error) {
@@ -144,24 +162,24 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
         </div>
 
         <div className="space-y-4 border-t pt-4">
-          <h3 className="text-lg font-medium">Chat Settings (Optional)</h3>
+          <h3 className="text-lg font-medium">Chatbot Settings (Optional)</h3>
           
           <div>
-            <Label htmlFor="agent_name">Chat Name</Label>
+            <Label htmlFor="agent_name">Chatbot Name</Label>
             <Input
               id="agent_name"
               {...form.register('widget_settings.agent_name')}
-              placeholder="Enter chat name"
+              placeholder="Enter chatbot name"
               disabled={isLoading || isSubmitting}
             />
           </div>
 
           <div>
-            <Label htmlFor="agent_description">Chat Description</Label>
+            <Label htmlFor="agent_description">Chatbot Description</Label>
             <Textarea
               id="agent_description"
               {...form.register('widget_settings.agent_description')}
-              placeholder="Enter chat description"
+              placeholder="Enter chatbot description"
               disabled={isLoading || isSubmitting}
             />
           </div>
