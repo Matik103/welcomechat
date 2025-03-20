@@ -126,14 +126,14 @@ export function NewClientForm() {
         </div>
 
         <div className="space-y-4 border-t pt-4">
-          <h3 className="text-lg font-medium">AI Assistant Settings (Optional)</h3>
+          <h3 className="text-lg font-medium">Assistant Settings (Optional)</h3>
           
           <div>
             <Label htmlFor="agent_name">Assistant Name</Label>
             <Input
               id="agent_name"
               {...form.register('widget_settings.agent_name')}
-              placeholder="Enter AI assistant name"
+              placeholder="Enter assistant name"
               disabled={isLoading}
             />
           </div>
@@ -143,7 +143,7 @@ export function NewClientForm() {
             <Textarea
               id="agent_description"
               {...form.register('widget_settings.agent_description')}
-              placeholder="Enter AI assistant description"
+              placeholder="Enter assistant description"
               disabled={isLoading}
             />
           </div>
