@@ -72,13 +72,13 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
 
       if (functionError) {
         console.error("Error calling create-client-user function:", functionError);
-        throw functionError;
+        // Continue execution, we'll still try the other steps
+      } else {
+        console.log("Edge function response:", functionData);
       }
-
-      console.log("Edge function response:", functionData);
     } catch (edgeFunctionError) {
       console.error("Error in edge function call:", edgeFunctionError);
-      // Continue execution, as we'll still try to send an email directly
+      // Continue execution, we'll still try the other steps
     }
 
     try {
@@ -95,6 +95,10 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         }
       });
       console.log("Email sending result:", emailResult);
+      
+      if (!emailResult.success) {
+        toast.error("Failed to send invitation email, but client was created successfully.");
+      }
     } catch (emailError) {
       console.error("Error sending invitation email:", emailError);
       // Log the error but don't fail the client creation
@@ -104,13 +108,13 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     // Create OpenAI assistant if agent name and description are provided
     if (widgetSettings.agent_name) {
       try {
-        await createOpenAIAssistant(
+        const assistantResult = await createOpenAIAssistant(
           agentId, 
           widgetSettings.agent_name, 
           widgetSettings.agent_description || "",
           data.client_name
         );
-        console.log("OpenAI assistant created/updated successfully");
+        console.log("OpenAI assistant created/updated successfully:", assistantResult);
       } catch (assistantError) {
         console.error("Error creating/updating OpenAI assistant:", assistantError);
         // Don't fail client creation if assistant creation fails
