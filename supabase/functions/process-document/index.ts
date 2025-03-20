@@ -160,8 +160,23 @@ async function processWithLlamaParse(
       );
     }
 
-    const llamaParseResult = await response.json();
-    console.log("LlamaParse API response received");
+    let llamaParseResult;
+    try {
+      llamaParseResult = await response.json();
+      console.log("LlamaParse API response received");
+    } catch (jsonError) {
+      console.error("Failed to parse LlamaParse API response:", jsonError);
+      const errorText = await response.text();
+      console.error("Raw response:", errorText);
+      await updateJobStatus(supabase, jobId, "failed", `Failed to parse LlamaParse API response: ${jsonError.message}`);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Failed to parse LlamaParse API response: ${jsonError.message}` 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
 
     // Extract content from the LlamaParse result
     let extractedContent = "";
@@ -330,7 +345,30 @@ async function processWithFirecrawl(
       body: JSON.stringify(requestData)
     });
 
-    const firecrawlResult = await response.json();
+    // Debug the response
+    const contentType = response.headers.get("Content-Type");
+    console.log(`Firecrawl API response status: ${response.status}, Content-Type: ${contentType}`);
+
+    // Get the raw response text for debugging
+    const rawResponseText = await response.text();
+    console.log("Raw response text (first 500 chars):", rawResponseText.substring(0, 500));
+    
+    let firecrawlResult;
+    try {
+      // Parse the response text
+      firecrawlResult = JSON.parse(rawResponseText);
+    } catch (jsonError) {
+      console.error("Failed to parse Firecrawl API response:", jsonError);
+      console.error("Raw response:", rawResponseText);
+      await updateJobStatus(supabase, jobId, "failed", `Failed to parse Firecrawl API response: ${jsonError.message}`);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Failed to parse Firecrawl API response: ${jsonError.message}` 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
 
     if (!response.ok) {
       console.error("Firecrawl API error:", firecrawlResult);
@@ -344,7 +382,7 @@ async function processWithFirecrawl(
       );
     }
 
-    console.log("Firecrawl API response received");
+    console.log("Firecrawl API response received and parsed successfully");
 
     // Extract content from the Firecrawl result
     let extractedContent = "";

@@ -8,19 +8,29 @@ import {
 } from "@/services/clientService";
 import { toast } from "sonner";
 
+// Function to sanitize strings that will be used in SQL queries
+const sanitizeForSQL = (value: string | undefined): string | undefined => {
+  if (!value) return value;
+  // Replace double quotes with single quotes to prevent SQL injection
+  return value.replace(/"/g, "'");
+};
+
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      // Use agent name and description exactly as provided without any modifications
-      const updatedData = {
+      console.log("Data before mutation:", data);
+      
+      // Sanitize agent_name to prevent SQL syntax errors
+      const sanitizedData = {
         ...data,
-        agent_name: data.agent_name, // Use the exact agent name as provided
-        agent_description: data.agent_description // Include agent_description
+        agent_name: sanitizeForSQL(data.agent_name)
       };
+      
+      console.log("Data after sanitization:", sanitizedData);
 
       if (id) {
         // Update existing client
-        const clientId = await updateClient(id, updatedData);
+        const clientId = await updateClient(id, sanitizedData);
         await logClientUpdateActivity(id);
         return clientId;
       } else {
@@ -31,7 +41,7 @@ export const useClientMutation = (id: string | undefined) => {
         
         try {
           // Create the client record which also handles sending the invitation email
-          clientId = await createClient(updatedData);
+          clientId = await createClient(sanitizedData);
           console.log("Client created successfully with ID:", clientId);
           
           // The email is already sent in createClient, so we don't need to send it again here

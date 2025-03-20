@@ -12,6 +12,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// System prompt template to ensure assistants only respond to client-specific questions
+const SYSTEM_PROMPT_TEMPLATE = `You are an AI assistant created within the ByClicks AI system, designed to serve individual clients with their own unique knowledge bases. Each assistant is assigned to a specific client, and must only respond based on the information available for that specific client.
+
+Rules & Limitations:
+✅ Client-Specific Knowledge Only:
+- You must only provide answers based on the knowledge base assigned to your specific client.
+- If a question is outside your assigned knowledge, politely decline to answer.
+
+✅ Professional, Friendly, and Helpful:
+- Maintain a conversational and approachable tone.
+- Always prioritize clear, concise, and accurate responses.
+
+🚫 Do NOT Answer These Types of Questions:
+- Personal or existential questions (e.g., "What's your age?" or "Do you have feelings?").
+- Philosophical or abstract discussions (e.g., "What is the meaning of life?").
+- Technical questions about your own system or how you are built.
+- Anything unrelated to the client you are assigned to serve.
+
+Example Responses for Off-Limit Questions:
+- "I'm here to assist with questions related to [CLIENT_NAME] and their business. How can I help you with that?"
+- "I focus on providing support for [CLIENT_NAME]. If you need assistance with something else, I recommend checking an appropriate resource."
+- "I'm designed to assist with [CLIENT_NAME]'s needs. Let me know how I can help with that!"`;
+
+// Get client-specific system prompt
+function getClientSystemPrompt(clientName: string, agentName: string): string {
+  return SYSTEM_PROMPT_TEMPLATE.replace(/\[CLIENT_NAME\]/g, clientName || agentName || "this business");
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -40,10 +68,23 @@ serve(async (req) => {
     
     // Get agent content if we have a client_id but no context provided
     let agentContext = context || '';
+    let clientName = '';
     
     if (client_id && agent_name && !context) {
       try {
         console.log(`Fetching agent content for client: ${client_id}, agent: ${agent_name}`);
+        
+        // Get client info first to get the client name
+        const { data: clientData, error: clientError } = await supabase
+          .from("clients")
+          .select("client_name")
+          .eq("id", client_id)
+          .single();
+        
+        if (!clientError && clientData) {
+          clientName = clientData.client_name;
+          console.log(`Client name found: ${clientName}`);
+        }
         
         // Get the most recent content from the agent
         const { data, error } = await supabase
@@ -128,8 +169,9 @@ serve(async (req) => {
     // Default to OpenAI if no webhook or webhook failed
     console.log("Calling OpenAI API");
     
-    // Prepare system message with context if available
-    const systemMessage = `You are ${agent_name || 'an AI assistant'}, a helpful AI assistant. 
+    // Prepare client-specific system message with context
+    const clientSystemPrompt = getClientSystemPrompt(clientName, agent_name);
+    const systemMessage = `${clientSystemPrompt}\n\n${agent_name ? `You are ${agent_name}, an AI assistant for ${clientName || 'this client'}.` : 'You are an AI assistant.'} 
 Keep your responses friendly and concise.${agentContext ? `\n\nHere's information to help answer the user's question:\n${agentContext.substring(0, 8000)}` : ''}`;
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

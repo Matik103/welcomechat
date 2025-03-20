@@ -1,4 +1,6 @@
 
+import { supabase } from "@/integrations/supabase/client";
+
 interface CrawlResponse {
   success: boolean;
   error?: string;
@@ -8,6 +10,8 @@ interface CrawlResponse {
 interface CrawlOptions {
   limit?: number;
   formats?: string[];
+  depth?: number;
+  maxPagesToCrawl?: number;
 }
 
 export class FirecrawlService {
@@ -23,31 +27,50 @@ export class FirecrawlService {
     useLlamaParse: boolean = false
   ): Promise<CrawlResponse> {
     try {
-      const response = await fetch('/api/process-document', {
+      console.log(`Sending request to process document:`, {
+        documentUrl,
+        documentType,
+        clientId,
+        agentName,
+        documentId,
+        useLlamaParse
+      });
+      
+      // Call the Supabase Edge Function directly instead of using a relative API path
+      const { data, error } = await supabase.functions.invoke('process-document', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        body: {
           documentUrl,
           documentType,
           clientId,
           agentName,
           documentId,
-          useLlamaParse
-        }),
+          useLlamaParse,
+          // Add crawl options for Firecrawl
+          crawlOptions: {
+            depth: 2, // Enable depth crawling
+            maxPagesToCrawl: 100, // Increase page limit
+            format: 'markdown' // Prefer markdown for better structure
+          },
+          // Add parse options for LlamaParse
+          parseOptions: {
+            split_by: "chunk", 
+            chunk_size: 2000,
+            include_metadata: true
+          }
+        },
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('Error processing document:', data);
+      // Check for errors
+      if (error) {
+        console.error('Error calling process-document function:', error);
         return {
           success: false,
-          error: data.error || 'Failed to process document',
+          error: `Error calling process-document: ${error.message || 'Unknown error'}`
         };
       }
 
+      // If successful, return the data
       return {
         success: true,
         data
@@ -66,24 +89,28 @@ export class FirecrawlService {
    */
   static async getProcessingStatus(jobId: string): Promise<CrawlResponse> {
     try {
-      // This would call another edge function to check the status in the database
-      const response = await fetch(`/api/document-processing-status?jobId=${jobId}`, {
+      // Create a URLSearchParams object to properly encode the jobId
+      const searchParams = new URLSearchParams({ jobId });
+      
+      // Call the Supabase Edge Function directly
+      const { data, error } = await supabase.functions.invoke('document-processing-status', {
         method: 'GET',
+        // Fix: Use correct approach to pass query parameters in FunctionInvokeOptions
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'x-search-params': searchParams.toString()
+        }
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('Error getting processing status:', data);
+      // Check for errors
+      if (error) {
+        console.error('Error getting processing status:', error);
         return {
           success: false,
-          error: data.error || 'Failed to get processing status',
+          error: `Error getting processing status: ${error.message || 'Unknown error'}`
         };
       }
 
+      // If successful, return the data
       return {
         success: true,
         data
