@@ -13,7 +13,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       .insert({
         client_name: data.client_name,
         email: data.email,
-        name: data.widget_settings?.agent_name || "AI Assistant",
+        name: data.widget_settings?.agent_name || "",
         agent_description: data.widget_settings?.agent_description,
         logo_url: data.widget_settings?.logo_url,
         settings: data.widget_settings || {},
@@ -60,7 +60,7 @@ export const updateClient = async (clientId: string, data: ClientFormData): Prom
       .update({
         client_name: data.client_name,
         email: data.email,
-        name: data.widget_settings?.agent_name || "AI Assistant",
+        name: data.widget_settings?.agent_name || "",
         agent_description: data.widget_settings?.agent_description,
         logo_url: data.widget_settings?.logo_url,
         settings: {
@@ -99,7 +99,7 @@ export const createAgent = async (data: ClientFormData): Promise<string> => {
       .insert({
         client_name: data.client_name,
         email: data.email,
-        name: widgetSettings.agent_name || "AI Assistant",
+        name: widgetSettings.agent_name || "",
         agent_description: widgetSettings.agent_description,
         logo_url: widgetSettings.logo_url,
         settings: widgetSettings,

@@ -15,12 +15,16 @@ export const createClientActivity = async (
     const { dbActivityType, enhancedMetadata } = mapActivityType(activity_type, metadata);
     
     // Create the record with the mapped activity type
-    await supabase.from("client_activities").insert({
+    const { error } = await supabase.from("client_activities").insert({
       client_id: clientId,
       activity_type: dbActivityType,
       description,
       metadata: enhancedMetadata || {}
     });
+    
+    if (error) {
+      console.error("Error inserting client activity:", error);
+    }
   } catch (error) {
     console.error("Error creating activity log:", error);
     // Swallow the error as logging failure shouldn't break the app
@@ -37,12 +41,14 @@ export const logAgentError = async (
   metadata?: Json
 ): Promise<void> => {
   try {
-    const errorMetadata = {
-      ...(metadata || {}),
-      agent_name: agentName,
-      error_type: errorType,
-      context
-    };
+    let errorMetadata: Record<string, any> = {};
+    if (metadata && typeof metadata === 'object') {
+      errorMetadata = { ...metadata };
+    }
+    
+    errorMetadata.agent_name = agentName;
+    errorMetadata.error_type = errorType;
+    errorMetadata.context = context;
     
     await createClientActivity(
       clientId,

@@ -1,3 +1,4 @@
+
 import { ActivityType, ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 
@@ -111,7 +112,7 @@ Rules & Limitations:
 - Anything unrelated to the client you are assigned to serve.`;
   
   // Sanitize inputs to be extra safe
-  const sanitizedAgentName = agentName.replace(/"/g, "'");
+  const sanitizedAgentName = agentName ? agentName.replace(/"/g, "'") : "Chat Widget";
   const sanitizedClientName = clientName ? clientName.replace(/"/g, "'") : "your organization";
   const sanitizedDescription = agentDescription ? agentDescription.replace(/"/g, "'") : "";
   

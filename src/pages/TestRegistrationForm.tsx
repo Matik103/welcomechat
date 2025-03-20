@@ -1,12 +1,14 @@
 
 import { ClientRegistrationForm } from "@/components/forms/ClientRegistrationForm";
 import { toast } from "sonner";
+import { ClientFormData } from "@/types/client-form";
 
 const TestRegistrationForm = () => {
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: ClientFormData) => {
     // Dummy handler for testing
     console.log("Form submitted with data:", data);
     toast.success("Form submitted successfully");
+    return Promise.resolve();
   };
 
   return (
