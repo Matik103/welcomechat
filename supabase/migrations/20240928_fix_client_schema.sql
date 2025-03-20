@@ -1,4 +1,37 @@
 
+-- Remove agent_description column from clients table if it exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'clients' 
+        AND column_name = 'agent_description'
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE public.clients DROP COLUMN agent_description;
+        
+        -- Log this change
+        INSERT INTO client_activities (
+            client_id,
+            activity_type,
+            description,
+            metadata
+        )
+        SELECT 
+            id,
+            'system_update',
+            'Removed agent_description column from clients table',
+            jsonb_build_object(
+                'migration_date', NOW(),
+                'migration_name', '20240928_fix_client_schema'
+            )
+        FROM clients 
+        WHERE id = (SELECT MIN(id) FROM clients)
+        LIMIT 1;
+    END IF;
+END $$;
+
 -- Store agent_description in widget_settings instead of as a separate column
 -- Update clients schema to ensure the correct columns exist
 ALTER TABLE public.clients 
@@ -28,10 +61,11 @@ WHERE widget_settings IS NULL;
 ALTER TABLE public.ai_agents 
 ADD COLUMN IF NOT EXISTS agent_description TEXT;
 
--- Drop the function and remake it to NOT accept agent_description parameter
+-- Drop the function and remake it to NOT accept agent_description parameter directly
 DROP FUNCTION IF EXISTS create_new_client(text, text, text, text, text, text, jsonb, text);
+DROP FUNCTION IF EXISTS create_new_client(text, text, text, text, text, jsonb, text);
 
--- Update create_new_client function to only manage client table
+-- Update create_new_client function to only manage client table and store agent_description in widget_settings
 CREATE OR REPLACE FUNCTION create_new_client(
   p_client_name TEXT,
   p_email TEXT,
@@ -46,7 +80,11 @@ AS $$
 DECLARE
   new_client_id UUID;
   final_widget_settings JSONB;
+  agent_description TEXT;
 BEGIN
+  -- Extract agent_description from widget_settings if it exists
+  agent_description := p_widget_settings->>'agent_description';
+  
   -- Merge the provided widget_settings
   final_widget_settings := COALESCE(p_widget_settings, '{}'::jsonb);
   
@@ -106,12 +144,12 @@ BEGIN
   ) VALUES (
     new_client_id,
     p_agent_name,
-    final_widget_settings->>'agent_description',
+    agent_description,
     '',
     'config',
     jsonb_build_object(
       'agent_name', p_agent_name,
-      'agent_description', final_widget_settings->>'agent_description',
+      'agent_description', agent_description,
       'client_name', p_client_name,
       'logo_url', p_logo_url,
       'logo_storage_path', p_logo_storage_path,
