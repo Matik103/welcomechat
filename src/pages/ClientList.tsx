@@ -1,359 +1,183 @@
 
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { formatDistanceToNow } from "date-fns";
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { PageHeading } from '@/components/dashboard/PageHeading';
+import { ClientListTable } from '@/components/client/ClientListTable';
+import { ClientSearchBar } from '@/components/client/ClientSearchBar';
+import { Button } from '@/components/ui/button';
+import { Client } from '@/types/client';
+import { Loader2, Plus } from 'lucide-react';
+import { execSql } from '@/utils/rpcUtils';
+import { toast } from 'sonner';
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Edit, Trash2, Plus, Bot as BotIcon } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/components/ui/use-toast";
-import { DeleteClientDialog } from "@/components/client/DeleteClientDialog";
-import { supabase } from "@/integrations/supabase/client";
-import { Client } from "@/types/client";
-import { checkAndRefreshAuth } from "@/services/authService";
-import { createClientActivity } from "@/services/clientActivityService";
-import { ClientActions } from "@/components/client/ClientActions";
-import { execSql } from "@/utils/rpcUtils";
+export default function ClientList() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
 
-const ClientList = () => {
-  const [search, setSearch] = useState("");
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const PAGE_SIZE = 10;
-
-  useEffect(() => {
-    const fetchClients = async () => {
-      setLoading(true);
+  // Fetch clients from ai_agents table where interaction_type is 'config'
+  const { data: clients, isLoading, error } = useQuery({
+    queryKey: ['clients'],
+    queryFn: async (): Promise<Client[]> => {
       try {
-        await checkAndRefreshAuth();
-        
-        // More detailed query to get accurate client information
-        // Only fetching config records which represent the primary client data
+        // Query the ai_agents table for config-type records (representing clients)
         const query = `
           SELECT 
             id, 
             client_id,
-            client_name,
-            name,
-            email,
-            agent_description,
-            logo_url,
+            client_name, 
+            email, 
+            logo_url, 
             logo_storage_path,
-            created_at,
-            updated_at,
-            settings,
+            created_at, 
+            updated_at, 
+            last_active,
+            deleted_at,
+            deletion_scheduled_at,
             status,
-            last_active
-          FROM ai_agents
+            settings,
+            name,
+            agent_description
+          FROM ai_agents 
           WHERE interaction_type = 'config'
           ORDER BY created_at DESC
-          LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}
         `;
         
-        const countQuery = `
-          SELECT COUNT(*) 
-          FROM ai_agents
-          WHERE interaction_type = 'config'
-        `;
+        const results = await execSql(query);
         
-        const data = await execSql(query);
-        const countResult = await execSql(countQuery);
-        
-        if (!data || !Array.isArray(data)) {
-          console.error("Error with client data format:", data);
-          toast({
-            title: "Error",
-            description: "Failed to fetch clients. Please try again.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
-
-        // Get the total count - handle as string or number
-        let count = 0;
-        if (countResult && countResult.length > 0) {
-          const countValue = countResult[0].count;
-          count = typeof countValue === 'string' ? parseInt(countValue) : countValue;
+        if (!results || !Array.isArray(results)) {
+          console.error('Invalid results from SQL query:', results);
+          return [];
         }
         
-        // Convert the AI agents data to Client type
-        const clientData: Client[] = data.map(agent => ({
-          id: String(agent.id),
-          client_id: agent.client_id || String(agent.id),
-          client_name: agent.client_name || "",
-          email: agent.email || "",
-          logo_url: agent.logo_url || "",
-          logo_storage_path: agent.logo_storage_path || "",
-          created_at: agent.created_at,
-          updated_at: agent.updated_at,
-          last_active: agent.last_active,
-          deletion_scheduled_at: agent.deletion_scheduled_at,
-          deleted_at: agent.deleted_at,
-          status: agent.status || "active",
-          company: (agent.settings && typeof agent.settings === 'object' && agent.settings.company) || "",
-          description: agent.agent_description || "",
-          name: agent.name || "AI Assistant",
-          agent_name: agent.name || "AI Assistant",
-          widget_settings: {
-            agent_name: agent.name || "AI Assistant",
-            agent_description: agent.agent_description || "",
-            logo_url: agent.logo_url || "",
-            logo_storage_path: agent.logo_storage_path || "",
-            ...(agent.settings && typeof agent.settings === 'object' ? agent.settings : {})
-          }
-        }));
-
-        setClients(clientData);
-        setTotalPages(Math.ceil(count / PAGE_SIZE));
-      } catch (error) {
-        console.error("Error fetching clients:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch clients. Please try again.",
-          variant: "destructive",
+        // Map the results to Client objects
+        return results.map((record: any) => {
+          // Ensure we have valid data by checking and providing defaults
+          const id = record.id || record.client_id || '';
+          const clientName = record.client_name || '';
+          const email = record.email || '';
+          const logoUrl = record.logo_url || '';
+          const logoStoragePath = record.logo_storage_path || '';
+          const createdAt = record.created_at || '';
+          const updatedAt = record.updated_at || '';
+          const lastActive = record.last_active || null;
+          const deletionScheduledAt = record.deletion_scheduled_at || null;
+          const deletedAt = record.deleted_at || null;
+          const status = record.status || 'active';
+          const settings = record.settings || {};
+          const agentDescription = record.agent_description || '';
+          const name = record.name || '';
+          const agentName = name;
+          
+          // Get widget settings from the settings object or create empty one
+          const widgetSettings = typeof settings === 'object' ? settings : {};
+          
+          return {
+            id,
+            client_name: clientName,
+            email,
+            logo_url: logoUrl,
+            logo_storage_path: logoStoragePath,
+            created_at: createdAt,
+            updated_at: updatedAt,
+            last_active: lastActive,
+            deletion_scheduled_at: deletionScheduledAt,
+            deleted_at: deletedAt,
+            status,
+            widget_settings: widgetSettings,
+            description: agentDescription,
+            name,
+            agent_name: agentName,
+          };
         });
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching clients:', err);
+        toast.error('Failed to load clients');
+        return [];
       }
-    };
-
-    fetchClients();
-  }, [page, toast]);
-
-  const renderAgentName = (client: Client) => {
-    const agentName = client.name || client.agent_name || "AI Assistant";
-    return (
-      <span className="inline-flex items-center gap-1">
-        <BotIcon className="w-4 h-4 text-primary" />
-        {agentName}
-      </span>
-    );
-  };
-
-  const filteredClients = clients.filter((client) => {
-    const searchTerm = search.toLowerCase();
-    return (
-      client.client_name.toLowerCase().includes(searchTerm) ||
-      client.email.toLowerCase().includes(searchTerm) ||
-      (client.name || "AI Assistant").toLowerCase().includes(searchTerm)
-    );
+    },
   });
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-  };
-
-  const getBadgeVariant = (status: string) => {
-    switch (status) {
-      case "active":
-        return "default";
-      case "inactive":
-        return "secondary";
-      case "deleted":
-        return "destructive";
-      default:
-        return "outline";
+  useEffect(() => {
+    if (clients) {
+      // Filter clients based on search query
+      const filtered = clients.filter(client => {
+        const searchLower = searchQuery.toLowerCase();
+        return (
+          client.client_name?.toLowerCase().includes(searchLower) ||
+          client.email?.toLowerCase().includes(searchLower) ||
+          client.agent_name?.toLowerCase().includes(searchLower) ||
+          client.description?.toLowerCase().includes(searchLower)
+        );
+      });
+      setFilteredClients(filtered);
     }
+  }, [clients, searchQuery]);
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
   };
 
-  const capitalizeFirstLetter = (str: string) => {
-    return str.charAt(0).toUpperCase() + str.slice(1);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleDeleteClick = (client: Client) => {
-    setSelectedClient(client);
-    setIsDeleteDialogOpen(true);
-    
-    createClientActivity(
-      client.id,
-      "client_updated",
-      `Admin opened deletion dialog for ${client.client_name}`,
-      { 
-        action: "delete_dialog_opened",
-        client_name: client.client_name,
-        admin_action: true
-      }
+  if (error) {
+    return (
+      <div className="container mx-auto py-8">
+        <PageHeading title="Client Management" description="Error loading clients" />
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
+          Failed to load clients. Please try refreshing the page.
+        </div>
+      </div>
     );
-  };
-
-  const handleEditClick = (client: Client) => {
-    createClientActivity(
-      client.id,
-      "client_updated",
-      `Admin edited client ${client.client_name}`,
-      { 
-        action: "edit_initiated",
-        client_name: client.client_name,
-        admin_action: true
-      }
-    );
-    
-    navigate(`/admin/clients/${client.id}`);
-  };
-
-  const handleClientCreated = () => {
-    createClientActivity(
-      "system",
-      "system_update",
-      "Admin initiated new client creation",
-      { 
-        action: "client_creation_initiated",
-        admin_action: true
-      }
-    );
-    
-    navigate("/admin/clients/new");
-  };
+  }
 
   return (
-    <div className="container py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Clients</h1>
-        <Input
-          type="search"
-          placeholder="Search clients..."
-          value={search}
-          onChange={handleSearch}
-          className="max-w-md"
+    <div className="container mx-auto py-8">
+      <div className="flex justify-between items-center mb-6">
+        <PageHeading 
+          title="Client Management" 
+          description="View and manage all your clients"
         />
+        <Link to="/admin/clients/new">
+          <Button className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add Client
+          </Button>
+        </Link>
       </div>
 
-      <div className="flex justify-between items-center mt-4">
-        <div>
-          <Button
-            variant="outline"
-            disabled={page === 1}
-            onClick={() => handlePageChange(page - 1)}
-          >
-            Previous
-          </Button>
-          <span className="mx-2">Page {page} of {totalPages}</span>
-          <Button
-            variant="outline"
-            disabled={page === totalPages}
-            onClick={() => handlePageChange(page + 1)}
-          >
-            Next
-          </Button>
+      <ClientSearchBar onSearch={handleSearch} className="mb-6" />
+
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-        <Button onClick={handleClientCreated}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Client
-        </Button>
-      </div>
-      
-      <div className="rounded-md border mt-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Client Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>AI Agent</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last Active</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredClients.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  {loading ? "Loading clients..." : "No clients found."}
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredClients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell className="font-medium">{client.client_name}</TableCell>
-                  <TableCell>{client.email}</TableCell>
-                  <TableCell>{renderAgentName(client)}</TableCell>
-                  <TableCell>
-                    <Badge variant={getBadgeVariant(client.status)}>
-                      {capitalizeFirstLetter(client.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {client.last_active
-                      ? formatDistanceToNow(new Date(client.last_active), { addSuffix: true })
-                      : "Never"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEditClick(client)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleDeleteClick(client)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      
-      {loading && (
-        <div className="text-center mt-4">
-          Loading clients...
+      ) : (
+        <ClientListTable clients={filteredClients} />
+      )}
+
+      {!isLoading && filteredClients.length === 0 && (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No clients found</h3>
+          <p className="text-gray-500 mb-6">
+            {searchQuery 
+              ? "No clients match your search. Try a different search term."
+              : "You haven't added any clients yet."}
+          </p>
+          {!searchQuery && (
+            <Link to="/admin/clients/new">
+              <Button>Add Your First Client</Button>
+            </Link>
+          )}
         </div>
       )}
 
-      <DeleteClientDialog
-        isOpen={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        client={selectedClient}
-        onClientsUpdated={() => {
-          if (selectedClient) {
-            createClientActivity(
-              selectedClient.id,
-              "client_deleted",
-              `Client ${selectedClient.client_name} was scheduled for deletion`,
-              { 
-                client_name: selectedClient.client_name,
-                client_email: selectedClient.email,
-                admin_action: true,
-                deletion_scheduled: true
-              }
-            );
-          }
-          
-          setClients((prevClients) =>
-            prevClients.filter((c) => c.id !== selectedClient?.id)
-          );
-          setSelectedClient(null);
-        }}
-      />
+      {clients && clients.length > 0 && (
+        <div className="mt-4 text-sm text-gray-500">
+          Showing {filteredClients.length} of {clients.length} clients
+          {searchQuery && <span> (filtered by "{searchQuery}")</span>}
+        </div>
+      )}
     </div>
   );
-};
-
-export default ClientList;
+}
