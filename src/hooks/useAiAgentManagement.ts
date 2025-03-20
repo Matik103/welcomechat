@@ -25,7 +25,7 @@ export const useAiAgentManagement = () => {
       console.log(`Agent logo URL: ${logoUrl}`);
       
       // Use a default agent name if not provided
-      const finalAgentName = agentName || 'AI';
+      const finalAgentName = agentName || 'AI Assistant';
       
       // Check if AI agent exists for this client
       const { data: existingAgents, error: queryError } = await supabase

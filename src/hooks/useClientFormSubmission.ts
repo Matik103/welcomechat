@@ -13,6 +13,7 @@ interface ClientFormData {
   client_name: string;
   email: string;
   agent_name?: string;
+  agent_description?: string;
   logo_url?: string;
   logo_storage_path?: string;
   _tempLogoFile?: File | null;
@@ -35,28 +36,21 @@ export const useClientFormSubmission = (
       const tempLogoFile = data._tempLogoFile;
       delete data._tempLogoFile;
       
-      // Get agent description from the widget settings if available
-      const widgetSettings = data.widget_settings || {};
-      
-      const agentDescription = typeof widgetSettings === 'object' && widgetSettings !== null 
-        ? (widgetSettings as any).agent_description || ""
-        : "";
-      
       if (clientId && isClientView) {
         await clientMutation.mutateAsync({
           client_name: data.client_name,
           email: data.email,
           agent_name: data.agent_name || 'AI Assistant',
+          agent_description: data.agent_description || '',
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path,
-          widget_settings: data.widget_settings
         });
         
         let agentUpdateResult = { updated: false, created: false, descriptionUpdated: false, nameUpdated: false };
         agentUpdateResult = await ensureAiAgentExists(
           clientId, 
           data.agent_name,
-          agentDescription,
+          data.agent_description || "",
           data.logo_url,
           data.logo_storage_path,
           data.client_name
@@ -71,7 +65,7 @@ export const useClientFormSubmission = (
               "created a new AI agent",
               { 
                 agent_name: data.agent_name,
-                agent_description: agentDescription,
+                agent_description: data.agent_description,
                 logo_url: data.logo_url
               }
             );
@@ -81,7 +75,7 @@ export const useClientFormSubmission = (
               "updated their AI agent settings",
               { 
                 agent_name: data.agent_name,
-                agent_description: agentDescription,
+                agent_description: data.agent_description,
                 logo_url: data.logo_url,
                 name_changed: agentUpdateResult.nameUpdated,
                 description_changed: agentUpdateResult.descriptionUpdated
@@ -111,15 +105,15 @@ export const useClientFormSubmission = (
           client_name: data.client_name,
           email: data.email,
           agent_name: data.agent_name || 'AI Assistant',
+          agent_description: data.agent_description || '',
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path,
-          widget_settings: data.widget_settings
         });
         
         await ensureAiAgentExists(
           clientId, 
           data.agent_name,
-          agentDescription,
+          data.agent_description || "",
           data.logo_url,
           data.logo_storage_path,
           data.client_name
@@ -135,11 +129,10 @@ export const useClientFormSubmission = (
           const result = await clientMutation.mutateAsync({
             client_name: data.client_name,
             email: data.email,
+            agent_name: data.agent_name || 'AI Assistant',
+            agent_description: data.agent_description || '',
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
-            widget_settings: {
-              agent_description: agentDescription
-            }
           });
           
           let logoUrl = "";
@@ -151,20 +144,16 @@ export const useClientFormSubmission = (
               logoUrl = uploadResult.publicUrl;
               logoStoragePath = uploadResult.storagePath;
               
+              // Update the ai_agents table with logo info
               await supabase
-                .from("clients")
+                .from("ai_agents")
                 .update({
                   logo_url: logoUrl,
                   logo_storage_path: logoStoragePath,
-                  widget_settings: {
-                    logo_url: logoUrl,
-                    logo_storage_path: logoStoragePath,
-                    agent_description: agentDescription
-                  }
                 })
-                .eq("id", result.clientId);
+                .eq("client_id", result.clientId);
                 
-              console.log("Updated client with logo:", logoUrl);
+              console.log("Updated agent with logo:", logoUrl);
             } catch (logoError) {
               console.error("Error uploading logo:", logoError);
             }
@@ -175,9 +164,9 @@ export const useClientFormSubmission = (
               await ensureAiAgentExists(
                 result.clientId, 
                 data.agent_name,
-                agentDescription,
-                data.logo_url,
-                data.logo_storage_path,
+                data.agent_description || "",
+                logoUrl || data.logo_url,
+                logoStoragePath || data.logo_storage_path,
                 data.client_name
               );
             }

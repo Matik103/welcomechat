@@ -17,40 +17,14 @@ export const useClientMutation = (id: string | undefined) => {
       // Create a deep copy of the data to avoid mutating the original object
       const sanitizedData: ClientFormData = {
         ...data,
-        // Ensure widget_settings is an object
-        widget_settings: {
-          ...(typeof data.widget_settings === 'object' && data.widget_settings !== null 
-              ? data.widget_settings 
-              : {})
-        }
+        // Sanitize the agent name for SQL safety
+        agent_name: data.agent_name ? sanitizeForSQL(data.agent_name) : 'AI Assistant'
       };
       
-      // Get agent_description from widget_settings if it exists
-      let agentDescription = "";
-      if (sanitizedData.widget_settings && typeof sanitizedData.widget_settings === 'object') {
-        const widgetSettings = sanitizedData.widget_settings as Record<string, any>;
-        agentDescription = widgetSettings.agent_description || "";
-      }
+      // Get agent_description from input data
+      const agentDescription = data.agent_description || "";
       
-      // Store agent_description in widget_settings
-      if (sanitizedData.widget_settings && typeof sanitizedData.widget_settings === 'object') {
-        sanitizedData.widget_settings = {
-          ...sanitizedData.widget_settings,
-          agent_description: sanitizeForSQL(agentDescription)
-        };
-      }
-      
-      // Thoroughly sanitize agent_name to prevent SQL issues
-      if (data.agent_name) {
-        sanitizedData.agent_name = sanitizeForSQL(data.agent_name);
-        console.log("Agent name before sanitization:", data.agent_name);
-        console.log("Agent name after sanitization:", sanitizedData.agent_name);
-      } else {
-        // Make sure the default value is also sanitized
-        sanitizedData.agent_name = sanitizeForSQL('AI Assistant');
-        console.log("Using default sanitized agent name:", sanitizedData.agent_name);
-      }
-      
+      console.log("Agent description:", agentDescription);
       console.log("Data after sanitization:", sanitizedData);
 
       if (id) {

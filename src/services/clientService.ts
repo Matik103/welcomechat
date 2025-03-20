@@ -6,47 +6,59 @@ import { generateClientTempPassword } from "@/utils/passwordUtils";
 import { sanitizeForSQL } from "@/utils/inputSanitizer";
 import { toast } from "sonner";
 import { createClientActivity } from "./clientActivityService";
+import { syncWidgetSettingsWithAgent } from "@/utils/aiAgentSync";
 
 // Handles the process of creating a new client
 export const createClient = async (data: ClientFormData): Promise<string> => {
-  console.log("Creating client with data:", { ...data, widget_settings: "..." });
+  console.log("Creating client with data:", { 
+    client_name: data.client_name,
+    email: data.email,
+    agent_name: data.agent_name,
+    agent_description: data.agent_description
+  });
   
   try {
     // Ensure agent name is properly sanitized for SQL
     const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
     console.log("Using sanitized agent name:", sanitizedAgentName);
     
-    // Get agent description from widget_settings if available
-    const widgetSettings = data.widget_settings || {};
-    const agentDescription = typeof widgetSettings === 'object' && widgetSettings !== null 
-      ? (widgetSettings as any).agent_description || ""
-      : "";
-    
-    // Create the client record in the database using raw SQL with parameter binding
-    // This avoids SQL syntax errors with special characters
-    const { data: newClient, error } = await supabase.rpc(
-      'create_new_client',
-      {
-        p_client_name: data.client_name,
-        p_email: data.email,
-        p_agent_name: sanitizedAgentName,
-        p_logo_url: data.logo_url || null,
-        p_logo_storage_path: data.logo_storage_path || null,
-        p_widget_settings: {
-          logo_url: data.logo_url || "",
-          logo_storage_path: data.logo_storage_path || "",
-          agent_description: agentDescription
-        }
-      }
-    );
+    // Insert only client data into clients table
+    const { data: clientData, error: clientError } = await supabase
+      .from("clients")
+      .insert({
+        client_name: data.client_name,
+        email: data.email,
+      })
+      .select("id")
+      .single();
 
-    if (error) {
-      console.error("Error creating client:", error);
-      throw error;
+    if (clientError) {
+      console.error("Error creating client:", clientError);
+      throw clientError;
     }
 
-    const clientId = newClient;
+    const clientId = clientData.id;
     console.log(`Client created with ID: ${clientId}`);
+
+    // Now create the AI agent entry
+    const { error: agentError } = await supabase
+      .from("ai_agents")
+      .insert({
+        client_id: clientId,
+        name: sanitizedAgentName,
+        agent_description: data.agent_description || "",
+        logo_url: data.logo_url || "",
+        logo_storage_path: data.logo_storage_path || "",
+        content: "", // Default empty content
+        interaction_type: "config" // This is a configuration record
+      });
+
+    if (agentError) {
+      console.error("Error creating AI agent:", agentError);
+      // Don't throw here, we still want to continue with password creation
+    } else {
+      console.log("AI agent created for client ID:", clientId);
+    }
 
     // Generate a temporary password
     const tempPassword = generateClientTempPassword();
@@ -92,7 +104,11 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       clientId,
       "client_created",
       `New client ${data.client_name} created`,
-      { email: data.email }
+      { 
+        email: data.email,
+        agent_name: sanitizedAgentName,
+        has_agent_description: !!data.agent_description
+      }
     );
 
     return clientId;
@@ -107,7 +123,12 @@ export const updateClient = async (
   clientId: string,
   data: ClientFormData
 ): Promise<string> => {
-  console.log("Updating client with ID:", clientId, "and data:", { ...data, widget_settings: "..." });
+  console.log("Updating client with ID:", clientId, "and data:", { 
+    client_name: data.client_name,
+    email: data.email,
+    agent_name: data.agent_name,
+    agent_description: data.agent_description
+  });
   
   try {
     // First, get the current client to compare changes
@@ -125,39 +146,69 @@ export const updateClient = async (
     // Sanitize agent name to prevent SQL issues
     const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
 
-    // Prepare update data with widget_settings correctly handled
-    const updateData: any = {
-      client_name: data.client_name,
-      email: data.email,
-      agent_name: sanitizedAgentName,
-    };
-
-    // Prepare widget_settings
-    let widgetSettings: Record<string, any> = typeof data.widget_settings === 'object' && data.widget_settings !== null 
-      ? { ...data.widget_settings as Record<string, any> }
-      : {};
-      
-    // Add logo data to widget_settings
-    widgetSettings.logo_url = data.logo_url || "";
-    widgetSettings.logo_storage_path = data.logo_storage_path || "";
-    
-    // Get agent description from widget_settings if available
-    const agentDescription = typeof widgetSettings === 'object' && widgetSettings !== null 
-      ? widgetSettings.agent_description || ""
-      : "";
-    
-    // Set the final widget_settings in update data
-    updateData.widget_settings = widgetSettings;
-
-    // Update the client record
-    const { error: updateError } = await supabase
+    // Update only client data in clients table
+    const { error: updateClientError } = await supabase
       .from("clients")
-      .update(updateData)
+      .update({
+        client_name: data.client_name,
+        email: data.email,
+      })
       .eq("id", clientId);
 
-    if (updateError) {
-      console.error("Error updating client:", updateError);
-      throw updateError;
+    if (updateClientError) {
+      console.error("Error updating client:", updateClientError);
+      throw updateClientError;
+    }
+
+    // Check if there's an existing AI agent entry
+    const { data: existingAgent, error: checkAgentError } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("client_id", clientId)
+      .maybeSingle();
+
+    if (checkAgentError) {
+      console.error("Error checking existing AI agent:", checkAgentError);
+    }
+
+    if (existingAgent?.id) {
+      // Update existing AI agent
+      const { error: updateAgentError } = await supabase
+        .from("ai_agents")
+        .update({
+          name: sanitizedAgentName,
+          agent_description: data.agent_description || "",
+          logo_url: data.logo_url || "",
+          logo_storage_path: data.logo_storage_path || "",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", existingAgent.id);
+
+      if (updateAgentError) {
+        console.error("Error updating AI agent:", updateAgentError);
+      } else {
+        console.log("Updated AI agent for client ID:", clientId);
+      }
+    } else {
+      // Create new AI agent entry if none exists
+      const { error: createAgentError } = await supabase
+        .from("ai_agents")
+        .insert({
+          client_id: clientId,
+          name: sanitizedAgentName,
+          agent_description: data.agent_description || "",
+          logo_url: data.logo_url || "",
+          logo_storage_path: data.logo_storage_path || "",
+          content: "",
+          interaction_type: "config",
+          updated_at: new Date().toISOString()
+        });
+
+      if (createAgentError) {
+        console.error("Error creating AI agent:", createAgentError);
+      } else {
+        console.log("Created new AI agent for client ID:", clientId);
+      }
     }
 
     return clientId;
