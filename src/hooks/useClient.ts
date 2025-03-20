@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Client } from "@/types/client";
+import { Client, WidgetSettings } from "@/types/client";
 
 export const useClient = (id?: string) => {
   const { data: client, isLoading: isLoadingClient, error, refetch: refetchClient } = useQuery({
@@ -23,6 +23,28 @@ export const useClient = (id?: string) => {
         throw agentError;
       }
       
+      // Extract widget_settings from settings if available
+      const widgetSettings: WidgetSettings = {
+        agent_name: agentData.name || "Assistant",
+        agent_description: agentData.agent_description || "",
+        logo_url: agentData.logo_url || "",
+        logo_storage_path: agentData.logo_storage_path || "",
+      };
+
+      // If settings exists and has widget_settings, merge them
+      if (agentData.settings && typeof agentData.settings === 'object') {
+        if (agentData.settings.widget_settings) {
+          Object.assign(widgetSettings, agentData.settings.widget_settings);
+        } else {
+          // Settings might have direct widget properties
+          Object.keys(agentData.settings).forEach(key => {
+            if (key in widgetSettings) {
+              widgetSettings[key as keyof WidgetSettings] = agentData.settings[key];
+            }
+          });
+        }
+      }
+      
       // Convert agent data to client format
       const clientData: Client = {
         id: agentData.id,
@@ -38,13 +60,9 @@ export const useClient = (id?: string) => {
         company: agentData.company || "",
         description: agentData.agent_description || "",
         name: agentData.name || "Assistant",
-        widget_settings: {
-          agent_name: agentData.name || "Assistant",
-          agent_description: agentData.agent_description || "",
-          logo_url: agentData.logo_url || "",
-          logo_storage_path: agentData.logo_storage_path || "",
-          ...(agentData.settings?.widget_settings || {})
-        }
+        agent_name: agentData.name || "Assistant",
+        last_active: agentData.last_active,
+        widget_settings: widgetSettings
       };
       
       console.log("Client data fetched from AI agent:", clientData);

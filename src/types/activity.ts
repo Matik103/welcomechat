@@ -32,7 +32,17 @@ export type ActivityType =
   | "invitation_sent"
   | "invitation_accepted"
   | "webhook_sent"
-  | "widget_previewed";
+  | "widget_previewed"
+  | "document_link_added"
+  | "document_link_deleted"
+  | "document_uploaded"
+  | "document_stored"
+  | "document_processed"
+  | "document_processing_started"
+  | "document_processing_completed"
+  | "document_processing_failed"
+  | "signed_out"
+  | "embed_code_copied";
 
 // Extended activity types that include all possible types used in the application
 export type ExtendedActivityType = ActivityType;

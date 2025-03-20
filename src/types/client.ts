@@ -16,6 +16,8 @@ export interface Client {
   description?: string;
   widget_settings: WidgetSettings;
   name?: string; // This is the agent_name
+  agent_name?: string; // Adding this field to match what's expected
+  last_active?: string; // Adding this field to fix ClientList errors
 }
 
 export interface WidgetSettings {
@@ -48,6 +50,8 @@ export interface DocumentLink {
   refresh_rate: number;
   created_at: string;
   document_type: string;
+  access_status?: string;
+  notified_at?: string;
 }
 
 export interface WebsiteUrl {
@@ -57,3 +61,9 @@ export interface WebsiteUrl {
   refresh_rate: number;
   created_at: string;
 }
+
+// Add this missing type for drive links
+export type DriveLink = DocumentLink;
+
+// Define AccessStatus type for document links
+export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown';
