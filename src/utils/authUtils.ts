@@ -21,7 +21,7 @@ export const determineUserRole = async (user: User): Promise<UserRole> => {
   try {
     // For email/password users, default to user role
     console.log("User determined to be a standard user:", user.email);
-    return 'user';
+    return 'user'; // Default to user on error
   } catch (err) {
     console.error("Error in determineUserRole:", err);
     return 'user'; // Default to user on error

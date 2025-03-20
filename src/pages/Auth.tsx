@@ -1,73 +1,114 @@
 
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { LoginForm } from "@/components/auth/LoginForm";
-import { SignupForm } from "@/components/auth/SignupForm";
-import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import LoginForm from "@/components/auth/LoginForm";
+import SignupForm from "@/components/auth/SignupForm";
+import ResetPasswordForm from "@/components/auth/ResetPasswordForm";
 import { useAuth } from "@/contexts/AuthContext";
-import { Logo } from "@/components/common/Logo";
+import Logo from "@/components/common/Logo";
+import { UserRole } from "@/types/app";
 import { getDashboardRoute } from "@/utils/authUtils";
 
+type AuthMode = "login" | "signup" | "resetPassword";
+
 export default function Auth() {
-  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
-  const [resetToken, setResetToken] = useState<string | null>(null);
-  const { isLoading, session, userRole } = useAuth();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const location = useLocation();
+  const { user, userRole, isLoading } = useAuth();
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if this is a password reset link
-    const params = new URLSearchParams(location.search);
-    const token = params.get("token");
-    if (token) {
-      setResetToken(token);
-      setMode("reset");
-    }
-  }, [location]);
+    // Check URL parameters to determine mode
+    const modeParam = searchParams.get("mode");
+    if (modeParam === "signup") setMode("signup");
+    else if (modeParam === "resetPassword") setMode("resetPassword");
+    else setMode("login");
+
+    // Get reset token from URL if present
+    const resetToken = searchParams.get("token");
+    if (resetToken) setToken(resetToken);
+  }, [searchParams]);
 
   useEffect(() => {
     // Redirect if already authenticated
-    if (session && userRole && !isLoading) {
-      const dashboardPath = getDashboardRoute(userRole);
-      navigate(dashboardPath);
+    if (user && userRole && !isLoading) {
+      const dashboardRoute = getDashboardRoute(userRole);
+      navigate(dashboardRoute, { replace: true });
     }
-  }, [session, navigate, userRole, isLoading]);
+  }, [user, userRole, isLoading, navigate]);
 
-  // Handle if a reset token is not provided but mode is reset
-  useEffect(() => {
-    if (mode === "reset" && !resetToken) {
+  const handleSuccess = () => {
+    // Redirect or show success message as needed
+    if (mode === "resetPassword") {
       setMode("login");
     }
-  }, [mode, resetToken]);
+  };
 
-  // If the user is already authenticated, don't render the auth forms
-  if (session && userRole !== "user") {
-    return null;
-  }
+  const renderForm = () => {
+    switch (mode) {
+      case "signup":
+        return <SignupForm onSuccess={handleSuccess} />;
+      case "resetPassword":
+        return <ResetPasswordForm token={token} onSuccess={handleSuccess} />;
+      case "login":
+      default:
+        return <LoginForm onSuccess={handleSuccess} />;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <Logo className="w-32 h-auto" />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <Logo size="large" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {mode === "login" && "Sign in to your account"}
+            {mode === "signup" && "Create a new account"}
+            {mode === "resetPassword" && "Reset your password"}
+          </h2>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          {mode === "login" && "Sign in to your account"}
-          {mode === "signup" && "Create a new account"}
-          {mode === "reset" && "Reset your password"}
-        </h2>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        {renderForm()}
+
+        <div className="mt-6 text-center">
           {mode === "login" && (
-            <LoginForm onSignUp={() => setMode("signup")} />
+            <>
+              <button
+                type="button"
+                onClick={() => setMode("resetPassword")}
+                className="text-sm text-blue-600 hover:text-blue-800 mr-4"
+              >
+                Forgot password?
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("signup")}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Don't have an account? Sign up
+              </button>
+            </>
           )}
           {mode === "signup" && (
-            <SignupForm onSignIn={() => setMode("login")} />
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Already have an account? Sign in
+            </button>
           )}
-          {mode === "reset" && resetToken && (
-            <ResetPasswordForm token={resetToken} onComplete={() => setMode("login")} />
+          {mode === "resetPassword" && !token && (
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Back to sign in
+            </button>
           )}
         </div>
       </div>

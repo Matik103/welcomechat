@@ -1,73 +1,58 @@
+
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { determineUserRole } from '@/utils/authUtils';
 import { UserRole } from '@/types/app';
+import { User, Session } from '@supabase/supabase-js';
 
-export const useAuthStateChange = () => {
-  const { setSession, setUser, setUserRole } = useAuth();
+interface AuthStateChangeProps {
+  setSession: (session: Session | null) => void;
+  setUser: (user: User | null) => void;
+  setUserRole: (role: UserRole | null) => void;
+}
 
+export default function useAuthStateChange({
+  setSession,
+  setUser,
+  setUserRole
+}: AuthStateChangeProps) {
   useEffect(() => {
+    // Set up the auth change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change event:', event);
+        console.log('Auth state change:', event, session?.user?.email);
         
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          if (session) {
-            setSession(session);
-            setUser(session.user);
-            
-            // Determine the user role
+        if (event === 'SIGNED_IN' && session) {
+          // Get the user from the session
+          const user = session.user;
+          setSession(session);
+          setUser(user);
+          
+          if (user) {
+            // Determine user role
             try {
-              // Check user_roles table first
-              const { data: roleData, error: roleError } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
-                
-              if (roleError) {
-                console.error("Error getting user role:", roleError);
-              }
-              
-              // If role found in database, use it
-              if (roleData && roleData.role) {
-                setUserRole(roleData.role as UserRole);
-              } else {
-                // Otherwise determine from other factors
-                const role = await determineUserRole(session.user);
-                setUserRole(role);
-                
-                // Create a role record if one doesn't exist
-                if (!roleData) {
-                  try {
-                    await supabase
-                      .from('user_roles')
-                      .insert({
-                        user_id: session.user.id,
-                        role: role
-                      });
-                  } catch (insertError) {
-                    console.error("Error creating user role:", insertError);
-                  }
-                }
-              }
+              const role = await determineUserRole(user);
+              setUserRole(role);
             } catch (err) {
-              console.error("Error determining user role:", err);
-              setUserRole('user');
+              console.error('Error determining user role:', err);
+              setUserRole('user'); // Default to user on error
             }
           }
-        } else if (event === 'SIGNED_OUT') {
+        } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+          // Reset auth state on sign out or user deletion
           setSession(null);
           setUser(null);
           setUserRole(null);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          // Update session on token refresh
+          setSession(session);
         }
       }
     );
-    
-    // Clean up the subscription
+
+    // Clean up the subscription on unmount
     return () => {
       subscription.unsubscribe();
     };
   }, [setSession, setUser, setUserRole]);
-};
+}
