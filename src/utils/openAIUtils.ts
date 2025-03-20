@@ -13,6 +13,11 @@ export const createOpenAIAssistant = async (
   try {
     console.log(`Creating/updating OpenAI assistant for client ${clientId}`);
     
+    // Sanitize input values to prevent SQL errors with quotes
+    const sanitizedAgentName = agentName.replace(/"/g, "'");
+    const sanitizedAgentDescription = agentDescription.replace(/"/g, "'");
+    const sanitizedClientName = clientName ? clientName.replace(/"/g, "'") : undefined;
+    
     // Call the Supabase Edge Function to create/update the OpenAI assistant
     const response = await fetch('/api/create-openai-assistant', {
       method: 'POST',
@@ -21,9 +26,9 @@ export const createOpenAIAssistant = async (
       },
       body: JSON.stringify({
         client_id: clientId,
-        agent_name: agentName,
-        agent_description: agentDescription,
-        client_name: clientName
+        agent_name: sanitizedAgentName,
+        agent_description: sanitizedAgentDescription,
+        client_name: sanitizedClientName
       }),
     });
     
