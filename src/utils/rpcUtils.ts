@@ -9,9 +9,28 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const execSql = async (sqlQuery: string, params?: any) => {
   try {
+    // Make sure the query returns JSON format when needed
+    let formattedQuery = sqlQuery;
+    
+    // If the query is a SELECT that doesn't explicitly return JSON, convert it
+    if (
+      sqlQuery.trim().toLowerCase().startsWith('select') && 
+      !sqlQuery.toLowerCase().includes('json_agg') &&
+      !sqlQuery.toLowerCase().includes('to_json')
+    ) {
+      // For simple EXISTS checks, wrap them in JSON format
+      if (sqlQuery.toLowerCase().includes('exists')) {
+        formattedQuery = `SELECT json_build_object('exists', (${sqlQuery}))`;
+      } else {
+        formattedQuery = `SELECT coalesce(json_agg(t), '[]'::json) FROM (${sqlQuery}) t`;
+      }
+    }
+    
+    console.log('Executing SQL query:', formattedQuery);
+
     // Use the generic callRpcFunction instead of direct RPC call
     const { data, error } = await supabase.rpc('exec_sql', {
-      sql_query: sqlQuery,
+      sql_query: formattedQuery,
       // Only include query_params if they exist to prevent errors
       ...(params ? { query_params: params } : {})
     });

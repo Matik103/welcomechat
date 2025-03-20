@@ -1,3 +1,4 @@
+
 // Import the necessary types and utilities
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
