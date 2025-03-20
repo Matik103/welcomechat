@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -17,7 +16,6 @@ interface ClientFormProps {
   onSubmit: (data: { 
     client_name: string; 
     email: string; 
-    agent_name?: string; 
     agent_description?: string;
     logo_url?: string;
     logo_storage_path?: string;
@@ -29,22 +27,7 @@ interface ClientFormProps {
 const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string()
-    .optional()
-    .refine(
-      value => !value || !value.includes('"'), 
-      {
-        message: "Agent name cannot contain double quotes - please use single quotes instead"
-      }
-    ),
-  agent_description: z.string()
-    .optional()
-    .refine(
-      value => !value || !value.includes('"'), 
-      {
-        message: "Agent description cannot contain double quotes - please use single quotes instead"
-      }
-    ),
+  agent_description: z.string().optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
 });
@@ -64,7 +47,6 @@ export const ClientForm = ({
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
-      agent_name: initialData?.agent_name || "",
       agent_description: initialData?.agent_description || "",
       logo_url: initialData?.logo_url || "",
       logo_storage_path: initialData?.logo_storage_path || "",
@@ -77,7 +59,6 @@ export const ClientForm = ({
       reset({
         client_name: initialData.client_name || "",
         email: initialData.email || "",
-        agent_name: initialData.agent_name || "",
         agent_description: initialData.agent_description || "",
         logo_url: initialData.logo_url || "",
         logo_storage_path: initialData.logo_storage_path || "",
@@ -150,15 +131,6 @@ export const ClientForm = ({
   const handleFormSubmit = async (data: any) => {
     console.log("ClientForm submitting data:", data);
     
-    // Extra safety - sanitize here as well by replacing double quotes with single quotes
-    if (data.agent_name) {
-      data.agent_name = data.agent_name.replace(/"/g, "'");
-    }
-    
-    if (data.agent_description) {
-      data.agent_description = data.agent_description.replace(/"/g, "'");
-    }
-    
     await onSubmit({
       ...data,
       _tempLogoFile: tempLogoFile
@@ -195,29 +167,6 @@ export const ClientForm = ({
           <p className="text-sm text-red-500">{errors.email.message}</p>
         )}
       </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="agent_name" className="text-sm font-medium text-gray-900">
-          AI Agent Name {isClientView && <span className="text-red-500">*</span>}
-        </Label>
-        <Input
-          id="agent_name"
-          {...register("agent_name")}
-          className={errors.agent_name ? "border-red-500" : ""}
-          onChange={(e) => {
-            // Replace double quotes with single quotes on input
-            const value = e.target.value.replace(/"/g, "'");
-            e.target.value = value;
-            setValue("agent_name", value);
-          }}
-        />
-        {errors.agent_name && (
-          <p className="text-sm text-red-500">{errors.agent_name.message}</p>
-        )}
-        <p className="text-xs text-gray-500 mt-1">
-          {!isClientView ? "Optional - client can set this later. Avoid using double quotes." : "The name of your AI assistant. Avoid using double quotes."}
-        </p>
-      </div>
       
       <div className="space-y-2">
         <Label className="text-sm font-medium text-gray-900">
@@ -244,18 +193,12 @@ export const ClientForm = ({
           className={errors.agent_description ? "border-red-500" : ""}
           placeholder="Describe the purpose and capabilities of this AI agent"
           rows={4}
-          onChange={(e) => {
-            // Replace double quotes with single quotes on input
-            const value = e.target.value.replace(/"/g, "'");
-            e.target.value = value;
-            setValue("agent_description", value);
-          }}
         />
         {errors.agent_description && (
           <p className="text-sm text-red-500">{errors.agent_description.message}</p>
         )}
         {!isClientView && (
-          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later. Avoid using double quotes.</p>
+          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later.</p>
         )}
       </div>
 

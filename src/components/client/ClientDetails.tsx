@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
@@ -6,7 +7,6 @@ import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { generateAiPrompt } from "@/utils/activityTypeUtils";
 import { uploadWidgetLogo } from "@/utils/widgetSettingsUtils";
 
 interface ClientDetailsProps {
@@ -33,25 +33,24 @@ export const ClientDetails = ({
 
   const ensureAiAgentExists = async (
     clientId: string, 
-    agentName: string, 
     agentDescription?: string,
     logoUrl?: string,
     logoStoragePath?: string,
     clientName?: string
   ): Promise<AgentUpdateResult> => {
     try {
-      console.log(`Ensuring AI agent exists for client ${clientId} with name ${agentName}`);
+      console.log(`Ensuring AI agent exists for client ${clientId}`);
       console.log(`Agent description: ${agentDescription}`);
       console.log(`Client name: ${clientName}`);
       console.log(`Agent logo URL: ${logoUrl}`);
       
-      const formattedAgentName = agentName;
+      // Use a placeholder for agent name since we've removed it
+      const placeholderAgentName = 'AI Assistant';
       
-      const aiPrompt = generateAiPrompt(agentName, agentDescription || "", clientName);
-      
+      // Check if AI agent exists first
       const { data: existingAgents, error: queryError } = await supabase
         .from("ai_agents")
-        .select("id, name, agent_description, logo_url, logo_storage_path")
+        .select("id, agent_description, logo_url, logo_storage_path")
         .eq("client_id", clientId)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -76,9 +75,7 @@ export const ClientDetails = ({
         const { error: updateError } = await supabase
           .from("ai_agents")
           .update({ 
-            name: formattedAgentName,
             agent_description: agentDescription,
-            ai_prompt: aiPrompt,
             settings: settings,
             logo_url: logoUrl,
             logo_storage_path: logoStoragePath
@@ -89,10 +86,8 @@ export const ClientDetails = ({
           console.error("Error updating AI agent:", updateError);
           throw updateError;
         } else {
-          console.log(`Updated agent name from ${existingAgents[0].name} to ${formattedAgentName}`);
           console.log(`Updated agent description to: ${agentDescription}`);
           console.log(`Updated agent logo URL to: ${logoUrl}`);
-          console.log(`Generated AI prompt: ${aiPrompt}`);
           
           return { updated: true, created: false, descriptionUpdated: descriptionChanged };
         }
@@ -101,9 +96,8 @@ export const ClientDetails = ({
           .from("ai_agents")
           .insert({
             client_id: clientId,
-            name: formattedAgentName,
+            name: placeholderAgentName,
             agent_description: agentDescription,
-            ai_prompt: aiPrompt,
             content: "",
             interaction_type: "config",
             settings: settings,
@@ -116,10 +110,9 @@ export const ClientDetails = ({
           console.error("Error creating new AI agent:", insertError);
           throw insertError;
         } else {
-          console.log(`Created new AI agent with name ${formattedAgentName}`);
+          console.log(`Created new AI agent`);
           console.log(`Set agent description to: ${agentDescription}`);
           console.log(`Set agent logo URL to: ${logoUrl}`);
-          console.log(`Generated AI prompt: ${aiPrompt}`);
           return { updated: false, created: true, descriptionUpdated: true };
         }
       }
@@ -132,7 +125,6 @@ export const ClientDetails = ({
   const handleSubmit = async (data: { 
     client_name: string; 
     email: string; 
-    agent_name?: string; 
     agent_description?: string;
     logo_url?: string;
     logo_storage_path?: string;
@@ -140,8 +132,6 @@ export const ClientDetails = ({
   }) => {
     try {
       console.log("ClientDetails submitting data:", data);
-      console.log("Agent name value:", data.agent_name);
-      console.log("Agent name type:", typeof data.agent_name);
       
       const tempLogoFile = data._tempLogoFile;
       delete data._tempLogoFile;
@@ -152,23 +142,19 @@ export const ClientDetails = ({
         await clientMutation.mutateAsync({
           client_name: data.client_name,
           email: data.email,
-          agent_name: data.agent_name,
           agent_description: data.agent_description,
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path
         });
         
         let agentUpdateResult = { updated: false, created: false, descriptionUpdated: false };
-        if (data.agent_name) {
-          agentUpdateResult = await ensureAiAgentExists(
-            clientId, 
-            data.agent_name, 
-            data.agent_description,
-            data.logo_url,
-            data.logo_storage_path,
-            data.client_name
-          );
-        }
+        agentUpdateResult = await ensureAiAgentExists(
+          clientId, 
+          data.agent_description,
+          data.logo_url,
+          data.logo_storage_path,
+          data.client_name
+        );
         
         refetchClient();
         
@@ -178,7 +164,6 @@ export const ClientDetails = ({
               "ai_agent_created", 
               "created a new AI agent",
               { 
-                agent_name: data.agent_name,
                 agent_description: data.agent_description,
                 logo_url: data.logo_url
               }
@@ -188,7 +173,6 @@ export const ClientDetails = ({
               "ai_agent_updated", 
               "updated their AI agent description",
               { 
-                agent_name: data.agent_name,
                 agent_description: data.agent_description,
                 logo_url: data.logo_url
               }
@@ -197,7 +181,6 @@ export const ClientDetails = ({
             const updatedFields = [];
             if (client?.client_name !== data.client_name) updatedFields.push('client_name');
             if (client?.email !== data.email) updatedFields.push('email');
-            if (client?.agent_name !== data.agent_name) updatedFields.push('agent_name');
             if (client?.logo_url !== data.logo_url) updatedFields.push('logo_url');
             
             if (updatedFields.length > 0) {
@@ -217,22 +200,18 @@ export const ClientDetails = ({
         await clientMutation.mutateAsync({
           client_name: data.client_name,
           email: data.email,
-          agent_name: data.agent_name,
           agent_description: data.agent_description,
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path
         });
         
-        if (data.agent_name) {
-          await ensureAiAgentExists(
-            clientId, 
-            data.agent_name, 
-            data.agent_description,
-            data.logo_url,
-            data.logo_storage_path,
-            data.client_name
-          );
-        }
+        await ensureAiAgentExists(
+          clientId, 
+          data.agent_description,
+          data.logo_url,
+          data.logo_storage_path,
+          data.client_name
+        );
         
         toast.success("Client updated successfully");
         navigate("/admin/clients");
@@ -244,7 +223,6 @@ export const ClientDetails = ({
           const result = await clientMutation.mutateAsync({
             client_name: data.client_name,
             email: data.email,
-            agent_name: data.agent_name,
             agent_description: data.agent_description,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path
@@ -279,10 +257,9 @@ export const ClientDetails = ({
           }
           
           if (typeof result === 'object' && 'clientId' in result) {
-            if (data.agent_name && result.clientId) {
+            if (result.clientId) {
               await ensureAiAgentExists(
                 result.clientId, 
-                data.agent_name, 
                 data.agent_description,
                 logoUrl || data.logo_url,
                 logoStoragePath || data.logo_storage_path

@@ -2,7 +2,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
 import { toast } from "sonner";
-import { generateAiPrompt } from "@/utils/activityTypeUtils";
 
 /**
  * Fetches a single client by ID
@@ -41,19 +40,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   console.log("Updating client with data:", data);
   
   // Extra safety - sanitize again to be absolutely sure
-  const sanitizedAgentName = sanitizeForSQL(data.agent_name);
   const sanitizedAgentDescription = sanitizeForSQL(data.agent_description);
-  
-  console.log("Using sanitized agent name in updateClient:", sanitizedAgentName);
-  
-  // Check for any remaining double quotes and log a warning
-  if (sanitizedAgentName && sanitizedAgentName.includes('"')) {
-    console.warn("WARNING: Agent name still contains double quotes after sanitization!");
-  }
-  
-  if (sanitizedAgentDescription && sanitizedAgentDescription.includes('"')) {
-    console.warn("WARNING: Agent description still contains double quotes after sanitization!");
-  }
   
   // Update the client record (including logo fields)
   const { error } = await supabase
@@ -61,7 +48,6 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
     .update({
       client_name: data.client_name,
       email: data.email,
-      agent_name: sanitizedAgentName,
       // Store agent_description and logo info in widget_settings
       widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
         ? { 
@@ -79,65 +65,55 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
     .eq("id", id);
   if (error) throw error;
   
-  // Update agent description and logo in ai_agents table if agent_name exists
-  if (sanitizedAgentName) {
-    try {
-      // Generate AI prompt based on agent name and description
-      const aiPrompt = generateAiPrompt(sanitizedAgentName, sanitizedAgentDescription || "");
+  // Update agent description and logo in ai_agents table
+  try {
+    // Check if AI agent exists first
+    const { data: agentData } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("client_id", id)
+      .maybeSingle();
       
-      console.log("Generated AI prompt:", aiPrompt);
-      
-      // Check if AI agent exists first
-      const { data: agentData } = await supabase
+    if (agentData?.id) {
+      // Update existing AI agent 
+      await supabase
         .from("ai_agents")
-        .select("id")
-        .eq("client_id", id)
-        .maybeSingle();
-        
-      if (agentData?.id) {
-        // Update existing AI agent 
-        await supabase
-          .from("ai_agents")
-          .update({
-            name: sanitizedAgentName,
+        .update({
+          agent_description: sanitizedAgentDescription,
+          logo_url: data.logo_url,
+          logo_storage_path: data.logo_storage_path,
+          settings: {
             agent_description: sanitizedAgentDescription,
-            ai_prompt: aiPrompt,
+            client_name: data.client_name,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
-            settings: {
-              agent_description: sanitizedAgentDescription,
-              client_name: data.client_name,
-              logo_url: data.logo_url,
-              logo_storage_path: data.logo_storage_path,
-              updated_at: new Date().toISOString()
-            }
-          })
-          .eq("client_id", id);
-      } else {
-        // Create new AI agent if it doesn't exist
-        await supabase
-          .from("ai_agents")
-          .insert({
-            client_id: id,
-            name: sanitizedAgentName,
-            content: "",
+            updated_at: new Date().toISOString()
+          }
+        })
+        .eq("client_id", id);
+    } else {
+      // Create new AI agent if it doesn't exist, using a placeholder name
+      await supabase
+        .from("ai_agents")
+        .insert({
+          client_id: id,
+          name: "AI Assistant",
+          content: "",
+          agent_description: sanitizedAgentDescription,
+          logo_url: data.logo_url,
+          logo_storage_path: data.logo_storage_path,
+          settings: {
             agent_description: sanitizedAgentDescription,
-            ai_prompt: aiPrompt,
+            client_name: data.client_name,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
-            settings: {
-              agent_description: sanitizedAgentDescription,
-              client_name: data.client_name,
-              logo_url: data.logo_url,
-              logo_storage_path: data.logo_storage_path,
-              updated_at: new Date().toISOString()
-            }
-          });
-      }
-    } catch (agentError) {
-      console.error("Error updating agent description or logo:", agentError);
-      // Continue even if agent update fails
+            updated_at: new Date().toISOString()
+          }
+        });
     }
+  } catch (agentError) {
+    console.error("Error updating agent description or logo:", agentError);
+    // Continue even if agent update fails
   }
   
   return id;
@@ -171,21 +147,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     console.log("Creating client with data:", data);
     
     // Extra safety - sanitize again to be absolutely sure we don't have double quotes
-    const sanitizedAgentName = sanitizeForSQL(data.agent_name) || 'agent_' + Date.now();
     const sanitizedAgentDescription = sanitizeForSQL(data.agent_description);
-    
-    console.log("Using sanitized agent name in createClient:", sanitizedAgentName);
-    console.log("Original agent name:", data.agent_name);
-    console.log("Sanitized agent name:", sanitizedAgentName);
-    
-    // Print a mock SQL query to debug exactly how this would be sent to PostgreSQL
-    console.log("Debug SQL query that would be executed:");
-    console.log(`INSERT INTO clients (agent_name) VALUES ('${sanitizedAgentName}')`);
-    
-    // Check for any remaining double quotes and log a warning
-    if (sanitizedAgentName && sanitizedAgentName.includes('"')) {
-      console.warn("CRITICAL WARNING: Agent name still contains double quotes after sanitization!");
-    }
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
@@ -207,7 +169,6 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     console.log("Final insert data:", {
       client_name: data.client_name,
       email: data.email,
-      agent_name: sanitizedAgentName,
       widget_settings: widgetSettings
     });
     
@@ -216,7 +177,6 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       .insert([{
         client_name: data.client_name,
         email: data.email,
-        agent_name: sanitizedAgentName,
         // Store the agent_description and logo in widget_settings
         widget_settings: widgetSettings,
         status: 'active',
@@ -265,7 +225,6 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
           email: data.email,
           client_id: clientId,
           client_name: data.client_name,
-          agent_name: sanitizedAgentName,
           agent_description: data.agent_description || "",
           logo_url: data.logo_url || "",
           logo_storage_path: data.logo_storage_path || ""
@@ -294,7 +253,6 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         clientId,
         clientName: data.client_name,
         email: data.email,
-        agentName: sanitizedAgentName,
         tempPassword
       });
 
@@ -330,10 +288,9 @@ export const sendClientInvitationEmail = async (params: {
   clientId: string, 
   clientName: string, 
   email: string,
-  agentName: string,
   tempPassword: string
 }): Promise<void> => {
-  const { clientId, clientName, email, agentName, tempPassword } = params;
+  const { clientId, clientName, email, tempPassword } = params;
   
   try {
     console.log("Preparing to send welcome email...");
