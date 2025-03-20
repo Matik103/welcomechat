@@ -15,6 +15,7 @@ export interface WidgetSettings {
   response_time_text: string;
   agent_name: string; // Agent name for the widget
   agent_description: string; // Agent description stored in widget_settings
+  openai_assistant_id?: string; // OpenAI assistant ID
 }
 
 export const isWidgetSettings = (settings: unknown): settings is WidgetSettings => {
