@@ -479,7 +479,6 @@ export type Database = {
       }
       clients: {
         Row: {
-          agent_name: string
           client_name: string
           company: string | null
           created_at: string | null
@@ -503,7 +502,6 @@ export type Database = {
           widget_settings: Json | null
         }
         Insert: {
-          agent_name: string
           client_name: string
           company?: string | null
           created_at?: string | null
@@ -527,7 +525,6 @@ export type Database = {
           widget_settings?: Json | null
         }
         Update: {
-          agent_name?: string
           client_name?: string
           company?: string | null
           created_at?: string | null
