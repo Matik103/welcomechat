@@ -16,6 +16,7 @@ import { Client } from "@/types/client";
 import { checkAndRefreshAuth } from "@/services/authService";
 import { createClientActivity } from "@/services/clientActivityService";
 import { ClientActions } from "@/components/client/ClientActions";
+import { execSql } from "@/utils/rpcUtils";
 
 const ClientList = () => {
   const [search, setSearch] = useState("");
@@ -35,48 +36,89 @@ const ClientList = () => {
       setLoading(true);
       try {
         await checkAndRefreshAuth();
-        // Query ai_agents instead of clients
-        const { data, error, count } = await supabase
-          .from("ai_agents")
-          .select("*", { count: "exact" })
-          .neq("status", "deleted")
-          .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Error fetching clients:", error);
+        
+        // More detailed query to get accurate client information
+        // Only fetching config records which represent the primary client data
+        const query = `
+          SELECT 
+            id, 
+            client_id,
+            client_name,
+            name,
+            email,
+            agent_description,
+            logo_url,
+            logo_storage_path,
+            created_at,
+            updated_at,
+            settings,
+            status,
+            last_active
+          FROM ai_agents
+          WHERE interaction_type = 'config'
+          ORDER BY created_at DESC
+          LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}
+        `;
+        
+        const countQuery = `
+          SELECT COUNT(*) 
+          FROM ai_agents
+          WHERE interaction_type = 'config'
+        `;
+        
+        const data = await execSql(query);
+        const countResult = await execSql(countQuery);
+        
+        if (!data || !Array.isArray(data)) {
+          console.error("Error with client data format:", data);
           toast({
             title: "Error",
             description: "Failed to fetch clients. Please try again.",
             variant: "destructive",
           });
+          setLoading(false);
           return;
         }
 
+        // Get the total count
+        const count = countResult?.[0]?.count ? parseInt(countResult[0].count) : 0;
+        
         // Convert the AI agents data to Client type
-        const clientData: Client[] = (data || []).map(agent => ({
+        const clientData: Client[] = data.map(agent => ({
           id: agent.id,
+          client_id: agent.client_id || agent.id,
           client_name: agent.client_name || "",
           email: agent.email || "",
           logo_url: agent.logo_url || "",
           logo_storage_path: agent.logo_storage_path || "",
           created_at: agent.created_at,
           updated_at: agent.updated_at,
+          last_active: agent.last_active,
           deletion_scheduled_at: agent.deletion_scheduled_at,
           deleted_at: agent.deleted_at,
           status: agent.status || "active",
-          company: agent.company || "",
+          company: (agent.settings && typeof agent.settings === 'object' && agent.settings.company) || "",
           description: agent.agent_description || "",
-          name: agent.name,
+          name: agent.name || "AI Assistant",
+          agent_name: agent.name || "AI Assistant",
           widget_settings: {
-            agent_name: agent.name,
+            agent_name: agent.name || "AI Assistant",
             agent_description: agent.agent_description || "",
-            ...(agent.settings?.widget_settings || {})
+            logo_url: agent.logo_url || "",
+            logo_storage_path: agent.logo_storage_path || "",
+            ...(agent.settings || {})
           }
         }));
 
         setClients(clientData);
-        setTotalPages(Math.ceil((count || 0) / PAGE_SIZE));
+        setTotalPages(Math.ceil(count / PAGE_SIZE));
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch clients. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
@@ -86,7 +128,7 @@ const ClientList = () => {
   }, [page, toast]);
 
   const renderAgentName = (client: Client) => {
-    const agentName = client.name || "AI Assistant";
+    const agentName = client.name || client.agent_name || "AI Assistant";
     return (
       <span className="inline-flex items-center gap-1">
         <BotIcon className="w-4 h-4 text-primary" />
@@ -227,7 +269,7 @@ const ClientList = () => {
             {filteredClients.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
-                  No clients found.
+                  {loading ? "Loading clients..." : "No clients found."}
                 </TableCell>
               </TableRow>
             ) : (
