@@ -33,7 +33,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         client_name: data.client_name,
         email: data.email,
         widget_settings: widgetSettings,
-        agent_name: widgetSettings.agent_name || 'AI Assistant' // Provide default value
+        agent_name: widgetSettings.agent_name || 'Assistant' // Provide default value
       })
       .select("id")
       .single();
@@ -109,7 +109,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       `New client ${data.client_name} created`,
       { 
         email: data.email,
-        agent_name: widgetSettings.agent_name || 'AI Assistant',
+        agent_name: widgetSettings.agent_name || 'Assistant',
         has_agent_description: !!widgetSettings.agent_description
       }
     );
