@@ -1,84 +1,137 @@
 
-// Import the necessary types and utilities
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
-import { createClientActivity } from './clientActivityService';
-import { Json } from '@/integrations/supabase/types';
 
 /**
- * Process a document with LlamaParse
- * @param documentId The document ID to process
- * @param options Processing options
- * @returns The processing result
+ * Uploads a document to storage and returns the document ID
  */
-export const processDocumentWithLlamaParse = async (
-  documentId: string,
-  options: DocumentProcessingOptions
-): Promise<DocumentProcessingResult> => {
+export const uploadDocument = async (file: File, options: DocumentProcessingOptions): Promise<string> => {
   try {
-    console.log(`Processing document ${documentId} with LlamaParse`);
+    const { clientId, onUploadProgress } = options;
     
-    // Log the activity
-    if (options.clientId) {
-      await createClientActivity(
-        options.clientId,
-        'document_processing_started',
-        'Started processing document with LlamaParse',
-        {
-          document_id: documentId,
-          processor: 'llamaparse',
-          agent_name: options.agentName || 'Default Agent'
-        } as Record<string, any>
-      );
+    // Create a unique file path
+    const timestamp = new Date().getTime();
+    const fileExt = file.name.split('.').pop();
+    const filePath = `clients/${clientId}/documents/${timestamp}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+    
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        onUploadProgress: (progress) => {
+          if (onUploadProgress) {
+            onUploadProgress(Math.round((progress.loaded / progress.total) * 100));
+          }
+        }
+      });
+    
+    if (error) {
+      throw error;
     }
     
-    // Simulate processing for now - in a real implementation this would call the LlamaParse API
-    // This is a placeholder that would be replaced with actual implementation
+    // Return the document ID (the file path in this case)
+    return data.path;
+  } catch (error) {
+    console.error('Error uploading document:', error);
+    throw error;
+  }
+};
+
+/**
+ * Processes a document after it has been uploaded
+ */
+export const processDocument = async (documentId: string, options: DocumentProcessingOptions): Promise<DocumentProcessingResult> => {
+  try {
+    const { clientId, agentName } = options;
+    
+    // Log the document processing start
+    const { data: logData, error: logError } = await supabase.rpc('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'document_processing_started',
+      description_param: `Started processing document ${documentId}`,
+      metadata_param: { 
+        documentId, 
+        agentName 
+      }
+    });
+    
+    if (logError) {
+      console.error('Error logging document processing start:', logError);
+    }
+    
+    // Call document processing function
+    // For this implementation, we're just mocking the result
+    // In a real app, you would call an API or Edge Function to process the document
+    
+    // Mock successful processing
     const result: DocumentProcessingResult = {
       success: true,
       status: 'completed',
       documentId,
+      content: `This is the processed content for document ${documentId}`,
       metadata: {
-        processor: 'llamaparse',
-        processingTime: '2.5s',
-        documentSize: '1.2MB'
-      } as Record<string, any>,
-      content: 'Document processed successfully'
+        processedAt: new Date().toISOString(),
+        agentName
+      }
     };
     
-    // Log the completion
-    if (options.clientId) {
-      await createClientActivity(
-        options.clientId,
-        'document_processing_completed',
-        'Completed processing document with LlamaParse',
-        {
-          document_id: documentId,
-          processor: 'llamaparse',
-          success: true,
-          agent_name: options.agentName || 'Default Agent'
-        } as Record<string, any>
-      );
-    }
+    // Log the document processing completion
+    await supabase.rpc('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'document_processing_completed',
+      description_param: `Completed processing document ${documentId}`,
+      metadata_param: { 
+        documentId, 
+        agentName,
+        status: 'completed'
+      }
+    });
     
     return result;
   } catch (error) {
-    console.error('Error processing document with LlamaParse:', error);
+    console.error('Error processing document:', error);
     
-    // Log the failure
-    if (options.clientId) {
-      await createClientActivity(
-        options.clientId,
-        'document_processing_failed',
-        'Failed to process document with LlamaParse',
-        {
-          document_id: documentId,
-          processor: 'llamaparse',
-          error_message: error instanceof Error ? error.message : String(error),
-          agent_name: options.agentName || 'Default Agent'
-        } as Record<string, any>
-      );
-    }
+    // Log the document processing failure
+    await supabase.rpc('log_client_activity', {
+      client_id_param: options.clientId,
+      activity_type_param: 'document_processing_failed',
+      description_param: `Failed to process document ${documentId}`,
+      metadata_param: { 
+        documentId, 
+        agentName: options.agentName,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    });
+    
+    throw error;
+  }
+};
+
+/**
+ * Process a document with LlamaParse
+ */
+export const processDocumentWithLlamaParse = async (documentId: string, options: DocumentProcessingOptions): Promise<DocumentProcessingResult> => {
+  try {
+    console.log('Processing document with LlamaParse:', documentId, options);
+    
+    // In a real implementation, this would call the LlamaParse API
+    // For now, we'll just return a mock result
+    
+    return {
+      success: true,
+      status: 'completed',
+      documentId,
+      content: `This is the processed content from LlamaParse for document ${documentId}`,
+      metadata: {
+        processedAt: new Date().toISOString(),
+        processor: 'llamaparse',
+        agentName: options.agentName
+      }
+    };
+  } catch (error) {
+    console.error('Error processing document with LlamaParse:', error);
     
     return {
       success: false,
@@ -87,46 +140,4 @@ export const processDocumentWithLlamaParse = async (
       error: error instanceof Error ? error.message : String(error)
     };
   }
-};
-
-/**
- * Upload a document to storage and process it
- * Added to fix missing function reference
- */
-export const uploadDocument = async (
-  file: File,
-  clientId: string,
-  options?: Partial<DocumentProcessingOptions>
-): Promise<DocumentProcessingResult> => {
-  try {
-    console.log(`Uploading document ${file.name} for client ${clientId}`);
-    
-    // Simulate uploading and getting a document ID
-    const documentId = `doc_${Date.now()}`;
-    
-    // Process the document
-    return await processDocument(documentId, {
-      clientId,
-      agentName: options?.agentName || 'Default Agent'
-    });
-  } catch (error) {
-    console.error('Error uploading document:', error);
-    return {
-      success: false,
-      status: 'failed',
-      documentId: 'unknown',
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-};
-
-/**
- * Process a document
- * Added to fix missing function reference
- */
-export const processDocument = async (
-  documentId: string,
-  options: DocumentProcessingOptions
-): Promise<DocumentProcessingResult> => {
-  return processDocumentWithLlamaParse(documentId, options);
 };

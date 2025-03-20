@@ -4,8 +4,9 @@ import { Card } from '@/components/ui/card';
 import { DriveLinks } from '@/components/client/DriveLinks';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentProcessing } from '@/hooks/useDocumentProcessing';
-import { ExtendedActivityType } from '@/types/extended-supabase';
+import { ExtendedActivityType } from '@/types/activity';
 import { Json } from '@/integrations/supabase/types';
+import { DocumentLinkFormData } from '@/types/document-processing';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
@@ -24,22 +25,22 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
   const {
     documentLinks,
     isLoading: isLoadingDocs,
-    addDocumentLinkMutation,
-    deleteDocumentLinkMutation
+    addDocumentLink,
+    deleteDocumentLink
   } = useDocumentLinks(clientId);
 
   // Get document processing
   const {
-    uploadDocumentMutation,
+    handleDocumentUpload,
     isUploading
   } = useDocumentProcessing(clientId, agentName);
 
   /**
    * Enhanced addDocumentLink with activity logging
    */
-  const addDocumentLink = async (data: { link: string; document_type: string; refresh_rate: number }) => {
+  const handleAddDocumentLink = async (data: DocumentLinkFormData) => {
     try {
-      await addDocumentLinkMutation.mutateAsync(data);
+      await addDocumentLink.mutateAsync(data);
       
       await logClientActivity(
         'document_link_added',
@@ -59,10 +60,10 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
   /**
    * Enhanced deleteDocumentLink with activity logging
    */
-  const deleteDocumentLink = async (linkId: number) => {
+  const handleDeleteDocumentLink = async (linkId: number) => {
     try {
       const linkToDelete = documentLinks?.find(link => link.id === linkId);
-      await deleteDocumentLinkMutation.mutateAsync(linkId);
+      await deleteDocumentLink.mutateAsync(linkId);
       
       if (linkToDelete) {
         await logClientActivity(
@@ -86,7 +87,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
    */
   const uploadDocument = async (file: File) => {
     try {
-      await uploadDocumentMutation.mutateAsync(file);
+      await handleDocumentUpload(file);
       
       await logClientActivity(
         'document_uploaded',
@@ -108,10 +109,9 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       <DriveLinks
         documents={documentLinks || []}
         isLoading={isLoadingDocs}
-        isValidating={false}
         isUploading={isUploading}
-        addDocumentLink={addDocumentLink}
-        deleteDocumentLink={deleteDocumentLink}
+        addDocumentLink={handleAddDocumentLink}
+        deleteDocumentLink={handleDeleteDocumentLink}
         uploadDocument={uploadDocument}
         isClientView={isClientView}
       />

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { WebsiteUrls } from '@/components/client/WebsiteUrls';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
-import { ExtendedActivityType } from '@/types/extended-supabase';
+import { ExtendedActivityType } from '@/types/activity';
 import { Json } from '@/integrations/supabase/types';
 import { ValidationResult } from '@/types/website-url';
 
@@ -110,8 +110,8 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       <WebsiteUrls
         urls={websiteUrls || []}
         isLoading={isLoading}
-        addWebsiteUrl={addWebsiteUrl}
-        deleteWebsiteUrl={deleteWebsiteUrl}
+        onAdd={addWebsiteUrl}
+        onDelete={deleteWebsiteUrl}
         isClientView={isClientView}
       />
     </Card>

@@ -6,7 +6,7 @@ import { DriveLinks } from '@/components/client/DriveLinks';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentProcessing } from '@/hooks/useDocumentProcessing';
-import { ActivityType } from '@/integrations/supabase/types';
+import { ExtendedActivityType } from '@/types/activity';
 import { Json } from '@/integrations/supabase/types';
 import { ValidationResult } from '@/types/document-processing';
 import { WebsiteUrlFormData } from '@/types/website-url';
@@ -17,7 +17,7 @@ interface ClientResourceSectionsProps {
   agentName: string;
   className?: string;
   isClientView?: boolean;
-  logClientActivity: (activity_type: ActivityType, description: string, metadata?: Json) => Promise<void>;
+  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
 export const ClientResourceSections = ({
@@ -35,8 +35,8 @@ export const ClientResourceSections = ({
   const {
     websiteUrls,
     isLoading: isLoadingUrls,
-    addWebsiteUrl: addWebsiteUrlMutation,
-    deleteWebsiteUrl: deleteWebsiteUrlMutation
+    addWebsiteUrlMutation,
+    deleteWebsiteUrlMutation
   } = useWebsiteUrls(clientId);
 
   // Get document links - explicitly handle mutation props
@@ -84,7 +84,7 @@ export const ClientResourceSections = ({
    */
   const addWebsiteUrl = async (data: WebsiteUrlFormData) => {
     try {
-      await addWebsiteUrlMutation(data);
+      await addWebsiteUrlMutation.mutateAsync(data);
       
       await logClientActivity(
         'website_url_added',
@@ -108,7 +108,7 @@ export const ClientResourceSections = ({
   const deleteWebsiteUrl = async (urlId: number) => {
     try {
       const urlToDelete = websiteUrls?.find(url => url.id === urlId);
-      await deleteWebsiteUrlMutation(urlId);
+      await deleteWebsiteUrlMutation.mutateAsync(urlId);
       
       if (urlToDelete) {
         await logClientActivity(
