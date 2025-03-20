@@ -1,3 +1,4 @@
+
 export interface Client {
   id: string;
   created_at: string;
@@ -14,6 +15,7 @@ export interface Client {
   urls: string[];
   drive_urls: string[];
   email: string;
+  agent_name?: string; // Make agent_name optional to match database schema
 }
 
 export interface AIAgent {
@@ -40,7 +42,7 @@ export interface AIAgent {
   logo_storage_path?: string;
   ai_prompt?: string;
   
-  // Potential document properties
+  // Document properties
   size?: number;
   type?: string;
   uploadDate?: string;
