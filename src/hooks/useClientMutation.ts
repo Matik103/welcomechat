@@ -39,7 +39,7 @@ export const useClientMutation = (id: string | undefined) => {
       // Handle agent_description separately to avoid type errors
       if (data.agent_description) {
         sanitizedData.agent_description = sanitizeForSQL(data.agent_description);
-        // Add to widget_settings as well
+        // Add to widget_settings as a property using type assertion
         if (typeof sanitizedData.widget_settings === 'object') {
           (sanitizedData.widget_settings as Record<string, any>).agent_description = 
             sanitizedData.agent_description;

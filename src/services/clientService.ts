@@ -25,8 +25,11 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       ? { ...data.widget_settings }
       : {};
     
-    // Add agent_description to widget_settings instead of as separate column
-    widgetSettings.agent_description = sanitizedAgentDescription;
+    // Add agent_description to widget_settings as a property
+    if (typeof widgetSettings === 'object') {
+      // Use type assertion to tell TypeScript this is a Record with string keys
+      (widgetSettings as Record<string, any>).agent_description = sanitizedAgentDescription;
+    }
     
     // Create the client record in the database using raw SQL with parameter binding
     // This avoids SQL syntax errors with special characters
