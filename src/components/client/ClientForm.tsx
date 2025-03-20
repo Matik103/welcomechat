@@ -71,7 +71,7 @@ export const ClientForm = ({
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
-      agent_name: initialData?.agent_name || "AI",
+      agent_name: initialData?.agent_name || "",
       agent_description: initialData?.agent_description || "",
       logo_url: initialData?.logo_url || "",
       logo_storage_path: initialData?.logo_storage_path || "",
@@ -84,7 +84,7 @@ export const ClientForm = ({
       reset({
         client_name: initialData.client_name || "",
         email: initialData.email || "",
-        agent_name: initialData.agent_name || "AI",
+        agent_name: initialData.agent_name || "",
         agent_description: initialData.agent_description || "",
         logo_url: initialData.logo_url || "",
         logo_storage_path: initialData.logo_storage_path || "",

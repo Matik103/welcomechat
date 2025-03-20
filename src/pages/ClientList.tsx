@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 
 import { Input } from "@/components/ui/input";
@@ -62,7 +61,7 @@ const ClientList = () => {
   }, [page, toast]);
 
   // Add proper type checking for client.agent_name
-  const renderAgentName = (client: any) => {
+  const renderAgentName = (client: Client) => {
     const agentName = client.agent_name || "AI Assistant";
     return (
       <span className="inline-flex items-center gap-1">

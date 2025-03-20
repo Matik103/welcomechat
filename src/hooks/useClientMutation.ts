@@ -30,7 +30,6 @@ export const useClientMutation = (id: string | undefined) => {
       // Create a deep copy of the data to avoid mutating the original object
       const sanitizedData: ClientFormData = {
         ...data,
-        agent_description: sanitizeForSQL(data.agent_description),
         // Ensure widget_settings is an object with the agent_description
         widget_settings: {
           ...(data.widget_settings || {}),
@@ -41,7 +40,7 @@ export const useClientMutation = (id: string | undefined) => {
       // Log before and after sanitization for debugging
       if (data.agent_description) {
         console.log("Agent description before sanitization:", data.agent_description);
-        console.log("Agent description after sanitization:", sanitizedData.agent_description);
+        console.log("Agent description after sanitization:", sanitizedData.widget_settings.agent_description);
       }
       console.log("Data after sanitization:", sanitizedData);
 
