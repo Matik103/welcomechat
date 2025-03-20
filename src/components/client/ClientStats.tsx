@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useClientDashboard } from "@/hooks/useClientDashboard";
 import { Loader2 } from "lucide-react";
+import { DashboardStats } from "@/types/extended-supabase";
 
 interface ClientStatsProps {
   clientId: string;
@@ -10,7 +11,7 @@ interface ClientStatsProps {
 }
 
 export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
-  const { stats, isLoading, error } = useClientDashboard(clientId, agentName);
+  const { stats, isLoading } = useClientDashboard(clientId, agentName);
 
   if (isLoading) {
     return (
@@ -25,7 +26,7 @@ export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
     );
   }
 
-  if (error || !stats) {
+  if (!stats) {
     return (
       <Card>
         <CardHeader>
@@ -64,7 +65,9 @@ export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
           
           <div className="bg-amber-50 p-4 rounded-lg">
             <p className="text-sm text-amber-500 font-medium">Success Rate</p>
-            <p className="text-2xl font-bold">{stats.successRate ? `${stats.successRate}%` : 'N/A'}</p>
+            <p className="text-2xl font-bold">
+              {stats.successRate !== undefined ? `${stats.successRate}%` : 'N/A'}
+            </p>
           </div>
         </div>
 

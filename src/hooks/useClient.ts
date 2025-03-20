@@ -31,23 +31,25 @@ export const useClient = (clientId: string) => {
         
         const clientData = result[0];
         
-        // Map data to Client type
+        if (!clientData) return null;
+        
+        // Map data to Client type with proper type casting
         return {
-          id: clientData.id || '',
-          client_name: clientData.client_name || '',
-          email: clientData.email || '',
-          logo_url: clientData.logo_url || '',
-          logo_storage_path: clientData.logo_storage_path || '',
-          created_at: clientData.created_at || '',
-          updated_at: clientData.updated_at || '',
-          deletion_scheduled_at: clientData.deletion_scheduled_at || null,
-          deleted_at: clientData.deleted_at || null,
-          status: clientData.status || 'active',
-          company: clientData.company || '',
-          agent_description: clientData.agent_description || '',
-          name: clientData.name || '',
-          agent_name: clientData.name || '',
-          last_active: clientData.last_active || null,
+          id: String(clientData.id || ''),
+          client_name: String(clientData.client_name || ''),
+          email: String(clientData.email || ''),
+          logo_url: String(clientData.logo_url || ''),
+          logo_storage_path: String(clientData.logo_storage_path || ''),
+          created_at: String(clientData.created_at || ''),
+          updated_at: String(clientData.updated_at || ''),
+          deletion_scheduled_at: clientData.deletion_scheduled_at ? String(clientData.deletion_scheduled_at) : null,
+          deleted_at: clientData.deleted_at ? String(clientData.deleted_at) : null,
+          status: String(clientData.status || 'active'),
+          company: String(clientData.company || ''),
+          description: String(clientData.agent_description || ''),
+          name: String(clientData.name || ''),
+          agent_name: String(clientData.name || ''),
+          last_active: clientData.last_active ? String(clientData.last_active) : null,
           widget_settings: clientData.settings || {},
           // Safely access nested properties
           settings: {
@@ -58,9 +60,9 @@ export const useClient = (clientId: string) => {
             position: clientData.settings?.position || 'right',
             welcome_message: clientData.settings?.welcome_message || 'Hi there! How can I help you today?',
             response_time_text: clientData.settings?.response_time_text || 'Usually responds in a few minutes',
-            agent_name: clientData.name || 'AI Assistant',
-            agent_description: clientData.agent_description || '',
-            logo_url: clientData.logo_url || '',
+            agent_name: String(clientData.name || 'AI Assistant'),
+            agent_description: String(clientData.agent_description || ''),
+            logo_url: String(clientData.logo_url || ''),
           }
         };
       } catch (error) {

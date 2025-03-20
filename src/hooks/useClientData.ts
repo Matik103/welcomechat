@@ -21,7 +21,7 @@ export const useClientData = (id: string | undefined) => {
   console.log("useClientData: user role =", userRole);
   console.log("useClientData: using agentId =", agentId);
   
-  const { client, isLoadingClient, error, refetchClient } = useClient(agentId);
+  const { client, isLoading: isLoadingClient, error, refetch: refetchClient } = useClient(agentId || '');
   const clientMutation = useClientMutation(agentId);
 
   return {

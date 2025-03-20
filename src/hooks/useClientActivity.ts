@@ -17,11 +17,12 @@ export const useClientActivity = (clientId?: string) => {
     }) => {
       if (!clientId) throw new Error("Client ID is required to log activities");
 
+      // Cast the activity_type as unknown first to work around the type issues
       const { data, error } = await supabase
         .from("client_activities")
         .insert({
           client_id: clientId,
-          activity_type: activity_type as unknown as string, // Type cast to match Supabase expectations
+          activity_type: activity_type as unknown as string,
           description,
           metadata: metadata || {}
         });

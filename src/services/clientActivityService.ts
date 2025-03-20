@@ -33,6 +33,38 @@ export const createClientActivity = async (
 };
 
 /**
+ * Logs a client activity and returns null to match expected void return type
+ */
+export const logClientActivity = async (
+  client_id: string,
+  activity_type: ExtendedActivityType,
+  description: string,
+  metadata?: Json
+): Promise<void> => {
+  await createClientActivity(client_id, activity_type, description, metadata);
+};
+
+/**
+ * Logs an error related to an AI agent
+ */
+export const logAgentError = async (
+  client_id: string,
+  error_message: string,
+  error_type: string = "processing_error",
+  metadata?: Json
+): Promise<void> => {
+  await createClientActivity(
+    client_id,
+    "error_logged" as ExtendedActivityType,
+    error_message,
+    {
+      error_type,
+      ...metadata
+    }
+  );
+};
+
+/**
  * Fetches recent client activities
  */
 export const fetchRecentActivities = async (limit = 10) => {
