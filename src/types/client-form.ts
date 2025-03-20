@@ -1,38 +1,20 @@
 
 import { z } from "zod";
 
-// Schema for widget settings
-export const widgetSettingsSchema = z.object({
-  agent_name: z.string().optional().default(""),
-  agent_description: z.string().optional().default(""),
-  logo_url: z.string().optional().default(""),
-});
-
-// Schema for client form data
+// Form validation schema
 export const clientFormSchema = z.object({
-  client_name: z.string().min(1, "Client name is required"),
+  client_name: z.string().min(2, "Client name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  widget_settings: widgetSettingsSchema.optional().default({
-    agent_name: "",
-    agent_description: "",
-    logo_url: "",
-  }),
+  widget_settings: z.object({
+    agent_name: z.string().optional(),
+    agent_description: z.string().optional(),
+    logo_url: z.string().optional(),
+  }).optional(),
   _tempLogoFile: z.any().optional(),
 });
 
-// Type for client form data
 export type ClientFormData = z.infer<typeof clientFormSchema>;
 
-// Type for client form errors
-export type ClientFormErrors = {
-  [K in keyof ClientFormData]?: string;
-};
-
-// Extended type with nested errors for widget settings
-export interface ClientFormErrorsWithNested extends Omit<ClientFormErrors, 'widget_settings'> {
-  widget_settings?: {
-    agent_name?: string;
-    agent_description?: string;
-    logo_url?: string;
-  };
+export interface ClientFormErrors {
+  [key: string]: string;
 }
