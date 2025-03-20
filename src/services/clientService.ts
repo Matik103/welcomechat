@@ -16,19 +16,14 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
     console.log("Using sanitized agent name:", sanitizedAgentName);
     
-    // Also sanitize agent_description
-    const sanitizedAgentDescription = sanitizeForSQL(data.agent_description || '');
-    console.log("Using sanitized agent description:", sanitizedAgentDescription);
-    
     // Prepare widget settings with sanitized values
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
       ? { ...data.widget_settings }
       : {};
     
-    // Add agent_description to widget_settings as a property
-    if (typeof widgetSettings === 'object') {
-      // Use type assertion to tell TypeScript this is a Record with string keys
-      (widgetSettings as Record<string, any>).agent_description = sanitizedAgentDescription;
+    // Make sure agent_description is in widget_settings
+    if (data.agent_description) {
+      widgetSettings.agent_description = sanitizeForSQL(data.agent_description);
     }
     
     // Create the client record in the database using raw SQL with parameter binding
@@ -133,9 +128,6 @@ export const updateClient = async (
 
     // Sanitize agent name to prevent SQL issues
     const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
-    
-    // Also sanitize agent_description
-    const sanitizedAgentDescription = sanitizeForSQL(data.agent_description || '');
 
     // Prepare update data with widget_settings correctly handled
     const updateData: any = {
@@ -144,22 +136,22 @@ export const updateClient = async (
       agent_name: sanitizedAgentName,
     };
 
-    // Only include widget_settings if it exists and is an object
-    if (typeof data.widget_settings === 'object' && data.widget_settings !== null) {
-      updateData.widget_settings = {
-        ...data.widget_settings,
-        agent_description: sanitizedAgentDescription,
-        logo_url: data.logo_url || "",
-        logo_storage_path: data.logo_storage_path || ""
-      };
-    } else {
-      // If widget_settings doesn't exist or is not an object, create a new one
-      updateData.widget_settings = {
-        agent_description: sanitizedAgentDescription,
-        logo_url: data.logo_url || "",
-        logo_storage_path: data.logo_storage_path || ""
-      };
+    // Prepare widget_settings
+    let widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
+      ? { ...data.widget_settings }
+      : {};
+      
+    // Add agent_description to widget_settings
+    if (data.agent_description) {
+      widgetSettings.agent_description = sanitizeForSQL(data.agent_description);
     }
+    
+    // Add logo data to widget_settings
+    widgetSettings.logo_url = data.logo_url || "";
+    widgetSettings.logo_storage_path = data.logo_storage_path || "";
+    
+    // Set the final widget_settings in update data
+    updateData.widget_settings = widgetSettings;
 
     // Update the client record
     const { error: updateError } = await supabase
