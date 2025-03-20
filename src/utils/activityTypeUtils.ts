@@ -30,7 +30,12 @@ export const activityTypeDescriptions: Record<ExtendedActivityType, string> = {
   growth_milestone: "Growth milestone",
   webhook_sent: "Webhook sent",
   ai_agent_created: "AI agent created",
+  ai_agent_updated: "AI agent updated",
+  ai_agent_table_created: "AI agent table created",
   agent_name_updated: "Agent name updated",
+  agent_description_updated: "Agent description updated",
+  agent_error: "Agent error",
+  agent_logo_updated: "Agent logo updated",
   signed_out: "Signed out",
   embed_code_copied: "Embed code copied",
   logo_uploaded: "Logo uploaded",
@@ -39,17 +44,12 @@ export const activityTypeDescriptions: Record<ExtendedActivityType, string> = {
   source_added: "Source added",
   url_deleted: "URL deleted",
   email_sent: "Email sent",
-  agent_description_updated: "Agent description updated",
-  agent_error: "Agent error",
-  agent_logo_updated: "Agent logo updated",
   invitation_sent: "Invitation sent",
   invitation_accepted: "Invitation accepted",
   widget_previewed: "Widget previewed",
   user_role_updated: "User role updated",
   login_success: "Login success",
-  login_failed: "Login failed",
-  ai_agent_updated: "AI agent updated",
-  ai_agent_table_created: "AI agent table created"
+  login_failed: "Login failed"
 };
 
 /**
@@ -62,14 +62,22 @@ export const getActivityTypeDescription = (type: ExtendedActivityType): string =
 /**
  * Generates an AI prompt from client data
  */
-export const generateAiPrompt = (clientName: string, agentDescription?: string): string => {
-  let prompt = `You are an AI assistant for ${clientName}.`;
+export const generateAiPrompt = (
+  agentName: string, 
+  agentDescription?: string,
+  clientName?: string
+): string => {
+  let prompt = `You are ${agentName}`;
   
-  if (agentDescription) {
-    prompt += ` ${agentDescription}`;
+  if (clientName) {
+    prompt += `, an AI assistant for ${clientName}`;
   }
   
-  prompt += " Answer customer questions helpfully and professionally.";
+  if (agentDescription) {
+    prompt += `. ${agentDescription}`;
+  }
+  
+  prompt += ". Answer customer questions helpfully and professionally.";
   
   return prompt;
 };

@@ -30,7 +30,12 @@ export type ExtendedActivityType =
   | "growth_milestone"
   | "webhook_sent"
   | "ai_agent_created"
+  | "ai_agent_updated"
+  | "ai_agent_table_created"
   | "agent_name_updated"
+  | "agent_description_updated"
+  | "agent_error"
+  | "agent_logo_updated"
   | "signed_out"
   | "embed_code_copied"
   | "logo_uploaded"
@@ -38,7 +43,13 @@ export type ExtendedActivityType =
   | "source_deleted"
   | "source_added"
   | "url_deleted"
-  | "email_sent"; // Added these activities
+  | "email_sent"
+  | "invitation_sent"
+  | "invitation_accepted"
+  | "widget_previewed"
+  | "user_role_updated"
+  | "login_success"
+  | "login_failed";
 
 /**
  * Access status type for document links
