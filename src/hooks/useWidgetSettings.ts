@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -189,7 +190,8 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
     );
   };
 
-  const defaultSettings = {
+  // This custom settings object is now correctly defined after its usage
+  const customDefaultSettings = {
     agent_name: "",
     agent_description: "",
     welcome_text: "Hi 👋, how can I help?",
@@ -198,7 +200,9 @@ export function useWidgetSettings(clientId: string | undefined, isClientView: bo
     text_color: "#ffffff",
     secondary_color: "#6366f1",
     logo_url: "",
-    logo_storage_path: ""
+    logo_storage_path: "",
+    position: "bottom-right" as const,
+    response_time_text: "I typically respond right away"
   };
 
   return {

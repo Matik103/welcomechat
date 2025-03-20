@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -47,7 +48,19 @@ export function NewClientForm() {
   const onSubmit = async (data: ClientFormValues) => {
     setIsLoading(true);
     try {
-      const result = await createClient(data);
+      // Ensure required fields are present for the ClientFormData type
+      const formData: ClientFormData = {
+        client_name: data.client_name, // Required field
+        email: data.email, // Required field
+        company: data.company,
+        description: data.description,
+        widget_settings: data.widget_settings || {
+          agent_name: '',
+          agent_description: '',
+        }
+      };
+      
+      const result = await createClient(formData);
       toast.success('Client created successfully!');
       form.reset();
     } catch (error) {
@@ -142,4 +155,4 @@ export function NewClientForm() {
       </Button>
     </form>
   );
-} 
+}
