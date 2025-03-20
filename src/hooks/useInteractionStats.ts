@@ -27,9 +27,9 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
 
       // Get interactions for the selected time period
       const { data: currentPeriodInteractions, error: currentError } = await supabase
-        .from("client_activities")
+        .from("ai_agents")
         .select("*")
-        .eq('activity_type', 'chat_interaction')
+        .eq('interaction_type', 'chat_interaction')
         .gte("created_at", startDate.toISOString());
 
       if (currentError) throw currentError;
@@ -38,9 +38,9 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
 
       // Get total clients for average calculation - using cached query if possible
       const { data: allClients, error: clientsError } = await supabase
-        .from("clients")
-        .select("*", { count: 'exact' })
-        .is("deletion_scheduled_at", null);
+        .from("ai_agents")
+        .select("DISTINCT client_id")
+        .eq("interaction_type", "config");
       
       if (clientsError) throw clientsError;
       
@@ -52,9 +52,9 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       const previousStartDate = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()));
       
       const { data: previousInteractions, error: prevError } = await supabase
-        .from("client_activities")
+        .from("ai_agents")
         .select("*")
-        .eq('activity_type', 'chat_interaction')
+        .eq('interaction_type', 'chat_interaction')
         .gte("created_at", previousStartDate.toISOString())
         .lt("created_at", startDate.toISOString());
 
