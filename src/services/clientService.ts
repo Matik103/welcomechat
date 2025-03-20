@@ -16,6 +16,12 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const sanitizedAgentName = sanitizeForSQL(data.agent_name || 'AI Assistant');
     console.log("Using sanitized agent name:", sanitizedAgentName);
     
+    // Get agent description from widget_settings if available
+    const widgetSettings = data.widget_settings || {};
+    const agentDescription = typeof widgetSettings === 'object' && widgetSettings !== null 
+      ? (widgetSettings as any).agent_description || ""
+      : "";
+    
     // Create the client record in the database using raw SQL with parameter binding
     // This avoids SQL syntax errors with special characters
     const { data: newClient, error } = await supabase.rpc(
@@ -29,7 +35,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         p_widget_settings: {
           logo_url: data.logo_url || "",
           logo_storage_path: data.logo_storage_path || "",
-          agent_description: data.agent_description || ""
+          agent_description: agentDescription
         }
       }
     );
@@ -135,10 +141,10 @@ export const updateClient = async (
     widgetSettings.logo_url = data.logo_url || "";
     widgetSettings.logo_storage_path = data.logo_storage_path || "";
     
-    // Add agent_description to widget_settings if provided
-    if (data.agent_description !== undefined) {
-      widgetSettings.agent_description = data.agent_description;
-    }
+    // Get agent description from widget_settings if available
+    const agentDescription = typeof widgetSettings === 'object' && widgetSettings !== null 
+      ? widgetSettings.agent_description || ""
+      : "";
     
     // Set the final widget_settings in update data
     updateData.widget_settings = widgetSettings;
