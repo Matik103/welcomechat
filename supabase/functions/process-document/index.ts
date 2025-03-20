@@ -37,8 +37,8 @@ async function createClientActivity(
 ) {
   const { error } = await supabase
     .from('client_activities')
-    .insert({
-      client_id: clientId,
+      .insert({
+        client_id: clientId,
       activity_type: activityType,
       description,
       metadata,
@@ -82,32 +82,44 @@ async function storeInAiAgents(
   content: string,
   documentType: string,
   documentUrl: string,
-  metadata: any = {}
+  metadata: Record<string, any>
 ) {
-  const { error } = await supabase
-    .from("ai_agents")
-    .insert({
-      client_id: clientId,
-      name: agentName,
-      content: content,
-      url: documentUrl,
-      interaction_type: `${documentType}_content`,
-      settings: metadata,
-      is_error: false,
-      created_at: new Date().toISOString()
-    });
+  try {
+    console.log("Attempting to store content in ai_agents with metadata:", metadata);
+    
+    const { data, error } = await supabase
+      .from('ai_agents')
+      .insert({
+        client_id: clientId,
+        agent_name: agentName,
+        content: content,
+        document_type: documentType,
+        document_url: documentUrl,
+        metadata: metadata,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Error storing content in ai_agents:', error);
-    throw new Error(`Failed to store content in ai_agents: ${error.message}`);
+    if (error) {
+      console.error("Error storing content in ai_agents:", error);
+      throw new Error(`Failed to store content in ai_agents: ${error.message}`);
+    }
+
+    console.log("Successfully stored content in ai_agents:", data);
+    return data;
+  } catch (error) {
+    console.error("Error in storeInAiAgents:", error);
+    throw error;
   }
 }
 
 // Process with LlamaParse
 export async function processWithLlamaParse(
-  documentUrl: string,
-  documentType: string,
-  clientId: string,
+  documentUrl: string, 
+  documentType: string, 
+  clientId: string, 
   agentName: string,
   documentId: string,
   supabase: SupabaseClient,
@@ -134,7 +146,7 @@ export async function processWithLlamaParse(
       console.error("LlamaParse upload error:", errorText);
       await updateJobStatus(supabase, jobId, "failed", `LlamaParse upload error: ${uploadResponse.status} ${uploadResponse.statusText}`);
       return {
-        success: false,
+          success: false, 
         error: `LlamaParse upload error: ${uploadResponse.status} ${uploadResponse.statusText}`
       };
     }
@@ -192,8 +204,8 @@ export async function processWithLlamaParse(
     if (!extractedContent) {
       await updateJobStatus(supabase, jobId, "failed", "No content could be extracted from LlamaParse");
       return {
-        success: false,
-        error: "No content could be extracted from LlamaParse"
+          success: false, 
+          error: "No content could be extracted from LlamaParse" 
       };
     }
 
@@ -202,8 +214,8 @@ export async function processWithLlamaParse(
       .from('ai_agents')
       .update({
         content: extractedContent,
-        processed_at: new Date().toISOString(),
-        processing_method: "llamaparse",
+          processed_at: new Date().toISOString(),
+          processing_method: "llamaparse",
         llamaparse_job_id: llamaParseJobId,
         document_metadata: result.metadata || {}
       })
@@ -213,7 +225,7 @@ export async function processWithLlamaParse(
       console.error("Error updating AI agent content:", updateError);
       await updateJobStatus(supabase, jobId, "failed", `Failed to update AI agent content: ${updateError.message}`);
       return {
-        success: false,
+          success: false, 
         error: `Failed to update AI agent content: ${updateError.message}`
       };
     }
@@ -225,7 +237,7 @@ export async function processWithLlamaParse(
       "document_processing_completed",
       `Successfully processed ${documentType} with LlamaParse: ${documentUrl}`,
       {
-        document_url: documentUrl,
+          document_url: documentUrl,
         processing_method: "llamaparse",
         llamaparse_job_id: llamaParseJobId
       }
@@ -254,8 +266,8 @@ export async function processWithLlamaParse(
     console.error("Error processing with LlamaParse:", error);
     await updateJobStatus(supabase, jobId, "failed", `LlamaParse processing error: ${error.message}`);
     return {
-      success: false,
-      error: `LlamaParse processing error: ${error.message}`
+        success: false, 
+        error: `LlamaParse processing error: ${error.message}` 
     };
   }
 }
@@ -289,7 +301,7 @@ export async function processWithFirecrawl(
       };
     }
 
-    // Step 1: Start crawling job
+    // Step 1: Start crawling job with V1 API schema
     const crawlResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
       method: 'POST',
       headers: {
@@ -298,11 +310,17 @@ export async function processWithFirecrawl(
       },
       body: JSON.stringify({
         url: documentUrl,
-        maxDepth: 2,
-        limit: 10,
+        maxDepth: 3,
+        limit: 50,
+        allowBackwardLinks: true,
+        allowExternalLinks: false,
         scrapeOptions: {
-          recursive: true,
-          formats: ["markdown"]
+          formats: ["markdown"],
+          onlyMainContent: true,
+          includeTags: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "article", "main", "section"],
+          excludeTags: ["nav", "footer", "header", "aside", "script", "style", "button", ".cookie-banner", ".popup", ".modal", ".advertisement", ".social-share", ".newsletter-signup"],
+          waitFor: 1000,
+          timeout: 30000
         }
       })
     });
@@ -318,9 +336,15 @@ export async function processWithFirecrawl(
     }
 
     const crawlResult = await crawlResponse.json();
-    const crawlJobId = crawlResult.job_id;
+    
+    if (!crawlResult.success || !crawlResult.id) {
+      throw new Error('Failed to start crawl job');
+    }
 
-    // Step 2: Poll for job completion
+    const crawlJobId = crawlResult.id;
+    console.log('Crawl Job ID:', crawlJobId);
+
+    // Step 2: Poll for job completion with improved error handling
     let jobStatus;
     let attempts = 0;
     const maxAttempts = 30; // 5 minutes with 10-second intervals
@@ -328,7 +352,8 @@ export async function processWithFirecrawl(
     while (attempts < maxAttempts) {
       const statusResponse = await fetch(`https://api.firecrawl.dev/v1/crawl/${crawlJobId}`, {
         headers: {
-          'Authorization': `Bearer ${firecrawlApiKey}`
+          'Authorization': `Bearer ${firecrawlApiKey}`,
+          'Content-Type': 'application/json'
         }
       });
 
@@ -337,12 +362,16 @@ export async function processWithFirecrawl(
       }
 
       jobStatus = await statusResponse.json();
+      console.log('Job status:', jobStatus.status);
 
       if (jobStatus.status === 'completed') {
         break;
       } else if (jobStatus.status === 'failed') {
         throw new Error(`Job failed: ${jobStatus.error || 'Unknown error'}`);
       }
+
+      // Update job status in database
+      await updateJobStatus(supabase, jobId, "processing", `Crawling in progress: ${jobStatus.status}`);
 
       // Wait 10 seconds before next attempt
       await new Promise(resolve => setTimeout(resolve, 10000));
@@ -354,9 +383,10 @@ export async function processWithFirecrawl(
     }
 
     // Step 3: Get the crawled content
-    const resultResponse = await fetch(`https://api.firecrawl.dev/v1/crawl/${crawlJobId}/content`, {
+    const resultResponse = await fetch(`https://api.firecrawl.dev/v1/crawl/${crawlJobId}`, {
       headers: {
-        'Authorization': `Bearer ${firecrawlApiKey}`
+        'Authorization': `Bearer ${firecrawlApiKey}`,
+        'Content-Type': 'application/json'
       }
     });
 
@@ -365,44 +395,39 @@ export async function processWithFirecrawl(
     }
 
     const result = await resultResponse.json();
-    const extractedContent = result.content;
+    
+    // Check if we need to paginate through results
+    let allData: any[] = result.data || [];
+    let nextUrl = result.next;
+    
+    while (nextUrl) {
+      const nextResponse = await fetch(nextUrl, {
+        headers: {
+          'Authorization': `Bearer ${firecrawlApiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-    // Update AI agent content
-    const { error: updateError } = await supabase
-      .from('ai_agents')
-      .update({
-        content: extractedContent,
-        processed_at: new Date().toISOString(),
-        processing_method: "firecrawl",
-        document_metadata: result.metadata || {}
-      })
-      .eq('id', documentId);
+      if (!nextResponse.ok) {
+        throw new Error(`Failed to get next page of results: ${nextResponse.statusText}`);
+      }
 
-    if (updateError) {
-      console.error("Error updating AI agent content:", updateError);
-      await updateJobStatus(supabase, jobId, "failed", `Failed to update AI agent content: ${updateError.message}`);
-      return {
-        success: false,
-        error: `Failed to update AI agent content: ${updateError.message}`
-      };
+      const nextResult = await nextResponse.json();
+      allData = allData.concat(nextResult.data || []);
+      nextUrl = nextResult.next;
     }
 
-    // Log success
-    await createClientActivity(
-      supabase,
-      clientId,
-      "document_processing_completed",
-      `Successfully processed ${documentType} with Firecrawl: ${documentUrl}`,
-      {
-        document_url: documentUrl,
-        processing_method: "firecrawl",
-        firecrawl_job_id: crawlJobId
-      }
-    );
+    // Combine all markdown content
+    const extractedContent = allData
+      .map(item => item.markdown)
+      .filter(Boolean)
+      .join('\n\n---\n\n');
 
-    await updateJobStatus(supabase, jobId, "completed", "Document processed successfully with Firecrawl");
+    if (!extractedContent) {
+      throw new Error('No content was extracted from the crawl');
+    }
 
-    // After successful processing, store in ai_agents table
+    // Store the content in ai_agents table
     await storeInAiAgents(
       supabase,
       clientId,
@@ -414,9 +439,29 @@ export async function processWithFirecrawl(
         document_id: documentId,
         processing_method: 'firecrawl',
         job_id: jobId,
-        firecrawl_job_id: crawlJobId
+        firecrawl_job_id: crawlJobId,
+        crawl_depth: 3,
+        crawl_limit: 50,
+        crawl_status: 'completed',
+        pages_crawled: allData.length
       }
     );
+
+    // Log success
+    await createClientActivity(
+      supabase,
+      clientId,
+      "document_processing_completed",
+      `Successfully processed website with Firecrawl: ${documentUrl}`,
+      {
+        document_url: documentUrl,
+        processing_method: "firecrawl",
+        firecrawl_job_id: crawlJobId,
+        pages_crawled: allData.length
+      }
+    );
+
+    await updateJobStatus(supabase, jobId, "completed", "Website processed successfully with Firecrawl");
 
     return { success: true };
   } catch (error) {
@@ -460,8 +505,8 @@ serve(async (req) => {
         updated_at: new Date().toISOString()
       })
       .select()
-      .single();
-
+    .single();
+    
     if (jobError) {
       throw new Error(`Failed to create processing job: ${jobError.message}`);
     }
