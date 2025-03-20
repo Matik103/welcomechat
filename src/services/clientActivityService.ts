@@ -14,6 +14,7 @@ export const createClientActivity = async (
     // Map the extended activity type to a database-compatible activity type
     const { dbActivityType, enhancedMetadata } = mapActivityType(activity_type, metadata);
     
+    // Create the record with the mapped activity type
     await supabase.from("client_activities").insert({
       client_id: clientId,
       activity_type: dbActivityType,
@@ -37,7 +38,7 @@ export const logAgentError = async (
 ): Promise<void> => {
   try {
     const errorMetadata = {
-      ...metadata,
+      ...(metadata || {}),
       agent_name: agentName,
       error_type: errorType,
       context

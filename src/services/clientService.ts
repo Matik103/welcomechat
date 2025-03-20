@@ -4,6 +4,83 @@ import { ClientFormData } from "@/types/client-form";
 import { toast } from "sonner";
 import { createClientActivity } from "./clientActivityService";
 
+// Creates or updates a client
+export const createClient = async (data: ClientFormData): Promise<string> => {
+  try {
+    // Insert data directly into ai_agents table
+    const { data: agentData, error: agentError } = await supabase
+      .from("ai_agents")
+      .insert({
+        client_name: data.client_name,
+        email: data.email,
+        name: data.widget_settings?.agent_name || "AI Assistant",
+        agent_description: data.widget_settings?.agent_description,
+        logo_url: data.widget_settings?.logo_url,
+        settings: data.widget_settings || {},
+        content: "",
+        interaction_type: "config",
+        status: "active"
+      })
+      .select("id")
+      .single();
+
+    if (agentError) {
+      console.error("Error creating AI agent:", agentError);
+      throw agentError;
+    }
+
+    const agentId = agentData.id;
+    console.log(`AI agent created with ID: ${agentId}`);
+
+    // Log AI agent creation activity
+    await createClientActivity(
+      agentId,
+      "ai_agent_created",
+      `New AI agent created: ${data.client_name}`,
+      { 
+        email: data.email,
+        agent_name: data.widget_settings?.agent_name,
+        has_agent_description: !!data.widget_settings?.agent_description
+      }
+    );
+
+    return agentId;
+  } catch (error) {
+    console.error("Error in createClient function:", error);
+    throw error;
+  }
+};
+
+// Updates an existing client
+export const updateClient = async (clientId: string, data: ClientFormData): Promise<string> => {
+  try {
+    // Update data in ai_agents table
+    const { error: updateError } = await supabase
+      .from("ai_agents")
+      .update({
+        client_name: data.client_name,
+        email: data.email,
+        name: data.widget_settings?.agent_name || "AI Assistant",
+        agent_description: data.widget_settings?.agent_description,
+        logo_url: data.widget_settings?.logo_url,
+        settings: {
+          ...data.widget_settings
+        }
+      })
+      .eq("id", clientId);
+
+    if (updateError) {
+      console.error("Error updating AI agent:", updateError);
+      throw updateError;
+    }
+
+    return clientId;
+  } catch (error) {
+    console.error("Error in updateClient function:", error);
+    throw error;
+  }
+};
+
 // Handles the process of creating a new AI agent
 export const createAgent = async (data: ClientFormData): Promise<string> => {
   console.log("Creating AI agent with data:", { 
