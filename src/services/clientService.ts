@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { Client, ClientFormData } from "@/types/client";
@@ -23,9 +24,11 @@ export const getClientById = async (id: string): Promise<Client | null> => {
  */
 const sanitizeForSQL = (value: string | undefined): string | undefined => {
   if (!value) return value;
-  // Replace double quotes with single quotes to prevent SQL errors
+  
+  // Replace double quotes with single quotes to prevent SQL syntax errors
+  // Double quotes are special in PostgreSQL as they're used for identifiers
   const sanitized = value.replace(/"/g, "'");
-  console.log(`Sanitized value: "${value}" to "${sanitized}"`);
+  console.log(`Sanitized value from "${value}" to "${sanitized}"`);
   return sanitized;
 };
 
@@ -38,6 +41,8 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   
   // Sanitize agent_name to prevent SQL errors
   const sanitizedAgentName = sanitizeForSQL(data.agent_name);
+  const sanitizedAgentDescription = sanitizeForSQL(data.agent_description);
+  
   console.log("Using sanitized agent name in updateClient:", sanitizedAgentName);
   
   // Update the client record (including logo fields)
@@ -51,12 +56,12 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
       widget_settings: typeof data.widget_settings === 'object' && data.widget_settings !== null 
         ? { 
             ...data.widget_settings,
-            agent_description: data.agent_description,
+            agent_description: sanitizedAgentDescription,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path
           } 
         : { 
-            agent_description: data.agent_description,
+            agent_description: sanitizedAgentDescription,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path
           }
@@ -68,7 +73,7 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
   if (sanitizedAgentName) {
     try {
       // Generate AI prompt based on agent name and description
-      const aiPrompt = generateAiPrompt(sanitizedAgentName, data.agent_description || "");
+      const aiPrompt = generateAiPrompt(sanitizedAgentName, sanitizedAgentDescription || "");
       
       console.log("Generated AI prompt:", aiPrompt);
       
@@ -85,12 +90,12 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
           .from("ai_agents")
           .update({
             name: sanitizedAgentName,
-            agent_description: data.agent_description,
+            agent_description: sanitizedAgentDescription,
             ai_prompt: aiPrompt,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
             settings: {
-              agent_description: data.agent_description,
+              agent_description: sanitizedAgentDescription,
               client_name: data.client_name,
               logo_url: data.logo_url,
               logo_storage_path: data.logo_storage_path,
@@ -106,12 +111,12 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
             client_id: id,
             name: sanitizedAgentName,
             content: "",
-            agent_description: data.agent_description,
+            agent_description: sanitizedAgentDescription,
             ai_prompt: aiPrompt,
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
             settings: {
-              agent_description: data.agent_description,
+              agent_description: sanitizedAgentDescription,
               client_name: data.client_name,
               logo_url: data.logo_url,
               logo_storage_path: data.logo_storage_path,
@@ -156,36 +161,42 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     console.log("Creating client with data:", data);
     console.log("Data JSON stringified:", JSON.stringify(data));
     
-    // Sanitize agent_name to prevent SQL errors
+    // Sanitize agent_name and agent_description to prevent SQL errors
     const sanitizedAgentName = sanitizeForSQL(data.agent_name) || 'agent_' + Date.now();
+    const sanitizedAgentDescription = sanitizeForSQL(data.agent_description);
     
     console.log("Using sanitized agent name in createClient:", sanitizedAgentName);
     console.log("sanitizedAgentName type:", typeof sanitizedAgentName);
+    console.log("Original agent name:", data.agent_name);
+    console.log("Sanitized agent name:", sanitizedAgentName);
     
     // Prepare widget settings, ensuring it's an object
     const widgetSettings = typeof data.widget_settings === 'object' && data.widget_settings !== null 
       ? { 
           ...data.widget_settings,
-          agent_description: data.agent_description,
+          agent_description: sanitizedAgentDescription,
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path 
         } 
       : { 
-          agent_description: data.agent_description,
+          agent_description: sanitizedAgentDescription,
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path
         };
 
     console.log("Widget settings:", JSON.stringify(widgetSettings));
 
-    // Create the client record
+    // Create the client record with sanitized data
     console.log("Inserting client with sanitized data...");
-    console.log("agent_name value being inserted:", sanitizedAgentName);
+    console.log("Agent name value being inserted:", sanitizedAgentName);
     
-    // Log the full SQL-like statement for debugging (not actual execution)
-    console.log(`DEBUG - SQL-like statement: 
-INSERT INTO clients(client_name, email, agent_name, widget_settings, status, website_url_refresh_rate, drive_link_refresh_rate, created_at, updated_at) 
-VALUES('${data.client_name}', '${data.email}', '${sanitizedAgentName}', '${JSON.stringify(widgetSettings)}', 'active', 60, 60, NOW(), NOW())`);
+    // Log the data being inserted to validate sanitization
+    console.log("Final insert data:", {
+      client_name: data.client_name,
+      email: data.email,
+      agent_name: sanitizedAgentName,
+      widget_settings: widgetSettings
+    });
     
     const { data: newClients, error } = await supabase
       .from("clients")
