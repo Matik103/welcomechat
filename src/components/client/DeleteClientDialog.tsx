@@ -1,140 +1,91 @@
 
 import { useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Client } from "@/types/client";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 interface DeleteClientDialogProps {
   isOpen: boolean;
-  onClose: () => void;
-  clientName: string;
-  clientId: string;
-  clientEmail: string;
-  onDeleted: () => void;
+  onOpenChange: (open: boolean) => void;
+  client: Client | null;
+  onClientsUpdated: () => void;
 }
 
-export function DeleteClientDialog({
+export const DeleteClientDialog = ({
   isOpen,
-  onClose,
-  clientName,
-  clientId,
-  clientEmail,
-  onDeleted,
-}: DeleteClientDialogProps) {
-  const [confirmation, setConfirmation] = useState("");
+  onOpenChange,
+  client,
+  onClientsUpdated
+}: DeleteClientDialogProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const expectedConfirmation = `delete ${clientName.toLowerCase()}`;
-
   const handleDelete = async () => {
-    if (confirmation.toLowerCase() !== expectedConfirmation) {
-      toast.error("Confirmation text doesn't match");
-      return;
-    }
+    if (!client) return;
 
     setIsDeleting(true);
-    
     try {
-      console.log("Scheduling deletion for client:", clientId);
-      
-      // Set deletion date for 30 days from now
+      // Schedule the client for deletion in 30 days
       const deletionDate = new Date();
       deletionDate.setDate(deletionDate.getDate() + 30);
 
-      // Update the client's deletion_scheduled_at in database
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from("clients")
         .update({
+          status: "deleted",
           deletion_scheduled_at: deletionDate.toISOString(),
         })
-        .eq("id", clientId);
+        .eq("id", client.id);
 
-      if (updateError) throw updateError;
-      
-      // Send deletion email notification
-      try {
-        console.log("Sending deletion email to:", clientEmail);
-        const response = await supabase.functions.invoke("send-deletion-email", {
-          body: {
-            clientId,
-            clientName,
-            email: clientEmail,
-          },
-        });
-        
-        console.log("Email function response:", response.data);
-        
-        if (response.error) {
-          console.error("Email error details:", response.error);
-          toast.warning("Client scheduled for deletion but email notification failed to send");
-        } else if (response.data && response.data.error) {
-          console.error("Email function error:", response.data.error);
-          toast.warning("Client scheduled for deletion but email notification failed to send");
-        } else {
-          toast.success("Client scheduled for deletion and notification email sent");
-        }
-      } catch (emailError) {
-        console.error("Exception sending email:", emailError);
-        toast.warning("Client scheduled for deletion but email notification failed to send");
+      if (error) {
+        throw error;
       }
-      
-      // Even if email fails, we still successfully scheduled deletion
-      onDeleted();
-      onClose();
+
+      toast.success("Client scheduled for deletion");
+      onClientsUpdated();
+      onOpenChange(false);
     } catch (error: any) {
-      console.error("Error in deletion process:", error);
-      toast.error(error.message || "Error processing deletion request");
+      console.error("Error deleting client:", error);
+      toast.error(`Failed to delete client: ${error.message}`);
     } finally {
       setIsDeleting(false);
     }
   };
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={onClose}>
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Client</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-4">
-            <p>
-              This action will schedule the client for deletion in 30 days. 
-              The client will receive an email with instructions to recover their account if needed.
-            </p>
-            <p>
-              Please type <strong>delete {clientName.toLowerCase()}</strong> to
-              confirm.
-            </p>
-            <Input
-              value={confirmation}
-              onChange={(e) => setConfirmation(e.target.value)}
-              placeholder={`delete ${clientName.toLowerCase()}`}
-              autoFocus
-            />
+          <AlertDialogTitle>Are you sure you want to delete this client?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will schedule the client for deletion in 30 days. After this period, all client data
+            including AI agents, chat history, and documents will be permanently removed.
+            <br /><br />
+            Client: <strong>{client?.client_name}</strong>
+            <br />
+            Email: <strong>{client?.email}</strong>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
           <Button
             variant="destructive"
             onClick={handleDelete}
-            disabled={
-              confirmation.toLowerCase() !== expectedConfirmation || isDeleting
-            }
+            disabled={isDeleting}
           >
-            {isDeleting ? "Processing..." : "Schedule Deletion"}
+            {isDeleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              "Delete Client"
+            )}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+};
