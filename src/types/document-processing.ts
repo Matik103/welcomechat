@@ -13,6 +13,7 @@ export interface DocumentProcessingOptions {
   processingMethod?: string;
   clientId: string;
   agentName?: string;
+  onUploadProgress?: (progress: number) => void;
 }
 
 export interface DocumentUploadFormProps {

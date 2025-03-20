@@ -27,6 +27,7 @@ interface WebsiteUrlsProps {
   isAdding: boolean;
   isDeleting: boolean;
   agentName: string;
+  isClientView?: boolean;
 }
 
 export const WebsiteUrls = ({
@@ -36,7 +37,8 @@ export const WebsiteUrls = ({
   isLoading,
   isAdding,
   isDeleting,
-  agentName
+  agentName,
+  isClientView = false
 }: WebsiteUrlsProps) => {
   const [newUrl, setNewUrl] = useState('');
 

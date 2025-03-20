@@ -20,9 +20,11 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
         
         const result = await uploadAndProcessDocument(
           file,
-          clientId,
-          agentName,
-          handleProgress
+          {
+            clientId,
+            agentName,
+            onUploadProgress: handleProgress
+          }
         );
         
         if (result.success) {

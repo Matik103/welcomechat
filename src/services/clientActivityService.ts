@@ -52,7 +52,7 @@ export const logAgentError = async (
         error_type: errorType,
         message: errorMessage,
         timestamp: new Date().toISOString(),
-        ...(metadata || {} as Json)
+        ...(metadata || {} as Record<string, Json>)
       }
     );
   } catch (error) {

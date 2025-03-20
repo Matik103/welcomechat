@@ -1,76 +1,77 @@
 
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { AccessStatus } from "@/types/extended-supabase";
-import { Toast } from "@/components/ui/use-toast";
-import { toast } from "sonner";
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { AccessStatus } from '@/types/extended-supabase';
+import { callRpcFunction } from '@/utils/rpcUtils';
+import { toast } from 'sonner';
 
-export function useDriveAccessCheck() {
-  const [isValidating, setIsValidating] = useState(false);
+export const useDriveAccessCheck = (linkId: number) => {
+  const [accessStatus, setAccessStatus] = useState<AccessStatus>('unknown');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const checkLinkAccessMutation = useMutation({
-    mutationFn: async (link: string): Promise<AccessStatus> => {
-      setIsValidating(true);
+  // Query to check document link access status
+  const { data: validationResult, isLoading: isValidating, refetch } = useQuery({
+    queryKey: ['driveAccessCheck', linkId],
+    queryFn: async () => {
+      if (!linkId) return { status: 'unknown' as AccessStatus };
+
       try {
-        const { data, error } = await supabase.functions.invoke(
-          "check-drive-access",
-          {
-            body: { link },
-          }
-        );
-
-        if (error) {
-          console.error("Error checking drive access:", error);
-          return "inaccessible";
-        }
-
-        return data.access_status as AccessStatus;
-      } catch (err) {
-        console.error("Error in drive access check:", err);
-        return "inaccessible";
-      } finally {
-        setIsValidating(false);
+        const result = await callRpcFunction<{ status: AccessStatus }>('check_drive_link_access', {
+          link_id: linkId
+        });
+        
+        setAccessStatus(result?.status || 'unknown');
+        return result;
+      } catch (error) {
+        console.error('Error checking drive link access:', error);
+        setAccessStatus('inaccessible');
+        return { status: 'inaccessible' as AccessStatus };
       }
     },
-    onError: (error) => {
-      toast.error("Failed to validate drive link: " + error.message);
-      setIsValidating(false);
-    },
+    enabled: !!linkId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false
   });
 
-  const validateDriveLink = async (link: string): Promise<AccessStatus> => {
-    if (!link) {
-      toast.error("Please provide a Google Drive link");
-      return "inaccessible";
-    }
-
-    // Very basic URL validation
-    if (!link.includes("drive.google.com")) {
-      toast.warning("This does not appear to be a Google Drive link");
-    }
-
+  // Manually refresh access status
+  const refreshStatus = async () => {
+    setIsLoading(true);
     try {
-      const result = await checkLinkAccessMutation.mutateAsync(link);
-      if (result === "accessible") {
-        toast.success("Drive link is accessible");
-      } else if (result === "inaccessible") {
-        toast.error(
-          "This drive link is not accessible. Please make sure it's public or accessible to anyone with the link."
-        );
-      } else {
-        toast.warning("Could not determine drive link accessibility");
+      const result = await refetch();
+      if (result.data?.status) {
+        setAccessStatus(result.data.status);
+        toast.success(`Access status updated: ${result.data.status}`);
       }
-      return result;
     } catch (error) {
-      toast.error("Error validating drive link");
-      return "inaccessible";
+      console.error('Error refreshing access status:', error);
+      toast.error('Failed to refresh access status');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Validate a drive link directly
+  const validateDriveLink = async (link: string): Promise<AccessStatus> => {
+    if (!link) return 'unknown';
+    
+    try {
+      const result = await callRpcFunction<{ status: AccessStatus }>('validate_drive_link', {
+        link: link
+      });
+      
+      return result?.status || 'unknown';
+    } catch (error) {
+      console.error('Error validating drive link:', error);
+      return 'inaccessible';
     }
   };
 
   return {
-    validateDriveLink,
+    accessStatus,
+    refreshStatus,
+    isLoading,
     isValidating,
-    validationResult: checkLinkAccessMutation.data || null,
+    validationResult: validationResult?.status || 'unknown',
+    validateDriveLink
   };
-}
+};

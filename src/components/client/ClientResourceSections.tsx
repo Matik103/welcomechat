@@ -9,6 +9,8 @@ import { useDocumentProcessing } from '@/hooks/useDocumentProcessing';
 import { ExtendedActivityType } from '@/types/extended-supabase';
 import { Json } from '@/integrations/supabase/types';
 import { ValidationResult } from '@/types/document-processing';
+import { WebsiteUrlFormData } from '@/types/website-url';
+import { DocumentLinkFormData } from '@/types/document-processing';
 
 interface ClientResourceSectionsProps {
   clientId: string;
@@ -33,21 +35,21 @@ export const ClientResourceSections = ({
   const {
     websiteUrls,
     isLoading: isLoadingUrls,
-    addWebsiteUrlMutation,
-    deleteWebsiteUrlMutation
+    addWebsiteUrl: addWebsiteUrlMutation,
+    deleteWebsiteUrl: deleteWebsiteUrlMutation
   } = useWebsiteUrls(clientId);
 
   // Get document links
   const {
     documentLinks,
     isLoading: isLoadingDocs,
-    addDocumentLink,
-    deleteDocumentLink
+    addDocumentLink: addDocumentLinkMutation,
+    deleteDocumentLink: deleteDocumentLinkMutation
   } = useDocumentLinks(clientId);
 
   // Get document processing
   const {
-    uploadDocument,
+    uploadDocument: uploadDocumentMutation,
     isUploading
   } = useDocumentProcessing(clientId, agentName);
 
@@ -80,7 +82,7 @@ export const ClientResourceSections = ({
   /**
    * Enhanced addWebsiteUrl with activity logging
    */
-  const addWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
+  const addWebsiteUrl = async (data: WebsiteUrlFormData) => {
     try {
       await addWebsiteUrlMutation.mutateAsync(data);
       
@@ -129,9 +131,9 @@ export const ClientResourceSections = ({
   /**
    * Enhanced addDocumentLink with activity logging
    */
-  const handleAddDocumentLink = async (data: { link: string; document_type: string; refresh_rate: number }) => {
+  const handleAddDocumentLink = async (data: DocumentLinkFormData) => {
     try {
-      await addDocumentLink(data);
+      await addDocumentLinkMutation.mutateAsync(data);
       
       await logClientActivity(
         'document_link_added',
@@ -156,7 +158,7 @@ export const ClientResourceSections = ({
   const handleDeleteDocumentLink = async (linkId: number) => {
     try {
       const linkToDelete = documentLinks?.find(link => link.id === linkId);
-      await deleteDocumentLink(linkId);
+      await deleteDocumentLinkMutation.mutateAsync(linkId);
       
       if (linkToDelete) {
         await logClientActivity(
@@ -182,7 +184,7 @@ export const ClientResourceSections = ({
    */
   const handleUploadDocument = async (file: File) => {
     try {
-      await uploadDocument(file);
+      await uploadDocumentMutation.mutateAsync(file);
       
       await logClientActivity(
         'document_uploaded',
@@ -217,9 +219,12 @@ export const ClientResourceSections = ({
           <WebsiteUrls
             urls={websiteUrls || []}
             isLoading={isLoadingUrls}
-            addWebsiteUrlMutation={addWebsiteUrlMutation}
-            deleteWebsiteUrlMutation={deleteWebsiteUrlMutation}
+            onAdd={addWebsiteUrl}
+            onDelete={deleteWebsiteUrl}
             isClientView={isClientView}
+            isAdding={addWebsiteUrlMutation.isPending}
+            isDeleting={deleteWebsiteUrlMutation.isPending}
+            agentName={agentName}
           />
         </TabsContent>
 
