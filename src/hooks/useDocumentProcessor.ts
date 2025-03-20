@@ -18,7 +18,6 @@ export function useDocumentProcessor() {
   const processDocument = async (params: ProcessDocumentParams) => {
     try {
       setIsProcessing(true);
-      console.log("Processing document:", params);
       
       // Check if document type is a Google Drive folder
       let documentType = params.documentType;
@@ -27,51 +26,21 @@ export function useDocumentProcessor() {
         toast.info("Google Drive folder detected - processing all documents in folder");
       }
       
-      // Ensure URL format is correct
-      let documentUrl = params.documentUrl;
-      try {
-        // Validate URL format - if it doesn't include protocol, add https://
-        if (!documentUrl.startsWith('http://') && !documentUrl.startsWith('https://')) {
-          documentUrl = 'https://' + documentUrl;
-          console.log("Added https:// to URL:", documentUrl);
-        }
-        
-        // Validate URL is properly formatted
-        new URL(documentUrl);
-      } catch (urlError) {
-        throw new Error(`Invalid URL format: ${urlError.message}`);
-      }
-      
       // Determine if we should use LlamaParse or Firecrawl
-      const isWebsite = documentType === "website_url" || documentType.includes("website");
-      const isFolder = documentUrl.includes("/folders/");
-      const useLlamaParse = !isWebsite && !isFolder;
+      // Only use Firecrawl for website URLs, everything else uses LlamaParse
+      const useLlamaParse = documentType !== "website_url" && 
+                           !documentType.includes("website") && 
+                           !(params.documentUrl.includes("/folders/"));
       
       if (useLlamaParse) {
         toast.info(`Processing ${documentType} with LlamaParse...`);
-        
-        // For direct file uploads, we'll use LlamaParse directly
-        if (documentType === "pdf" || documentType === "docx" || 
-            documentType === "excel" || documentType === "other") {
-          console.log("Direct file upload detected, using LlamaParse");
-          const result = await LlamaCloudService.parseDocument(documentUrl, documentType);
-          
-          if (!result.success) {
-            console.error("LlamaParse processing failed:", result.error);
-            throw new Error(result.error || "Failed to process document with LlamaParse");
-          }
-          
-          console.log("LlamaParse processing succeeded:", result.data);
-          toast.success(`Document processed successfully with LlamaParse!`);
-          return result.data;
-        }
       } else {
-        toast.info(`Processing ${isWebsite ? "website" : documentType} with Firecrawl...`);
+        toast.info(`Processing ${documentType === "website_url" ? "website" : documentType} with Firecrawl...`);
       }
       
       // Call the Edge Function to process the document
       const response = await FirecrawlService.processDocument(
-        documentUrl,
+        params.documentUrl,
         documentType,
         params.clientId,
         params.agentName,
@@ -80,11 +49,8 @@ export function useDocumentProcessor() {
       );
       
       if (!response.success) {
-        console.error("Document processing failed:", response.error);
         throw new Error(response.error || "Failed to process document");
       }
-      
-      console.log("Document processing succeeded:", response.data);
       
       // Success message based on document type
       if (documentType === "google_drive_folder") {

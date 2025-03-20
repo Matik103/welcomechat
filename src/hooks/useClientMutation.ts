@@ -8,25 +8,19 @@ import {
 } from "@/services/clientService";
 import { toast } from "sonner";
 
-// Function to sanitize strings by removing quotation marks
-function sanitizeString(str: string | null | undefined): string | null {
-  if (str === null || str === undefined) return null;
-  return str.replace(/"/g, '');
-}
-
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      // Sanitize agent name and description to remove quotation marks
-      const sanitizedData = {
+      // Use agent name and description exactly as provided without any modifications
+      const updatedData = {
         ...data,
-        agent_name: data.agent_name ? sanitizeString(data.agent_name) : null,
-        agent_description: data.agent_description ? sanitizeString(data.agent_description) : null
+        agent_name: data.agent_name, // Use the exact agent name as provided
+        agent_description: data.agent_description // Include agent_description
       };
 
       if (id) {
         // Update existing client
-        const clientId = await updateClient(id, sanitizedData);
+        const clientId = await updateClient(id, updatedData);
         await logClientUpdateActivity(id);
         return clientId;
       } else {
@@ -37,7 +31,7 @@ export const useClientMutation = (id: string | undefined) => {
         
         try {
           // Create the client record which also handles sending the invitation email
-          clientId = await createClient(sanitizedData);
+          clientId = await createClient(updatedData);
           console.log("Client created successfully with ID:", clientId);
           
           // The email is already sent in createClient, so we don't need to send it again here

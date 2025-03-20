@@ -2,7 +2,6 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { WidgetSettings } from "@/types/widget-settings";
-import { LogoManagement } from "./LogoManagement";
 
 interface BrandingSettingsProps {
   settings: WidgetSettings;
@@ -17,10 +16,6 @@ export function BrandingSettings({
   onSettingsChange,
   onLogoUpload
 }: BrandingSettingsProps) {
-  const handleRemoveLogo = () => {
-    onSettingsChange({ logo_url: "", logo_storage_path: "" });
-  };
-
   return (
     <div className="space-y-4">
       <div>
@@ -35,16 +30,6 @@ export function BrandingSettings({
         <p className="text-sm text-gray-500 mt-1">
           This is the name that will appear in the chat header.
         </p>
-      </div>
-
-      <div>
-        <Label>Logo</Label>
-        <LogoManagement
-          logoUrl={settings.logo_url}
-          isUploading={isUploading}
-          onLogoUpload={onLogoUpload}
-          onRemoveLogo={handleRemoveLogo}
-        />
       </div>
 
       <div>

@@ -8,8 +8,6 @@ interface CrawlResponse {
 interface CrawlOptions {
   limit?: number;
   formats?: string[];
-  depth?: number;
-  maxPagesToCrawl?: number;
 }
 
 export class FirecrawlService {
@@ -25,15 +23,6 @@ export class FirecrawlService {
     useLlamaParse: boolean = false
   ): Promise<CrawlResponse> {
     try {
-      console.log(`Sending request to process document:`, {
-        documentUrl,
-        documentType,
-        clientId,
-        agentName,
-        documentId,
-        useLlamaParse
-      });
-      
       const response = await fetch('/api/process-document', {
         method: 'POST',
         headers: {
@@ -45,85 +34,24 @@ export class FirecrawlService {
           clientId,
           agentName,
           documentId,
-          useLlamaParse,
-          // Add crawl options for Firecrawl
-          crawlOptions: {
-            depth: 2, // Enable depth crawling
-            maxPagesToCrawl: 100, // Increase page limit
-            format: 'markdown' // Prefer markdown for better structure
-          },
-          // Add parse options for LlamaParse
-          parseOptions: {
-            split_by: "chunk", 
-            chunk_size: 2000,
-            include_metadata: true
-          }
+          useLlamaParse
         }),
       });
 
-      // Better error handling for non-JSON responses
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        try {
-          const rawText = await response.text();
-          console.error('Received non-JSON response:', rawText.substring(0, 500));
-          return {
-            success: false,
-            error: `Server returned non-JSON response: ${rawText.substring(0, 200)}...`,
-          };
-        } catch (textError) {
-          console.error('Error getting response text:', textError);
-          return {
-            success: false,
-            error: `Failed to read response: ${textError instanceof Error ? textError.message : "Unknown error"}`,
-          };
-        }
-      }
-
-      // If response is not OK, get the error text
+      const data = await response.json();
+      
       if (!response.ok) {
-        try {
-          const errorText = await response.text();
-          console.error('Error processing document. Status:', response.status, 'Error:', errorText);
-          
-          try {
-            // Try to parse the error as JSON
-            const errorJson = JSON.parse(errorText);
-            return {
-              success: false,
-              error: errorJson.error || `HTTP error ${response.status}`,
-            };
-          } catch (e) {
-            // If parsing fails, return the raw error text
-            return {
-              success: false,
-              error: `HTTP error ${response.status}: ${errorText}`,
-            };
-          }
-        } catch (textError) {
-          console.error('Error getting error text:', textError);
-          return {
-            success: false,
-            error: `HTTP error ${response.status}`,
-          };
-        }
-      }
-
-      // Parse the JSON response
-      try {
-        const data = await response.json();
-        console.log('Got successful response from process-document:', data);
-        return {
-          success: true,
-          data
-        };
-      } catch (jsonError) {
-        console.error('Error parsing JSON response:', jsonError);
+        console.error('Error processing document:', data);
         return {
           success: false,
-          error: 'Invalid JSON response from server',
+          error: data.error || 'Failed to process document',
         };
       }
+
+      return {
+        success: true,
+        data
+      };
     } catch (error) {
       console.error('Error in processDocument:', error);
       return {
@@ -146,39 +74,20 @@ export class FirecrawlService {
         },
       });
 
-      // Handle non-OK responses
+      const data = await response.json();
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error getting processing status:', errorText);
-        
-        try {
-          const errorJson = JSON.parse(errorText);
-          return {
-            success: false,
-            error: errorJson.error || `HTTP error ${response.status}`,
-          };
-        } catch (e) {
-          return {
-            success: false,
-            error: `HTTP error ${response.status}: ${errorText}`,
-          };
-        }
-      }
-
-      // Parse the JSON response
-      try {
-        const data = await response.json();
-        return {
-          success: true,
-          data
-        };
-      } catch (jsonError) {
-        console.error('Error parsing JSON response:', jsonError);
+        console.error('Error getting processing status:', data);
         return {
           success: false,
-          error: 'Invalid JSON response from server',
+          error: data.error || 'Failed to get processing status',
         };
       }
+
+      return {
+        success: true,
+        data
+      };
     } catch (error) {
       console.error('Error in getProcessingStatus:', error);
       return {

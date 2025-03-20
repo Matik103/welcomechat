@@ -1,4 +1,3 @@
-
 import { WidgetSettings } from "./widget-settings";
 import { Json } from "@/integrations/supabase/types";
 
@@ -33,8 +32,7 @@ export interface ClientFormData {
   widget_settings?: Json;
   company?: string;
   description?: string;
-  logo_url?: string;
-  logo_storage_path?: string;
+  logo_file?: File; // Add logo_file for form handling
 }
 
 export interface Client extends ClientFormData {

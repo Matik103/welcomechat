@@ -3,10 +3,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Upload, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
 
 interface DocumentUploadFormProps {
   onSubmit: (file: File, documentType: string) => Promise<void>;
@@ -21,31 +20,14 @@ export const DocumentUploadForm = ({
   isUploading,
   agentName
 }: DocumentUploadFormProps) => {
-  const [documentType, setDocumentType] = useState<string>("pdf");
+  const [documentType, setDocumentType] = useState<string>("google_drive");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setFile(selectedFile);
+      setFile(e.target.files[0]);
       setError(null);
-      
-      // Auto-detect file type based on extension
-      const fileName = selectedFile.name.toLowerCase();
-      if (fileName.endsWith('.pdf')) {
-        setDocumentType('pdf');
-      } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
-        setDocumentType('google_doc');
-      } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv')) {
-        setDocumentType('excel');
-      } else if (fileName.endsWith('.pptx') || fileName.endsWith('.ppt')) {
-        setDocumentType('powerpoint');
-      } else {
-        setDocumentType('other');
-      }
-      
-      console.log(`Selected file: ${selectedFile.name}, type: ${selectedFile.type}, detected type: ${documentType}`);
     }
   };
 
@@ -54,24 +36,14 @@ export const DocumentUploadForm = ({
     
     if (!agentName) {
       setError("Agent name is not configured. Please set up an AI Agent Name in client settings before uploading documents.");
-      toast.error("Agent name is not configured");
       return;
     }
     
     if (!file) {
       setError("Please select a file to upload");
-      toast.error("No file selected");
       return;
     }
     
-    const maxSizeMB = 10;
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      setError(`File is too large. Maximum size is ${maxSizeMB}MB.`);
-      toast.error(`File is too large (max ${maxSizeMB}MB)`);
-      return;
-    }
-    
-    console.log(`Submitting file: ${file.name}, type: ${documentType}`);
     try {
       await onSubmit(file, documentType);
     } catch (error) {
@@ -102,10 +74,10 @@ export const DocumentUploadForm = ({
               <SelectValue placeholder="Select document type" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="google_drive">Google Drive</SelectItem>
+              <SelectItem value="google_doc">Google Doc</SelectItem>
+              <SelectItem value="excel">Excel</SelectItem>
               <SelectItem value="pdf">PDF</SelectItem>
-              <SelectItem value="google_doc">Word Document</SelectItem>
-              <SelectItem value="excel">Excel Spreadsheet</SelectItem>
-              <SelectItem value="powerpoint">PowerPoint</SelectItem>
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
@@ -121,10 +93,9 @@ export const DocumentUploadForm = ({
             type="file"
             onChange={handleFileChange}
             className="cursor-pointer"
-            accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.pptx,.ppt,.txt"
           />
           <p className="text-xs text-gray-500">
-            Supported file types: PDF, DOCX, XLSX, CSV, PPT, TXT (max 10MB)
+            Supported file types: PDF, DOCX, XLSX, CSV, TXT (max 10MB)
           </p>
         </div>
         
@@ -146,11 +117,9 @@ export const DocumentUploadForm = ({
                 Processing with LlamaParse...
               </>
             ) : (
-              <>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Document
-              </>
+              <Upload className="w-4 h-4 mr-2" />
             )}
+            {!isUploading && "Upload Document"}
           </Button>
         </div>
       </div>
