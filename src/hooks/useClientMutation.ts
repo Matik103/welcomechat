@@ -21,7 +21,7 @@ export const useClientMutation = (id: string | undefined) => {
         widget_settings: {
           ...(typeof data.widget_settings === 'object' && data.widget_settings !== null 
               ? data.widget_settings 
-              : {}),
+              : {})
         }
       };
       
