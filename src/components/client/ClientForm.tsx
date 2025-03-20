@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -16,6 +17,7 @@ interface ClientFormProps {
   onSubmit: (data: { 
     client_name: string; 
     email: string; 
+    agent_name?: string;
     agent_description?: string;
     logo_url?: string;
     logo_storage_path?: string;
@@ -27,6 +29,7 @@ interface ClientFormProps {
 const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
+  agent_name: z.string().optional(),
   agent_description: z.string().optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
@@ -47,6 +50,7 @@ export const ClientForm = ({
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
+      agent_name: initialData?.agent_name || "AI Assistant",
       agent_description: initialData?.agent_description || "",
       logo_url: initialData?.logo_url || "",
       logo_storage_path: initialData?.logo_storage_path || "",
@@ -59,6 +63,7 @@ export const ClientForm = ({
       reset({
         client_name: initialData.client_name || "",
         email: initialData.email || "",
+        agent_name: initialData.agent_name || "AI Assistant",
         agent_description: initialData.agent_description || "",
         logo_url: initialData.logo_url || "",
         logo_storage_path: initialData.logo_storage_path || "",
@@ -165,6 +170,24 @@ export const ClientForm = ({
         />
         {errors.email && (
           <p className="text-sm text-red-500">{errors.email.message}</p>
+        )}
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="agent_name" className="text-sm font-medium text-gray-900">
+          AI Agent Name {isClientView && <span className="text-red-500">*</span>}
+        </Label>
+        <Input
+          id="agent_name"
+          {...register("agent_name")}
+          className={errors.agent_name ? "border-red-500" : ""}
+          placeholder="AI Assistant"
+        />
+        {errors.agent_name && (
+          <p className="text-sm text-red-500">{errors.agent_name.message}</p>
+        )}
+        {!isClientView && (
+          <p className="text-xs text-gray-500 mt-1">Default is "AI Assistant" if not specified.</p>
         )}
       </div>
       

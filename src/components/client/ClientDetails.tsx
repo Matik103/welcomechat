@@ -20,6 +20,7 @@ interface AgentUpdateResult {
   updated: boolean;
   created: boolean;
   descriptionUpdated: boolean;
+  nameUpdated: boolean;
 }
 
 export const ClientDetails = ({ 
@@ -33,6 +34,7 @@ export const ClientDetails = ({
 
   const ensureAiAgentExists = async (
     clientId: string, 
+    agentName?: string,
     agentDescription?: string,
     logoUrl?: string,
     logoStoragePath?: string,
@@ -40,27 +42,29 @@ export const ClientDetails = ({
   ): Promise<AgentUpdateResult> => {
     try {
       console.log(`Ensuring AI agent exists for client ${clientId}`);
+      console.log(`Agent name: ${agentName}`);
       console.log(`Agent description: ${agentDescription}`);
       console.log(`Client name: ${clientName}`);
       console.log(`Agent logo URL: ${logoUrl}`);
       
-      // Use a placeholder for agent name since we've removed it
-      const placeholderAgentName = 'AI Assistant';
+      // Use a default agent name if not provided
+      const finalAgentName = agentName || 'AI Assistant';
       
-      // Check if AI agent exists first
+      // Check if AI agent exists for this client
       const { data: existingAgents, error: queryError } = await supabase
         .from("ai_agents")
-        .select("id, agent_description, logo_url, logo_storage_path")
+        .select("id, name, agent_description, logo_url, logo_storage_path")
         .eq("client_id", clientId)
         .order('created_at', { ascending: false })
         .limit(1);
       
       if (queryError) {
         console.error("Error checking for existing AI agent:", queryError);
-        return { updated: false, created: false, descriptionUpdated: false };
+        return { updated: false, created: false, descriptionUpdated: false, nameUpdated: false };
       }
 
       const settings = {
+        agent_name: finalAgentName,
         agent_description: agentDescription || "",
         client_id: clientId,
         client_name: clientName || "",
@@ -70,11 +74,13 @@ export const ClientDetails = ({
       };
 
       if (existingAgents && existingAgents.length > 0) {
+        const nameChanged = existingAgents[0].name !== finalAgentName;
         const descriptionChanged = existingAgents[0].agent_description !== agentDescription;
         
         const { error: updateError } = await supabase
           .from("ai_agents")
           .update({ 
+            name: finalAgentName,
             agent_description: agentDescription,
             settings: settings,
             logo_url: logoUrl,
@@ -86,17 +92,23 @@ export const ClientDetails = ({
           console.error("Error updating AI agent:", updateError);
           throw updateError;
         } else {
+          console.log(`Updated agent name to: ${finalAgentName}`);
           console.log(`Updated agent description to: ${agentDescription}`);
           console.log(`Updated agent logo URL to: ${logoUrl}`);
           
-          return { updated: true, created: false, descriptionUpdated: descriptionChanged };
+          return { 
+            updated: true, 
+            created: false, 
+            descriptionUpdated: descriptionChanged,
+            nameUpdated: nameChanged
+          };
         }
       } else {
         const { error: insertError } = await supabase
           .from("ai_agents")
           .insert({
             client_id: clientId,
-            name: placeholderAgentName,
+            name: finalAgentName,
             agent_description: agentDescription,
             content: "",
             interaction_type: "config",
@@ -110,10 +122,15 @@ export const ClientDetails = ({
           console.error("Error creating new AI agent:", insertError);
           throw insertError;
         } else {
-          console.log(`Created new AI agent`);
+          console.log(`Created new AI agent with name: ${finalAgentName}`);
           console.log(`Set agent description to: ${agentDescription}`);
           console.log(`Set agent logo URL to: ${logoUrl}`);
-          return { updated: false, created: true, descriptionUpdated: true };
+          return { 
+            updated: false, 
+            created: true, 
+            descriptionUpdated: true,
+            nameUpdated: true
+          };
         }
       }
     } catch (error) {
@@ -125,6 +142,7 @@ export const ClientDetails = ({
   const handleSubmit = async (data: { 
     client_name: string; 
     email: string; 
+    agent_name?: string;
     agent_description?: string;
     logo_url?: string;
     logo_storage_path?: string;
@@ -136,20 +154,23 @@ export const ClientDetails = ({
       const tempLogoFile = data._tempLogoFile;
       delete data._tempLogoFile;
       
+      const nameChanged = client?.agent_name !== data.agent_name;
       const descriptionChanged = client?.agent_description !== data.agent_description;
       
       if (clientId && isClientView) {
         await clientMutation.mutateAsync({
           client_name: data.client_name,
           email: data.email,
+          agent_name: data.agent_name || 'AI Assistant',
           agent_description: data.agent_description,
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path
         });
         
-        let agentUpdateResult = { updated: false, created: false, descriptionUpdated: false };
+        let agentUpdateResult = { updated: false, created: false, descriptionUpdated: false, nameUpdated: false };
         agentUpdateResult = await ensureAiAgentExists(
           clientId, 
+          data.agent_name,
           data.agent_description,
           data.logo_url,
           data.logo_storage_path,
@@ -164,17 +185,21 @@ export const ClientDetails = ({
               "ai_agent_created", 
               "created a new AI agent",
               { 
+                agent_name: data.agent_name,
                 agent_description: data.agent_description,
                 logo_url: data.logo_url
               }
             );
-          } else if (agentUpdateResult.descriptionUpdated) {
+          } else if (agentUpdateResult.nameUpdated || agentUpdateResult.descriptionUpdated) {
             await logClientActivity(
               "ai_agent_updated", 
-              "updated their AI agent description",
+              "updated their AI agent settings",
               { 
+                agent_name: data.agent_name,
                 agent_description: data.agent_description,
-                logo_url: data.logo_url
+                logo_url: data.logo_url,
+                name_changed: agentUpdateResult.nameUpdated,
+                description_changed: agentUpdateResult.descriptionUpdated
               }
             );
           } else {
@@ -200,6 +225,7 @@ export const ClientDetails = ({
         await clientMutation.mutateAsync({
           client_name: data.client_name,
           email: data.email,
+          agent_name: data.agent_name || 'AI Assistant',
           agent_description: data.agent_description,
           logo_url: data.logo_url,
           logo_storage_path: data.logo_storage_path
@@ -207,6 +233,7 @@ export const ClientDetails = ({
         
         await ensureAiAgentExists(
           clientId, 
+          data.agent_name,
           data.agent_description,
           data.logo_url,
           data.logo_storage_path,
