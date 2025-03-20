@@ -51,6 +51,27 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_1742426304880: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       ai_agent: {
         Row: {
           content: string | null
@@ -76,9 +97,11 @@ export type Database = {
         Row: {
           agent_description: string | null
           ai_prompt: string | null
-          client_id: string
+          assistant_id: string | null
+          client_id: string | null
           content: string | null
           created_at: string | null
+          description: string | null
           embedding: string | null
           error_message: string | null
           error_status: string | null
@@ -88,21 +111,28 @@ export type Database = {
           is_error: boolean | null
           logo_storage_path: string | null
           logo_url: string | null
+          metadata: Json | null
           name: string
           query_text: string | null
           response_time_ms: number | null
           sentiment: string | null
           settings: Json | null
+          size: number | null
+          status: string | null
           topic: string | null
+          type: string | null
           updated_at: string | null
+          uploadDate: string | null
           url: string | null
         }
         Insert: {
           agent_description?: string | null
           ai_prompt?: string | null
-          client_id: string
+          assistant_id?: string | null
+          client_id?: string | null
           content?: string | null
           created_at?: string | null
+          description?: string | null
           embedding?: string | null
           error_message?: string | null
           error_status?: string | null
@@ -112,21 +142,28 @@ export type Database = {
           is_error?: boolean | null
           logo_storage_path?: string | null
           logo_url?: string | null
+          metadata?: Json | null
           name: string
           query_text?: string | null
           response_time_ms?: number | null
           sentiment?: string | null
           settings?: Json | null
+          size?: number | null
+          status?: string | null
           topic?: string | null
+          type?: string | null
           updated_at?: string | null
+          uploadDate?: string | null
           url?: string | null
         }
         Update: {
           agent_description?: string | null
           ai_prompt?: string | null
-          client_id?: string
+          assistant_id?: string | null
+          client_id?: string | null
           content?: string | null
           created_at?: string | null
+          description?: string | null
           embedding?: string | null
           error_message?: string | null
           error_status?: string | null
@@ -136,16 +173,29 @@ export type Database = {
           is_error?: boolean | null
           logo_storage_path?: string | null
           logo_url?: string | null
+          metadata?: Json | null
           name?: string
           query_text?: string | null
           response_time_ms?: number | null
           sentiment?: string | null
           settings?: Json | null
+          size?: number | null
+          status?: string | null
           topic?: string | null
+          type?: string | null
           updated_at?: string | null
+          uploadDate?: string | null
           url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_agents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_agents_backup: {
         Row: {
@@ -390,20 +440,6 @@ export type Database = {
             foreignKeyName: "client_activities_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "client_activities_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "client_activities_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -466,20 +502,6 @@ export type Database = {
             foreignKeyName: "client_recovery_tokens_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "client_recovery_tokens_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "client_recovery_tokens_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -517,7 +539,7 @@ export type Database = {
       }
       clients: {
         Row: {
-          agent_name: string
+          agent_name: string | null
           client_name: string
           company: string | null
           created_at: string | null
@@ -531,7 +553,7 @@ export type Database = {
           google_drive_links_added_at: string | null
           id: string
           last_active: string | null
-          status: Database["public"]["Enums"]["client_status"] | null
+          status: string | null
           updated_at: string | null
           website: string | null
           website_url: string | null
@@ -541,7 +563,7 @@ export type Database = {
           widget_settings: Json | null
         }
         Insert: {
-          agent_name: string
+          agent_name?: string | null
           client_name: string
           company?: string | null
           created_at?: string | null
@@ -555,7 +577,7 @@ export type Database = {
           google_drive_links_added_at?: string | null
           id?: string
           last_active?: string | null
-          status?: Database["public"]["Enums"]["client_status"] | null
+          status?: string | null
           updated_at?: string | null
           website?: string | null
           website_url?: string | null
@@ -565,7 +587,7 @@ export type Database = {
           widget_settings?: Json | null
         }
         Update: {
-          agent_name?: string
+          agent_name?: string | null
           client_name?: string
           company?: string | null
           created_at?: string | null
@@ -579,7 +601,7 @@ export type Database = {
           google_drive_links_added_at?: string | null
           id?: string
           last_active?: string | null
-          status?: Database["public"]["Enums"]["client_status"] | null
+          status?: string | null
           updated_at?: string | null
           website?: string | null
           website_url?: string | null
@@ -662,20 +684,6 @@ export type Database = {
             foreignKeyName: "common_queries_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "common_queries_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "common_queries_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -732,9 +740,11 @@ export type Database = {
           document_id: string
           document_type: string
           document_url: string
+          error: string | null
           error_message: string | null
           id: string
           metadata: Json | null
+          processing_method: string | null
           status: string
           updated_at: string
         }
@@ -746,9 +756,11 @@ export type Database = {
           document_id: string
           document_type: string
           document_url: string
+          error?: string | null
           error_message?: string | null
           id?: string
           metadata?: Json | null
+          processing_method?: string | null
           status?: string
           updated_at?: string
         }
@@ -760,9 +772,11 @@ export type Database = {
           document_id?: string
           document_type?: string
           document_url?: string
+          error?: string | null
           error_message?: string | null
           id?: string
           metadata?: Json | null
+          processing_method?: string | null
           status?: string
           updated_at?: string
         }
@@ -824,20 +838,6 @@ export type Database = {
           status?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "error_logs_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "error_logs_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
           {
             foreignKeyName: "error_logs_client_id_fkey"
             columns: ["client_id"]
@@ -964,20 +964,6 @@ export type Database = {
             foreignKeyName: "google_drive_links_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "google_drive_links_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "google_drive_links_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -1062,6 +1048,27 @@ export type Database = {
         Relationships: []
       }
       llama1: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          id?: number
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
+      llama11: {
         Row: {
           content: string | null
           embedding: string | null
@@ -2960,20 +2967,6 @@ export type Database = {
             foreignKeyName: "user_roles_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "user_roles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "user_roles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -3282,20 +3275,6 @@ export type Database = {
             foreignKeyName: "website_urls_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "agent_name_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "website_urls_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "chatbot_names_audit"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "website_urls_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -3345,28 +3324,7 @@ export type Database = {
       }
     }
     Views: {
-      agent_name_audit: {
-        Row: {
-          agent_record_id: string | null
-          ai_agent_name: string | null
-          client_agent_name: string | null
-          client_id: string | null
-          client_name: string | null
-          created_at: string | null
-          interaction_type: string | null
-        }
-        Relationships: []
-      }
-      chatbot_names_audit: {
-        Row: {
-          agent_id: string | null
-          agent_name: string | null
-          client_agent_name: string | null
-          client_id: string | null
-          client_name: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       accept_invitation: {
@@ -3427,18 +3385,32 @@ export type Database = {
         }
         Returns: undefined
       }
-      create_new_client: {
-        Args: {
-          p_client_name: string
-          p_email: string
-          p_agent_name: string
-          p_widget_settings: Json
-          p_status: string
-          p_website_url_refresh_rate: number
-          p_drive_link_refresh_rate: number
-        }
-        Returns: string
-      }
+      create_new_client:
+        | {
+            Args: {
+              p_client_name: string
+              p_email: string
+              p_agent_name: string
+              p_widget_settings: Json
+              p_status: string
+              p_website_url_refresh_rate: number
+              p_drive_link_refresh_rate: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_client_name: string
+              p_email: string
+              p_agent_name?: string
+              p_agent_description?: string
+              p_logo_url?: string
+              p_logo_storage_path?: string
+              p_widget_settings?: Json
+              p_status?: string
+            }
+            Returns: string
+          }
       exec_sql: {
         Args: {
           sql_query: string
@@ -3464,6 +3436,10 @@ export type Database = {
           new_agent_name: string
           records_updated: number
         }[]
+      }
+      fix_agent_quotes: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       get_active_days: {
         Args: {
@@ -3496,7 +3472,7 @@ export type Database = {
         Args: {
           client_id_param: string
           agent_name_param: string
-          limit_param?: number
+          limit_param: number
         }
         Returns: {
           query_text: string
@@ -3678,6 +3654,19 @@ export type Database = {
         }[]
       }
       match_agent_1742425072029: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_agent_1742426304880: {
         Args: {
           query_embedding: string
           match_count?: number
@@ -4038,6 +4027,19 @@ export type Database = {
         }[]
       }
       match_llama1: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          id: number
+          content: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
+      match_llama11: {
         Args: {
           query_embedding: string
           match_count?: number
@@ -5536,6 +5538,14 @@ export type Database = {
         | "document_processing_failed"
         | "system_update"
         | "ai_agent_updated"
+        | "document_stored"
+        | "document_processed"
+        | "document_link_added"
+        | "document_link_deleted"
+        | "document_uploaded"
+        | "signed_out"
+        | "embed_code_copied"
+        | "widget_previewed"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"

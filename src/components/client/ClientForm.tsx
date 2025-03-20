@@ -25,11 +25,18 @@ interface ClientFormProps {
   isClientView?: boolean;
 }
 
+const sanitizeInput = (input: string): string => {
+  return input.replace(/["`']/g, '');
+};
+
 const clientFormSchema = z.object({
-  client_name: z.string().min(1, "Client name is required"),
+  client_name: z.string().min(1, "Client name is required")
+    .transform(sanitizeInput),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().optional(),
-  agent_description: z.string().optional(),
+  agent_name: z.string().optional()
+    .transform(value => value ? sanitizeInput(value) : value),
+  agent_description: z.string().optional()
+    .transform(value => value ? sanitizeInput(value) : value),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
 });
@@ -47,10 +54,10 @@ export const ClientForm = ({
   const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      client_name: initialData?.client_name || "",
+      client_name: initialData?.client_name ? sanitizeInput(initialData.client_name) : "",
       email: initialData?.email || "",
-      agent_name: initialData?.agent_name || "",
-      agent_description: initialData?.agent_description || "",
+      agent_name: initialData?.agent_name ? sanitizeInput(initialData.agent_name) : "",
+      agent_description: initialData?.agent_description ? sanitizeInput(initialData.agent_description) : "",
       logo_url: initialData?.logo_url || "",
       logo_storage_path: initialData?.logo_storage_path || "",
     },
@@ -60,10 +67,10 @@ export const ClientForm = ({
     if (initialData) {
       console.log("Setting form values with initial data:", initialData);
       reset({
-        client_name: initialData.client_name || "",
+        client_name: initialData.client_name ? sanitizeInput(initialData.client_name) : "",
         email: initialData.email || "",
-        agent_name: initialData.agent_name || "",
-        agent_description: initialData.agent_description || "",
+        agent_name: initialData.agent_name ? sanitizeInput(initialData.agent_name) : "",
+        agent_description: initialData.agent_description ? sanitizeInput(initialData.agent_description) : "",
         logo_url: initialData.logo_url || "",
         logo_storage_path: initialData.logo_storage_path || "",
       });
@@ -142,6 +149,10 @@ export const ClientForm = ({
     });
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    e.target.value = sanitizeInput(e.target.value);
+  };
+
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <div className="space-y-2">
@@ -152,10 +163,12 @@ export const ClientForm = ({
           id="client_name"
           {...register("client_name")}
           className={errors.client_name ? "border-red-500" : ""}
+          onChange={handleInputChange}
         />
         {errors.client_name && (
           <p className="text-sm text-red-500">{errors.client_name.message}</p>
         )}
+        <p className="text-xs text-gray-500">Special characters like quotes (", ', `) will be removed.</p>
       </div>
 
       <div className="space-y-2">
@@ -181,12 +194,15 @@ export const ClientForm = ({
           id="agent_name"
           {...register("agent_name")}
           className={errors.agent_name ? "border-red-500" : ""}
+          onChange={handleInputChange}
         />
         {errors.agent_name && (
           <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
-        <p className="text-xs text-gray-500 mt-1">
-          {!isClientView ? "Optional - client can set this later" : "The name of your AI assistant"}
+        <p className="text-xs text-gray-500">
+          {!isClientView 
+            ? "Optional - client can set this later. Special characters like quotes will be removed."
+            : "Special characters like quotes (", ', `) will be removed."}
         </p>
       </div>
       
@@ -215,13 +231,16 @@ export const ClientForm = ({
           className={errors.agent_description ? "border-red-500" : ""}
           placeholder="Describe the purpose and capabilities of this AI agent"
           rows={4}
+          onChange={handleInputChange}
         />
         {errors.agent_description && (
           <p className="text-sm text-red-500">{errors.agent_description.message}</p>
         )}
-        {!isClientView && (
-          <p className="text-xs text-gray-500 mt-1">Optional - client can set this later</p>
-        )}
+        <p className="text-xs text-gray-500">
+          {!isClientView 
+            ? "Optional - client can set this later. Special characters like quotes will be removed."
+            : "Special characters like quotes (", ', `) will be removed."}
+        </p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">

@@ -1,6 +1,4 @@
 
-import { supabase } from "@/integrations/supabase/client";
-
 interface CrawlResponse {
   success: boolean;
   error?: string;
@@ -36,10 +34,12 @@ export class FirecrawlService {
         useLlamaParse
       });
       
-      // Call the Supabase Edge Function directly instead of using a relative API path
-      const { data, error } = await supabase.functions.invoke('process-document', {
+      const response = await fetch('/api/process-document', {
         method: 'POST',
-        body: {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           documentUrl,
           documentType,
           clientId,
@@ -58,23 +58,72 @@ export class FirecrawlService {
             chunk_size: 2000,
             include_metadata: true
           }
-        },
+        }),
       });
 
-      // Check for errors
-      if (error) {
-        console.error('Error calling process-document function:', error);
-        return {
-          success: false,
-          error: `Error calling process-document: ${error.message || 'Unknown error'}`
-        };
+      // Better error handling for non-JSON responses
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        try {
+          const rawText = await response.text();
+          console.error('Received non-JSON response:', rawText.substring(0, 500));
+          return {
+            success: false,
+            error: `Server returned non-JSON response: ${rawText.substring(0, 200)}...`,
+          };
+        } catch (textError) {
+          console.error('Error getting response text:', textError);
+          return {
+            success: false,
+            error: `Failed to read response: ${textError instanceof Error ? textError.message : "Unknown error"}`,
+          };
+        }
       }
 
-      // If successful, return the data
-      return {
-        success: true,
-        data
-      };
+      // If response is not OK, get the error text
+      if (!response.ok) {
+        try {
+          const errorText = await response.text();
+          console.error('Error processing document. Status:', response.status, 'Error:', errorText);
+          
+          try {
+            // Try to parse the error as JSON
+            const errorJson = JSON.parse(errorText);
+            return {
+              success: false,
+              error: errorJson.error || `HTTP error ${response.status}`,
+            };
+          } catch (e) {
+            // If parsing fails, return the raw error text
+            return {
+              success: false,
+              error: `HTTP error ${response.status}: ${errorText}`,
+            };
+          }
+        } catch (textError) {
+          console.error('Error getting error text:', textError);
+          return {
+            success: false,
+            error: `HTTP error ${response.status}`,
+          };
+        }
+      }
+
+      // Parse the JSON response
+      try {
+        const data = await response.json();
+        console.log('Got successful response from process-document:', data);
+        return {
+          success: true,
+          data
+        };
+      } catch (jsonError) {
+        console.error('Error parsing JSON response:', jsonError);
+        return {
+          success: false,
+          error: 'Invalid JSON response from server',
+        };
+      }
     } catch (error) {
       console.error('Error in processDocument:', error);
       return {
@@ -89,32 +138,47 @@ export class FirecrawlService {
    */
   static async getProcessingStatus(jobId: string): Promise<CrawlResponse> {
     try {
-      // Create a URLSearchParams object to properly encode the jobId
-      const searchParams = new URLSearchParams({ jobId });
-      
-      // Call the Supabase Edge Function directly
-      const { data, error } = await supabase.functions.invoke('document-processing-status', {
+      // This would call another edge function to check the status in the database
+      const response = await fetch(`/api/document-processing-status?jobId=${jobId}`, {
         method: 'GET',
-        // Fix: Use correct approach to pass query parameters in FunctionInvokeOptions
         headers: {
-          'x-search-params': searchParams.toString()
-        }
+          'Content-Type': 'application/json',
+        },
       });
 
-      // Check for errors
-      if (error) {
-        console.error('Error getting processing status:', error);
-        return {
-          success: false,
-          error: `Error getting processing status: ${error.message || 'Unknown error'}`
-        };
+      // Handle non-OK responses
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error getting processing status:', errorText);
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          return {
+            success: false,
+            error: errorJson.error || `HTTP error ${response.status}`,
+          };
+        } catch (e) {
+          return {
+            success: false,
+            error: `HTTP error ${response.status}: ${errorText}`,
+          };
+        }
       }
 
-      // If successful, return the data
-      return {
-        success: true,
-        data
-      };
+      // Parse the JSON response
+      try {
+        const data = await response.json();
+        return {
+          success: true,
+          data
+        };
+      } catch (jsonError) {
+        console.error('Error parsing JSON response:', jsonError);
+        return {
+          success: false,
+          error: 'Invalid JSON response from server',
+        };
+      }
     } catch (error) {
       console.error('Error in getProcessingStatus:', error);
       return {

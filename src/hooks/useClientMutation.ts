@@ -8,25 +8,21 @@ import {
 } from "@/services/clientService";
 import { toast } from "sonner";
 
-// Function to sanitize strings that will be used in SQL queries
-const sanitizeForSQL = (value: string | undefined): string | undefined => {
-  if (!value) return value;
-  // Replace double quotes with single quotes to prevent SQL injection
-  return value.replace(/"/g, "'");
-};
+// Function to sanitize strings by removing quotation marks
+function sanitizeString(str: string | null | undefined): string | null {
+  if (str === null || str === undefined) return null;
+  return str.replace(/"/g, '');
+}
 
 export const useClientMutation = (id: string | undefined) => {
   const clientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      console.log("Data before mutation:", data);
-      
-      // Sanitize agent_name to prevent SQL syntax errors
+      // Sanitize agent name and description to remove quotation marks
       const sanitizedData = {
         ...data,
-        agent_name: sanitizeForSQL(data.agent_name)
+        agent_name: data.agent_name ? sanitizeString(data.agent_name) : null,
+        agent_description: data.agent_description ? sanitizeString(data.agent_description) : null
       };
-      
-      console.log("Data after sanitization:", sanitizedData);
 
       if (id) {
         // Update existing client
