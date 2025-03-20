@@ -56,10 +56,14 @@ export const updateClient = async (id: string, data: ClientFormData): Promise<st
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name || 'AI Assistant',
-        agent_description: data.agent_description,
         logo_url: data.logo_url,
         logo_storage_path: data.logo_storage_path,
-        widget_settings: data.widget_settings || {},
+        widget_settings: {
+          ...(data.widget_settings || {}),
+          agent_description: data.agent_description || "",
+          logo_url: data.logo_url || "",
+          logo_storage_path: data.logo_storage_path || ""
+        },
         updated_at: new Date().toISOString()
       })
       .eq("id", id);
