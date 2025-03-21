@@ -85,18 +85,28 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         throw new Error(emailResult.error || "Failed to send invitation email");
       }
       
-      // Update invitation status - Fix: Handle settings as a proper object
-      const updatedSettings = clientData.settings && 
-        typeof clientData.settings === 'object' && 
-        !Array.isArray(clientData.settings) ? 
-        { ...clientData.settings as object, invitation_status: "sent" } : 
-        { invitation_status: "sent" };
+      // Update invitation status
+      // Get current settings first to maintain other properties
+      const { data: currentSettings } = await supabase
+        .from("ai_agents")
+        .select("settings")
+        .eq("id", clientId)
+        .single();
+        
+      // Create a properly merged settings object
+      const updatedSettings = {
+        ...(typeof currentSettings?.settings === 'object' && !Array.isArray(currentSettings?.settings) 
+          ? currentSettings?.settings as object 
+          : {}),
+        invitation_status: "sent"
+      };
 
+      // Update both the settings object and the dedicated field
       const { error: updateError } = await supabase
         .from("ai_agents")
         .update({ 
           settings: updatedSettings,
-          invitation_status: "sent"  // Add this field directly
+          invitation_status: "sent"
         })
         .eq("id", clientId);
         

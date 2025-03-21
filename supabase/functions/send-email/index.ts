@@ -27,6 +27,7 @@ serve(async (req) => {
   // Get Resend API key from environment variables
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
   if (!RESEND_API_KEY) {
+    console.error('Missing RESEND_API_KEY environment variable')
     return new Response(
       JSON.stringify({ error: 'Missing RESEND_API_KEY environment variable' }),
       {
@@ -44,10 +45,34 @@ serve(async (req) => {
     const resend = new Resend(RESEND_API_KEY)
 
     // Parse request body
-    const { to, subject, html, from = 'Welcome.Chat <admin@welcome.chat>' } = await req.json()
+    let requestBody;
+    try {
+      requestBody = await req.json()
+      console.log("Request body parsed successfully:", {
+        to: requestBody.to,
+        subject: requestBody.subject,
+        fromProvided: !!requestBody.from,
+        htmlLength: requestBody.html ? requestBody.html.length : 0
+      })
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError)
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body' }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          },
+        }
+      )
+    }
+
+    const { to, subject, html, from = 'Welcome.Chat <admin@welcome.chat>' } = requestBody
 
     // Validate request data
     if (!to || !subject || !html) {
+      console.error('Missing required fields:', { to, subject, htmlProvided: !!html })
       return new Response(
         JSON.stringify({ error: 'Missing required fields: to, subject, or html' }),
         {
