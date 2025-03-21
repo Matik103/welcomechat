@@ -38,8 +38,8 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
       }
 
       // Extract client information
-      const email = clientData.email || (clientData.settings?.email as string);
-      const clientName = clientData.client_name || (clientData.settings?.client_name as string);
+      const email = clientData.email || (clientData.settings && typeof clientData.settings === 'object' ? clientData.settings.email : undefined);
+      const clientName = clientData.client_name || (clientData.settings && typeof clientData.settings === 'object' ? clientData.settings.client_name : undefined);
       
       if (!email) {
         throw new Error("Client email not found");
