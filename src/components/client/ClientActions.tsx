@@ -11,6 +11,11 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
   // Add a check to ensure clientId is defined before using it
   if (!clientId) {
     console.error("ClientActions: clientId is undefined");
+    return (
+      <div className="flex items-center justify-end gap-2">
+        <span className="text-red-500 text-xs">Error: Missing client ID</span>
+      </div>
+    );
   }
   
   return (

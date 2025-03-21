@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getInteractionStats } from "@/services/statsService";
 import { useClientChatHistory } from "@/hooks/useClientChatHistory";
 import { InteractionStats, ChatInteraction } from "@/types/client-dashboard";
+import { toast } from "sonner";
 
 export const useClientDashboard = (clientId: string, defaultAgentName: string = 'AI Assistant') => {
   // Get interaction stats
@@ -14,6 +15,10 @@ export const useClientDashboard = (clientId: string, defaultAgentName: string = 
     queryKey: ["interaction-stats", clientId],
     queryFn: async () => {
       try {
+        if (!clientId) {
+          throw new Error("Client ID is required");
+        }
+        
         const data = await getInteractionStats(clientId);
         
         // Ensure both snake_case and camelCase properties exist
@@ -34,24 +39,13 @@ export const useClientDashboard = (clientId: string, defaultAgentName: string = 
         } as InteractionStats;
       } catch (error) {
         console.error("Error fetching interaction stats:", error);
-        // Return default values instead of throwing error
-        return {
-          total_interactions: 0,
-          active_days: 0,
-          average_response_time: 0,
-          top_queries: [],
-          success_rate: 100,
-          
-          totalInteractions: 0,
-          activeDays: 0,
-          averageResponseTime: 0,
-          topQueries: [],
-          successRate: 100
-        } as InteractionStats;
+        toast.error("Failed to load performance metrics");
+        throw error; // Re-throw to let React Query handle it
       }
     },
     enabled: !!clientId,
-    retry: 2,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
     staleTime: 60000, // 60 seconds
     refetchOnWindowFocus: false,
   });
@@ -66,8 +60,8 @@ export const useClientDashboard = (clientId: string, defaultAgentName: string = 
   // Calculate loading and error states
   const isLoading = isLoadingStats || isLoadingChatHistory;
   
-  // Only show error if both stats and chat history failed
-  const error = (statsError && chatHistoryError) ? new Error("Failed to load dashboard data") : null;
+  // Expose any errors that occurred
+  const error = statsError || chatHistoryError;
 
   // Return all data for the dashboard
   return {
