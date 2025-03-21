@@ -22,7 +22,6 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Client ID</TableHead>
           <TableHead>Client Name</TableHead>
           <TableHead>AI Agent Name</TableHead>
           <TableHead>Description</TableHead>
@@ -36,7 +35,7 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
       <TableBody>
         {clients.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+            <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
               No clients found
             </TableCell>
           </TableRow>
@@ -47,9 +46,6 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
             
             return (
               <TableRow key={client.id} className="hover:bg-gray-50">
-                <TableCell className="font-mono text-xs text-gray-500">
-                  {client.id ? client.id.substring(0, 8) + '...' : 'N/A'}
-                </TableCell>
                 <TableCell className="font-medium">{client.client_name}</TableCell>
                 <TableCell>{client.agent_name}</TableCell>
                 <TableCell className="max-w-xs truncate" title={client.description || ""}>
