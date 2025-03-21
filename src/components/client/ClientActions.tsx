@@ -6,6 +6,8 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { generateClientTempPassword } from "@/utils/passwordUtils";
 import { sendEmail } from "@/utils/emailUtils";
+import { Database } from "@/integrations/supabase/types";
+import { ActivityType } from "@/types/activity";
 
 interface ClientActionsProps {
   clientId: string;
@@ -37,7 +39,7 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         // If not found in clients table, try ai_agents table
         const { data: agentData, error: agentError } = await supabase
           .from("ai_agents")
-          .select("id, client_id, client_name, email, settings")
+          .select("id, client_id, name, agent_description, settings, email, client_name")
           .eq("id", clientId)
           .single();
           
@@ -47,7 +49,7 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         
         // Use agent data if client data wasn't found
         const email = agentData.email || '';
-        const clientName = agentData.client_name || '';
+        const clientName = agentData.client_name || agentData.name || '';
         
         if (!email) {
           throw new Error("Client email not found in account information");
@@ -111,11 +113,12 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         }
 
         // Log activity
+        const activityType: ActivityType = "email_sent";
         await supabase
           .from("client_activities")
           .insert({
             client_id: clientId,
-            activity_type: "system_update",
+            activity_type: activityType,
             description: "Invitation email sent to client",
             metadata: { email }
           });
@@ -200,11 +203,12 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
       }
 
       // Log activity
+      const activityType: ActivityType = "email_sent";
       await supabase
         .from("client_activities")
         .insert({
           client_id: clientId,
-          activity_type: "invitation_sent",
+          activity_type: activityType,
           description: "Invitation email sent to client",
           metadata: { email }
         });
