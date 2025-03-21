@@ -5,11 +5,7 @@ import {
   MessageSquare, 
   Calendar, 
   Clock, 
-  Globe, 
-  FileText, 
   Settings, 
-  PlusCircle, 
-  History,
   Edit,
   User,
   Bot
@@ -23,47 +19,109 @@ import { execSql } from '@/utils/rpcUtils';
 import { useClientChatHistory } from '@/hooks/useClientChatHistory';
 import { ChatInteraction } from '@/types/agent';
 import { formatDate } from '@/utils/stringUtils';
-import { useClientActivity } from '@/hooks/useClientActivity';
-import { useRecentActivities } from '@/hooks/useRecentActivities';
+import { useClient } from '@/hooks/useClient';
+import { ErrorLogList } from '@/components/client-dashboard/ErrorLogList';
+import { QueryList } from '@/components/client-dashboard/QueryList';
+import { InteractionStats } from '@/components/client-dashboard/InteractionStats';
 
 const ClientView = () => {
   const { clientId = '' } = useParams();
-  const [clientData, setClientData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { client, isLoading: isLoadingClient } = useClient(clientId);
   const { chatHistory, isLoading: isLoadingChatHistory } = useClientChatHistory(clientId);
-  const { logClientActivity } = useClientActivity(clientId);
-  const { data: activitiesData, isLoading: isLoadingActivities } = useRecentActivities();
-  const activities = activitiesData || [];
+  const [errorLogs, setErrorLogs] = useState([]);
+  const [commonQueries, setCommonQueries] = useState([]);
+  const [isLoadingErrorLogs, setIsLoadingErrorLogs] = useState(true);
+  const [isLoadingCommonQueries, setIsLoadingCommonQueries] = useState(true);
+  const [stats, setStats] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   useEffect(() => {
-    const fetchClient = async () => {
+    const fetchErrorLogs = async () => {
       if (!clientId) return;
       
       try {
-        setIsLoading(true);
+        setIsLoadingErrorLogs(true);
         
         const query = `
-          SELECT * FROM ai_agents 
-          WHERE id = '${clientId}' 
-          LIMIT 1
+          SELECT id, error_type, error_message, error_status, query_text, created_at
+          FROM ai_agents
+          WHERE client_id = '${clientId}' 
+          AND is_error = true
+          ORDER BY created_at DESC
+          LIMIT 10
+        `;
+        
+        const result = await execSql(query);
+        
+        if (result && Array.isArray(result)) {
+          setErrorLogs(result);
+        }
+      } catch (error) {
+        console.error('Error fetching error logs:', error);
+      } finally {
+        setIsLoadingErrorLogs(false);
+      }
+    };
+    
+    const fetchCommonQueries = async () => {
+      if (!clientId) return;
+      
+      try {
+        setIsLoadingCommonQueries(true);
+        
+        const query = `
+          SELECT query_text, COUNT(*) as frequency, MAX(created_at) as last_asked, MIN(id) as id
+          FROM ai_agents
+          WHERE client_id = '${clientId}'
+          AND interaction_type = 'chat_interaction'
+          AND query_text IS NOT NULL
+          GROUP BY query_text
+          ORDER BY frequency DESC
+          LIMIT 10
+        `;
+        
+        const result = await execSql(query);
+        
+        if (result && Array.isArray(result)) {
+          setCommonQueries(result);
+        }
+      } catch (error) {
+        console.error('Error fetching common queries:', error);
+      } finally {
+        setIsLoadingCommonQueries(false);
+      }
+    };
+    
+    const fetchStats = async () => {
+      if (!clientId) return;
+      
+      try {
+        setIsLoadingStats(true);
+        
+        const query = `
+          SELECT get_agent_dashboard_stats('${clientId}', 
+            (SELECT name FROM ai_agents WHERE client_id = '${clientId}' AND interaction_type = 'config' LIMIT 1)
+          )
         `;
         
         const result = await execSql(query);
         
         if (result && Array.isArray(result) && result.length > 0) {
-          setClientData(result[0]);
+          setStats(result[0].get_agent_dashboard_stats);
         }
       } catch (error) {
-        console.error('Error fetching client:', error);
+        console.error('Error fetching stats:', error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingStats(false);
       }
     };
     
-    fetchClient();
+    fetchErrorLogs();
+    fetchCommonQueries();
+    fetchStats();
   }, [clientId]);
 
-  if (isLoading) {
+  if (isLoadingClient) {
     return (
       <div className="container py-12 flex justify-center items-center">
         <div className="animate-pulse flex flex-col items-center">
@@ -74,7 +132,7 @@ const ClientView = () => {
     );
   }
 
-  if (!clientData) {
+  if (!client) {
     return (
       <div className="container py-12 text-center">
         <h1 className="text-2xl font-bold mb-4">Client Not Found</h1>
@@ -86,12 +144,11 @@ const ClientView = () => {
     );
   }
 
-  // Extract client information from settings or direct fields
-  const settings = clientData.settings || {};
-  const clientName = settings.client_name || clientData.client_name || 'Unnamed Client';
-  const agentName = clientData.name || settings.agent_name || 'AI Assistant';
-  const agentDescription = clientData.agent_description || settings.agent_description || 'No description provided';
-  const email = settings.email || clientData.email || 'No email provided';
+  // Extract client information
+  const clientName = client.client_name || 'Unnamed Client';
+  const agentName = client.agent_name || client.name || 'AI Assistant';
+  const agentDescription = client.description || 'No description provided';
+  const email = client.email || 'No email provided';
 
   return (
     <div className="container py-8">
@@ -149,30 +206,48 @@ const ClientView = () => {
                   <h3 className="text-sm font-medium text-gray-500">Created At</h3>
                   <p className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    {formatDate(clientData.created_at)}
+                    {formatDate(client.created_at)}
                   </p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
                   <p className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {formatDate(clientData.updated_at)}
+                    {formatDate(client.updated_at)}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Stats Dashboard */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance Metrics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {stats ? (
+                  <InteractionStats stats={stats} isLoading={isLoadingStats} />
+                ) : (
+                  <div className="col-span-4 text-center py-4 text-gray-500">
+                    No statistics available for this client
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Common Queries */}
+          <QueryList 
+            queries={commonQueries} 
+            isLoading={isLoadingCommonQueries} 
+          />
+
           {/* Recent Chat History */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Chat History</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/admin/clients/${clientId}/chat-history`}>
-                  <History className="mr-2 h-4 w-4" />
-                  View Full History
-                </Link>
-              </Button>
             </CardHeader>
             <CardContent>
               {isLoadingChatHistory ? (
@@ -220,6 +295,12 @@ const ClientView = () => {
           <ClientStats 
             clientId={clientId} 
             agentName={agentName} 
+          />
+
+          {/* Error Logs */}
+          <ErrorLogList 
+            logs={errorLogs} 
+            isLoading={isLoadingErrorLogs} 
           />
 
           {/* Widget Settings */}
