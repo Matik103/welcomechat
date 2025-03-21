@@ -97,7 +97,7 @@ export default function NewClient() {
       const { error: activityError } = await supabase
         .from('client_activities')
         .insert({
-          activity_type: 'ai_agent_created',
+          activity_type: 'client_created',
           description: `Created new AI agent: ${data.bot_settings.bot_name || "AI Assistant"}`,
           metadata: {
             client_name: data.client_name,
@@ -154,10 +154,9 @@ export default function NewClient() {
         if (emailError) {
           console.error("Email sending error:", emailError);
           
-          // Log the failed email attempt
+          // Log the failed email attempt with a valid activity type
           await supabase.from("client_activities").insert({
-            client_id: agentData.client_id,
-            activity_type: "email_error",
+            activity_type: "client_updated",
             description: `Failed to send welcome email to client ${data.client_name}`,
             metadata: { 
               error: emailError.message,
@@ -181,8 +180,7 @@ export default function NewClient() {
         } else {
           // Success - log the activity
           await supabase.from("client_activities").insert({
-            client_id: agentData.client_id,
-            activity_type: "email_sent",
+            activity_type: "client_updated",
             description: `Welcome email sent to ${data.client_name}`,
             metadata: { 
               recipient_email: data.email,
