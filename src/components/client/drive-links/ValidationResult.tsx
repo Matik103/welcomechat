@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { FirecrawlService } from '@/utils/FirecrawlService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ValidationResultProps {
   link: string;
@@ -39,8 +40,31 @@ export const ValidationResult = ({ link, type }: ValidationResultProps) => {
           if (!isDriveLink) {
             setIsValid(false);
             setErrorMessage('Link does not appear to be a Google Drive link.');
-          } else {
-            setIsValid(true);
+            setIsValidating(false);
+            return;
+          }
+          
+          // For Google Drive links, call the check-drive-access function
+          try {
+            const { data, error } = await supabase.functions.invoke('check-drive-access', {
+              body: { url: link }
+            });
+            
+            if (error) {
+              console.error('Error checking drive access:', error);
+              setIsValid(false);
+              setErrorMessage('Error validating link: ' + error.message);
+            } else if (data && data.isAccessible) {
+              setIsValid(true);
+              setErrorMessage(null);
+            } else {
+              setIsValid(false);
+              setErrorMessage(data?.error || 'Link may not be publicly accessible');
+            }
+          } catch (err) {
+            console.error('Error calling drive access function:', err);
+            setIsValid(false);
+            setErrorMessage('Error validating link');
           }
         }
       } catch (err) {
