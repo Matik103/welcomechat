@@ -139,7 +139,7 @@ Example Responses for Off-Limit Questions:
       console.log(`Adding document "${documentTitle}" to OpenAI Assistant for client ${clientId}`);
       
       // Get the OpenAI Assistant ID for this client
-      const { data: assistantData, error: assistantError } = await supabase
+      const result = await supabase
         .from("ai_agents")
         .select("openai_assistant_id")
         .eq("client_id", clientId)
@@ -147,11 +147,12 @@ Example Responses for Off-Limit Questions:
         .single();
       
       // Check for error or missing/undefined assistant ID
-      if (assistantError) {
-        console.error('Error finding OpenAI Assistant ID for this client:', assistantError);
+      if (result.error) {
+        console.error('Error finding OpenAI Assistant ID for this client:', result.error);
         
         // Check if the error message indicates the column doesn't exist
-        if (assistantError.message && assistantError.message.includes("column 'openai_assistant_id' does not exist")) {
+        const errorMessage = result.error.message || '';
+        if (errorMessage.includes("column 'openai_assistant_id' does not exist")) {
           console.error('The openai_assistant_id column does not exist. Please run the migration first.');
           
           // Run the migration to add the column via the Edge Function
@@ -192,7 +193,7 @@ Example Responses for Off-Limit Questions:
         }
         
         // The new assistant_id will be used in the subsequent call to upload-document-to-assistant
-      } else if (!assistantData || !assistantData.openai_assistant_id) {
+      } else if (!result.data || !result.data.openai_assistant_id) {
         console.error('Missing openai_assistant_id for this client');
         
         // Create a new OpenAI Assistant for this client
