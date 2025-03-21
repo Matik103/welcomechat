@@ -66,10 +66,8 @@ const WidgetSettings = () => {
   const handleBack = () => {
     if (isClientView) {
       navigate('/client/dashboard');
-    } else if (clientId && clientId !== "") {
-      // Admin is viewing a specific client's widget settings
-      navigate(`/admin/clients/${clientId}`);
     } else {
+      // Always navigate to the client management page for admins
       navigate('/admin/clients');
     }
   };
