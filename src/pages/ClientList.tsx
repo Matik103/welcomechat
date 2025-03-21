@@ -30,6 +30,7 @@ export default function ClientList() {
           .from('ai_agents')
           .select('*')
           .eq('interaction_type', 'config')
+          .not('status', 'eq', 'deleted') // Explicitly filter out deleted clients
           .order('created_at', { ascending: false });
         
         if (supabaseError) {
