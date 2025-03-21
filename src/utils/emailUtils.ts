@@ -65,7 +65,7 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
           </ol>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.VITE_APP_URL || 'https://app.welcome.chat'}/client/auth" 
+            <a href="${window?.location?.origin || 'https://app.welcome.chat'}/client/auth" 
                style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Sign In
             </a>
