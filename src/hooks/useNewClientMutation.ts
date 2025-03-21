@@ -2,15 +2,15 @@
 import { useMutation } from "@tanstack/react-query";
 import { ClientFormData } from "@/types/client-form";
 import { toast } from "sonner";
-import { 
-  createClientInDatabase, 
-  logClientCreationActivity, 
-  setupOpenAIAssistant,
-  setupClientPassword,
-  createClientUserAccount,
-  sendWelcomeEmail
-} from "@/utils/clientCreationUtils";
 import { validateClientData } from "@/utils/clientValidationUtils";
+import { sendWelcomeEmail } from "@/utils/emailUtils";
+import { 
+  createClientInDatabase,
+  logClientCreationActivity,
+  createClientUserAccount,
+  setupClientPassword
+} from "@/utils/clientAccountUtils";
+import { setupOpenAIAssistant } from "@/utils/clientOpenAIUtils";
 
 export const useNewClientMutation = () => {
   return useMutation({
