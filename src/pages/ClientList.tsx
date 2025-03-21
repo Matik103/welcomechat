@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -10,6 +11,7 @@ import { Loader2, Plus } from 'lucide-react';
 import { execSql } from '@/utils/rpcUtils';
 import { toast } from 'sonner';
 import { DeleteClientDialog } from '@/components/client/DeleteClientDialog';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,47 +23,56 @@ export default function ClientList() {
     queryKey: ['clients'],
     queryFn: async (): Promise<Client[]> => {
       try {
-        console.log("Fetching all unique clients from ai_agents table...");
-        const query = `
-          SELECT DISTINCT ON (client_id)
-            id, 
-            client_id,
-            name as agent_name,
-            agent_description as description,
-            settings,
-            created_at, 
-            updated_at, 
-            last_active,
-            status,
-            logo_url,
-            logo_storage_path,
-            is_error,
-            error_message
-          FROM ai_agents 
-          WHERE interaction_type = 'config' OR interaction_type IS NULL
-          ORDER BY client_id, created_at DESC
-        `;
+        console.log("Fetching clients from ai_agents table...");
         
-        const results = await execSql(query);
+        // Direct query using Supabase client for better debugging
+        const { data: agentsData, error: supabaseError } = await supabase
+          .from('ai_agents')
+          .select('*')
+          .eq('interaction_type', 'config')
+          .order('created_at', { ascending: false });
         
-        console.log(`Fetched ${results?.length || 0} unique clients from ai_agents:`, results);
+        if (supabaseError) {
+          console.error("Supabase query error:", supabaseError);
+          throw supabaseError;
+        }
         
-        if (!results || !Array.isArray(results)) {
-          console.error("No results or invalid results format:", results);
+        console.log(`Fetched ${agentsData?.length || 0} clients from ai_agents:`, agentsData);
+        
+        if (!agentsData || !Array.isArray(agentsData) || agentsData.length === 0) {
+          console.log("No clients found in ai_agents table");
           return [];
         }
         
-        const mappedClients = results.map((record: any) => {
+        // Group by client_id to get unique clients
+        const clientMap = new Map<string, any>();
+        
+        agentsData.forEach(record => {
+          const clientId = record.client_id || record.id;
+          
+          // Only add if it's not already in the map or if it's newer
+          if (!clientMap.has(clientId) || 
+              new Date(record.created_at) > new Date(clientMap.get(clientId).created_at)) {
+            clientMap.set(clientId, record);
+          }
+        });
+        
+        const uniqueClients = Array.from(clientMap.values());
+        console.log(`Processed ${uniqueClients.length} unique clients`);
+        
+        // Map to Client type
+        const mappedClients = uniqueClients.map((record: any) => {
+          // Get values from settings or fallback to direct properties
           const settings = typeof record.settings === 'object' ? record.settings : {};
-          const clientName = settings.client_name || record.agent_name || 'Unnamed Client';
-          const email = settings.email || '';
+          const clientName = settings.client_name || record.client_name || record.name || 'Unnamed Client';
+          const email = settings.email || record.email || '';
           
           const client: Client = {
             id: record.client_id || record.id,
             client_name: clientName,
             email: email, 
-            agent_name: record.agent_name || '',
-            description: record.description || '',
+            agent_name: record.name || '',
+            description: record.agent_description || '',
             widget_settings: settings,
             created_at: record.created_at || '',
             updated_at: record.updated_at || '',
@@ -73,7 +84,7 @@ export default function ClientList() {
             error_message: record.error_message || ''
           };
           
-          console.log(`Client ${clientName}: id=${client.id}, client_id=${record.client_id}`);
+          console.log(`Client ${clientName}: id=${client.id}`);
           
           return client;
         });
@@ -101,7 +112,7 @@ export default function ClientList() {
           client.description?.toLowerCase().includes(searchLower) ||
           client.status?.toLowerCase().includes(searchLower) ||
           client.email?.toLowerCase().includes(searchLower) ||
-          client.id?.toLowerCase().includes(searchLower)
+          (client.id && client.id.toLowerCase().includes(searchLower))
         );
       });
       setFilteredClients(filtered);
