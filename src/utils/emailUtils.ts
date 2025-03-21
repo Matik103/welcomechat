@@ -38,22 +38,25 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
       
       console.log("Email template params:", params);
       
+      // Get the current window location origin, or fallback to a default
+      const origin = typeof window !== 'undefined' ? window?.location?.origin : 'https://app.welcome.chat';
+      
       html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <div style="text-align: center; margin-bottom: 20px;">
             <h1 style="color: #4f46e5;">Welcome to ${params.productName || 'Welcome.Chat'}!</h1>
           </div>
           
-          <p>Hello ${params.clientName},</p>
+          <p>Hello ${params.clientName || 'Client'},</p>
           
           <p>Your AI assistant account has been created and is ready for configuration. Here are your login credentials:</p>
           
           <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Email Address:</strong></p>
-            <p style="color: #4f46e5;">${params.email}</p>
+            <p style="color: #4f46e5;">${params.email || ''}</p>
             
             <p><strong>Temporary Password:</strong></p>
-            <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${params.tempPassword}</p>
+            <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${params.tempPassword || ''}</p>
           </div>
           
           <p>To get started:</p>
@@ -65,7 +68,7 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
           </ol>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${window?.location?.origin || 'https://app.welcome.chat'}/client/auth" 
+            <a href="${origin}/client/auth" 
                style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Sign In
             </a>

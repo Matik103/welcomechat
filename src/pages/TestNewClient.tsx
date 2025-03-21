@@ -112,7 +112,7 @@ export default function TestNewClient() {
         .eq("id", clientId)
         .single();
       
-      // Now create a merged settings object - fixing the TypeScript error
+      // Now create a merged settings object - properly handling type safety
       const updatedSettings = {
         ...((currentData?.settings || {}) as object),
         invitation_status: "sent"
