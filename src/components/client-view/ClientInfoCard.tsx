@@ -11,31 +11,36 @@ interface ClientInfoCardProps {
 }
 
 export function ClientInfoCard({ client, chatHistory, aiAgentStats }: ClientInfoCardProps) {
-  // Calculate last active time
+  // Calculate last active time with better fallbacks
   const lastActive = client.last_active 
     ? new Date(client.last_active).toLocaleString() 
     : chatHistory.length > 0 
       ? new Date(chatHistory[0].created_at).toLocaleString()
-      : "Never";
+      : "No activity yet";
   
-  // Calculate days since creation
+  // Calculate days since creation with validation
   const createdDate = client.created_at ? new Date(client.created_at) : null;
   const today = new Date();
-  const daysSinceCreation = createdDate 
+  const daysSinceCreation = createdDate && !isNaN(createdDate.getTime())
     ? Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
   // Stats from ai_agents if available
-  const totalInteractions = aiAgentStats?.total_interactions || chatHistory.length;
+  const totalInteractions = aiAgentStats?.total_interactions || chatHistory.length || 0;
   const activeDays = aiAgentStats?.active_days || 0;
   const avgResponseTime = aiAgentStats?.average_response_time || 0;
 
-  // Get cleaned client name and agent name
-  const clientName = client.client_name || "Unknown Client";
-  const agentName = client.agent_name || client.name || "AI Assistant";
+  // Get client name and agent name with proper fallbacks
+  const clientName = client.client_name || "";
+  const agentName = client.name || client.agent_name || "";
   
   // Format date properly for display
-  const formattedCreatedDate = createdDate ? createdDate.toLocaleDateString() : "Not available";
+  const formattedCreatedDate = createdDate && !isNaN(createdDate.getTime())
+    ? createdDate.toLocaleDateString()
+    : "Not available";
+
+  // Determine client status with fallback
+  const clientStatus = client.status || 'active';
 
   return (
     <Card>
@@ -54,8 +59,8 @@ export function ClientInfoCard({ client, chatHistory, aiAgentStats }: ClientInfo
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500">Status</h3>
-              <Badge variant={client.status === 'active' ? "default" : "destructive"} className={client.status === 'active' ? "bg-green-500 hover:bg-green-600" : ""}>
-                {client.status || 'active'}
+              <Badge variant={clientStatus === 'active' ? "default" : "destructive"} className={clientStatus === 'active' ? "bg-green-500 hover:bg-green-600" : ""}>
+                {clientStatus}
               </Badge>
             </div>
           </div>

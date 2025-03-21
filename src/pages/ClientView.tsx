@@ -56,7 +56,6 @@ const ClientView = () => {
       try {
         setIsLoadingErrorLogs(true);
         
-        // Fixed query to avoid using MIN on UUID which was causing errors
         const query = `
           SELECT id, error_type, error_message, error_status, query_text, created_at
           FROM ai_agents
@@ -85,7 +84,6 @@ const ClientView = () => {
       try {
         setIsLoadingCommonQueries(true);
         
-        // Fixed query to avoid using MIN on UUID which was causing errors
         const query = `
           SELECT query_text, COUNT(*) as frequency, MAX(created_at) as last_asked, id
           FROM ai_agents
@@ -116,22 +114,18 @@ const ClientView = () => {
       try {
         const query = `
           SELECT 
-            get_agent_dashboard_stats('${clientId}', '${client.agent_name}')
+            get_agent_dashboard_stats('${clientId}', '${client.agent_name || client.name}')
         `;
         
         const result = await execSql(query);
         
         if (result && Array.isArray(result) && result.length > 0) {
-          // The query result structure is different than expected
-          // It returns a JSON object, not an object with get_agent_dashboard_stats property
           const rawStats = result[0];
           
           if (rawStats) {
-            // Try to parse the stats from the raw result
             let statsData;
             
             if (typeof rawStats === 'string') {
-              // If it's a string, try to parse it as JSON
               try {
                 statsData = JSON.parse(rawStats);
               } catch (e) {
@@ -139,8 +133,22 @@ const ClientView = () => {
                 statsData = null;
               }
             } else if (typeof rawStats === 'object') {
-              // If it's already an object, use it directly
-              statsData = rawStats;
+              if (rawStats.get_agent_dashboard_stats) {
+                // Handle case where result comes as an object with get_agent_dashboard_stats property
+                try {
+                  if (typeof rawStats.get_agent_dashboard_stats === 'string') {
+                    statsData = JSON.parse(rawStats.get_agent_dashboard_stats);
+                  } else {
+                    statsData = rawStats.get_agent_dashboard_stats;
+                  }
+                } catch (e) {
+                  console.error('Error parsing stats from property:', e);
+                  statsData = null;
+                }
+              } else {
+                // Direct object
+                statsData = rawStats;
+              }
             }
             
             if (statsData) {
@@ -258,10 +266,6 @@ const ClientView = () => {
     );
   }
 
-  // Use real values from the API response, with fallbacks only if needed
-  const clientName = client.client_name || 'Unknown Client';
-  const agentName = client.agent_name || 'AI Assistant';
-
   return (
     <div className="container py-8">
       <Button 
@@ -276,9 +280,9 @@ const ClientView = () => {
       
       <div className="flex justify-between items-center mb-6">
         <div>
-          <PageHeading>{clientName}</PageHeading>
+          <PageHeading>{client.client_name}</PageHeading>
           <p className="text-muted-foreground">
-            <span className="font-medium">{agentName}</span>
+            <span className="font-medium">{client.name || client.agent_name}</span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -313,7 +317,16 @@ const ClientView = () => {
             isLoading={isLoadingCommonQueries} 
           />
 
-          {/* Recent Chat History */}
+          {/* Error Logs Card - MOVED to bottom */}
+          <ErrorLogList 
+            logs={errorLogs} 
+            isLoading={isLoadingErrorLogs} 
+          />
+        </div>
+
+        {/* Sidebar - 4 columns */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Recent Chat History - MOVED from bottom to sidebar */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Chat History</CardTitle>
@@ -364,15 +377,6 @@ const ClientView = () => {
               </CardFooter>
             )}
           </Card>
-        </div>
-
-        {/* Sidebar - 4 columns */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Error Logs Card */}
-          <ErrorLogList 
-            logs={errorLogs} 
-            isLoading={isLoadingErrorLogs} 
-          />
         </div>
       </div>
     </div>
