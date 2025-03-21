@@ -1,2 +1,7 @@
 
+# Redirect old client view routes to clients listing
+/admin/clients/view/* /admin/clients 301
+/admin/clients/view/:clientId /admin/clients 301
+
+# Default SPA redirect
 /* /index.html 200
