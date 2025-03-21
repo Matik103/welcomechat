@@ -37,7 +37,8 @@ export default function ClientList() {
             logo_url,
             logo_storage_path,
             is_error,
-            error_message
+            error_message,
+            client_id
           FROM ai_agents 
           WHERE interaction_type = 'config' OR interaction_type IS NULL
           ORDER BY created_at DESC
@@ -60,7 +61,7 @@ export default function ClientList() {
           const email = settings.email || '';
           
           const client: Client = {
-            id: record.id,
+            id: record.client_id || record.id, // Prioritize client_id if available
             client_name: clientName,
             email: email, 
             agent_name: record.agent_name || '',
@@ -75,6 +76,9 @@ export default function ClientList() {
             is_error: record.is_error || false,
             error_message: record.error_message || ''
           };
+          
+          // Add debug logging to see client IDs
+          console.log(`Client ${clientName}: id=${client.id}, client_id=${record.client_id}`);
           
           return client;
         });

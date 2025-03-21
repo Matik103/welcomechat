@@ -8,6 +8,9 @@ import { RealtimeChannel } from "@supabase/supabase-js";
  */
 export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
   try {
+    // First, verify that the client exists in the ai_agents table
+    console.log(`Fetching error logs for client ID: ${clientId}`);
+    
     const { data, error } = await supabase
       .from("ai_agents")
       .select("id, error_type, error_message, error_status, created_at, query_text")
