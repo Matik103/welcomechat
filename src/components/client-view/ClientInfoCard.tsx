@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Calendar, Users, Activity, Mail, Bot, Globe, FileText } from "lucide-react";
+import { Calendar, Users, Activity, Bot, Globe, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -17,16 +17,25 @@ export function ClientInfoCard({ client, chatHistory, aiAgentStats }: ClientInfo
     : chatHistory.length > 0 
       ? new Date(chatHistory[0].created_at).toLocaleString()
       : "Never";
-
+  
   // Calculate days since creation
-  const createdDate = new Date(client.created_at);
+  const createdDate = client.created_at ? new Date(client.created_at) : null;
   const today = new Date();
-  const daysSinceCreation = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysSinceCreation = createdDate 
+    ? Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
 
   // Stats from ai_agents if available
   const totalInteractions = aiAgentStats?.total_interactions || chatHistory.length;
   const activeDays = aiAgentStats?.active_days || 0;
   const avgResponseTime = aiAgentStats?.average_response_time || 0;
+
+  // Get cleaned client name and agent name
+  const clientName = client.client_name || "Unknown Client";
+  const agentName = client.agent_name || client.name || "AI Assistant";
+  
+  // Format date properly for display
+  const formattedCreatedDate = createdDate ? createdDate.toLocaleDateString() : "Not available";
 
   return (
     <Card>
@@ -41,13 +50,13 @@ export function ClientInfoCard({ client, chatHistory, aiAgentStats }: ClientInfo
           <div className="grid grid-cols-2 gap-4">
             <div>
               <h3 className="text-sm font-medium text-gray-500">Client Name</h3>
-              <p className="font-semibold">{client.client_name}</p>
+              <p className="font-semibold">{clientName}</p>
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Email</h3>
-              <p className="font-semibold flex items-center gap-1">
-                <Mail className="h-3 w-3" /> {client.email}
-              </p>
+              <h3 className="text-sm font-medium text-gray-500">Status</h3>
+              <Badge variant={client.status === 'active' ? "default" : "destructive"} className={client.status === 'active' ? "bg-green-500 hover:bg-green-600" : ""}>
+                {client.status || 'active'}
+              </Badge>
             </div>
           </div>
 
@@ -55,14 +64,14 @@ export function ClientInfoCard({ client, chatHistory, aiAgentStats }: ClientInfo
             <div>
               <h3 className="text-sm font-medium text-gray-500">AI Agent</h3>
               <p className="font-semibold flex items-center gap-1">
-                <Bot className="h-3 w-3" /> {client.agent_name || "Not set"}
+                <Bot className="h-3 w-3" /> {agentName}
               </p>
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Status</h3>
-              <Badge variant={client.status === 'active' ? "default" : "destructive"} className={client.status === 'active' ? "bg-green-500 hover:bg-green-600" : ""}>
-                {client.status}
-              </Badge>
+              <h3 className="text-sm font-medium text-gray-500">Last Active</h3>
+              <p className="font-semibold flex items-center gap-1">
+                <Activity className="h-3 w-3" /> {lastActive}
+              </p>
             </div>
           </div>
 
@@ -70,15 +79,11 @@ export function ClientInfoCard({ client, chatHistory, aiAgentStats }: ClientInfo
             <div>
               <h3 className="text-sm font-medium text-gray-500">Created</h3>
               <p className="font-semibold flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> {new Date(client.created_at).toLocaleDateString()}
+                <Calendar className="h-3 w-3" /> {formattedCreatedDate}
               </p>
-              <p className="text-xs text-gray-500">{daysSinceCreation} days ago</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Last Active</h3>
-              <p className="font-semibold flex items-center gap-1">
-                <Activity className="h-3 w-3" /> {lastActive}
-              </p>
+              {daysSinceCreation > 0 && (
+                <p className="text-xs text-gray-500">{daysSinceCreation} days ago</p>
+              )}
             </div>
           </div>
 
@@ -93,7 +98,7 @@ export function ClientInfoCard({ client, chatHistory, aiAgentStats }: ClientInfo
             </div>
             <div className="bg-purple-50 p-3 rounded-md">
               <h3 className="text-xs font-medium text-purple-700">Avg Response</h3>
-              <p className="text-xl font-bold text-purple-800">{avgResponseTime.toFixed(2)}s</p>
+              <p className="text-xl font-bold text-purple-800">{typeof avgResponseTime === 'number' ? avgResponseTime.toFixed(2) : '0.00'}s</p>
             </div>
           </div>
 
