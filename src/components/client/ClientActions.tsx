@@ -8,22 +8,17 @@ interface ClientActionsProps {
 }
 
 export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) => {
-  // Use a valid URL regardless of whether clientId is empty or not
-  const widgetSettingsPath = clientId && clientId.trim() !== "" 
-    ? `/admin/clients/${clientId}/widget-settings`
-    : `/admin/clients//widget-settings`;
-    
   return (
     <div className="flex items-center justify-end gap-2">
       <Link
         to={`/admin/clients/${clientId}`}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-        title="View"
+        title="View Client"
       >
         <Eye className="w-4 h-4" />
       </Link>
       <Link
-        to={widgetSettingsPath}
+        to={`/admin/clients/${clientId}/widget-settings`}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
         title="Widget Settings"
       >
@@ -39,8 +34,8 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
       <button
         onClick={onDeleteClick}
         className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-        title="Delete"
-        aria-label="Delete client"
+        title="Schedule Deletion"
+        aria-label="Schedule client deletion"
       >
         <Trash2 className="w-4 h-4" />
       </button>

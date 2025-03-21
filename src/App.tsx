@@ -1,4 +1,3 @@
-
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -82,7 +81,6 @@ function App() {
           <Route path="/admin/clients/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
-          {/* Special handler for the double-slash URL case */}
           <Route path="/admin/clients//widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:clientId/edit-info" element={<EditClientInfo />} />
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />

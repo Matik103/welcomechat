@@ -10,13 +10,16 @@ import { Client } from '@/types/client';
 import { Loader2, Plus } from 'lucide-react';
 import { execSql } from '@/utils/rpcUtils';
 import { toast } from 'sonner';
+import { DeleteClientDialog } from '@/components/client/DeleteClientDialog';
 
 export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Query to fetch client data from ai_agents table where interaction_type = 'config'
-  const { data: clients, isLoading, error } = useQuery({
+  const { data: clients, isLoading, error, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: async (): Promise<Client[]> => {
       try {
@@ -24,7 +27,6 @@ export default function ClientList() {
         const query = `
           SELECT 
             id, 
-            client_id,
             name as agent_name,
             agent_description as description,
             settings,
@@ -59,7 +61,6 @@ export default function ClientList() {
           
           const client: Client = {
             id: record.id,
-            client_id: record.client_id || record.id,
             client_name: clientName,
             email: email, 
             agent_name: record.agent_name || '',
@@ -116,9 +117,12 @@ export default function ClientList() {
   };
 
   const handleDeleteClient = (client: Client) => {
-    // This is a placeholder for future delete functionality
-    console.log("Delete client clicked:", client);
-    toast.info("Delete functionality will be implemented in a future update");
+    setSelectedClient(client);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleClientsUpdated = () => {
+    refetch();
   };
 
   if (error) {
@@ -194,6 +198,13 @@ export default function ClientList() {
           {searchQuery && <span> (filtered by "{searchQuery}")</span>}
         </div>
       )}
+
+      <DeleteClientDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        client={selectedClient}
+        onClientsUpdated={handleClientsUpdated}
+      />
     </div>
   );
 }
