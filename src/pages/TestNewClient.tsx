@@ -112,10 +112,9 @@ export default function TestNewClient() {
         .eq("id", clientId)
         .single();
       
-      // Now create a merged settings object - properly handle null/undefined settings
-      const currentSettings = currentData?.settings || {};
+      // Now create a merged settings object
       const updatedSettings = {
-        ...(typeof currentSettings === 'object' ? currentSettings : {}),
+        ...(currentData?.settings || {}),
         invitation_status: "sent"
       };
       
