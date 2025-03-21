@@ -81,7 +81,6 @@ function App() {
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
           <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
-          {/* Removed the problematic route */}
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
           <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
