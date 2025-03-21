@@ -1,6 +1,7 @@
-
 /// <reference lib="deno.ns" />
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+// @deno-types="npm:@types/node"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { Resend } from "npm:resend@1.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,10 @@ interface EmailRequest {
   action?: string;
 }
 
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY");
+const apiUrl = Deno.env.get("API_URL");
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -28,6 +33,13 @@ serve(async (req) => {
   try {
     console.log("Send email function started");
     
+    // Log environment variables (excluding sensitive data)
+    console.log("Environment check:", {
+      hasResendKey: !!Deno.env.get("RESEND_API_KEY"),
+      hasServiceKey: !!serviceRoleKey,
+      hasApiUrl: !!apiUrl
+    });
+
     // Parse request body
     let body: EmailRequest;
     try {
@@ -138,51 +150,17 @@ serve(async (req) => {
       console.log("Email HTML content preview:", html.substring(0, 200) + "...");
       
       console.log("Calling Resend API directly...");
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: fromAddress,
-          to: toArray,
-          subject: subject,
-          html: html,
-          reply_to: "admin@welcome.chat"
-        })
+      const data = await resend.emails.send({
+        from: fromAddress,
+        to: toArray,
+        subject: subject,
+        html: html,
       });
       
-      const result = await response.json();
-      console.log("Raw Resend API response:", {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: result
-      });
-      
-      if (!response.ok) {
-        console.error("Error from Resend API:", result);
-        return new Response(
-          JSON.stringify({ 
-            success: false,
-            error: result.message || "Failed to send email", 
-            details: result
-          }),
-          {
-            status: response.status,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
-        );
-      }
-      
-      console.log("Email sent successfully:", result);
+      console.log("Email sent successfully:", data);
       
       return new Response(
-        JSON.stringify({ 
-          success: true,
-          data: result
-        }), 
+        JSON.stringify(data), 
         {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
