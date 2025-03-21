@@ -45,4 +45,12 @@ supabase functions deploy create-openai-assistant --no-verify-jwt
 echo "Deploying send-email function..."
 supabase functions deploy send-email --no-verify-jwt
 
+# Deploy the create-client-user function
+echo "Deploying create-client-user function..."
+supabase functions deploy create-client-user --no-verify-jwt
+
+# Deploy the send-deletion-email function
+echo "Deploying send-deletion-email function..."
+supabase functions deploy send-deletion-email --no-verify-jwt
+
 echo "Deployment complete!" 

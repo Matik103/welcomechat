@@ -23,10 +23,10 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
     try {
       setIsSendingInvite(true);
       
-      // Fetch client data
+      // Fetch client data - fixing the query to use proper column selection
       const { data: clientData, error: clientError } = await supabase
         .from("ai_agents")
-        .select("email, client_name, name as agent_name, agent_description")
+        .select("email, client_name, name, agent_description")
         .eq("id", clientId)
         .single();
       
@@ -44,7 +44,7 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
           email: clientData.email,
           client_id: clientId,
           client_name: clientData.client_name,
-          agent_name: clientData.agent_name || "AI Assistant",
+          agent_name: clientData.name || "AI Assistant",
           agent_description: clientData.agent_description || "",
         }
       });
