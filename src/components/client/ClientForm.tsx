@@ -7,6 +7,7 @@ import { AgentNameField } from "./form-fields/AgentNameField";
 import { AgentDescriptionField } from "./form-fields/AgentDescriptionField";
 import { LogoField } from "./form-fields/LogoField";
 import { FormActions } from "./form-fields/FormActions";
+import { useEffect } from "react";
 
 interface ClientFormProps {
   initialData?: Client | null;
@@ -29,6 +30,22 @@ export const ClientForm = ({
   isClientView = false
 }: ClientFormProps) => {
   const { form, handleLogoChange, prepareFormData } = useClientForm(initialData, isClientView);
+  
+  // Re-initialize form when initialData changes (e.g., when admin switches clients)
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        client_name: initialData.client_name || "",
+        email: initialData.email || "",
+        agent_name: initialData.agent_name || initialData.name || 
+          (initialData.widget_settings && (initialData.widget_settings as any).agent_name) || "",
+        agent_description: (initialData.widget_settings && (initialData.widget_settings as any).agent_description) || "",
+        logo_url: initialData.logo_url || (initialData.widget_settings && (initialData.widget_settings as any).logo_url) || "",
+        logo_storage_path: initialData.logo_storage_path || 
+          (initialData.widget_settings && (initialData.widget_settings as any).logo_storage_path) || ""
+      });
+    }
+  }, [initialData, form]);
 
   const handleFormSubmit = async (data: any) => {
     console.log("ClientForm submitting data:", data);

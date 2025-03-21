@@ -4,6 +4,7 @@ import { useClientMutation } from "./useClientMutation";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 export const useClientFormSubmission = (
   clientId: string | undefined,
@@ -12,6 +13,7 @@ export const useClientFormSubmission = (
 ) => {
   const [isLoading, setIsLoading] = useState(false);
   const clientMutation = useClientMutation(clientId);
+  const navigate = useNavigate();
   
   const handleSubmit = async (data: any) => {
     setIsLoading(true);
@@ -37,9 +39,24 @@ export const useClientFormSubmission = (
         toast.success("Your information has been updated");
       } else {
         if (clientId) {
+          await logClientActivity(
+            "client_updated", 
+            "Admin updated client information",
+            {
+              widget_settings: {
+                agent_name: widgetSettings.agent_name,
+                agent_description: widgetSettings.agent_description,
+                logo_url: widgetSettings.logo_url
+              }
+            }
+          );
           toast.success("Client updated successfully");
+          
+          // Optionally redirect admin back to client list after successful update
+          // navigate('/admin/clients');
         } else {
           toast.success("Client created successfully and invitation sent");
+          navigate('/admin/clients');
         }
       }
     } catch (error: any) {

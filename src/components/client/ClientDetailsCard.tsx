@@ -4,6 +4,7 @@ import { ClientForm } from "@/components/client/ClientForm";
 import { ExtendedActivityType } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
 import { useClientFormSubmission } from "@/hooks/useClientFormSubmission";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface ClientDetailsCardProps {
   client: Client | null;
@@ -21,13 +22,20 @@ export const ClientDetailsCard = ({
   const { handleSubmit, isLoading } = useClientFormSubmission(clientId, isClientView, logClientActivity);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-      <ClientForm
-        initialData={client}
-        onSubmit={handleSubmit}
-        isLoading={isLoading}
-        isClientView={isClientView}
-      />
-    </div>
+    <Card className="border border-gray-100 shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-lg">
+          {isClientView ? 'Your Information' : 'Client Information'}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ClientForm
+          initialData={client}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+          isClientView={isClientView}
+        />
+      </CardContent>
+    </Card>
   );
 };

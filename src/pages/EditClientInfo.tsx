@@ -9,6 +9,7 @@ import { ClientResourceSections } from "@/components/client/ClientResourceSectio
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { PageHeading } from '@/components/dashboard/PageHeading';
 
 const EditClientInfo = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const EditClientInfo = () => {
     if (isClientView) {
       navigate('/client/dashboard');
     } else {
-      navigate(`/admin/clients/${clientId}`);
+      navigate(`/admin/clients`);
     }
   };
 
@@ -73,8 +74,14 @@ const EditClientInfo = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Edit Information</h1>
-            <p className="text-gray-500">Update client information and settings</p>
+            <PageHeading>
+              {isClientView ? 'Edit Information' : `Edit Client: ${client?.client_name}`}
+            </PageHeading>
+            <p className="text-muted-foreground">
+              {isClientView 
+                ? 'Update your information and settings'
+                : 'Update client information and settings'}
+            </p>
           </div>
         </div>
 
