@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { FirecrawlService } from '@/utils/FirecrawlService';
-import { supabase } from '@/integrations/supabase/client';
 
 interface ValidationResultProps {
   link: string;
@@ -33,38 +32,27 @@ export const ValidationResult = ({ link, type }: ValidationResultProps) => {
           setErrorMessage(validation.error || null);
         } else if (type === 'google-drive') {
           // Basic validation for Google Drive links
-          const isDriveLink = link.includes('drive.google.com') || 
-                             link.includes('docs.google.com') ||
-                             link.includes('sheets.google.com');
-          
-          if (!isDriveLink) {
-            setIsValid(false);
-            setErrorMessage('Link does not appear to be a Google Drive link.');
-            setIsValidating(false);
-            return;
-          }
-          
-          // For Google Drive links, call the check-drive-access function
           try {
-            const { data, error } = await supabase.functions.invoke('check-drive-access', {
-              body: { url: link }
-            });
+            // Check if it's a valid URL format
+            new URL(link);
             
-            if (error) {
-              console.error('Error checking drive access:', error);
+            const isDriveLink = link.includes('drive.google.com') || 
+                               link.includes('docs.google.com') ||
+                               link.includes('sheets.google.com');
+            
+            if (!isDriveLink) {
               setIsValid(false);
-              setErrorMessage('Error validating link: ' + error.message);
-            } else if (data && data.isAccessible) {
-              setIsValid(true);
-              setErrorMessage(null);
-            } else {
-              setIsValid(false);
-              setErrorMessage(data?.error || 'Link may not be publicly accessible');
+              setErrorMessage('Link does not appear to be a Google Drive link.');
+              setIsValidating(false);
+              return;
             }
+            
+            // Basic format validation passed
+            setIsValid(true);
+            setErrorMessage(null);
           } catch (err) {
-            console.error('Error calling drive access function:', err);
             setIsValid(false);
-            setErrorMessage('Error validating link');
+            setErrorMessage('Invalid URL format');
           }
         }
       } catch (err) {
