@@ -10,11 +10,6 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400', // 24 hours cache for preflight requests
 }
 
-// Define required environment variable type
-interface RequiredEnv {
-  RESEND_API_KEY: string;
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
