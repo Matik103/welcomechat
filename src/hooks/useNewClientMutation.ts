@@ -150,10 +150,14 @@ export const useNewClientMutation = () => {
           // Send welcome email with the temporary password
           console.log("Sending welcome email to:", validatedData.email);
           
+          // Show toast notification for email sending
+          toast.loading("Sending welcome email with login credentials...");
+          
           const emailResult = await sendEmail({
             to: validatedData.email.trim().toLowerCase(),
             subject: "Welcome to Welcome.Chat - Your Account Details",
             template: "client-invitation",
+            from: "Welcome.Chat <admin@welcome.chat>",
             params: {
               clientName: validatedData.client_name.trim(),
               email: validatedData.email.trim().toLowerCase(),
