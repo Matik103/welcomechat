@@ -80,7 +80,7 @@ function App() {
           <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/clients/new" element={<AddEditClient />} />
           <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
-          <Route path="/admin/clients/:id/widget-settings" element={<WidgetSettings />} />
+          <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
           <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
           {/* Redirect the old route to the new view route */}
