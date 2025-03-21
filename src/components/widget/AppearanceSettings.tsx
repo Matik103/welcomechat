@@ -1,7 +1,7 @@
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { WidgetSettings } from "@/types/widget-settings";
+import { WidgetSettings, WidgetDisplayMode } from "@/types/widget-settings";
 import { CheckIcon, RefreshCcw } from "lucide-react";
 import { useState } from "react";
 
@@ -46,6 +46,29 @@ const COLOR_PRESETS = [
     secondary: "#be123c",
     background: "#fff1f2",
     text: "#0f172a" 
+  }
+];
+
+// Display mode options with descriptions
+const DISPLAY_MODES: {
+  id: WidgetDisplayMode;
+  name: string;
+  description: string;
+}[] = [
+  {
+    id: "floating",
+    name: "Floating Bubble",
+    description: "A chat bubble that floats in the corner of the screen"
+  },
+  {
+    id: "inline",
+    name: "Inline Widget",
+    description: "Embedded directly within your page content"
+  },
+  {
+    id: "sidebar",
+    name: "Sidebar Panel",
+    description: "A collapsible panel that slides in from the side"
   }
 ];
 
@@ -97,6 +120,43 @@ export function AppearanceSettings({ settings, onSettingsChange }: AppearanceSet
           ))}
         </div>
       )}
+
+      {/* Display Mode Selection - NEW SECTION */}
+      <div className="pt-2 border-t border-gray-100">
+        <Label className="text-sm font-medium">Display Mode</Label>
+        <p className="text-xs text-gray-500 mb-3">Choose how the chat widget appears on your website</p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {DISPLAY_MODES.map((mode) => (
+            <label 
+              key={mode.id}
+              className={`
+                relative flex flex-col p-4 border rounded-lg cursor-pointer transition-all
+                ${settings.display_mode === mode.id 
+                  ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                  : 'hover:bg-gray-50 border-gray-200'}
+              `}
+            >
+              <input
+                type="radio"
+                name="display_mode"
+                value={mode.id}
+                checked={settings.display_mode === mode.id}
+                onChange={() => onSettingsChange({ display_mode: mode.id })}
+                className="sr-only"
+              />
+              <div className="font-medium mb-1">{mode.name}</div>
+              <div className="text-xs text-gray-500">{mode.description}</div>
+              
+              {settings.display_mode === mode.id && (
+                <div className="absolute top-2 right-2 h-4 w-4 text-indigo-600 flex items-center justify-center">
+                  <CheckIcon className="h-4 w-4" />
+                </div>
+              )}
+            </label>
+          ))}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
