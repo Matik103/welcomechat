@@ -122,14 +122,29 @@ const ClientView = () => {
         const result = await execSql(query);
         
         if (result && Array.isArray(result) && result.length > 0) {
-          // Extract the stats from the JSON result
+          // The query result structure is different than expected
+          // It returns a JSON object, not an object with get_agent_dashboard_stats property
           const rawStats = result[0];
           
-          if (rawStats && typeof rawStats === 'object') {
-            // Handle different potential response formats
-            const statsData = rawStats.get_agent_dashboard_stats || rawStats;
+          if (rawStats) {
+            // Try to parse the stats from the raw result
+            let statsData;
+            
+            if (typeof rawStats === 'string') {
+              // If it's a string, try to parse it as JSON
+              try {
+                statsData = JSON.parse(rawStats);
+              } catch (e) {
+                console.error('Error parsing stats JSON:', e);
+                statsData = null;
+              }
+            } else if (typeof rawStats === 'object') {
+              // If it's already an object, use it directly
+              statsData = rawStats;
+            }
             
             if (statsData) {
+              console.log('Agent stats data:', statsData);
               setAgentStats({
                 total_interactions: statsData.total_interactions || 0,
                 active_days: statsData.active_days || 0,
