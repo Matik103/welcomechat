@@ -16,9 +16,11 @@ export default function TestNewClient() {
   const { mutateAsync: createClient, isPending } = useNewClientMutation();
   const [success, setSuccess] = useState(false);
   const [emailStatus, setEmailStatus] = useState<{ sent: boolean; error?: string } | null>(null);
+  const [isTestingSending, setIsTestingSending] = useState(false);
 
   const handleTestEmail = async () => {
     try {
+      setIsTestingSending(true);
       const toastId = toast.loading("Sending test email...");
       
       // First, test the Supabase connection
@@ -30,10 +32,39 @@ export default function TestNewClient() {
       if (testError) {
         console.error("Supabase connection test failed:", testError);
         toast.error("Failed to connect to Supabase", { id: toastId });
+        setIsTestingSending(false);
         return;
       }
       
       console.log("Supabase connection test successful");
+      
+      // Check environment configuration using test-env function
+      try {
+        const { data: envData, error: envError } = await supabase.functions.invoke("test-env", {
+          body: {}
+        });
+        
+        if (envError) {
+          console.error("Error checking environment configuration:", envError);
+          toast.error("Failed to check environment configuration", { id: toastId });
+          setIsTestingSending(false);
+          return;
+        }
+        
+        console.log("Environment check:", envData);
+        
+        if (!envData?.hasResendKey) {
+          toast.error("Resend API key is not configured in Supabase", { id: toastId });
+          setIsTestingSending(false);
+          return;
+        }
+        
+      } catch (envCheckError) {
+        console.error("Error calling test-env function:", envCheckError);
+        toast.error("Failed to check email configuration", { id: toastId });
+        setIsTestingSending(false);
+        return;
+      }
       
       // Try calling the Edge Function directly with a well-formatted test email
       console.log("Calling send-email Edge Function directly...");
@@ -79,6 +110,7 @@ export default function TestNewClient() {
       if (emailError) {
         console.error("Edge Function error:", emailError);
         toast.error(`Edge Function error: ${emailError.message}`, { id: toastId });
+        setIsTestingSending(false);
         return;
       }
       
@@ -91,6 +123,8 @@ export default function TestNewClient() {
     } catch (error) {
       console.error("Error in handleTestEmail:", error);
       toast.error(`Error sending test email: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsTestingSending(false);
     }
   };
 
@@ -165,8 +199,9 @@ export default function TestNewClient() {
         onClick={handleTestEmail}
         className="mb-4"
         variant="outline"
+        disabled={isTestingSending}
       >
-        Send Test Email
+        {isTestingSending ? "Sending Test Email..." : "Send Test Email"}
       </Button>
       
       {success ? (

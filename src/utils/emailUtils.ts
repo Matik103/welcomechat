@@ -43,7 +43,8 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
         subject: options.subject,
         hasHtml: !!options.html,
         template: options.template,
-        hasParams: !!options.params
+        hasParams: !!options.params,
+        from: options.from || "default"
       });
 
       // If a template is specified, generate the HTML content
@@ -145,7 +146,8 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
         body: {
           to: options.to,
           subject: options.subject,
-          html: html
+          html: html,
+          from: options.from
         }
       });
       
