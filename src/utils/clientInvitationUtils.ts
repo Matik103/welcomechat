@@ -2,8 +2,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { sendEmail } from "@/utils/emailUtils";
 import { generateClientTempPassword } from "@/utils/passwordUtils";
-import { createClientActivity } from "@/services/clientActivityService";
-import { ExtendedActivityType } from "@/types/activity";
 
 interface InvitationResult {
   success: boolean;
@@ -86,17 +84,17 @@ export async function sendClientInvitation(
     
     console.log("Welcome email sent successfully");
     
-    // Log the invitation in client activities using the service
+    // Log the invitation in client activities
     try {
-      await createClientActivity(
-        clientId,
-        "invitation_sent" as ExtendedActivityType,
-        "Client invitation email sent",
-        {
+      await supabase.from("client_activities").insert({
+        client_id: clientId,
+        activity_type: "invitation_sent",
+        description: "Client invitation email sent",
+        metadata: {
           client_name: clientName.trim(),
           email: email.trim().toLowerCase()
         }
-      );
+      });
     } catch (activityError) {
       console.error("Error logging invitation activity:", activityError);
       // Continue even if activity logging fails
