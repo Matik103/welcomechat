@@ -30,7 +30,6 @@ export const useNewClientMutation = () => {
         console.log("Creating client with data:", validatedData);
 
         // Create the client directly in the ai_agents table
-        // Note: We're not using create_new_client RPC anymore as it relies on the clients table
         const { data: newAgent, error } = await supabase
           .from("ai_agents")
           .insert({
@@ -95,8 +94,7 @@ export const useNewClientMutation = () => {
             );
           } catch (openaiError) {
             console.error("Error creating OpenAI assistant:", openaiError);
-            // We continue even if OpenAI assistant creation fails
-            // The client is still created, and the assistant can be created later
+            // Continue even if OpenAI assistant creation fails
           }
         }
 
@@ -139,7 +137,6 @@ export const useNewClientMutation = () => {
             if (!emailResult.success) {
               console.error("Error sending welcome email:", emailResult.message);
               // We still return success since the client was created
-              // The email could be sent manually later
             } else {
               console.log("Welcome email sent successfully");
             }
@@ -149,7 +146,6 @@ export const useNewClientMutation = () => {
         } catch (emailError) {
           console.error("Error sending welcome email:", emailError);
           // We continue even if email sending fails
-          // The client is still created, and the email can be sent manually later
         }
 
         return clientId;

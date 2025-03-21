@@ -4,6 +4,18 @@
  * @returns A randomly generated temporary password
  */
 export const generateClientTempPassword = (): string => {
+  // Generate a password in the format "Welcome2025#123"
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+  
+  return `Welcome${currentYear}#${randomDigits}`;
+};
+
+/**
+ * Generates a more complex random password when needed
+ * @returns A randomly generated secure password
+ */
+export const generateSecurePassword = (): string => {
   // Characters to use in the password
   const uppercaseChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // No I or O (can be confused with 1 and 0)
   const lowercaseChars = 'abcdefghijkmnpqrstuvwxyz'; // No l (can be confused with 1)
@@ -13,7 +25,7 @@ export const generateClientTempPassword = (): string => {
   // Combined character set
   const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
   
-  // Generate a 10-character password
+  // Generate a 12-character password
   let password = '';
   
   // Ensure at least one character from each character set
@@ -23,7 +35,7 @@ export const generateClientTempPassword = (): string => {
   password += specialChars.charAt(Math.floor(Math.random() * specialChars.length));
   
   // Fill the rest of the password with random characters
-  for (let i = 4; i < 10; i++) {
+  for (let i = 4; i < 12; i++) {
     password += allChars.charAt(Math.floor(Math.random() * allChars.length));
   }
   
