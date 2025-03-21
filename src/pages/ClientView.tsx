@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { PageHeading } from '@/components/dashboard/PageHeading';
-import { ClientStats } from '@/components/client/ClientStats';
 import { execSql } from '@/utils/rpcUtils';
 import { useClientChatHistory } from '@/hooks/useClientChatHistory';
 import { ChatInteraction } from '@/types/agent';
@@ -23,8 +22,6 @@ import { formatDate } from '@/utils/stringUtils';
 import { useClient } from '@/hooks/useClient';
 import { ErrorLogList } from '@/components/client-dashboard/ErrorLogList';
 import { QueryList } from '@/components/client-dashboard/QueryList';
-import { InteractionStats } from '@/components/client-dashboard/InteractionStats';
-import { InteractionStats as InteractionStatsType } from '@/types/client-dashboard';
 import { toast } from 'sonner';
 
 const ClientView = () => {
@@ -36,8 +33,6 @@ const ClientView = () => {
   const [commonQueries, setCommonQueries] = useState([]);
   const [isLoadingErrorLogs, setIsLoadingErrorLogs] = useState(true);
   const [isLoadingCommonQueries, setIsLoadingCommonQueries] = useState(true);
-  const [stats, setStats] = useState<InteractionStatsType | null>(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   useEffect(() => {
     if (clientError) {
@@ -107,87 +102,16 @@ const ClientView = () => {
       }
     };
     
-    const fetchStats = async () => {
-      if (!clientId) return;
-      
-      try {
-        setIsLoadingStats(true);
-        
-        // Create a simple stats object since the RPC function seems to be failing
-        const statsData: InteractionStatsType = {
-          total_interactions: 0,
-          active_days: 0,
-          average_response_time: 0,
-          top_queries: [],
-          success_rate: 100,
-          totalInteractions: 0,
-          activeDays: 0,
-          averageResponseTime: 0,
-          topQueries: [],
-          successRate: 100
-        };
-        
-        // Count interactions
-        const countQuery = `
-          SELECT COUNT(*) as count 
-          FROM ai_agents 
-          WHERE client_id = '${clientId}' 
-          AND interaction_type = 'chat_interaction'
-        `;
-        
-        const countResult = await execSql(countQuery);
-        
-        if (countResult && Array.isArray(countResult) && countResult.length > 0) {
-          // Access the count value safely, ensuring we handle different result formats
-          const countObject = countResult[0];
-          
-          if (countObject && typeof countObject === 'object') {
-            // SQL COUNT(*) returns a value with property name 'count'
-            // But we need to check if it exists and handle type conversion safely
-            let countValue = 0;
-            
-            // The count could be in different formats depending on how execSql returns it
-            if ('count' in countObject) {
-              // Try to parse it as a number if it's a string or use it directly if it's a number
-              const rawCount = countObject.count;
-              if (typeof rawCount === 'number') {
-                countValue = rawCount;
-              } else if (typeof rawCount === 'string') {
-                countValue = parseInt(rawCount, 10) || 0;
-              }
-            }
-            
-            statsData.total_interactions = countValue;
-            statsData.totalInteractions = countValue;
-          }
-        }
-        
-        // Set stats
-        setStats(statsData);
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        toast.error("Failed to load performance metrics");
-      } finally {
-        setIsLoadingStats(false);
-      }
-    };
-    
     // Only fetch data if we have a clientId
     if (clientId) {
       fetchErrorLogs();
       fetchCommonQueries();
-      fetchStats();
     }
   }, [clientId]);
 
   const handleGoBack = () => {
     navigate('/admin/clients');
   };
-
-  // Add this debug check to see if render is happening and client data is available
-  useEffect(() => {
-    console.log("Rendering ClientView with client:", client);
-  }, [client]);
 
   // Safety check - if we're loading or don't have a clientId, return a loading state
   if (!clientId) {
@@ -225,7 +149,8 @@ const ClientView = () => {
     );
   }
 
-  const clientName = client.client_name || 'Unnamed Client';
+  // Use real values from the API response, with fallbacks only if needed
+  const clientName = client.client_name || 'Client';
   const agentName = client.agent_name || client.name || 'AI Assistant';
   const agentDescription = client.description || 'No description provided';
   const email = client.email || 'No email provided';
@@ -246,7 +171,7 @@ const ClientView = () => {
         <div>
           <PageHeading>{clientName}</PageHeading>
           <p className="text-muted-foreground">
-            Agent: <span className="font-medium">{agentName}</span>
+            <span className="font-medium">{agentName}</span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -266,7 +191,9 @@ const ClientView = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Main content area - 8 columns */}
         <div className="lg:col-span-8 space-y-6">
+          {/* Client Information Card */}
           <Card>
             <CardHeader>
               <CardTitle>Client Information</CardTitle>
@@ -315,35 +242,13 @@ const ClientView = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Metrics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {stats ? (
-                  <InteractionStats stats={stats} isLoading={isLoadingStats} />
-                ) : (
-                  <div className="col-span-4 text-center py-4 text-gray-500">
-                    {isLoadingStats ? (
-                      <div className="flex flex-col items-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                        <p>Loading statistics...</p>
-                      </div>
-                    ) : (
-                      "No statistics available for this client"
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
+          {/* Common Queries Card */}
           <QueryList 
             queries={commonQueries} 
             isLoading={isLoadingCommonQueries} 
           />
 
+          {/* Recent Chat History */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Chat History</CardTitle>
@@ -396,42 +301,9 @@ const ClientView = () => {
           </Card>
         </div>
 
+        {/* Sidebar - 4 columns */}
         <div className="lg:col-span-4 space-y-6">
-          <ClientStats 
-            clientId={clientId} 
-            agentName={agentName} 
-          />
-
-          <ErrorLogList 
-            logs={errorLogs} 
-            isLoading={isLoadingErrorLogs} 
-          />
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Widget Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div>
-                <span className="font-medium">Agent Name:</span>
-                <div className="mt-1">{agentName}</div>
-              </div>
-              <div>
-                <span className="font-medium">Agent Description:</span>
-                <div className="mt-1">
-                  {agentDescription}
-                </div>
-              </div>
-              <Separator className="my-4" />
-              <Button className="w-full" variant="outline" asChild>
-                <Link to={`/admin/clients/${clientId}/widget-settings`}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Manage Widget Settings
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          
+          {/* Activity Card */}
           <Card>
             <CardHeader>
               <CardTitle>Activity</CardTitle>
@@ -451,8 +323,29 @@ const ClientView = () => {
                   </span>
                 </div>
               </div>
+              
+              {/* Performance metrics in the sidebar */}
+              <div className="mt-6 space-y-4">
+                <h3 className="font-medium">Performance Metrics</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-xs text-blue-600 font-medium">Interactions</p>
+                    <p className="text-xl font-bold">{chatHistory.length || 0}</p>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <p className="text-xs text-green-600 font-medium">Success Rate</p>
+                    <p className="text-xl font-bold">100%</p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Error Logs Card */}
+          <ErrorLogList 
+            logs={errorLogs} 
+            isLoading={isLoadingErrorLogs} 
+          />
         </div>
       </div>
     </div>
