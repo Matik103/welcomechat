@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { generateClientTempPassword } from "@/utils/passwordUtils";
 import { sendEmail } from "@/utils/emailUtils";
 import { Database } from "@/integrations/supabase/types";
-import { ActivityType } from "@/types/activity";
+import { ActivityType } from "@/types/supabase";
 
 interface ClientActionsProps {
   clientId: string;
@@ -28,115 +28,21 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
       setIsSending(true);
       const toastId = toast.loading("Sending invitation...");
 
-      // Fetch client details - Query from clients table first for basic info
-      const { data: clientData, error: clientError } = await supabase
-        .from("clients")
-        .select("id, client_name, email, widget_settings")
+      // First try to get data from ai_agents table since it's in our type definition
+      const { data: agentData, error: agentError } = await supabase
+        .from("ai_agents")
+        .select("id, client_id, name, agent_description, settings, email, client_name, company")
         .eq("id", clientId)
         .single();
-
-      if (clientError || !clientData) {
-        // If not found in clients table, try ai_agents table
-        const { data: agentData, error: agentError } = await supabase
-          .from("ai_agents")
-          .select("id, client_id, name, agent_description, settings, email, client_name")
-          .eq("id", clientId)
-          .single();
-          
-        if (agentError || !agentData) {
-          throw new Error(clientError?.message || agentError?.message || "Failed to fetch client details");
-        }
         
-        // Use agent data if client data wasn't found
-        const email = agentData.email || '';
-        const clientName = agentData.client_name || agentData.name || '';
-        
-        if (!email) {
-          throw new Error("Client email not found in account information");
-        }
-
-        // Generate temporary password
-        const tempPassword = generateClientTempPassword();
-        
-        // Store the temporary password
-        const { error: tempPasswordError } = await supabase
-          .from("client_temp_passwords")
-          .insert({
-            agent_id: clientId,
-            email: email,
-            temp_password: tempPassword
-          });
-          
-        if (tempPasswordError) {
-          throw new Error(`Failed to save temporary password: ${tempPasswordError.message}`);
-        }
-        
-        // Send welcome email
-        const emailResult = await sendEmail({
-          to: email,
-          subject: "Welcome to Welcome.Chat - Your Account Details",
-          template: "client-invitation",
-          params: {
-            clientName: clientName || "Client",
-            email: email,
-            tempPassword: tempPassword,
-            productName: "Welcome.Chat"
-          }
-        });
-        
-        if (!emailResult.success) {
-          throw new Error(emailResult.error || "Failed to send invitation email");
-        }
-        
-        // Prepare updated settings object
-        let updatedSettings = {};
-        
-        // If settings exists and is an object, use it as base
-        if (agentData.settings && typeof agentData.settings === 'object') {
-          updatedSettings = { ...agentData.settings };
-        }
-        
-        // Add invitation_status to settings
-        updatedSettings = {
-          ...updatedSettings,
-          invitation_status: "sent"
-        };
-
-        // Update settings in the ai_agents table
-        const { error: updateError } = await supabase
-          .from("ai_agents")
-          .update({ settings: updatedSettings })
-          .eq("id", clientId);
-          
-        if (updateError) {
-          throw new Error(`Failed to update invitation status: ${updateError.message}`);
-        }
-
-        // Log activity
-        const activityType: ActivityType = "email_sent";
-        await supabase
-          .from("client_activities")
-          .insert({
-            client_id: clientId,
-            activity_type: activityType,
-            description: "Invitation email sent to client",
-            metadata: { email }
-          });
-        
-        toast.dismiss(toastId);
-        toast.success("Invitation sent successfully");
-        
-        // Refresh the page after a short delay
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-        
-        return;
+      if (agentError || !agentData) {
+        console.error("Error fetching agent data:", agentError);
+        throw new Error(agentError?.message || "Failed to fetch client details");
       }
       
-      // Continue with client data if found in clients table
-      const email = clientData.email || '';
-      const clientName = clientData.client_name || '';
+      // Extract email and client name from agent data
+      const email = agentData.email || '';
+      const clientName = agentData.client_name || agentData.name || '';
       
       if (!email) {
         throw new Error("Client email not found in account information");
@@ -178,9 +84,9 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
       // Prepare updated settings object
       let updatedSettings = {};
       
-      // If widget_settings exists and is an object, use it as base
-      if (clientData.widget_settings && typeof clientData.widget_settings === 'object') {
-        updatedSettings = { ...clientData.widget_settings };
+      // If settings exists and is an object, use it as base
+      if (agentData.settings && typeof agentData.settings === 'object') {
+        updatedSettings = { ...agentData.settings };
       }
       
       // Add invitation_status to settings
@@ -189,13 +95,10 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         invitation_status: "sent"
       };
 
-      // Update both the widget_settings object and add invitation_status field
+      // Update settings in the ai_agents table
       const { error: updateError } = await supabase
-        .from("clients")
-        .update({ 
-          widget_settings: updatedSettings,
-          status: "invited" // Use status field to track invitation state
-        })
+        .from("ai_agents")
+        .update({ settings: updatedSettings })
         .eq("id", clientId);
         
       if (updateError) {
@@ -203,12 +106,11 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
       }
 
       // Log activity
-      const activityType: ActivityType = "email_sent";
       await supabase
         .from("client_activities")
         .insert({
           client_id: clientId,
-          activity_type: activityType,
+          activity_type: "email_sent" as ActivityType,
           description: "Invitation email sent to client",
           metadata: { email }
         });
@@ -220,6 +122,7 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
       setTimeout(() => {
         window.location.reload();
       }, 1500);
+      
     } catch (error) {
       console.error("Error sending invitation:", error);
       toast.dismiss();
