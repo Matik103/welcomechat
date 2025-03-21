@@ -105,15 +105,24 @@ export default function TestNewClient() {
         throw new Error(emailResult.error || "Failed to send invitation email");
       }
       
-      // Update invitation status - add the invitation_status field explicitly to the update
+      // Update invitation status - use a simpler approach without the rpc function
+      const { data: currentData } = await supabase
+        .from("ai_agents")
+        .select("settings")
+        .eq("id", clientId)
+        .single();
+      
+      // Now create a merged settings object
+      const updatedSettings = {
+        ...(currentData?.settings || {}),
+        invitation_status: "sent"
+      };
+      
+      // Update both the settings object and the dedicated field
       const { error: updateError } = await supabase
         .from("ai_agents")
         .update({ 
-          settings: supabase.rpc('jsonb_set_key', {
-            json_data: { invitation_status: "sent" },
-            base_json: null,
-            create_if_missing: true
-          }),
+          settings: updatedSettings,
           invitation_status: "sent"
         })
         .eq("id", clientId);

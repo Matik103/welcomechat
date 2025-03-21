@@ -37,9 +37,16 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         throw new Error(clientError?.message || "Failed to fetch client details");
       }
 
-      // Extract client information
-      const email = clientData.email || (clientData.settings && typeof clientData.settings === 'object' ? clientData.settings.email : undefined);
-      const clientName = clientData.client_name || (clientData.settings && typeof clientData.settings === 'object' ? clientData.settings.client_name : undefined);
+      // Extract client information - handle the settings object more carefully
+      let email: string | undefined = clientData.email;
+      let clientName: string | undefined = clientData.client_name;
+      
+      // Check if settings exists and is an object before accessing properties
+      if (clientData.settings && typeof clientData.settings === 'object' && !Array.isArray(clientData.settings)) {
+        // Now TypeScript knows settings is an object, we can safely access properties
+        email = email || (clientData.settings as Record<string, any>).email;
+        clientName = clientName || (clientData.settings as Record<string, any>).client_name;
+      }
       
       if (!email) {
         throw new Error("Client email not found");
@@ -81,7 +88,13 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
       // Update invitation status
       const { error: updateError } = await supabase
         .from("ai_agents")
-        .update({ invitation_status: "sent" })
+        .update({ 
+          settings: JSON.stringify({
+            ...(clientData.settings as object || {}),
+            invitation_status: "sent"
+          }),
+          invitation_status: "sent"  // Add this field directly
+        })
         .eq("id", clientId);
         
       if (updateError) {
