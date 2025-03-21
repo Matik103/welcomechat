@@ -56,16 +56,13 @@ serve(async (req) => {
       );
     }
     
-    // Generate a secure temporary password
+    // Generate a secure temporary password with the specific format
     const generateSecurePassword = () => {
-      const length = 12;
-      const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-      let password = "";
-      for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * charset.length);
-        password += charset[randomIndex];
-      }
-      return password;
+      // Base pattern: "Welcome" + current year + "#" + 3 random digits
+      const currentYear = new Date().getFullYear();
+      const randomDigits = Math.floor(Math.random() * 900) + 100; // 100 to 999
+      
+      return `Welcome${currentYear}#${randomDigits}`;
     };
 
     // Generate a temporary password for this client

@@ -87,7 +87,7 @@ serve(async (req) => {
     const toArray = Array.isArray(to) ? to : [to];
     
     // Send the email
-    const fromAddress = from || "Welcome.Chat <onboarding@resend.dev>";
+    const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
     console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
     
     try {
