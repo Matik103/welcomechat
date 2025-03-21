@@ -23,6 +23,7 @@ import { useClient } from '@/hooks/useClient';
 import { ErrorLogList } from '@/components/client-dashboard/ErrorLogList';
 import { QueryList } from '@/components/client-dashboard/QueryList';
 import { toast } from 'sonner';
+import { supabase } from "@/integrations/supabase/client";
 
 const ClientView = () => {
   const navigate = useNavigate();
@@ -33,6 +34,11 @@ const ClientView = () => {
   const [commonQueries, setCommonQueries] = useState([]);
   const [isLoadingErrorLogs, setIsLoadingErrorLogs] = useState(true);
   const [isLoadingCommonQueries, setIsLoadingCommonQueries] = useState(true);
+  const [agentStats, setAgentStats] = useState({
+    total_interactions: 0,
+    active_days: 0,
+    average_response_time: 0
+  });
 
   useEffect(() => {
     if (clientError) {
@@ -101,12 +107,86 @@ const ClientView = () => {
         setIsLoadingCommonQueries(false);
       }
     };
+
+    const fetchAgentStats = async () => {
+      if (!clientId || !client?.agent_name) return;
+      
+      try {
+        const query = `
+          SELECT 
+            get_agent_dashboard_stats('${clientId}', '${client.agent_name}')
+        `;
+        
+        const result = await execSql(query);
+        
+        if (result && Array.isArray(result) && result.length > 0) {
+          const stats = result[0].get_agent_dashboard_stats;
+          if (stats) {
+            setAgentStats(stats);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching agent stats:', error);
+      }
+    };
     
     // Only fetch data if we have a clientId
     if (clientId) {
       fetchErrorLogs();
       fetchCommonQueries();
     }
+
+    // Fetch agent stats when client data is available
+    if (clientId && client) {
+      fetchAgentStats();
+    }
+  }, [clientId, client]);
+
+  // Set up real-time subscription for AI agent updates
+  useEffect(() => {
+    if (!clientId) return;
+
+    const channel = supabase
+      .channel(`client-${clientId}-updates`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ai_agents',
+          filter: `client_id=eq.${clientId}`
+        },
+        () => {
+          // Refetch data when changes occur
+          const fetchErrorLogs = async () => {
+            try {
+              const query = `
+                SELECT id, error_type, error_message, error_status, query_text, created_at
+                FROM ai_agents
+                WHERE client_id = '${clientId}' 
+                AND is_error = true
+                ORDER BY created_at DESC
+                LIMIT 10
+              `;
+              
+              const result = await execSql(query);
+              
+              if (result && Array.isArray(result)) {
+                setErrorLogs(result);
+              }
+            } catch (error) {
+              console.error('Error refetching error logs:', error);
+            }
+          };
+          
+          fetchErrorLogs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [clientId]);
 
   const handleGoBack = () => {
@@ -153,7 +233,6 @@ const ClientView = () => {
   const clientName = client.client_name || 'Client';
   const agentName = client.agent_name || client.name || 'AI Assistant';
   const agentDescription = client.description || 'No description provided';
-  const email = client.email || 'No email provided';
 
   return (
     <div className="container py-8">
@@ -218,10 +297,6 @@ const ClientView = () => {
                   <MessageSquare className="h-4 w-4" /> Agent Description
                 </h3>
                 <p className="mt-1">{agentDescription}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                <p>{email}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -330,10 +405,18 @@ const ClientView = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-blue-50 p-3 rounded-lg">
                     <p className="text-xs text-blue-600 font-medium">Interactions</p>
-                    <p className="text-xl font-bold">{chatHistory.length || 0}</p>
+                    <p className="text-xl font-bold">{agentStats.total_interactions || 0}</p>
                   </div>
                   <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-xs text-green-600 font-medium">Success Rate</p>
+                    <p className="text-xs text-green-600 font-medium">Active Days</p>
+                    <p className="text-xl font-bold">{agentStats.active_days || 0}</p>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <p className="text-xs text-purple-600 font-medium">Avg Response</p>
+                    <p className="text-xl font-bold">{agentStats.average_response_time ? agentStats.average_response_time.toFixed(2) + 's' : '0s'}</p>
+                  </div>
+                  <div className="bg-yellow-50 p-3 rounded-lg">
+                    <p className="text-xs text-yellow-600 font-medium">Success Rate</p>
                     <p className="text-xl font-bold">100%</p>
                   </div>
                 </div>
