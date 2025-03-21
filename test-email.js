@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
@@ -18,10 +19,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 });
 
 async function testEmailSending() {
-  console.log("Starting email test...");
+  console.log("Starting email test with enhanced debugging...");
   
   try {
     // First test Supabase connection
+    console.log("Testing Supabase connection...");
     const { data: testData, error: testError } = await supabase.from('ai_agents').select('count').limit(1);
     
     if (testError) {
@@ -31,6 +33,7 @@ async function testEmailSending() {
     }
 
     // Check Resend API key configuration
+    console.log("Checking environment configuration...");
     const { data: envData, error: envError } = await supabase.functions.invoke("test-env", {
       body: {}
     });
