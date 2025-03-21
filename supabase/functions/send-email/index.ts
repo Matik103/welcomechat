@@ -91,7 +91,7 @@ serve(async (req) => {
     console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
     
     try {
-      // For testing/debugging - log the HTML content
+      // For testing/debugging - log the first part of the HTML content
       console.log("Email HTML content:", html.substring(0, 200) + "...");
       
       const { data, error } = await resend.emails.send({
