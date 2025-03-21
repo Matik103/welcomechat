@@ -27,6 +27,7 @@ export const ActionButtons = () => {
   const navigate = useNavigate();
   
   const handleAddClientClick = () => {
+    // Only show the toast notification here, removing any duplicate notifications
     toast.info("Client creation temporarily disabled for maintenance");
     console.log("Add client button clicked - functionality temporarily disabled");
   };

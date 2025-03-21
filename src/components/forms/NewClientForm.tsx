@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+// import { toast } from 'sonner'; - We'll comment this out to prevent potential duplicates
 import { createClientActivity } from '@/services/clientActivityService';
 import { supabase } from '@/integrations/supabase/client';
 import { generateTempPassword, saveClientTempPassword } from '@/utils/clientCreationUtils';
@@ -49,10 +49,11 @@ export function NewClientForm() {
   });
 
   const onSubmit = async (data: ClientFormValues) => {
-    // Show a toast notification that the form is temporarily disconnected
-    toast.info("Form submission temporarily disabled");
+    // Show toast notification is handled elsewhere now
+    // Remove the duplicate toast notification here
+    // toast.info("Form submission temporarily disabled");
     
-    // Log the form data to console for debugging purposes
+    // Just log the form data to console for debugging purposes
     console.log("Form data (submission disabled):", data);
     
     // TEMPORARILY DISABLED - Functionality commented out

@@ -130,9 +130,7 @@ export default function ClientList() {
     refetch();
   };
 
-  const handleAddClientClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    toast.info("Client creation temporarily disabled for maintenance");
+  const handleAddClientClick = () => {
     console.log("Add client button clicked - functionality temporarily disabled");
   };
 
