@@ -114,7 +114,7 @@ export default function TestNewClient() {
       
       // Now create a merged settings object
       const updatedSettings = {
-        ...(currentData?.settings || {}),
+        ...((currentData?.settings || {}) as object),
         invitation_status: "sent"
       };
       
