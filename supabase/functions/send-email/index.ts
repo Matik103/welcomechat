@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -29,6 +28,8 @@ serve(async (req) => {
     
     // Get the Resend API key from environment variable
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    console.log("Resend API Key present:", !!resendApiKey, "First 5 chars:", resendApiKey?.substring(0, 5));
+    
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
       throw new Error("Email service not configured: Missing API key");
@@ -41,10 +42,10 @@ serve(async (req) => {
     let body: EmailRequest;
     try {
       body = await req.json();
-      console.log("Request body parsed successfully:", { 
-        to: Array.isArray(body.to) ? body.to : [body.to], 
+      console.log("Request body received:", {
+        to: Array.isArray(body.to) ? body.to : [body.to],
         subject: body.subject,
-        fromProvided: !!body.from,
+        from: body.from || "default",
         htmlLength: body.html?.length || 0
       });
     } catch (e) {

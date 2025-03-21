@@ -1,4 +1,3 @@
-
 import { NewClientForm } from "@/components/client/NewClientForm";
 import { ClientFormData } from "@/types/client-form";
 import { useNewClientMutation } from "@/hooks/useNewClientMutation";
@@ -8,12 +7,91 @@ import { PageHeading } from "@/components/dashboard/PageHeading";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { sendWelcomeEmail } from "@/utils/emailUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function TestNewClient() {
   const navigate = useNavigate();
   const { mutateAsync: createClient, isPending } = useNewClientMutation();
   const [success, setSuccess] = useState(false);
   const [emailStatus, setEmailStatus] = useState<{ sent: boolean; error?: string } | null>(null);
+
+  const handleTestEmail = async () => {
+    try {
+      const toastId = toast.loading("Sending test email...");
+      
+      // First, test the Supabase connection
+      const { data: testData, error: testError } = await supabase
+        .from('ai_agents')
+        .select('count(*)')
+        .limit(1);
+        
+      if (testError) {
+        console.error("Supabase connection test failed:", testError);
+        toast.error("Failed to connect to Supabase", { id: toastId });
+        return;
+      }
+      
+      console.log("Supabase connection test successful");
+      
+      // Try calling the Edge Function directly with a well-formatted test email
+      console.log("Calling send-email Edge Function directly...");
+      const { data: emailData, error: emailError } = await supabase.functions.invoke(
+        "send-email",
+        {
+          body: {
+            to: "temple@gmail.com",
+            subject: "Test Email from Welcome.Chat",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                  <h1 style="color: #4f46e5;">Welcome.Chat Test Email</h1>
+                </div>
+                
+                <p>Hello,</p>
+                
+                <p>This is a test email to verify the email sending functionality is working correctly.</p>
+                
+                <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                  <p><strong>Test Details:</strong></p>
+                  <ul style="list-style-type: none; padding: 0;">
+                    <li>Time: ${new Date().toLocaleString()}</li>
+                    <li>Environment: Development</li>
+                    <li>Service: Resend.com</li>
+                  </ul>
+                </div>
+                
+                <p>If you received this email, it means the email sending functionality is working properly.</p>
+                
+                <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
+                  © ${new Date().getFullYear()} Welcome.Chat - Test Email
+                </div>
+              </div>
+            `,
+            from: "Welcome.Chat <admin@welcome.chat>"
+          }
+        }
+      );
+      
+      console.log("Edge Function response:", { data: emailData, error: emailError });
+      
+      if (emailError) {
+        console.error("Edge Function error:", emailError);
+        toast.error(`Edge Function error: ${emailError.message}`, { id: toastId });
+        return;
+      }
+      
+      if (emailData?.success) {
+        toast.success("Test email sent successfully!", { id: toastId });
+      } else {
+        console.error("Email send failed:", emailData?.error);
+        toast.error(`Failed to send test email: ${emailData?.error}`, { id: toastId });
+      }
+    } catch (error) {
+      console.error("Error in handleTestEmail:", error);
+      toast.error(`Error sending test email: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
@@ -81,6 +159,14 @@ export default function TestNewClient() {
   return (
     <div className="container mx-auto py-8 max-w-3xl">
       <PageHeading>Create New Client</PageHeading>
+      
+      <Button 
+        onClick={handleTestEmail}
+        className="mb-4"
+        variant="outline"
+      >
+        Send Test Email
+      </Button>
       
       {success ? (
         <Card className="p-6 mt-6">

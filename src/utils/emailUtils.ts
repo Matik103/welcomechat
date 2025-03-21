@@ -1,22 +1,16 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
-interface EmailParams {
-  [key: string]: string | number | boolean | null;
-}
-
-interface EmailOptions {
+export interface EmailOptions {
   to: string | string[];
   subject: string;
   template?: string;
   html?: string;
-  params?: EmailParams;
   from?: string;
+  params?: Record<string, any>;
 }
 
 export interface EmailResponse {
   success: boolean;
-  data?: any;
   error?: string;
 }
 
@@ -25,12 +19,15 @@ export interface EmailResponse {
  */
 export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> => {
   try {
-    console.log("Sending email to:", options.to);
-    console.log("Email subject:", options.subject);
-    console.log("Email template:", options.template);
+    console.log("Starting email send process with options:", {
+      to: options.to,
+      subject: options.subject,
+      template: options.template,
+      from: options.from || "default"
+    });
     
     const fromAddress = options.from || "Welcome.Chat <admin@welcome.chat>";
-    console.log("From address:", fromAddress);
+    console.log("Using from address:", fromAddress);
     
     let html = options.html || "";
     
@@ -39,7 +36,12 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
       // Use params to populate the template
       const params = options.params || {};
       
-      console.log("Email template params:", params);
+      console.log("Building client invitation template with params:", {
+        clientName: params.clientName,
+        email: params.email,
+        hasPassword: !!params.tempPassword,
+        productName: params.productName
+      });
       
       html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
@@ -68,7 +70,7 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
           </ol>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.VITE_APP_URL || 'https://app.welcome.chat'}/client/auth" 
+            <a href="https://welcomeai.io/client/auth" 
                style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Sign In
             </a>
@@ -86,6 +88,8 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
           </div>
         </div>
       `;
+      
+      console.log("Generated HTML template length:", html.length);
     }
     
     if (!html) {
@@ -98,7 +102,7 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
       throw new Error("Valid recipient email is required");
     }
     
-    // Call the edge function to send the email
+    // Call the edge function directly with the Supabase client
     console.log("Calling send-email edge function...");
     
     const { data, error } = await supabase.functions.invoke("send-email", {
@@ -112,22 +116,43 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
     
     if (error) {
       console.error("Error from edge function:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        status: error.status,
+        name: error.name,
+        details: error.details
+      });
       return {
         success: false,
-        error: error.message || "Failed to send email"
+        error: `Edge Function Error: ${error.message}${error.details ? ` (${error.details})` : ''}`
+      };
+    }
+    
+    if (!data?.success) {
+      console.error("Edge function returned failure:", data);
+      return {
+        success: false,
+        error: data?.error || "Edge function reported failure"
       };
     }
     
     console.log("Email sent successfully:", data);
     return {
-      success: true,
-      data
+      success: true
     };
-  } catch (err: any) {
-    console.error("Error sending email:", err);
+  } catch (error) {
+    console.error("Error in sendEmail:", error);
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      name: error.name,
+      stack: error.stack
+    });
     return {
       success: false,
-      error: err.message || "An error occurred while sending the email"
+      error: `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`
     };
   }
 };
