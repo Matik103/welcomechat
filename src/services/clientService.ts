@@ -15,18 +15,30 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const sanitizedAgentName = data.widget_settings?.agent_name?.replace(/["']/g, "") || "";
     const sanitizedAgentDescription = data.widget_settings?.agent_description?.replace(/["']/g, "") || "";
 
-    const { data: newClient, error } = await supabase.rpc(
-      "create_new_client",
-      {
-        p_client_name: data.client_name,
-        p_email: data.email,
-        p_agent_name: sanitizedAgentName,
-        p_agent_description: sanitizedAgentDescription,
-        p_logo_url: data.widget_settings?.logo_url || null,
-        p_logo_storage_path: data.widget_settings?.logo_storage_path || null,
-        p_widget_settings: toJson(data.widget_settings || {}),
-      }
-    );
+    // Insert directly into the ai_agents table instead of using create_new_client RPC
+    const { data: newClient, error } = await supabase
+      .from("ai_agents")
+      .insert({
+        name: sanitizedAgentName || "AI Assistant",
+        agent_description: sanitizedAgentDescription,
+        logo_url: data.widget_settings?.logo_url || null,
+        logo_storage_path: data.widget_settings?.logo_storage_path || null,
+        status: 'active',
+        content: '',
+        interaction_type: 'config',
+        client_name: data.client_name,
+        email: data.email,
+        settings: {
+          client_name: data.client_name,
+          email: data.email,
+          agent_name: sanitizedAgentName || "AI Assistant",
+          agent_description: sanitizedAgentDescription,
+          logo_url: data.widget_settings?.logo_url,
+          logo_storage_path: data.widget_settings?.logo_storage_path
+        }
+      })
+      .select("id")
+      .single();
 
     if (error) {
       console.error("Error creating client:", error);
@@ -37,7 +49,24 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       throw new Error("Failed to create new client");
     }
 
-    return newClient as string;
+    // Add client activity
+    try {
+      await supabase.from("client_activities").insert({
+        client_id: newClient.id,
+        activity_type: "client_created",
+        description: "New client created with AI agent: " + sanitizedAgentName,
+        metadata: {
+          client_name: data.client_name,
+          email: data.email,
+          agent_name: sanitizedAgentName
+        }
+      });
+    } catch (activityError) {
+      console.error("Error creating client activity:", activityError);
+      // Continue even if activity logging fails
+    }
+
+    return newClient.id;
   } catch (error: any) {
     console.error("Error in createClient:", error);
     throw new Error(error?.message || "Failed to create client");
