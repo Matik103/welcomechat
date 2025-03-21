@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -25,12 +24,11 @@ export default function ClientList() {
       try {
         console.log("Fetching clients from ai_agents table...");
         
-        // Direct query using Supabase client for better debugging
         const { data: agentsData, error: supabaseError } = await supabase
           .from('ai_agents')
           .select('*')
           .eq('interaction_type', 'config')
-          .not('status', 'eq', 'deleted') // Explicitly filter out deleted clients
+          .not('status', 'eq', 'deleted')
           .order('created_at', { ascending: false });
         
         if (supabaseError) {
@@ -45,13 +43,11 @@ export default function ClientList() {
           return [];
         }
         
-        // Group by client_id to get unique clients
         const clientMap = new Map<string, any>();
         
         agentsData.forEach(record => {
           const clientId = record.client_id || record.id;
           
-          // Only add if it's not already in the map or if it's newer
           if (!clientMap.has(clientId) || 
               new Date(record.created_at) > new Date(clientMap.get(clientId).created_at)) {
             clientMap.set(clientId, record);
@@ -61,9 +57,7 @@ export default function ClientList() {
         const uniqueClients = Array.from(clientMap.values());
         console.log(`Processed ${uniqueClients.length} unique clients`);
         
-        // Map to Client type
         const mappedClients = uniqueClients.map((record: any) => {
-          // Get values from settings or fallback to direct properties
           const settings = typeof record.settings === 'object' ? record.settings : {};
           const clientName = settings.client_name || record.client_name || record.name || 'Unnamed Client';
           const email = settings.email || record.email || '';
@@ -136,6 +130,12 @@ export default function ClientList() {
     refetch();
   };
 
+  const handleAddClientClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    toast.info("Client creation temporarily disabled for maintenance");
+    console.log("Add client button clicked - functionality temporarily disabled");
+  };
+
   if (error) {
     return (
       <div className="container mx-auto py-8">
@@ -162,12 +162,10 @@ export default function ClientList() {
           </p>
         </PageHeading>
         <div className="flex gap-2">
-          <Link to="/admin/clients/new">
-            <Button className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Add Client
-            </Button>
-          </Link>
+          <Button className="flex items-center gap-2" onClick={handleAddClientClick}>
+            <Plus className="w-4 h-4" />
+            Add Client
+          </Button>
         </div>
       </div>
 
@@ -196,9 +194,9 @@ export default function ClientList() {
               : "You haven't added any clients yet."}
           </p>
           {!searchQuery && (
-            <Link to="/admin/clients/new">
-              <Button>Add Your First Client</Button>
-            </Link>
+            <Button onClick={handleAddClientClick}>
+              Add Your First Client
+            </Button>
           )}
         </div>
       )}
