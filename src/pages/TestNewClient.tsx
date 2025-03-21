@@ -37,7 +37,7 @@ export default function TestNewClient() {
         };
       }
       
-      toast.loading("Creating client account...");
+      toast.loading("Creating client account and sending welcome email...");
       
       const result = await createClient(data);
       console.log("Client creation result:", result);
