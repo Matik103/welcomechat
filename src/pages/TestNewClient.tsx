@@ -16,7 +16,7 @@ export default function TestNewClient() {
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
-      console.log("Submitting form data:", data);
+      console.log("Form data received in TestNewClient:", data);
       
       // Ensure required fields have values
       if (!data.client_name || !data.email) {
@@ -34,17 +34,13 @@ export default function TestNewClient() {
       }
       
       const result = await createClient(data);
-      console.log("Form submission result:", result);
+      console.log("Client creation result:", result);
       toast.success("Client created successfully");
       setSuccess(true);
     } catch (error) {
       console.error("Error creating client:", error);
       toast.error(error instanceof Error && error.message ? error.message : "Failed to create client");
     }
-  };
-
-  const handleReset = () => {
-    setSuccess(false);
   };
 
   const handleCreateAnother = () => {

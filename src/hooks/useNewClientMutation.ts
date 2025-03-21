@@ -13,6 +13,7 @@ export const useNewClientMutation = () => {
         // Validate the data before sending to the service
         const validationResult = clientFormSchema.safeParse(data);
         if (!validationResult.success) {
+          console.error("Validation errors:", validationResult.error.format());
           throw new Error("Invalid form data");
         }
 
@@ -25,6 +26,8 @@ export const useNewClientMutation = () => {
             logo_url: ""
           };
         }
+
+        console.log("Creating client with data:", validatedData);
 
         // Create the client directly in the ai_agents table
         const { data: newAgent, error } = await supabase
@@ -57,6 +60,8 @@ export const useNewClientMutation = () => {
         if (!newAgent) {
           throw new Error("Failed to create client record");
         }
+
+        console.log("Client created successfully:", newAgent);
 
         // Get clientId - either from the client_id field or use the id if client_id is not set
         const clientId = newAgent.client_id || newAgent.id;

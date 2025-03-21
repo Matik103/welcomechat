@@ -44,18 +44,22 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
   });
 
   const handleSubmit = async (data: any) => {
-    if (isSubmitting) {
+    if (isLoading || isSubmitting) {
       return; // Prevent multiple submissions
     }
     
     // If an external onSubmit handler is provided, use it
     if (onSubmit) {
       try {
+        setIsLoading(true);
         console.log("Submitting form with data:", data);
         await onSubmit(data as ClientFormData);
+        console.log("Form submission successful");
       } catch (error) {
         console.error("Error in form submission:", error);
         toast.error(error instanceof Error ? error.message : "An error occurred");
+      } finally {
+        setIsLoading(false);
       }
       return;
     }
