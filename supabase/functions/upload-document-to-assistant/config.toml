@@ -1,0 +1,16 @@
+
+project_id = "mgjodiqecnnltsgorife"
+
+[script]
+command = [
+  "deno",
+  "run",
+  "--allow-net",
+  "--allow-env",
+  "--allow-read",
+  "index.ts"
+]
+
+# Required environment variables:
+# - OPENAI_API_KEY: The OpenAI API key
+# The actual key is managed via Supabase secrets
