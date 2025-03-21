@@ -41,7 +41,7 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
           </TableRow>
         ) : (
           clients.map((client) => (
-            <TableRow key={client.id || `unnamed-${Math.random()}`} className="hover:bg-gray-50">
+            <TableRow key={client.id} className="hover:bg-gray-50">
               <TableCell className="font-medium">{client.client_name}</TableCell>
               <TableCell>{client.agent_name}</TableCell>
               <TableCell className="max-w-xs truncate" title={client.description || ""}>
@@ -84,7 +84,7 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
               </TableCell>
               <TableCell>
                 <ClientActions 
-                  clientId={client.id || ''} 
+                  clientId={client.id} 
                   onDeleteClick={() => onDeleteClick(client)} 
                 />
               </TableCell>

@@ -1,10 +1,9 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useClientDashboard } from "@/hooks/useClientDashboard";
 import { Loader2 } from "lucide-react";
 import { InteractionStats } from "@/types/client-dashboard";
-import { toast } from "sonner";
 
 interface ClientStatsProps {
   clientId: string;
@@ -12,15 +11,7 @@ interface ClientStatsProps {
 }
 
 export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
-  const { stats, isLoading, error } = useClientDashboard(clientId, agentName);
-
-  // Report errors to the user with toast notifications
-  useEffect(() => {
-    if (error) {
-      toast.error("Failed to load performance metrics");
-      console.error("Error loading client stats:", error);
-    }
-  }, [error]);
+  const { stats, isLoading } = useClientDashboard(clientId);
 
   if (isLoading) {
     return (
@@ -44,7 +35,7 @@ export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
         </CardHeader>
         <CardContent>
           <div className="text-center text-gray-500 py-10">
-            No statistics available yet
+            No statistics available
           </div>
         </CardContent>
       </Card>

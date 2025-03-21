@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +20,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
   
+  // Set a short timeout to prevent getting stuck in loading state
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
@@ -27,12 +29,14 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     return () => clearTimeout(timeout);
   }, []);
   
+  // Redirect if not authenticated
   useEffect(() => {
     if (!user && !loadTimeout) {
       navigate("/auth", { replace: true });
     }
   }, [user, navigate, loadTimeout]);
 
+  // Get client ID from user metadata if not provided
   const effectiveClientId = clientId || user?.user_metadata?.client_id;
   
   const {
@@ -43,6 +47,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     agentName
   } = useClientDashboard(effectiveClientId || '', user?.user_metadata?.agent_name || 'AI Assistant');
 
+  // Convert stats to the expected format for the InteractionStats component
   const formattedStats: any = stats ? {
     total_interactions: stats.totalInteractions,
     active_days: stats.activeDays,
@@ -55,12 +60,14 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     top_queries: []
   };
 
+  // Format top queries for the QueryList component
   const queries: QueryItem[] = stats?.topQueries?.map(q => ({
     id: `query-${Math.random().toString(36).substr(2, 9)}`,
     query_text: q.query_text,
     frequency: q.frequency
   })) || [];
 
+  // Handle refresh
   const refreshDashboard = useCallback(() => {
     window.location.reload();
   }, []);
@@ -73,6 +80,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     setTimeout(() => setIsRefreshing(false), 1000);
   }, [refreshDashboard]);
 
+  // Very minimal loading state - only show if we don't have a user yet
   if (!user && !loadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -81,11 +89,13 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     );
   }
 
+  // Show loading spinner, but with a short timeout to prevent stuck UIs
   const isInitialLoading = isLoading && !loadTimeout;
 
   return (
     <div className="bg-[#F8F9FA] min-h-screen">
       <div className="max-w-6xl mx-auto px-4 md:px-6 pt-24 pb-6 space-y-8">
+        {/* Refresh button */}
         <div className="flex justify-end">
           <Button 
             variant="outline" 
@@ -108,6 +118,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           </Button>
         </div>
         
+        {/* Stats section */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <InteractionStats 
             stats={formattedStats} 
@@ -115,7 +126,9 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           />
         </div>
 
+        {/* Recent data section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Error logs card */}
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Recent Interactions</CardTitle>
@@ -140,10 +153,10 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
             </CardContent>
           </Card>
 
+          {/* Common queries card */}
           <QueryList 
             queries={queries} 
             isLoading={isInitialLoading || isRefreshing} 
-            error={null} 
           />
         </div>
       </div>
