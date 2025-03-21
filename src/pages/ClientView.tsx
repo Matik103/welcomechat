@@ -123,7 +123,6 @@ const ClientView = () => {
           let statsData = null;
           const rawStats = result[0];
           
-          // Handle different possible response formats
           if (typeof rawStats === 'string') {
             try {
               statsData = JSON.parse(rawStats);
@@ -131,10 +130,8 @@ const ClientView = () => {
               console.error('Error parsing stats JSON string:', e);
             }
           } else if (typeof rawStats === 'object' && rawStats !== null) {
-            // The rawStats object itself might be what we need (no property name)
             statsData = rawStats;
             
-            // If it has a property that might be our data in string form, try to parse that
             const possibleJsonProperty = Object.values(rawStats)[0];
             if (typeof possibleJsonProperty === 'string') {
               try {
@@ -143,7 +140,6 @@ const ClientView = () => {
                   statsData = parsed;
                 }
               } catch (e) {
-                // If parsing fails, keep using the rawStats as is
                 console.error('Error trying to parse property as JSON:', e);
               }
             }
@@ -156,7 +152,7 @@ const ClientView = () => {
               total_interactions: statsData.total_interactions || 0,
               active_days: statsData.active_days || 0,
               average_response_time: statsData.average_response_time || 0,
-              success_rate: 100 // Default value as it might not be in the response
+              success_rate: 100
             });
           }
         }
@@ -165,13 +161,11 @@ const ClientView = () => {
       }
     };
     
-    // Only fetch data if we have a clientId
     if (clientId) {
       fetchErrorLogs();
       fetchCommonQueries();
     }
 
-    // Fetch agent stats when client data is available
     if (clientId && client) {
       fetchAgentStats();
     }
@@ -191,7 +185,6 @@ const ClientView = () => {
           filter: `client_id=eq.${clientId}`
         },
         () => {
-          // Refetch data when changes occur
           const fetchErrorLogs = async () => {
             try {
               const query = `
