@@ -11,7 +11,7 @@ interface ClientStatsProps {
 }
 
 export const ClientStats = ({ clientId, agentName }: ClientStatsProps) => {
-  const { stats, isLoading } = useClientDashboard(clientId);
+  const { stats, isLoading } = useClientDashboard(clientId, agentName);
 
   if (isLoading) {
     return (

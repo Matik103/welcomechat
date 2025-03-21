@@ -11,10 +11,10 @@ export const useClientDashboard = (clientId: string, defaultAgentName: string = 
     isLoading: isLoadingStats,
     error: statsError,
   } = useQuery({
-    queryKey: ["interaction-stats", clientId],
+    queryKey: ["interaction-stats", clientId, defaultAgentName],
     queryFn: async () => {
       try {
-        const data = await getInteractionStats(clientId);
+        const data = await getInteractionStats(clientId, defaultAgentName);
         
         // Ensure both snake_case and camelCase properties exist
         return {
