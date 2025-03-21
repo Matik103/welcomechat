@@ -10,7 +10,7 @@ interface ClientActionsProps {
 
 export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) => {
   if (!clientId) {
-    console.error("Missing client ID in ClientActions");
+    console.error("Missing client ID in ClientActions", clientId);
     toast.error("Missing client ID for actions");
     
     // Return disabled actions when clientId is missing
@@ -31,6 +31,8 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
       </div>
     );
   }
+
+  console.log("Rendering client actions with ID:", clientId);
 
   return (
     <div className="flex items-center justify-end gap-2">
