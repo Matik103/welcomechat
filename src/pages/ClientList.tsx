@@ -18,7 +18,7 @@ export default function ClientList() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  // Query to fetch client data from ai_agents table where interaction_type = 'config'
+  // Modified query to fetch client data from ai_agents table where interaction_type = 'config'
   const { data: clients, isLoading, error, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: async (): Promise<Client[]> => {
@@ -76,7 +76,6 @@ export default function ClientList() {
             error_message: record.error_message || ''
           };
           
-          console.log("Mapped client:", client);
           return client;
         });
         
