@@ -1,108 +1,70 @@
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Eye, MessageSquare, Edit, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { MoreVertical, Edit, Trash2, Mail } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
-import { sendClientInvitation } from "@/utils/clientInvitationUtils";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ClientActionsProps {
   clientId: string;
   onDeleteClick: () => void;
-  invitationSent?: boolean;
 }
 
-export const ClientActions = ({ 
-  clientId, 
-  onDeleteClick,
-  invitationSent = false
-}: ClientActionsProps) => {
-  const [isSendingInvitation, setIsSendingInvitation] = useState(false);
-  
-  const handleSendInvitation = async () => {
-    try {
-      setIsSendingInvitation(true);
-      
-      // First, get the client details
-      const { data: clientData, error: clientError } = await supabase
-        .from("ai_agents")
-        .select("client_name, email")
-        .eq("id", clientId)
-        .single();
-      
-      if (clientError || !clientData) {
-        console.error("Error fetching client details:", clientError);
-        toast.error("Failed to fetch client details");
-        return;
-      }
-      
-      // Now send the invitation
-      toast.loading(`Sending invitation to ${clientData.email}...`);
-      
-      const result = await sendClientInvitation(
-        clientId, 
-        clientData.client_name,
-        clientData.email
-      );
-      
-      if (result.success) {
-        toast.success(`Invitation sent successfully to ${clientData.email}`);
-        // Force a page refresh to update the invitation status
-        window.location.reload();
-      } else {
-        toast.error(`Failed to send invitation: ${result.error}`);
-      }
-    } catch (error) {
-      console.error("Error sending invitation:", error);
-      toast.error("Failed to send invitation");
-    } finally {
-      setIsSendingInvitation(false);
-    }
-  };
-  
+export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) => {
+  if (!clientId) {
+    console.error("Missing client ID in ClientActions", clientId);
+    toast.error("Missing client ID for actions");
+    
+    // Return disabled actions when clientId is missing
+    return (
+      <div className="flex items-center justify-end gap-2">
+        <span className="p-1 text-gray-300 cursor-not-allowed" title="View Client (ID missing)">
+          <Eye className="w-4 h-4" />
+        </span>
+        <span className="p-1 text-gray-300 cursor-not-allowed" title="Widget Settings (ID missing)">
+          <MessageSquare className="w-4 h-4" />
+        </span>
+        <span className="p-1 text-gray-300 cursor-not-allowed" title="Edit Info (ID missing)">
+          <Edit className="w-4 h-4" />
+        </span>
+        <span className="p-1 text-gray-300 cursor-not-allowed" title="Delete (ID missing)">
+          <Trash2 className="w-4 h-4" />
+        </span>
+      </div>
+    );
+  }
+
+  console.log("Rendering client actions with ID:", clientId);
+
   return (
-    <div className="flex justify-end gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <MoreVertical className="h-4 w-4" />
-            <span className="sr-only">Actions</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[160px]">
-          <Link to={`/admin/clients/edit/${clientId}`}>
-            <DropdownMenuItem>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-          </Link>
-          
-          {!invitationSent && (
-            <DropdownMenuItem 
-              onClick={handleSendInvitation}
-              disabled={isSendingInvitation}
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              Send Invitation
-            </DropdownMenuItem>
-          )}
-          
-          <DropdownMenuItem 
-            className="text-red-600 focus:text-red-600" 
-            onClick={onDeleteClick}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <div className="flex items-center justify-end gap-2">
+      <Link
+        to={`/admin/clients/view/${clientId}`}
+        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+        title="View Client"
+      >
+        <Eye className="w-4 h-4" />
+      </Link>
+      <Link
+        to={`/admin/clients/${clientId}/widget-settings`}
+        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+        title="Widget Settings"
+      >
+        <MessageSquare className="w-4 h-4" />
+      </Link>
+      <Link
+        to={`/admin/clients/${clientId}/edit-info`}
+        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+        title="Edit Info"
+      >
+        <Edit className="w-4 h-4" />
+      </Link>
+      <button
+        onClick={onDeleteClick}
+        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+        title="Schedule Deletion"
+        aria-label="Schedule client deletion"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
     </div>
   );
 };
