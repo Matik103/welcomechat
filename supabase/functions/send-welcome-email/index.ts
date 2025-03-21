@@ -31,20 +31,8 @@ serve(async (req) => {
       throw new Error("Email service configuration is missing (RESEND_API_KEY)");
     }
 
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("Supabase credentials are missing");
-      throw new Error("Database configuration is missing");
-    }
-
     // Parse the request body
-    let body;
-    try {
-      body = await req.json();
-    } catch (parseError) {
-      console.error("Error parsing request body:", parseError);
-      throw new Error("Invalid request format: " + parseError.message);
-    }
-
+    const body = await req.json();
     const { clientId, clientName, email, agentName, tempPassword } = body;
     
     // Validate required parameters
@@ -60,108 +48,101 @@ serve(async (req) => {
     const loginLink = `${publicSiteUrl}/client/auth`;
 
     console.log("Sending welcome email with login link:", loginLink);
-    console.log("Using Resend API Key (first 5 chars):", resendApiKey.substring(0, 5));
 
-    try {
-      // Send the email using Resend
-      const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "Welcome.Chat <admin@welcome.chat>",
-        to: email,
-        subject: "Welcome to Welcome.Chat - Your Account Details",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <h1 style="color: #4f46e5;">Welcome to Welcome.Chat!</h1>
-            </div>
-            
-            <p>Hello ${clientName},</p>
-            
-            <p>Your AI assistant account${agentInfo} has been created and is ready for configuration. Here are your login credentials:</p>
-            
-            <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p><strong>Email Address:</strong></p>
-              <p style="color: #4f46e5;">${email}</p>
-              
-              <p><strong>Temporary Password:</strong></p>
-              <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${tempPassword}</p>
-            </div>
-            
-            <p>To get started:</p>
-            <ol>
-              <li>Click the "Sign In" button below</li>
-              <li>Enter your email and temporary password exactly as shown above</li>
-              <li>You'll be taken to your client dashboard</li>
-              <li>Configure your AI assistant's settings</li>
-            </ol>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${loginLink}" 
-                 style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                Sign In
-              </a>
-            </div>
-            
-            <div style="border-top: 1px solid #e0e0e0; margin-top: 30px; padding-top: 20px;">
-              <p><strong>Security Notice:</strong></p>
-              <p>This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
-            </div>
-            
-            <p>Best regards,<br>The Welcome.Chat Team</p>
-            
-            <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
-              © ${new Date().getFullYear()} Welcome.Chat. All rights reserved.
-            </div>
-          </div>
-        `,
+    // Save the temporary password in the database
+    const { error: passwordError } = await supabase
+      .from("client_temp_passwords")
+      .insert({
+        agent_id: clientId,
+        email: email,
+        temp_password: tempPassword
       });
-
-      if (emailError) {
-        console.error("Email sending error from Resend:", emailError);
-        throw emailError;
-      }
-
-      console.log("Email sent successfully:", emailData);
-
-      // Log client activity for email sent
-      await supabase
-        .from("client_activities")
-        .insert({
-          client_id: clientId,
-          activity_type: "client_updated",
-          description: `Welcome email sent to ${clientName}`,
-          metadata: { 
-            email_type: "welcome_email",
-            recipient_email: email,
-            temp_password_length: tempPassword.length
-          }
-        });
-
-      return new Response(JSON.stringify({ success: true, data: emailData }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    } catch (emailSendError) {
-      console.error("Resend API email sending error:", emailSendError);
       
-      // Log the failure
-      await supabase
-        .from("client_activities")
-        .insert({
-          client_id: clientId,
-          activity_type: "client_updated",
-          description: `Failed to send welcome email to ${clientName}`,
-          metadata: { 
-            error: emailSendError.message || "Unknown error",
-            recipient_email: email
-          }
-        });
-        
-      throw new Error(`Resend API error: ${emailSendError.message || "Unknown email service error"}`);
+    if (passwordError) {
+      console.error("Error saving temporary password:", passwordError);
+      throw new Error("Failed to save client credentials");
     }
+
+    // Send the email using Resend
+    const { data, error } = await resend.emails.send({
+      from: "Welcome.Chat <admin@welcome.chat>",
+      to: email,
+      subject: "Welcome to Welcome.Chat - Your Account Details",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="color: #4f46e5;">Welcome to Welcome.Chat!</h1>
+          </div>
+          
+          <p>Hello ${clientName},</p>
+          
+          <p>Your AI assistant account${agentInfo} has been created and is ready for configuration. Here are your login credentials:</p>
+          
+          <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Email Address:</strong></p>
+            <p style="color: #4f46e5;">${email}</p>
+            
+            <p><strong>Temporary Password:</strong></p>
+            <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${tempPassword}</p>
+          </div>
+          
+          <p>To get started:</p>
+          <ol>
+            <li>Click the "Sign In" button below</li>
+            <li>Enter your email and temporary password exactly as shown above</li>
+            <li>You'll be taken to your client dashboard</li>
+            <li>Configure your AI assistant's settings</li>
+          </ol>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${loginLink}" 
+               style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              Sign In
+            </a>
+          </div>
+          
+          <div style="border-top: 1px solid #e0e0e0; margin-top: 30px; padding-top: 20px;">
+            <p><strong>Security Notice:</strong></p>
+            <p>This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
+          </div>
+          
+          <p>Best regards,<br>The Welcome.Chat Team</p>
+          
+          <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
+            © ${new Date().getFullYear()} Welcome.Chat. All rights reserved.
+          </div>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error("Email sending error:", error);
+      throw error;
+    }
+
+    console.log("Email sent successfully:", data);
+
+    // Log client activity for email sent
+    await supabase
+      .from("client_activities")
+      .insert({
+        client_id: clientId,
+        activity_type: "client_updated",
+        description: `Welcome email sent to ${clientName}`,
+        metadata: { 
+          email_type: "welcome_email",
+          recipient_email: email,
+          temp_password_length: tempPassword.length
+        }
+      });
+
+    return new Response(JSON.stringify({ success: true, data }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
   } catch (error) {
     console.error("Error in send-welcome-email:", error);
     
-    // Return a more detailed error response
     return new Response(
       JSON.stringify({ 
         success: false, 
