@@ -41,4 +41,8 @@ supabase functions deploy chat --no-verify-jwt
 echo "Deploying create-openai-assistant function..."
 supabase functions deploy create-openai-assistant --no-verify-jwt
 
+# Deploy the send-email function
+echo "Deploying send-email function..."
+supabase functions deploy send-email --no-verify-jwt
+
 echo "Deployment complete!" 
