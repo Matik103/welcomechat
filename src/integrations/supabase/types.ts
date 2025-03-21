@@ -3734,6 +3734,15 @@ export type Database = {
         }
         Returns: string
       }
+      log_client_activity: {
+        Args: {
+          client_id_param: string
+          activity_type_param: string
+          description_param: string
+          metadata_param?: Json
+        }
+        Returns: Json
+      }
       match_agent_1742397281528: {
         Args: {
           query_embedding: string

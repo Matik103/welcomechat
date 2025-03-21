@@ -14,7 +14,6 @@ export interface UrlCheckResult {
   error?: string;
 }
 
-// Make sure this type is properly exported
 export interface UrlAccessResult {
   isAccessible: boolean;
   status?: number;
@@ -52,27 +51,21 @@ export function useUrlAccessCheck() {
       } catch (edgeFunctionError) {
         console.error("Edge function error:", edgeFunctionError);
         
-        // If the Edge Function fails, fall back to a basic client-side check
-        console.log("Falling back to basic URL validation...");
-        
-        // Validate the URL format
+        // If the Edge Function fails, use FirecrawlService.validateUrl
         try {
-          new URL(url);
+          const { isValid, error } = await validateUrlWithFirecrawl(url);
           
-          // Since we can't actually check access without the server,
-          // we'll assume it's accessible but with unknown scraping status
           const fallbackResult: UrlCheckResult = {
-            isAccessible: true,
+            isAccessible: isValid,
             hasScrapingRestrictions: false,
-            canScrape: true,
-            statusCode: 200,
-            error: "URL format is valid, but full accessibility check failed. The URL was added without complete validation."
+            canScrape: isValid,
+            error: error
           };
           
-          console.log("Using fallback result:", fallbackResult);
+          console.log("Using fallback validation result:", fallbackResult);
           setLastResult(fallbackResult);
           return fallbackResult;
-        } catch (urlError) {
+        } catch (validationError) {
           const invalidUrlResult: UrlCheckResult = {
             isAccessible: false,
             hasScrapingRestrictions: true,
@@ -95,6 +88,42 @@ export function useUrlAccessCheck() {
       return result;
     } finally {
       setIsChecking(false);
+    }
+  };
+  
+  // Helper function to validate URL using Firecrawl
+  const validateUrlWithFirecrawl = async (url: string): Promise<{ isValid: boolean; error?: string }> => {
+    try {
+      // Try to create a URL object to validate the format
+      new URL(url);
+      
+      // Try a simple HEAD request to check if the URL is accessible
+      const response = await fetch(url, { 
+        method: 'HEAD',
+        // Use a reasonable timeout
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (response.ok) {
+        return { isValid: true };
+      } else {
+        return { 
+          isValid: false, 
+          error: `URL returned status code ${response.status}` 
+        };
+      }
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        return { 
+          isValid: false, 
+          error: 'Unable to access URL. It may be down or blocking requests.' 
+        };
+      }
+      
+      return { 
+        isValid: false, 
+        error: error instanceof Error ? error.message : 'Unknown error validating URL' 
+      };
     }
   };
 

@@ -1,19 +1,11 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-interface CrawlResponse {
-  success: boolean;
-  error?: string;
-  data?: any;
-}
-
 interface CrawlOptions {
   limit?: number;
-  formats?: string[];
-  depth?: number;
-  maxPagesToCrawl?: number;
-  allowExternalLinks?: boolean;
+  maxDepth?: number;
   allowBackwardLinks?: boolean;
+  allowExternalLinks?: boolean;
   scrapeOptions?: {
     formats?: string[];
     onlyMainContent?: boolean;
@@ -22,6 +14,13 @@ interface CrawlOptions {
     waitFor?: number;
     timeout?: number;
   };
+}
+
+interface CrawlResponse {
+  success: boolean;
+  error?: string;
+  data?: any;
+  id?: string;
 }
 
 export class FirecrawlService {
@@ -33,7 +32,8 @@ export class FirecrawlService {
     documentType: string,
     clientId: string,
     agentName: string,
-    documentId: string
+    documentId: string,
+    options: CrawlOptions = {}
   ): Promise<CrawlResponse> {
     try {
       console.log(`Sending request to process document:`, {
@@ -41,9 +41,36 @@ export class FirecrawlService {
         documentType,
         clientId,
         agentName,
-        documentId
+        documentId,
+        options
       });
       
+      // Define default options if not provided
+      const defaultOptions: CrawlOptions = {
+        maxDepth: 3,
+        limit: 50,
+        allowBackwardLinks: true,
+        allowExternalLinks: false,
+        scrapeOptions: {
+          formats: ["markdown"],
+          onlyMainContent: true, 
+          includeTags: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "article", "main", "section"],
+          excludeTags: ["nav", "footer", "header", "aside", "script", "style", "button", ".cookie-banner", ".popup", ".modal", ".advertisement", ".social-share", ".newsletter-signup"],
+          waitFor: 1000,
+          timeout: 30000
+        }
+      };
+      
+      // Merge default options with provided options
+      const crawlOptions = {
+        ...defaultOptions,
+        ...options,
+        scrapeOptions: {
+          ...defaultOptions.scrapeOptions,
+          ...options.scrapeOptions
+        }
+      };
+
       // Call the Supabase Edge Function directly
       const { data, error } = await supabase.functions.invoke('process-document', {
         method: 'POST',
@@ -53,21 +80,7 @@ export class FirecrawlService {
           clientId,
           agentName,
           documentId,
-          // Add optimized crawl options based on Firecrawl docs
-          crawlOptions: {
-            maxDepth: 3,
-            limit: 50,
-            allowBackwardLinks: true,
-            allowExternalLinks: false,
-            scrapeOptions: {
-              formats: ["markdown"],
-              onlyMainContent: true, 
-              includeTags: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "article", "main", "section"],
-              excludeTags: ["nav", "footer", "header", "aside", "script", "style", "button", ".cookie-banner", ".popup", ".modal", ".advertisement", ".social-share", ".newsletter-signup"],
-              waitFor: 1000,
-              timeout: 30000
-            }
-          }
+          crawlOptions
         },
       });
 
@@ -95,10 +108,12 @@ export class FirecrawlService {
   }
 
   /**
-   * Get the status of a document processing job
+   * Check the status of an ongoing crawl job
    */
-  static async getProcessingStatus(jobId: string): Promise<CrawlResponse> {
+  static async checkCrawlStatus(jobId: string): Promise<CrawlResponse> {
     try {
+      console.log(`Checking status of crawl job: ${jobId}`);
+      
       // Create a URLSearchParams object to properly encode the jobId
       const searchParams = new URLSearchParams({ jobId });
       
@@ -125,10 +140,83 @@ export class FirecrawlService {
         data
       };
     } catch (error) {
-      console.error('Error in getProcessingStatus:', error);
+      console.error('Error in checkCrawlStatus:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get processing status',
+      };
+    }
+  }
+  
+  /**
+   * Directly crawl a URL using the Firecrawl API
+   * This method can be used for testing or development
+   */
+  static async crawlWebsite(url: string, options: CrawlOptions = {}): Promise<CrawlResponse> {
+    try {
+      console.log(`Crawling website: ${url}`);
+      
+      const { data, error } = await supabase.functions.invoke('crawl-website', {
+        method: 'POST',
+        body: { 
+          url,
+          options
+        }
+      });
+      
+      if (error) {
+        console.error('Error crawling website:', error);
+        return {
+          success: false,
+          error: error.message || 'Unknown error occurred while crawling'
+        };
+      }
+      
+      return {
+        success: true,
+        data
+      };
+    } catch (error) {
+      console.error('Error in crawlWebsite:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to crawl website',
+      };
+    }
+  }
+
+  /**
+   * Scrape a single URL using the Firecrawl API
+   */
+  static async scrapeUrl(url: string, options: any = {}): Promise<CrawlResponse> {
+    try {
+      console.log(`Scraping URL: ${url}`);
+      
+      const { data, error } = await supabase.functions.invoke('scrape-url', {
+        method: 'POST',
+        body: { 
+          url,
+          options
+        }
+      });
+      
+      if (error) {
+        console.error('Error scraping URL:', error);
+        return {
+          success: false,
+          error: error.message || 'Unknown error occurred while scraping'
+        };
+      }
+      
+      return {
+        success: true,
+        data
+      };
+    } catch (error) {
+      console.error('Error in scrapeUrl:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to scrape URL',
       };
     }
   }
