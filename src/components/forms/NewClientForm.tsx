@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { createClient } from '@/services/clientService';
-import type { ClientFormData } from '@/types/client';
+import { useClientFormSubmission } from '@/hooks/useClientFormSubmission';
+import { createClientActivity } from '@/services/clientActivityService';
 
 // Form validation schema
 const clientFormSchema = z.object({
@@ -31,6 +31,13 @@ type ClientFormValues = z.infer<typeof clientFormSchema>;
 export function NewClientForm() {
   const [isLoading, setIsLoading] = useState(false);
 
+  // Using our new clientFormSubmission hook with no clientId (creating new client)
+  const { handleSubmit: submitForm, isLoading: isSubmitting } = useClientFormSubmission(
+    undefined, // No clientId for new client
+    false, // Not client view
+    createClientActivity // Function to log activities
+  );
+
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
@@ -48,20 +55,7 @@ export function NewClientForm() {
   const onSubmit = async (data: ClientFormValues) => {
     setIsLoading(true);
     try {
-      // Ensure required fields are present for the ClientFormData type
-      const formData: ClientFormData = {
-        client_name: data.client_name, // Required field
-        email: data.email, // Required field
-        company: data.company,
-        description: data.description,
-        widget_settings: data.widget_settings || {
-          agent_name: '',
-          agent_description: '',
-        }
-      };
-      
-      const result = await createClient(formData);
-      toast.success('Client created successfully!');
+      await submitForm(data);
       form.reset();
     } catch (error) {
       console.error('Error creating client:', error);
@@ -80,7 +74,7 @@ export function NewClientForm() {
             id="client_name"
             {...form.register('client_name')}
             placeholder="Enter client name"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
           />
           {form.formState.errors.client_name && (
             <p className="text-sm text-red-500 mt-1">
@@ -96,7 +90,7 @@ export function NewClientForm() {
             type="email"
             {...form.register('email')}
             placeholder="Enter email address"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
           />
           {form.formState.errors.email && (
             <p className="text-sm text-red-500 mt-1">
@@ -111,7 +105,7 @@ export function NewClientForm() {
             id="company"
             {...form.register('company')}
             placeholder="Enter company name"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
           />
         </div>
 
@@ -121,7 +115,7 @@ export function NewClientForm() {
             id="description"
             {...form.register('description')}
             placeholder="Enter client description"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
           />
         </div>
 
@@ -134,7 +128,7 @@ export function NewClientForm() {
               id="agent_name"
               {...form.register('widget_settings.agent_name')}
               placeholder="Enter assistant name"
-              disabled={isLoading}
+              disabled={isLoading || isSubmitting}
             />
           </div>
 
@@ -144,14 +138,14 @@ export function NewClientForm() {
               id="agent_description"
               {...form.register('widget_settings.agent_description')}
               placeholder="Enter assistant description"
-              disabled={isLoading}
+              disabled={isLoading || isSubmitting}
             />
           </div>
         </div>
       </div>
 
-      <Button type="submit" disabled={isLoading}>
-        {isLoading ? 'Creating...' : 'Create Client'}
+      <Button type="submit" disabled={isLoading || isSubmitting}>
+        {isLoading || isSubmitting ? 'Creating...' : 'Create Client'}
       </Button>
     </form>
   );
