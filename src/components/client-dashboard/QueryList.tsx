@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { toast } from 'sonner';
 
-export const QueryList = ({ queries, isLoading, error }) => {
+export const QueryList = ({ queries, isLoading, error = null }) => {
   useEffect(() => {
     if (error) {
       toast.error("Failed to load common queries");

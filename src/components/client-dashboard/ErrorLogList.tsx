@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { formatDate } from '@/utils/stringUtils';
 import { toast } from 'sonner';
 
-export const ErrorLogList = ({ logs, isLoading, error }) => {
+export const ErrorLogList = ({ logs, isLoading, error = null }) => {
   useEffect(() => {
     if (error) {
       toast.error("Failed to load error logs");
