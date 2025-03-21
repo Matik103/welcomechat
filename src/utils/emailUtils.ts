@@ -28,7 +28,9 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
     console.log("Sending email to:", options.to);
     console.log("Email subject:", options.subject);
     console.log("Email template:", options.template);
-    console.log("From address:", options.from || "Welcome.Chat <admin@welcome.chat>");
+    
+    const fromAddress = options.from || "Welcome.Chat <admin@welcome.chat>";
+    console.log("From address:", fromAddress);
     
     let html = options.html || "";
     
@@ -104,7 +106,7 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
         to: options.to,
         subject: options.subject,
         html: html,
-        from: options.from || "Welcome.Chat <admin@welcome.chat>"
+        from: fromAddress
       }
     });
     
