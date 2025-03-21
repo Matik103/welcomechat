@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -60,7 +59,7 @@ const Auth = () => {
         toast.success("Password reset email sent. Please check your inbox.");
         setIsForgotPassword(false);
       } else if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -73,8 +72,50 @@ const Auth = () => {
         if (error) {
           throw error;
         }
-        
-        toast.success("Check your email for the confirmation link!");
+
+        // Send welcome email
+        const { error: emailError } = await supabase.functions.invoke("send-email", {
+          body: {
+            to: email,
+            subject: "Welcome to Welcome.Chat!",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                  <h1 style="color: #4f46e5;">Welcome to Welcome.Chat!</h1>
+                </div>
+                
+                <p>Hello ${fullName},</p>
+                
+                <p>Thank you for signing up for Welcome.Chat! We're excited to have you on board.</p>
+                
+                <p>To get started:</p>
+                <ol>
+                  <li>Verify your email address by clicking the confirmation link sent separately</li>
+                  <li>Log in to your account</li>
+                  <li>Start exploring our features!</li>
+                </ol>
+                
+                <p>If you have any questions or need assistance, don't hesitate to reach out to our support team.</p>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                  <p>Best regards,<br>The Welcome.Chat Team</p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
+                  © ${new Date().getFullYear()} Welcome.Chat - All rights reserved
+                </div>
+              </div>
+            `
+          }
+        });
+
+        if (emailError) {
+          console.error("Failed to send welcome email:", emailError);
+          // Don't throw the error as signup was successful
+          toast.error("Account created but failed to send welcome email. Please check your spam folder for the verification email.");
+        } else {
+          toast.success("Account created! Check your email for the confirmation link.");
+        }
       } else {
         console.log("Starting email login for:", email);
         
