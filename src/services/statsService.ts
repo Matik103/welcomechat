@@ -11,10 +11,26 @@ import { callRpcFunction } from "@/utils/rpcUtils";
 /**
  * Gets all interaction stats for a client
  * @param clientId The client ID
+ * @param agentName Optional agent name
  * @returns All interaction stats
  */
-export const getInteractionStats = async (clientId: string): Promise<InteractionStats> => {
+export const getInteractionStats = async (clientId: string, agentName?: string): Promise<InteractionStats> => {
   try {
+    // Get agent name if not provided
+    if (!agentName) {
+      try {
+        const { data: clientData } = await callRpcFunction<any>('exec_sql', { 
+          sql_query: `SELECT agent_name FROM clients WHERE id = '${clientId}'` 
+        });
+        
+        if (clientData && Array.isArray(clientData) && clientData.length > 0) {
+          agentName = clientData[0].agent_name;
+        }
+      } catch (error) {
+        console.error("Error getting agent name:", error);
+      }
+    }
+
     // Use RPC function to get all stats at once
     const result = await callRpcFunction<{
       total_interactions: number;
@@ -22,14 +38,17 @@ export const getInteractionStats = async (clientId: string): Promise<Interaction
       average_response_time: number;
       top_queries?: Array<{query_text: string, frequency: number}>;
       success_rate?: number;
-    }>('get_client_dashboard_stats', { client_id_param: clientId });
+    }>('get_client_dashboard_stats', { 
+      client_id_param: clientId,
+      agent_name_param: agentName 
+    });
 
     // If the RPC function returns data, use it
     if (result && typeof result === 'object') {
       // Extract top queries from result or fallback to empty array
       const topQueries = Array.isArray(result.top_queries) 
         ? result.top_queries.map(q => ({
-            id: `query-${q.query_text.substring(0, 10)}`,
+            id: `query-${q.query_text?.substring(0, 10) || Math.random().toString(36).substring(2, 12)}`,
             query_text: q.query_text || "Unknown query",
             frequency: q.frequency || 1
           }))
@@ -54,18 +73,18 @@ export const getInteractionStats = async (clientId: string): Promise<Interaction
 
     // Fallback to individual calls if the RPC function fails or returns unexpected data
     console.warn("RPC function returned unexpected data, using fallback methods");
-    return getFallbackStats(clientId);
+    return getFallbackStats(clientId, agentName);
   } catch (error) {
     console.error("Error getting stats from RPC:", error);
     // Fallback to individual API calls
-    return getFallbackStats(clientId);
+    return getFallbackStats(clientId, agentName);
   }
 };
 
 /**
  * Fallback method to get stats if the RPC function fails
  */
-const getFallbackStats = async (clientId: string): Promise<InteractionStats> => {
+const getFallbackStats = async (clientId: string, agentName?: string): Promise<InteractionStats> => {
   try {
     // Make individual calls to get the stats
     let totalInteractions = 0;
@@ -74,25 +93,25 @@ const getFallbackStats = async (clientId: string): Promise<InteractionStats> => 
     let topQueries: QueryItem[] = [];
     
     try {
-      totalInteractions = await getInteractionCount(clientId);
+      totalInteractions = await getInteractionCount(clientId, agentName);
     } catch (error) {
       console.error("Error getting total interactions:", error);
     }
     
     try {
-      activeDays = await getActiveDays(clientId);
+      activeDays = await getActiveDays(clientId, agentName);
     } catch (error) {
       console.error("Error getting active days:", error);
     }
     
     try {
-      averageResponseTime = await getAverageResponseTime(clientId);
+      averageResponseTime = await getAverageResponseTime(clientId, agentName);
     } catch (error) {
       console.error("Error getting average response time:", error);
     }
     
     try {
-      topQueries = await fetchTopQueries(clientId);
+      topQueries = await fetchTopQueries(clientId, agentName);
     } catch (error) {
       console.error("Error getting top queries:", error);
     }
