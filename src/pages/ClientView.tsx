@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -140,11 +139,25 @@ const ClientView = () => {
         if (countResult && Array.isArray(countResult) && countResult.length > 0) {
           // Access the count value safely, ensuring we handle different result formats
           const countObject = countResult[0];
-          // Check if count exists and convert it to a number
+          
           if (countObject && typeof countObject === 'object') {
-            const count = parseInt(countObject.count as string, 10) || 0;
-            statsData.total_interactions = count;
-            statsData.totalInteractions = count;
+            // SQL COUNT(*) returns a value with property name 'count'
+            // But we need to check if it exists and handle type conversion safely
+            let countValue = 0;
+            
+            // The count could be in different formats depending on how execSql returns it
+            if ('count' in countObject) {
+              // Try to parse it as a number if it's a string or use it directly if it's a number
+              const rawCount = countObject.count;
+              if (typeof rawCount === 'number') {
+                countValue = rawCount;
+              } else if (typeof rawCount === 'string') {
+                countValue = parseInt(rawCount, 10) || 0;
+              }
+            }
+            
+            statsData.total_interactions = countValue;
+            statsData.totalInteractions = countValue;
           }
         }
         
