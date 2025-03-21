@@ -1,11 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { WebsiteUrls } from '@/components/client/WebsiteUrls';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { ExtendedActivityType } from '@/types/activity';
 import { Json } from '@/integrations/supabase/types';
 import { ValidationResult } from '@/types/website-url';
+import { FirecrawlService } from '@/utils/FirecrawlService';
+import { toast } from 'sonner';
+import { WebsiteUrlForm } from '@/components/client/website-urls/WebsiteUrlForm';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 
 interface WebsiteResourcesSectionProps {
   clientId: string;
@@ -18,45 +24,50 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
   isClientView,
   logClientActivity
 }) => {
-  // State for URL validation
-  const [validatingUrl, setValidatingUrl] = useState(false);
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  // State for Firecrawl configuration check
+  const [isCheckingConfig, setIsCheckingConfig] = useState(false);
+  const [configStatus, setConfigStatus] = useState<{ isConfigured: boolean; message: string } | null>(null);
 
   // Get website URLs from hook
   const {
     websiteUrls,
     isLoading,
     addWebsiteUrlMutation,
-    deleteWebsiteUrlMutation
+    deleteWebsiteUrlMutation,
+    refetchWebsiteUrls
   } = useWebsiteUrls(clientId);
 
-  // Custom URL validator
-  const validateUrl = async (url: string): Promise<ValidationResult> => {
-    setValidatingUrl(true);
+  // Get store website hook
+  const webstoreHook = {
+    addWebsite: addWebsiteUrlMutation.mutateAsync,
+    isStoring: false,
+    storeWebsiteContent: async (website: any) => {
+      return { success: true };
+    }
+  };
+
+  // Check Firecrawl configuration on mount
+  useEffect(() => {
+    checkFirecrawlConfig();
+  }, []);
+
+  // Function to check Firecrawl configuration
+  const checkFirecrawlConfig = async () => {
+    setIsCheckingConfig(true);
     try {
-      // Mock validation result
-      const result: ValidationResult = {
-        isValid: true,
-        details: {
-          scrapability: 'high',
-          contentType: 'text/html',
-          statusCode: 200,
-          pageSize: '50KB',
-          estimatedTokens: 5000
-        }
-      };
-      setValidationResult(result);
-      return result;
+      const result = await FirecrawlService.verifyFirecrawlConfig();
+      setConfigStatus({
+        isConfigured: result.success,
+        message: result.error || result.data?.message || 'Configuration status unknown'
+      });
     } catch (error) {
-      console.error('Error validating URL:', error);
-      const errorResult: ValidationResult = {
-        isValid: false,
-        message: 'Failed to validate URL'
-      };
-      setValidationResult(errorResult);
-      return errorResult;
+      console.error('Error checking Firecrawl configuration:', error);
+      setConfigStatus({
+        isConfigured: false,
+        message: error instanceof Error ? error.message : 'Unknown error checking configuration'
+      });
     } finally {
-      setValidatingUrl(false);
+      setIsCheckingConfig(false);
     }
   };
 
@@ -65,8 +76,17 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
    */
   const addWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
     try {
+      // Validate URL first
+      const validation = FirecrawlService.validateUrl(data.url);
+      if (!validation.isValid) {
+        toast.error(validation.error || "Invalid URL");
+        return;
+      }
+
+      // Add website to database
       await addWebsiteUrlMutation.mutateAsync(data);
       
+      // Log the activity
       await logClientActivity(
         'website_url_added',
         `Added website URL: ${data.url}`,
@@ -75,6 +95,26 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
           refresh_rate: data.refresh_rate
         }
       );
+
+      // Now process the website with Firecrawl
+      const documentId = `web-${Date.now()}`;
+      const processResult = await FirecrawlService.processDocument(
+        data.url,
+        "website",
+        clientId,
+        "AI Assistant",
+        documentId
+      );
+
+      if (processResult.success) {
+        toast.success("Website processing initiated successfully");
+      } else {
+        console.error("Failed to process website:", processResult.error);
+        toast.error(`Website added but processing failed: ${processResult.error}`);
+      }
+      
+      // Refetch the list to show the new item
+      refetchWebsiteUrls();
     } catch (error) {
       console.error('Error adding website URL:', error);
       throw error;
@@ -106,17 +146,57 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
   };
 
   return (
-    <Card className="p-0">
-      <WebsiteUrls
-        urls={websiteUrls || []}
-        isLoading={isLoading}
-        onAdd={addWebsiteUrl}
-        onDelete={deleteWebsiteUrl}
-        isClientView={isClientView}
-        isAdding={addWebsiteUrlMutation.isPending}
-        isDeleting={deleteWebsiteUrlMutation.isPending}
-        agentName="AI Assistant"
-      />
+    <Card className="p-4">
+      {configStatus && (
+        <Alert 
+          variant={configStatus.isConfigured ? "default" : "destructive"}
+          className="mb-4"
+        >
+          {configStatus.isConfigured ? (
+            <CheckCircle className="h-4 w-4" />
+          ) : (
+            <AlertCircle className="h-4 w-4" />
+          )}
+          <AlertTitle>
+            {configStatus.isConfigured ? "Firecrawl Ready" : "Firecrawl Configuration Issue"}
+          </AlertTitle>
+          <AlertDescription>
+            {configStatus.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue="list" className="w-full">
+        <TabsList className="w-full mb-4">
+          <TabsTrigger value="list" className="flex-1">
+            Website List
+          </TabsTrigger>
+          <TabsTrigger value="add" className="flex-1">
+            Add Website
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list">
+          <WebsiteUrls
+            urls={websiteUrls || []}
+            isLoading={isLoading}
+            onAdd={addWebsiteUrl}
+            onDelete={deleteWebsiteUrl}
+            isClientView={isClientView}
+            isAdding={addWebsiteUrlMutation.isPending}
+            isDeleting={deleteWebsiteUrlMutation.isPending}
+            agentName="AI Assistant"
+          />
+        </TabsContent>
+
+        <TabsContent value="add">
+          <WebsiteUrlForm 
+            clientId={clientId}
+            onAddSuccess={() => refetchWebsiteUrls()}
+            webstoreHook={webstoreHook}
+          />
+        </TabsContent>
+      </Tabs>
     </Card>
   );
 };
