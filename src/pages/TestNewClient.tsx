@@ -33,9 +33,17 @@ export default function TestNewClient() {
         };
       }
       
+      toast.loading("Creating client account and sending welcome email...");
+      
       const result = await createClient(data);
       console.log("Client creation result:", result);
-      toast.success("Client created successfully");
+      
+      if (result.emailSent) {
+        toast.success(`Client created successfully! An email with login credentials has been sent to ${data.email}`);
+      } else {
+        toast.success("Client created successfully! However, the welcome email could not be sent.");
+      }
+      
       setSuccess(true);
     } catch (error) {
       console.error("Error creating client:", error);
@@ -83,4 +91,4 @@ export default function TestNewClient() {
       )}
     </div>
   );
-}
+};

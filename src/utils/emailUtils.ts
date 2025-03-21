@@ -14,7 +14,7 @@ interface EmailOptions {
   from?: string;
 }
 
-interface EmailResponse {
+export interface EmailResponse {
   success: boolean;
   data?: any;
   error?: string;
@@ -26,6 +26,8 @@ interface EmailResponse {
 export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> => {
   try {
     console.log("Sending email to:", options.to);
+    console.log("Email subject:", options.subject);
+    console.log("Email template:", options.template);
     
     let html = options.html || "";
     
@@ -33,6 +35,9 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
     if (options.template === "client-invitation") {
       // Use params to populate the template
       const params = options.params || {};
+      
+      console.log("Email template params:", params);
+      
       html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <div style="text-align: center; margin-bottom: 20px;">
@@ -85,6 +90,8 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
     }
     
     // Call the edge function to send the email
+    console.log("Calling send-email edge function...");
+    
     const { data, error } = await supabase.functions.invoke("send-email", {
       body: {
         to: options.to,
