@@ -1,6 +1,6 @@
 
-// Updating the send-email function to use direct fetch instead of resend library
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,7 +40,8 @@ serve(async (req) => {
       );
     }
     
-    console.log("Initializing email sending with API key");
+    console.log("Initializing Resend client with API key");
+    const resend = new Resend(resendApiKey);
     
     // Parse request body
     let body: EmailRequest;
@@ -85,7 +86,7 @@ serve(async (req) => {
     // Ensure to is always an array
     const toArray = Array.isArray(to) ? to : [to];
     
-    // Send the email using Resend API directly with fetch
+    // Send the email
     const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
     console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
     
@@ -93,33 +94,20 @@ serve(async (req) => {
       // For testing/debugging - log the HTML content
       console.log("Email HTML content:", html.substring(0, 200) + "...");
       
-      const resendResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          from: fromAddress,
-          to: toArray,
-          subject: subject,
-          html: html
-        })
+      const { data, error } = await resend.emails.send({
+        from: fromAddress,
+        to: toArray,
+        subject: subject,
+        html: html
       });
       
-      // Log response status for debugging
-      console.log("Resend API response status:", resendResponse.status);
-      
-      const responseData = await resendResponse.json();
-      console.log("Resend API response data:", responseData);
-      
-      if (!resendResponse.ok) {
-        console.error("Error from Resend API:", responseData);
+      if (error) {
+        console.error("Error from Resend API:", error);
         return new Response(
           JSON.stringify({ 
             success: false,
-            error: responseData.message || "Failed to send email", 
-            details: JSON.stringify(responseData) 
+            error: error.message || "Failed to send email", 
+            details: JSON.stringify(error) 
           }),
           {
             status: 500,
@@ -128,12 +116,12 @@ serve(async (req) => {
         );
       }
       
-      console.log("Email sent successfully:", responseData);
+      console.log("Email sent successfully:", data);
       
       return new Response(
         JSON.stringify({ 
           success: true,
-          data: responseData
+          data: data
         }), 
         {
           status: 200,
