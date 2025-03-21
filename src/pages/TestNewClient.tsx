@@ -8,11 +8,20 @@ import { PageHeading } from "@/components/dashboard/PageHeading";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { generateClientTempPassword } from "@/utils/passwordUtils";
+import { sendEmail } from "@/utils/emailUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { Mail } from "lucide-react";
 
 export default function TestNewClient() {
   const navigate = useNavigate();
   const { mutateAsync: createClient, isPending } = useNewClientMutation();
   const [success, setSuccess] = useState(false);
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [clientEmail, setClientEmail] = useState<string | null>(null);
+  const [clientName, setClientName] = useState<string | null>(null);
+  const [isSendingInvitation, setIsSendingInvitation] = useState(false);
+  const [invitationSent, setInvitationSent] = useState(false);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
@@ -33,27 +42,107 @@ export default function TestNewClient() {
         };
       }
       
-      toast.loading("Creating client account and sending welcome email...");
+      toast.loading("Creating client account...");
       
       const result = await createClient(data);
       console.log("Client creation result:", result);
       
-      if (result.emailSent) {
-        toast.success(`Client created successfully! An email with login credentials has been sent to ${data.email}`);
-      } else {
-        toast.success("Client created successfully!");
-        toast.error(`However, the welcome email could not be sent: ${result.emailError || "Unknown error"}`);
-      }
+      toast.dismiss();
+      toast.success("Client created successfully!");
       
+      // Store client information for sending invitation later
+      setClientId(result.clientId);
+      setClientEmail(data.email);
+      setClientName(data.client_name);
       setSuccess(true);
     } catch (error) {
       console.error("Error creating client:", error);
+      toast.dismiss();
       toast.error(error instanceof Error && error.message ? error.message : "Failed to create client");
+    }
+  };
+
+  const handleSendInvitation = async () => {
+    if (!clientId || !clientEmail || !clientName) {
+      toast.error("Missing client information");
+      return;
+    }
+
+    try {
+      setIsSendingInvitation(true);
+      toast.loading("Sending invitation...");
+
+      // Generate temporary password
+      const tempPassword = generateClientTempPassword();
+      
+      // Store the temporary password
+      const { error: tempPasswordError } = await supabase
+        .from("client_temp_passwords")
+        .insert({
+          agent_id: clientId,
+          email: clientEmail,
+          temp_password: tempPassword
+        });
+        
+      if (tempPasswordError) {
+        throw new Error("Failed to save temporary password");
+      }
+      
+      // Send welcome email
+      const emailResult = await sendEmail({
+        to: clientEmail,
+        subject: "Welcome to Welcome.Chat - Your Account Details",
+        template: "client-invitation",
+        params: {
+          clientName: clientName,
+          email: clientEmail,
+          tempPassword: tempPassword,
+          productName: "Welcome.Chat"
+        }
+      });
+      
+      if (!emailResult.success) {
+        throw new Error(emailResult.error || "Failed to send invitation email");
+      }
+      
+      // Update invitation status
+      const { error: updateError } = await supabase
+        .from("ai_agents")
+        .update({ invitation_status: "sent" })
+        .eq("id", clientId);
+        
+      if (updateError) {
+        throw new Error("Failed to update invitation status");
+      }
+
+      // Log activity
+      await supabase
+        .from("client_activities")
+        .insert({
+          client_id: clientId,
+          activity_type: "system_update",
+          description: "Invitation email sent to client",
+          metadata: { email: clientEmail }
+        });
+      
+      toast.dismiss();
+      toast.success("Invitation sent successfully");
+      setInvitationSent(true);
+    } catch (error) {
+      console.error("Error sending invitation:", error);
+      toast.dismiss();
+      toast.error(error instanceof Error ? error.message : "Failed to send invitation");
+    } finally {
+      setIsSendingInvitation(false);
     }
   };
 
   const handleCreateAnother = () => {
     setSuccess(false);
+    setClientId(null);
+    setClientEmail(null);
+    setClientName(null);
+    setInvitationSent(false);
   };
 
   const handleGoToClients = () => {
@@ -68,7 +157,26 @@ export default function TestNewClient() {
         <Card className="p-6 mt-6">
           <div className="text-center">
             <h2 className="text-2xl font-semibold mb-4 text-green-600">Client Created Successfully!</h2>
-            <p className="mb-6">An email with login credentials has been sent to the client.</p>
+            
+            {invitationSent ? (
+              <div className="mb-6">
+                <p className="text-green-600 font-medium mb-2">Invitation email has been sent to the client.</p>
+                <p className="text-gray-600">They can now log in using the credentials provided in the email.</p>
+              </div>
+            ) : (
+              <div className="mb-6">
+                <p className="mb-4">Click the button below to send an invitation email with login credentials to this client.</p>
+                <Button 
+                  onClick={handleSendInvitation} 
+                  disabled={isSendingInvitation}
+                  className="mb-4"
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  {isSendingInvitation ? "Sending Invitation..." : "Send Invitation Email"}
+                </Button>
+              </div>
+            )}
+            
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button onClick={handleCreateAnother}>Create Another Client</Button>
               <Button variant="outline" onClick={handleGoToClients}>Go to Clients List</Button>

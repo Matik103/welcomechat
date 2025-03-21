@@ -26,6 +26,7 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
           <TableHead>AI Agent Name</TableHead>
           <TableHead>Description</TableHead>
           <TableHead>Status</TableHead>
+          <TableHead>Invitation</TableHead>
           <TableHead>Created</TableHead>
           <TableHead>Last Updated</TableHead>
           <TableHead>Last Active</TableHead>
@@ -35,7 +36,7 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
       <TableBody>
         {clients.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+            <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
               No clients found
             </TableCell>
           </TableRow>
@@ -68,6 +69,23 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
                     {client.status || 'active'}
                   </Badge>
                 </TableCell>
+                <TableCell>
+                  {client.invitation_status === "sent" ? (
+                    <Badge
+                      variant="default"
+                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"
+                    >
+                      Invitation Sent
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="secondary"
+                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700"
+                    >
+                      Pending Invitation
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-sm text-gray-500">
                   {client.created_at 
                     ? format(new Date(client.created_at), 'MMM d, yyyy')
@@ -90,6 +108,7 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
                   <ClientActions 
                     clientId={client.id} 
                     onDeleteClick={() => onDeleteClick(client)} 
+                    invitationStatus={client.invitation_status}
                   />
                 </TableCell>
               </TableRow>
