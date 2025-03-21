@@ -23,50 +23,34 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
     try {
       setIsSendingInvite(true);
       
-      // First, fetch the client data from the clients table to get the email
-      const { data: clientInfo, error: clientInfoError } = await supabase
-        .from("clients")
-        .select("email, client_name")
+      // Fetch all required data from the ai_agents table
+      const { data: agentData, error: agentError } = await supabase
+        .from("ai_agents")
+        .select("id, name, agent_description, email, client_name, client_id")
         .eq("id", clientId)
         .single();
       
-      if (clientInfoError || !clientInfo) {
-        console.error("Error fetching client info:", clientInfoError);
-        toast.error("Failed to fetch client info for invitation");
-        return;
-      }
-      
-      // Then fetch the agent data to get the name and description
-      const { data: agentData, error: agentError } = await supabase
-        .from("ai_agents")
-        .select("name, agent_description")
-        .eq("client_id", clientId)
-        .single();
-      
-      if (agentError) {
+      if (agentError || !agentData) {
         console.error("Error fetching agent data:", agentError);
         toast.error("Failed to fetch agent data for invitation");
         return;
       }
       
-      // Combine the data we need
-      const combinedData = {
-        email: clientInfo.email,
-        client_name: clientInfo.client_name,
-        name: agentData?.name || "AI Assistant",
-        agent_description: agentData?.agent_description || ""
-      };
+      console.log("Fetched data for invitation:", agentData);
       
-      console.log("Fetched data for invitation:", combinedData);
+      if (!agentData.email) {
+        toast.error("Client email is missing, cannot send invitation");
+        return;
+      }
       
       // Create a temporary password
       const { data: userData, error: userError } = await supabase.functions.invoke("create-client-user", {
         body: {
-          email: combinedData.email,
-          client_id: clientId,
-          client_name: combinedData.client_name,
-          agent_name: combinedData.name,
-          agent_description: combinedData.agent_description,
+          email: agentData.email,
+          client_id: agentData.client_id || clientId,
+          client_name: agentData.client_name || "",
+          agent_name: agentData.name || "AI Assistant",
+          agent_description: agentData.agent_description || "",
         }
       });
 
@@ -86,19 +70,19 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
       
       // Send invitation email
       const emailResult = await sendEmail({
-        to: combinedData.email,
+        to: agentData.email,
         subject: "Welcome to Welcome.Chat - Your Account Details",
         template: "client-invitation",
         params: {
-          clientName: combinedData.client_name,
-          email: combinedData.email,
+          clientName: agentData.client_name || "Client",
+          email: agentData.email,
           tempPassword: userData.temp_password,
           productName: "Welcome.Chat"
         }
       });
       
       if (emailResult.success) {
-        toast.success(`Invitation sent to ${combinedData.email}`);
+        toast.success(`Invitation sent to ${agentData.email}`);
       } else {
         console.error("Error sending invitation:", emailResult.message);
         toast.error(`Failed to send invitation: ${emailResult.message}`);
