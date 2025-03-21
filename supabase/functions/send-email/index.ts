@@ -1,181 +1,169 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
 
-// CORS headers for all responses
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',  // This allows requests from any origin 
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400', // 24 hours cache for preflight requests
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
+};
 
-// Define Resend API types
-interface ResendEmailResponse {
-  id?: string;
-  error?: {
-    message: string;
-    statusCode: number;
-  };
+interface EmailRequest {
+  to: string | string[];
+  subject: string;
+  html: string;
+  from?: string;
 }
 
 serve(async (req) => {
-  console.log("📩 Email function called:", req.method);
-  
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log("🔄 Handling OPTIONS request for CORS preflight");
+  if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
-      headers: corsHeaders,
-    })
-  }
-
-  // Get Resend API key from environment variables
-  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-  if (!RESEND_API_KEY) {
-    console.error('❌ Missing RESEND_API_KEY environment variable');
-    return new Response(
-      JSON.stringify({ error: 'Missing RESEND_API_KEY environment variable' }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
-      }
-    )
-  }
-
-  try {
-    console.log("✅ Starting email sending process with Resend");
-
-    // Parse request body
-    let requestBody;
-    try {
-      requestBody = await req.json();
-      console.log("✅ Request body parsed successfully:", {
-        to: requestBody.to,
-        subject: requestBody.subject,
-        fromProvided: !!requestBody.from,
-        htmlLength: requestBody.html ? requestBody.html.length : 0
-      });
-    } catch (parseError) {
-      console.error('❌ Error parsing request body:', parseError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid request body' }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        }
-      )
-    }
-
-    const { to, subject, html, from = 'Welcome.Chat <admin@welcome.chat>' } = requestBody;
-
-    // Validate request data
-    if (!to) {
-      console.error('❌ Missing required field: to');
-      return new Response(
-        JSON.stringify({ error: 'Missing required field: to' }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        }
-      )
-    }
-    
-    if (!subject) {
-      console.error('❌ Missing required field: subject');
-      return new Response(
-        JSON.stringify({ error: 'Missing required field: subject' }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        }
-      )
-    }
-    
-    if (!html) {
-      console.error('❌ Missing required field: html');
-      return new Response(
-        JSON.stringify({ error: 'Missing required field: html' }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        }
-      )
-    }
-
-    console.log(`📧 Sending email to ${to} with subject "${subject}"`);
-
-    // Send email using Resend API directly with fetch
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to,
-        subject,
-        html,
-      }),
+      headers: corsHeaders
     });
-
-    const responseData = await resendResponse.json() as ResendEmailResponse;
+  }
+  
+  try {
+    console.log("Send email function started");
     
-    if (!resendResponse.ok) {
-      const errorMessage = responseData.error?.message || 'Unknown error from Resend API';
-      console.error('❌ Resend API error:', errorMessage);
+    // Get the Resend API key from environment variable
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      console.error("ERROR: Missing RESEND_API_KEY environment variable");
       return new Response(
-        JSON.stringify({ error: errorMessage }),
+        JSON.stringify({ success: false, error: "Resend API key not configured", details: "Check function logs" }),
         {
-          status: resendResponse.status,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         }
-      )
+      );
     }
-
-    console.log('✅ Email sent successfully:', responseData);
     
-    // Return success response
-    return new Response(
-      JSON.stringify({ success: true, data: responseData }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
+    console.log("Initializing Resend client with API key");
+    const resend = new Resend(resendApiKey);
+    
+    // Parse request body
+    let body: EmailRequest;
+    try {
+      body = await req.json();
+      console.log("Request body parsed successfully:", { 
+        to: Array.isArray(body.to) ? body.to : [body.to], 
+        subject: body.subject,
+        fromProvided: !!body.from,
+        htmlLength: body.html?.length || 0
+      });
+    } catch (e) {
+      console.error("Error parsing JSON:", e);
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid JSON in request body", details: e.message }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    const { to, subject, html, from } = body;
+    
+    // Validate required parameters
+    if (!to || !subject || !html) {
+      const missingParams = [];
+      if (!to) missingParams.push("to");
+      if (!subject) missingParams.push("subject");
+      if (!html) missingParams.push("html");
+      
+      console.error("Missing required parameters:", missingParams.join(", "));
+      return new Response(
+        JSON.stringify({ success: false, error: `Missing required parameters: ${missingParams.join(", ")}` }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    // Ensure to is always an array
+    const toArray = Array.isArray(to) ? to : [to];
+    
+    // Send the email
+    const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
+    console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
+    
+    try {
+      // For testing/debugging - log the HTML content
+      console.log("Email HTML content:", html.substring(0, 200) + "...");
+      
+      const { data, error } = await resend.emails.send({
+        from: fromAddress,
+        to: toArray,
+        subject: subject,
+        html: html
+      });
+      
+      if (error) {
+        console.error("Error from Resend API:", error);
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: error.message || "Failed to send email", 
+            details: JSON.stringify(error) 
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
       }
-    )
-  } catch (error) {
-    console.error('❌ Error in send-email function:', error);
+      
+      console.log("Email sent successfully:", data);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          data: data
+        }), 
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    } catch (sendError) {
+      console.error("Resend API error details:", sendError);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: sendError.message || "Failed to send email",
+          details: JSON.stringify(sendError)
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+  } catch (error: any) {
+    console.error("Error in send-email function:", error);
+    
+    // Enhanced error details
+    const errorDetails = {
+      message: error.message || "Failed to send email",
+      code: error.code,
+      status: error.status,
+      name: error.name,
+      stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined
+    };
+    
     return new Response(
-      JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
+      JSON.stringify({ 
+        success: false,
+        error: errorDetails.message,
+        details: errorDetails
+      }), 
       {
         status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
-    )
+    );
   }
-})
+});

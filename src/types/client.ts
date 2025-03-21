@@ -1,4 +1,3 @@
-
 /**
  * Extended types for the client application
  */
@@ -26,7 +25,6 @@ export interface Client {
   error_type?: string;
   error_message?: string;
   response_time_ms?: number;
-  invitation_status?: "pending" | "sent";
 }
 
 export interface WidgetSettings {

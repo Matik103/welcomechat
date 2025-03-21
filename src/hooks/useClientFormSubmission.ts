@@ -20,9 +20,6 @@ export const useClientFormSubmission = (
   const handleSubmit = async (data: any) => {
     setIsLoading(true);
     try {
-      // Display initial feedback toast
-      const initialToastId = toast.loading(clientId ? "Updating client..." : "Creating client...");
-      
       // Check for agent name or description changes to log appropriate activity
       const widgetSettings = data.widget_settings || {};
 
@@ -42,7 +39,7 @@ export const useClientFormSubmission = (
             }
           }
         );
-        toast.success("Your information has been updated", { id: initialToastId });
+        toast.success("Your information has been updated");
       } else {
         if (clientId) {
           // Admin updating existing client
@@ -57,14 +54,12 @@ export const useClientFormSubmission = (
               }
             }
           );
-          toast.success("Client updated successfully", { id: initialToastId });
+          toast.success("Client updated successfully");
         } else {
           // Admin creating new client
           
           // If a temp password was generated as part of client creation, send welcome email
           if (typeof result === 'object' && result.agentId) {
-            toast.loading("Sending welcome email...", { id: initialToastId });
-            
             try {
               // Get the temporary password from client_temp_passwords
               const { data: tempPasswordData, error: tempPasswordError } = await supabase
@@ -77,10 +72,9 @@ export const useClientFormSubmission = (
               
               if (tempPasswordError || !tempPasswordData) {
                 console.error("Error retrieving temporary password:", tempPasswordError);
-                toast.error("Created client but failed to retrieve credentials", { id: initialToastId });
               } else {
                 // Send welcome email with credentials
-                const emailResult = await sendEmail({
+                await sendEmail({
                   to: data.email,
                   subject: "Welcome to Welcome.Chat - Your Account Details",
                   template: "client-invitation",
@@ -91,22 +85,14 @@ export const useClientFormSubmission = (
                     productName: "Welcome.Chat"
                   }
                 });
-                
-                if (!emailResult.success) {
-                  console.error("Email sending failed:", emailResult.error);
-                  toast.error("Client created but invitation email failed to send", { id: initialToastId });
-                } else {
-                  toast.success("Client created successfully and invitation sent", { id: initialToastId });
-                }
               }
             } catch (emailError) {
               console.error("Error sending welcome email:", emailError);
-              toast.error("Client created but invitation email failed to send", { id: initialToastId });
+              // Don't fail the operation if email fails
             }
-          } else {
-            toast.success("Client created successfully", { id: initialToastId });
           }
           
+          toast.success("Client created successfully and invitation sent");
           navigate('/admin/clients');
         }
       }
