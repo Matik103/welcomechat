@@ -13,7 +13,15 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
     console.error("ClientActions: clientId is undefined");
     return (
       <div className="flex items-center justify-end gap-2">
-        <span className="text-red-500 text-xs">Error: Missing client ID</span>
+        <button
+          onClick={onDeleteClick}
+          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+          title="Schedule Deletion"
+          aria-label="Schedule client deletion"
+          disabled
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     );
   }

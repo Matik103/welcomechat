@@ -59,8 +59,13 @@ export default function ClientList() {
           const clientName = settings.client_name || record.agent_name || 'Unnamed Client';
           const email = settings.email || '';
           
+          // Ensure ID is valid and not undefined/null
+          if (!record.id) {
+            console.warn("Client record is missing ID:", record);
+          }
+          
           const client: Client = {
-            id: record.id,
+            id: record.id || '',
             client_name: clientName,
             email: email, 
             agent_name: record.agent_name || '',
@@ -80,8 +85,16 @@ export default function ClientList() {
           return client;
         });
         
-        console.log("Total mapped clients:", mappedClients.length);
-        return mappedClients;
+        // Filter out any clients with empty IDs
+        const validClients = mappedClients.filter(client => client.id);
+        
+        if (mappedClients.length !== validClients.length) {
+          console.warn(`Filtered out ${mappedClients.length - validClients.length} clients with missing IDs`);
+          toast.warning(`${mappedClients.length - validClients.length} clients were hidden due to missing IDs`);
+        }
+        
+        console.log("Total valid clients:", validClients.length);
+        return validClients;
       } catch (err) {
         console.error('Error fetching clients:', err);
         toast.error('Failed to load clients');
