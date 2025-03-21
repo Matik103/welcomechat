@@ -49,12 +49,4 @@ supabase functions deploy chat --no-verify-jwt
 echo "Deploying create-openai-assistant function..."
 supabase functions deploy create-openai-assistant --no-verify-jwt
 
-# Deploy the process-document function
-echo "Deploying process-document function..."
-supabase functions deploy process-document --no-verify-jwt
-
-# Deploy the upload-document-to-assistant function
-echo "Deploying upload-document-to-assistant function..."
-supabase functions deploy upload-document-to-assistant --no-verify-jwt
-
 echo "Deployment complete!" 
