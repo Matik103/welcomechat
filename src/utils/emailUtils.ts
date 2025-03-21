@@ -17,6 +17,8 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
     // Generate HTML for the email based on the template and parameters
     const html = generateEmailHtml(options.template, options.params);
     
+    console.log("Generated HTML email content, calling send-email edge function...");
+    
     // Call the Supabase Edge Function
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
@@ -27,15 +29,15 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
     });
     
     if (error) {
-      console.error("Failed to send email:", error);
+      console.error("Failed to send email - Edge function error:", error);
       toast.error("Failed to send email");
       return {
         success: false,
-        message: error.message || "Unknown error occurred"
+        message: error.message || "Unknown error occurred while calling send-email function"
       };
     }
     
-    if (!data || !data.success) {
+    if (!data || data.success === false) {
       const errorMessage = data?.error || "Unknown error occurred";
       console.error("Email sending failed:", errorMessage);
       toast.error(`Failed to send email: ${errorMessage}`);

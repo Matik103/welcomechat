@@ -1,25 +1,27 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { Button } from '@/components/ui/button';
 import { Client } from '@/types/client';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, RefreshCw } from 'lucide-react';
 import { execSql } from '@/utils/rpcUtils';
 import { toast } from 'sonner';
 
 export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const queryClient = useQueryClient();
 
   // Fetch clients from ai_agents table where interaction_type is 'config'
   const { data: clients, isLoading, error, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: async (): Promise<Client[]> => {
       try {
+        console.log("Fetching clients from ai_agents table...");
         // Query the ai_agents table for config-type records (representing clients)
         const query = `
           SELECT 
@@ -49,6 +51,8 @@ export default function ClientList() {
           console.error('Invalid results from SQL query:', results);
           return [];
         }
+        
+        console.log(`Found ${results.length} clients in ai_agents table`);
         
         // Map the results to Client objects
         return results.map((record: any) => {
@@ -102,11 +106,13 @@ export default function ClientList() {
 
   // Refresh the client list when component mounts
   useEffect(() => {
+    console.log("ClientList component mounted, refreshing data...");
     refetch();
   }, [refetch]);
 
   useEffect(() => {
     if (clients) {
+      console.log(`Filtering ${clients.length} clients with search query: "${searchQuery}"`);
       // Filter clients based on search query
       const filtered = clients.filter(client => {
         const searchLower = searchQuery.toLowerCase();
@@ -118,11 +124,18 @@ export default function ClientList() {
         );
       });
       setFilteredClients(filtered);
+      console.log(`Found ${filtered.length} clients matching search criteria`);
     }
   }, [clients, searchQuery]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
+  };
+
+  const handleRefresh = () => {
+    console.log("Manually refreshing client list...");
+    queryClient.invalidateQueries({ queryKey: ['clients'] });
+    toast.success("Refreshing client list...");
   };
 
   if (error) {
@@ -137,6 +150,7 @@ export default function ClientList() {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
           Failed to load clients. Please try refreshing the page.
         </div>
+        <Button onClick={handleRefresh}>Retry</Button>
       </div>
     );
   }
@@ -150,12 +164,22 @@ export default function ClientList() {
             View and manage all your clients
           </p>
         </PageHeading>
-        <Link to="/admin/clients/new">
-          <Button className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Add Client
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleRefresh} 
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
           </Button>
-        </Link>
+          <Link to="/admin/clients/new">
+            <Button className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Add Client
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <ClientSearchBar 

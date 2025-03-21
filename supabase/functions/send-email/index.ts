@@ -32,7 +32,7 @@ serve(async (req) => {
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
       return new Response(
-        JSON.stringify({ error: "Resend API key not configured", details: "Check function logs" }),
+        JSON.stringify({ success: false, error: "Resend API key not configured", details: "Check function logs" }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -56,7 +56,7 @@ serve(async (req) => {
     } catch (e) {
       console.error("Error parsing JSON:", e);
       return new Response(
-        JSON.stringify({ error: "Invalid JSON in request body", details: e.message }), 
+        JSON.stringify({ success: false, error: "Invalid JSON in request body", details: e.message }), 
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -75,7 +75,7 @@ serve(async (req) => {
       
       console.error("Missing required parameters:", missingParams.join(", "));
       return new Response(
-        JSON.stringify({ error: `Missing required parameters: ${missingParams.join(", ")}` }),
+        JSON.stringify({ success: false, error: `Missing required parameters: ${missingParams.join(", ")}` }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -105,6 +105,7 @@ serve(async (req) => {
         console.error("Error from Resend API:", error);
         return new Response(
           JSON.stringify({ 
+            success: false,
             error: error.message || "Failed to send email", 
             details: JSON.stringify(error) 
           }),
@@ -131,6 +132,7 @@ serve(async (req) => {
       console.error("Resend API error details:", sendError);
       return new Response(
         JSON.stringify({ 
+          success: false,
           error: sendError.message || "Failed to send email",
           details: JSON.stringify(sendError)
         }),
@@ -154,6 +156,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
+        success: false,
         error: errorDetails.message,
         details: errorDetails
       }), 
