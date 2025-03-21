@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -40,7 +39,6 @@ const ClientView = () => {
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   useEffect(() => {
-    // Handle potential client error
     if (clientError) {
       toast.error("Failed to load client information");
       console.error("Client error:", clientError);
@@ -112,7 +110,6 @@ const ClientView = () => {
       try {
         setIsLoadingStats(true);
         
-        // Get agent name from client data for stats query
         const agentNameQuery = `
           SELECT name 
           FROM ai_agents 
@@ -125,7 +122,6 @@ const ClientView = () => {
         let agentName = 'AI Assistant';
         
         if (agentResult && Array.isArray(agentResult) && agentResult.length > 0) {
-          // Since we're accessing a property that might not exist, we need to safely access it
           const firstResult = agentResult[0];
           if (firstResult && typeof firstResult === 'object' && 'name' in firstResult) {
             agentName = firstResult.name as string || 'AI Assistant';
@@ -139,11 +135,9 @@ const ClientView = () => {
         const result = await execSql(query);
         
         if (result && Array.isArray(result) && result.length > 0) {
-          // First, access the result safely
           const statsResult = result[0];
           
           try {
-            // Extract dashboard stats, handling both string and object formats
             let statsData: any;
             
             if (statsResult && typeof statsResult === 'object' && 'get_agent_dashboard_stats' in statsResult) {
@@ -154,14 +148,12 @@ const ClientView = () => {
                 statsData = rawData;
               }
               
-              // Transform the data into the expected InteractionStats format with null checks
               const formattedStats: InteractionStatsType = {
                 total_interactions: statsData?.total_interactions || 0,
                 active_days: statsData?.active_days || 0,
                 average_response_time: statsData?.average_response_time || 0,
                 top_queries: statsData?.top_queries || [],
                 success_rate: statsData?.success_rate || 0,
-                // Add the camelCase versions for frontend consistency
                 totalInteractions: statsData?.total_interactions || 0,
                 activeDays: statsData?.active_days || 0,
                 averageResponseTime: statsData?.average_response_time || 0,
@@ -221,7 +213,6 @@ const ClientView = () => {
     );
   }
 
-  // Extract client information
   const clientName = client.client_name || 'Unnamed Client';
   const agentName = client.agent_name || client.name || 'AI Assistant';
   const agentDescription = client.description || 'No description provided';
@@ -264,7 +255,6 @@ const ClientView = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 space-y-6">
-          {/* Client Information Card */}
           <Card>
             <CardHeader>
               <CardTitle>Client Information</CardTitle>
@@ -313,7 +303,6 @@ const ClientView = () => {
             </CardContent>
           </Card>
 
-          {/* Stats Dashboard */}
           <Card>
             <CardHeader>
               <CardTitle>Performance Metrics</CardTitle>
@@ -338,13 +327,11 @@ const ClientView = () => {
             </CardContent>
           </Card>
 
-          {/* Common Queries */}
           <QueryList 
             queries={commonQueries} 
             isLoading={isLoadingCommonQueries} 
           />
 
-          {/* Recent Chat History */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Chat History</CardTitle>
@@ -398,19 +385,16 @@ const ClientView = () => {
         </div>
 
         <div className="lg:col-span-4 space-y-6">
-          {/* Client Stats */}
           <ClientStats 
             clientId={clientId} 
             agentName={agentName} 
           />
 
-          {/* Error Logs */}
           <ErrorLogList 
             logs={errorLogs} 
             isLoading={isLoadingErrorLogs} 
           />
 
-          {/* Widget Settings */}
           <Card>
             <CardHeader>
               <CardTitle>Widget Settings</CardTitle>
@@ -436,7 +420,6 @@ const ClientView = () => {
             </CardContent>
           </Card>
           
-          {/* Last Activity */}
           <Card>
             <CardHeader>
               <CardTitle>Activity</CardTitle>
