@@ -1,10 +1,7 @@
 
-import { useState } from "react";
-import { Eye, MessageSquare, Edit, Trash2, UserPlus } from "lucide-react";
+import { Eye, MessageSquare, Edit, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { sendEmail } from "@/utils/emailUtils";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ClientActionsProps {
   clientId: string;
@@ -12,89 +9,6 @@ interface ClientActionsProps {
 }
 
 export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) => {
-  const [isSendingInvite, setIsSendingInvite] = useState(false);
-
-  const handleSendInvitation = async () => {
-    if (!clientId) {
-      toast.error("Client ID is required to send invitation");
-      return;
-    }
-
-    try {
-      setIsSendingInvite(true);
-      
-      // Fetch all required data from the ai_agents table
-      const { data: agentData, error: agentError } = await supabase
-        .from("ai_agents")
-        .select("id, name, agent_description, email, client_name, client_id")
-        .eq("id", clientId)
-        .single();
-      
-      if (agentError || !agentData) {
-        console.error("Error fetching agent data:", agentError);
-        toast.error("Failed to fetch agent data for invitation");
-        return;
-      }
-      
-      console.log("Fetched data for invitation:", agentData);
-      
-      if (!agentData.email) {
-        toast.error("Client email is missing, cannot send invitation");
-        return;
-      }
-      
-      // Create a temporary password
-      const { data: userData, error: userError } = await supabase.functions.invoke("create-client-user", {
-        body: {
-          email: agentData.email,
-          client_id: agentData.client_id || clientId,
-          client_name: agentData.client_name || "",
-          agent_name: agentData.name || "AI Assistant",
-          agent_description: agentData.agent_description || "",
-        }
-      });
-
-      if (userError) {
-        console.error("Error creating user account:", userError);
-        toast.error("Failed to create user account for invitation");
-        return;
-      }
-      
-      if (!userData || !userData.temp_password) {
-        console.error("No temporary password was generated", userData);
-        toast.error("Failed to generate temporary password");
-        return;
-      }
-      
-      console.log("Generated temp password for invitation");
-      
-      // Send invitation email
-      const emailResult = await sendEmail({
-        to: agentData.email,
-        subject: "Welcome to Welcome.Chat - Your Account Details",
-        template: "client-invitation",
-        params: {
-          clientName: agentData.client_name || "Client",
-          email: agentData.email,
-          tempPassword: userData.temp_password,
-          productName: "Welcome.Chat"
-        }
-      });
-      
-      if (emailResult.success) {
-        toast.success(`Invitation sent to ${agentData.email}`);
-      } else {
-        console.error("Error sending invitation:", emailResult.message);
-        toast.error(`Failed to send invitation: ${emailResult.message}`);
-      }
-    } catch (error) {
-      console.error("Error sending invitation:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to send invitation");
-    } finally {
-      setIsSendingInvite(false);
-    }
-  };
-
   if (!clientId) {
     console.error("Missing client ID in ClientActions", clientId);
     toast.error("Missing client ID for actions");
@@ -143,15 +57,6 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
       >
         <Edit className="w-4 h-4" />
       </Link>
-      <button
-        onClick={handleSendInvitation}
-        className="p-1 text-gray-400 hover:text-green-600 transition-colors"
-        title="Send Invitation"
-        aria-label="Send client invitation"
-        disabled={isSendingInvite}
-      >
-        <UserPlus className="w-4 h-4" />
-      </button>
       <button
         onClick={onDeleteClick}
         className="p-1 text-gray-400 hover:text-red-600 transition-colors"

@@ -44,13 +44,9 @@ serve(async (req) => {
     );
     
     // Parse the request body
-    const requestData = await req.json();
-    console.log("Request data received:", JSON.stringify(requestData));
-    
-    const { email, client_id, client_name, agent_name, agent_description } = requestData;
+    const { email, client_id, client_name, agent_name, agent_description, logo_url, logo_storage_path } = await req.json();
     
     if (!email || !client_id) {
-      console.error("Missing required parameters:", { email, client_id });
       return new Response(
         JSON.stringify({ error: "Email and client_id are required" }),
         { 
@@ -72,8 +68,7 @@ serve(async (req) => {
     // Generate a temporary password for this client
     const tempPassword = generateSecurePassword();
     
-    console.log("Generated temporary password for client:", client_id);
-    console.log("Attempting to store temp password for client");
+    console.log("Attempting to store temp password for client:", client_id);
     
     // Store the temporary password in the database using service role
     const { error: tempPasswordError } = await supabase
@@ -94,17 +89,11 @@ serve(async (req) => {
     // Attempt to create auth user (or update existing one)
     try {
       // Check if user already exists
-      const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
-      
-      if (listError) {
-        console.error("Error listing users:", listError);
-      }
-      
+      const { data: existingUsers } = await supabase.auth.admin.listUsers();
       const existingUser = existingUsers?.users?.find(u => u.email === email);
       
       if (existingUser) {
         // Update existing user
-        console.log("User already exists, updating:", existingUser.id);
         await supabase.auth.admin.updateUserById(existingUser.id, {
           password: tempPassword,
           user_metadata: {
@@ -115,7 +104,6 @@ serve(async (req) => {
         console.log("Updated existing user:", existingUser.id);
       } else {
         // Create new user
-        console.log("Creating new user with email:", email);
         const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
           email,
           password: tempPassword,
