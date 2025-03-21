@@ -1,3 +1,4 @@
+
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -78,6 +79,7 @@ function App() {
           <Route path="/admin/clients" element={<ClientList />} />
           <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/clients/new" element={<AddEditClient />} />
+          <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />

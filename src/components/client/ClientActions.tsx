@@ -11,7 +11,7 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
   return (
     <div className="flex items-center justify-end gap-2">
       <Link
-        to={`/admin/clients/${clientId}`}
+        to={`/admin/clients/view/${clientId}`}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
         title="View Client"
       >

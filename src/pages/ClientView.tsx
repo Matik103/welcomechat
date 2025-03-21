@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -6,20 +7,18 @@ import {
   Clock, 
   Globe, 
   FileText, 
-  Trash2, 
   Settings, 
   PlusCircle, 
   History,
-  Edit 
+  Edit,
+  User,
+  Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { PageHeading } from '@/components/dashboard/PageHeading';
-import { ExecutionStatus } from '@/components/client/ExecutionStatus';
 import { ClientStats } from '@/components/client/ClientStats';
-import { ClientDetails } from '@/components/client/ClientDetails';
-import { ClientActivity } from '@/components/client/ClientActivity';
 import { execSql } from '@/utils/rpcUtils';
 import { useClientChatHistory } from '@/hooks/useClientChatHistory';
 import { ChatInteraction } from '@/types/agent';
@@ -31,7 +30,7 @@ const ClientView = () => {
   const { clientId = '' } = useParams();
   const [clientData, setClientData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { chatHistory, isLoading: isLoadingChatHistory, debug } = useClientChatHistory(clientId);
+  const { chatHistory, isLoading: isLoadingChatHistory } = useClientChatHistory(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   const { data: activitiesData, isLoading: isLoadingActivities } = useRecentActivities();
   const activities = activitiesData || [];
@@ -64,43 +63,6 @@ const ClientView = () => {
     fetchClient();
   }, [clientId]);
 
-  const [websiteUrls, setWebsiteUrls] = useState<any[]>([]);
-  const [documentLinks, setDocumentLinks] = useState<any[]>([]);
-  
-  useEffect(() => {
-    const fetchResources = async () => {
-      if (!clientId) return;
-      
-      try {
-        const websiteUrlsQuery = `
-          SELECT * FROM website_urls 
-          WHERE client_id = '${clientId}' 
-          ORDER BY created_at DESC
-        `;
-        
-        const websiteUrlsResult = await execSql(websiteUrlsQuery);
-        if (websiteUrlsResult && Array.isArray(websiteUrlsResult)) {
-          setWebsiteUrls(websiteUrlsResult);
-        }
-        
-        const documentLinksQuery = `
-          SELECT * FROM document_links 
-          WHERE client_id = '${clientId}' 
-          ORDER BY created_at DESC
-        `;
-        
-        const documentLinksResult = await execSql(documentLinksQuery);
-        if (documentLinksResult && Array.isArray(documentLinksResult)) {
-          setDocumentLinks(documentLinksResult);
-        }
-      } catch (error) {
-        console.error('Error fetching resources:', error);
-      }
-    };
-    
-    fetchResources();
-  }, [clientId]);
-
   if (isLoading) {
     return (
       <div className="container py-12 flex justify-center items-center">
@@ -124,11 +86,12 @@ const ClientView = () => {
     );
   }
 
-  const clientName = clientData.client_name || 'Unnamed Client';
-  const agentName = clientData.name || 'AI Assistant';
-
-  const totalWebsiteUrls = websiteUrls.length;
-  const totalDocumentLinks = documentLinks.length;
+  // Extract client information from settings or direct fields
+  const settings = clientData.settings || {};
+  const clientName = settings.client_name || clientData.client_name || 'Unnamed Client';
+  const agentName = clientData.name || settings.agent_name || 'AI Assistant';
+  const agentDescription = clientData.agent_description || settings.agent_description || 'No description provided';
+  const email = settings.email || clientData.email || 'No email provided';
 
   return (
     <div className="container py-8">
@@ -151,20 +114,56 @@ const ClientView = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 space-y-6">
+          {/* Client Information Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Client Details</CardTitle>
+              <CardTitle>Client Information</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ClientDetails 
-                client={clientData} 
-                clientId={clientId} 
-                isClientView={false}
-                logClientActivity={logClientActivity}
-              />
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <User className="h-4 w-4" /> Client Name
+                  </h3>
+                  <p className="font-semibold">{clientName}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <Bot className="h-4 w-4" /> AI Agent Name
+                  </h3>
+                  <p className="font-semibold">{agentName}</p>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" /> Agent Description
+                </h3>
+                <p className="mt-1">{agentDescription}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                <p>{email}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Created At</h3>
+                  <p className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {formatDate(clientData.created_at)}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
+                  <p className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {formatDate(clientData.updated_at)}
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
+          {/* Recent Chat History */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Chat History</CardTitle>
@@ -214,107 +213,16 @@ const ClientView = () => {
               )}
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Resources</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/admin/clients/${clientId}/resources`}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Manage Resources
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-medium flex items-center mb-2">
-                    <Globe className="mr-2 h-4 w-4" />
-                    Website URLs
-                  </h3>
-                  {totalWebsiteUrls === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No website URLs added yet
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {websiteUrls.slice(0, 3).map((url) => (
-                        <div key={url.id} className="flex justify-between items-center">
-                          <a
-                            href={url.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:underline"
-                          >
-                            {url.url.length > 40
-                              ? `${url.url.substring(0, 40)}...`
-                              : url.url}
-                          </a>
-                        </div>
-                      ))}
-                      {totalWebsiteUrls > 3 && (
-                        <div className="text-sm text-muted-foreground">
-                          +{totalWebsiteUrls - 3} more URLs
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-medium flex items-center mb-2">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Document Links
-                  </h3>
-                  {totalDocumentLinks === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No document links added yet
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {documentLinks.slice(0, 3).map((link) => (
-                        <div key={link.id} className="flex justify-between items-center">
-                          <a
-                            href={link.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:underline"
-                          >
-                            {link.link.length > 40
-                              ? `${link.link.substring(0, 40)}...`
-                              : link.link}
-                          </a>
-                          <span className="text-xs capitalize px-2 py-1 bg-gray-100 rounded-full">
-                            {link.document_type}
-                          </span>
-                        </div>
-                      ))}
-                      {totalDocumentLinks > 3 && (
-                        <div className="text-sm text-muted-foreground">
-                          +{totalDocumentLinks - 3} more documents
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="mt-10">
-            <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-            <ClientActivity 
-              activities={activities || []} 
-              isLoading={isLoadingActivities} 
-            />
-          </div>
         </div>
 
         <div className="lg:col-span-4 space-y-6">
+          {/* Client Stats */}
           <ClientStats 
             clientId={clientId} 
             agentName={agentName} 
           />
 
+          {/* Widget Settings */}
           <Card>
             <CardHeader>
               <CardTitle>Widget Settings</CardTitle>
@@ -327,7 +235,7 @@ const ClientView = () => {
               <div>
                 <span className="font-medium">Agent Description:</span>
                 <div className="mt-1">
-                  {clientData.agent_description || 'No description set'}
+                  {agentDescription}
                 </div>
               </div>
               <Separator className="my-4" />
