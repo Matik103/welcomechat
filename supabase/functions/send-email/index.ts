@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -13,6 +12,7 @@ interface EmailRequest {
   subject: string;
   html: string;
   from?: string;
+  action?: string;
 }
 
 serve(async (req) => {
@@ -27,6 +27,42 @@ serve(async (req) => {
   try {
     console.log("Send email function started");
     
+    // Parse request body
+    let body: EmailRequest;
+    try {
+      body = await req.json();
+      console.log("Request body received:", {
+        to: Array.isArray(body.to) ? body.to : [body.to],
+        subject: body.subject,
+        from: body.from || "default",
+        htmlLength: body.html?.length || 0,
+        action: body.action
+      });
+    } catch (e) {
+      console.error("Error parsing JSON:", e);
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid JSON in request body", details: e.message }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    // Special handling for getting logs (for debugging)
+    if (body.action === "get-logs") {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Logs endpoint not implemented yet" 
+        }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
     // Get the Resend API key from environment variable
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     console.log("Resend API Key present:", !!resendApiKey, "First 5 chars:", resendApiKey?.substring(0, 5) || "NONE");
@@ -39,28 +75,7 @@ serve(async (req) => {
     console.log("Initializing Resend client with API key");
     const resend = new Resend(resendApiKey);
     
-    // Parse request body
-    let body: EmailRequest;
-    try {
-      body = await req.json();
-      console.log("Request body received:", {
-        to: Array.isArray(body.to) ? body.to : [body.to],
-        subject: body.subject,
-        from: body.from || "default",
-        htmlLength: body.html?.length || 0
-      });
-    } catch (e) {
-      console.error("Error parsing JSON:", e);
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid JSON in request body", details: e.message }), 
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    const { to, subject, html, from } = body;
+    const { to, subject, html } = body;
     
     // Validate required parameters
     if (!to || !subject || !html) {
@@ -106,8 +121,8 @@ serve(async (req) => {
       }
     }
     
-    // Send the email
-    const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
+    // Send the email with a verified domain
+    const fromAddress = "Welcome.Chat <noreply@welcomeai.io>";
     console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
     
     try {
@@ -118,7 +133,8 @@ serve(async (req) => {
         from: fromAddress,
         to: toArray,
         subject: subject,
-        html: html
+        html: html,
+        reply_to: "support@welcomeai.io"
       });
       
       if (error) {
