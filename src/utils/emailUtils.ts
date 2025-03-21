@@ -28,6 +28,7 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
     console.log("Sending email to:", options.to);
     console.log("Email subject:", options.subject);
     console.log("Email template:", options.template);
+    console.log("From address:", options.from || "Welcome.Chat <admin@welcome.chat>");
     
     let html = options.html || "";
     

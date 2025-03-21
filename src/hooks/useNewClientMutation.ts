@@ -166,6 +166,8 @@ export const useNewClientMutation = () => {
             }
           });
           
+          toast.dismiss(); // Clear the loading toast
+          
           console.log("Welcome email result:", emailResult);
           
           if (!emailResult.success) {
@@ -180,6 +182,7 @@ export const useNewClientMutation = () => {
           }
           
           console.log("Welcome email sent successfully");
+          toast.success("Welcome email sent successfully!");
           
           return {
             clientId: clientId,
