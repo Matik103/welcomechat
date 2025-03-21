@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client-form";
 import { saveClientTempPassword, generateTempPassword, logClientCreationActivity } from "@/utils/clientCreationUtils";
+import { sendWelcomeEmail } from "@/utils/emailUtils";
 
 export const useNewClientMutation = () => {
   return useMutation({
@@ -49,44 +50,18 @@ export const useNewClientMutation = () => {
           data.widget_settings?.agent_name || "AI Assistant"
         );
         
-        // Call the edge function to send the welcome email
-        let emailSent = false;
-        let emailError = null;
-        
-        try {
-          const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
-            'send-welcome-email', 
-            {
-              body: {
-                clientId: clientData.id,
-                clientName: data.client_name,
-                email: data.email,
-                agentName: data.widget_settings?.agent_name || "AI Assistant",
-                tempPassword: tempPassword
-              }
-            }
-          );
-          
-          if (emailFnError) {
-            console.error("Email function error:", emailFnError);
-            emailError = emailFnError.message;
-          } else if (emailResult && !emailResult.success) {
-            console.error("Email sending failed:", emailResult.error);
-            emailError = emailResult.error || "Unknown error sending email";
-          } else {
-            emailSent = true;
-            console.log("Welcome email sent successfully");
-          }
-        } catch (emailErr: any) {
-          console.error("Exception sending email:", emailErr);
-          emailError = emailErr.message || "Exception occurred sending email";
-        }
+        // Send welcome email directly using the email utility (which uses the send-email edge function)
+        const emailResult = await sendWelcomeEmail(
+          data.email,
+          data.client_name,
+          tempPassword
+        );
         
         // Return the client data and email status
         return {
           client: clientData,
-          emailSent,
-          emailError
+          emailSent: emailResult.emailSent,
+          emailError: emailResult.emailError
         };
       } catch (error: any) {
         console.error("Error in useNewClientMutation:", error);

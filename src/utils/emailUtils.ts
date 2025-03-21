@@ -147,7 +147,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
           to: options.to,
           subject: options.subject,
           html: html,
-          from: options.from
+          from: options.from || "Welcome.Chat <admin@welcome.chat>"
         }
       });
       
