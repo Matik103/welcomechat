@@ -23,6 +23,7 @@ import { useClient } from '@/hooks/useClient';
 import { ErrorLogList } from '@/components/client-dashboard/ErrorLogList';
 import { QueryList } from '@/components/client-dashboard/QueryList';
 import { InteractionStats } from '@/components/client-dashboard/InteractionStats';
+import { InteractionStats as InteractionStatsType } from '@/types/client-dashboard';
 
 const ClientView = () => {
   const { clientId = '' } = useParams();
@@ -32,7 +33,7 @@ const ClientView = () => {
   const [commonQueries, setCommonQueries] = useState([]);
   const [isLoadingErrorLogs, setIsLoadingErrorLogs] = useState(true);
   const [isLoadingCommonQueries, setIsLoadingCommonQueries] = useState(true);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState<InteractionStatsType | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   useEffect(() => {
@@ -107,7 +108,30 @@ const ClientView = () => {
         const result = await execSql(query);
         
         if (result && Array.isArray(result) && result.length > 0) {
-          setStats(result[0].get_agent_dashboard_stats);
+          // Parse the JSON string if needed
+          let statsData;
+          if (typeof result[0].get_agent_dashboard_stats === 'string') {
+            statsData = JSON.parse(result[0].get_agent_dashboard_stats);
+          } else {
+            statsData = result[0].get_agent_dashboard_stats;
+          }
+          
+          // Transform the data into the expected InteractionStats format
+          const formattedStats: InteractionStatsType = {
+            total_interactions: statsData.total_interactions || 0,
+            active_days: statsData.active_days || 0,
+            average_response_time: statsData.average_response_time || 0,
+            top_queries: statsData.top_queries || [],
+            success_rate: statsData.success_rate || 0,
+            // Add the camelCase versions for frontend consistency
+            totalInteractions: statsData.total_interactions || 0,
+            activeDays: statsData.active_days || 0,
+            averageResponseTime: statsData.average_response_time || 0,
+            topQueries: statsData.top_queries || [],
+            successRate: statsData.success_rate || 0
+          };
+          
+          setStats(formattedStats);
         }
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -278,7 +302,7 @@ const ClientView = () => {
                         </div>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {chat.response.length > 200
+                        {chat.response && chat.response.length > 200
                           ? `${chat.response.substring(0, 200)}...`
                           : chat.response}
                       </div>
