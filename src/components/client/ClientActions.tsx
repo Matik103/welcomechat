@@ -8,6 +8,11 @@ interface ClientActionsProps {
 }
 
 export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) => {
+  // Add a check to ensure clientId is defined before using it
+  if (!clientId) {
+    console.error("ClientActions: clientId is undefined");
+  }
+  
   return (
     <div className="flex items-center justify-end gap-2">
       <Link

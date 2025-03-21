@@ -1,7 +1,7 @@
 
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import ClientList from "@/pages/ClientList";
@@ -18,6 +18,12 @@ import EditClientInfo from "@/pages/EditClientInfo";
 import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
 import { useEffect } from "react";
+
+// Create a redirect component that preserves the clientId parameter
+const ClientRedirect = () => {
+  const { clientId } = useParams();
+  return <Navigate to={`/admin/clients/view/${clientId}`} replace />;
+};
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
@@ -83,8 +89,8 @@ function App() {
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:clientId/edit-info" element={<EditClientInfo />} />
           <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
-          {/* Redirect the old route to the new view route */}
-          <Route path="/admin/clients/:clientId" element={<Navigate to="/admin/clients/view/:clientId" replace />} />
+          {/* Use the ClientRedirect component to properly preserve the clientId parameter */}
+          <Route path="/admin/clients/:clientId" element={<ClientRedirect />} />
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
           <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
