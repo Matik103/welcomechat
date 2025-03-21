@@ -54,11 +54,11 @@ export const DeleteClientDialog = ({
       const deletionDate = new Date();
       deletionDate.setDate(deletionDate.getDate() + 30);
 
-      // Update the ai_agents table instead of clients
+      // Update the ai_agents table only
       const { error } = await supabase
         .from("ai_agents")
         .update({
-          status: "deleted" as ClientStatus,
+          status: "deleted" as ClientStatus, // Change to "deleted" so it's immediately removed from the list
           deletion_scheduled_at: deletionDate.toISOString(),
         })
         .eq("id", client.id);
@@ -67,35 +67,76 @@ export const DeleteClientDialog = ({
         throw error;
       }
 
-      // Send deletion notification email
+      // Send deletion notification email - only after successful database update
       setIsSendingEmail(true);
       const toastId = toast.loading("Sending notification email...");
       
       try {
-        const emailResult = await sendDeletionEmail(client);
-        
+        // Call the edge function directly - no redundant client-side wrappers
+        const { data, error: emailError } = await supabase.functions.invoke('send-deletion-email', {
+          body: {
+            clientId: client.id,
+            clientName: client.client_name,
+            email: client.email,
+            agentName: client.agent_name
+          }
+        });
+
         toast.dismiss(toastId);
-        if (emailResult.success) {
-          toast.success(`Client scheduled for deletion and notification email sent to ${client.email}`);
-        } else {
-          console.error("Email sending failed:", emailResult);
-          toast.error(`Client scheduled for deletion but failed to send notification email: ${emailResult.error || "Unknown error"}`, {
-            description: emailResult.details ? `Details: ${emailResult.details.substring(0, 200)}` : undefined,
+        
+        if (emailError) {
+          console.error("Email sending error:", emailError);
+          
+          // Log the failed email attempt
+          await createClientActivity(
+            client.id,
+            "system_update",
+            `Failed to send deletion email to client ${client.client_name}`,
+            { 
+              error: emailError.message,
+              action: "deletion_email_failed",
+              client_name: client.client_name,
+              admin_action: true
+            }
+          );
+          
+          toast.error(`Client scheduled for deletion but failed to send notification email: ${emailError.message}`, {
             duration: 6000
           });
+        } else if (data && !data.success) {
+          console.error("Email function returned error:", data);
+          
+          toast.error(`Client scheduled for deletion but failed to send notification email: ${data.error || "Unknown error"}`, {
+            duration: 6000
+          });
+        } else {
+          // Success - log the activity
+          await createClientActivity(
+            client.id,
+            "email_sent",
+            `Deletion notification email sent to ${client.client_name}`,
+            { 
+              recipient_email: client.email,
+              email_type: "deletion_notification",
+              client_name: client.client_name,
+              admin_action: true,
+              successful: true
+            }
+          );
+          
+          toast.success(`Client scheduled for deletion and notification email sent to ${client.email}`);
         }
       } catch (emailErr: any) {
         toast.dismiss(toastId);
-        console.error("Email sending exception:", emailErr);
-        toast.error(`Failed to send notification email: ${emailErr.message || "Unknown error"}`, {
-          description: "Please check Edge Function logs for more details",
+        console.error("Error sending email:", emailErr);
+        toast.error(`Client scheduled for deletion but failed to send notification email: ${emailErr.message || "Unknown error"}`, {
           duration: 6000
         });
       } finally {
         setIsSendingEmail(false);
       }
       
-      // Let the parent component know to update the list and log the activity
+      // Let the parent component know to update the list
       onClientsUpdated();
       onOpenChange(false);
     } catch (error: any) {
@@ -118,131 +159,6 @@ export const DeleteClientDialog = ({
     } finally {
       setIsDeleting(false);
       setConfirmText("");
-    }
-  };
-
-  const sendDeletionEmail = async (client: Client): Promise<{success: boolean, error?: string, details?: string}> => {
-    if (!client.email || !client.client_name) {
-      console.error("Missing client email or name for deletion notification");
-      
-      // Log the failed email attempt
-      await createClientActivity(
-        client.id,
-        "system_update",
-        `Failed to send deletion email to client ${client.client_name}`,
-        { 
-          error: "Missing client email or name",
-          action: "deletion_email_failed",
-          client_name: client.client_name,
-          admin_action: true
-        }
-      );
-      
-      return { success: false, error: "Missing client email or name" };
-    }
-
-    try {
-      // Log that we're attempting to send the email
-      await createClientActivity(
-        client.id,
-        "email_sent",
-        `Sending deletion notification email to ${client.client_name}`,
-        { 
-          recipient_email: client.email,
-          email_type: "deletion_notification",
-          client_name: client.client_name,
-          admin_action: true
-        }
-      );
-      
-      console.log("Invoking Edge Function with payload:", {
-        clientId: client.id,
-        clientName: client.client_name,
-        email: client.email,
-        agentName: client.name
-      });
-      
-      const { data, error } = await supabase.functions.invoke('send-deletion-email', {
-        body: {
-          clientId: client.id,
-          clientName: client.client_name,
-          email: client.email,
-          agentName: client.name
-        }
-      });
-
-      if (error) {
-        console.error("Error invoking send-deletion-email function:", error);
-        
-        // Log the failed email
-        await createClientActivity(
-          client.id,
-          "system_update",
-          `Failed to send deletion email to client ${client.client_name}`,
-          { 
-            error: error.message,
-            action: "deletion_email_failed",
-            client_name: client.client_name,
-            recipient_email: client.email,
-            admin_action: true
-          }
-        );
-        
-        return { 
-          success: false, 
-          error: `Edge Function Error: ${error.message}`,
-          details: `Status: ${error.status || 'unknown'}, Name: ${error.name || 'unknown'}`
-        };
-      } else {
-        console.log("Deletion email sent successfully:", data);
-        
-        // Check if the response indicates an error
-        if (data && !data.success) {
-          console.error("Function returned failure:", data);
-          return { 
-            success: false, 
-            error: data.error || "Function reported failure", 
-            details: data.details || "No details provided"
-          };
-        }
-        
-        // Log successful email
-        await createClientActivity(
-          client.id,
-          "email_sent",
-          `Deletion notification email sent to ${client.client_name}`,
-          { 
-            recipient_email: client.email,
-            email_type: "deletion_notification",
-            client_name: client.client_name,
-            admin_action: true,
-            successful: true
-          }
-        );
-        
-        return { success: true };
-      }
-    } catch (error: any) {
-      console.error("Exception invoking send-deletion-email function:", error);
-      
-      // Log the error
-      await createClientActivity(
-        client.id,
-        "system_update",
-        `Error sending deletion email to client ${client.client_name}`,
-        { 
-          error: String(error),
-          action: "deletion_email_error",
-          client_name: client.client_name,
-          admin_action: true
-        }
-      );
-      
-      return { 
-        success: false, 
-        error: `Error: ${error.message || "Unknown error"}`,
-        details: error.stack || "No stack trace available"
-      };
     }
   };
 
