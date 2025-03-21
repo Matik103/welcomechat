@@ -1,5 +1,6 @@
+
 import React from "react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import {
   Card,
   CardContent,
@@ -16,6 +17,21 @@ interface ErrorLogListProps {
 }
 
 export const ErrorLogList: React.FC<ErrorLogListProps> = ({ logs, isLoading }) => {
+  // Format date safely with validation
+  const formatDateSafely = (dateString: string | undefined): string => {
+    if (!dateString) return 'Unknown date';
+    
+    const date = new Date(dateString);
+    if (!isValid(date)) return 'Invalid date';
+    
+    try {
+      return format(date, 'MMM d, yyyy');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Format error';
+    }
+  };
+
   return (
     <Card className="h-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2 bg-gray-50 rounded-t-lg">
@@ -43,7 +59,7 @@ export const ErrorLogList: React.FC<ErrorLogListProps> = ({ logs, isLoading }) =
                   </div>
                   <div className="flex flex-col items-end">
                     <span className="text-xs text-gray-500">
-                      {format(new Date(log.created_at), 'MMM d, yyyy')}
+                      {formatDateSafely(log.created_at)}
                     </span>
                     <span className={`text-xs mt-1 px-2 py-0.5 rounded-full ${
                       log.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'

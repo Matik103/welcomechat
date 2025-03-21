@@ -27,7 +27,10 @@ export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
       error_type: item.error_type || "unknown",
       message: item.error_message || "Unknown error",
       status: item.error_status || "pending",
-      created_at: item.created_at,
+      
+      // Ensure created_at is a valid ISO string
+      created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
+      
       client_id: clientId,
       query_text: item.query_text
     })) as ErrorLog[];
