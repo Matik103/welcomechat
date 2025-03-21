@@ -143,6 +143,7 @@ Example Responses for Off-Limit Questions:
         .from("ai_agents")
         .select("openai_assistant_id")
         .eq("client_id", clientId)
+        .eq("interaction_type", "config")
         .single();
       
       // Check for error or missing/undefined assistant ID

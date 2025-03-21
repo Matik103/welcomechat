@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingOptions, DocumentProcessingResult } from '@/types/document-processing';
 import { Json } from '@/integrations/supabase/types';
@@ -160,7 +159,7 @@ export const processDocument = async (
         openaiIntegration: integrateWithOpenAI
       }
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error processing document:', error);
     
     // Log processing failure
