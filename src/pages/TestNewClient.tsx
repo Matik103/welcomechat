@@ -1,3 +1,4 @@
+
 import { NewClientForm } from "@/components/client/NewClientForm";
 import { ClientFormData } from "@/types/client-form";
 import { useNewClientMutation } from "@/hooks/useNewClientMutation";
@@ -40,7 +41,7 @@ export default function TestNewClient() {
         "send-email",
         {
           body: {
-            to: "temple@gmail.com",
+            to: "test@example.com", // Replace with your actual test email
             subject: "Test Email from Welcome.Chat",
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">

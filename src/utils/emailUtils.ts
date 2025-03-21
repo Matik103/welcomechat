@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface EmailOptions {
@@ -12,6 +13,7 @@ export interface EmailOptions {
 export interface EmailResponse {
   success: boolean;
   error?: string;
+  details?: any;
 }
 
 /**
@@ -23,7 +25,8 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
       to: options.to,
       subject: options.subject,
       template: options.template,
-      from: options.from || "default"
+      from: options.from || "default",
+      paramsProvided: !!options.params
     });
     
     const fromAddress = options.from || "Welcome.Chat <admin@welcome.chat>";
@@ -37,11 +40,22 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
       const params = options.params || {};
       
       console.log("Building client invitation template with params:", {
-        clientName: params.clientName,
-        email: params.email,
+        clientName: params.clientName || 'Unknown',
+        email: params.email || 'No email provided',
         hasPassword: !!params.tempPassword,
-        productName: params.productName
+        productName: params.productName || 'Unknown'
       });
+      
+      if (!params.email || !params.tempPassword) {
+        console.error("Missing required template parameters:", {
+          hasEmail: !!params.email,
+          hasPassword: !!params.tempPassword
+        });
+        return {
+          success: false,
+          error: "Missing required template parameters for client invitation"
+        };
+      }
       
       html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
@@ -93,13 +107,23 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
     }
     
     if (!html) {
-      throw new Error("Email content is required. Provide either 'html' or a valid 'template'.");
+      const error = "Email content is required. Provide either 'html' or a valid 'template'.";
+      console.error(error);
+      return {
+        success: false,
+        error: error
+      };
     }
     
     // Check if recipient email is valid
     if (!options.to || (typeof options.to === 'string' && !options.to.includes('@')) || 
-        (Array.isArray(options.to) && options.to.length === 0)) {
-      throw new Error("Valid recipient email is required");
+        (Array.isArray(options.to) && (options.to.length === 0 || !options.to[0].includes('@')))) {
+      const error = "Valid recipient email is required";
+      console.error(error, { to: options.to });
+      return {
+        success: false,
+        error: error
+      };
     }
     
     // Call the edge function directly with the Supabase client
@@ -121,11 +145,13 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
         code: error.code,
         status: error.status,
         name: error.name,
-        details: error.details
+        details: error.details,
+        stringified: JSON.stringify(error)
       });
       return {
         success: false,
-        error: `Edge Function Error: ${error.message}${error.details ? ` (${error.details})` : ''}`
+        error: `Edge Function Error: ${error.message || "Unknown error"}${error.details ? ` (${error.details})` : ''}`,
+        details: error
       };
     }
     
@@ -133,26 +159,30 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
       console.error("Edge function returned failure:", data);
       return {
         success: false,
-        error: data?.error || "Edge function reported failure"
+        error: data?.error || "Edge function reported failure",
+        details: data
       };
     }
     
     console.log("Email sent successfully:", data);
     return {
-      success: true
+      success: true,
+      details: data
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in sendEmail:", error);
     console.error("Error details:", {
       message: error.message,
       code: error.code,
       status: error.status,
       name: error.name,
-      stack: error.stack
+      stack: error.stack,
+      stringified: JSON.stringify(error)
     });
     return {
       success: false,
-      error: `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`
+      error: `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`,
+      details: error
     };
   }
 };
@@ -162,6 +192,23 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
  */
 export const sendWelcomeEmail = async (email: string, clientName: string, tempPassword: string) => {
   console.log("Sending welcome email to:", email);
+  console.log("Using password:", tempPassword ? `${tempPassword.substring(0, 3)}...` : "No password provided");
+  
+  if (!email || !email.includes('@')) {
+    console.error("Invalid email address provided:", email);
+    return {
+      emailSent: false,
+      emailError: "Invalid email address"
+    };
+  }
+  
+  if (!tempPassword) {
+    console.error("No temporary password provided");
+    return {
+      emailSent: false,
+      emailError: "No temporary password provided"
+    };
+  }
   
   const emailResult = await sendEmail({
     to: email,
@@ -169,7 +216,7 @@ export const sendWelcomeEmail = async (email: string, clientName: string, tempPa
     template: "client-invitation",
     from: "Welcome.Chat <admin@welcome.chat>",
     params: {
-      clientName: clientName,
+      clientName: clientName || "Client",
       email: email,
       tempPassword: tempPassword,
       productName: "Welcome.Chat"
@@ -180,6 +227,7 @@ export const sendWelcomeEmail = async (email: string, clientName: string, tempPa
   
   if (!emailResult.success) {
     console.error("Error sending welcome email:", emailResult.error);
+    console.error("Error details:", emailResult.details);
     return {
       emailSent: false,
       emailError: emailResult.error
