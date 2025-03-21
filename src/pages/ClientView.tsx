@@ -110,28 +110,34 @@ const ClientView = () => {
         if (result && Array.isArray(result) && result.length > 0) {
           // Parse the JSON string if needed
           let statsData;
-          if (typeof result[0].get_agent_dashboard_stats === 'string') {
-            statsData = JSON.parse(result[0].get_agent_dashboard_stats);
-          } else {
-            statsData = result[0].get_agent_dashboard_stats;
+          try {
+            // Handle the case where result[0].get_agent_dashboard_stats could be a string or an object
+            if (typeof result[0].get_agent_dashboard_stats === 'string') {
+              statsData = JSON.parse(result[0].get_agent_dashboard_stats);
+            } else {
+              statsData = result[0].get_agent_dashboard_stats;
+            }
+            
+            // Transform the data into the expected InteractionStats format
+            const formattedStats: InteractionStatsType = {
+              total_interactions: statsData?.total_interactions || 0,
+              active_days: statsData?.active_days || 0,
+              average_response_time: statsData?.average_response_time || 0,
+              top_queries: statsData?.top_queries || [],
+              success_rate: statsData?.success_rate || 0,
+              // Add the camelCase versions for frontend consistency
+              totalInteractions: statsData?.total_interactions || 0,
+              activeDays: statsData?.active_days || 0,
+              averageResponseTime: statsData?.average_response_time || 0,
+              topQueries: statsData?.top_queries || [],
+              successRate: statsData?.success_rate || 0
+            };
+            
+            setStats(formattedStats);
+          } catch (error) {
+            console.error('Error parsing stats data:', error, result[0]);
+            setStats(null);
           }
-          
-          // Transform the data into the expected InteractionStats format
-          const formattedStats: InteractionStatsType = {
-            total_interactions: statsData.total_interactions || 0,
-            active_days: statsData.active_days || 0,
-            average_response_time: statsData.average_response_time || 0,
-            top_queries: statsData.top_queries || [],
-            success_rate: statsData.success_rate || 0,
-            // Add the camelCase versions for frontend consistency
-            totalInteractions: statsData.total_interactions || 0,
-            activeDays: statsData.active_days || 0,
-            averageResponseTime: statsData.average_response_time || 0,
-            topQueries: statsData.top_queries || [],
-            successRate: statsData.success_rate || 0
-          };
-          
-          setStats(formattedStats);
         }
       } catch (error) {
         console.error('Error fetching stats:', error);
