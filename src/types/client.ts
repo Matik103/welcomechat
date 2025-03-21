@@ -1,4 +1,3 @@
-
 /**
  * Extended types for the client application
  */
@@ -22,6 +21,10 @@ export interface Client {
   name?: string; // This is the agent_name
   agent_name: string; // Adding this field to match what's expected
   last_active?: string; // Adding this field to fix ClientList errors
+  is_error?: boolean;
+  error_type?: string;
+  error_message?: string;
+  response_time_ms?: number;
 }
 
 export interface WidgetSettings {

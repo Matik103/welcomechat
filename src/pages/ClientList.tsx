@@ -1,23 +1,22 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { Button } from '@/components/ui/button';
 import { Client } from '@/types/client';
-import { Loader2, Plus, RefreshCw } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { execSql } from '@/utils/rpcUtils';
 import { toast } from 'sonner';
 
 export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
-  const queryClient = useQueryClient();
 
   // Enhanced query to fetch comprehensive client information from ai_agents table
-  const { data: clients, isLoading, error, refetch } = useQuery({
+  const { data: clients, isLoading, error } = useQuery({
     queryKey: ['clients'],
     queryFn: async (): Promise<Client[]> => {
       try {
@@ -40,14 +39,11 @@ export default function ClientList() {
             settings,
             name,
             agent_description,
-            content,
             interaction_type,
             response_time_ms,
             is_error,
             error_type,
-            error_message,
-            ai_prompt,
-            openai_assistant_id
+            error_message
           FROM ai_agents 
           WHERE interaction_type = 'config'
           ORDER BY created_at DESC
@@ -82,9 +78,6 @@ export default function ClientList() {
           const agentDescription = record.agent_description || '';
           const name = record.name || '';
           const agentName = name || "";
-          const content = record.content || '';
-          const aiPrompt = record.ai_prompt || '';
-          const openaiAssistantId = record.openai_assistant_id || '';
           
           // Error information if available
           const isError = record.is_error || false;
@@ -113,9 +106,6 @@ export default function ClientList() {
             description: agentDescription,
             name,
             agent_name: agentName,
-            content,
-            ai_prompt: aiPrompt,
-            openai_assistant_id: openaiAssistantId,
             is_error: isError,
             error_type: errorType,
             error_message: errorMessage,
@@ -132,12 +122,6 @@ export default function ClientList() {
     refetchOnWindowFocus: true,
   });
 
-  // Refresh the client list when component mounts
-  useEffect(() => {
-    console.log("ClientList component mounted, refreshing data...");
-    refetch();
-  }, [refetch]);
-
   useEffect(() => {
     if (clients) {
       console.log(`Filtering ${clients.length} clients with search query: "${searchQuery}"`);
@@ -149,8 +133,6 @@ export default function ClientList() {
           client.email?.toLowerCase().includes(searchLower) ||
           client.agent_name?.toLowerCase().includes(searchLower) ||
           client.description?.toLowerCase().includes(searchLower) ||
-          client.content?.toLowerCase().includes(searchLower) ||
-          client.ai_prompt?.toLowerCase().includes(searchLower) ||
           client.status?.toLowerCase().includes(searchLower)
         );
       });
@@ -161,12 +143,6 @@ export default function ClientList() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-  };
-
-  const handleRefresh = () => {
-    console.log("Manually refreshing client list...");
-    queryClient.invalidateQueries({ queryKey: ['clients'] });
-    toast.success("Refreshing client list...");
   };
 
   if (error) {
@@ -181,7 +157,6 @@ export default function ClientList() {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
           Failed to load clients. Please try refreshing the page.
         </div>
-        <Button onClick={handleRefresh}>Retry</Button>
       </div>
     );
   }
@@ -196,14 +171,6 @@ export default function ClientList() {
           </p>
         </PageHeading>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleRefresh} 
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </Button>
           <Link to="/admin/clients/new">
             <Button className="flex items-center gap-2">
               <Plus className="w-4 h-4" />
