@@ -30,6 +30,7 @@ export const useNewClientMutation = () => {
         console.log("Creating client with data:", validatedData);
 
         // Create the client directly in the ai_agents table
+        // Note: We're not using create_new_client RPC anymore as it relies on the clients table
         const { data: newAgent, error } = await supabase
           .from("ai_agents")
           .insert({
