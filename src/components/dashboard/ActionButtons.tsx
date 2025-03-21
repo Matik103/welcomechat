@@ -26,9 +26,21 @@ const ActionButton = ({ children, primary = false, onClick }: ActionButtonProps)
 export const ActionButtons = () => {
   const navigate = useNavigate();
   
+  // Create a reference to track if we've already shown the toast
+  const toastShownRef = React.useRef(false);
+  
   const handleAddClientClick = () => {
-    // Only show the toast notification here, removing any duplicate notifications
-    toast.info("Client creation temporarily disabled for maintenance");
+    // Only show the toast if it hasn't been shown in this session
+    if (!toastShownRef.current) {
+      toast.info("Client creation temporarily disabled for maintenance");
+      toastShownRef.current = true;
+      
+      // Reset the ref after a delay to allow showing the toast again later if needed
+      setTimeout(() => {
+        toastShownRef.current = false;
+      }, 3000); // 3 seconds delay
+    }
+    
     console.log("Add client button clicked - functionality temporarily disabled");
   };
   
