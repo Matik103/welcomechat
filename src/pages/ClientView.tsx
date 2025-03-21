@@ -125,7 +125,11 @@ const ClientView = () => {
         let agentName = 'AI Assistant';
         
         if (agentResult && Array.isArray(agentResult) && agentResult.length > 0) {
-          agentName = agentResult[0]?.name || 'AI Assistant';
+          // Since we're accessing a property that might not exist, we need to safely access it
+          const firstResult = agentResult[0];
+          if (firstResult && typeof firstResult === 'object' && 'name' in firstResult) {
+            agentName = firstResult.name as string || 'AI Assistant';
+          }
         }
         
         const query = `
@@ -135,35 +139,41 @@ const ClientView = () => {
         const result = await execSql(query);
         
         if (result && Array.isArray(result) && result.length > 0) {
-          // First, access the result as any to bypass TypeScript's type checking
-          const statsResult = result[0] as any;
+          // First, access the result safely
+          const statsResult = result[0];
           
           try {
             // Extract dashboard stats, handling both string and object formats
             let statsData: any;
             
-            if (typeof statsResult.get_agent_dashboard_stats === 'string') {
-              statsData = JSON.parse(statsResult.get_agent_dashboard_stats);
+            if (statsResult && typeof statsResult === 'object' && 'get_agent_dashboard_stats' in statsResult) {
+              const rawData = statsResult.get_agent_dashboard_stats;
+              if (typeof rawData === 'string') {
+                statsData = JSON.parse(rawData);
+              } else {
+                statsData = rawData;
+              }
+              
+              // Transform the data into the expected InteractionStats format with null checks
+              const formattedStats: InteractionStatsType = {
+                total_interactions: statsData?.total_interactions || 0,
+                active_days: statsData?.active_days || 0,
+                average_response_time: statsData?.average_response_time || 0,
+                top_queries: statsData?.top_queries || [],
+                success_rate: statsData?.success_rate || 0,
+                // Add the camelCase versions for frontend consistency
+                totalInteractions: statsData?.total_interactions || 0,
+                activeDays: statsData?.active_days || 0,
+                averageResponseTime: statsData?.average_response_time || 0,
+                topQueries: statsData?.top_queries || [],
+                successRate: statsData?.success_rate || 0
+              };
+              
+              setStats(formattedStats);
             } else {
-              statsData = statsResult.get_agent_dashboard_stats;
+              console.error('Unexpected response format:', statsResult);
+              setStats(null);
             }
-            
-            // Transform the data into the expected InteractionStats format with null checks
-            const formattedStats: InteractionStatsType = {
-              total_interactions: statsData?.total_interactions || 0,
-              active_days: statsData?.active_days || 0,
-              average_response_time: statsData?.average_response_time || 0,
-              top_queries: statsData?.top_queries || [],
-              success_rate: statsData?.success_rate || 0,
-              // Add the camelCase versions for frontend consistency
-              totalInteractions: statsData?.total_interactions || 0,
-              activeDays: statsData?.active_days || 0,
-              averageResponseTime: statsData?.average_response_time || 0,
-              topQueries: statsData?.top_queries || [],
-              successRate: statsData?.success_rate || 0
-            };
-            
-            setStats(formattedStats);
           } catch (error) {
             console.error('Error parsing stats data:', error, statsResult);
             setStats(null);
