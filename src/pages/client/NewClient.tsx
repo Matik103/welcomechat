@@ -13,7 +13,10 @@ export default function NewClient() {
       // Show loading toast
       const loadingToastId = toast.loading("Creating AI agent and sending welcome email...");
       
-      // First create the client in ai_agents table
+      // Generate a temporary password
+      const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+      
+      // Create the client/agent in ai_agents table
       const { data: clientData, error: clientError } = await supabase
         .from('ai_agents')
         .insert({
@@ -37,9 +40,6 @@ export default function NewClient() {
         .single();
 
       if (clientError) throw new Error(clientError.message);
-      
-      // Generate a temporary password
-      const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
       
       // Call the edge function to send the welcome email
       const { data: emailResult, error: emailError } = await supabase.functions.invoke(
