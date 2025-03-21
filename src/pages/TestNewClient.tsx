@@ -13,6 +13,7 @@ export default function TestNewClient() {
   const navigate = useNavigate();
   const { mutateAsync: createClient, isPending } = useNewClientMutation();
   const [success, setSuccess] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{ sent: boolean; error?: string } | null>(null);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
@@ -36,18 +37,28 @@ export default function TestNewClient() {
         };
       }
       
-      toast.loading("Creating client account and sending welcome email...");
+      toast.loading("Creating client account...");
       
       const result = await createClient(data);
       console.log("Client creation result:", result);
       
       toast.dismiss(); // Clear the loading toast
       
+      // Set email status for display in the success screen
+      setEmailStatus({
+        sent: result.emailSent === true,
+        error: result.emailError
+      });
+      
       if (result.emailSent) {
         toast.success(`Client created successfully! An email with login credentials has been sent to ${data.email}`);
       } else {
         toast.success("Client created successfully!");
-        toast.error(`However, the welcome email could not be sent: ${result.emailError || "Unknown error"}`);
+        if (result.emailError) {
+          toast.error(`However, the welcome email could not be sent: ${result.emailError}`);
+        } else {
+          toast.warning("No welcome email was sent. Please check the logs for details.");
+        }
       }
       
       setSuccess(true);
@@ -60,6 +71,7 @@ export default function TestNewClient() {
 
   const handleCreateAnother = () => {
     setSuccess(false);
+    setEmailStatus(null);
   };
 
   const handleGoToClients = () => {
@@ -74,7 +86,24 @@ export default function TestNewClient() {
         <Card className="p-6 mt-6">
           <div className="text-center">
             <h2 className="text-2xl font-semibold mb-4 text-green-600">Client Created Successfully!</h2>
-            <p className="mb-6">An email with login credentials has been sent to the client.</p>
+            
+            {emailStatus && (
+              <div className="mb-4">
+                {emailStatus.sent ? (
+                  <p className="text-green-600 mb-2">
+                    ✅ An email with login credentials has been sent to the client.
+                  </p>
+                ) : (
+                  <div className="text-amber-600 mb-2">
+                    <p className="font-medium">⚠️ The welcome email could not be sent.</p>
+                    {emailStatus.error && (
+                      <p className="text-sm mt-1 p-2 bg-amber-50 rounded">Error: {emailStatus.error}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button onClick={handleCreateAnother}>Create Another Client</Button>
               <Button variant="outline" onClick={handleGoToClients}>Go to Clients List</Button>
