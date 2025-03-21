@@ -1,3 +1,4 @@
+
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
@@ -82,7 +83,7 @@ serve(async (req) => {
       throw new Error("Email service not configured: Invalid API key format");
     }
     
-    const { to, subject, html } = body;
+    const { to, subject, html, from } = body;
     
     // Validate required parameters
     if (!to || !subject || !html) {
@@ -129,7 +130,7 @@ serve(async (req) => {
     }
     
     // Send the email with a verified domain
-    const fromAddress = "Welcome.Chat <admin@welcome.chat>";
+    const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
     console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
     
     try {
