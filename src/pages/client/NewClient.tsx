@@ -4,7 +4,6 @@ import { ClientRegistrationForm } from "@/components/forms/ClientRegistrationFor
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createOpenAIAssistant } from "@/utils/openAIUtils";
-import { TestEmailComponent } from "@/components/client/TestEmailComponent";
 
 export default function NewClient() {
   const navigate = useNavigate();
@@ -120,11 +119,6 @@ export default function NewClient() {
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Register New AI Agent</h1>
-      
-      <div className="mb-4">
-        <TestEmailComponent />
-      </div>
-      
       <ClientRegistrationForm onSubmit={handleSubmit} />
     </div>
   );
