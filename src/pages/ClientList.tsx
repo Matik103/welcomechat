@@ -15,34 +15,26 @@ export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
 
-  // Enhanced query to fetch comprehensive client information from ai_agents table
+  // Query to fetch client data from ai_agents table where interaction_type = 'config'
   const { data: clients, isLoading, error } = useQuery({
     queryKey: ['clients'],
     queryFn: async (): Promise<Client[]> => {
       try {
-        console.log("Fetching comprehensive client data from ai_agents table...");
-        // Expanded query to get more client details
+        console.log("Fetching clients from ai_agents table...");
         const query = `
           SELECT 
             id, 
             client_id,
-            client_name, 
-            email, 
-            logo_url, 
-            logo_storage_path,
+            name as agent_name,
+            agent_description as description,
+            settings,
             created_at, 
             updated_at, 
             last_active,
-            deleted_at,
-            deletion_scheduled_at,
             status,
-            settings,
-            name,
-            agent_description,
-            interaction_type,
-            response_time_ms,
+            logo_url,
+            logo_storage_path,
             is_error,
-            error_type,
             error_message
           FROM ai_agents 
           WHERE interaction_type = 'config'
@@ -51,65 +43,33 @@ export default function ClientList() {
         
         const results = await execSql(query);
         
+        console.log(`Fetched ${results?.length || 0} clients from ai_agents:`, results);
+        
         if (!results || !Array.isArray(results)) {
-          console.error('Invalid results from SQL query:', results);
           return [];
         }
         
-        console.log(`Found ${results.length} clients in ai_agents table:`, results);
-        
-        // Enhanced mapping with more comprehensive client information
+        // Map the results to the Client interface
         return results.map((record: any) => {
-          // Core client properties
-          const id = record.client_id || record.id || '';
-          const clientName = record.client_name || '';
-          const email = record.email || '';
-          const logoUrl = record.logo_url || '';
-          const logoStoragePath = record.logo_storage_path || '';
-          const createdAt = record.created_at || '';
-          const updatedAt = record.updated_at || '';
-          const lastActive = record.last_active || null;
-          const deletionScheduledAt = record.deletion_scheduled_at || null;
-          const deletedAt = record.deleted_at || null;
-          const status = record.status || 'active';
-          
-          // Agent-specific properties
+          // Extract client name from settings if available
           const settings = typeof record.settings === 'object' ? record.settings : {};
-          const agentDescription = record.agent_description || '';
-          const name = record.name || '';
-          const agentName = name || "";
-          
-          // Error information if available
-          const isError = record.is_error || false;
-          const errorType = record.error_type || '';
-          const errorMessage = record.error_message || '';
-          
-          // Performance metrics
-          const responseTimeMs = record.response_time_ms || 0;
-          
-          // Get widget settings from the settings object or create empty one
-          const widgetSettings = typeof settings === 'object' ? settings : {};
+          const clientName = settings.client_name || 'Unnamed Client';
           
           return {
-            id,
+            id: record.id,
+            client_id: record.client_id || record.id,
             client_name: clientName,
-            email,
-            logo_url: logoUrl,
-            logo_storage_path: logoStoragePath,
-            created_at: createdAt,
-            updated_at: updatedAt,
-            last_active: lastActive,
-            deletion_scheduled_at: deletionScheduledAt,
-            deleted_at: deletedAt,
-            status,
-            widget_settings: widgetSettings,
-            description: agentDescription,
-            name,
-            agent_name: agentName,
-            is_error: isError,
-            error_type: errorType,
-            error_message: errorMessage,
-            response_time_ms: responseTimeMs
+            agent_name: record.agent_name || '',
+            description: record.description || '',
+            widget_settings: settings,
+            created_at: record.created_at || '',
+            updated_at: record.updated_at || '',
+            last_active: record.last_active || null,
+            status: record.status || 'active',
+            logo_url: record.logo_url || '',
+            logo_storage_path: record.logo_storage_path || '',
+            is_error: record.is_error || false,
+            error_message: record.error_message || ''
           };
         });
       } catch (err) {
@@ -118,31 +78,34 @@ export default function ClientList() {
         return [];
       }
     },
-    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    refetchInterval: 30 * 1000,
     refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     if (clients) {
       console.log(`Filtering ${clients.length} clients with search query: "${searchQuery}"`);
-      // Enhanced filter to include more client properties
       const filtered = clients.filter(client => {
         const searchLower = searchQuery.toLowerCase();
         return (
           client.client_name?.toLowerCase().includes(searchLower) ||
-          client.email?.toLowerCase().includes(searchLower) ||
           client.agent_name?.toLowerCase().includes(searchLower) ||
           client.description?.toLowerCase().includes(searchLower) ||
           client.status?.toLowerCase().includes(searchLower)
         );
       });
       setFilteredClients(filtered);
-      console.log(`Found ${filtered.length} clients matching search criteria`);
     }
   }, [clients, searchQuery]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
+  };
+
+  const handleDeleteClient = (client: Client) => {
+    // This is a placeholder for future delete functionality
+    console.log("Delete client clicked:", client);
+    toast.info("Delete functionality will be implemented in a future update");
   };
 
   if (error) {
@@ -167,7 +130,7 @@ export default function ClientList() {
         <PageHeading>
           Client Management
           <p className="text-sm font-normal text-muted-foreground">
-            View and manage all your clients with comprehensive information
+            View and manage all your clients
           </p>
         </PageHeading>
         <div className="flex gap-2">
@@ -192,7 +155,7 @@ export default function ClientList() {
       ) : (
         <ClientListTable 
           clients={filteredClients} 
-          onDeleteClick={(client) => {}} 
+          onDeleteClick={handleDeleteClient} 
         />
       )}
 
