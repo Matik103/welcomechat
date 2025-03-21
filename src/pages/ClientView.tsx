@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   MessageSquare, 
   Calendar, 
@@ -8,10 +8,11 @@ import {
   Settings, 
   Edit,
   User,
-  Bot
+  Bot,
+  ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientStats } from '@/components/client/ClientStats';
@@ -24,10 +25,12 @@ import { ErrorLogList } from '@/components/client-dashboard/ErrorLogList';
 import { QueryList } from '@/components/client-dashboard/QueryList';
 import { InteractionStats } from '@/components/client-dashboard/InteractionStats';
 import { InteractionStats as InteractionStatsType } from '@/types/client-dashboard';
+import { toast } from 'sonner';
 
 const ClientView = () => {
+  const navigate = useNavigate();
   const { clientId = '' } = useParams();
-  const { client, isLoading: isLoadingClient } = useClient(clientId);
+  const { client, isLoading: isLoadingClient, error: clientError } = useClient(clientId);
   const { chatHistory, isLoading: isLoadingChatHistory } = useClientChatHistory(clientId);
   const [errorLogs, setErrorLogs] = useState([]);
   const [commonQueries, setCommonQueries] = useState([]);
@@ -35,6 +38,14 @@ const ClientView = () => {
   const [isLoadingCommonQueries, setIsLoadingCommonQueries] = useState(true);
   const [stats, setStats] = useState<InteractionStatsType | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  useEffect(() => {
+    // Handle potential client error
+    if (clientError) {
+      toast.error("Failed to load client information");
+      console.error("Client error:", clientError);
+    }
+  }, [clientError]);
 
   useEffect(() => {
     const fetchErrorLogs = async () => {
@@ -59,6 +70,7 @@ const ClientView = () => {
         }
       } catch (error) {
         console.error('Error fetching error logs:', error);
+        toast.error("Failed to load error logs");
       } finally {
         setIsLoadingErrorLogs(false);
       }
@@ -88,6 +100,7 @@ const ClientView = () => {
         }
       } catch (error) {
         console.error('Error fetching common queries:', error);
+        toast.error("Failed to load common queries");
       } finally {
         setIsLoadingCommonQueries(false);
       }
@@ -99,10 +112,24 @@ const ClientView = () => {
       try {
         setIsLoadingStats(true);
         
+        // Get agent name from client data for stats query
+        const agentNameQuery = `
+          SELECT name 
+          FROM ai_agents 
+          WHERE client_id = '${clientId}' 
+          AND interaction_type = 'config' 
+          LIMIT 1
+        `;
+        
+        const agentResult = await execSql(agentNameQuery);
+        let agentName = 'AI Assistant';
+        
+        if (agentResult && Array.isArray(agentResult) && agentResult.length > 0) {
+          agentName = agentResult[0]?.name || 'AI Assistant';
+        }
+        
         const query = `
-          SELECT get_agent_dashboard_stats('${clientId}', 
-            (SELECT name FROM ai_agents WHERE client_id = '${clientId}' AND interaction_type = 'config' LIMIT 1)
-          )
+          SELECT get_agent_dashboard_stats('${clientId}', '${agentName}')
         `;
         
         const result = await execSql(query);
@@ -144,19 +171,26 @@ const ClientView = () => {
         }
       } catch (error) {
         console.error('Error fetching stats:', error);
+        toast.error("Failed to load performance metrics");
       } finally {
         setIsLoadingStats(false);
       }
     };
     
-    fetchErrorLogs();
-    fetchCommonQueries();
-    fetchStats();
+    if (clientId) {
+      fetchErrorLogs();
+      fetchCommonQueries();
+      fetchStats();
+    }
   }, [clientId]);
+
+  const handleGoBack = () => {
+    navigate('/admin/clients');
+  };
 
   if (isLoadingClient) {
     return (
-      <div className="container py-12 flex justify-center items-center">
+      <div className="container py-12 flex justify-center items-center min-h-[60vh]">
         <div className="animate-pulse flex flex-col items-center">
           <div className="h-8 w-64 bg-gray-200 rounded mb-4"></div>
           <div className="h-4 w-48 bg-gray-200 rounded"></div>
@@ -167,7 +201,7 @@ const ClientView = () => {
 
   if (!client) {
     return (
-      <div className="container py-12 text-center">
+      <div className="container py-12 text-center min-h-[60vh]">
         <h1 className="text-2xl font-bold mb-4">Client Not Found</h1>
         <p className="mb-8">The client you are looking for could not be found.</p>
         <Button asChild>
@@ -185,6 +219,16 @@ const ClientView = () => {
 
   return (
     <div className="container py-8">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="mb-4 flex items-center gap-1"
+        onClick={handleGoBack}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Clients
+      </Button>
+      
       <div className="flex justify-between items-center mb-6">
         <div>
           <PageHeading>{clientName}</PageHeading>
@@ -197,6 +241,12 @@ const ClientView = () => {
             <Link to={`/admin/clients/${clientId}/edit-info`}>
               <Edit className="mr-2 h-4 w-4" />
               Edit Client Info
+            </Link>
+          </Button>
+          <Button variant="default" asChild>
+            <Link to={`/admin/clients/${clientId}/widget-settings`}>
+              <Settings className="mr-2 h-4 w-4" />
+              Widget Settings
             </Link>
           </Button>
         </div>
@@ -264,7 +314,14 @@ const ClientView = () => {
                   <InteractionStats stats={stats} isLoading={isLoadingStats} />
                 ) : (
                   <div className="col-span-4 text-center py-4 text-gray-500">
-                    No statistics available for this client
+                    {isLoadingStats ? (
+                      <div className="flex flex-col items-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                        <p>Loading statistics...</p>
+                      </div>
+                    ) : (
+                      "No statistics available for this client"
+                    )}
                   </div>
                 )}
               </div>
@@ -320,6 +377,13 @@ const ClientView = () => {
                 </div>
               )}
             </CardContent>
+            {chatHistory.length > 0 && (
+              <CardFooter>
+                <Button variant="outline" size="sm" className="ml-auto">
+                  View All History
+                </Button>
+              </CardFooter>
+            )}
           </Card>
         </div>
 
@@ -359,6 +423,29 @@ const ClientView = () => {
                   Manage Widget Settings
                 </Link>
               </Button>
+            </CardContent>
+          </Card>
+          
+          {/* Last Activity */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Last active:</span>
+                  <span className="font-medium">
+                    {client.last_active ? formatDate(client.last_active) : 'Never'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className={`font-medium ${client.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                    {client.status === 'active' ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
