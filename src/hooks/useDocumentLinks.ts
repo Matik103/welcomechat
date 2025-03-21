@@ -60,10 +60,18 @@ export const useDocumentLinks = (clientId?: string) => {
         // Check if link is accessible
         const { data: validationResult, error: validationError } = await supabase.functions
           .invoke('check-drive-access', {
-            body: { url: data.link }
+            body: { 
+              url: data.link,
+              link: data.link // For backward compatibility
+            }
           });
         
-        if (validationError) throw validationError;
+        if (validationError) {
+          console.error('Validation error:', validationError);
+          throw validationError;
+        }
+        
+        console.log('Validation result:', validationResult);
         
         if (!validationResult?.isAccessible) {
           toast.error('This document link is not accessible. Please check permissions.');
