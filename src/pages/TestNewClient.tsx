@@ -105,10 +105,17 @@ export default function TestNewClient() {
         throw new Error(emailResult.error || "Failed to send invitation email");
       }
       
-      // Update invitation status
+      // Update invitation status - add the invitation_status field explicitly to the update
       const { error: updateError } = await supabase
         .from("ai_agents")
-        .update({ invitation_status: "sent" })
+        .update({ 
+          settings: supabase.rpc('jsonb_set_key', {
+            json_data: { invitation_status: "sent" },
+            base_json: null,
+            create_if_missing: true
+          }),
+          invitation_status: "sent"
+        })
         .eq("id", clientId);
         
       if (updateError) {
