@@ -1,65 +1,48 @@
-import React from "react";
-import { format } from "date-fns";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Loader2, AlertCircle } from "lucide-react";
-import { ErrorLog } from "@/types/client-dashboard";
 
-interface ErrorLogListProps {
-  logs: ErrorLog[] | undefined;
-  isLoading: boolean;
-}
+import React, { useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { formatDate } from '@/utils/stringUtils';
+import { toast } from 'sonner';
 
-export const ErrorLogList: React.FC<ErrorLogListProps> = ({ logs, isLoading }) => {
+export const ErrorLogList = ({ logs, isLoading, error }) => {
+  useEffect(() => {
+    if (error) {
+      toast.error("Failed to load error logs");
+      console.error("Error loading error logs:", error);
+    }
+  }, [error]);
+
   return (
-    <Card className="h-full">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 bg-gray-50 rounded-t-lg">
-        <div className="space-y-1">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-red-500" />
-            Recent Error Logs
-          </CardTitle>
-          <CardDescription>Issues requiring attention</CardDescription>
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Error Logs</CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent>
         {isLoading ? (
-          <div className="flex justify-center py-8">
+          <div className="flex justify-center items-center py-6">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : logs?.length ? (
-          <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
-            {logs.map((log) => (
-              <div key={log.id} className="border-l-4 border-red-500 pl-4 py-2 bg-red-50 rounded-r-md shadow-sm">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium text-gray-900">{log.error_type}</p>
-                    <p className="text-sm text-gray-600 mt-1">{log.message}</p>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-xs text-gray-500">
-                      {format(new Date(log.created_at), 'MMM d, yyyy')}
-                    </span>
-                    <span className={`text-xs mt-1 px-2 py-0.5 rounded-full ${
-                      log.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {log.status || 'pending'}
-                    </span>
-                  </div>
+        ) : logs && logs.length > 0 ? (
+          <div className="space-y-3">
+            {logs.map(log => (
+              <div key={log.id} className="bg-red-50 border border-red-100 rounded-lg p-3">
+                <div className="flex justify-between items-start mb-1">
+                  <div className="font-medium text-red-800">{log.error_type || 'Error'}</div>
+                  <div className="text-xs text-gray-500">{formatDate(log.created_at)}</div>
                 </div>
+                <div className="text-sm">{log.error_message || log.message}</div>
+                {log.query_text && (
+                  <div className="mt-2 text-xs text-gray-600">
+                    <span className="font-medium">Query:</span> {log.query_text}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500">No errors recorded</p>
-            <p className="text-xs text-gray-400 mt-1">Your AI agent is running smoothly</p>
+          <div className="text-center py-6 text-gray-500">
+            No errors reported
           </div>
         )}
       </CardContent>
