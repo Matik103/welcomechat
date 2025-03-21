@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { generateClientTempPassword } from "@/utils/passwordUtils";
 import { sendEmail } from "@/utils/emailUtils";
 import { Database } from "@/integrations/supabase/types";
-import { ActivityType } from "@/types/supabase";
+import { createClientActivity } from "@/services/clientActivityService";
 
 interface ClientActionsProps {
   clientId: string;
@@ -105,15 +105,13 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         throw new Error(`Failed to update invitation status: ${updateError.message}`);
       }
 
-      // Log activity
-      await supabase
-        .from("client_activities")
-        .insert({
-          client_id: clientId,
-          activity_type: "email_sent" as ActivityType,
-          description: "Invitation email sent to client",
-          metadata: { email }
-        });
+      // Log activity using the service function
+      await createClientActivity(
+        clientId,
+        "email_sent", // Use a valid activity type from the enum
+        "Invitation email sent to client",
+        { email }
+      );
       
       toast.dismiss(toastId);
       toast.success("Invitation sent successfully");
