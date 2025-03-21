@@ -46,7 +46,7 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
             </TableCell>
             <TableCell>
               <Badge
-                variant={client.status === "active" ? "success" : "secondary"}
+                variant={client.status === "active" ? "default" : "secondary"}
                 className={`
                   inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
                   ${client.status === "active" 
