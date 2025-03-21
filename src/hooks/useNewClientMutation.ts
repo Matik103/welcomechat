@@ -54,9 +54,9 @@ export const useNewClientMutation = () => {
         let emailError = null;
         
         try {
-          const toastId = console.log("Sending welcome email...");
+          console.log("Sending welcome email...");
           
-          // Call the edge function directly - similar to DeleteClientDialog approach
+          // Direct edge function call, similar to DeleteClientDialog approach
           const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
             'send-email', 
             {
