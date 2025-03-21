@@ -39,7 +39,7 @@ export const sendEmail = async (options: EmailOptions): Promise<{ success: boole
     
     if (!data || data.success === false) {
       const errorMessage = data?.error || "Unknown error occurred";
-      console.error("Email sending failed:", errorMessage);
+      console.error("Email sending failed:", errorMessage, data?.details);
       toast.error(`Failed to send email: ${errorMessage}`);
       return {
         success: false,
@@ -79,6 +79,11 @@ function generateClientInvitationEmail(params: Record<string, any>): string {
   const baseUrl = window.location.origin;
   const loginUrl = `${baseUrl}/auth`;
   const currentYear = new Date().getFullYear();
+  
+  // Validate required parameters
+  if (!email || !tempPassword) {
+    console.error("Missing required parameters for client invitation email", { email, tempPassword });
+  }
   
   return `
     <!DOCTYPE html>
@@ -168,7 +173,7 @@ function generateClientInvitationEmail(params: Record<string, any>): string {
         </div>
         
         <div class="content">
-          <p>Hello ${clientName},</p>
+          <p>Hello ${clientName || 'Client'},</p>
           
           <p>Your AI assistant account has been created and is ready for configuration. Here are your login credentials:</p>
           

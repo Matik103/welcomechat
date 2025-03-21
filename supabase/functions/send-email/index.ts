@@ -107,7 +107,11 @@ serve(async (req) => {
         })
       });
       
+      // Log response status for debugging
+      console.log("Resend API response status:", resendResponse.status);
+      
       const responseData = await resendResponse.json();
+      console.log("Resend API response data:", responseData);
       
       if (!resendResponse.ok) {
         console.error("Error from Resend API:", responseData);

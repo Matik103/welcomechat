@@ -53,4 +53,5 @@ supabase functions deploy create-client-user --no-verify-jwt
 echo "Deploying send-deletion-email function..."
 supabase functions deploy send-deletion-email --no-verify-jwt
 
-echo "Deployment complete!" 
+echo "All functions deployed successfully!"
+echo "Remember to set the RESEND_API_KEY environment variable in your Supabase project settings."
