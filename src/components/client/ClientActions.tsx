@@ -1,4 +1,3 @@
-
 import { Eye, MessageSquare, Edit, Trash2, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -24,12 +23,12 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
 
     try {
       setIsSending(true);
-      toast.loading("Sending invitation...");
+      const toastId = toast.loading("Sending invitation...");
 
       // Fetch client details
       const { data: clientData, error: clientError } = await supabase
         .from("ai_agents")
-        .select("id, client_name, email, settings")
+        .select("id, client_name, email, settings, invitation_status")
         .eq("id", clientId)
         .single();
 
@@ -38,18 +37,11 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
       }
 
       // Extract client information - handle the settings object more carefully
-      let email: string | undefined = clientData.email;
-      let clientName: string | undefined = clientData.client_name;
-      
-      // Check if settings exists and is an object before accessing properties
-      if (clientData.settings && typeof clientData.settings === 'object' && !Array.isArray(clientData.settings)) {
-        // Now TypeScript knows settings is an object, we can safely access properties
-        email = email || (clientData.settings as Record<string, any>).email;
-        clientName = clientName || (clientData.settings as Record<string, any>).client_name;
-      }
+      const email = clientData.email || '';
+      const clientName = clientData.client_name || '';
       
       if (!email) {
-        throw new Error("Client email not found");
+        throw new Error("Client email not found in account information");
       }
 
       // Generate temporary password
@@ -65,7 +57,7 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         });
         
       if (tempPasswordError) {
-        throw new Error("Failed to save temporary password");
+        throw new Error(`Failed to save temporary password: ${tempPasswordError.message}`);
       }
       
       // Send welcome email
@@ -85,19 +77,17 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         throw new Error(emailResult.error || "Failed to send invitation email");
       }
       
-      // Update invitation status
-      // Get current settings first to maintain other properties
-      const { data: currentSettings } = await supabase
-        .from("ai_agents")
-        .select("settings")
-        .eq("id", clientId)
-        .single();
-        
-      // Create a properly merged settings object
-      const updatedSettings = {
-        ...(typeof currentSettings?.settings === 'object' && !Array.isArray(currentSettings?.settings) 
-          ? currentSettings?.settings as object 
-          : {}),
+      // Prepare updated settings object
+      let updatedSettings = {};
+      
+      // If settings exists and is an object, use it as base
+      if (clientData.settings && typeof clientData.settings === 'object') {
+        updatedSettings = { ...clientData.settings };
+      }
+      
+      // Add invitation_status to settings
+      updatedSettings = {
+        ...updatedSettings,
         invitation_status: "sent"
       };
 
@@ -111,7 +101,7 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         .eq("id", clientId);
         
       if (updateError) {
-        throw new Error("Failed to update invitation status");
+        throw new Error(`Failed to update invitation status: ${updateError.message}`);
       }
 
       // Log activity
@@ -124,7 +114,7 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
           metadata: { email }
         });
       
-      toast.dismiss();
+      toast.dismiss(toastId);
       toast.success("Invitation sent successfully");
       
       // Refresh the page after a short delay

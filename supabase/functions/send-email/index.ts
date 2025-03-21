@@ -11,8 +11,11 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log("📩 Email function called:", req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log("🔄 Handling OPTIONS request for CORS preflight");
     return new Response(null, {
       status: 204,
       headers: corsHeaders,
@@ -22,7 +25,7 @@ serve(async (req) => {
   // Get Resend API key from environment variables
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
   if (!RESEND_API_KEY) {
-    console.error('Missing RESEND_API_KEY environment variable')
+    console.error('❌ Missing RESEND_API_KEY environment variable');
     return new Response(
       JSON.stringify({ error: 'Missing RESEND_API_KEY environment variable' }),
       {
@@ -37,20 +40,21 @@ serve(async (req) => {
 
   try {
     // Initialize Resend client
-    const resend = new Resend(RESEND_API_KEY)
+    const resend = new Resend(RESEND_API_KEY);
+    console.log("✅ Resend client initialized");
 
     // Parse request body
     let requestBody;
     try {
-      requestBody = await req.json()
-      console.log("Request body parsed successfully:", {
+      requestBody = await req.json();
+      console.log("✅ Request body parsed successfully:", {
         to: requestBody.to,
         subject: requestBody.subject,
         fromProvided: !!requestBody.from,
         htmlLength: requestBody.html ? requestBody.html.length : 0
-      })
+      });
     } catch (parseError) {
-      console.error('Error parsing request body:', parseError)
+      console.error('❌ Error parsing request body:', parseError);
       return new Response(
         JSON.stringify({ error: 'Invalid request body' }),
         {
@@ -63,13 +67,41 @@ serve(async (req) => {
       )
     }
 
-    const { to, subject, html, from = 'Welcome.Chat <admin@welcome.chat>' } = requestBody
+    const { to, subject, html, from = 'Welcome.Chat <admin@welcome.chat>' } = requestBody;
 
     // Validate request data
-    if (!to || !subject || !html) {
-      console.error('Missing required fields:', { to, subject, htmlProvided: !!html })
+    if (!to) {
+      console.error('❌ Missing required field: to');
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: to, subject, or html' }),
+        JSON.stringify({ error: 'Missing required field: to' }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          },
+        }
+      )
+    }
+    
+    if (!subject) {
+      console.error('❌ Missing required field: subject');
+      return new Response(
+        JSON.stringify({ error: 'Missing required field: subject' }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          },
+        }
+      )
+    }
+    
+    if (!html) {
+      console.error('❌ Missing required field: html');
+      return new Response(
+        JSON.stringify({ error: 'Missing required field: html' }),
         {
           status: 400,
           headers: {
@@ -80,7 +112,7 @@ serve(async (req) => {
       )
     }
 
-    console.log(`Sending email to ${to} with subject "${subject}"`)
+    console.log(`📧 Sending email to ${to} with subject "${subject}"`);
 
     // Send email using Resend
     const { data, error } = await resend.emails.send({
@@ -88,10 +120,10 @@ serve(async (req) => {
       to,
       subject,
       html,
-    })
+    });
 
     if (error) {
-      console.error('Resend API error:', error)
+      console.error('❌ Resend API error:', error);
       return new Response(
         JSON.stringify({ error: error.message }),
         {
@@ -104,6 +136,8 @@ serve(async (req) => {
       )
     }
 
+    console.log('✅ Email sent successfully:', data);
+    
     // Return success response
     return new Response(
       JSON.stringify({ success: true, data }),
@@ -116,7 +150,7 @@ serve(async (req) => {
       }
     )
   } catch (error) {
-    console.error('Error in send-email function:', error)
+    console.error('❌ Error in send-email function:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
       {

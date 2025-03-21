@@ -100,6 +100,7 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
         to: options.to,
         subject: options.subject,
         html: html,
+        // Always use the default from value if not explicitly provided
         from: options.from || "Welcome.Chat <admin@welcome.chat>"
       }
     });
