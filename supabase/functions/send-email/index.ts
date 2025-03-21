@@ -1,5 +1,5 @@
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -65,15 +65,22 @@ serve(async (req) => {
     
     // Get the Resend API key from environment variable
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    console.log("Resend API Key present:", !!resendApiKey, "First 5 chars:", resendApiKey?.substring(0, 5) || "NONE");
+    console.log("Resend API Key check:", {
+      present: !!resendApiKey,
+      length: resendApiKey?.length || 0,
+      startsWithRe: resendApiKey?.startsWith('re_') || false,
+      firstFourChars: resendApiKey?.substring(0, 4) || 'none'
+    });
     
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
       throw new Error("Email service not configured: Missing API key");
     }
-    
-    console.log("Initializing Resend client with API key");
-    const resend = new Resend(resendApiKey);
+
+    if (!resendApiKey.startsWith('re_')) {
+      console.error("ERROR: Invalid RESEND_API_KEY format");
+      throw new Error("Email service not configured: Invalid API key format");
+    }
     
     const { to, subject, html } = body;
     
@@ -122,43 +129,58 @@ serve(async (req) => {
     }
     
     // Send the email with a verified domain
-    const fromAddress = "Welcome.Chat <noreply@welcomeai.io>";
+    const fromAddress = "Welcome.Chat <admin@welcome.chat>";
     console.log(`Attempting to send email to ${toArray.join(', ')} from ${fromAddress} with subject "${subject}"`);
     
     try {
       // For testing/debugging - log the first part of the HTML content
       console.log("Email HTML content preview:", html.substring(0, 200) + "...");
       
-      const { data, error } = await resend.emails.send({
-        from: fromAddress,
-        to: toArray,
-        subject: subject,
-        html: html,
-        reply_to: "support@welcomeai.io"
+      console.log("Calling Resend API directly...");
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: toArray,
+          subject: subject,
+          html: html,
+          reply_to: "admin@welcome.chat"
+        })
       });
       
-      if (error) {
-        console.error("Error from Resend API:", error);
-        const errorDetails = typeof error === 'object' ? JSON.stringify(error) : error;
+      const result = await response.json();
+      console.log("Raw Resend API response:", {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: result
+      });
+      
+      if (!response.ok) {
+        console.error("Error from Resend API:", result);
         return new Response(
           JSON.stringify({ 
             success: false,
-            error: error.message || "Failed to send email", 
-            details: errorDetails 
+            error: result.message || "Failed to send email", 
+            details: result
           }),
           {
-            status: 500,
+            status: response.status,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           }
         );
       }
       
-      console.log("Email sent successfully:", data);
+      console.log("Email sent successfully:", result);
       
       return new Response(
         JSON.stringify({ 
           success: true,
-          data: data
+          data: result
         }), 
         {
           status: 200,
@@ -166,13 +188,23 @@ serve(async (req) => {
         }
       );
     } catch (sendError) {
-      console.error("Resend API error details:", sendError);
-      const errorDetails = typeof sendError === 'object' ? JSON.stringify(sendError) : sendError;
+      console.error("Resend API error details:", {
+        error: sendError,
+        message: sendError.message,
+        name: sendError.name,
+        stack: sendError.stack,
+        stringified: JSON.stringify(sendError)
+      });
+      
       return new Response(
         JSON.stringify({ 
           success: false,
           error: sendError.message || "Failed to send email",
-          details: errorDetails
+          details: {
+            message: sendError.message,
+            name: sendError.name,
+            stack: sendError.stack
+          }
         }),
         {
           status: 500,
@@ -181,7 +213,13 @@ serve(async (req) => {
       );
     }
   } catch (error: any) {
-    console.error("Error in send-email function:", error);
+    console.error("Error in send-email function:", {
+      error,
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      stringified: JSON.stringify(error)
+    });
     
     // Enhanced error details
     const errorDetails = {
