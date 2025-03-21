@@ -14,8 +14,29 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
     return (
       <div className="flex items-center justify-end gap-2">
         <button
+          className="p-1 text-gray-400 cursor-not-allowed opacity-50"
+          title="View Client"
+          disabled
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+        <button
+          className="p-1 text-gray-400 cursor-not-allowed opacity-50"
+          title="Widget Settings"
+          disabled
+        >
+          <MessageSquare className="w-4 h-4" />
+        </button>
+        <button
+          className="p-1 text-gray-400 cursor-not-allowed opacity-50"
+          title="Edit Info"
+          disabled
+        >
+          <Edit className="w-4 h-4" />
+        </button>
+        <button
           onClick={onDeleteClick}
-          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+          className="p-1 text-gray-400 cursor-not-allowed opacity-50"
           title="Schedule Deletion"
           aria-label="Schedule client deletion"
           disabled
