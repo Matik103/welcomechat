@@ -51,14 +51,16 @@ export default function ClientList() {
         
         // Map the results to the Client interface
         return results.map((record: any) => {
-          // Extract client name from settings if available
+          // Extract client name and email from settings if available
           const settings = typeof record.settings === 'object' ? record.settings : {};
           const clientName = settings.client_name || 'Unnamed Client';
+          const email = settings.email || '';
           
           return {
             id: record.id,
             client_id: record.client_id || record.id,
             client_name: clientName,
+            email: email, // Add the email property to match Client type
             agent_name: record.agent_name || '',
             description: record.description || '',
             widget_settings: settings,
@@ -91,7 +93,8 @@ export default function ClientList() {
           client.client_name?.toLowerCase().includes(searchLower) ||
           client.agent_name?.toLowerCase().includes(searchLower) ||
           client.description?.toLowerCase().includes(searchLower) ||
-          client.status?.toLowerCase().includes(searchLower)
+          client.status?.toLowerCase().includes(searchLower) ||
+          client.email?.toLowerCase().includes(searchLower)
         );
       });
       setFilteredClients(filtered);
