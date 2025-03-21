@@ -44,6 +44,10 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
   });
 
   const handleSubmit = async (data: any) => {
+    if (isSubmitting) {
+      return; // Prevent multiple submissions
+    }
+    
     // If an external onSubmit handler is provided, use it
     if (onSubmit) {
       try {
