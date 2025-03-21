@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -183,6 +184,9 @@ serve(async (req) => {
             content = await response.text();
           }
 
+          // Set canScrape based on restrictions
+          const canScrape = !hasScrapingRestrictions && metaRestrictions.length === 0;
+
           const result: URLAccessResponse = {
             isAccessible: true,
             hasScrapingRestrictions,
@@ -190,7 +194,7 @@ serve(async (req) => {
             metaRestrictions: metaRestrictions.length > 0 ? metaRestrictions : undefined,
             statusCode,
             contentType,
-            canScrape: !hasScrapingRestrictions && metaRestrictions.length === 0,
+            canScrape,
             content: content || undefined
           };
 

@@ -2,128 +2,69 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+// Interface for URL access check result
 export interface UrlCheckResult {
   isAccessible: boolean;
   hasScrapingRestrictions: boolean;
-  canScrape: boolean; // Changed from optional to required
   statusCode?: number;
   contentType?: string;
   robotsRestrictions?: string[];
   metaRestrictions?: string[];
+  canScrape: boolean; // Made required (not optional)
   content?: string;
   error?: string;
 }
 
-export interface UrlAccessResult {
-  isAccessible: boolean;
-  status?: number;
-  canScrape: boolean;
-  hasScrapingRestrictions: boolean;
-  robotsRestrictions?: string[];
-  metaRestrictions?: string[];
-}
+// Alias for backward compatibility
+export type UrlAccessResult = UrlCheckResult;
 
-export function useUrlAccessCheck() {
+export const useUrlAccessCheck = () => {
   const [isChecking, setIsChecking] = useState(false);
   const [lastResult, setLastResult] = useState<UrlCheckResult | null>(null);
 
   const checkUrlAccess = async (url: string): Promise<UrlCheckResult> => {
     setIsChecking(true);
-    setLastResult(null);
     
     try {
-      console.log("Checking URL access for:", url);
+      const { data, error } = await supabase.functions.invoke<UrlCheckResult>(
+        'check-url-access',
+        {
+          body: { url }
+        }
+      );
       
-      // Try using the Supabase Edge Function
-      try {
-        const { data, error } = await supabase.functions.invoke("check-url-access", {
-          body: { url },
-        });
-        
-        if (error) {
-          console.error("Error checking URL access:", error);
-          throw error;
-        }
-        
-        console.log("URL access check result:", data);
-        setLastResult(data);
-        return data;
-      } catch (edgeFunctionError) {
-        console.error("Edge function error:", edgeFunctionError);
-        
-        // If the Edge Function fails, use FirecrawlService.validateUrl
-        try {
-          const { isValid, error } = await validateUrlWithFirecrawl(url);
-          
-          const fallbackResult: UrlCheckResult = {
-            isAccessible: isValid,
-            hasScrapingRestrictions: false,
-            canScrape: isValid, // Making sure canScrape is always set
-            error: error
-          };
-          
-          console.log("Using fallback validation result:", fallbackResult);
-          setLastResult(fallbackResult);
-          return fallbackResult;
-        } catch (validationError) {
-          const invalidUrlResult: UrlCheckResult = {
-            isAccessible: false,
-            hasScrapingRestrictions: true,
-            canScrape: false, // Making sure canScrape is always set
-            error: "Invalid URL format"
-          };
-          setLastResult(invalidUrlResult);
-          return invalidUrlResult;
-        }
+      if (error) {
+        console.error("Error checking URL access:", error);
+        const errorResult: UrlCheckResult = {
+          isAccessible: false,
+          hasScrapingRestrictions: true,
+          canScrape: false, // Always include this property
+          error: error.message
+        };
+        setLastResult(errorResult);
+        return errorResult;
       }
-    } catch (error) {
-      console.error("Error in URL access check:", error);
-      const result = { 
-        isAccessible: false, 
-        hasScrapingRestrictions: true,
-        canScrape: false, // Making sure canScrape is always set
-        error: error instanceof Error ? error.message : "Unknown error" 
+      
+      // Ensure canScrape is always defined if missing from response
+      const result: UrlCheckResult = {
+        ...data,
+        canScrape: data?.canScrape ?? !data?.hasScrapingRestrictions
       };
+      
       setLastResult(result);
       return result;
+    } catch (err) {
+      console.error("Exception checking URL access:", err);
+      const errorResult: UrlCheckResult = {
+        isAccessible: false,
+        hasScrapingRestrictions: true,
+        canScrape: false, // Always include this property
+        error: err instanceof Error ? err.message : 'Unknown error checking URL'
+      };
+      setLastResult(errorResult);
+      return errorResult;
     } finally {
       setIsChecking(false);
-    }
-  };
-  
-  // Helper function to validate URL using Firecrawl
-  const validateUrlWithFirecrawl = async (url: string): Promise<{ isValid: boolean; error?: string }> => {
-    try {
-      // Try to create a URL object to validate the format
-      new URL(url);
-      
-      // Try a simple HEAD request to check if the URL is accessible
-      const response = await fetch(url, { 
-        method: 'HEAD',
-        // Use a reasonable timeout
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (response.ok) {
-        return { isValid: true };
-      } else {
-        return { 
-          isValid: false, 
-          error: `URL returned status code ${response.status}` 
-        };
-      }
-    } catch (error) {
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        return { 
-          isValid: false, 
-          error: 'Unable to access URL. It may be down or blocking requests.' 
-        };
-      }
-      
-      return { 
-        isValid: false, 
-        error: error instanceof Error ? error.message : 'Unknown error validating URL' 
-      };
     }
   };
 
@@ -132,4 +73,4 @@ export function useUrlAccessCheck() {
     isChecking,
     lastResult
   };
-}
+};
