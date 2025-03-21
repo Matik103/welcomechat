@@ -368,52 +368,6 @@ const ClientView = () => {
 
         {/* Sidebar - 4 columns */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Activity Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Last active:</span>
-                  <span className="font-medium">
-                    {client.last_active ? formatDate(client.last_active) : 'Never'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status:</span>
-                  <span className={`font-medium ${client.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
-                    {client.status === 'active' ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
-              
-              {/* Performance metrics in the sidebar */}
-              <div className="mt-6 space-y-4">
-                <h3 className="font-medium">Performance Metrics</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <p className="text-xs text-blue-600 font-medium">Interactions</p>
-                    <p className="text-xl font-bold">{agentStats.total_interactions || 0}</p>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-xs text-green-600 font-medium">Active Days</p>
-                    <p className="text-xl font-bold">{agentStats.active_days || 0}</p>
-                  </div>
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <p className="text-xs text-purple-600 font-medium">Avg Response</p>
-                    <p className="text-xl font-bold">{agentStats.average_response_time ? agentStats.average_response_time.toFixed(2) + 's' : '0s'}</p>
-                  </div>
-                  <div className="bg-yellow-50 p-3 rounded-lg">
-                    <p className="text-xs text-yellow-600 font-medium">Success Rate</p>
-                    <p className="text-xl font-bold">{agentStats.success_rate}%</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Error Logs Card */}
           <ErrorLogList 
             logs={errorLogs} 
