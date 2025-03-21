@@ -145,10 +145,56 @@ Example Responses for Off-Limit Questions:
         .eq("client_id", clientId)
         .single();
       
-      if (assistantError || !assistantData || !assistantData.openai_assistant_id) {
-        console.error('No OpenAI Assistant ID found for this client:', assistantError || 'Missing openai_assistant_id');
+      // Check for error or missing/undefined assistant ID
+      if (assistantError) {
+        console.error('Error finding OpenAI Assistant ID for this client:', assistantError);
         
-        // Create a new OpenAI Assistant for this client if one doesn't exist
+        // Check if the error message indicates the column doesn't exist
+        if (assistantError.message && assistantError.message.includes("column 'openai_assistant_id' does not exist")) {
+          console.error('The openai_assistant_id column does not exist. Please run the migration first.');
+          
+          // Run the migration to add the column via the Edge Function
+          const { data: migrationData, error: migrationError } = await supabase.functions.invoke('execute_sql', {
+            method: 'POST',
+            body: {
+              sql: `ALTER TABLE public.ai_agents ADD COLUMN IF NOT EXISTS openai_assistant_id text;`
+            },
+          });
+          
+          if (migrationError) {
+            console.error('Failed to add openai_assistant_id column:', migrationError);
+            return {
+              success: false,
+              error: `Failed to add required column: ${migrationError.message}`
+            };
+          }
+          
+          console.log('Successfully added openai_assistant_id column');
+        }
+        
+        // Create a new OpenAI Assistant for this client
+        const { data: createData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
+          method: 'POST',
+          body: {
+            client_id: clientId,
+            agent_name: agentName,
+            agent_description: `Assistant for ${agentName}`,
+          },
+        });
+        
+        if (createError || !createData?.assistant_id) {
+          console.error('Failed to create OpenAI Assistant:', createError);
+          return {
+            success: false,
+            error: createError?.message || 'Failed to create OpenAI Assistant'
+          };
+        }
+        
+        // The new assistant_id will be used in the subsequent call to upload-document-to-assistant
+      } else if (!assistantData || !assistantData.openai_assistant_id) {
+        console.error('Missing openai_assistant_id for this client');
+        
+        // Create a new OpenAI Assistant for this client
         const { data: createData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
           method: 'POST',
           body: {
