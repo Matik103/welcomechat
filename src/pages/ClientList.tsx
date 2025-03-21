@@ -16,13 +16,13 @@ export default function ClientList() {
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const queryClient = useQueryClient();
 
-  // Fetch clients from ai_agents table where interaction_type is 'config'
+  // Enhanced query to fetch comprehensive client information from ai_agents table
   const { data: clients, isLoading, error, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: async (): Promise<Client[]> => {
       try {
-        console.log("Fetching clients from ai_agents table...");
-        // Query the ai_agents table for config-type records (representing clients)
+        console.log("Fetching comprehensive client data from ai_agents table...");
+        // Expanded query to get more client details
         const query = `
           SELECT 
             id, 
@@ -39,7 +39,15 @@ export default function ClientList() {
             status,
             settings,
             name,
-            agent_description
+            agent_description,
+            content,
+            interaction_type,
+            response_time_ms,
+            is_error,
+            error_type,
+            error_message,
+            ai_prompt,
+            openai_assistant_id
           FROM ai_agents 
           WHERE interaction_type = 'config'
           ORDER BY created_at DESC
@@ -54,9 +62,9 @@ export default function ClientList() {
         
         console.log(`Found ${results.length} clients in ai_agents table:`, results);
         
-        // Map the results to Client objects
+        // Enhanced mapping with more comprehensive client information
         return results.map((record: any) => {
-          // Ensure we have valid data by checking and providing defaults
+          // Core client properties
           const id = record.client_id || record.id || '';
           const clientName = record.client_name || '';
           const email = record.email || '';
@@ -68,10 +76,23 @@ export default function ClientList() {
           const deletionScheduledAt = record.deletion_scheduled_at || null;
           const deletedAt = record.deleted_at || null;
           const status = record.status || 'active';
-          const settings = record.settings || {};
+          
+          // Agent-specific properties
+          const settings = typeof record.settings === 'object' ? record.settings : {};
           const agentDescription = record.agent_description || '';
           const name = record.name || '';
-          const agentName = name;
+          const agentName = name || "";
+          const content = record.content || '';
+          const aiPrompt = record.ai_prompt || '';
+          const openaiAssistantId = record.openai_assistant_id || '';
+          
+          // Error information if available
+          const isError = record.is_error || false;
+          const errorType = record.error_type || '';
+          const errorMessage = record.error_message || '';
+          
+          // Performance metrics
+          const responseTimeMs = record.response_time_ms || 0;
           
           // Get widget settings from the settings object or create empty one
           const widgetSettings = typeof settings === 'object' ? settings : {};
@@ -91,7 +112,14 @@ export default function ClientList() {
             widget_settings: widgetSettings,
             description: agentDescription,
             name,
-            agent_name: agentName || "",  // Ensure agent_name is never undefined
+            agent_name: agentName,
+            content,
+            ai_prompt: aiPrompt,
+            openai_assistant_id: openaiAssistantId,
+            is_error: isError,
+            error_type: errorType,
+            error_message: errorMessage,
+            response_time_ms: responseTimeMs
           };
         });
       } catch (err) {
@@ -113,14 +141,17 @@ export default function ClientList() {
   useEffect(() => {
     if (clients) {
       console.log(`Filtering ${clients.length} clients with search query: "${searchQuery}"`);
-      // Filter clients based on search query
+      // Enhanced filter to include more client properties
       const filtered = clients.filter(client => {
         const searchLower = searchQuery.toLowerCase();
         return (
           client.client_name?.toLowerCase().includes(searchLower) ||
           client.email?.toLowerCase().includes(searchLower) ||
           client.agent_name?.toLowerCase().includes(searchLower) ||
-          client.description?.toLowerCase().includes(searchLower)
+          client.description?.toLowerCase().includes(searchLower) ||
+          client.content?.toLowerCase().includes(searchLower) ||
+          client.ai_prompt?.toLowerCase().includes(searchLower) ||
+          client.status?.toLowerCase().includes(searchLower)
         );
       });
       setFilteredClients(filtered);
@@ -161,7 +192,7 @@ export default function ClientList() {
         <PageHeading>
           Client Management
           <p className="text-sm font-normal text-muted-foreground">
-            View and manage all your clients
+            View and manage all your clients with comprehensive information
           </p>
         </PageHeading>
         <div className="flex gap-2">
