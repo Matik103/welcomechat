@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 interface ParseResponse {
@@ -266,52 +267,23 @@ Example Responses for Off-Limit Questions:
         },
       });
       
-      if (secretsError) {
+      if (secretsError || !secretsData?.success) {
         return {
           success: false,
-          error: `Error checking API keys: ${secretsError.message}`,
-          data: {
-            apiKeysAvailable: false,
-            message: secretsError.message
-          }
+          error: 'Missing required API keys: ' + (secretsData?.missing?.join(', ') || 'Unknown')
         };
       }
       
-      // Get more details from the check-secrets response
-      const missingApiKeys = secretsData?.missing || [];
-      const availableApiKeys = secretsData?.available || [];
-      const allApiKeys = secretsData?.all_api_keys || [];
-      
-      if (missingApiKeys.length > 0) {
-        return {
-          success: false,
-          error: `Missing required API keys: ${missingApiKeys.join(', ')}`,
-          data: {
-            apiKeysAvailable: false,
-            missingApiKeys,
-            availableApiKeys,
-            allApiKeys
-          }
-        };
-      }
-      
-      // Check 2: Verify the ai_agents table exists
-      const { data: tableData, error: tableError } = await supabase.functions.invoke('check-table-exists', {
+      // Check 2: Verify the openai_assistant_id column exists in ai_agents table
+      const { data: columnData, error: columnError } = await supabase.functions.invoke('check-table-exists', {
         method: 'POST',
         body: { table_name: 'ai_agents' },
       });
       
-      if (tableError || !tableData?.exists) {
+      if (columnError || !columnData?.exists) {
         return {
           success: false,
-          error: 'The ai_agents table is missing or inaccessible',
-          data: {
-            apiKeysAvailable: true,
-            databaseReady: false,
-            availableApiKeys,
-            allApiKeys,
-            tableCheckResult: tableData
-          }
+          error: 'The ai_agents table is missing or inaccessible'
         };
       }
       
@@ -327,10 +299,11 @@ Example Responses for Off-Limit Questions:
         try {
           // Simple test call to check if function exists and responds
           const { error } = await supabase.functions.invoke(funcName, {
-            method: 'GET'
+            method: 'GET',
+            body: { test: true }
           });
           
-          if (error && error.message.includes('Failed to fetch')) {
+          if (error) {
             console.error(`Edge function ${funcName} appears to be unavailable:`, error);
             missingFunctions.push(funcName);
           }
@@ -343,15 +316,7 @@ Example Responses for Off-Limit Questions:
       if (missingFunctions.length > 0) {
         return {
           success: false,
-          error: `Required Edge Functions are not deployed correctly: ${missingFunctions.join(', ')}`,
-          data: {
-            apiKeysAvailable: true,
-            databaseReady: true,
-            edgeFunctionsDeployed: false,
-            missingFunctions,
-            availableApiKeys,
-            allApiKeys
-          }
+          error: `Required Edge Functions are not deployed correctly: ${missingFunctions.join(', ')}`
         };
       }
       
@@ -361,16 +326,7 @@ Example Responses for Off-Limit Questions:
       if (bucketError) {
         return {
           success: false,
-          error: 'Document storage bucket is missing or inaccessible',
-          data: {
-            apiKeysAvailable: true,
-            databaseReady: true,
-            edgeFunctionsDeployed: true,
-            storageBucketReady: false,
-            bucketError: bucketError.message,
-            availableApiKeys,
-            allApiKeys
-          }
+          error: 'Document storage bucket is missing or inaccessible'
         };
       }
       
@@ -411,16 +367,7 @@ Example Responses for Off-Limit Questions:
             console.error('Failed to add openai_assistant_id column:', migrationError);
             return {
               success: false,
-              error: `Failed to add required column: ${migrationError.message}`,
-              data: {
-                apiKeysAvailable: true,
-                databaseReady: false,
-                edgeFunctionsDeployed: true,
-                storageBucketReady: true,
-                columnMigrationError: migrationError.message,
-                availableApiKeys,
-                allApiKeys
-              }
+              error: `Failed to add required column: ${migrationError.message}`
             };
           }
           
@@ -438,9 +385,7 @@ Example Responses for Off-Limit Questions:
           apiKeysAvailable: true,
           databaseReady: true,
           edgeFunctionsDeployed: true,
-          storageBucketReady: true,
-          availableApiKeys,
-          allApiKeys
+          storageBucketReady: true
         }
       };
     } catch (error) {
