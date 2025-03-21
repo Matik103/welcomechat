@@ -18,6 +18,9 @@ export default function TestNewClient() {
     try {
       console.log("Form data received in TestNewClient:", data);
       
+      // Clear any existing toasts
+      toast.dismiss();
+      
       // Ensure required fields have values
       if (!data.client_name || !data.email) {
         toast.error("Client name and email are required");
@@ -38,6 +41,8 @@ export default function TestNewClient() {
       const result = await createClient(data);
       console.log("Client creation result:", result);
       
+      toast.dismiss(); // Clear the loading toast
+      
       if (result.emailSent) {
         toast.success(`Client created successfully! An email with login credentials has been sent to ${data.email}`);
       } else {
@@ -48,6 +53,7 @@ export default function TestNewClient() {
       setSuccess(true);
     } catch (error) {
       console.error("Error creating client:", error);
+      toast.dismiss(); // Clear the loading toast
       toast.error(error instanceof Error && error.message ? error.message : "Failed to create client");
     }
   };
