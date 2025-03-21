@@ -3,9 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ClientFormData, clientFormSchema } from "@/types/client-form";
 import { toast } from "sonner";
 import { createOpenAIAssistant } from "@/utils/openAIUtils";
-import { sendEmail } from "@/utils/emailUtils";
 import { supabase } from "@/integrations/supabase/client";
-import { generateClientTempPassword } from "@/utils/passwordUtils";
 
 export const useNewClientMutation = () => {
   return useMutation({
@@ -42,6 +40,7 @@ export const useNewClientMutation = () => {
             interaction_type: 'config',
             client_name: validatedData.client_name.trim(),
             email: validatedData.email.trim().toLowerCase(),
+            invitation_status: 'pending',
             settings: {
               client_name: validatedData.client_name.trim(),
               email: validatedData.email.trim().toLowerCase(),
@@ -99,32 +98,7 @@ export const useNewClientMutation = () => {
           }
         }
 
-        // Generate a temporary password for this client
-        const tempPassword = generateClientTempPassword();
-        console.log("Generated temporary password:", tempPassword);
-        
-        // Store the temporary password in the database
-        try {
-          const { error: tempPasswordError } = await supabase
-            .from("client_temp_passwords")
-            .insert({
-              agent_id: clientId,
-              email: validatedData.email.trim().toLowerCase(),
-              temp_password: tempPassword
-            });
-          
-          if (tempPasswordError) {
-            console.error("Error saving temporary password:", tempPasswordError);
-            throw new Error("Failed to save temporary password");
-          }
-          
-          console.log("Temporary password saved to database");
-        } catch (passwordError) {
-          console.error("Error in password creation process:", passwordError);
-          throw new Error("Failed to generate secure credentials");
-        }
-        
-        // Create user account and send welcome email with credentials
+        // Create user account in the edge function
         try {
           console.log("Starting user account creation for:", validatedData.email);
           
@@ -136,7 +110,7 @@ export const useNewClientMutation = () => {
               client_name: validatedData.client_name.trim(),
               agent_name: validatedData.widget_settings.agent_name?.trim() || "AI Assistant",
               agent_description: validatedData.widget_settings.agent_description?.trim() || "",
-              temp_password: tempPassword
+              skip_invitation: true // Skip sending invitation email
             }
           });
 
@@ -146,46 +120,21 @@ export const useNewClientMutation = () => {
           }
 
           console.log("User account created successfully:", userData);
-          
-          // Send welcome email with the temporary password
-          console.log("Sending welcome email to:", validatedData.email);
-          
-          const emailResult = await sendEmail({
-            to: validatedData.email.trim().toLowerCase(),
-            subject: "Welcome to Welcome.Chat - Your Account Details",
-            template: "client-invitation",
-            params: {
-              clientName: validatedData.client_name.trim(),
-              email: validatedData.email.trim().toLowerCase(),
-              tempPassword: tempPassword,
-              productName: "Welcome.Chat"
-            }
-          });
-          
-          console.log("Welcome email result:", emailResult);
-          
-          if (!emailResult.success) {
-            console.error("Error sending welcome email:", emailResult.error);
-            // We still return success since the client was created
-            throw new Error(`Client created but email failed: ${emailResult.error}`);
-          }
-          
-          console.log("Welcome email sent successfully");
-        } catch (emailError) {
-          console.error("Error in email/user creation process:", emailError);
-          // Continue even if email sending fails, but we'll return detailed info
+        } catch (userError) {
+          console.error("Error in user creation process:", userError);
+          // Continue even if user creation fails, but we'll return detailed info
           return {
             clientId: clientId,
             agentId: newAgent.id,
-            emailSent: false,
-            emailError: emailError instanceof Error ? emailError.message : "Unknown email error"
+            userCreated: false,
+            userError: userError instanceof Error ? userError.message : "Unknown user creation error"
           };
         }
 
         return {
           clientId: clientId,
           agentId: newAgent.id,
-          emailSent: true
+          userCreated: true
         };
       } catch (error) {
         console.error("Error creating client:", error);
@@ -203,11 +152,11 @@ export const useNewClientMutation = () => {
       toast.error(errorMessage);
     },
     onSuccess: (result) => {
-      if (result.emailSent) {
-        toast.success("Client created successfully! An email with credentials has been sent.");
+      if (result.userCreated) {
+        toast.success("Client created successfully!");
       } else {
         toast.success("Client created successfully!");
-        toast.error(`However, the welcome email could not be sent: ${result.emailError || "Unknown error"}`);
+        toast.error(`However, the user account could not be created: ${result.userError || "Unknown error"}`);
       }
     }
   });
