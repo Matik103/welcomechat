@@ -2,6 +2,7 @@
 import { Json } from "@/integrations/supabase/types";
 
 export type WidgetPosition = "bottom-right" | "bottom-left" | "top-right" | "top-left" | "left" | "right";
+export type WidgetDisplayMode = "floating" | "inline" | "sidebar";
 
 export interface WidgetSettings {
   logo_url: string;
@@ -16,6 +17,7 @@ export interface WidgetSettings {
   agent_name: string; // Agent name for the widget
   agent_description: string; // Agent description stored in widget_settings
   openai_assistant_id?: string; // OpenAI assistant ID
+  display_mode: WidgetDisplayMode; // Widget display mode - new field
 }
 
 export const isWidgetSettings = (settings: unknown): settings is WidgetSettings => {
@@ -42,7 +44,8 @@ export const defaultSettings: WidgetSettings = {
   welcome_text: "Hi there! How can I help you today?",
   response_time_text: "Usually responds within a few minutes",
   agent_name: "Chat", // Default agent name
-  agent_description: "" // Default empty agent description
+  agent_description: "", // Default empty agent description
+  display_mode: "floating" // Default display mode is floating
 };
 
 // Helper function to convert widget settings to JSON for database storage
