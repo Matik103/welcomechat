@@ -57,24 +57,15 @@ export const useDocumentLinks = (clientId?: string) => {
       setIsValidating(true);
       
       try {
-        // Check if link is accessible
-        const { data: validationResult, error: validationError } = await supabase.functions
-          .invoke('check-drive-access', {
-            body: { 
-              url: data.link,
-              link: data.link // For backward compatibility
-            }
-          });
+        // Basic validation - check if it's a valid URL
+        const url = new URL(data.link);
+        const isGoogleUrl = data.link.includes('drive.google.com') || 
+                           data.link.includes('docs.google.com') || 
+                           data.link.includes('sheets.google.com');
         
-        if (validationError) {
-          console.error('Validation error:', validationError);
-          throw validationError;
-        }
-        
-        console.log('Validation result:', validationResult);
-        
-        if (!validationResult?.isAccessible) {
-          toast.error('This document link is not accessible. Please check permissions.');
+        // For Google types, require a Google URL
+        if (data.document_type.startsWith('google_') && !isGoogleUrl) {
+          toast.error('Please provide a valid Google Drive URL for this document type');
           return;
         }
         
@@ -95,6 +86,16 @@ export const useDocumentLinks = (clientId?: string) => {
         
         toast.success('Document link added successfully');
         return newLink.id;
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('URL')) {
+            toast.error('Please enter a valid URL');
+          } else {
+            console.error('Error adding document link:', error);
+            toast.error('Failed to add document link');
+          }
+        }
+        throw error;
       } finally {
         setIsValidating(false);
       }
@@ -104,7 +105,7 @@ export const useDocumentLinks = (clientId?: string) => {
     },
     onError: (error) => {
       console.error('Error adding document link:', error);
-      toast.error('Failed to add document link');
+      // Toast is already shown in the mutation function
     }
   });
 
