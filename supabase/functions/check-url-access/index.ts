@@ -13,7 +13,7 @@ interface URLAccessResponse {
   contentType?: string;
   robotsRestrictions?: string[];
   metaRestrictions?: string[];
-  canScrape: boolean;
+  canScrape: boolean; // This is required
   content?: string;
   error?: string;
 }
@@ -57,7 +57,12 @@ serve(async (req) => {
 
     if (!url) {
       return new Response(
-        JSON.stringify({ error: 'URL is required' }),
+        JSON.stringify({ 
+          error: 'URL is required',
+          isAccessible: false,
+          hasScrapingRestrictions: true,
+          canScrape: false // Ensure canScrape is always set
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -70,7 +75,7 @@ serve(async (req) => {
         JSON.stringify({ 
           isAccessible: false, 
           hasScrapingRestrictions: true,
-          canScrape: false,
+          canScrape: false, // Ensure canScrape is always set
           error: 'Invalid URL format' 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -214,7 +219,7 @@ serve(async (req) => {
       JSON.stringify({ 
         isAccessible: false, 
         hasScrapingRestrictions: true,
-        canScrape: false,
+        canScrape: false, // Ensure canScrape is always set
         error: `Failed to access URL after ${maxRetries} attempts. Last error: ${lastError}` 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -226,7 +231,7 @@ serve(async (req) => {
       JSON.stringify({ 
         isAccessible: false, 
         hasScrapingRestrictions: true,
-        canScrape: false,
+        canScrape: false, // Ensure canScrape is always set
         error: error instanceof Error ? error.message : 'Unknown error'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
