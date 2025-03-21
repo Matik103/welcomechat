@@ -9,3 +9,4 @@ CREATE INDEX IF NOT EXISTS idx_ai_agents_openai_assistant_id ON ai_agents(openai
 -- Add webhook_url column for custom webhook integration
 ALTER TABLE public.ai_agents
 ADD COLUMN IF NOT EXISTS webhook_url text;
+

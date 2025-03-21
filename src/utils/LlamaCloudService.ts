@@ -145,8 +145,8 @@ Example Responses for Off-Limit Questions:
         .eq("client_id", clientId)
         .single();
       
-      if (assistantError || !assistantData?.openai_assistant_id) {
-        console.error('No OpenAI Assistant ID found for this client');
+      if (assistantError || !assistantData || !assistantData.openai_assistant_id) {
+        console.error('No OpenAI Assistant ID found for this client:', assistantError || 'Missing openai_assistant_id');
         
         // Create a new OpenAI Assistant for this client if one doesn't exist
         const { data: createData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
@@ -165,6 +165,8 @@ Example Responses for Off-Limit Questions:
             error: createError?.message || 'Failed to create OpenAI Assistant'
           };
         }
+        
+        // The new assistant_id will be used in the subsequent call to upload-document-to-assistant
       }
       
       // Now call the Supabase function to add the document to the assistant
