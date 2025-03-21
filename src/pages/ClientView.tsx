@@ -118,48 +118,47 @@ const ClientView = () => {
         `;
         
         const result = await execSql(query);
+        console.log('Raw agent stats result:', result);
         
         if (result && Array.isArray(result) && result.length > 0) {
+          let statsData = null;
           const rawStats = result[0];
           
-          if (rawStats) {
-            let statsData;
-            
-            if (typeof rawStats === 'string') {
-              try {
-                statsData = JSON.parse(rawStats);
-              } catch (e) {
-                console.error('Error parsing stats JSON:', e);
-                statsData = null;
-              }
-            } else if (typeof rawStats === 'object') {
-              if (rawStats.get_agent_dashboard_stats) {
-                // Handle case where result comes as an object with get_agent_dashboard_stats property
+          // Handle different possible response formats
+          if (typeof rawStats === 'string') {
+            try {
+              statsData = JSON.parse(rawStats);
+            } catch (e) {
+              console.error('Error parsing stats JSON string:', e);
+            }
+          } else if (typeof rawStats === 'object' && rawStats !== null) {
+            // Direct object or object with get_agent_dashboard_stats property
+            if (rawStats.get_agent_dashboard_stats) {
+              const statsValue = rawStats.get_agent_dashboard_stats;
+              if (typeof statsValue === 'string') {
                 try {
-                  if (typeof rawStats.get_agent_dashboard_stats === 'string') {
-                    statsData = JSON.parse(rawStats.get_agent_dashboard_stats);
-                  } else {
-                    statsData = rawStats.get_agent_dashboard_stats;
-                  }
+                  statsData = JSON.parse(statsValue);
                 } catch (e) {
-                  console.error('Error parsing stats from property:', e);
-                  statsData = null;
+                  console.error('Error parsing stats property as JSON string:', e);
+                  statsData = statsValue; // Try to use directly if parsing fails
                 }
               } else {
-                // Direct object
-                statsData = rawStats;
+                statsData = statsValue; // Use directly if it's already an object
               }
+            } else {
+              statsData = rawStats; // Use the raw stats if no specific property
             }
-            
-            if (statsData) {
-              console.log('Agent stats data:', statsData);
-              setAgentStats({
-                total_interactions: statsData.total_interactions || 0,
-                active_days: statsData.active_days || 0,
-                average_response_time: statsData.average_response_time || 0,
-                success_rate: 100 // Default value as it might not be in the response
-              });
-            }
+          }
+          
+          console.log('Processed agent stats data:', statsData);
+          
+          if (statsData) {
+            setAgentStats({
+              total_interactions: statsData.total_interactions || 0,
+              active_days: statsData.active_days || 0,
+              average_response_time: statsData.average_response_time || 0,
+              success_rate: 100 // Default value as it might not be in the response
+            });
           }
         }
       } catch (error) {
