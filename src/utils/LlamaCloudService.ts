@@ -344,7 +344,15 @@ Example Responses for Off-Limit Questions:
           `
         });
         
-        if (columnCheckError || !columnCheckData?.[0]?.exists) {
+        // Fixed type error - properly check the response structure
+        const columnExists = columnCheckData && Array.isArray(columnCheckData) && 
+                            columnCheckData.length > 0 && 
+                            typeof columnCheckData[0] === 'object' && 
+                            columnCheckData[0] !== null &&
+                            'exists' in columnCheckData[0] && 
+                            columnCheckData[0].exists === true;
+        
+        if (columnCheckError || !columnExists) {
           console.log('The openai_assistant_id column is missing. Running migration...');
           
           // Run the migration to add the column via the Edge Function

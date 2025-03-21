@@ -13,6 +13,14 @@ supabase functions deploy check-url-access --no-verify-jwt
 echo "Deploying check-email-exists function..."
 supabase functions deploy check-email-exists --no-verify-jwt
 
+# Deploy check-secrets function
+echo "Deploying check-secrets function..."
+supabase functions deploy check-secrets --no-verify-jwt
+
+# Deploy check-table-exists function
+echo "Deploying check-table-exists function..."
+supabase functions deploy check-table-exists --no-verify-jwt
+
 # Deploy get_agent_dashboard_stats function
 echo "Deploying get_agent_dashboard_stats function..."
 supabase functions deploy get_agent_dashboard_stats --no-verify-jwt
