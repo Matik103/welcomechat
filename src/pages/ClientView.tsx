@@ -24,6 +24,7 @@ import { ErrorLogList } from '@/components/client-dashboard/ErrorLogList';
 import { QueryList } from '@/components/client-dashboard/QueryList';
 import { toast } from 'sonner';
 import { supabase } from "@/integrations/supabase/client";
+import { ClientInfoCard } from '@/components/client-view/ClientInfoCard';
 
 const ClientView = () => {
   const navigate = useNavigate();
@@ -37,7 +38,8 @@ const ClientView = () => {
   const [agentStats, setAgentStats] = useState({
     total_interactions: 0,
     active_days: 0,
-    average_response_time: 0
+    average_response_time: 0,
+    success_rate: 100
   });
 
   useEffect(() => {
@@ -120,9 +122,21 @@ const ClientView = () => {
         const result = await execSql(query);
         
         if (result && Array.isArray(result) && result.length > 0) {
-          const stats = result[0].get_agent_dashboard_stats;
-          if (stats) {
-            setAgentStats(stats);
+          // Extract the stats from the JSON result
+          const rawStats = result[0];
+          
+          if (rawStats && typeof rawStats === 'object') {
+            // Handle different potential response formats
+            const statsData = rawStats.get_agent_dashboard_stats || rawStats;
+            
+            if (statsData) {
+              setAgentStats({
+                total_interactions: statsData.total_interactions || 0,
+                active_days: statsData.active_days || 0,
+                average_response_time: statsData.average_response_time || 0,
+                success_rate: 100 // Default value as it might not be in the response
+              });
+            }
           }
         }
       } catch (error) {
@@ -230,9 +244,8 @@ const ClientView = () => {
   }
 
   // Use real values from the API response, with fallbacks only if needed
-  const clientName = client.client_name || 'Client';
-  const agentName = client.agent_name || client.name || 'AI Assistant';
-  const agentDescription = client.description || 'No description provided';
+  const clientName = client.client_name || 'Unknown Client';
+  const agentName = client.agent_name || 'AI Assistant';
 
   return (
     <div className="container py-8">
@@ -273,49 +286,11 @@ const ClientView = () => {
         {/* Main content area - 8 columns */}
         <div className="lg:col-span-8 space-y-6">
           {/* Client Information Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Client Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <User className="h-4 w-4" /> Client Name
-                  </h3>
-                  <p className="font-semibold">{clientName}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <Bot className="h-4 w-4" /> AI Agent Name
-                  </h3>
-                  <p className="font-semibold">{agentName}</p>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" /> Agent Description
-                </h3>
-                <p className="mt-1">{agentDescription}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Created At</h3>
-                  <p className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {client.created_at ? formatDate(client.created_at) : 'Unknown'}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
-                  <p className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {client.updated_at ? formatDate(client.updated_at) : 'Unknown'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ClientInfoCard 
+            client={client} 
+            chatHistory={chatHistory} 
+            aiAgentStats={agentStats} 
+          />
 
           {/* Common Queries Card */}
           <QueryList 
@@ -417,7 +392,7 @@ const ClientView = () => {
                   </div>
                   <div className="bg-yellow-50 p-3 rounded-lg">
                     <p className="text-xs text-yellow-600 font-medium">Success Rate</p>
-                    <p className="text-xl font-bold">100%</p>
+                    <p className="text-xl font-bold">{agentStats.success_rate}%</p>
                   </div>
                 </div>
               </div>
