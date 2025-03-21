@@ -41,7 +41,8 @@ export default function TestNewClient() {
       if (result.emailSent) {
         toast.success(`Client created successfully! An email with login credentials has been sent to ${data.email}`);
       } else {
-        toast.success("Client created successfully! However, the welcome email could not be sent.");
+        toast.success("Client created successfully!");
+        toast.error(`However, the welcome email could not be sent: ${result.emailError || "Unknown error"}`);
       }
       
       setSuccess(true);
