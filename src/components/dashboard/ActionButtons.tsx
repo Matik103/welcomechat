@@ -2,6 +2,7 @@
 import React from "react";
 import { Plus, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface ActionButtonProps {
   children: React.ReactNode;
@@ -25,9 +26,15 @@ const ActionButton = ({ children, primary = false, onClick }: ActionButtonProps)
 export const ActionButtons = () => {
   const navigate = useNavigate();
   
+  const handleAddClientClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    toast.info("Client creation temporarily disabled for maintenance");
+    console.log("Add client button clicked - functionality temporarily disabled");
+  };
+  
   return (
     <div className="flex flex-wrap gap-4">
-      <ActionButton primary onClick={() => navigate('/admin/clients/new')}>
+      <ActionButton primary onClick={handleAddClientClick}>
         <Plus className="w-4 h-4" /> Add New Client
       </ActionButton>
       <ActionButton onClick={() => navigate("/admin/clients")}>
