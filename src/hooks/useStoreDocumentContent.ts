@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { AIAgent } from "@/types/supabase";
+import { LlamaCloudService } from "@/utils/LlamaCloudService";
 
 interface StoreDocumentResult {
   success: boolean;
@@ -64,8 +64,8 @@ export function useStoreDocumentContent(clientId: string, agentName: string) {
             },
             status: "active",
             type: type,
-            size: size || 0,
-            uploadDate: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
           .select();
         
@@ -111,6 +111,25 @@ export function useStoreDocumentContent(clientId: string, agentName: string) {
           });
         
         console.log("Document content stored successfully with ID:", docInfo?.id);
+        
+        // Now that we've stored the document, initiate the LlamaParse processing
+        // This is an asynchronous operation that will update the content later
+        if (type !== 'text') {
+          // For non-text documents, use LlamaParse for better extraction
+          LlamaCloudService.parseDocument(url, type, clientId, agentName)
+            .then(result => {
+              if (result.success) {
+                console.log("Document processing initiated successfully");
+                // The edge function will update the content asynchronously
+              } else {
+                console.error("Failed to initiate document processing:", result.error);
+                toast.error("Document uploaded, but processing failed to start. Please try again later.");
+              }
+            })
+            .catch(err => {
+              console.error("Error initiating document processing:", err);
+            });
+        }
         
         return {
           success: true,

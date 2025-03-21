@@ -15,4 +15,3 @@ command = [
 # The actual key is managed via Supabase secrets, not stored here
 # Run this command to add the key:
 # supabase secrets set LLAMA_CLOUD_API_KEY="llx-01SGEh28rpYJ08omsfd2q1izhiRnIrWhP3wsG1HBIvXykkkw"
-

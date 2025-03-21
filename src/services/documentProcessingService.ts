@@ -1,10 +1,10 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingOptions, DocumentProcessingResult } from '@/types/document-processing';
-import { createClientActivity } from '@/services/clientActivityService';
 import { Json } from '@/integrations/supabase/types';
 import { callRpcFunction } from '@/utils/rpcUtils';
 import { execSql } from '@/utils/rpcUtils';
+import { LlamaCloudService } from '@/utils/LlamaCloudService';
 
 /**
  * Upload a document to the storage bucket
@@ -63,7 +63,7 @@ export const processDocument = async (
   options: DocumentProcessingOptions
 ): Promise<DocumentProcessingResult> => {
   try {
-    const { clientId, processingMethod = 'standard' } = options;
+    const { clientId, agentName = 'AI Assistant', processingMethod = 'llamaparse' } = options;
     
     // First, log that processing has started
     await execSql(`
@@ -75,34 +75,69 @@ export const processDocument = async (
       )
     `);
     
-    // For now we'll mock the processing
-    // In a real implementation, this would call your document processing service
+    // Get public URL for the document
+    const { data: publicUrlData } = await supabase.storage
+      .from('documents')
+      .getPublicUrl(documentPath);
     
-    // Mock processing delay (would be replaced with actual processing)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    if (!publicUrlData?.publicUrl) {
+      throw new Error('Failed to get public URL for document');
+    }
     
-    // Generate a document ID
+    const publicUrl = publicUrlData.publicUrl;
+    
+    // Determine document type from file extension
+    const fileExtension = documentPath.split('.').pop()?.toLowerCase();
+    let documentType = 'other';
+    
+    if (['pdf'].includes(fileExtension || '')) {
+      documentType = 'pdf';
+    } else if (['doc', 'docx'].includes(fileExtension || '')) {
+      documentType = 'google_doc';
+    } else if (['xls', 'xlsx'].includes(fileExtension || '')) {
+      documentType = 'google_sheet';
+    } else if (['ppt', 'pptx'].includes(fileExtension || '')) {
+      documentType = 'powerpoint';
+    } else if (['txt', 'md'].includes(fileExtension || '')) {
+      documentType = 'text';
+    }
+    
+    // Use LlamaCloudService to parse the document
+    const result = await LlamaCloudService.parseDocument(
+      publicUrl,
+      documentType,
+      clientId,
+      agentName || 'AI Assistant'
+    );
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Unknown error processing document');
+    }
+    
+    // The actual processing happens asynchronously on the server side
+    // For now, we just return a success response
     const documentId = `doc-${Date.now()}`;
     
-    // Log successful processing
+    // Log successful processing request
     await execSql(`
       SELECT log_client_activity(
         '${clientId}',
-        'document_processing_completed',
-        'Document processing completed for: ${documentPath}',
+        'document_processing_requested',
+        'Document processing requested for: ${documentPath}',
         '{"document_id": "${documentId}", "path": "${documentPath}"}'::jsonb
       )
     `);
     
     return {
       success: true,
-      status: 'completed',
+      status: 'processing',
       documentId,
-      content: `Processed content for document at ${documentPath}`,
+      content: `Processing initiated for document at ${documentPath}`,
       metadata: {
         path: documentPath,
         processedAt: new Date().toISOString(),
-        method: processingMethod
+        method: processingMethod,
+        publicUrl: publicUrl
       }
     };
   } catch (error) {

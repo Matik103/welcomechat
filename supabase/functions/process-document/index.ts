@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -63,15 +64,15 @@ function extractGoogleDriveFolderId(url: string): string {
 export function determineProcessingMethod(documentType: string, documentUrl: string): 'llamaparse' | 'firecrawl' {
   // If it's a website URL, use Firecrawl
   if (documentType === 'website_url' || documentUrl.startsWith('http://') || documentUrl.startsWith('https://')) {
-    return 'firecrawl';
+    if (!documentUrl.includes('drive.google.com') && 
+        !documentUrl.includes('docs.google.com') && 
+        !documentUrl.includes('sheets.google.com')) {
+      return 'firecrawl';
+    }
   }
   
   // For Google Drive URLs and uploaded files, use LlamaParse
-  if (documentType === 'google_drive_url' || documentType === 'file_upload') {
-    return 'llamaparse';
-  }
-
-  throw new Error(`Unsupported document type: ${documentType}`);
+  return 'llamaparse';
 }
 
 // Helper function to store content in ai_agents table
@@ -91,11 +92,20 @@ async function storeInAiAgents(
       .from('ai_agents')
       .insert({
         client_id: clientId,
-        agent_name: agentName,
+        name: agentName,
         content: content,
-        document_type: documentType,
-        document_url: documentUrl,
-        metadata: metadata,
+        url: documentUrl,
+        interaction_type: "document",
+        settings: {
+          title: metadata.title || "Untitled Document",
+          document_type: documentType,
+          source_url: documentUrl,
+          processing_method: metadata.processing_method,
+          processed_at: new Date().toISOString(),
+          ...metadata
+        },
+        status: "active",
+        type: documentType,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -127,17 +137,40 @@ export async function processWithLlamaParse(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     console.log(`Processing ${documentType} with LlamaParse:`, documentUrl);
+    
+    const LLAMA_CLOUD_API_KEY = Deno.env.get("LLAMA_CLOUD_API_KEY");
+    if (!LLAMA_CLOUD_API_KEY) {
+      throw new Error("LLAMA_CLOUD_API_KEY environment variable is not set");
+    }
 
-    // Step 1: Upload document
+    // Update job status to processing
+    await updateJobStatus(supabase, jobId, "processing", "Starting LlamaParse processing");
+    
+    // Determine file type for LlamaParse API
+    let fileType = "pdf";
+    if (documentType.includes("google_doc")) {
+      fileType = "gdoc";
+    } else if (documentType.includes("google_sheet")) {
+      fileType = "gsheet";
+    } else if (documentType.includes("powerpoint") || documentType.endsWith(".ppt") || documentType.endsWith(".pptx")) {
+      fileType = "pptx";
+    } else if (documentType.includes("excel") || documentType.endsWith(".xls") || documentType.endsWith(".xlsx")) {
+      fileType = "xlsx";
+    } else if (documentType.includes("word") || documentType.endsWith(".doc") || documentType.endsWith(".docx")) {
+      fileType = "docx";
+    }
+
+    // Step 1: Upload document to LlamaParse
+    console.log(`Uploading document to LlamaParse with type: ${fileType}`);
     const uploadResponse = await fetch('https://api.cloud.llamaindex.ai/api/parsing/upload', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('LLAMAPARSE_API_KEY')}`
+        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`
       },
       body: JSON.stringify({
         file_url: documentUrl,
-        file_type: documentType
+        file_type: fileType
       })
     });
 
@@ -146,13 +179,14 @@ export async function processWithLlamaParse(
       console.error("LlamaParse upload error:", errorText);
       await updateJobStatus(supabase, jobId, "failed", `LlamaParse upload error: ${uploadResponse.status} ${uploadResponse.statusText}`);
       return {
-          success: false, 
+        success: false, 
         error: `LlamaParse upload error: ${uploadResponse.status} ${uploadResponse.statusText}`
       };
     }
 
     const uploadResult = await uploadResponse.json();
     const llamaParseJobId = uploadResult.job_id;
+    console.log("LlamaParse job created:", llamaParseJobId);
 
     // Step 2: Poll for job completion
     let jobStatus;
@@ -162,7 +196,7 @@ export async function processWithLlamaParse(
     while (attempts < maxAttempts) {
       const statusResponse = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/job/${llamaParseJobId}`, {
         headers: {
-          'Authorization': `Bearer ${Deno.env.get('LLAMAPARSE_API_KEY')}`
+          'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`
         }
       });
 
@@ -171,6 +205,7 @@ export async function processWithLlamaParse(
       }
 
       jobStatus = await statusResponse.json();
+      console.log("LlamaParse job status:", jobStatus.status);
 
       if (jobStatus.status === 'completed') {
         break;
@@ -188,9 +223,10 @@ export async function processWithLlamaParse(
     }
 
     // Step 3: Get the parsed content
+    console.log("Retrieving parsed content");
     const resultResponse = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/result/${llamaParseJobId}`, {
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('LLAMAPARSE_API_KEY')}`
+        'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`
       }
     });
 
@@ -200,50 +236,15 @@ export async function processWithLlamaParse(
 
     const result = await resultResponse.json();
     const extractedContent = result.content;
+    console.log("Content extracted successfully, length:", extractedContent.length);
 
     if (!extractedContent) {
       await updateJobStatus(supabase, jobId, "failed", "No content could be extracted from LlamaParse");
       return {
-          success: false, 
-          error: "No content could be extracted from LlamaParse" 
+        success: false, 
+        error: "No content could be extracted from LlamaParse" 
       };
     }
-
-    // Update AI agent content
-    const { error: updateError } = await supabase
-      .from('ai_agents')
-      .update({
-        content: extractedContent,
-          processed_at: new Date().toISOString(),
-          processing_method: "llamaparse",
-        llamaparse_job_id: llamaParseJobId,
-        document_metadata: result.metadata || {}
-      })
-      .eq('id', documentId);
-
-    if (updateError) {
-      console.error("Error updating AI agent content:", updateError);
-      await updateJobStatus(supabase, jobId, "failed", `Failed to update AI agent content: ${updateError.message}`);
-      return {
-          success: false, 
-        error: `Failed to update AI agent content: ${updateError.message}`
-      };
-    }
-
-    // Log success
-    await createClientActivity(
-      supabase,
-      clientId,
-      "document_processing_completed",
-      `Successfully processed ${documentType} with LlamaParse: ${documentUrl}`,
-      {
-          document_url: documentUrl,
-        processing_method: "llamaparse",
-        llamaparse_job_id: llamaParseJobId
-      }
-    );
-
-    await updateJobStatus(supabase, jobId, "completed", "Document processed successfully with LlamaParse");
 
     // After successful processing, store in ai_agents table
     await storeInAiAgents(
@@ -257,17 +258,34 @@ export async function processWithLlamaParse(
         document_id: documentId,
         processing_method: 'llamaparse',
         job_id: jobId,
+        llamaparse_job_id: llamaParseJobId,
+        metadata: result.metadata || {},
+        title: result.metadata?.title || documentUrl.split('/').pop() || "Untitled Document"
+      }
+    );
+
+    // Log success
+    await createClientActivity(
+      supabase,
+      clientId,
+      "document_processing_completed",
+      `Successfully processed ${documentType} with LlamaParse: ${documentUrl}`,
+      {
+        document_url: documentUrl,
+        processing_method: "llamaparse",
         llamaparse_job_id: llamaParseJobId
       }
     );
+
+    await updateJobStatus(supabase, jobId, "completed", "Document processed successfully with LlamaParse");
 
     return { success: true };
   } catch (error) {
     console.error("Error processing with LlamaParse:", error);
     await updateJobStatus(supabase, jobId, "failed", `LlamaParse processing error: ${error.message}`);
     return {
-        success: false, 
-        error: `LlamaParse processing error: ${error.message}` 
+      success: false, 
+      error: `LlamaParse processing error: ${error.message}` 
     };
   }
 }
@@ -443,7 +461,8 @@ export async function processWithFirecrawl(
         crawl_depth: 3,
         crawl_limit: 50,
         crawl_status: 'completed',
-        pages_crawled: allData.length
+        pages_crawled: allData.length,
+        title: documentUrl
       }
     );
 
@@ -505,7 +524,7 @@ serve(async (req) => {
         updated_at: new Date().toISOString()
       })
       .select()
-    .single();
+      .single();
     
     if (jobError) {
       throw new Error(`Failed to create processing job: ${jobError.message}`);

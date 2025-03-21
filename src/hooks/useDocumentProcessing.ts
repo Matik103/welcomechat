@@ -1,24 +1,8 @@
 
 import { useState } from 'react';
 import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
-
-// Mock uploadDocument and processDocument functions since they're missing
-const uploadDocument = async (file: File, options: DocumentProcessingOptions): Promise<string> => {
-  console.log('Uploading document', file.name, options);
-  // Mock implementation that returns a document ID
-  return 'doc-' + Math.random().toString(36).substring(2, 9);
-};
-
-const processDocument = async (documentId: string, options: DocumentProcessingOptions): Promise<DocumentProcessingResult> => {
-  console.log('Processing document', documentId, options);
-  // Mock implementation that returns a success result
-  return {
-    success: true,
-    status: 'completed',
-    documentId: documentId,
-    content: 'Processed content for ' + documentId
-  };
-};
+import { uploadDocument, processDocument } from '@/services/documentProcessingService';
+import { toast } from 'sonner';
 
 // Document processing hook
 export const useDocumentProcessing = (clientId: string, agentName?: string) => {
@@ -32,30 +16,47 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
     setUploadResult(null);
 
     try {
+      // Show initial toast
+      toast.loading(`Uploading document: ${file.name}`);
+      
       // Create complete options by merging with defaults
       const processingOptions: DocumentProcessingOptions = {
         clientId,
-        agentName,
+        agentName: agentName || 'AI Assistant',
         onUploadProgress: (progress) => setUploadProgress(progress),
+        processingMethod: 'llamaparse', // Default to LlamaParse processing
         ...options
       };
 
-      // Upload the document
-      const documentId = await uploadDocument(file, processingOptions);
+      // Step 1: Upload the document to storage
+      const documentPath = await uploadDocument(file, processingOptions);
       
-      // Process the document
-      const result = await processDocument(documentId, processingOptions);
+      toast.loading(`Processing document with LlamaParse: ${file.name}`);
+      
+      // Step 2: Process the document with LlamaParse
+      const result = await processDocument(documentPath, processingOptions);
+      
+      // Step 3: Notify the user
+      if (result.success) {
+        toast.success(`Document "${file.name}" uploaded and processing started`);
+      } else {
+        toast.error(`Error processing document: ${result.error}`);
+      }
       
       setUploadResult(result);
       return result;
     } catch (error) {
       console.error('Error uploading document:', error);
+      
+      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
       const errorResult: DocumentProcessingResult = {
         success: false,
         status: 'failed',
         documentId: 'error-' + Date.now(),
         error: error instanceof Error ? error.message : 'Unknown error occurred'
       };
+      
       setUploadResult(errorResult);
       return errorResult;
     } finally {

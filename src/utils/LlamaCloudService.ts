@@ -36,26 +36,27 @@ Example Responses for Off-Limit Questions:
     return this.SYSTEM_PROMPT.replace(/\[CLIENT_NAME\]/g, clientName);
   }
 
+  /**
+   * Parses a document using the LlamaParse service
+   */
   static async parseDocument(
     documentUrl: string,
-    documentType: string
+    documentType: string,
+    clientId: string,
+    agentName: string
   ): Promise<ParseResponse> {
     try {
       console.log(`LlamaParse: Starting document parsing for ${documentType} at ${documentUrl}`);
       
-      // Call the Supabase Edge Function directly instead of using a relative API path
+      // Call the Supabase Edge Function to process the document
       const { data, error } = await supabase.functions.invoke('process-document', {
         method: 'POST',
         body: {
           documentUrl,
           documentType,
-          useLlamaParse: true,
-          parseOptions: {
-            // Add LlamaParse specific options
-            split_by: "chunk", // Split by chunks for better segmentation
-            chunk_size: 2000, // Optimal chunk size for OpenAI models
-            include_metadata: true // Include document metadata
-          }
+          clientId,
+          agentName,
+          documentId: crypto.randomUUID()
         },
       });
 
@@ -67,7 +68,7 @@ Example Responses for Off-Limit Questions:
         };
       }
 
-      console.log('LlamaParse: Successfully parsed document, content:', data);
+      console.log('LlamaParse: Document processing initiated successfully:', data);
       
       return {
         success: true,
@@ -78,6 +79,49 @@ Example Responses for Off-Limit Questions:
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to connect to LlamaCloud API',
+      };
+    }
+  }
+
+  /**
+   * Creates embeddings and stores them in the vector database
+   * This would typically be done after document parsing
+   */
+  static async createEmbeddings(
+    clientId: string,
+    agentName: string,
+    documentId: string
+  ): Promise<ParseResponse> {
+    try {
+      console.log(`Creating embeddings for document ${documentId}`);
+      
+      // Call a Supabase function to create embeddings (we'd need to create this)
+      const { data, error } = await supabase.functions.invoke('create-embeddings', {
+        method: 'POST',
+        body: {
+          clientId,
+          agentName,
+          documentId
+        },
+      });
+      
+      if (error) {
+        console.error('Error creating embeddings:', error);
+        return {
+          success: false,
+          error: error.message || 'Failed to create embeddings',
+        };
+      }
+      
+      return {
+        success: true,
+        data
+      };
+    } catch (error) {
+      console.error('Error in createEmbeddings:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create embeddings',
       };
     }
   }
