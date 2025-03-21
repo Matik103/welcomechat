@@ -1,19 +1,16 @@
-
 import { Json } from "@/integrations/supabase/types";
 
 export interface DocumentProcessingOptions {
   clientId: string;
-  agentName?: string;
-  documentType?: string;
-  webhook?: string;
-  maxPages?: number;
-  processingMethod?: 'standard' | 'llamaparse' | 'openai';
+  agentName: string;
   onUploadProgress?: (progress: number) => void;
+  processingMethod?: 'llamaparse' | 'firecrawl' | 'manual';
+  integrateWithOpenAI?: boolean;
 }
 
 export interface DocumentProcessingResult {
   success: boolean;
-  status: string;
+  status: 'none' | 'processing' | 'completed' | 'failed';
   documentId: string;
   content?: string;
   metadata?: Record<string, any>;

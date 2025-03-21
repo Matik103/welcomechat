@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -40,10 +39,10 @@ async function createClientActivity(
     .from('client_activities')
       .insert({
         client_id: clientId,
-      activity_type: activityType,
-      description,
-      metadata,
-      created_at: new Date().toISOString()
+        activity_type: activityType,
+        description,
+        metadata,
+        created_at: new Date().toISOString()
     });
 
   if (error) {
@@ -75,7 +74,7 @@ export function determineProcessingMethod(documentType: string, documentUrl: str
   return 'llamaparse';
 }
 
-// Helper function to store content in ai_agents table
+// Helper function to store content in ai_agents table and integrate with OpenAI
 async function storeInAiAgents(
   supabase: SupabaseClient,
   clientId: string,
@@ -118,6 +117,40 @@ async function storeInAiAgents(
     }
 
     console.log("Successfully stored content in ai_agents:", data);
+    
+    // Now try to upload the document to OpenAI Assistant
+    try {
+      console.log("Attempting to upload document to OpenAI Assistant");
+      
+      // Call the upload-document-to-assistant Edge Function
+      await supabase.functions.invoke('upload-document-to-assistant', {
+        method: 'POST',
+        body: {
+          clientId: clientId,
+          agentName: agentName,
+          documentContent: content,
+          documentTitle: metadata.title || "Untitled Document"
+        }
+      });
+      
+      console.log("Document successfully uploaded to OpenAI Assistant");
+    } catch (openaiError) {
+      console.error("Error uploading to OpenAI Assistant (continuing anyway):", openaiError);
+      
+      // Log this error but don't fail the entire operation
+      await createClientActivity(
+        supabase,
+        clientId,
+        "openai_assistant_upload_failed",
+        `Failed to upload document to OpenAI Assistant: ${openaiError.message || "Unknown error"}`,
+        {
+          document_url: documentUrl,
+          title: metadata.title || "Untitled Document",
+          error: openaiError.message
+        }
+      );
+    }
+    
     return data;
   } catch (error) {
     console.error("Error in storeInAiAgents:", error);

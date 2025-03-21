@@ -125,4 +125,79 @@ Example Responses for Off-Limit Questions:
       };
     }
   }
+
+  /**
+   * Adds a processed document to an OpenAI Assistant
+   */
+  static async addDocumentToOpenAIAssistant(
+    clientId: string,
+    agentName: string,
+    documentContent: string,
+    documentTitle: string
+  ): Promise<ParseResponse> {
+    try {
+      console.log(`Adding document "${documentTitle}" to OpenAI Assistant for client ${clientId}`);
+      
+      // Get the OpenAI Assistant ID for this client
+      const { data: assistantData, error: assistantError } = await supabase
+        .from("ai_agents")
+        .select("openai_assistant_id")
+        .eq("client_id", clientId)
+        .single();
+      
+      if (assistantError || !assistantData?.openai_assistant_id) {
+        console.error('No OpenAI Assistant ID found for this client');
+        
+        // Create a new OpenAI Assistant for this client if one doesn't exist
+        const { data: createData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
+          method: 'POST',
+          body: {
+            client_id: clientId,
+            agent_name: agentName,
+            agent_description: `Assistant for ${agentName}`,
+          },
+        });
+        
+        if (createError || !createData?.assistant_id) {
+          console.error('Failed to create OpenAI Assistant:', createError);
+          return {
+            success: false,
+            error: createError?.message || 'Failed to create OpenAI Assistant'
+          };
+        }
+      }
+      
+      // Now call the Supabase function to add the document to the assistant
+      const { data, error } = await supabase.functions.invoke('upload-document-to-assistant', {
+        method: 'POST',
+        body: {
+          clientId,
+          agentName,
+          documentContent,
+          documentTitle
+        },
+      });
+      
+      if (error) {
+        console.error('Error adding document to OpenAI Assistant:', error);
+        return {
+          success: false,
+          error: error.message || 'Failed to add document to OpenAI Assistant'
+        };
+      }
+      
+      console.log('Successfully added document to OpenAI Assistant:', data);
+      
+      return {
+        success: true,
+        data
+      };
+    } catch (error) {
+      console.error('Error in addDocumentToOpenAIAssistant:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to add document to OpenAI Assistant'
+      };
+    }
+  }
 }

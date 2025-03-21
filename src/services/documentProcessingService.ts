@@ -63,7 +63,12 @@ export const processDocument = async (
   options: DocumentProcessingOptions
 ): Promise<DocumentProcessingResult> => {
   try {
-    const { clientId, agentName = 'AI Assistant', processingMethod = 'llamaparse' } = options;
+    const { 
+      clientId, 
+      agentName = 'AI Assistant', 
+      processingMethod = 'llamaparse',
+      integrateWithOpenAI = true 
+    } = options;
     
     // First, log that processing has started
     await execSql(`
@@ -71,7 +76,7 @@ export const processDocument = async (
         '${clientId}',
         'document_processing_started',
         'Document processing started for: ${documentPath}',
-        '{"path": "${documentPath}", "method": "${processingMethod}"}'::jsonb
+        '{"path": "${documentPath}", "method": "${processingMethod}", "openai_integration": ${integrateWithOpenAI}}'::jsonb
       )
     `);
     
@@ -127,6 +132,20 @@ export const processDocument = async (
         '{"document_id": "${documentId}", "path": "${documentPath}"}'::jsonb
       )
     `);
+
+    // If OpenAI integration is enabled, schedule the document to be added to the OpenAI Assistant
+    if (integrateWithOpenAI) {
+      await execSql(`
+        SELECT log_client_activity(
+          '${clientId}',
+          'openai_assistant_integration_requested',
+          'Document scheduled for OpenAI Assistant integration: ${documentPath}',
+          '{"document_id": "${documentId}", "path": "${documentPath}"}'::jsonb
+        )
+      `);
+      
+      // This will be handled by the Edge Function after document processing
+    }
     
     return {
       success: true,
@@ -137,7 +156,8 @@ export const processDocument = async (
         path: documentPath,
         processedAt: new Date().toISOString(),
         method: processingMethod,
-        publicUrl: publicUrl
+        publicUrl: publicUrl,
+        openaiIntegration: integrateWithOpenAI
       }
     };
   } catch (error) {
