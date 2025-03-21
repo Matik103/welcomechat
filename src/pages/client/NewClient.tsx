@@ -5,11 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createOpenAIAssistant } from "@/utils/openAIUtils";
 import { TestEmailComponent } from "@/components/client/TestEmailComponent";
+import { Loader2 } from "lucide-react";
 
 export default function NewClient() {
   const navigate = useNavigate();
 
   const handleSubmit = async (data: any) => {
+    // Show loading toast
+    const loadingToastId = toast.loading("Creating AI agent and sending welcome email...");
+    
     try {
       let logo_url = null;
 
@@ -32,9 +36,9 @@ export default function NewClient() {
         if (uploadError) {
           console.error("Error uploading logo:", uploadError);
           if (uploadError.message.includes('Unauthorized')) {
-            toast.error("Please sign in to upload files");
+            toast.error("Please sign in to upload files", { id: loadingToastId });
           } else {
-            toast.error("Failed to upload logo");
+            toast.error("Failed to upload logo", { id: loadingToastId });
           }
           return;
         }
@@ -72,7 +76,7 @@ export default function NewClient() {
 
       if (error) {
         console.error("Error creating AI agent:", error);
-        toast.error("Failed to create AI agent");
+        toast.error("Failed to create AI agent", { id: loadingToastId });
         return;
       }
 
@@ -107,13 +111,105 @@ export default function NewClient() {
         console.error("Error logging activity:", activityError);
         // Don't show error to user as the main operation succeeded
       }
+      
+      // Generate a temporary password for the client
+      const tempPassword = (() => {
+        // Generate a password in the format "Welcome2025#123"
+        const currentYear = new Date().getFullYear();
+        const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+        return `Welcome${currentYear}#${randomDigits}`;
+      })();
+      
+      // Store temp password in the database
+      const { error: tempPasswordError } = await supabase
+        .from("client_temp_passwords")
+        .insert({
+          agent_id: agentData.id,
+          email: data.email,
+          temp_password: tempPassword
+        });
+
+      if (tempPasswordError) {
+        console.error("Error saving temporary password:", tempPasswordError);
+        toast.error("Failed to create login credentials", { id: loadingToastId });
+        return;
+      }
+      
+      // Show sending email toast
+      toast.loading("Sending welcome email...", { id: loadingToastId });
+      
+      // Send welcome email using the send-welcome-email edge function
+      try {
+        // Call the edge function directly
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-welcome-email', {
+          body: {
+            clientId: agentData.client_id,
+            clientName: data.client_name,
+            email: data.email,
+            agentName: data.bot_settings.bot_name || "AI Assistant",
+            tempPassword: tempPassword
+          }
+        });
+        
+        if (emailError) {
+          console.error("Email sending error:", emailError);
+          
+          // Log the failed email attempt
+          await supabase.from("client_activities").insert({
+            client_id: agentData.client_id,
+            activity_type: "email_error",
+            description: `Failed to send welcome email to client ${data.client_name}`,
+            metadata: { 
+              error: emailError.message,
+              action: "welcome_email_failed",
+              client_name: data.client_name,
+              admin_action: true
+            }
+          });
+          
+          toast.error(`Client created successfully but welcome email failed to send: ${emailError.message}`, {
+            id: loadingToastId,
+            duration: 6000
+          });
+        } else if (emailData && !emailData.success) {
+          console.error("Email function returned error:", emailData);
+          
+          toast.error(`Client created successfully but welcome email failed to send: ${emailData.error || "Unknown error"}`, {
+            id: loadingToastId,
+            duration: 6000
+          });
+        } else {
+          // Success - log the activity
+          await supabase.from("client_activities").insert({
+            client_id: agentData.client_id,
+            activity_type: "email_sent",
+            description: `Welcome email sent to ${data.client_name}`,
+            metadata: { 
+              recipient_email: data.email,
+              email_type: "welcome_email",
+              client_name: data.client_name,
+              admin_action: true,
+              successful: true
+            }
+          });
+          
+          toast.success(`Client created successfully and welcome email sent to ${data.email}`, {
+            id: loadingToastId
+          });
+        }
+      } catch (emailErr: any) {
+        console.error("Error sending email:", emailErr);
+        toast.error(`Client created successfully but welcome email failed to send: ${emailErr.message || "Unknown error"}`, {
+          id: loadingToastId,
+          duration: 6000
+        });
+      }
 
       console.log("AI agent created successfully:", agentData);
-      toast.success("AI agent created successfully!");
       navigate("/admin/clients");
     } catch (error) {
       console.error("Error in handleSubmit:", error);
-      toast.error("Failed to create AI agent");
+      toast.error("Failed to create AI agent", { id: loadingToastId });
     }
   };
 
