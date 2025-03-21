@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { FirecrawlService } from "@/utils/FirecrawlService";
 import { ValidationResult } from "./ValidationResult";
 import { ScrapabilityInfo } from "./ScrapabilityInfo";
-import { useUrlAccessCheck } from "@/hooks/useUrlAccessCheck";
+import { useUrlAccessCheck, UrlCheckResult } from "@/hooks/useUrlAccessCheck";
 
 const websiteUrlSchema = z.object({
   url: z.string().url("Please enter a valid URL including http:// or https://"),
@@ -221,13 +221,13 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
               <ValidationResult 
                 error={lastResult.error || null}
                 isValidated={!!lastResult}
-                lastResult={lastResult}
+                lastResult={lastResult as UrlCheckResult}
               />
               
               {/* Display scrapability info if URL is valid */}
               {lastResult.isAccessible && (
                 <ScrapabilityInfo 
-                  lastResult={lastResult}
+                  lastResult={lastResult as UrlCheckResult}
                   isValidated={true}
                   isContentStored={isContentStored}
                 />
