@@ -1,5 +1,5 @@
 
-import { Eye, MessageSquare, Edit, Trash2, Mail } from "lucide-react";
+import { MessageSquare, Edit, Trash2, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -44,8 +44,9 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
       // Check if settings exists and is an object before accessing properties
       if (clientData.settings && typeof clientData.settings === 'object' && !Array.isArray(clientData.settings)) {
         // Now TypeScript knows settings is an object, we can safely access properties
-        email = email || (clientData.settings as Record<string, any>).email;
-        clientName = clientName || (clientData.settings as Record<string, any>).client_name;
+        const settingsObj = clientData.settings as Record<string, any>;
+        email = email || settingsObj.email;
+        clientName = clientName || settingsObj.client_name;
       }
       
       if (!email) {
@@ -85,14 +86,25 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         throw new Error(emailResult.error || "Failed to send invitation email");
       }
       
+      // Get current settings to update
+      const { data: currentSettings } = await supabase
+        .from("ai_agents")
+        .select("settings")
+        .eq("id", clientId)
+        .single();
+      
+      // Create updated settings object
+      const settingsObject = currentSettings?.settings || {};
+      const updatedSettings = {
+        ...(typeof settingsObject === 'object' && !Array.isArray(settingsObject) ? settingsObject : {}),
+        invitation_status: "sent"
+      };
+        
       // Update invitation status
       const { error: updateError } = await supabase
         .from("ai_agents")
         .update({ 
-          settings: JSON.stringify({
-            ...(clientData.settings as object || {}),
-            invitation_status: "sent"
-          }),
+          settings: updatedSettings,
           invitation_status: "sent"  // Add this field directly
         })
         .eq("id", clientId);
@@ -134,9 +146,6 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
     // Return disabled actions when clientId is missing
     return (
       <div className="flex items-center justify-end gap-2">
-        <span className="p-1 text-gray-300 cursor-not-allowed" title="View Client (ID missing)">
-          <Eye className="w-4 h-4" />
-        </span>
         <span className="p-1 text-gray-300 cursor-not-allowed" title="Widget Settings (ID missing)">
           <MessageSquare className="w-4 h-4" />
         </span>
@@ -154,13 +163,6 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
 
   return (
     <div className="flex items-center justify-end gap-2">
-      <Link
-        to={`/admin/clients/view/${clientId}`}
-        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-        title="View Client"
-      >
-        <Eye className="w-4 h-4" />
-      </Link>
       <Link
         to={`/admin/clients/${clientId}/widget-settings`}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"

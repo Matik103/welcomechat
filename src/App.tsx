@@ -6,7 +6,6 @@ import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import ClientList from "@/pages/ClientList";
 import Settings from "@/pages/Settings";
-import ClientView from "@/pages/ClientView";
 import AddEditClient from "@/pages/AddEditClient";
 import WidgetSettings from "@/pages/WidgetSettings";
 import { useAuth } from "./contexts/AuthContext";
@@ -79,12 +78,10 @@ function App() {
           <Route path="/admin/clients" element={<ClientList />} />
           <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/clients/new" element={<AddEditClient />} />
-          <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
           <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
-          {/* Redirect the old route to the new view route */}
-          <Route path="/admin/clients/:clientId" element={<Navigate to="/admin/clients/view/:clientId" replace />} />
+          {/* Removed the problematic route */}
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
           <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
