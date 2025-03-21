@@ -26,8 +26,7 @@ const ActionButton = ({ children, primary = false, onClick }: ActionButtonProps)
 export const ActionButtons = () => {
   const navigate = useNavigate();
   
-  const handleAddClientClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleAddClientClick = () => {
     toast.info("Client creation temporarily disabled for maintenance");
     console.log("Add client button clicked - functionality temporarily disabled");
   };
