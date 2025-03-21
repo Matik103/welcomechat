@@ -44,16 +44,16 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
             <h1 style="color: #4f46e5;">Welcome to ${params.productName || 'Welcome.Chat'}!</h1>
           </div>
           
-          <p>Hello ${params.clientName},</p>
+          <p>Hello ${params.clientName || 'Client'},</p>
           
           <p>Your AI assistant account has been created and is ready for configuration. Here are your login credentials:</p>
           
           <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Email Address:</strong></p>
-            <p style="color: #4f46e5;">${params.email}</p>
+            <p style="color: #4f46e5;">${params.email || ''}</p>
             
             <p><strong>Temporary Password:</strong></p>
-            <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${params.tempPassword}</p>
+            <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${params.tempPassword || ''}</p>
           </div>
           
           <p>To get started:</p>
@@ -89,6 +89,12 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
       throw new Error("Email content is required. Provide either 'html' or a valid 'template'.");
     }
     
+    // Check if recipient email is valid
+    if (!options.to || (typeof options.to === 'string' && !options.to.includes('@')) || 
+        (Array.isArray(options.to) && options.to.length === 0)) {
+      throw new Error("Valid recipient email is required");
+    }
+    
     // Call the edge function to send the email
     console.log("Calling send-email edge function...");
     
@@ -97,7 +103,7 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
         to: options.to,
         subject: options.subject,
         html: html,
-        from: options.from
+        from: options.from || "Welcome.Chat <admin@welcome.chat>"
       }
     });
     

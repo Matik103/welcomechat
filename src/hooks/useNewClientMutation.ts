@@ -167,10 +167,21 @@ export const useNewClientMutation = () => {
           if (!emailResult.success) {
             console.error("Error sending welcome email:", emailResult.error);
             // We still return success since the client was created
-            throw new Error(`Client created but email failed: ${emailResult.error}`);
+            return {
+              clientId: clientId,
+              agentId: newAgent.id,
+              emailSent: false,
+              emailError: emailResult.error
+            };
           }
           
           console.log("Welcome email sent successfully");
+          
+          return {
+            clientId: clientId,
+            agentId: newAgent.id,
+            emailSent: true
+          };
         } catch (emailError) {
           console.error("Error in email/user creation process:", emailError);
           // Continue even if email sending fails, but we'll return detailed info
@@ -181,12 +192,6 @@ export const useNewClientMutation = () => {
             emailError: emailError instanceof Error ? emailError.message : "Unknown email error"
           };
         }
-
-        return {
-          clientId: clientId,
-          agentId: newAgent.id,
-          emailSent: true
-        };
       } catch (error) {
         console.error("Error creating client:", error);
         // Ensure we always have a meaningful error message
@@ -201,14 +206,6 @@ export const useNewClientMutation = () => {
       // Make sure we have a user-friendly error message
       const errorMessage = error.message || "Failed to create client. Please try again.";
       toast.error(errorMessage);
-    },
-    onSuccess: (result) => {
-      if (result.emailSent) {
-        toast.success("Client created successfully! An email with credentials has been sent.");
-      } else {
-        toast.success("Client created successfully!");
-        toast.error(`However, the welcome email could not be sent: ${result.emailError || "Unknown error"}`);
-      }
     }
   });
 };
