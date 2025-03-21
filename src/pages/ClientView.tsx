@@ -82,7 +82,7 @@ const ClientView = () => {
       try {
         setIsLoadingCommonQueries(true);
         
-        // Fixed query to avoid MIN on UUID which was causing errors
+        // Fixed query to avoid using MIN on UUID which was causing errors
         const query = `
           SELECT query_text, COUNT(*) as frequency, MAX(created_at) as last_asked, id
           FROM ai_agents
@@ -138,9 +138,14 @@ const ClientView = () => {
         const countResult = await execSql(countQuery);
         
         if (countResult && Array.isArray(countResult) && countResult.length > 0) {
-          const count = countResult[0]?.count || 0;
-          statsData.total_interactions = Number(count);
-          statsData.totalInteractions = Number(count);
+          // Access the count value safely, ensuring we handle different result formats
+          const countObject = countResult[0];
+          // Check if count exists and convert it to a number
+          if (countObject && typeof countObject === 'object') {
+            const count = parseInt(countObject.count as string, 10) || 0;
+            statsData.total_interactions = count;
+            statsData.totalInteractions = count;
+          }
         }
         
         // Set stats
