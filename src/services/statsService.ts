@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { fetchTopQueries } from "./topQueriesService";
 import { getInteractionCount } from "./interactionCountService";
@@ -18,19 +19,22 @@ export const getInteractionStats = async (clientId: string, agentName?: string):
     // Get agent name if not provided
     if (!agentName) {
       try {
-        const { data: clientData } = await callRpcFunction<any>('exec_sql', { 
-          sql_query: `SELECT agent_name FROM clients WHERE id = '${clientId}'` 
+        const { data: agentData } = await callRpcFunction<any>('exec_sql', { 
+          sql_query: `SELECT name FROM ai_agents WHERE client_id = '${clientId}' LIMIT 1` 
         });
         
-        if (clientData && Array.isArray(clientData) && clientData.length > 0) {
-          agentName = clientData[0].agent_name;
+        if (agentData && Array.isArray(agentData) && agentData.length > 0) {
+          agentName = agentData[0].name || 'AI Assistant';
+        } else {
+          agentName = 'AI Assistant'; // Default value
         }
       } catch (error) {
         console.error("Error getting agent name:", error);
+        agentName = 'AI Assistant'; // Fallback
       }
     }
 
-    // Use RPC function to get all stats at once - note the function name has changed to get_agent_dashboard_stats
+    // Use RPC function to get all stats at once - use get_agent_dashboard_stats (not get_client_dashboard_stats)
     const result = await callRpcFunction<{
       total_interactions: number;
       active_days: number;
@@ -92,28 +96,24 @@ const getFallbackStats = async (clientId: string, agentName?: string): Promise<I
     let topQueries: QueryItem[] = [];
     
     try {
-      // Pass both clientId and agentName parameters
       totalInteractions = await getInteractionCount(clientId, agentName);
     } catch (error) {
       console.error("Error getting total interactions:", error);
     }
     
     try {
-      // Pass both clientId and agentName parameters
       activeDays = await getActiveDays(clientId, agentName);
     } catch (error) {
       console.error("Error getting active days:", error);
     }
     
     try {
-      // Pass the clientId and agentName (both parameters needed)
       averageResponseTime = await getAverageResponseTime(clientId, agentName);
     } catch (error) {
       console.error("Error getting average response time:", error);
     }
     
     try {
-      // Pass both parameters to fetchTopQueries
       topQueries = await fetchTopQueries(clientId, agentName);
     } catch (error) {
       console.error("Error getting top queries:", error);

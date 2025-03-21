@@ -17,16 +17,18 @@ export const useClient = (clientId: string) => {
       if (!clientId) return null;
       
       try {
-        // Use execSql to get client data from ai_agents table
+        // Try to get a specific agent with this client ID
         const query = `
           SELECT * FROM ai_agents 
-          WHERE id = '${clientId}'
+          WHERE client_id = '${clientId}' OR id = '${clientId}'
+          ORDER BY created_at DESC
           LIMIT 1
         `;
         
         const result = await execSql(query);
         
         if (!result || !Array.isArray(result) || result.length === 0) {
+          console.log("No agent found for client ID:", clientId);
           return null;
         }
         
@@ -34,9 +36,12 @@ export const useClient = (clientId: string) => {
         
         if (!clientData) return null;
         
+        console.log("Found agent data:", clientData);
+        
         // Map data to Client type with proper type casting and null checks
         return {
           id: String(clientData.id || ''),
+          client_id: String(clientData.client_id || clientData.id || ''),
           client_name: String(clientData.client_name || ''),
           email: String(clientData.email || ''),
           logo_url: String(clientData.logo_url || ''),
