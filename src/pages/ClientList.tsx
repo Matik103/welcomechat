@@ -37,7 +37,7 @@ export default function ClientList() {
             is_error,
             error_message
           FROM ai_agents 
-          WHERE interaction_type = 'config'
+          WHERE interaction_type = 'config' OR interaction_type IS NULL
           ORDER BY created_at DESC
         `;
         
@@ -46,21 +46,22 @@ export default function ClientList() {
         console.log(`Fetched ${results?.length || 0} clients from ai_agents:`, results);
         
         if (!results || !Array.isArray(results)) {
+          console.error("No results or invalid results format:", results);
           return [];
         }
         
         // Map the results to the Client interface
-        return results.map((record: any) => {
+        const mappedClients = results.map((record: any) => {
           // Extract client name and email from settings if available
           const settings = typeof record.settings === 'object' ? record.settings : {};
-          const clientName = settings.client_name || 'Unnamed Client';
+          const clientName = settings.client_name || record.agent_name || 'Unnamed Client';
           const email = settings.email || '';
           
-          return {
+          const client: Client = {
             id: record.id,
             client_id: record.client_id || record.id,
             client_name: clientName,
-            email: email, // Add the email property to match Client type
+            email: email, 
             agent_name: record.agent_name || '',
             description: record.description || '',
             widget_settings: settings,
@@ -73,7 +74,13 @@ export default function ClientList() {
             is_error: record.is_error || false,
             error_message: record.error_message || ''
           };
+          
+          console.log("Mapped client:", client);
+          return client;
         });
+        
+        console.log("Total mapped clients:", mappedClients.length);
+        return mappedClients;
       } catch (err) {
         console.error('Error fetching clients:', err);
         toast.error('Failed to load clients');
@@ -85,7 +92,7 @@ export default function ClientList() {
   });
 
   useEffect(() => {
-    if (clients) {
+    if (clients && clients.length > 0) {
       console.log(`Filtering ${clients.length} clients with search query: "${searchQuery}"`);
       const filtered = clients.filter(client => {
         const searchLower = searchQuery.toLowerCase();
@@ -98,6 +105,9 @@ export default function ClientList() {
         );
       });
       setFilteredClients(filtered);
+    } else {
+      console.log("No clients to filter");
+      setFilteredClients([]);
     }
   }, [clients, searchQuery]);
 
