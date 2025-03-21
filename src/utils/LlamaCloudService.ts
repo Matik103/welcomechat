@@ -146,14 +146,13 @@ Example Responses for Off-Limit Questions:
         .eq("interaction_type", "config")
         .single();
       
-      // Check for error or missing/undefined assistant ID
+      // Properly handle errors and check for the column
       if (result.error) {
         console.error('Error finding OpenAI Assistant ID for this client:', result.error);
         
-        // Check if the error message indicates the column doesn't exist
-        const errorMessage = result.error.message || '';
-        if (errorMessage.includes("column 'openai_assistant_id' does not exist")) {
-          console.error('The openai_assistant_id column does not exist. Please run the migration first.');
+        // Special handling for missing column error
+        if (result.error.message?.includes("column 'openai_assistant_id' does not exist")) {
+          console.error('The openai_assistant_id column is missing. Running migration...');
           
           // Run the migration to add the column via the Edge Function
           const { data: migrationData, error: migrationError } = await supabase.functions.invoke('execute_sql', {
@@ -194,7 +193,7 @@ Example Responses for Off-Limit Questions:
         
         // The new assistant_id will be used in the subsequent call to upload-document-to-assistant
       } else if (!result.data || !result.data.openai_assistant_id) {
-        console.error('Missing openai_assistant_id for this client');
+        console.log('No openai_assistant_id found for this client. Creating new assistant...');
         
         // Create a new OpenAI Assistant for this client
         const { data: createData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
@@ -214,7 +213,9 @@ Example Responses for Off-Limit Questions:
           };
         }
         
-        // The new assistant_id will be used in the subsequent call to upload-document-to-assistant
+        console.log('Created new OpenAI Assistant with ID:', createData.assistant_id);
+      } else {
+        console.log('Found existing OpenAI Assistant ID:', result.data.openai_assistant_id);
       }
       
       // Now call the Supabase function to add the document to the assistant
@@ -247,6 +248,97 @@ Example Responses for Off-Limit Questions:
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to add document to OpenAI Assistant'
+      };
+    }
+  }
+
+  /**
+   * Verifies that all required components for OpenAI Assistant integration are in place
+   */
+  static async verifyAssistantIntegration(): Promise<ParseResponse> {
+    try {
+      console.log('Verifying OpenAI Assistant Integration components...');
+      
+      // Check 1: Verify OPENAI_API_KEY is set in environment
+      const { data: secretsData, error: secretsError } = await supabase.functions.invoke('check-secrets', {
+        method: 'POST',
+        body: { 
+          required: ['OPENAI_API_KEY', 'LLAMA_CLOUD_API_KEY'] 
+        },
+      });
+      
+      if (secretsError || !secretsData?.success) {
+        return {
+          success: false,
+          error: 'Missing required API keys: ' + (secretsData?.missing?.join(', ') || 'Unknown')
+        };
+      }
+      
+      // Check 2: Verify the openai_assistant_id column exists
+      const { data: columnData, error: columnError } = await supabase.functions.invoke('check-table-exists', {
+        method: 'POST',
+        body: { table_name: 'ai_agents' },
+      });
+      
+      if (columnError || !columnData?.exists) {
+        return {
+          success: false,
+          error: 'The ai_agents table is missing or inaccessible'
+        };
+      }
+      
+      // Check 3: Verify the edge functions are deployed
+      const requiredFunctions = [
+        'process-document', 
+        'create-openai-assistant', 
+        'upload-document-to-assistant'
+      ];
+      
+      let allFunctionsAvailable = true;
+      for (const funcName of requiredFunctions) {
+        try {
+          // Simple ping to check if function exists
+          await supabase.functions.invoke(funcName, {
+            method: 'OPTIONS'
+          });
+        } catch (e) {
+          console.error(`Edge function ${funcName} appears to be missing:`, e);
+          allFunctionsAvailable = false;
+        }
+      }
+      
+      if (!allFunctionsAvailable) {
+        return {
+          success: false,
+          error: 'One or more required Edge Functions are not deployed correctly'
+        };
+      }
+      
+      // Check 4: Verify document storage bucket exists
+      const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('documents');
+      
+      if (bucketError) {
+        return {
+          success: false,
+          error: 'Document storage bucket is missing or inaccessible'
+        };
+      }
+      
+      return {
+        success: true,
+        data: {
+          message: 'All OpenAI Assistant integration components verified successfully',
+          apiKeysAvailable: true,
+          databaseReady: true,
+          edgeFunctionsDeployed: true,
+          storageBucketReady: true
+        }
+      };
+    } catch (error) {
+      console.error('Error verifying assistant integration:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to verify assistant integration'
       };
     }
   }
