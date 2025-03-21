@@ -25,7 +25,7 @@ serve(async (req) => {
       }
     )
 
-    // Get the current user to verify authentication
+    // Get the current user for authentication
     const {
       data: { user },
     } = await supabaseClient.auth.getUser()
@@ -37,32 +37,30 @@ serve(async (req) => {
       )
     }
 
-    // Get the table name to check
-    const { table_name } = await req.json()
+    // Get the list of required secrets to check
+    const { required } = await req.json()
     
-    if (!table_name) {
+    if (!Array.isArray(required) || required.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'No table name specified' }),
+        JSON.stringify({ error: 'No required secrets specified' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
     
-    // Check if the table exists using the check_table_exists database function
-    const { data, error } = await supabaseClient.rpc('check_table_exists', { 
-      table_name: table_name 
-    })
-    
-    if (error) {
-      return new Response(
-        JSON.stringify({ error: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    // Check if all required secrets are set
+    const missing = []
+    for (const secretName of required) {
+      const value = Deno.env.get(secretName)
+      if (!value) {
+        missing.push(secretName)
+      }
     }
     
     return new Response(
       JSON.stringify({ 
-        exists: data,
-        table: table_name
+        success: missing.length === 0,
+        missing,
+        checked: required
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

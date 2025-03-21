@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ActivityList } from "@/components/dashboard/ActivityList";
 import { ActionButtons } from "@/components/dashboard/ActionButtons";
+import { VerifyIntegration } from "@/components/dashboard/VerifyIntegration";
 import { useClientStats } from "@/hooks/useClientStats";
 import { useInteractionStats } from "@/hooks/useInteractionStats";
 import { useRecentActivities } from "@/hooks/useRecentActivities";
@@ -77,6 +78,9 @@ const Index = () => {
           <h1 className="text-2xl font-bold text-gray-900">AI Chatbot Admin System</h1>
           <p className="text-gray-500">Monitor and manage your AI chatbot clients</p>
         </div>
+
+        {/* Integration Verification Component */}
+        <VerifyIntegration />
 
         <div className="flex justify-end mb-4">
           <div className="flex gap-2">
