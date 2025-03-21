@@ -108,17 +108,20 @@ const ClientView = () => {
         const result = await execSql(query);
         
         if (result && Array.isArray(result) && result.length > 0) {
-          // Parse the JSON string if needed
-          let statsData;
+          // First, access the result as any to bypass TypeScript's type checking
+          const statsResult = result[0] as any;
+          
           try {
-            // Handle the case where result[0].get_agent_dashboard_stats could be a string or an object
-            if (typeof result[0].get_agent_dashboard_stats === 'string') {
-              statsData = JSON.parse(result[0].get_agent_dashboard_stats);
+            // Extract dashboard stats, handling both string and object formats
+            let statsData: any;
+            
+            if (typeof statsResult.get_agent_dashboard_stats === 'string') {
+              statsData = JSON.parse(statsResult.get_agent_dashboard_stats);
             } else {
-              statsData = result[0].get_agent_dashboard_stats;
+              statsData = statsResult.get_agent_dashboard_stats;
             }
             
-            // Transform the data into the expected InteractionStats format
+            // Transform the data into the expected InteractionStats format with null checks
             const formattedStats: InteractionStatsType = {
               total_interactions: statsData?.total_interactions || 0,
               active_days: statsData?.active_days || 0,
@@ -135,7 +138,7 @@ const ClientView = () => {
             
             setStats(formattedStats);
           } catch (error) {
-            console.error('Error parsing stats data:', error, result[0]);
+            console.error('Error parsing stats data:', error, statsResult);
             setStats(null);
           }
         }
