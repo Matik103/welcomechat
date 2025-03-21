@@ -49,18 +49,28 @@ serve(async (req) => {
     
     // Check if all required secrets are set
     const missing = []
+    const available = []
     for (const secretName of required) {
       const value = Deno.env.get(secretName)
       if (!value) {
         missing.push(secretName)
+      } else {
+        available.push(secretName)
       }
     }
+    
+    // Check specifically for Firecrawl API key if it's among required keys
+    const hasFirecrawlKey = Deno.env.get('FIRECRAWL_API_KEY') !== undefined
     
     return new Response(
       JSON.stringify({ 
         success: missing.length === 0,
         missing,
-        checked: required
+        available,
+        checked: required,
+        firecrawl: {
+          configured: hasFirecrawlKey || required.includes('FIRECRAWL_API_KEY') && missing.indexOf('FIRECRAWL_API_KEY') === -1
+        }
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
