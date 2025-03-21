@@ -127,7 +127,7 @@ serve(async (req) => {
         .from("client_activities")
         .insert({
           client_id: clientId,
-          activity_type: "email_sent",
+          activity_type: "client_updated",
           description: `Welcome email sent to ${clientName}`,
           metadata: { 
             email_type: "welcome_email",
@@ -148,7 +148,7 @@ serve(async (req) => {
         .from("client_activities")
         .insert({
           client_id: clientId,
-          activity_type: "email_error",
+          activity_type: "client_updated",
           description: `Failed to send welcome email to ${clientName}`,
           metadata: { 
             error: emailSendError.message || "Unknown error",
