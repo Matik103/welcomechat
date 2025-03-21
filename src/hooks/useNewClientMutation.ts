@@ -118,9 +118,11 @@ export const useNewClientMutation = () => {
             throw new Error("Failed to create user account");
           }
 
+          console.log("User account created with data:", userData);
+
           if (userData && userData.temp_password) {
             // Send welcome email with the temporary password
-            await sendEmail({
+            const emailResult = await sendEmail({
               to: validatedData.email.trim().toLowerCase(),
               subject: "Welcome to Welcome.Chat - Your Account Details",
               template: "client-invitation",
@@ -131,7 +133,18 @@ export const useNewClientMutation = () => {
                 productName: "Welcome.Chat"
               }
             });
-            console.log("Welcome email sent successfully");
+            
+            console.log("Welcome email result:", emailResult);
+            
+            if (!emailResult.success) {
+              console.error("Error sending welcome email:", emailResult.message);
+              // We still return success since the client was created
+              // The email could be sent manually later
+            } else {
+              console.log("Welcome email sent successfully");
+            }
+          } else {
+            console.error("No temporary password was generated");
           }
         } catch (emailError) {
           console.error("Error sending welcome email:", emailError);
