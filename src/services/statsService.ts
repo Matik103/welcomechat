@@ -93,25 +93,29 @@ const getFallbackStats = async (clientId: string, agentName?: string): Promise<I
     let topQueries: QueryItem[] = [];
     
     try {
-      totalInteractions = await getInteractionCount(clientId, agentName);
+      // Pass only the clientId since the function only expects one parameter
+      totalInteractions = await getInteractionCount(clientId);
     } catch (error) {
       console.error("Error getting total interactions:", error);
     }
     
     try {
-      activeDays = await getActiveDays(clientId, agentName);
+      // Pass only the clientId since the function only expects one parameter
+      activeDays = await getActiveDays(clientId);
     } catch (error) {
       console.error("Error getting active days:", error);
     }
     
     try {
+      // Pass the clientId and agentName (now handled correctly in responseTimeService)
       averageResponseTime = await getAverageResponseTime(clientId, agentName);
     } catch (error) {
       console.error("Error getting average response time:", error);
     }
     
     try {
-      topQueries = await fetchTopQueries(clientId, agentName);
+      // Pass only the clientId, but fetchTopQueries may utilize agentName internally
+      topQueries = await fetchTopQueries(clientId);
     } catch (error) {
       console.error("Error getting top queries:", error);
     }
