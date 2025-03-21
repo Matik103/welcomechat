@@ -345,10 +345,11 @@ Example Responses for Off-Limit Questions:
         });
         
         // Fixed type error - properly check the response structure
-        const columnExists = columnCheckData && Array.isArray(columnCheckData) && 
+        const columnExists = columnCheckData && 
+                            Array.isArray(columnCheckData) && 
                             columnCheckData.length > 0 && 
-                            typeof columnCheckData[0] === 'object' && 
-                            columnCheckData[0] !== null &&
+                            columnCheckData[0] !== null && 
+                            typeof columnCheckData[0] === 'object' &&
                             'exists' in columnCheckData[0] && 
                             columnCheckData[0].exists === true;
         
