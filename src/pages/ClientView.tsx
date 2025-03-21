@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -132,21 +131,21 @@ const ClientView = () => {
               console.error('Error parsing stats JSON string:', e);
             }
           } else if (typeof rawStats === 'object' && rawStats !== null) {
-            // Direct object or object with get_agent_dashboard_stats property
-            if (rawStats.get_agent_dashboard_stats) {
-              const statsValue = rawStats.get_agent_dashboard_stats;
-              if (typeof statsValue === 'string') {
-                try {
-                  statsData = JSON.parse(statsValue);
-                } catch (e) {
-                  console.error('Error parsing stats property as JSON string:', e);
-                  statsData = statsValue; // Try to use directly if parsing fails
+            // The rawStats object itself might be what we need (no property name)
+            statsData = rawStats;
+            
+            // If it has a property that might be our data in string form, try to parse that
+            const possibleJsonProperty = Object.values(rawStats)[0];
+            if (typeof possibleJsonProperty === 'string') {
+              try {
+                const parsed = JSON.parse(possibleJsonProperty);
+                if (parsed && typeof parsed === 'object') {
+                  statsData = parsed;
                 }
-              } else {
-                statsData = statsValue; // Use directly if it's already an object
+              } catch (e) {
+                // If parsing fails, keep using the rawStats as is
+                console.error('Error trying to parse property as JSON:', e);
               }
-            } else {
-              statsData = rawStats; // Use the raw stats if no specific property
             }
           }
           
@@ -178,7 +177,6 @@ const ClientView = () => {
     }
   }, [clientId, client]);
 
-  // Set up real-time subscription for AI agent updates
   useEffect(() => {
     if (!clientId) return;
 
@@ -229,7 +227,6 @@ const ClientView = () => {
     navigate('/admin/clients');
   };
 
-  // Safety check - if we're loading or don't have a clientId, return a loading state
   if (!clientId) {
     return (
       <div className="container py-12 text-center min-h-[60vh]">
@@ -301,31 +298,25 @@ const ClientView = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Main content area - 8 columns */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Client Information Card */}
           <ClientInfoCard 
             client={client} 
             chatHistory={chatHistory} 
             aiAgentStats={agentStats} 
           />
 
-          {/* Common Queries Card */}
           <QueryList 
             queries={commonQueries} 
             isLoading={isLoadingCommonQueries} 
           />
 
-          {/* Error Logs Card - MOVED to bottom */}
           <ErrorLogList 
             logs={errorLogs} 
             isLoading={isLoadingErrorLogs} 
           />
         </div>
 
-        {/* Sidebar - 4 columns */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Recent Chat History - MOVED from bottom to sidebar */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Chat History</CardTitle>
