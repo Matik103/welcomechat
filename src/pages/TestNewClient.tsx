@@ -7,8 +7,10 @@ import { Card } from "@/components/ui/card";
 import { PageHeading } from "@/components/dashboard/PageHeading";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export default function TestNewClient() {
+  const navigate = useNavigate();
   const { mutateAsync: createClient, isPending } = useNewClientMutation();
   const [success, setSuccess] = useState(false);
 
@@ -45,6 +47,14 @@ export default function TestNewClient() {
     setSuccess(false);
   };
 
+  const handleCreateAnother = () => {
+    setSuccess(false);
+  };
+
+  const handleGoToClients = () => {
+    navigate("/admin/clients");
+  };
+
   return (
     <div className="container mx-auto py-8 max-w-3xl">
       <PageHeading>Create New Client</PageHeading>
@@ -54,7 +64,10 @@ export default function TestNewClient() {
           <div className="text-center">
             <h2 className="text-2xl font-semibold mb-4 text-green-600">Client Created Successfully!</h2>
             <p className="mb-6">An email with login credentials has been sent to the client.</p>
-            <Button onClick={handleReset}>Create Another Client</Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button onClick={handleCreateAnother}>Create Another Client</Button>
+              <Button variant="outline" onClick={handleGoToClients}>Go to Clients List</Button>
+            </div>
           </div>
         </Card>
       ) : (
