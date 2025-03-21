@@ -105,7 +105,7 @@ export default function TestNewClient() {
         throw new Error(emailResult.error || "Failed to send invitation email");
       }
       
-      // Update invitation status - use a simpler approach without the rpc function
+      // Update invitation status - fetch current settings first
       const { data: currentData } = await supabase
         .from("ai_agents")
         .select("settings")
@@ -216,4 +216,4 @@ export default function TestNewClient() {
       )}
     </div>
   );
-};
+}
