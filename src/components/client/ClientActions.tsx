@@ -85,14 +85,17 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
         throw new Error(emailResult.error || "Failed to send invitation email");
       }
       
-      // Update invitation status
+      // Update invitation status - Fix: Handle settings as a proper object
+      const updatedSettings = clientData.settings && 
+        typeof clientData.settings === 'object' && 
+        !Array.isArray(clientData.settings) ? 
+        { ...clientData.settings as object, invitation_status: "sent" } : 
+        { invitation_status: "sent" };
+
       const { error: updateError } = await supabase
         .from("ai_agents")
         .update({ 
-          settings: JSON.stringify({
-            ...(clientData.settings as object || {}),
-            invitation_status: "sent"
-          }),
+          settings: updatedSettings,
           invitation_status: "sent"  // Add this field directly
         })
         .eq("id", clientId);
@@ -155,7 +158,7 @@ export const ClientActions = ({ clientId, onDeleteClick, invitationStatus }: Cli
   return (
     <div className="flex items-center justify-end gap-2">
       <Link
-        to={`/admin/clients/view/${clientId}`}
+        to={`/admin/clients/${clientId}`}
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
         title="View Client"
       >
