@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface UrlCheckResult {
   isAccessible: boolean;
   hasScrapingRestrictions: boolean;
-  canScrape?: boolean;
+  canScrape: boolean; // Changed from optional to required
   statusCode?: number;
   contentType?: string;
   robotsRestrictions?: string[];
@@ -58,7 +58,7 @@ export function useUrlAccessCheck() {
           const fallbackResult: UrlCheckResult = {
             isAccessible: isValid,
             hasScrapingRestrictions: false,
-            canScrape: isValid,
+            canScrape: isValid, // Making sure canScrape is always set
             error: error
           };
           
@@ -69,7 +69,7 @@ export function useUrlAccessCheck() {
           const invalidUrlResult: UrlCheckResult = {
             isAccessible: false,
             hasScrapingRestrictions: true,
-            canScrape: false,
+            canScrape: false, // Making sure canScrape is always set
             error: "Invalid URL format"
           };
           setLastResult(invalidUrlResult);
@@ -81,7 +81,7 @@ export function useUrlAccessCheck() {
       const result = { 
         isAccessible: false, 
         hasScrapingRestrictions: true,
-        canScrape: false,
+        canScrape: false, // Making sure canScrape is always set
         error: error instanceof Error ? error.message : "Unknown error" 
       };
       setLastResult(result);
