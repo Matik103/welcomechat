@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
@@ -28,7 +29,7 @@ serve(async (req) => {
     
     // Get the Resend API key from environment variable
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    console.log("Resend API Key present:", !!resendApiKey, "First 5 chars:", resendApiKey?.substring(0, 5));
+    console.log("Resend API Key present:", !!resendApiKey, "First 5 chars:", resendApiKey?.substring(0, 5) || "NONE");
     
     if (!resendApiKey) {
       console.error("ERROR: Missing RESEND_API_KEY environment variable");
@@ -78,8 +79,32 @@ serve(async (req) => {
       );
     }
     
-    // Ensure to is always an array
+    // Additional validation for 'to' email addresses
     const toArray = Array.isArray(to) ? to : [to];
+    if (toArray.length === 0) {
+      console.error("Empty recipient array");
+      return new Response(
+        JSON.stringify({ success: false, error: "No recipients specified" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    // Validate email format for each recipient
+    for (const email of toArray) {
+      if (typeof email !== 'string' || !email.includes('@')) {
+        console.error("Invalid email format:", email);
+        return new Response(
+          JSON.stringify({ success: false, error: `Invalid email format: ${email}` }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
+      }
+    }
     
     // Send the email
     const fromAddress = from || "Welcome.Chat <admin@welcome.chat>";
@@ -98,11 +123,12 @@ serve(async (req) => {
       
       if (error) {
         console.error("Error from Resend API:", error);
+        const errorDetails = typeof error === 'object' ? JSON.stringify(error) : error;
         return new Response(
           JSON.stringify({ 
             success: false,
             error: error.message || "Failed to send email", 
-            details: JSON.stringify(error) 
+            details: errorDetails 
           }),
           {
             status: 500,
@@ -125,11 +151,12 @@ serve(async (req) => {
       );
     } catch (sendError) {
       console.error("Resend API error details:", sendError);
+      const errorDetails = typeof sendError === 'object' ? JSON.stringify(sendError) : sendError;
       return new Response(
         JSON.stringify({ 
           success: false,
           error: sendError.message || "Failed to send email",
-          details: JSON.stringify(sendError)
+          details: errorDetails
         }),
         {
           status: 500,
@@ -146,7 +173,8 @@ serve(async (req) => {
       code: error.code,
       status: error.status,
       name: error.name,
-      stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined
+      stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined,
+      stringified: typeof error === 'object' ? JSON.stringify(error) : error
     };
     
     return new Response(
