@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -18,15 +17,15 @@ export default function ClientList() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  // Modified query to fetch client data from ai_agents table where interaction_type = 'config'
   const { data: clients, isLoading, error, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: async (): Promise<Client[]> => {
       try {
-        console.log("Fetching clients from ai_agents table...");
+        console.log("Fetching all unique clients from ai_agents table...");
         const query = `
-          SELECT 
+          SELECT DISTINCT ON (client_id)
             id, 
+            client_id,
             name as agent_name,
             agent_description as description,
             settings,
@@ -37,31 +36,28 @@ export default function ClientList() {
             logo_url,
             logo_storage_path,
             is_error,
-            error_message,
-            client_id
+            error_message
           FROM ai_agents 
           WHERE interaction_type = 'config' OR interaction_type IS NULL
-          ORDER BY created_at DESC
+          ORDER BY client_id, created_at DESC
         `;
         
         const results = await execSql(query);
         
-        console.log(`Fetched ${results?.length || 0} clients from ai_agents:`, results);
+        console.log(`Fetched ${results?.length || 0} unique clients from ai_agents:`, results);
         
         if (!results || !Array.isArray(results)) {
           console.error("No results or invalid results format:", results);
           return [];
         }
         
-        // Map the results to the Client interface
         const mappedClients = results.map((record: any) => {
-          // Extract client name and email from settings if available
           const settings = typeof record.settings === 'object' ? record.settings : {};
           const clientName = settings.client_name || record.agent_name || 'Unnamed Client';
           const email = settings.email || '';
           
           const client: Client = {
-            id: record.client_id || record.id, // Prioritize client_id if available
+            id: record.client_id || record.id,
             client_name: clientName,
             email: email, 
             agent_name: record.agent_name || '',
@@ -77,7 +73,6 @@ export default function ClientList() {
             error_message: record.error_message || ''
           };
           
-          // Add debug logging to see client IDs
           console.log(`Client ${clientName}: id=${client.id}, client_id=${record.client_id}`);
           
           return client;
@@ -105,7 +100,8 @@ export default function ClientList() {
           client.agent_name?.toLowerCase().includes(searchLower) ||
           client.description?.toLowerCase().includes(searchLower) ||
           client.status?.toLowerCase().includes(searchLower) ||
-          client.email?.toLowerCase().includes(searchLower)
+          client.email?.toLowerCase().includes(searchLower) ||
+          client.id?.toLowerCase().includes(searchLower)
         );
       });
       setFilteredClients(filtered);
