@@ -135,7 +135,7 @@ export const useNewClientMutation = () => {
             console.log("Welcome email result:", emailResult);
             
             if (!emailResult.success) {
-              console.error("Error sending welcome email:", emailResult.message);
+              console.error("Error sending welcome email:", emailResult.error);
               // We still return success since the client was created
             } else {
               console.log("Welcome email sent successfully");
