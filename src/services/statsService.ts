@@ -7,7 +7,6 @@ import { getAverageResponseTime } from "./responseTimeService";
 import { InteractionStats } from "@/types/client-dashboard";
 import { QueryItem } from "@/types/client-dashboard";
 import { callRpcFunction } from "@/utils/rpcUtils";
-import { toast } from "sonner";
 
 /**
  * Gets all interaction stats for a client
@@ -16,11 +15,6 @@ import { toast } from "sonner";
  */
 export const getInteractionStats = async (clientId: string): Promise<InteractionStats> => {
   try {
-    if (!clientId) {
-      console.error("getInteractionStats: clientId is required");
-      throw new Error("Client ID is required");
-    }
-    
     // Use RPC function to get all stats at once
     const result = await callRpcFunction<{
       total_interactions: number;
@@ -72,8 +66,6 @@ export const getInteractionStats = async (clientId: string): Promise<Interaction
  * Fallback method to get stats if the RPC function fails
  */
 const getFallbackStats = async (clientId: string): Promise<InteractionStats> => {
-  console.log("Using fallback stats method for client:", clientId);
-  
   try {
     // Make individual calls to get the stats
     let totalInteractions = 0;

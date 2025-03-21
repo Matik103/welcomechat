@@ -2,17 +2,11 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ErrorLog } from "@/types/client-dashboard";
 import { RealtimeChannel } from "@supabase/supabase-js";
-import { toast } from "sonner";
 
 /**
  * Fetches error logs for a specific client directly from the ai_agents table
  */
 export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
-  if (!clientId) {
-    console.error("fetchErrorLogs: clientId is required");
-    return [];
-  }
-  
   try {
     const { data, error } = await supabase
       .from("ai_agents")
@@ -22,11 +16,7 @@ export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    if (error) {
-      console.error("Supabase error fetching error logs:", error);
-      toast.error("Failed to load error logs");
-      return [];
-    }
+    if (error) throw error;
     
     // Transform the data to match the ErrorLog interface
     return (data || []).map(item => ({
@@ -40,8 +30,7 @@ export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
     })) as ErrorLog[];
   } catch (err) {
     console.error("Error fetching error logs:", err);
-    toast.error("Failed to load error logs");
-    return [];
+    throw err;
   }
 };
 

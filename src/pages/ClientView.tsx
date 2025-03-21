@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -341,7 +342,6 @@ const ClientView = () => {
           <QueryList 
             queries={commonQueries} 
             isLoading={isLoadingCommonQueries} 
-            error={null} 
           />
 
           {/* Recent Chat History */}
@@ -408,7 +408,6 @@ const ClientView = () => {
           <ErrorLogList 
             logs={errorLogs} 
             isLoading={isLoadingErrorLogs} 
-            error={null} 
           />
 
           {/* Widget Settings */}
