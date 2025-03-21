@@ -49,6 +49,14 @@ export function NewClientForm() {
   });
 
   const onSubmit = async (data: ClientFormValues) => {
+    // Show a toast notification that the form is temporarily disconnected
+    toast.info("Form submission temporarily disabled");
+    
+    // Log the form data to console for debugging purposes
+    console.log("Form data (submission disabled):", data);
+    
+    // TEMPORARILY DISABLED - Functionality commented out
+    /* 
     setIsLoading(true);
     const initialToastId = toast.loading("Creating client...");
     
@@ -132,6 +140,7 @@ export function NewClientForm() {
     } finally {
       setIsLoading(false);
     }
+    */
   };
 
   return (
@@ -216,6 +225,10 @@ export function NewClientForm() {
       <Button type="submit" disabled={isLoading} className="w-full">
         {isLoading ? 'Creating...' : 'Create Client'}
       </Button>
+      
+      <div className="mt-2 p-4 bg-amber-100 rounded-md border border-amber-200">
+        <p className="text-amber-800 text-sm font-medium">⚠️ Note: Form submission is temporarily disabled</p>
+      </div>
     </form>
   );
 }
