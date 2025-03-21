@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 interface EmailResponse {
@@ -11,6 +12,7 @@ export interface EmailOptions {
   subject: string;
   html?: string;
   template?: "client-invitation";
+  from?: string;
   params?: {
     clientName?: string;
     email?: string;
