@@ -41,7 +41,6 @@ export const useClient = (clientId: string) => {
         // Map data to Client type with proper type casting and null checks
         return {
           id: String(clientData.id || ''),
-          client_id: String(clientData.client_id || clientData.id || ''),
           client_name: String(clientData.client_name || ''),
           email: String(clientData.email || ''),
           logo_url: String(clientData.logo_url || ''),
