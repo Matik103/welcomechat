@@ -92,7 +92,7 @@ export const useClientFormSubmission = (
                   }
                 });
                 
-                if (emailResult.error) {
+                if (!emailResult.success) {
                   console.error("Email sending failed:", emailResult.error);
                   toast.error("Client created but invitation email failed to send", { id: initialToastId });
                 } else {

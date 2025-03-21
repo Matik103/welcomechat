@@ -98,8 +98,12 @@ export const useNewClientMutation = () => {
           }
         }
 
+        let tempPassword = null;
+        
         // Create user account and send welcome email with credentials
         try {
+          console.log("Starting user account creation for:", validatedData.email);
+          
           // Call the edge function to create a user and generate temporary password
           const { data: userData, error: userError } = await supabase.functions.invoke("create-client-user", {
             body: {
@@ -119,7 +123,12 @@ export const useNewClientMutation = () => {
           console.log("User account created with data:", userData);
 
           if (userData && userData.temp_password) {
+            tempPassword = userData.temp_password;
+            console.log("Generated temporary password:", tempPassword);
+            
             // Send welcome email with the temporary password
+            console.log("Sending welcome email to:", validatedData.email);
+            
             const emailResult = await sendEmail({
               to: validatedData.email.trim().toLowerCase(),
               subject: "Welcome to Welcome.Chat - Your Account Details",
@@ -127,7 +136,7 @@ export const useNewClientMutation = () => {
               params: {
                 clientName: validatedData.client_name.trim(),
                 email: validatedData.email.trim().toLowerCase(),
-                tempPassword: userData.temp_password,
+                tempPassword: tempPassword,
                 productName: "Welcome.Chat"
               }
             });
@@ -144,11 +153,15 @@ export const useNewClientMutation = () => {
             console.error("No temporary password was generated");
           }
         } catch (emailError) {
-          console.error("Error sending welcome email:", emailError);
+          console.error("Error in email/user creation process:", emailError);
           // We continue even if email sending fails
         }
 
-        return clientId;
+        return {
+          clientId: clientId,
+          agentId: newAgent.id,
+          emailSent: tempPassword !== null
+        };
       } catch (error) {
         console.error("Error creating client:", error);
         // Ensure we always have a meaningful error message
@@ -164,8 +177,12 @@ export const useNewClientMutation = () => {
       const errorMessage = error.message || "Failed to create client. Please try again.";
       toast.error(errorMessage);
     },
-    onSuccess: () => {
-      toast.success("Client created successfully! An email with credentials has been sent.");
+    onSuccess: (result) => {
+      if (result.emailSent) {
+        toast.success("Client created successfully! An email with credentials has been sent.");
+      } else {
+        toast.success("Client created successfully! However, the welcome email could not be sent.");
+      }
     }
   });
 };
