@@ -44,7 +44,7 @@ serve(async (req) => {
     );
     
     // Parse the request body
-    const { email, client_id, client_name, agent_name, agent_description, temp_password } = await req.json();
+    const { email, client_id, client_name, agent_name, agent_description, logo_url, logo_storage_path } = await req.json();
     
     if (!email || !client_id) {
       return new Response(
@@ -56,33 +56,35 @@ serve(async (req) => {
       );
     }
     
-    // Use the provided temp_password or generate a new one if not provided
-    const clientPassword = temp_password || (() => {
-      // Generate a password in the format "Welcome2025#123"
+    // Generate a secure temporary password with the specific format
+    const generateSecurePassword = () => {
+      // Base pattern: "Welcome" + current year + "#" + 3 random digits
       const currentYear = new Date().getFullYear();
-      const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+      const randomDigits = Math.floor(Math.random() * 900) + 100; // 100 to 999
+      
       return `Welcome${currentYear}#${randomDigits}`;
-    })();
+    };
 
-    console.log(`Using password for client ${client_id}: ${clientPassword}`);
+    // Generate a temporary password for this client
+    const tempPassword = generateSecurePassword();
     
-    // If no temp_password was provided, store it in the database
-    if (!temp_password) {
-      const { error: tempPasswordError } = await supabase
-        .from("client_temp_passwords")
-        .insert({
-          agent_id: client_id,
-          email: email,
-          temp_password: clientPassword
-        });
+    console.log("Attempting to store temp password for client:", client_id);
+    
+    // Store the temporary password in the database using service role
+    const { error: tempPasswordError } = await supabase
+      .from("client_temp_passwords")
+      .insert({
+        agent_id: client_id,
+        email: email,
+        temp_password: tempPassword
+      });
 
-      if (tempPasswordError) {
-        console.error("Error saving temporary password:", tempPasswordError);
-        throw tempPasswordError;
-      }
+    if (tempPasswordError) {
+      console.error("Error saving temporary password:", tempPasswordError);
+      throw tempPasswordError;
     }
     
-    console.log("Successfully stored or used temp password, now creating user");
+    console.log("Successfully stored temp password, now creating user");
     
     // Attempt to create auth user (or update existing one)
     try {
@@ -93,7 +95,7 @@ serve(async (req) => {
       if (existingUser) {
         // Update existing user
         await supabase.auth.admin.updateUserById(existingUser.id, {
-          password: clientPassword,
+          password: tempPassword,
           user_metadata: {
             client_id,
             user_type: 'client'
@@ -104,7 +106,7 @@ serve(async (req) => {
         // Create new user
         const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
           email,
-          password: clientPassword,
+          password: tempPassword,
           email_confirm: true,
           user_metadata: {
             client_id,
@@ -149,7 +151,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         message: "Client user setup successfully",
-        temp_password: clientPassword
+        temp_password: tempPassword
       }),
       { 
         status: 200, 
