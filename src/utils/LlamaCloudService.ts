@@ -259,7 +259,7 @@ Example Responses for Off-Limit Questions:
     try {
       console.log('Verifying OpenAI Assistant Integration components...');
       
-      // Check 1: Verify OPENAI_API_KEY is set in environment
+      // Check 1: Verify OPENAI_API_KEY and LLAMA_CLOUD_API_KEY are set
       const { data: secretsData, error: secretsError } = await supabase.functions.invoke('check-secrets', {
         method: 'POST',
         body: { 
@@ -274,7 +274,7 @@ Example Responses for Off-Limit Questions:
         };
       }
       
-      // Check 2: Verify the openai_assistant_id column exists
+      // Check 2: Verify the openai_assistant_id column exists in ai_agents table
       const { data: columnData, error: columnError } = await supabase.functions.invoke('check-table-exists', {
         method: 'POST',
         body: { table_name: 'ai_agents' },
@@ -287,30 +287,36 @@ Example Responses for Off-Limit Questions:
         };
       }
       
-      // Check 3: Verify the edge functions are deployed
+      // Check 3: Verify the edge functions are deployed - uses basic ping test
       const requiredFunctions = [
         'process-document', 
         'create-openai-assistant', 
         'upload-document-to-assistant'
       ];
       
-      let allFunctionsAvailable = true;
+      let missingFunctions = [];
       for (const funcName of requiredFunctions) {
         try {
-          // Simple ping to check if function exists
-          await supabase.functions.invoke(funcName, {
-            method: 'OPTIONS'
+          // Simple test call to check if function exists and responds
+          const { error } = await supabase.functions.invoke(funcName, {
+            method: 'GET',
+            body: { test: true }
           });
+          
+          if (error) {
+            console.error(`Edge function ${funcName} appears to be unavailable:`, error);
+            missingFunctions.push(funcName);
+          }
         } catch (e) {
           console.error(`Edge function ${funcName} appears to be missing:`, e);
-          allFunctionsAvailable = false;
+          missingFunctions.push(funcName);
         }
       }
       
-      if (!allFunctionsAvailable) {
+      if (missingFunctions.length > 0) {
         return {
           success: false,
-          error: 'One or more required Edge Functions are not deployed correctly'
+          error: `Required Edge Functions are not deployed correctly: ${missingFunctions.join(', ')}`
         };
       }
       
@@ -322,6 +328,46 @@ Example Responses for Off-Limit Questions:
           success: false,
           error: 'Document storage bucket is missing or inaccessible'
         };
+      }
+      
+      // Check 5: Run the OpenAI migration if needed
+      try {
+        // This checks if the openai_assistant_id column exists in the ai_agents table
+        const { data: columnCheckData, error: columnCheckError } = await supabase.rpc('exec_sql', {
+          sql_query: `
+            SELECT EXISTS (
+              SELECT FROM information_schema.columns 
+              WHERE table_schema = 'public' 
+              AND table_name = 'ai_agents' 
+              AND column_name = 'openai_assistant_id'
+            ) as exists
+          `
+        });
+        
+        if (columnCheckError || !columnCheckData?.[0]?.exists) {
+          console.log('The openai_assistant_id column is missing. Running migration...');
+          
+          // Run the migration to add the column via the Edge Function
+          const { data: migrationData, error: migrationError } = await supabase.functions.invoke('execute_sql', {
+            method: 'POST',
+            body: {
+              sql: `ALTER TABLE public.ai_agents ADD COLUMN IF NOT EXISTS openai_assistant_id text;`
+            },
+          });
+          
+          if (migrationError) {
+            console.error('Failed to add openai_assistant_id column:', migrationError);
+            return {
+              success: false,
+              error: `Failed to add required column: ${migrationError.message}`
+            };
+          }
+          
+          console.log('Successfully added openai_assistant_id column');
+        }
+      } catch (error) {
+        console.error('Error checking for openai_assistant_id column:', error);
+        // Non-fatal error, continue with verification
       }
       
       return {
