@@ -49,18 +49,31 @@ serve(async (req) => {
     
     // Check if all required secrets are set
     const missing = []
+    const available = []
+    
     for (const secretName of required) {
       const value = Deno.env.get(secretName)
       if (!value) {
         missing.push(secretName)
+      } else {
+        available.push(secretName)
       }
     }
+    
+    // List all environment variables for debugging (without values)
+    const allEnvVars = Object.keys(Deno.env.toObject()).filter(key => 
+      key.includes('KEY') || 
+      key.includes('API') || 
+      key.includes('SECRET')
+    );
     
     return new Response(
       JSON.stringify({ 
         success: missing.length === 0,
         missing,
-        checked: required
+        available,
+        checked: required,
+        all_api_keys: allEnvVars
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
