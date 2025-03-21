@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { FirecrawlService } from '@/utils/FirecrawlService';
 
 interface ValidationResultProps {
   link: string;
@@ -24,8 +25,12 @@ export const ValidationResult = ({ link, type }: ValidationResultProps) => {
       setIsValidating(true);
       
       try {
-        // Simple validation based on link format
-        if (type === 'google-drive') {
+        if (type === 'website') {
+          // Use the FirecrawlService validation for websites
+          const validation = FirecrawlService.validateUrl(link);
+          setIsValid(validation.isValid);
+          setErrorMessage(validation.error || null);
+        } else if (type === 'google-drive') {
           // Basic validation for Google Drive links
           const isDriveLink = link.includes('drive.google.com') || 
                              link.includes('docs.google.com') ||
@@ -36,15 +41,6 @@ export const ValidationResult = ({ link, type }: ValidationResultProps) => {
             setErrorMessage('Link does not appear to be a Google Drive link.');
           } else {
             setIsValid(true);
-          }
-        } else {
-          // Basic validation for website URLs
-          try {
-            new URL(link);
-            setIsValid(true);
-          } catch (e) {
-            setIsValid(false);
-            setErrorMessage('Invalid URL format.');
           }
         }
       } catch (err) {

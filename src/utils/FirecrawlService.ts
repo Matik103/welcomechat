@@ -170,4 +170,38 @@ export class FirecrawlService {
       };
     }
   }
+
+  /**
+   * Validate a URL before adding it to the database
+   * This performs basic validation before attempting to scrape
+   */
+  static validateUrl(url: string): { isValid: boolean; error?: string } {
+    try {
+      // Check if the URL is empty
+      if (!url || url.trim() === '') {
+        return { isValid: false, error: 'URL cannot be empty' };
+      }
+      
+      // Try to create a URL object to validate the format
+      const urlObj = new URL(url);
+      
+      // Check the protocol
+      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+        return { isValid: false, error: 'URL must use HTTP or HTTPS protocol' };
+      }
+      
+      // Check that hostname exists
+      if (!urlObj.hostname || urlObj.hostname.length < 3) {
+        return { isValid: false, error: 'Invalid hostname in URL' };
+      }
+      
+      return { isValid: true };
+    } catch (error) {
+      // If URL constructor throws an error, the URL is invalid
+      return { 
+        isValid: false, 
+        error: 'Invalid URL format. Please enter a complete URL including http:// or https://'
+      };
+    }
+  }
 }
