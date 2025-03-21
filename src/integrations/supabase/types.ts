@@ -123,6 +123,7 @@ export type Database = {
           logo_url: string | null
           metadata: Json | null
           name: string
+          openai_assistant_id: string | null
           query_text: string | null
           response_time_ms: number | null
           sentiment: string | null
@@ -166,6 +167,7 @@ export type Database = {
           logo_url?: string | null
           metadata?: Json | null
           name: string
+          openai_assistant_id?: string | null
           query_text?: string | null
           response_time_ms?: number | null
           sentiment?: string | null
@@ -209,6 +211,7 @@ export type Database = {
           logo_url?: string | null
           metadata?: Json | null
           name?: string
+          openai_assistant_id?: string | null
           query_text?: string | null
           response_time_ms?: number | null
           sentiment?: string | null
