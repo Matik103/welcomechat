@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -171,6 +172,7 @@ const ClientView = () => {
       }
     };
     
+    // Only fetch data if we have a clientId
     if (clientId) {
       fetchErrorLogs();
       fetchCommonQueries();
@@ -181,6 +183,24 @@ const ClientView = () => {
   const handleGoBack = () => {
     navigate('/admin/clients');
   };
+
+  // Add this debug check to see if render is happening and client data is available
+  useEffect(() => {
+    console.log("Rendering ClientView with client:", client);
+  }, [client]);
+
+  // Safety check - if we're loading or don't have a clientId, return a loading state
+  if (!clientId) {
+    return (
+      <div className="container py-12 text-center min-h-[60vh]">
+        <h1 className="text-2xl font-bold mb-4">Client ID Missing</h1>
+        <p className="mb-8">No client ID was provided.</p>
+        <Button asChild>
+          <Link to="/admin/clients">Back to Clients</Link>
+        </Button>
+      </div>
+    );
+  }
 
   if (isLoadingClient) {
     return (
