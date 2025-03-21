@@ -2,7 +2,6 @@
 import { useNavigate } from "react-router-dom";
 import { ClientRegistrationForm } from "@/components/forms/ClientRegistrationForm";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { TestEmailComponent } from "@/components/client/TestEmailComponent";
 
@@ -14,19 +13,24 @@ export default function NewClient() {
       // Show loading toast
       const loadingToastId = toast.loading("Creating AI agent and sending welcome email...");
       
-      // First create the client
+      // First create the client in ai_agents table
       const { data: clientData, error: clientError } = await supabase
-        .from('clients')
+        .from('ai_agents')
         .insert({
           client_name: data.client_name,
           email: data.email,
           company: data.company || null,
-          description: data.description || null,
-          agent_name: data.bot_settings?.bot_name || "AI Assistant",
-          widget_settings: {
+          name: data.bot_settings?.bot_name || "AI Assistant",
+          agent_description: data.bot_settings?.bot_personality || "",
+          content: "",
+          interaction_type: 'config',
+          settings: {
             agent_name: data.bot_settings?.bot_name || "AI Assistant",
             agent_description: data.bot_settings?.bot_personality || "",
             logo_url: "",
+            client_name: data.client_name,
+            email: data.email,
+            company: data.company || null
           }
         })
         .select()
