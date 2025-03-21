@@ -52,7 +52,7 @@ export default function ClientList() {
           return [];
         }
         
-        console.log(`Found ${results.length} clients in ai_agents table`);
+        console.log(`Found ${results.length} clients in ai_agents table:`, results);
         
         // Map the results to Client objects
         return results.map((record: any) => {
