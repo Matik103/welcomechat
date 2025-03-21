@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 interface ParseResponse {
@@ -259,11 +258,11 @@ Example Responses for Off-Limit Questions:
     try {
       console.log('Verifying OpenAI Assistant Integration components...');
       
-      // Check 1: Verify OPENAI_API_KEY and LLAMA_CLOUD_API_KEY are set
+      // Check 1: Verify OPENAI_API_KEY, LLAMA_CLOUD_API_KEY, and FIRECRAWL_API_KEY are set
       const { data: secretsData, error: secretsError } = await supabase.functions.invoke('check-secrets', {
         method: 'POST',
         body: { 
-          required: ['OPENAI_API_KEY', 'LLAMA_CLOUD_API_KEY'] 
+          required: ['OPENAI_API_KEY', 'LLAMA_CLOUD_API_KEY', 'FIRECRAWL_API_KEY'] 
         },
       });
       
@@ -382,11 +381,12 @@ Example Responses for Off-Limit Questions:
       return {
         success: true,
         data: {
-          message: 'All OpenAI Assistant integration components verified successfully',
+          message: 'All OpenAI Assistant and Firecrawl integration components verified successfully',
           apiKeysAvailable: true,
           databaseReady: true,
           edgeFunctionsDeployed: true,
-          storageBucketReady: true
+          storageBucketReady: true,
+          firecrawlConfigured: true
         }
       };
     } catch (error) {
