@@ -131,3 +131,38 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
     };
   }
 };
+
+/**
+ * Sends a welcome email to the client with their credentials
+ */
+export const sendWelcomeEmail = async (email: string, clientName: string, tempPassword: string) => {
+  console.log("Sending welcome email to:", email);
+  
+  const emailResult = await sendEmail({
+    to: email,
+    subject: "Welcome to Welcome.Chat - Your Account Details",
+    template: "client-invitation",
+    from: "Welcome.Chat <admin@welcome.chat>",
+    params: {
+      clientName: clientName,
+      email: email,
+      tempPassword: tempPassword,
+      productName: "Welcome.Chat"
+    }
+  });
+  
+  console.log("Welcome email result:", emailResult);
+  
+  if (!emailResult.success) {
+    console.error("Error sending welcome email:", emailResult.error);
+    return {
+      emailSent: false,
+      emailError: emailResult.error
+    };
+  }
+  
+  console.log("Welcome email sent successfully");
+  return {
+    emailSent: true
+  };
+};
