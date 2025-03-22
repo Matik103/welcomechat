@@ -27,7 +27,7 @@ export const useRecentActivities = () => {
           client_id
         `)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(15);
 
       if (error) {
         console.error("Error fetching activities:", error);
@@ -116,12 +116,6 @@ export const useRecentActivities = () => {
             
             // Use clientInfoMap if available, otherwise use metadata or fallback
             const clientInfo = clientInfoMap[clientId] || {};
-            
-            // If we still don't have a client name, try to extract it directly from ai_agents table
-            if (!clientName && !clientInfo.clientName && clientId) {
-              // We'll handle this in the ActivityItem component as a last resort
-              clientName = null;
-            }
             
             return {
               ...activity,
