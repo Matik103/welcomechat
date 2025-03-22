@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Upload } from 'lucide-react';
-import { generateTempPassword } from '@/utils/clientCreationUtils';
+import { generateTempPassword, saveClientTempPassword, logClientCreationActivity } from '@/utils/clientCreationUtils';
 
 export function ClientAccountForm() {
   const navigate = useNavigate();
@@ -135,18 +134,16 @@ export function ClientAccountForm() {
         throw new Error(`Client creation failed: ${clientError.message}`);
       }
       
-      // Store temporary password
-      const { error: passwordError } = await supabase
-        .from('client_temp_passwords')
-        .insert({
-          agent_id: clientData.id,
-          email: formData.email,
-          temp_password: tempPassword
-        });
-        
-      if (passwordError) {
-        console.error("Error saving password:", passwordError);
-      }
+      // Save the client credentials and create auth user
+      await saveClientTempPassword(clientData.id, formData.email, tempPassword);
+      
+      // Log client activity
+      await logClientCreationActivity(
+        clientData.id, 
+        formData.clientName,
+        formData.email,
+        formData.agentName
+      );
       
       // Send welcome email
       const { data: emailData, error: emailError } = await supabase.functions.invoke(
@@ -171,21 +168,6 @@ export function ClientAccountForm() {
       } else {
         toast.success("Client created successfully and welcome email sent", { id: loadingToast });
       }
-      
-      // Log client activity
-      await supabase
-        .from('client_activities')
-        .insert({
-          client_id: clientData.id,
-          activity_type: 'client_created',
-          description: `New client created: ${formData.clientName}`,
-          metadata: {
-            client_name: formData.clientName,
-            email: formData.email,
-            agent_name: formData.agentName,
-            agent_description: formData.agentDescription
-          }
-        });
       
       // Reset form
       setFormData({
