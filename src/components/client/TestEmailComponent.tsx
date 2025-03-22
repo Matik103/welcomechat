@@ -47,7 +47,6 @@ export const TestEmailComponent = () => {
           setIsTestingSending(false);
           return;
         }
-        
       } catch (envCheckError) {
         console.error("Error calling test-env function:", envCheckError);
         toast.error("Failed to check email configuration", { id: toastId });
@@ -55,13 +54,13 @@ export const TestEmailComponent = () => {
         return;
       }
       
-      // Try calling the Edge Function directly with a well-formatted test email
+      // Call the send-email Edge Function directly to test email sending
       console.log("Calling send-email Edge Function directly...");
       const { data: emailData, error: emailError } = await supabase.functions.invoke(
         "send-email",
         {
           body: {
-            to: "test@example.com", // Replace with your actual test email
+            to: "test@example.com", // Replace with your actual test email in production
             subject: "Test Email from Welcome.Chat",
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
