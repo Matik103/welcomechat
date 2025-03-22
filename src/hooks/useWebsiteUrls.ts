@@ -32,7 +32,7 @@ export const useWebsiteUrls = (clientId: string) => {
         created_at: item.created_at,
         refresh_rate: item.refresh_rate || null,
         last_crawled: item.last_crawled || null,
-        status: item.status || null,
+        status: (item.status as WebsiteUrl['status']) || null,
         notified_at: item.notified_at || null
       }));
       
@@ -53,7 +53,7 @@ export const useWebsiteUrls = (clientId: string) => {
           client_id: clientId,
           url,
           refresh_rate: refreshRate || 30,
-          status: "pending"
+          status: "pending" as WebsiteUrl['status']
         })
         .select()
         .single();
@@ -70,7 +70,7 @@ export const useWebsiteUrls = (clientId: string) => {
         created_at: data.created_at,
         refresh_rate: data.refresh_rate || null,
         last_crawled: data.last_crawled || null,
-        status: data.status || null,
+        status: data.status as WebsiteUrl['status'],
         notified_at: data.notified_at || null
       };
       
