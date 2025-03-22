@@ -23,6 +23,15 @@ interface ActivityItemProps {
   };
 }
 
+// Define a simple interface for agent data to avoid recursive type issues
+interface AgentData {
+  name?: string;
+  client_name?: string;
+  settings?: {
+    client_name?: string;
+  } | null;
+}
+
 const getActivityIcon = (type: string, metadata: Json) => {
   // Safely check if there's an original activity type in metadata
   const originalType = metadata && 
@@ -102,10 +111,10 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
     ) {
       const fetchClientName = async () => {
         try {
-          // Query ai_agents table to get the client name with correct SQL syntax
+          // Query ai_agents table to get the client name with simplified column selection
           const { data, error } = await supabase
             .from('ai_agents')
-            .select('name, settings->client_name, client_name')
+            .select('name, settings, client_name')
             .eq('client_id', item.client_id)
             .eq('interaction_type', 'config')
             .order('updated_at', { ascending: false })
@@ -117,14 +126,8 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
           }
           
           if (data && data.length > 0) {
-            // Type assertion to handle data structure safely
-            const agentData = data[0] as {
-              name?: string;
-              client_name?: string;
-              settings?: {
-                client_name?: string;
-              } | null;
-            };
+            // Use explicit type assertion to avoid recursive type issues
+            const agentData = data[0] as AgentData;
             
             // Determine best client name from the result
             const settingsClientName = agentData.settings?.client_name;
