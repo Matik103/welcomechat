@@ -1,34 +1,19 @@
 
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
-interface ClientRouteProps {
-  children: React.ReactNode;
-}
-
-export const ClientRoute = ({ children }: ClientRouteProps) => {
-  const { session, isLoading, userRole } = useAuth();
+const ClientRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, userRole, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
-  if (!session) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (!userRole) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (userRole === "admin") {
-    return <Navigate to="/" replace />;
+  if (!user || userRole !== 'client') {
+    return <Navigate to="/client/auth" replace />;
   }
 
   return <>{children}</>;
 };
+
+export default ClientRoute;
