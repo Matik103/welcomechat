@@ -3296,33 +3296,27 @@ export type Database = {
       }
       website_urls: {
         Row: {
-          client_id: string
+          client_id: string | null
           created_at: string | null
           id: number
-          last_crawled: string | null
           notified_at: string | null
           refresh_rate: number
-          status: string | null
           url: string
         }
         Insert: {
-          client_id: string
+          client_id?: string | null
           created_at?: string | null
           id?: number
-          last_crawled?: string | null
           notified_at?: string | null
           refresh_rate?: number
-          status?: string | null
           url: string
         }
         Update: {
-          client_id?: string
+          client_id?: string | null
           created_at?: string | null
           id?: number
-          last_crawled?: string | null
           notified_at?: string | null
           refresh_rate?: number
-          status?: string | null
           url?: string
         }
         Relationships: []
@@ -3461,7 +3455,6 @@ export type Database = {
       exec_sql: {
         Args: {
           sql_query: string
-          query_params?: Json
         }
         Returns: Json[]
       }

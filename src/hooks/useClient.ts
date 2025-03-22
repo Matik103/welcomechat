@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
+import { execSql } from '@/utils/rpcUtils';
 import { Json } from '@/integrations/supabase/types';
 
 export const useClient = (clientId: string) => {
@@ -16,82 +17,52 @@ export const useClient = (clientId: string) => {
       if (!clientId) return null;
       
       try {
-        console.log("Fetching client data for ID:", clientId);
+        // Try to get a specific agent with this client ID
+        const query = `
+          SELECT * FROM ai_agents 
+          WHERE client_id = '${clientId}' OR id = '${clientId}'
+          ORDER BY created_at DESC
+          LIMIT 1
+        `;
         
-        // First try to fetch from ai_agents table with client_id
-        const { data: agentData, error: agentError } = await supabase
-          .from('ai_agents')
-          .select('*')
-          .eq('client_id', clientId)
-          .eq('interaction_type', 'config')
-          .limit(1)
-          .single();
+        const result = await execSql(query);
         
-        if (!agentError && agentData) {
-          console.log("Found data in ai_agents table with client_id:", agentData);
-          console.log("Logo URL from ai_agents:", agentData.logo_url);
-          
-          return mapAgentDataToClient(agentData);
+        if (!result || !Array.isArray(result) || result.length === 0) {
+          console.log("No agent found for client ID:", clientId);
+          return null;
         }
         
-        // If not found by client_id, try using the id directly
-        const { data: directAgentData, error: directAgentError } = await supabase
-          .from('ai_agents')
-          .select('*')
-          .eq('id', clientId)
-          .limit(1)
-          .single();
-          
-        if (!directAgentError && directAgentData) {
-          console.log("Found data in ai_agents table with direct id:", directAgentData);
-          console.log("Logo URL from ai_agents (direct id):", directAgentData.logo_url);
-          
-          return mapAgentDataToClient(directAgentData);
-        }
+        const clientData = result[0] as Record<string, any>;
         
-        console.log("No client found in the ai_agents table. Client may not exist or has been deleted.");
-        return null;
+        if (!clientData) return null;
+        
+        console.log("Found agent data:", clientData);
+        
+        // Map data to Client type with proper type casting and null checks
+        return {
+          id: String(clientData.id || ''),
+          client_name: String(clientData.client_name || ''),
+          email: String(clientData.email || ''),
+          logo_url: String(clientData.logo_url || ''),
+          logo_storage_path: String(clientData.logo_storage_path || ''),
+          created_at: String(clientData.created_at || ''),
+          updated_at: String(clientData.updated_at || ''),
+          deletion_scheduled_at: clientData.deletion_scheduled_at ? String(clientData.deletion_scheduled_at) : undefined,
+          deleted_at: clientData.deleted_at ? String(clientData.deleted_at) : undefined,
+          status: String(clientData.status || 'active'),
+          agent_name: String(clientData.name || ''),
+          description: String(clientData.agent_description || ''),
+          name: String(clientData.name || ''),
+          last_active: clientData.last_active ? String(clientData.last_active) : undefined,
+          widget_settings: clientData.settings || {},
+        };
       } catch (error) {
-        console.error("Error in useClient hook:", error);
-        throw error;
+        console.error("Error fetching client:", error);
+        return null;
       }
     },
     enabled: !!clientId,
-    retry: 1,
-    retryDelay: 1000,
   });
-
-  // Helper function to map agent data to Client type
-  const mapAgentDataToClient = (data: any): Client => {
-    // Extract data from settings or use direct fields
-    const settings = data.settings || {};
-    
-    return {
-      id: data.client_id || data.id || '',
-      client_id: data.client_id || data.id || '',
-      client_name: data.client_name || settings.client_name || '',
-      email: data.email || settings.email || '',
-      logo_url: data.logo_url || settings.logo_url || '',
-      logo_storage_path: data.logo_storage_path || settings.logo_storage_path || '',
-      created_at: data.created_at || '',
-      updated_at: data.updated_at || '',
-      deletion_scheduled_at: data.deletion_scheduled_at || null,
-      deleted_at: data.deleted_at || null,
-      status: data.status || 'active',
-      agent_name: data.name || '',
-      agent_description: data.agent_description || '',
-      description: data.description || data.agent_description || '',
-      name: data.name || '',
-      last_active: data.last_active || null,
-      widget_settings: {
-        agent_name: data.name || '',
-        agent_description: data.agent_description || '',
-        logo_url: data.logo_url || '',
-        logo_storage_path: data.logo_storage_path || '',
-        ...(typeof settings === 'object' ? settings : {})
-      },
-    };
-  };
 
   return { client, isLoading, error, refetch };
 };

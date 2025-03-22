@@ -153,6 +153,14 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
       
       if (error) {
         console.error("Error from edge function:", error);
+        console.error("Error details:", {
+          message: error.message,
+          code: error.code,
+          status: error.status,
+          name: error.name,
+          details: error.details,
+          stringified: JSON.stringify(error)
+        });
         throw error; // This will trigger a retry
       }
       

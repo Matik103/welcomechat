@@ -1,24 +1,19 @@
 
 import { UseFormReturn } from "react-hook-form";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { LogoManagement } from "@/components/widget/LogoManagement";
 import { toast } from "sonner";
 
 interface LogoFieldProps {
-  control: any;
-  onLogoChange: (file: File | null) => void;
-  logoPreviewUrl: string | null;
+  form: UseFormReturn<any>;
+  onLogoFileChange: (file: File | null) => void;
 }
 
-export const LogoField = ({ control, onLogoChange, logoPreviewUrl }: LogoFieldProps) => {
+export const LogoField = ({ form, onLogoFileChange }: LogoFieldProps) => {
+  const { watch, setValue } = form;
   const [isUploading, setIsUploading] = useState(false);
-  
-  useEffect(() => {
-    if (logoPreviewUrl) {
-      console.log("LogoField: Displaying logo from URL:", logoPreviewUrl);
-    }
-  }, [logoPreviewUrl]);
+  const [localLogoPreview, setLocalLogoPreview] = useState<string | null>(null);
   
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -35,16 +30,23 @@ export const LogoField = ({ control, onLogoChange, logoPreviewUrl }: LogoFieldPr
       return;
     }
     
-    console.log("LogoField: Logo file selected:", file.name, file.type);
-    setIsUploading(true);
-    onLogoChange(file);
-    setIsUploading(false);
+    onLogoFileChange(file);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const previewUrl = e.target?.result as string;
+      setLocalLogoPreview(previewUrl);
+    };
+    reader.readAsDataURL(file);
+    
     toast.success("Logo selected. It will be uploaded when you save the client.");
   };
   
   const handleRemoveLogo = () => {
-    console.log("LogoField: Removing logo");
-    onLogoChange(null);
+    setValue("logo_url", "");
+    setValue("logo_storage_path", "");
+    onLogoFileChange(null);
+    setLocalLogoPreview(null);
   };
 
   return (
@@ -53,7 +55,7 @@ export const LogoField = ({ control, onLogoChange, logoPreviewUrl }: LogoFieldPr
         AI Agent Logo
       </Label>
       <LogoManagement
-        logoUrl={logoPreviewUrl || ""}
+        logoUrl={localLogoPreview || watch("logo_url") || ""}
         isUploading={isUploading}
         onLogoUpload={handleLogoUpload}
         onRemoveLogo={handleRemoveLogo}

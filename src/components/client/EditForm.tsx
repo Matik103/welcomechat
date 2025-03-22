@@ -54,7 +54,7 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
           className={errors.client_name ? "border-red-500" : ""}
         />
         {errors.client_name && (
-          <p className="text-sm text-red-500">{errors.client_name.message?.toString()}</p>
+          <p className="text-sm text-red-500">{errors.client_name.message}</p>
         )}
       </div>
 
@@ -69,7 +69,7 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
           className={errors.email ? "border-red-500" : ""}
         />
         {errors.email && (
-          <p className="text-sm text-red-500">{errors.email.message?.toString()}</p>
+          <p className="text-sm text-red-500">{errors.email.message}</p>
         )}
       </div>
 
@@ -83,7 +83,7 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
           className={errors.agent_name ? "border-red-500" : ""}
         />
         {errors.agent_name && (
-          <p className="text-sm text-red-500">{errors.agent_name.message?.toString()}</p>
+          <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
       </div>
 

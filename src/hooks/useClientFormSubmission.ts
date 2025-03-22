@@ -18,12 +18,10 @@ export const useClientFormSubmission = (
   const navigate = useNavigate();
   
   const handleSubmit = async (data: any) => {
-    if (isLoading) return; // Prevent multiple submissions
-    
     setIsLoading(true);
     try {
-      // Create a single toast ID to update later
-      const toastId = toast.loading(clientId ? "Updating client..." : "Creating client...");
+      // Display initial feedback toast
+      const initialToastId = toast.loading(clientId ? "Updating client..." : "Creating client...");
       
       // Check for agent name or description changes to log appropriate activity
       const widgetSettings = data.widget_settings || {};
@@ -44,7 +42,7 @@ export const useClientFormSubmission = (
             }
           }
         );
-        toast.success("Your information has been updated", { id: toastId });
+        toast.success("Your information has been updated", { id: initialToastId });
       } else {
         if (clientId) {
           // Admin updating existing client
@@ -59,13 +57,13 @@ export const useClientFormSubmission = (
               }
             }
           );
-          toast.success("Client updated successfully", { id: toastId });
+          toast.success("Client updated successfully", { id: initialToastId });
         } else {
           // Admin creating new client
           
           // If a new client was created, handle welcome email
           if (typeof result === 'object' && result.agentId) {
-            toast.loading("Sending welcome email...", { id: toastId });
+            toast.loading("Sending welcome email...", { id: initialToastId });
             
             try {
               // Generate temporary password for the new client
@@ -74,7 +72,7 @@ export const useClientFormSubmission = (
               // Save the temporary password
               await saveClientTempPassword(result.agentId, data.email, tempPassword);
               
-              // Send welcome email
+              // Directly call the send-email edge function, similar to DeleteClientDialog approach
               const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
                 'send-email', 
                 {
@@ -133,19 +131,19 @@ export const useClientFormSubmission = (
               
               if (emailFnError) {
                 console.error("Email function error:", emailFnError);
-                toast.error("Client created but failed to send invitation email", { id: toastId });
+                toast.error("Client created but failed to send invitation email", { id: initialToastId });
               } else if (emailResult && !emailResult.success) {
                 console.error("Email sending failed:", emailResult.error);
-                toast.error("Client created but invitation email failed to send", { id: toastId });
+                toast.error("Client created but invitation email failed to send", { id: initialToastId });
               } else {
-                toast.success("Client created successfully and invitation sent", { id: toastId });
+                toast.success("Client created successfully and invitation sent", { id: initialToastId });
               }
             } catch (emailErr) {
               console.error("Error sending welcome email:", emailErr);
-              toast.error("Client created but invitation email failed to send", { id: toastId });
+              toast.error("Client created but invitation email failed to send", { id: initialToastId });
             }
           } else {
-            toast.success("Client created successfully", { id: toastId });
+            toast.success("Client created successfully", { id: initialToastId });
           }
           
           navigate('/admin/clients');
