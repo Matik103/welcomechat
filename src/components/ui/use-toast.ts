@@ -9,19 +9,26 @@ const useToast = () => {
     toast: {
       // Support the old object calling pattern
       ...((args: any) => {
-        if (args.title) {
-          if (args.variant === 'destructive') {
-            return sonnerToast.error(args.title, {
-              description: args.description,
-              id: args.id
-            });
-          } else {
-            return sonnerToast.success(args.title, {
-              description: args.description,
-              id: args.id
-            });
+        if (typeof args === 'string') {
+          return sonnerToast(args);
+        }
+        
+        if (args && typeof args === 'object') {
+          if (args.title) {
+            if (args.variant === 'destructive') {
+              return sonnerToast.error(args.title, {
+                description: args.description,
+                id: args.id
+              });
+            } else {
+              return sonnerToast.success(args.title, {
+                description: args.description,
+                id: args.id
+              });
+            }
           }
         }
+        
         return sonnerToast(args);
       }),
       // Direct method calls
