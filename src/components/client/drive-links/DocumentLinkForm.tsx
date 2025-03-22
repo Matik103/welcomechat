@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,7 +27,7 @@ interface DocumentLinkFormProps {
 export const DocumentLinkForm = ({ onSubmit, isSubmitting, agentName }: DocumentLinkFormProps) => {
   const { accessStatus, isLoading, validationResult, validateDriveLink } = useDriveAccessCheck(0);
   
-  const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<z.infer<typeof documentLinkSchema>>({
+  const { register, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm<z.infer<typeof documentLinkSchema>>({
     resolver: zodResolver(documentLinkSchema),
     defaultValues: {
       refresh_rate: 7,
@@ -37,6 +36,40 @@ export const DocumentLinkForm = ({ onSubmit, isSubmitting, agentName }: Document
   });
 
   const link = watch('link');
+  const documentType = watch('document_type');
+
+  // Helper function to detect URL type and update the form
+  const detectUrlType = (url: string) => {
+    // Only try to detect if we have a valid URL
+    if (!url || url.trim() === '') return;
+    
+    try {
+      new URL(url); // Simple URL validation
+      
+      // Google Drive/Docs detection
+      if (url.includes('docs.google.com/document')) {
+        setValue('document_type', 'google_doc');
+      } else if (url.includes('docs.google.com/spreadsheets') || url.includes('sheets.google.com')) {
+        setValue('document_type', 'google_sheet');
+      } else if (url.includes('drive.google.com/drive') || url.includes('drive.google.com/folder')) {
+        setValue('document_type', 'google_drive');
+      } else if (url.toLowerCase().endsWith('.pdf')) {
+        setValue('document_type', 'pdf');
+      } else if (url.toLowerCase().endsWith('.txt') || url.toLowerCase().endsWith('.md')) {
+        setValue('document_type', 'text');
+      }
+      // Otherwise keep the current selection
+      
+    } catch (error) {
+      // Not a valid URL, don't change anything
+    }
+  };
+
+  const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = e.target.value;
+    setValue('link', newUrl);
+    detectUrlType(newUrl);
+  };
 
   const handleFormSubmit = async (data: z.infer<typeof documentLinkSchema>) => {
     try {
@@ -47,6 +80,9 @@ export const DocumentLinkForm = ({ onSubmit, isSubmitting, agentName }: Document
     }
   };
 
+  // Determine which type of validation to show based on document type
+  const showGoogleDriveValidation = documentType.startsWith('google_');
+  
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 mb-6">
       <div>
@@ -55,15 +91,23 @@ export const DocumentLinkForm = ({ onSubmit, isSubmitting, agentName }: Document
           id="link"
           placeholder="https://drive.google.com/file/d/..."
           {...register("link")}
+          onChange={handleLinkChange}
           className={errors.link ? "border-red-500" : ""}
         />
         {errors.link && <p className="text-red-500 text-sm mt-1">{errors.link.message}</p>}
-        {link && <ValidationResult link={link} type="google-drive" />}
+        {link && <ValidationResult 
+          link={link} 
+          type={showGoogleDriveValidation ? 'google-drive' : 'website'} 
+        />}
       </div>
 
       <div>
         <Label htmlFor="document_type">Document Type</Label>
-        <Select defaultValue="google_doc" {...register("document_type")}>
+        <Select 
+          defaultValue="google_doc" 
+          value={documentType}
+          onValueChange={(value) => setValue('document_type', value as any)}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select document type" />
           </SelectTrigger>

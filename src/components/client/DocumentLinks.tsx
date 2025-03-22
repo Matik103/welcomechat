@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Loader2, Plus, Trash2, Upload, RefreshCw } from 'lucide-react';
+import { Loader2, Plus, Trash2, Upload, RefreshCw, FileText, File } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { DocumentLink } from '@/types/agent';
@@ -59,6 +59,30 @@ export const DocumentLinks = ({
   const [newLink, setNewLink] = useState('');
   const [documentType, setDocumentType] = useState<string>('google_drive');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+
+  // Helper function to detect URL type and set the appropriate document type
+  const detectAndSetDocumentType = (url: string) => {
+    if (!url) return;
+    
+    try {
+      new URL(url); // Simple URL validation
+      
+      if (url.includes('docs.google.com/document')) {
+        setDocumentType('google_doc');
+      } else if (url.includes('docs.google.com/spreadsheets') || url.includes('sheets.google.com')) {
+        setDocumentType('google_sheet');
+      } else if (url.includes('drive.google.com/drive') || url.includes('drive.google.com/folder')) {
+        setDocumentType('google_drive');
+      } else if (url.toLowerCase().endsWith('.pdf')) {
+        setDocumentType('pdf');
+      } else if (url.toLowerCase().endsWith('.txt') || url.toLowerCase().endsWith('.md')) {
+        setDocumentType('text');
+      }
+      // If none of the above, leave the current selection
+    } catch (error) {
+      // Not a valid URL, don't change anything
+    }
+  };
 
   // Handle form submission for links
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,6 +143,32 @@ export const DocumentLinks = ({
     }
   };
 
+  // Get document type icon
+  const getDocumentTypeIcon = (type: string) => {
+    switch (type) {
+      case 'google_doc':
+      case 'google_sheet':
+      case 'text':
+        return <FileText className="h-4 w-4 text-blue-500" />;
+      case 'pdf':
+        return <File className="h-4 w-4 text-red-500" />;
+      default:
+        return <File className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  // Format document type for display
+  const formatDocumentType = (type: string) => {
+    switch (type) {
+      case 'google_doc': return 'Google Doc';
+      case 'google_sheet': return 'Google Sheet';
+      case 'google_drive': return 'Google Drive';
+      case 'pdf': return 'PDF';
+      case 'text': return 'Text';
+      default: return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -138,8 +188,8 @@ export const DocumentLinks = ({
                   <SelectItem value="google_drive">Google Drive</SelectItem>
                   <SelectItem value="google_doc">Google Doc</SelectItem>
                   <SelectItem value="google_sheet">Google Sheet</SelectItem>
-                  <SelectItem value="text">Text Document</SelectItem>
                   <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="text">Text Document</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
@@ -148,7 +198,10 @@ export const DocumentLinks = ({
                 <Input
                   placeholder="https://drive.google.com/drive/folders/..."
                   value={newLink}
-                  onChange={(e) => setNewLink(e.target.value)}
+                  onChange={(e) => {
+                    setNewLink(e.target.value);
+                    detectAndSetDocumentType(e.target.value);
+                  }}
                   disabled={isAdding}
                   className="flex-1"
                 />
@@ -259,6 +312,32 @@ const DocumentLinkRow = ({
 }) => {
   const { accessStatus, refreshStatus, isLoading } = useDriveAccessCheck(link.id);
   
+  // Get document type icon
+  const getDocumentTypeIcon = (type: string) => {
+    switch (type) {
+      case 'google_doc':
+      case 'google_sheet':
+      case 'text':
+        return <FileText className="h-4 w-4 mr-1 text-blue-500" />;
+      case 'pdf':
+        return <File className="h-4 w-4 mr-1 text-red-500" />;
+      default:
+        return <File className="h-4 w-4 mr-1 text-gray-500" />;
+    }
+  };
+
+  // Format document type for display
+  const formatDocumentType = (type: string) => {
+    switch (type) {
+      case 'google_doc': return 'Google Doc';
+      case 'google_sheet': return 'Google Sheet';
+      case 'google_drive': return 'Google Drive';
+      case 'pdf': return 'PDF';
+      case 'text': return 'Text';
+      default: return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+  };
+  
   return (
     <TableRow>
       <TableCell>
@@ -271,16 +350,21 @@ const DocumentLinkRow = ({
           {truncateString(link.link, 40)}
         </a>
       </TableCell>
-      <TableCell>{link.document_type}</TableCell>
+      <TableCell>
+        <div className="flex items-center">
+          {getDocumentTypeIcon(link.document_type)}
+          <span>{formatDocumentType(link.document_type)}</span>
+        </div>
+      </TableCell>
       <TableCell>{formatDate(link.created_at)}</TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
           <span className={`capitalize ${
-            accessStatus === 'granted' ? 'text-green-600' :
-            accessStatus === 'denied' ? 'text-red-600' :
+            accessStatus === 'granted' || accessStatus === 'accessible' ? 'text-green-600' :
+            accessStatus === 'denied' || accessStatus === 'inaccessible' ? 'text-red-600' :
             accessStatus === 'pending' ? 'text-amber-600' : 'text-gray-600'
           }`}>
-            {accessStatus}
+            {accessStatus || 'unknown'}
           </span>
           <Button 
             variant="ghost" 
