@@ -1,114 +1,154 @@
 
-import { createContext, useContext } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useLocation } from "react-router-dom";
-import { useAuthState } from "@/hooks/useAuthState";
-import { AuthContextType } from "@/types/auth";
-import { toast } from "sonner";
-import { determineUserRole } from "@/utils/authUtils";
-import { useAuthStateChange } from "@/hooks/useAuthStateChange";
-import { useAuthCallback } from "@/hooks/useAuthCallback";
-import { useAuthInitialize } from "@/hooks/useAuthInitialize";
-import { useAuthSafetyTimeout } from "@/hooks/useAuthSafetyTimeout";
+import { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export type UserRole = 'admin' | 'client' | 'user' | null;
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { 
-    session, setSession,
-    user, setUser,
-    userRole, setUserRole,
-    isLoading, setIsLoading,
-    authInitialized, setAuthInitialized
-  } = useAuthState();
-  
-  const location = useLocation();
-  const isCallbackUrl = location.pathname.includes('/auth/callback');
-  const isAuthPage = location.pathname === '/auth';
+export interface AuthContextType {
+  user: User | null;
+  userRole: UserRole;
+  isLoading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signOut: () => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ error: any; data: any }>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  updatePassword: (password: string) => Promise<{ error: any }>;
+}
 
-  // Safety timeout to prevent infinite loading
-  useAuthSafetyTimeout({
-    isLoading,
-    setIsLoading,
-    isAuthPage,
-    session
-  });
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  userRole: null,
+  isLoading: true,
+  signIn: async () => ({ error: null }),
+  signOut: async () => {},
+  signUp: async () => ({ error: null, data: null }),
+  resetPassword: async () => ({ error: null }),
+  updatePassword: async () => ({ error: null }),
+});
 
-  // Handle OAuth callback
-  useAuthCallback({
-    isCallbackUrl,
-    setSession,
-    setUser,
-    setUserRole,
-    setIsLoading
-  });
+export const useAuth = () => useContext(AuthContext);
 
-  // Initialize authentication state
-  useAuthInitialize({
-    authInitialized,
-    isCallbackUrl,
-    setSession,
-    setUser,
-    setUserRole,
-    setIsLoading,
-    setAuthInitialized
-  });
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Handle authentication state changes
-  useAuthStateChange({
-    setSession,
-    setUser,
-    setUserRole,
-    setIsLoading
-  });
-
-  const signOut = async () => {
-    try {
+  // Initialize auth state
+  useEffect(() => {
+    const initializeAuth = async () => {
       setIsLoading(true);
       
-      // First update local state (optimistic update)
-      const wasAdmin = userRole === 'admin';
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
       
-      setSession(null);
-      setUser(null);
-      setUserRole(null);
+      if (session?.user) {
+        setUser(session.user);
+        
+        // Get user role from Supabase
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (data && !error) {
+          setUserRole(data.role as UserRole);
+        } else {
+          console.error('Error fetching user role:', error);
+          setUserRole(null);
+        }
+      }
       
-      // Clear session storage
-      sessionStorage.removeItem('user_role_set');
-      sessionStorage.removeItem('auth_callback_processed');
-      sessionStorage.removeItem('auth_callback_processing');
-      
-      // Then call the API to sign out server-side
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      // Don't force a redirect - rely on the auth state change listener
-      // This prevents full page reloads
-    } catch (error) {
-      console.error('Sign out error:', error);
-      toast.error('Sign out error. Please try again.');
-    } finally {
       setIsLoading(false);
-    }
+    };
+
+    initializeAuth();
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user || null);
+        
+        if (session?.user) {
+          // Get user role on auth state change
+          const { data, error } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          if (data && !error) {
+            setUserRole(data.role as UserRole);
+          } else {
+            console.error('Error fetching user role:', error);
+            setUserRole(null);
+          }
+        } else {
+          setUserRole(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    // Clean up subscription
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Auth methods
+  const signIn = async (email: string, password: string) => {
+    setIsLoading(true);
+    const response = await supabase.auth.signInWithPassword({ email, password });
+    setIsLoading(false);
+    return { error: response.error };
+  };
+
+  const signOut = async () => {
+    setIsLoading(true);
+    await supabase.auth.signOut();
+    setIsLoading(false);
+  };
+
+  const signUp = async (email: string, password: string) => {
+    setIsLoading(true);
+    const response = await supabase.auth.signUp({ email, password });
+    setIsLoading(false);
+    return { error: response.error, data: response.data };
+  };
+
+  const resetPassword = async (email: string) => {
+    setIsLoading(true);
+    const response = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setIsLoading(false);
+    return { error: response.error };
+  };
+
+  const updatePassword = async (password: string) => {
+    setIsLoading(true);
+    const response = await supabase.auth.updateUser({ password });
+    setIsLoading(false);
+    return { error: response.error };
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      session, 
-      user, 
-      signOut, 
-      isLoading, 
-      userRole 
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        userRole,
+        isLoading,
+        signIn,
+        signOut,
+        signUp,
+        resetPassword,
+        updatePassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+}

@@ -17,45 +17,40 @@ export const useClient = (clientId: string) => {
       if (!clientId) return null;
       
       try {
-        // Try to get a specific agent with this client ID
-        const query = `
-          SELECT * FROM ai_agents 
-          WHERE client_id = '${clientId}' OR id = '${clientId}'
-          ORDER BY created_at DESC
-          LIMIT 1
-        `;
+        console.log("Fetching client data for ID:", clientId);
         
-        const result = await execSql(query);
+        // Direct query to ai_agents table
+        const { data, error } = await supabase
+          .from('ai_agents')
+          .select('*')
+          .eq('id', clientId)
+          .single();
         
-        if (!result || !Array.isArray(result) || result.length === 0) {
-          console.log("No agent found for client ID:", clientId);
-          return null;
+        if (error) {
+          console.error("Error fetching from ai_agents by id:", error);
+          
+          // Try by client_id as fallback
+          const { data: clientData, error: clientError } = await supabase
+            .from('ai_agents')
+            .select('*')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+            
+          if (clientError) {
+            console.error("Error fetching from ai_agents by client_id:", clientError);
+            return null;
+          }
+          
+          if (!clientData) return null;
+          
+          return mapAgentToClient(clientData);
         }
         
-        const clientData = result[0] as Record<string, any>;
+        if (!data) return null;
         
-        if (!clientData) return null;
-        
-        console.log("Found agent data:", clientData);
-        
-        // Map data to Client type with proper type casting and null checks
-        return {
-          id: String(clientData.id || ''),
-          client_name: String(clientData.client_name || ''),
-          email: String(clientData.email || ''),
-          logo_url: String(clientData.logo_url || ''),
-          logo_storage_path: String(clientData.logo_storage_path || ''),
-          created_at: String(clientData.created_at || ''),
-          updated_at: String(clientData.updated_at || ''),
-          deletion_scheduled_at: clientData.deletion_scheduled_at ? String(clientData.deletion_scheduled_at) : undefined,
-          deleted_at: clientData.deleted_at ? String(clientData.deleted_at) : undefined,
-          status: String(clientData.status || 'active'),
-          agent_name: String(clientData.name || ''),
-          description: String(clientData.agent_description || ''),
-          name: String(clientData.name || ''),
-          last_active: clientData.last_active ? String(clientData.last_active) : undefined,
-          widget_settings: clientData.settings || {},
-        };
+        return mapAgentToClient(data);
       } catch (error) {
         console.error("Error fetching client:", error);
         return null;
@@ -66,3 +61,26 @@ export const useClient = (clientId: string) => {
 
   return { client, isLoading, error, refetch };
 };
+
+// Helper function to map ai_agents data to Client type
+function mapAgentToClient(agentData: any): Client {
+  console.log("Raw agent data:", agentData);
+  
+  return {
+    id: String(agentData.id || ''),
+    client_name: String(agentData.client_name || agentData.settings?.client_name || ''),
+    email: String(agentData.email || agentData.settings?.email || ''),
+    logo_url: String(agentData.logo_url || agentData.settings?.logo_url || ''),
+    logo_storage_path: String(agentData.logo_storage_path || agentData.settings?.logo_storage_path || ''),
+    created_at: String(agentData.created_at || ''),
+    updated_at: String(agentData.updated_at || ''),
+    deletion_scheduled_at: agentData.deletion_scheduled_at ? String(agentData.deletion_scheduled_at) : undefined,
+    deleted_at: agentData.deleted_at ? String(agentData.deleted_at) : undefined,
+    status: String(agentData.status || 'active'),
+    agent_name: String(agentData.name || ''),
+    description: String(agentData.agent_description || ''),
+    name: String(agentData.name || ''),
+    last_active: agentData.last_active ? String(agentData.last_active) : undefined,
+    widget_settings: agentData.settings || {},
+  };
+}
