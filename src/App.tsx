@@ -1,121 +1,107 @@
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
+import { AuthProvider } from './contexts/AuthContext';
+import PrivateRoute from './components/auth/PrivateRoute';
+import RoleRoute from './components/auth/RoleRoute';
 
-import { Header } from "@/components/layout/Header";
-import { ClientHeader } from "@/components/layout/ClientHeader";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import Auth from "@/pages/Auth";
-import Index from "@/pages/Index";
-import ClientList from "@/pages/ClientList";
-import Settings from "@/pages/Settings";
-import ClientView from "@/pages/ClientView";
-import AddEditClient from "@/pages/AddEditClient";
-import WidgetSettings from "@/pages/WidgetSettings";
-import { useAuth } from "./contexts/AuthContext";
-import ClientSettings from "@/pages/client/Settings";
-import ClientDashboard from "@/pages/client/Dashboard";
-import AccountSettings from "@/pages/client/AccountSettings";
-import ResourceSettings from "@/pages/client/ResourceSettings";
-import EditClientInfo from "@/pages/EditClientInfo";
-import { Toaster } from "sonner";
-import NotFound from "@/pages/NotFound";
-import CreateClientAccount from "@/pages/CreateClientAccount";
-import { useEffect } from "react";
-import { toast } from "sonner";
+// Page imports
+import Dashboard from './pages/Dashboard';
+import Clients from './pages/Clients';
+import EditClientInfo from './pages/EditClientInfo';
+import Settings from './pages/Settings';
+import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import CreateClientAccount from './pages/CreateClientAccount';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminClients from './pages/AdminClients';
+import NewClient from './pages/NewClient';
+import ClientDashboard from './pages/ClientDashboard';
+import Pricing from './pages/Pricing';
+import Billing from './pages/Billing';
+import Activity from './pages/Activity';
+import Signup from './pages/Signup';
+import VerifyEmail from './pages/VerifyEmail';
+import Embed from './pages/Embed';
+import AiPlayground from './pages/AiPlayground';
+import AdminSettings from './pages/AdminSettings';
+import ClientSignup from './pages/ClientSignup';
+import ClientVerifyEmail from './pages/ClientVerifyEmail';
+import { checkAndRefreshAuth } from './services/authService';
+import { useAuth } from './contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
+import { useEffectOnce } from 'usehooks-ts';
+import { handleSession } from './services/authService';
+import { useToast } from "@/components/ui/use-toast"
+import { ToastAction } from "@/components/ui/toast"
+
+// Import the ensure buckets utility
+import { ensureStorageBuckets } from './utils/ensureStorageBuckets';
+
+// Create React Query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+    },
+  },
+});
 
 function App() {
-  const { user, userRole, isLoading } = useAuth();
-  const location = useLocation();
-  
-  const isAuthCallback = location.pathname.startsWith('/auth/callback');
-  const isPublicRoute = location.pathname === '/auth' || isAuthCallback;
-  
+  // Check and ensure storage buckets on app startup
   useEffect(() => {
-    if (!isAuthCallback) {
-      sessionStorage.removeItem('auth_callback_processed');
-    }
-  }, [isAuthCallback]);
-  
-  if (isLoading || isAuthCallback) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
-          <p className="text-sm text-muted-foreground">
-            {isAuthCallback ? "Completing authentication..." : "Loading..."}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Routes>
-          <Route path="/auth/*" element={<Auth />} />
-          <Route path="*" element={<Navigate to="/auth" replace />} />
-        </Routes>
-        <Toaster />
-      </div>
-    );
-  }
-
-  if (!userRole) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
-          <p className="text-sm text-muted-foreground">Loading user profile...</p>
-        </div>
-      </div>
-    );
-  }
-
-  console.log("Rendering with user role:", userRole);
-
-  if (userRole === 'admin') {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <Routes>
-          <Route path="/admin/dashboard" element={<Index />} />
-          <Route path="/admin/clients" element={<ClientList />} />
-          <Route path="/admin/settings" element={<Settings />} />
-          <Route path="/admin/clients/new" element={<CreateClientAccount />} />
-          <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
-          <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
-          <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
-          <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
-          <Route path="/admin/clients/:clientId" element={<Navigate to="/admin/clients/view/:clientId" replace />} />
-          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
-          <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/auth/callback" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/client/*" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Toaster />
-      </div>
-    );
-  }
+    ensureStorageBuckets()
+      .catch(error => console.error("Failed to ensure storage buckets:", error));
+  }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <ClientHeader />
-      <Routes>
-        <Route path="/client/dashboard" element={<ClientDashboard />} />
-        <Route path="/client/settings" element={<ClientSettings />} />
-        <Route path="/client/account-settings" element={<AccountSettings />} />
-        <Route path="/client/resource-settings" element={<ResourceSettings />} />
-        <Route path="/client/edit-info" element={<EditClientInfo />} />
-        <Route path="/client/widget-settings" element={<WidgetSettings />} />
-        <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
-        <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
-        <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
-        <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Toaster />
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/embed/:clientId" element={<Embed />} />
+            <Route path="/ai-playground" element={<AiPlayground />} />
+            
+            {/* Auth routes */}
+            <Route path="/verify-email" element={<PrivateRoute><VerifyEmail /></PrivateRoute>} />
+            <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+            <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+            <Route path="/billing" element={<PrivateRoute><Billing /></PrivateRoute>} />
+            <Route path="/activity" element={<PrivateRoute><Activity /></PrivateRoute>} />
+            <Route path="/client/dashboard" element={<PrivateRoute><ClientDashboard /></PrivateRoute>} />
+            
+            {/* Client Signup flow */}
+            <Route path="/client/signup" element={<ClientSignup />} />
+            <Route path="/client/verify-email" element={<ClientVerifyEmail />} />
+            
+            {/* Admin routes */}
+            <Route path="/admin/dashboard" element={<RoleRoute allowedRoles={['admin']}><AdminDashboard /></RoleRoute>} />
+            <Route path="/admin/clients" element={<RoleRoute allowedRoles={['admin']}><AdminClients /></RoleRoute>} />
+            <Route path="/admin/clients/new" element={<RoleRoute allowedRoles={['admin']}><NewClient /></RoleRoute>} />
+            <Route path="/admin/settings" element={<RoleRoute allowedRoles={['admin']}><AdminSettings /></RoleRoute>} />
+            <Route path="/admin/clients/:id" element={<RoleRoute allowedRoles={['admin']}><EditClientInfo /></RoleRoute>} />
+            
+            {/* Common routes */}
+            <Route path="/clients" element={<PrivateRoute><Clients /></PrivateRoute>} />
+            <Route path="/clients/:id" element={<PrivateRoute><EditClientInfo /></PrivateRoute>} />
+            <Route path="/create-client-account" element={<PrivateRoute><CreateClientAccount /></PrivateRoute>} />
+            
+            {/* Default route */}
+            <Route path="/" element={<Navigate to="/dashboard" />} />
+          </Routes>
+        </Router>
+        <Toaster position="top-right" />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

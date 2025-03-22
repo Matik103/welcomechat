@@ -2,15 +2,24 @@
 import { UseFormReturn } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useEffect } from "react";
 
 interface AgentNameFieldProps {
   form: UseFormReturn<any>;
   isClientView?: boolean;
+  defaultValue?: string;
 }
 
-export const AgentNameField = ({ form, isClientView = false }: AgentNameFieldProps) => {
-  const { register, formState: { errors } } = form;
+export const AgentNameField = ({ form, isClientView = false, defaultValue }: AgentNameFieldProps) => {
+  const { register, formState: { errors }, setValue } = form;
   
+  // Set default value when component mounts
+  useEffect(() => {
+    if (defaultValue) {
+      setValue("agent_name", defaultValue);
+    }
+  }, [defaultValue, setValue]);
+
   return (
     <div className="space-y-2">
       <Label htmlFor="agent_name" className="text-sm font-medium text-gray-900">
