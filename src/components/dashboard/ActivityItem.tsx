@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { format } from "date-fns";
 import { 
   Users, Settings, Link, UserPlus, Edit, Trash2, 
@@ -7,7 +6,6 @@ import {
   Key, LogOut, FileText, Mail, ShieldAlert, Calendar
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ActivityItemProps {
   item: {
@@ -98,8 +96,7 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
       </div>
       <div className="flex-1">
         <p className="text-sm text-gray-900">
-          <span className="font-medium text-primary">{clientName}</span>{" "}
-          {item.description}
+          {clientName} {item.description}
         </p>
         <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>
       </div>
