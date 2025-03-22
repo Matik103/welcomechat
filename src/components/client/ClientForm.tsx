@@ -27,30 +27,47 @@ export function ClientForm({
   const { form, handleLogoChange, prepareFormData } = useClientForm(initialData, isClientView);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
 
-  // Set initial logo preview URL from initial data
+  // Extract logo URL from initialData when it changes
   useEffect(() => {
     if (initialData) {
+      console.log("ClientForm: initial data received:", initialData);
+      
+      // Check for logo URL in widget_settings first
       let logoUrl = '';
       
-      // Check widget_settings first
       if (initialData.widget_settings && typeof initialData.widget_settings === 'object') {
         logoUrl = (initialData.widget_settings as any).logo_url || '';
+        console.log("ClientForm: Found logo URL in widget_settings:", logoUrl);
       }
       
       // Fallback to direct property
       if (!logoUrl && initialData.logo_url) {
         logoUrl = initialData.logo_url;
+        console.log("ClientForm: Using fallback logo_url property:", logoUrl);
       }
       
       if (logoUrl) {
+        console.log("ClientForm: Setting logo preview URL:", logoUrl);
         setLogoPreviewUrl(logoUrl);
-        console.log("Setting initial logo URL:", logoUrl);
+        
+        // Also update the form with the logo URL
+        form.setValue("logo_url", logoUrl);
+        
+        if (initialData.logo_storage_path) {
+          form.setValue("logo_storage_path", initialData.logo_storage_path);
+        } else if (initialData.widget_settings && (initialData.widget_settings as any).logo_storage_path) {
+          form.setValue("logo_storage_path", (initialData.widget_settings as any).logo_storage_path);
+        }
+      } else {
+        console.log("ClientForm: No logo URL found in initialData");
       }
     }
-  }, [initialData]);
+  }, [initialData, form]);
 
   const handleSubmitForm = async (formData: any) => {
+    console.log("Form submitted with data:", formData);
     const clientFormData = prepareFormData(formData);
+    console.log("Prepared form data:", clientFormData);
     await onSubmit(clientFormData);
   };
 
@@ -60,10 +77,14 @@ export function ClientForm({
     // Generate preview URL for the selected file
     if (file) {
       const url = URL.createObjectURL(file);
-      setLogoPreviewUrl(url);
       console.log("Created preview URL for uploaded logo:", url);
+      setLogoPreviewUrl(url);
     } else {
+      console.log("Logo file cleared, removing preview");
       setLogoPreviewUrl(null);
+      // Clear the logo URL and storage path in the form
+      form.setValue("logo_url", "");
+      form.setValue("logo_storage_path", "");
     }
   };
 
