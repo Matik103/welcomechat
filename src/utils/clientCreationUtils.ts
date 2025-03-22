@@ -1,96 +1,90 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { generateSecurePassword } from "@/utils/passwordUtils";
 
 /**
- * Generates a temporary password for a new client
- * @returns A secure temporary password as a string
+ * Generates a temporary password for new client accounts
+ * @returns A randomly generated password string
  */
-export const generateTempPassword = (): string => {
-  // Generate a password in the format "Welcome2025#123"
-  const currentYear = new Date().getFullYear();
-  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-  return `Welcome${currentYear}#${randomDigits}`;
-};
+export function generateTempPassword(): string {
+  const length = 12;
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+  let password = "";
+  
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length);
+    password += charset[randomIndex];
+  }
+  
+  return password;
+}
 
 /**
  * Saves a temporary password for a client
- * @param clientId The client ID
+ * @param clientId The client's ID
  * @param email The client's email address
- * @param tempPassword The temporary password
+ * @param password The temporary password to save
  */
-export const saveClientTempPassword = async (
+export async function saveClientTempPassword(
   clientId: string,
   email: string,
-  tempPassword: string
-): Promise<void> => {
+  password: string
+): Promise<void> {
   try {
-    const { error } = await supabase
-      .from("client_temp_passwords")
-      .insert({
-        agent_id: clientId,
-        email: email,
-        temp_password: tempPassword
+    // First check if the table exists
+    const { data: tableExistsData, error: tableExistsError } = await supabase
+      .rpc('exec_sql', {
+        sql_query: `
+          SELECT EXISTS (
+            SELECT FROM pg_tables 
+            WHERE schemaname = 'public' 
+            AND tablename = 'client_temp_passwords'
+          ) as exists
+        `
       });
     
-    if (error) {
-      console.error("Error saving temporary password:", error);
-      throw error;
+    if (tableExistsError) {
+      console.error("Error checking if table exists:", tableExistsError);
+      throw tableExistsError;
     }
     
-    // Create auth user with the same password
-    const { data: userData, error: createUserError } = await supabase.functions.invoke(
-      'create-client-user',
-      {
-        body: {
-          email: email,
-          client_id: clientId,
-          temp_password: tempPassword
-        }
-      }
-    );
+    const tableExists = Array.isArray(tableExistsData) && 
+                         tableExistsData.length > 0 && 
+                         tableExistsData[0].exists === true;
     
-    if (createUserError) {
-      console.error("Error creating user auth:", createUserError);
-      // We continue as the temp password is saved
-    } else {
-      console.log("User auth created successfully:", userData);
+    if (!tableExists) {
+      console.error("client_temp_passwords table does not exist");
+      throw new Error("Required database table not found");
     }
     
-  } catch (err) {
-    console.error("Failed to save client temp password:", err);
-    toast.error("Failed to set up client credentials");
-  }
-};
-
-/**
- * Logs client creation activity
- * @param clientId The client ID
- * @param clientName The client name
- * @param email The client's email
- * @param agentName The agent name
- */
-export const logClientCreationActivity = async (
-  clientId: string,
-  clientName: string,
-  email: string,
-  agentName: string
-): Promise<void> => {
-  try {
-    await supabase
-      .from("client_activities")
+    // Delete any existing temporary passwords for this client
+    const { error: deleteError } = await supabase
+      .from('client_temp_passwords')
+      .delete()
+      .eq('client_id', clientId);
+    
+    if (deleteError) {
+      console.error("Error deleting existing temp password:", deleteError);
+      // Continue anyway
+    }
+    
+    // Insert the new temporary password
+    const { error: insertError } = await supabase
+      .from('client_temp_passwords')
       .insert({
         client_id: clientId,
-        activity_type: "client_created",
-        description: `New client created: ${clientName}`,
-        metadata: {
-          client_name: clientName,
-          email: email,
-          agent_name: agentName
-        }
+        email: email,
+        temp_password: password,
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
       });
-  } catch (err) {
-    console.error("Failed to log client creation activity:", err);
-    // Non-critical error, just log it
+    
+    if (insertError) {
+      console.error("Error saving temp password:", insertError);
+      throw insertError;
+    }
+    
+  } catch (error) {
+    console.error("Error in saveClientTempPassword:", error);
+    throw error;
   }
-};
+}

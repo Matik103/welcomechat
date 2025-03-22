@@ -1,94 +1,93 @@
 
-import { Client } from "@/types/client";
+import { Client, ClientFormData } from "@/types/client";
+import { useState, useEffect } from "react";
 import { useClientForm } from "@/hooks/useClientForm";
+import { Form } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { ClientNameField } from "./form-fields/ClientNameField";
 import { EmailField } from "./form-fields/EmailField";
 import { AgentNameField } from "./form-fields/AgentNameField";
 import { AgentDescriptionField } from "./form-fields/AgentDescriptionField";
 import { LogoField } from "./form-fields/LogoField";
 import { FormActions } from "./form-fields/FormActions";
-import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 interface ClientFormProps {
   initialData?: Client | null;
-  onSubmit: (data: { 
-    client_name: string; 
-    email: string; 
-    agent_name?: string;
-    logo_url?: string;
-    logo_storage_path?: string;
-    _tempLogoFile?: File | null;
-  }) => Promise<void>;
+  onSubmit: (data: ClientFormData) => Promise<void>;
   isLoading?: boolean;
   isClientView?: boolean;
 }
 
-export const ClientForm = ({ 
-  initialData, 
-  onSubmit, 
-  isLoading = false, 
-  isClientView = false
-}: ClientFormProps) => {
+export function ClientForm({
+  initialData,
+  onSubmit,
+  isLoading = false,
+  isClientView = false,
+}: ClientFormProps) {
   const { form, handleLogoChange, prepareFormData } = useClientForm(initialData, isClientView);
-  
-  // Re-initialize form when initialData changes (e.g., when admin switches clients)
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+
+  // Set initial logo preview URL from initial data
   useEffect(() => {
     if (initialData) {
-      // Get values from the appropriate places in the data structure
-      const logoUrl = initialData.logo_url || 
-                      (initialData.widget_settings && typeof initialData.widget_settings === 'object' ? 
-                      (initialData.widget_settings as any).logo_url || "" : "");
-                        
-      const logoStoragePath = initialData.logo_storage_path || 
-                             (initialData.widget_settings && typeof initialData.widget_settings === 'object' ? 
-                             (initialData.widget_settings as any).logo_storage_path || "" : "");
-                        
-      const agentName = initialData.agent_name || initialData.name || 
-                        (initialData.widget_settings && typeof initialData.widget_settings === 'object' ? 
-                        (initialData.widget_settings as any).agent_name || "" : "");
-                        
-      const agentDescription = initialData.description || 
-                              (initialData.widget_settings && typeof initialData.widget_settings === 'object' ? 
-                              (initialData.widget_settings as any).agent_description || "" : "");
+      let logoUrl = '';
       
-      console.log("Setting form values from initialData:", {
-        client_name: initialData.client_name || "",
-        email: initialData.email || "",
-        agent_name: agentName,
-        agent_description: agentDescription,
-        logo_url: logoUrl,
-        logo_storage_path: logoStoragePath
-      });
+      // Check widget_settings first
+      if (initialData.widget_settings && typeof initialData.widget_settings === 'object') {
+        logoUrl = (initialData.widget_settings as any).logo_url || '';
+      }
       
-      form.reset({
-        client_name: initialData.client_name || "",
-        email: initialData.email || "",
-        agent_name: agentName,
-        agent_description: agentDescription,
-        logo_url: logoUrl,
-        logo_storage_path: logoStoragePath
-      });
+      // Fallback to direct property
+      if (!logoUrl && initialData.logo_url) {
+        logoUrl = initialData.logo_url;
+      }
+      
+      if (logoUrl) {
+        setLogoPreviewUrl(logoUrl);
+        console.log("Setting initial logo URL:", logoUrl);
+      }
     }
-  }, [initialData, form]);
+  }, [initialData]);
 
-  const handleFormSubmit = async (data: any) => {
-    console.log("ClientForm submitting data:", data);
-    await onSubmit(prepareFormData(data));
+  const handleSubmitForm = async (formData: any) => {
+    const clientFormData = prepareFormData(formData);
+    await onSubmit(clientFormData);
+  };
+
+  const handleLogoUpload = (file: File | null) => {
+    handleLogoChange(file);
+    
+    // Generate preview URL for the selected file
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setLogoPreviewUrl(url);
+      console.log("Created preview URL for uploaded logo:", url);
+    }
   };
 
   return (
-    <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-      <ClientNameField form={form} />
-      <EmailField form={form} />
-      <AgentNameField form={form} isClientView={isClientView} />
-      <AgentDescriptionField form={form} isClientView={isClientView} />
-      <LogoField form={form} onLogoFileChange={handleLogoChange} />
-      
-      <FormActions 
-        isLoading={isLoading} 
-        isClientView={isClientView}
-        hasInitialData={!!initialData}
-      />
-    </form>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmitForm)} className="space-y-6">
+        <div className="space-y-4">
+          <ClientNameField control={form.control} />
+          <EmailField control={form.control} />
+          <AgentNameField control={form.control} />
+          <AgentDescriptionField control={form.control} isRequired={isClientView} />
+          <LogoField 
+            control={form.control} 
+            onLogoChange={handleLogoUpload} 
+            logoPreviewUrl={logoPreviewUrl}
+          />
+        </div>
+
+        <div className="flex justify-start pt-4">
+          <Button type="submit" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
-};
+}

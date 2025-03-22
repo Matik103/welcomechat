@@ -1,9 +1,9 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { ExtendedActivityType } from "@/types/activity";
 import { JsonObject, toJson } from "@/types/supabase-extensions";
 import { WidgetSettings } from "@/types/widget-settings";
-import { execSql } from "@/utils/rpcUtils";
 
 /**
  * Creates a new client in the database.
@@ -84,40 +84,46 @@ export const updateClient = async (
     const sanitizedAgentName = data.widget_settings?.agent_name?.replace(/["']/g, "") || "";
     const sanitizedAgentDescription = data.widget_settings?.agent_description?.replace(/["']/g, "") || "";
 
-    // Update directly in the ai_agents table
-    const query = `
-      UPDATE ai_agents
-      SET 
-        client_name = $1,
-        email = $2,
-        name = $3,
-        agent_description = $4,
-        logo_url = $5,
-        logo_storage_path = $6,
-        settings = $7,
-        updated_at = NOW()
-      WHERE id = $8 OR client_id = $8
-    `;
-    
-    const settingsJson = JSON.stringify({
+    // Create settings object
+    const settings = {
       client_name: data.client_name,
       email: data.email,
       agent_name: sanitizedAgentName || "AI Assistant",
       agent_description: sanitizedAgentDescription,
-      logo_url: data.widget_settings?.logo_url,
-      logo_storage_path: data.widget_settings?.logo_storage_path
-    });
+      logo_url: data.widget_settings?.logo_url || null,
+      logo_storage_path: data.widget_settings?.logo_storage_path || null
+    };
+
+    // Update directly in the ai_agents table using Supabase client
+    const { error } = await supabase
+      .from('ai_agents')
+      .update({
+        client_name: data.client_name,
+        email: data.email,
+        name: sanitizedAgentName || "AI Assistant",
+        agent_description: sanitizedAgentDescription,
+        logo_url: data.widget_settings?.logo_url || null,
+        logo_storage_path: data.widget_settings?.logo_storage_path || null,
+        settings: settings,
+        updated_at: new Date().toISOString()
+      })
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`);
     
-    await execSql(query, [
-      data.client_name, 
-      data.email, 
-      sanitizedAgentName || "AI Assistant",
-      sanitizedAgentDescription,
-      data.widget_settings?.logo_url || null,
-      data.widget_settings?.logo_storage_path || null,
-      settingsJson,
-      clientId
-    ]);
+    if (error) {
+      console.error("Error updating client:", error);
+      throw error;
+    }
+    
+    // Log activity
+    await supabase.from("client_activities").insert({
+      client_id: clientId,
+      activity_type: "client_updated",
+      description: "Client information updated",
+      metadata: {
+        client_name: data.client_name,
+        email: data.email
+      }
+    });
     
   } catch (error: any) {
     console.error("Error updating client:", error);
