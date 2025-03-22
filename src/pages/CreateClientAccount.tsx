@@ -4,7 +4,7 @@ import { ClientAccountForm } from '@/components/client/ClientAccountForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { createClientAccount } from '@/services/clientCreationService';
 
 const CreateClientAccount = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,25 +13,17 @@ const CreateClientAccount = () => {
   const handleSubmit = async (data: any) => {
     try {
       setIsLoading(true);
+      toast.loading('Creating client account and sending welcome email...');
       
-      // Create client account
-      const { data: clientData, error } = await supabase.functions.invoke('create-client-user', {
-        body: { 
-          email: data.email,
-          clientName: data.client_name,
-          agentName: data.agent_name,
-          tempPassword: data.tempPassword
-        }
-      });
+      // Use our service to create the client account
+      await createClientAccount(data);
       
-      if (error) {
-        throw new Error(error.message);
-      }
-      
+      toast.dismiss();
       toast.success('Client account created successfully');
       navigate('/admin/clients');
     } catch (error: any) {
       console.error('Error creating client account:', error);
+      toast.dismiss();
       toast.error(error.message || 'Failed to create client account');
     } finally {
       setIsLoading(false);

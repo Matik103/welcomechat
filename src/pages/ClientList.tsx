@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -7,7 +6,7 @@ import { ClientListTable } from '@/components/client/ClientListTable';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { Button } from '@/components/ui/button';
 import { Client } from '@/types/client';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, RefreshCcw } from 'lucide-react';
 import { execSql } from '@/utils/rpcUtils';
 import { toast } from 'sonner';
 import { DeleteClientDialog } from '@/components/client/DeleteClientDialog';
@@ -154,17 +153,16 @@ export default function ClientList() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-6">
-        <PageHeading>
-          Client Management
-          <p className="text-sm font-normal text-muted-foreground">
-            View and manage all your clients
-          </p>
-        </PageHeading>
-        <div className="flex gap-2">
-          <Button className="flex items-center gap-2" onClick={handleAddClientClick}>
-            <Plus className="w-4 h-4" />
+        <h1 className="text-2xl font-bold">Client Management</h1>
+        <div className="flex space-x-3">
+          <Button variant="outline" onClick={() => refetch()}>
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button onClick={() => navigate('/admin/clients/create')}>
+            <Plus className="mr-2 h-4 w-4" />
             Add Client
           </Button>
         </div>
