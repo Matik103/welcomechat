@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { 
@@ -23,7 +22,7 @@ interface ActivityItemProps {
   };
 }
 
-// Define a simple interface for agent data to avoid recursive type issues
+// Define a simple interface for agent data
 interface AgentData {
   name?: string;
   client_name?: string;
@@ -33,7 +32,7 @@ interface AgentData {
 }
 
 const getActivityIcon = (type: string, metadata: Json) => {
-  // Safely check if there's an original activity type in metadata
+  // Check if there's an original activity type in metadata
   const originalType = metadata && 
     typeof metadata === 'object' && 
     metadata !== null && 
@@ -102,16 +101,18 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
   // Fetch client name from ai_agents table if needed
   useEffect(() => {
     // Only fetch if we have a client_id but no proper client_name
+    // or if client_name looks like an ID (starts with "Client" followed by hexadecimal)
     if (
       item.client_id && 
       (!item.client_name || 
        item.client_name === "Unknown Client" ||
+       item.client_name === "System Activity" ||
        item.client_name.startsWith("Client ") ||
        /^[a-f0-9]{6,}$/i.test(item.client_name))
     ) {
       const fetchClientName = async () => {
         try {
-          // Query ai_agents table to get the client name with simplified column selection
+          // Query ai_agents table to get the client name
           const { data, error } = await supabase
             .from('ai_agents')
             .select('name, settings, client_name')
@@ -126,7 +127,6 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
           }
           
           if (data && data.length > 0) {
-            // Use explicit type assertion to avoid recursive type issues
             const agentData = data[0] as AgentData;
             
             // Determine best client name from the result
@@ -170,6 +170,7 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
       // Check if it's not an ID-like string or "Unknown Client"
       if (
         item.client_name !== "Unknown Client" && 
+        item.client_name !== "System Activity" &&
         !item.client_name.startsWith("Client ") &&
         !/^[a-f0-9]{6,}$/i.test(item.client_name)
       ) {
@@ -195,22 +196,13 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
       }
     }
     
-    // Use agent_name if available
-    if (item.agent_name && typeof item.agent_name === 'string' && item.agent_name.trim().length > 0) {
-      return item.agent_name;
-    }
-    
     // For system updates or activities without a client
     if (!item.client_id || item.activity_type === 'system_update') {
       return "System";
     }
     
-    // As a last resort, format the ID nicely instead of showing "Unknown Client"
-    if (item.client_id) {
-      return "Client " + item.client_id.substring(0, 6);
-    }
-    
-    return "System Activity";
+    // As a last resort, show "Unknown Client" instead of the ID
+    return "Unknown Client";
   };
   
   const clientName = getClientName();
