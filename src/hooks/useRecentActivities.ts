@@ -45,37 +45,31 @@ export const useRecentActivities = () => {
       // If we have client IDs, fetch their names and details
       if (clientIds.length > 0) {
         try {
-          // Simplified query with clearer aliases to avoid type issues
-          const agentDetailsQuery = `
-            SELECT 
-              client_id, 
-              name, 
-              settings->'client_name' as settings_client_name, 
-              client_name,
-              email,
-              agent_description
-            FROM ai_agents
-            WHERE client_id = ANY($1::uuid[])
-            AND interaction_type = 'config'
-            ORDER BY updated_at DESC
-          `;
-          
-          const agentsData = await execSql(agentDetailsQuery, [clientIds]);
+          // Fetch client names directly from ai_agents
+          const { data: clientsData, error: clientsError } = await supabase
+            .from('ai_agents')
+            .select('client_id, name, settings, client_name, email, agent_description')
+            .in('client_id', clientIds)
+            .eq('interaction_type', 'config');
+            
+          if (clientsError) {
+            console.error("Error fetching client info:", clientsError);
+          }
           
           // Map of client info keyed by client_id
           const clientInfoMap: Record<string, any> = {};
           
           // Populate client info map from ai_agents data
-          if (agentsData && Array.isArray(agentsData) && agentsData.length > 0) {
-            agentsData.forEach((agent: any) => {
+          if (clientsData && Array.isArray(clientsData) && clientsData.length > 0) {
+            clientsData.forEach((agent: any) => {
               if (agent && typeof agent === 'object' && agent.client_id) {
                 const clientId = agent.client_id;
                 
                 // Initialize or get existing entry
                 clientInfoMap[clientId] = clientInfoMap[clientId] || {};
                 
-                // Determine best client name, checking all possible sources with explicit typing
-                const settingsClientName = agent.settings_client_name;
+                // Determine best client name from multiple possible sources
+                const settingsClientName = agent.settings?.client_name;
                 const directClientName = agent.client_name;
                 const agentName = agent.name;
                 
@@ -83,7 +77,7 @@ export const useRecentActivities = () => {
                   (typeof settingsClientName === 'string' && settingsClientName.trim() !== '' ? settingsClientName : null) || 
                   (typeof directClientName === 'string' && directClientName.trim() !== '' ? directClientName : null) || 
                   (typeof agentName === 'string' && agentName.trim() !== '' ? agentName : null) || 
-                  "Client " + clientId.substring(0, 6); // Use a formatted client ID prefix rather than "Unknown Client"
+                  null;
                 
                 // Update with agent data
                 clientInfoMap[clientId] = {
@@ -119,7 +113,7 @@ export const useRecentActivities = () => {
             
             return {
               ...activity,
-              client_name: clientInfo.clientName || clientName || "Client " + clientId.substring(0, 6),
+              client_name: clientInfo.clientName || clientName || "System Activity",
               client_email: clientInfo.email || null,
               agent_name: clientInfo.agentName || null,
               agent_description: clientInfo.agentDescription || null
@@ -130,10 +124,10 @@ export const useRecentActivities = () => {
         }
       }
 
-      // If all else fails, return activities with minimal info
+      // If all else fails, return activities with a generic info
       return activities.map(activity => ({
         ...activity,
-        client_name: activity.client_id ? "Client " + activity.client_id.substring(0, 6) : "System Activity"
+        client_name: activity.client_id ? "System Activity" : "System"
       }));
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute
