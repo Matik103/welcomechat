@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { ExtendedActivityType } from "@/types/activity";
@@ -14,6 +15,16 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
     const sanitizedAgentName = data.widget_settings?.agent_name?.replace(/["']/g, "") || "";
     const sanitizedAgentDescription = data.widget_settings?.agent_description?.replace(/["']/g, "") || "";
 
+    // Prepare widget settings as a proper object
+    const widgetSettings = {
+      client_name: data.client_name,
+      email: data.email,
+      agent_name: sanitizedAgentName || "AI Assistant",
+      agent_description: sanitizedAgentDescription,
+      logo_url: data.widget_settings?.logo_url || null,
+      logo_storage_path: data.widget_settings?.logo_storage_path || null
+    };
+
     // Insert directly into the ai_agents table instead of using create_new_client RPC
     const { data: newClient, error } = await supabase
       .from("ai_agents")
@@ -27,14 +38,7 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
         interaction_type: 'config',
         client_name: data.client_name,
         email: data.email,
-        settings: {
-          client_name: data.client_name,
-          email: data.email,
-          agent_name: sanitizedAgentName || "AI Assistant",
-          agent_description: sanitizedAgentDescription,
-          logo_url: data.widget_settings?.logo_url,
-          logo_storage_path: data.widget_settings?.logo_storage_path
-        }
+        settings: widgetSettings
       })
       .select("id")
       .single();
@@ -114,7 +118,7 @@ export const updateClient = async (
       const fileName = `${clientId}-logo-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const storagePath = `${clientId}/logos/${fileName}`;
       
-      // Upload the file to client_documents bucket instead of client-assets
+      // Upload the file to client_documents bucket
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client_documents')
         .upload(storagePath, data._tempLogoFile, {
@@ -145,7 +149,7 @@ export const updateClient = async (
       settings.logo_storage_path = storagePath;
     }
 
-    // Update in the ai_agents table directly using execSql
+    // Update in the ai_agents table using prepared statement
     const updateQuery = `
       UPDATE ai_agents
       SET 
