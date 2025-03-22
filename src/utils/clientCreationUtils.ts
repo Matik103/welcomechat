@@ -30,19 +30,54 @@ export const logClientCreationActivity = async (
 };
 
 /**
+ * Generates a secure temporary password for client accounts
+ * @returns A randomly generated temporary password
+ */
+export const generateTempPassword = (): string => {
+  // Generate a password with the format "Welcome2024$123"
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+  const specialChars = ['!', '@', '#', '$', '%', '&', '*'];
+  const randomSpecialChar = specialChars[Math.floor(Math.random() * specialChars.length)];
+  
+  return `Welcome${currentYear}${randomSpecialChar}${randomDigits}`;
+};
+
+/**
+ * Saves the temporary password for a client in the database
+ */
+export const saveClientTempPassword = async (
+  clientId: string,
+  email: string,
+  tempPassword: string
+): Promise<void> => {
+  try {
+    await supabase.from("client_temp_passwords").insert({
+      client_id: clientId,
+      email: email,
+      temp_password: tempPassword,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
+    });
+    console.log("Saved temporary password for client:", clientId);
+  } catch (error) {
+    console.error("Error saving temporary password:", error);
+    // Continue even if saving fails
+  }
+};
+
+/**
  * Generates an HTML email template for client welcome emails
- * Updated to handle Supabase password reset flow
  */
 export const generateClientWelcomeEmailTemplate = (
   clientName: string,
   email: string,
-  tempPassword?: string, // Now optional since we'll be using Supabase's reset email
+  tempPassword?: string,
   productName: string = "Welcome.Chat"
 ): string => {
   // Get current year for copyright
   const currentYear = new Date().getFullYear();
   
-  // Password instructions message based on whether we're using Supabase auth or sending temp password
+  // Password instructions message based on whether we're including a temp password
   const passwordMessage = tempPassword 
     ? `
       <p style="margin: 0 0 10px 0; color: #555555;"><strong>Temporary Password:</strong></p>
