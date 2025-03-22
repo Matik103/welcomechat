@@ -31,16 +31,35 @@ export const logClientCreationActivity = async (
 
 /**
  * Generates a secure temporary password for client accounts
+ * This creates a password compatible with Supabase Auth requirements
  * @returns A randomly generated temporary password
  */
 export const generateTempPassword = (): string => {
-  // Generate a password with the format "Welcome2024$123"
-  const currentYear = new Date().getFullYear();
-  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-  const specialChars = ['!', '@', '#', '$', '%', '&', '*'];
-  const randomSpecialChar = specialChars[Math.floor(Math.random() * specialChars.length)];
+  // Generate a random string with at least:
+  // - 1 uppercase letter
+  // - 1 lowercase letter
+  // - 1 number
+  // - 1 special character
+  const upperChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // excluding I and O which can be confused
+  const lowerChars = 'abcdefghijkmnpqrstuvwxyz'; // excluding l which can be confused
+  const numbers = '23456789'; // excluding 0 and 1 which can be confused
+  const specialChars = '!@#$%^&*';
   
-  return `Welcome${currentYear}${randomSpecialChar}${randomDigits}`;
+  // Create the base password with at least one character from each group
+  let password = '';
+  password += upperChars[Math.floor(Math.random() * upperChars.length)];
+  password += lowerChars[Math.floor(Math.random() * lowerChars.length)];
+  password += numbers[Math.floor(Math.random() * numbers.length)];
+  password += specialChars[Math.floor(Math.random() * specialChars.length)];
+  
+  // Add 6 more random characters for a total length of 10
+  const allChars = upperChars + lowerChars + numbers + specialChars;
+  for (let i = 0; i < 6; i++) {
+    password += allChars[Math.floor(Math.random() * allChars.length)];
+  }
+  
+  // Shuffle the password to make it more random
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
 };
 
 /**
@@ -53,7 +72,7 @@ export const saveClientTempPassword = async (
 ): Promise<void> => {
   try {
     await supabase.from("client_temp_passwords").insert({
-      client_id: clientId,
+      agent_id: clientId, // Using agent_id per schema
       email: email,
       temp_password: tempPassword,
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
@@ -81,7 +100,10 @@ export const generateClientWelcomeEmailTemplate = (
   const passwordMessage = tempPassword 
     ? `
       <p style="margin: 0 0 10px 0; color: #555555;"><strong>Temporary Password:</strong></p>
-      <p style="margin: 0 0 0 0; color: #4f46e5; font-family: monospace; font-size: 18px; padding: 10px; background-color: #eef1ff; border-radius: 4px;">${tempPassword}</p>
+      <div style="margin: 0 0 20px 0; background-color: #f5f7fa; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;">
+        <p style="margin: 0; color: #4f46e5; font-family: monospace; font-size: 18px;">${tempPassword}</p>
+        <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Please copy this password exactly as shown</p>
+      </div>
     `
     : `<p style="margin: 0 0 20px 0; color: #555555;">You will receive a separate email to set your password.</p>`;
   
@@ -130,3 +152,4 @@ export const generateClientWelcomeEmailTemplate = (
     </div>
   `;
 };
+

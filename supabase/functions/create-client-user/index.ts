@@ -69,13 +69,31 @@ serve(async (req) => {
     const existingUser = existingUsers?.users?.find(u => u.email === email);
     
     let userId;
-    // Generate password if not provided
-    const generatedPassword = temp_password || (
-      Math.random().toString(36).slice(-10) + 
-      Math.random().toString(36).toUpperCase().slice(-2) + 
-      String(Math.floor(Math.random() * 10)) +
-      "!"
-    );
+    // Generate password if not provided - ensuring it's compatible with Supabase auth
+    const generatedPassword = temp_password || (() => {
+      // Generate a random secure password
+      const upperChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // excluding I and O 
+      const lowerChars = 'abcdefghijkmnpqrstuvwxyz'; // excluding l
+      const numbers = '23456789'; // excluding 0 and 1
+      const specialChars = '!@#$%^&*';
+      
+      let password = '';
+      password += upperChars[Math.floor(Math.random() * upperChars.length)];
+      password += lowerChars[Math.floor(Math.random() * lowerChars.length)];
+      password += numbers[Math.floor(Math.random() * numbers.length)];
+      password += specialChars[Math.floor(Math.random() * specialChars.length)];
+      
+      // Add more random characters for a length of 10
+      const allChars = upperChars + lowerChars + numbers + specialChars;
+      for (let i = 0; i < 6; i++) {
+        password += allChars[Math.floor(Math.random() * allChars.length)];
+      }
+      
+      // Shuffle the password
+      return password.split('').sort(() => 0.5 - Math.random()).join('');
+    })();
+    
+    console.log("Using generated password for user:", generatedPassword);
     
     if (existingUser) {
       // Update existing user
@@ -130,6 +148,23 @@ serve(async (req) => {
         // Continue anyway, the main user account is created
       } else {
         console.log("Successfully set user role for:", userId);
+      }
+      
+      // Also save the temporary password in the client_temp_passwords table
+      const { error: tempPasswordError } = await supabase
+        .from("client_temp_passwords")
+        .insert({
+          agent_id: client_id, // Use agent_id to match the schema
+          email: email,
+          temp_password: generatedPassword,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
+        });
+        
+      if (tempPasswordError) {
+        console.error("Error saving temporary password:", tempPasswordError);
+        // Continue anyway, the user account is created
+      } else {
+        console.log("Saved temporary password for client:", client_id);
       }
     }
     
