@@ -1,6 +1,6 @@
 
 import { UseFormReturn } from "react-hook-form";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { LogoManagement } from "@/components/widget/LogoManagement";
 import { toast } from "sonner";
@@ -13,6 +13,12 @@ interface LogoFieldProps {
 
 export const LogoField = ({ control, onLogoChange, logoPreviewUrl }: LogoFieldProps) => {
   const [isUploading, setIsUploading] = useState(false);
+  
+  useEffect(() => {
+    if (logoPreviewUrl) {
+      console.log("LogoField: Displaying logo from URL:", logoPreviewUrl);
+    }
+  }, [logoPreviewUrl]);
   
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -29,11 +35,15 @@ export const LogoField = ({ control, onLogoChange, logoPreviewUrl }: LogoFieldPr
       return;
     }
     
+    console.log("LogoField: Logo file selected:", file.name, file.type);
+    setIsUploading(true);
     onLogoChange(file);
+    setIsUploading(false);
     toast.success("Logo selected. It will be uploaded when you save the client.");
   };
   
   const handleRemoveLogo = () => {
+    console.log("LogoField: Removing logo");
     onLogoChange(null);
   };
 

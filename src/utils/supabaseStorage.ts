@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -20,15 +19,21 @@ export const ensurePublicUrl = (bucket: string, filePath: string): string => {
 
 /**
  * Validates if a URL is properly formatted
- * @param url The URL to validate
+ * @param value The URL to validate
  * @returns True if the URL is valid, otherwise false
  */
-export const isValidUrl = (url: string): boolean => {
-  if (!url) return false;
+export const isValidUrl = (value: string): boolean => {
+  if (!value) return false;
+  
+  // Allow data URLs for local previews
+  if (value.startsWith('data:')) return true;
+  
+  // Allow blob URLs for local previews
+  if (value.startsWith('blob:')) return true;
   
   try {
-    new URL(url);
-    return true;
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
   } catch (e) {
     return false;
   }

@@ -42,6 +42,13 @@ const EditClientInfo = () => {
     // If we have a client, clear the error state
     if (client) {
       setHasErrored(false);
+      
+      // Log found logo info
+      if (client.logo_url) {
+        console.log("EditClientInfo: Found logo URL:", client.logo_url);
+      } else {
+        console.log("EditClientInfo: No logo URL found in client data");
+      }
     }
   }, [client]);
 

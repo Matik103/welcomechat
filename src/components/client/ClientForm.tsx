@@ -32,19 +32,24 @@ export function ClientForm({
     if (initialData) {
       let logoUrl = '';
       
-      // Check widget_settings first
-      if (initialData.widget_settings && typeof initialData.widget_settings === 'object') {
-        logoUrl = (initialData.widget_settings as any).logo_url || '';
+      // First, check logo_url directly in the client object (ai_agents data)
+      if (initialData.logo_url) {
+        logoUrl = initialData.logo_url;
+        console.log("Found logo_url directly on client object:", logoUrl);
       }
       
-      // Fallback to direct property
-      if (!logoUrl && initialData.logo_url) {
-        logoUrl = initialData.logo_url;
+      // Fallback to checking widget_settings
+      if (!logoUrl && initialData.widget_settings && typeof initialData.widget_settings === 'object') {
+        logoUrl = (initialData.widget_settings as any).logo_url || '';
+        console.log("Found logo_url in widget_settings:", logoUrl);
       }
       
       if (logoUrl) {
         setLogoPreviewUrl(logoUrl);
-        console.log("Setting initial logo URL:", logoUrl);
+        console.log("Setting initial logo preview URL:", logoUrl);
+      } else {
+        console.log("No logo URL found in client data");
+        setLogoPreviewUrl(null);
       }
     }
   }, [initialData]);
@@ -64,6 +69,7 @@ export function ClientForm({
       console.log("Created preview URL for uploaded logo:", url);
     } else {
       setLogoPreviewUrl(null);
+      console.log("Cleared logo preview URL");
     }
   };
 

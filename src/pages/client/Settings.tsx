@@ -19,7 +19,7 @@ const ClientSettings = () => {
   useEffect(() => {
     let isMounted = true;
     
-    // Set a timeout to ensure we don't get stuck in a loading state - reduced from 5000 to 1000
+    // Set a timeout to ensure we don't get stuck in a loading state
     const timeout = setTimeout(() => {
       if (isMounted) {
         setLoadTimeout(true);
@@ -37,7 +37,35 @@ const ClientSettings = () => {
       try {
         console.log("Fetching client info for email:", user.email);
         
-        // Use execSql instead of directly accessing the clients table
+        // First try fetching from ai_agents table
+        const { data: agentData, error: agentError } = await supabase
+          .from('ai_agents')
+          .select('*')
+          .eq('email', user.email)
+          .eq('interaction_type', 'config')
+          .limit(1)
+          .single();
+          
+        if (!agentError && agentData) {
+          console.log("Client Settings: Found data in ai_agents table:", agentData);
+          if (agentData.logo_url) {
+            console.log("Client Settings: Found logo URL in ai_agents:", agentData.logo_url);
+          }
+          
+          if (isMounted) {
+            setClientInfo({
+              ...agentData,
+              client_name: agentData.client_name,
+              agent_name: agentData.name,
+              description: agentData.agent_description,
+              status: 'active'
+            });
+            setIsLoading(false);
+          }
+          return;
+        }
+        
+        // If not found in ai_agents, try the clients table
         const query = `
           SELECT * FROM clients
           WHERE email = '${user.email}'
@@ -51,7 +79,10 @@ const ClientSettings = () => {
         }
         
         const clientData = result[0];
-        console.log("Client info fetched:", clientData);
+        console.log("Client Settings: Client info fetched from clients table:", clientData);
+        if (clientData.logo_url) {
+          console.log("Client Settings: Found logo URL in clients:", clientData.logo_url);
+        }
         
         if (isMounted) {
           setClientInfo(clientData);
@@ -171,12 +202,26 @@ const ClientSettings = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">AI Assistant Name</p>
-                  <p className="font-medium">{clientInfo.agent_name}</p>
+                  <p className="font-medium">{clientInfo.agent_name || clientInfo.name}</p>
                 </div>
-                {clientInfo.description && (
+                {(clientInfo.description || clientInfo.agent_description) && (
                   <div>
                     <p className="text-sm text-gray-500">Description</p>
-                    <p className="font-medium">{clientInfo.description}</p>
+                    <p className="font-medium">{clientInfo.description || clientInfo.agent_description}</p>
+                  </div>
+                )}
+                {clientInfo.logo_url && (
+                  <div>
+                    <p className="text-sm text-gray-500">Logo</p>
+                    <img 
+                      src={clientInfo.logo_url} 
+                      alt="AI Assistant Logo" 
+                      className="h-12 w-12 object-contain mt-1 border border-gray-200 rounded"
+                      onError={(e) => {
+                        console.error("Error loading logo in settings:", clientInfo.logo_url);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
                   </div>
                 )}
                 <div>
