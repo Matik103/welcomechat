@@ -41,10 +41,28 @@ const Index = () => {
       refetchActivities();
     });
     
+    // Also subscribe to changes in the ai_agents table to update client names
+    const agentsChannel = supabase
+      .channel('dashboard-ai-agents-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ai_agents',
+      }, (payload) => {
+        console.log("AI agent data changed, refreshing activities to update client names:", payload);
+        refetchActivities();
+      })
+      .subscribe();
+    
     return () => {
       if (channel) {
         console.log("Removing activity subscription channel");
         supabase.removeChannel(channel);
+      }
+      
+      if (agentsChannel) {
+        console.log("Removing ai_agents subscription channel");
+        supabase.removeChannel(agentsChannel);
       }
     };
   }, [refetchActivities]);

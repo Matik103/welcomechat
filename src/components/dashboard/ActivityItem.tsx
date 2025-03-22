@@ -222,7 +222,7 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
       </div>
       <div className="flex-1">
         <p className="text-sm text-gray-900">
-          <span className="font-medium">{clientName}</span>{" "}
+          <span className="font-medium text-primary">{clientName}</span>{" "}
           {item.description}
         </p>
         <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>
