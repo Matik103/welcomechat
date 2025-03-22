@@ -9,30 +9,31 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
   const [tempLogoFile, setTempLogoFile] = useState<File | null>(null);
   const { schema } = useClientFormValidation(isClientView);
   
-  // Get agent description from initialData if available
-  // Look for it in widget_settings first (new approach) or ai_agents relation if available
-  const agentDescription = initialData?.widget_settings && 
-                          typeof initialData.widget_settings === 'object' ? 
-                          (initialData.widget_settings as any).agent_description || "" : 
-                          "";
+  // Extract data from initialData safely
+  const getWidgetSetting = (data: any, key: string, defaultValue: string = ""): string => {
+    if (!data) return defaultValue;
+    
+    if (data.widget_settings && typeof data.widget_settings === 'object' && 
+        (data.widget_settings as any)[key]) {
+      return (data.widget_settings as any)[key] || defaultValue;
+    }
+    
+    // Try to get the value directly from the object
+    return data[key] || defaultValue;
+  };
   
-  // Get agent_name from widget_settings or from the top-level property
-  const agentName = initialData?.widget_settings && 
-                   typeof initialData.widget_settings === 'object' && 
-                   (initialData.widget_settings as any).agent_name ? 
-                   (initialData.widget_settings as any).agent_name : 
-                   initialData?.agent_name || "Chat";
-
-  // Get logo url from widget settings
-  const logoUrl = initialData?.widget_settings && 
-                 typeof initialData.widget_settings === 'object' ? 
-                 (initialData.widget_settings as any).logo_url || "" : 
-                 initialData?.logo_url || "";
-
-  const logoStoragePath = initialData?.widget_settings && 
-                         typeof initialData.widget_settings === 'object' ? 
-                         (initialData.widget_settings as any).logo_storage_path || "" : 
-                         initialData?.logo_storage_path || "";
+  // Get agent description and name from initialData
+  const agentDescription = getWidgetSetting(initialData, 'agent_description', '');
+  const agentName = getWidgetSetting(initialData, 'agent_name', initialData?.agent_name || 'Chat');
+  const logoUrl = getWidgetSetting(initialData, 'logo_url', initialData?.logo_url || '');
+  const logoStoragePath = getWidgetSetting(initialData, 'logo_storage_path', initialData?.logo_storage_path || '');
+  
+  console.log("useClientForm initialization with:", {
+    agentName,
+    agentDescription,
+    logoUrl,
+    logoStoragePath
+  });
   
   // Setup form with validation schema
   const form = useForm({
@@ -50,26 +51,13 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
   // Sync form with initialData when it changes
   useEffect(() => {
     if (initialData) {
-      const agentDescription = initialData.widget_settings && 
-                              typeof initialData.widget_settings === 'object' ? 
-                              (initialData.widget_settings as any).agent_description || "" : 
-                              "";
+      console.log("useClientForm: Syncing form with initialData:", initialData);
       
-      const agentName = initialData.widget_settings && 
-                       typeof initialData.widget_settings === 'object' && 
-                       (initialData.widget_settings as any).agent_name ? 
-                       (initialData.widget_settings as any).agent_name : 
-                       initialData.agent_name || "Chat";
-
-      const logoUrl = initialData.widget_settings && 
-                     typeof initialData.widget_settings === 'object' ? 
-                     (initialData.widget_settings as any).logo_url || "" : 
-                     initialData.logo_url || "";
-
-      const logoStoragePath = initialData.widget_settings && 
-                             typeof initialData.widget_settings === 'object' ? 
-                             (initialData.widget_settings as any).logo_storage_path || "" : 
-                             initialData.logo_storage_path || "";
+      // Extract values, falling back through the different possible locations
+      const agentDescription = getWidgetSetting(initialData, 'agent_description', '');
+      const agentName = getWidgetSetting(initialData, 'agent_name', initialData?.agent_name || 'Chat');
+      const logoUrl = getWidgetSetting(initialData, 'logo_url', initialData?.logo_url || '');
+      const logoStoragePath = getWidgetSetting(initialData, 'logo_storage_path', initialData?.logo_storage_path || '');
       
       form.reset({
         client_name: initialData.client_name || "",
@@ -87,7 +75,7 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
     setTempLogoFile(file);
     
     if (file) {
-      console.log("Logo file selected:", file.name);
+      console.log("Logo file selected:", file.name, file.type, file.size);
     } else {
       console.log("Logo file cleared");
     }
@@ -102,6 +90,8 @@ export const useClientForm = (initialData?: Client | null, isClientView = false)
       logo_url: data.logo_url || "",
       logo_storage_path: data.logo_storage_path || ""
     };
+    
+    console.log("Preparing form data with widget settings:", widgetSettings);
     
     // Only include client-specific data at the top level
     const formData = {
