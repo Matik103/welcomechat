@@ -4,20 +4,19 @@ import { useNavigate } from "react-router-dom";
 import { ClientRegistrationForm } from "@/components/forms/ClientRegistrationForm";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { TestEmailComponent } from "@/components/client/TestEmailComponent";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 
 export default function NewClient() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (data: any) => {
     try {
+      setIsSubmitting(true);
       // Show loading toast
       const loadingToastId = toast.loading("Creating AI agent and sending welcome email...");
       
@@ -67,9 +66,6 @@ export default function NewClient() {
         console.error("Error saving temporary password:", passwordError);
         // Continue even if password save fails
       }
-
-      // Update email status
-      setEmailStatus('sending');
 
       // Call the edge function to send the welcome email
       const { data: emailResult, error: emailError } = await supabase.functions.invoke(
@@ -130,20 +126,17 @@ export default function NewClient() {
       
       if (emailError) {
         console.error("Email sending error:", emailError);
-        setEmailStatus('error');
         toast.error(`Client created but welcome email failed: ${emailError.message}`, {
           id: loadingToastId,
           duration: 6000
         });
       } else if (emailResult && !emailResult.success) {
         console.error("Email sending failed:", emailResult.error);
-        setEmailStatus('error');
         toast.error(`Client created but welcome email failed: ${emailResult.error || "Unknown error"}`, {
           id: loadingToastId,
           duration: 6000
         });
       } else {
-        setEmailStatus('success');
         toast.success("Client created successfully and welcome email sent", {
           id: loadingToastId
         });
@@ -183,6 +176,8 @@ export default function NewClient() {
     } catch (error: any) {
       console.error("Error creating client:", error);
       toast.error(error.message || "Failed to create client");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -203,18 +198,6 @@ export default function NewClient() {
         </div>
         
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Testing</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Before creating a client, you can verify that email sending is working correctly.
-              </p>
-              <TestEmailComponent />
-            </CardContent>
-          </Card>
-          
           <Card>
             <CardHeader>
               <CardTitle>Process Information</CardTitle>
