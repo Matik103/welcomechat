@@ -76,7 +76,6 @@ export default function ClientList() {
                     : 'active',
             agent_name: record.name || '',
             name: record.name || '',
-            description: record.agent_description || '',
             agent_description: record.agent_description || '',
             widget_settings: settings,
             created_at: record.created_at || '',
@@ -243,4 +242,3 @@ export default function ClientList() {
     </div>
   );
 }
-
