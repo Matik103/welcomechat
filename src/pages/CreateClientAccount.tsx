@@ -1,66 +1,34 @@
 
 import { useState } from 'react';
-import { ClientFormData } from '@/types/client-form';
+import { ClientAccountForm } from '@/components/client/ClientAccountForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { NewClientForm } from '@/components/client/NewClientForm';
-import { createClient } from '@/services/clientService';
 
 const CreateClientAccount = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (data: ClientFormData) => {
+  const handleSubmit = async (data: any) => {
     try {
       setIsLoading(true);
-      const loadingToastId = toast.loading("Creating client account...");
       
-      // Use the createClient service to create the client
-      const clientId = await createClient(data);
-      
-      // If client was created successfully, send welcome email
-      if (clientId) {
-        // Generate a temporary password
-        const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
-        
-        // Call the edge function to send the welcome email
-        const { data: emailResult, error: emailError } = await supabase.functions.invoke(
-          'send-welcome-email', 
-          {
-            body: {
-              clientId: clientId,
-              clientName: data.client_name,
-              email: data.email,
-              agentName: data.widget_settings?.agent_name || "AI Assistant",
-              tempPassword: tempPassword
-            }
-          }
-        );
-        
-        if (emailError) {
-          console.error("Email sending error:", emailError);
-          toast.error(`Client created but welcome email failed: ${emailError.message}`, {
-            id: loadingToastId,
-            duration: 6000
-          });
-        } else if (emailResult && !emailResult.success) {
-          console.error("Email sending failed:", emailResult.error);
-          toast.error(`Client created but welcome email failed: ${emailResult.error || "Unknown error"}`, {
-            id: loadingToastId,
-            duration: 6000
-          });
-        } else {
-          toast.success("Client created successfully and welcome email sent", {
-            id: loadingToastId
-          });
+      // Create client account
+      const { data: clientData, error } = await supabase.functions.invoke('create-client-user', {
+        body: { 
+          email: data.email,
+          clientName: data.client_name,
+          agentName: data.agent_name,
+          tempPassword: data.tempPassword
         }
-      } else {
-        toast.error("Failed to create client", { id: loadingToastId });
+      });
+      
+      if (error) {
+        throw new Error(error.message);
       }
       
-      // Navigate back to clients list
+      toast.success('Client account created successfully');
       navigate('/admin/clients');
     } catch (error: any) {
       console.error('Error creating client account:', error);
@@ -78,9 +46,9 @@ const CreateClientAccount = () => {
             <CardTitle>Create Client Account</CardTitle>
           </CardHeader>
           <CardContent>
-            <NewClientForm 
+            <ClientAccountForm 
               onSubmit={handleSubmit}
-              isSubmitting={isLoading}
+              isLoading={isLoading}
             />
           </CardContent>
         </Card>

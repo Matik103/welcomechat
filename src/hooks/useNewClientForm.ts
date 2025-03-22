@@ -20,7 +20,7 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
       client_name: "",
       email: "",
       widget_settings: {
-        agent_name: "", 
+        agent_name: "", // Default empty string
         agent_description: "",
         logo_url: "",
       },
@@ -51,7 +51,7 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
 
       // Handle logo file if present
       if (data._tempLogoFile) {
-        console.log("Logo file present:", data._tempLogoFile.name);
+        console.log("Logo file present:", data._tempLogoFile);
       }
 
       // Ensure widget_settings exists and has default values
@@ -67,7 +67,6 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
       const submissionData: ClientFormData = {
         client_name: data.client_name.trim(),
         email: data.email.toLowerCase().trim(),
-        _tempLogoFile: data._tempLogoFile,
         widget_settings: {
           agent_name: data.widget_settings.agent_name?.trim() || "",
           agent_description: data.widget_settings.agent_description?.trim() || "",
@@ -76,6 +75,7 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
       };
 
       await onSubmit(submissionData);
+      toast.success("Client created successfully");
     } catch (error) {
       console.error("Form submission error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create client");
