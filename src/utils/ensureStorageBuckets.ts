@@ -2,67 +2,44 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Ensures that required storage buckets exist
+ * Ensures that all required storage buckets exist
+ * This is called when the app starts to make sure buckets are available
  */
-export const ensureStorageBuckets = async () => {
+export const ensureStorageBuckets = async (): Promise<void> => {
   try {
-    // Check if document_storage bucket exists
-    const { data: buckets, error } = await supabase
-      .storage
-      .listBuckets();
-
+    console.log("Checking storage buckets...");
+    
+    // Get list of existing buckets
+    const { data: buckets, error } = await supabase.storage.listBuckets();
+    
     if (error) {
-      console.error("Error checking storage buckets:", error);
+      console.error("Error listing buckets:", error.message);
       return;
     }
-
-    const documentStorageBucket = buckets?.find(bucket => bucket.name === 'document_storage');
     
-    if (!documentStorageBucket) {
-      console.log("Creating document_storage bucket...");
-      
-      // Create the document_storage bucket
-      const { error: createError } = await supabase
-        .storage
-        .createBucket('document_storage', {
-          public: true,
-          fileSizeLimit: 10485760, // 10MB limit
-          allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
+    const existingBuckets = new Set(buckets.map(bucket => bucket.name));
+    const requiredBuckets = ['widget-logos', 'document_storage'];
+    
+    for (const bucketName of requiredBuckets) {
+      if (!existingBuckets.has(bucketName)) {
+        console.log(`Creating bucket: ${bucketName}`);
+        
+        const { error: createError } = await supabase.storage.createBucket(bucketName, {
+          public: true
         });
         
-      if (createError) {
-        console.error("Error creating document_storage bucket:", createError);
+        if (createError) {
+          console.error(`Error creating bucket ${bucketName}:`, createError.message);
+        } else {
+          console.log(`Bucket ${bucketName} created successfully`);
+        }
       } else {
-        console.log("document_storage bucket created successfully");
+        console.log(`Bucket ${bucketName} already exists`);
       }
-    } else {
-      console.log("document_storage bucket already exists");
     }
     
-    // Check if widget-logos bucket exists
-    const widgetLogosBucket = buckets?.find(bucket => bucket.name === 'widget-logos');
-    
-    if (!widgetLogosBucket) {
-      console.log("Creating widget-logos bucket...");
-      
-      // Create the widget-logos bucket
-      const { error: createError } = await supabase
-        .storage
-        .createBucket('widget-logos', {
-          public: true,
-          fileSizeLimit: 5242880, // 5MB limit
-          allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
-        });
-        
-      if (createError) {
-        console.error("Error creating widget-logos bucket:", createError);
-      } else {
-        console.log("widget-logos bucket created successfully");
-      }
-    } else {
-      console.log("widget-logos bucket already exists");
-    }
+    console.log("Storage buckets check completed");
   } catch (error) {
-    console.error("Error in ensureStorageBuckets:", error);
+    console.error("Unexpected error in ensureStorageBuckets:", error);
   }
 };

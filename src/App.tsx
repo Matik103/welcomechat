@@ -1,41 +1,11 @@
+
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
-import PrivateRoute from './components/auth/PrivateRoute';
-import RoleRoute from './components/auth/RoleRoute';
-
-// Page imports
-import Dashboard from './pages/Dashboard';
-import Clients from './pages/Clients';
-import EditClientInfo from './pages/EditClientInfo';
-import Settings from './pages/Settings';
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import CreateClientAccount from './pages/CreateClientAccount';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminClients from './pages/AdminClients';
-import NewClient from './pages/NewClient';
-import ClientDashboard from './pages/ClientDashboard';
-import Pricing from './pages/Pricing';
-import Billing from './pages/Billing';
-import Activity from './pages/Activity';
-import Signup from './pages/Signup';
-import VerifyEmail from './pages/VerifyEmail';
-import Embed from './pages/Embed';
-import AiPlayground from './pages/AiPlayground';
-import AdminSettings from './pages/AdminSettings';
-import ClientSignup from './pages/ClientSignup';
-import ClientVerifyEmail from './pages/ClientVerifyEmail';
-import { checkAndRefreshAuth } from './services/authService';
-import { useAuth } from './contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
-import { useEffectOnce } from 'usehooks-ts';
-import { handleSession } from './services/authService';
-import { useToast } from "@/components/ui/use-toast"
-import { ToastAction } from "@/components/ui/toast"
+import { PrivateRoute } from './components/auth/PrivateRoute';
+import { RoleRoute } from './components/auth/RoleRoute';
 
 // Import the ensure buckets utility
 import { ensureStorageBuckets } from './utils/ensureStorageBuckets';
@@ -63,37 +33,37 @@ function App() {
         <Router>
           <Routes>
             {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/embed/:clientId" element={<Embed />} />
-            <Route path="/ai-playground" element={<AiPlayground />} />
+            <Route path="/login" element={<div>Login Page</div>} />
+            <Route path="/signup" element={<div>Signup Page</div>} />
+            <Route path="/forgot-password" element={<div>Forgot Password Page</div>} />
+            <Route path="/reset-password" element={<div>Reset Password Page</div>} />
+            <Route path="/pricing" element={<div>Pricing Page</div>} />
+            <Route path="/embed/:clientId" element={<div>Embed Page</div>} />
+            <Route path="/ai-playground" element={<div>AI Playground Page</div>} />
             
             {/* Auth routes */}
-            <Route path="/verify-email" element={<PrivateRoute><VerifyEmail /></PrivateRoute>} />
-            <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-            <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-            <Route path="/billing" element={<PrivateRoute><Billing /></PrivateRoute>} />
-            <Route path="/activity" element={<PrivateRoute><Activity /></PrivateRoute>} />
-            <Route path="/client/dashboard" element={<PrivateRoute><ClientDashboard /></PrivateRoute>} />
+            <Route path="/verify-email" element={<PrivateRoute><div>Verify Email Page</div></PrivateRoute>} />
+            <Route path="/dashboard" element={<PrivateRoute><div>Dashboard Page</div></PrivateRoute>} />
+            <Route path="/settings" element={<PrivateRoute><div>Settings Page</div></PrivateRoute>} />
+            <Route path="/billing" element={<PrivateRoute><div>Billing Page</div></PrivateRoute>} />
+            <Route path="/activity" element={<PrivateRoute><div>Activity Page</div></PrivateRoute>} />
+            <Route path="/client/dashboard" element={<PrivateRoute><div>Client Dashboard Page</div></PrivateRoute>} />
             
             {/* Client Signup flow */}
-            <Route path="/client/signup" element={<ClientSignup />} />
-            <Route path="/client/verify-email" element={<ClientVerifyEmail />} />
+            <Route path="/client/signup" element={<div>Client Signup Page</div>} />
+            <Route path="/client/verify-email" element={<div>Client Verify Email Page</div>} />
             
             {/* Admin routes */}
-            <Route path="/admin/dashboard" element={<RoleRoute allowedRoles={['admin']}><AdminDashboard /></RoleRoute>} />
-            <Route path="/admin/clients" element={<RoleRoute allowedRoles={['admin']}><AdminClients /></RoleRoute>} />
-            <Route path="/admin/clients/new" element={<RoleRoute allowedRoles={['admin']}><NewClient /></RoleRoute>} />
-            <Route path="/admin/settings" element={<RoleRoute allowedRoles={['admin']}><AdminSettings /></RoleRoute>} />
-            <Route path="/admin/clients/:id" element={<RoleRoute allowedRoles={['admin']}><EditClientInfo /></RoleRoute>} />
+            <Route path="/admin/dashboard" element={<RoleRoute allowedRoles={['admin']}><div>Admin Dashboard Page</div></RoleRoute>} />
+            <Route path="/admin/clients" element={<RoleRoute allowedRoles={['admin']}><div>Admin Clients Page</div></RoleRoute>} />
+            <Route path="/admin/clients/new" element={<RoleRoute allowedRoles={['admin']}><div>New Client Page</div></RoleRoute>} />
+            <Route path="/admin/settings" element={<RoleRoute allowedRoles={['admin']}><div>Admin Settings Page</div></RoleRoute>} />
+            <Route path="/admin/clients/:id" element={<RoleRoute allowedRoles={['admin']}><div>Edit Client Info Page</div></RoleRoute>} />
             
             {/* Common routes */}
-            <Route path="/clients" element={<PrivateRoute><Clients /></PrivateRoute>} />
-            <Route path="/clients/:id" element={<PrivateRoute><EditClientInfo /></PrivateRoute>} />
-            <Route path="/create-client-account" element={<PrivateRoute><CreateClientAccount /></PrivateRoute>} />
+            <Route path="/clients" element={<PrivateRoute><div>Clients Page</div></PrivateRoute>} />
+            <Route path="/clients/:id" element={<PrivateRoute><div>Edit Client Info Page</div></PrivateRoute>} />
+            <Route path="/create-client-account" element={<PrivateRoute><div>Create Client Account Page</div></PrivateRoute>} />
             
             {/* Default route */}
             <Route path="/" element={<Navigate to="/dashboard" />} />
