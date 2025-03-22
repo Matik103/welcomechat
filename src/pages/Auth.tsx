@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const { session, isLoading, userRole } = useAuth();
+  const { user, isLoading, userRole } = useAuth();
 
   const resetForm = () => {
     setEmail("");
@@ -28,7 +29,7 @@ const Auth = () => {
   };
 
   // If we have a session and user role, redirect to appropriate dashboard
-  if (session && userRole) {
+  if (user && userRole) {
     console.log("Auth page - redirecting for user with role:", userRole);
     
     if (userRole === 'client') {

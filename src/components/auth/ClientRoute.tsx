@@ -8,7 +8,7 @@ interface ClientRouteProps {
 }
 
 export const ClientRoute = ({ children }: ClientRouteProps) => {
-  const { session, isLoading, userRole } = useAuth();
+  const { user, isLoading, userRole } = useAuth();
 
   if (isLoading) {
     return (
@@ -18,7 +18,7 @@ export const ClientRoute = ({ children }: ClientRouteProps) => {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 

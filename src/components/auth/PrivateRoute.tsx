@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, isLoading, userRole } = useAuth();
+  const { user, isLoading, userRole } = useAuth();
 
   if (isLoading) {
     return (
@@ -14,7 +14,7 @@ export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
