@@ -57,7 +57,7 @@ serve(async (req) => {
     }
     
     // Use the provided temp_password or generate a new one if not provided
-    const clientPassword = temp_password || (() => {
+    const clientPassword: string = temp_password || (() => {
       // Generate a password in the format "Welcome2025#123"
       const currentYear = new Date().getFullYear();
       const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
