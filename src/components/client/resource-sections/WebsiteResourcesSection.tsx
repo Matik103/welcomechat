@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Card,
@@ -12,9 +13,6 @@ import { toast } from 'sonner';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { WebsiteUrlFormData } from '@/types/website-url';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { DataTableViewOptions } from '../data-table/data-table-view-options';
-import { DataTable } from '../data-table/data-table';
-import { columns } from '../data-table/columns/website-urls-column-def';
 import { ValidationResult } from '@/types/website-url';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -172,15 +170,35 @@ export const WebsiteResourcesSection = ({
         </div>
 
         {websiteUrls && websiteUrls.length > 0 ? (
-          <DataTable
-            columns={columns(isClientView, handleDeleteWebsiteUrl, deletingUrl)}
-            data={websiteUrls?.map(url => ({
-              ...url,
-              refresh_rate: url.refresh_rate || 30,
-              status: url.status as "pending" | "processing" | "completed" | "failed" | null
-            })) || []}
-            isLoading={isLoadingUrls}
-          />
+          <div className="mt-4">
+            <h3 className="text-sm font-medium mb-2">Current URLs</h3>
+            <ul className="space-y-2">
+              {websiteUrls.map((url) => (
+                <li key={url.id} className="flex items-center justify-between p-3 border rounded-md">
+                  <div className="overflow-hidden">
+                    <p className="text-sm font-medium truncate">{url.url}</p>
+                    <p className="text-xs text-gray-500">
+                      Refresh: {url.refresh_rate || 30} minutes
+                      {url.last_scraped_at && ` • Last updated: ${new Date(url.last_scraped_at).toLocaleString()}`}
+                    </p>
+                    {url.status && (
+                      <p className={`text-xs ${url.status === 'completed' ? 'text-green-500' : url.status === 'failed' ? 'text-red-500' : 'text-amber-500'}`}>
+                        Status: {url.status.charAt(0).toUpperCase() + url.status.slice(1)}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteWebsiteUrl(url.id)}
+                    disabled={deletingUrl}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : (
           <p>No website URLs added yet.</p>
         )}
