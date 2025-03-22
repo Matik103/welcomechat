@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -21,8 +22,8 @@ export const execSql = async (sqlQuery: string, params?: any[]) => {
       if (sqlQuery.toLowerCase().includes('exists')) {
         formattedQuery = `SELECT json_build_object('exists', (${sqlQuery}))`;
       } else {
-        // Use to_json for each row instead of json_array_elements
-        formattedQuery = `SELECT COALESCE(json_agg(to_json(t)), '[]'::json) FROM (${sqlQuery}) t`;
+        // Use json_agg to convert results to JSON array
+        formattedQuery = `SELECT COALESCE(json_agg(t), '[]'::json) FROM (${sqlQuery}) t`;
       }
     }
     

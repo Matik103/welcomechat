@@ -4,12 +4,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
 interface AgentNameFieldProps {
-  form: UseFormReturn<any>;
+  control: any;
   isClientView?: boolean;
 }
 
-export const AgentNameField = ({ form, isClientView = false }: AgentNameFieldProps) => {
-  const { register, formState: { errors } } = form;
+export const AgentNameField = ({ control, isClientView = false }: AgentNameFieldProps) => {
+  const { register, formState: { errors } } = control;
   
   return (
     <div className="space-y-2">

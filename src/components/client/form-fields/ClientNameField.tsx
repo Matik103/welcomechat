@@ -4,11 +4,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
 interface ClientNameFieldProps {
-  form: UseFormReturn<any>;
+  control: any;
 }
 
-export const ClientNameField = ({ form }: ClientNameFieldProps) => {
-  const { register, formState: { errors } } = form;
+export const ClientNameField = ({ control }: ClientNameFieldProps) => {
+  const { register, formState: { errors } } = control;
   
   return (
     <div className="space-y-2">

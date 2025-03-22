@@ -4,17 +4,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 interface AgentDescriptionFieldProps {
-  form: UseFormReturn<any>;
-  isClientView?: boolean;
+  control: any;
+  isRequired?: boolean;
 }
 
-export const AgentDescriptionField = ({ form, isClientView = false }: AgentDescriptionFieldProps) => {
-  const { register, formState: { errors } } = form;
+export const AgentDescriptionField = ({ control, isRequired = false }: AgentDescriptionFieldProps) => {
+  const { register, formState: { errors } } = control;
   
   return (
     <div className="space-y-2">
       <Label htmlFor="agent_description" className="text-sm font-medium text-gray-900">
-        Chatbot Description {isClientView && <span className="text-red-500">*</span>}
+        Chatbot Description {isRequired && <span className="text-red-500">*</span>}
       </Label>
       <Textarea
         id="agent_description"
@@ -28,7 +28,7 @@ export const AgentDescriptionField = ({ form, isClientView = false }: AgentDescr
       )}
       <p className="text-xs text-gray-500 mt-1">
         This description helps define how your AI assistant interacts with users. 
-        {!isClientView && " Client can set this later."}
+        {!isRequired && " Client can set this later."}
       </p>
     </div>
   );

@@ -1,9 +1,9 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { ExtendedActivityType } from "@/types/activity";
 import { JsonObject, toJson } from "@/types/supabase-extensions";
 import { WidgetSettings } from "@/types/widget-settings";
+import { execSql } from "@/utils/rpcUtils";
 
 /**
  * Creates a new client in the database.
@@ -138,27 +138,19 @@ export const logClientUpdateActivity = async (
   clientId: string
 ): Promise<void> => {
   try {
-    // Use execSql to insert into client_activities
-    const query = `
-      INSERT INTO client_activities (
-        client_id,
-        activity_type,
-        description,
-        metadata
-      ) VALUES (
-        $1,
-        $2,
-        $3,
-        $4
-      )
-    `;
+    // Use direct Supabase insert instead of execSql
+    const { error } = await supabase
+      .from('client_activities')
+      .insert({
+        client_id: clientId,
+        activity_type: 'client_updated',
+        description: 'Updated client information',
+        metadata: {}
+      });
     
-    await execSql(query, [
-      clientId,
-      'client_updated',
-      'Updated client information',
-      '{}'
-    ]);
+    if (error) {
+      throw error;
+    }
     
   } catch (error: any) {
     console.error("Error in logClientUpdateActivity:", error);
@@ -178,20 +170,18 @@ export const scheduleClientDeletion = async (
     const deletionScheduledTime = new Date();
     deletionScheduledTime.setDate(deletionScheduledTime.getDate() + 30);
     
-    // Use execSql
-    const query = `
-      UPDATE clients
-      SET 
-        deletion_scheduled_at = $1,
-        status = $2
-      WHERE id = $3
-    `;
+    // Use direct Supabase update instead of execSql
+    const { error } = await supabase
+      .from('clients')
+      .update({
+        deletion_scheduled_at: deletionScheduledTime.toISOString(),
+        status: 'deletion_scheduled'
+      })
+      .eq('id', clientId);
     
-    await execSql(query, [
-      deletionScheduledTime.toISOString(),
-      'deletion_scheduled',
-      clientId
-    ]);
+    if (error) {
+      throw error;
+    }
     
   } catch (error: any) {
     console.error("Error in scheduleClientDeletion:", error);
@@ -206,20 +196,18 @@ export const scheduleClientDeletion = async (
  */
 export const deleteClient = async (clientId: string): Promise<void> => {
   try {
-    // Use execSql
-    const query = `
-      UPDATE clients
-      SET 
-        deleted_at = $1,
-        status = $2
-      WHERE id = $3
-    `;
+    // Use direct Supabase update instead of execSql
+    const { error } = await supabase
+      .from('clients')
+      .update({
+        deleted_at: new Date().toISOString(),
+        status: 'deleted'
+      })
+      .eq('id', clientId);
     
-    await execSql(query, [
-      new Date().toISOString(),
-      'deleted',
-      clientId
-    ]);
+    if (error) {
+      throw error;
+    }
     
   } catch (error: any) {
     console.error("Error in deleteClient:", error);
@@ -232,21 +220,19 @@ export const deleteClient = async (clientId: string): Promise<void> => {
  */
 export const getClientById = async (clientId: string): Promise<any | null> => {
   try {
-    // Use execSql
-    const query = `
-      SELECT *
-      FROM clients
-      WHERE id = $1
-      LIMIT 1
-    `;
+    // Use direct Supabase query instead of execSql
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', clientId)
+      .limit(1)
+      .single();
     
-    const result = await execSql(query, [clientId]);
-    
-    if (!result || !Array.isArray(result) || result.length === 0) {
-      return null;
+    if (error) {
+      throw error;
     }
     
-    return result[0];
+    return data;
     
   } catch (error: any) {
     console.error("Error in getClientById:", error);
