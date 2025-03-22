@@ -18,5 +18,4 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     flowType: 'pkce',
     debug: false
   }
-  // Removed the global headers section that was causing CORS issues
 });

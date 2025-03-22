@@ -25,7 +25,7 @@ function App() {
   const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
   
-  const isAuthCallback = location.pathname.startsWith('/auth/callback');
+  const isAuthCallback = location.pathname.includes('/auth/callback');
   const isPublicRoute = location.pathname === '/auth' || isAuthCallback;
   
   useEffect(() => {
