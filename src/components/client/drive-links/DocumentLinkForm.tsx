@@ -1,148 +1,156 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ValidationResult } from './ValidationResult';
-import { Loader2 } from 'lucide-react';
-import { useDriveAccessCheck } from '@/hooks/useDriveAccessCheck';
-import { AccessStatus } from '@/types/document-processing';
 
-// Schema for form validation
-const documentLinkSchema = z.object({
-  link: z.string().url("Please enter a valid URL"),
-  refresh_rate: z.coerce.number().int().min(1, "Refresh rate must be at least 1 day").default(7),
-  document_type: z.enum(["google_doc", "google_sheet", "google_drive", "pdf", "text", "other"]).default("google_doc"),
+import React, { useState, useEffect } from 'react';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { ValidationResult } from './ValidationResult';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { DocumentLinkFormProps } from '@/types/document-processing';
+
+const formSchema = z.object({
+  link: z.string().trim().min(1, { message: 'Link is required' }),
+  document_type: z.string().min(1, { message: 'Document type is required' }),
+  refresh_rate: z.number().int().positive().default(30),
 });
 
-interface DocumentLinkFormProps {
-  onSubmit: (data: z.infer<typeof documentLinkSchema>) => Promise<void>;
-  isSubmitting: boolean;
-  agentName: string;
-}
-
-export const DocumentLinkForm = ({ onSubmit, isSubmitting, agentName }: DocumentLinkFormProps) => {
-  const { accessStatus, isLoading, validationResult, validateDriveLink } = useDriveAccessCheck(0);
-  
-  const { register, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm<z.infer<typeof documentLinkSchema>>({
-    resolver: zodResolver(documentLinkSchema),
+export const DocumentLinkForm: React.FC<DocumentLinkFormProps> = ({
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  agentName
+}) => {
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      refresh_rate: 7,
-      document_type: "google_doc"
-    }
+      link: '',
+      document_type: 'google_drive',
+      refresh_rate: 30,
+    },
   });
 
-  const link = watch('link');
-  const documentType = watch('document_type');
+  const { watch, setValue } = form;
+  const watchedLink = watch('link');
+  const watchedDocumentType = watch('document_type');
 
-  // Helper function to detect URL type and update the form
-  const detectUrlType = (url: string) => {
-    // Only try to detect if we have a valid URL
-    if (!url || url.trim() === '') return;
-    
+  // Auto-detect document type based on URL
+  useEffect(() => {
+    if (!watchedLink) return;
     try {
-      new URL(url); // Simple URL validation
+      const url = new URL(watchedLink);
       
-      // Google Drive/Docs detection
-      if (url.includes('docs.google.com/document')) {
-        setValue('document_type', 'google_doc');
-      } else if (url.includes('docs.google.com/spreadsheets') || url.includes('sheets.google.com')) {
-        setValue('document_type', 'google_sheet');
-      } else if (url.includes('drive.google.com/drive') || url.includes('drive.google.com/folder')) {
+      if (url.hostname.includes('docs.google.com')) {
+        if (url.pathname.includes('/document/')) {
+          setValue('document_type', 'google_doc');
+        } else if (url.pathname.includes('/spreadsheets/')) {
+          setValue('document_type', 'google_sheet');
+        }
+      } else if (url.hostname.includes('drive.google.com')) {
         setValue('document_type', 'google_drive');
-      } else if (url.toLowerCase().endsWith('.pdf')) {
+      } else if (watchedLink.toLowerCase().endsWith('.pdf')) {
         setValue('document_type', 'pdf');
-      } else if (url.toLowerCase().endsWith('.txt') || url.toLowerCase().endsWith('.md')) {
+      } else if (
+        watchedLink.toLowerCase().endsWith('.txt') || 
+        watchedLink.toLowerCase().endsWith('.md')
+      ) {
         setValue('document_type', 'text');
       }
-      // Otherwise keep the current selection
-      
     } catch (error) {
       // Not a valid URL, don't change anything
     }
-  };
+  }, [watchedLink, setValue]);
 
-  const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = e.target.value;
-    setValue('link', newUrl);
-    detectUrlType(newUrl);
-  };
-
-  const handleFormSubmit = async (data: z.infer<typeof documentLinkSchema>) => {
-    try {
-      await onSubmit(data);
-      reset();
-    } catch (error) {
-      console.error("Error submitting form:", error);
-    }
-  };
-
-  // Determine which type of validation to show based on document type
-  const showGoogleDriveValidation = documentType.startsWith('google_');
-  
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 mb-6">
-      <div>
-        <Label htmlFor="link">Document URL</Label>
-        <Input
-          id="link"
-          placeholder="https://drive.google.com/file/d/..."
-          {...register("link")}
-          onChange={handleLinkChange}
-          className={errors.link ? "border-red-500" : ""}
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="document_type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Document Type</FormLabel>
+              <Select 
+                onValueChange={field.onChange} 
+                defaultValue={field.value}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select document type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="google_drive">Google Drive</SelectItem>
+                  <SelectItem value="google_doc">Google Doc</SelectItem>
+                  <SelectItem value="google_sheet">Google Sheet</SelectItem>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="text">Text Document</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {errors.link && <p className="text-red-500 text-sm mt-1">{errors.link.message}</p>}
-        {link && <ValidationResult 
-          link={link} 
-          type={showGoogleDriveValidation ? 'google-drive' : 'website'} 
-        />}
-      </div>
 
-      <div>
-        <Label htmlFor="document_type">Document Type</Label>
-        <Select 
-          defaultValue="google_doc" 
-          value={documentType}
-          onValueChange={(value) => setValue('document_type', value as any)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select document type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="google_doc">Google Document</SelectItem>
-            <SelectItem value="google_sheet">Google Spreadsheet</SelectItem>
-            <SelectItem value="google_drive">Google Drive Folder</SelectItem>
-            <SelectItem value="pdf">PDF Document</SelectItem>
-            <SelectItem value="text">Text Document</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label htmlFor="refresh_rate">Refresh Rate (days)</Label>
-        <Input
-          id="refresh_rate"
-          type="number"
-          min="1"
-          {...register("refresh_rate")}
-          className={errors.refresh_rate ? "border-red-500" : ""}
+        <FormField
+          control={form.control}
+          name="link"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Document Link</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  {...field}
+                  disabled={isSubmitting}
+                />
+              </FormControl>
+              <ValidationResult link={field.value} type={watchedDocumentType} />
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {errors.refresh_rate && <p className="text-red-500 text-sm mt-1">{errors.refresh_rate.message}</p>}
-        <p className="text-sm text-muted-foreground mt-1">
-          {agentName} will refresh content from this document every {watch("refresh_rate") || 7} days.
-        </p>
-      </div>
 
-      <div className="pt-2">
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {isSubmitting ? "Adding..." : "Add Document Link"}
-        </Button>
-      </div>
-    </form>
+        <div className="flex justify-end space-x-2 pt-2">
+          {onCancel && (
+            <Button 
+              variant="outline" 
+              onClick={onCancel} 
+              type="button"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+          )}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>Add Link</>
+            )}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 };
