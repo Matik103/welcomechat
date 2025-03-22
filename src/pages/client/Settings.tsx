@@ -1,9 +1,16 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
 import { WidgetSettings } from "@/types/widget-settings";
 import { Card } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Loader2, Info as InfoIcon } from "lucide-react";
+import { ProfileSection } from "@/components/settings/ProfileSection";
+import { SecuritySection } from "@/components/settings/SecuritySection";
+import { SignOutSection } from "@/components/settings/SignOutSection";
+import { extractWidgetSettings } from "@/utils/clientCreationUtils";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -31,28 +38,6 @@ const Settings = () => {
     } catch (err) {
       console.error("Error extracting logo URL:", err);
       return '';
-    }
-  };
-  
-  const getWidgetSettings = (data: any): Partial<WidgetSettings> => {
-    try {
-      if (data?.settings && typeof data.settings === 'object') {
-        return data.settings;
-      }
-      
-      if (data?.widget_settings && typeof data.widget_settings === 'object') {
-        return data.widget_settings;
-      }
-      
-      return {
-        agent_name: data?.agent_name || data?.name || "AI Assistant",
-        agent_description: data?.agent_description || "",
-        logo_url: getLogoUrl(data),
-        logo_storage_path: data?.logo_storage_path || ""
-      };
-    } catch (err) {
-      console.error("Error extracting widget settings:", err);
-      return {};
     }
   };
   
@@ -87,7 +72,7 @@ const Settings = () => {
             logo_url: data.logo_url,
             logo_storage_path: data.logo_storage_path,
             status: data.status,
-            widget_settings: data.settings,
+            widget_settings: extractWidgetSettings(data),
           };
           
           setClient(clientData);
