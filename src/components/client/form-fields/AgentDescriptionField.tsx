@@ -27,7 +27,7 @@ export const AgentDescriptionField = ({ form, isClientView = false }: AgentDescr
         <p className="text-sm text-red-500">{errors.agent_description.message?.toString()}</p>
       )}
       <p className="text-xs text-gray-500 mt-1">
-        This description helps define how your AI assistant interacts with users. 
+        This description helps define how your AI assistant interacts with users and will be used as the system prompt.
         {!isClientView && " Client can set this later."}
       </p>
     </div>
