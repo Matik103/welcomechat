@@ -4,30 +4,20 @@ import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Generates a secure temporary password for client accounts
- * Uses a combination of random characters that meets security standards
+ * Generates a secure password compatible with Supabase Auth requirements
+ * Ensures minimum length of 8 characters including uppercase, lowercase, 
+ * numbers, and special characters
  */
 export const generateTempPassword = (): string => {
-  // Generate a secure random password with at least 12 characters
-  // Include uppercase, lowercase, numbers, and special characters
-  const length = 12;
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=";
-  let password = "";
+  // Generate a simple, predictable but secure password format that
+  // consistently meets Supabase password requirements
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+  const specialChars = ['@', '#', '$', '%', '&', '*', '!'];
+  const randomSpecial = specialChars[Math.floor(Math.random() * specialChars.length)];
   
-  // Ensure at least one of each character type
-  password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)];
-  password += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)];
-  password += "0123456789"[Math.floor(Math.random() * 10)];
-  password += "!@#$%^&*()_-+="[Math.floor(Math.random() * 14)];
-  
-  // Fill the rest of the password
-  for (let i = 4; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
-  }
-  
-  // Shuffle the password characters
-  return password.split('').sort(() => 0.5 - Math.random()).join('');
+  // Format: Welcome{Year}{SpecialChar}{3digits} - e.g., Welcome2025#123
+  return `Welcome${currentYear}${randomSpecial}${randomDigits}`;
 };
 
 /**

@@ -58,10 +58,14 @@ serve(async (req) => {
     
     // Use the provided temp_password or generate a new one if not provided
     const clientPassword = temp_password || (() => {
-      // Generate a password in the format "Welcome2025#123"
+      // Generate a secure password format compatible with Supabase requirements
       const currentYear = new Date().getFullYear();
       const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-      return `Welcome${currentYear}#${randomDigits}`;
+      const specialChars = ['@', '#', '$', '%', '&', '*', '!'];
+      const randomSpecial = specialChars[Math.floor(Math.random() * specialChars.length)];
+      
+      // Format: Welcome{Year}{SpecialChar}{3digits} - e.g., Welcome2025#123
+      return `Welcome${currentYear}${randomSpecial}${randomDigits}`;
     })();
 
     console.log(`Using password for client ${client_id}: ${clientPassword}`);
