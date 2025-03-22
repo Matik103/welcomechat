@@ -1,5 +1,5 @@
 
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BrandingSettings } from "@/components/widget/BrandingSettings";
 import { AppearanceSettings } from "@/components/widget/AppearanceSettings";
 import { WidgetSettings } from "@/types/widget-settings";
@@ -19,22 +19,32 @@ export function WidgetSection({
 }: WidgetSectionProps) {
   return (
     <>
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Branding</h2>
-        <BrandingSettings
-          settings={settings}
-          isUploading={isUploading}
-          onSettingsChange={onSettingsChange}
-          onLogoUpload={onLogoUpload}
-        />
+      <Card>
+        <CardHeader>
+          <CardTitle>Branding</CardTitle>
+          <CardDescription>Configure your widget's appearance</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BrandingSettings
+            settings={settings}
+            isUploading={isUploading}
+            onSettingsChange={onSettingsChange}
+            onLogoUpload={onLogoUpload}
+          />
+        </CardContent>
       </Card>
 
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Appearance</h2>
-        <AppearanceSettings
-          settings={settings}
-          onSettingsChange={onSettingsChange}
-        />
+      <Card>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>Customize the look and feel of your widget</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AppearanceSettings
+            settings={settings}
+            onSettingsChange={onSettingsChange}
+          />
+        </CardContent>
       </Card>
     </>
   );
