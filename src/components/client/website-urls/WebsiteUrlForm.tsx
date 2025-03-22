@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,8 +16,6 @@ const websiteUrlSchema = z.object({
 type WebsiteUrlFormValues = z.infer<typeof websiteUrlSchema>;
 
 export interface WebsiteUrlFormProps {
-  clientId?: string;
-  onAddSuccess?: () => void;
   onSubmit: (url: string) => Promise<boolean>;
   isClientView?: boolean;
 }

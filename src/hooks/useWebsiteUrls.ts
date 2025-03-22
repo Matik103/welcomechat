@@ -30,8 +30,8 @@ export const useWebsiteUrls = (clientId: string) => {
         client_id: item.client_id,
         url: item.url,
         created_at: item.created_at,
-        last_crawled: null, // Default value if not present in DB
         refresh_rate: item.refresh_rate || null,
+        last_crawled: item.last_crawled || null,
         status: item.status || null,
         notified_at: item.notified_at || null
       }));
@@ -68,8 +68,8 @@ export const useWebsiteUrls = (clientId: string) => {
         client_id: data.client_id,
         url: data.url,
         created_at: data.created_at,
-        last_crawled: null, // Default value
         refresh_rate: data.refresh_rate || null,
+        last_crawled: data.last_crawled || null,
         status: data.status || null,
         notified_at: data.notified_at || null
       };
