@@ -16,13 +16,29 @@ interface NewClientFormProps {
 }
 
 export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: NewClientFormProps) {
-  const { form, handleSubmit, errors } = useNewClientForm({ 
+  const { form, handleSubmit, errors, handleLogoChange } = useNewClientForm({ 
     onSubmit: async (data) => {
-      toast.loading("Creating client account and sending welcome email...");
       await onSubmit(data);
     }, 
     initialData 
   });
+
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    handleLogoChange(file);
+    
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setLogoPreview(null);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -102,11 +118,36 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
               </FormItem>
             )}
           />
+
+          <div className="space-y-2">
+            <Label htmlFor="logo">AI Agent Logo</Label>
+            <div className="flex items-center space-x-4">
+              <Input
+                id="logo"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                disabled={isSubmitting}
+              />
+              {logoPreview && (
+                <div className="h-12 w-12 rounded overflow-hidden border">
+                  <img 
+                    src={logoPreview} 
+                    alt="Logo preview" 
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-gray-500">
+              Upload a logo image for the AI assistant. Recommended size: 128x128px.
+            </p>
+          </div>
         </div>
       </div>
 
       <Button type="submit" disabled={isSubmitting} className="w-full">
-        {isSubmitting ? "Creating..." : "Create Client"}
+        {isSubmitting ? "Creating..." : "Add New Client"}
       </Button>
     </form>
   );
