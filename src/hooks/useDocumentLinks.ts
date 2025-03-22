@@ -59,14 +59,30 @@ export const useDocumentLinks = (clientId?: string) => {
       try {
         // Basic validation - check if it's a valid URL
         const url = new URL(data.link);
-        const isGoogleUrl = data.link.includes('drive.google.com') || 
-                           data.link.includes('docs.google.com') || 
-                           data.link.includes('sheets.google.com');
         
-        // For Google types, require a Google URL
-        if (data.document_type.startsWith('google_') && !isGoogleUrl) {
+        // Type-specific validation
+        if (data.document_type === 'google_doc' && !data.link.includes('docs.google.com/document')) {
+          toast.error('Please provide a valid Google Doc URL for this document type');
+          return;
+        }
+        
+        if (data.document_type === 'google_sheet' && 
+            !(data.link.includes('docs.google.com/spreadsheets') || data.link.includes('sheets.google.com'))) {
+          toast.error('Please provide a valid Google Sheets URL for this document type');
+          return;
+        }
+        
+        if (data.document_type === 'google_drive' && 
+            !(data.link.includes('drive.google.com/drive') || data.link.includes('drive.google.com/folder'))) {
           toast.error('Please provide a valid Google Drive URL for this document type');
           return;
+        }
+        
+        if (data.document_type === 'pdf' && !data.link.toLowerCase().endsWith('.pdf')) {
+          // Allow PDFs from Google Drive too
+          if (!data.link.includes('drive.google.com') && !data.link.includes('/pdf')) {
+            toast.warning('This URL does not appear to be a direct PDF link. It will be treated as a generic document.');
+          }
         }
         
         // Add the document link

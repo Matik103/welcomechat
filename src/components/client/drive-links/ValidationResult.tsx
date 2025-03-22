@@ -5,7 +5,7 @@ import { FirecrawlService } from '@/utils/FirecrawlService';
 
 interface ValidationResultProps {
   link: string;
-  type: 'website' | 'google-drive';
+  type: 'website' | 'google-drive' | 'pdf' | 'text';
 }
 
 export const ValidationResult = ({ link, type }: ValidationResultProps) => {
@@ -30,7 +30,8 @@ export const ValidationResult = ({ link, type }: ValidationResultProps) => {
           const validation = FirecrawlService.validateUrl(link);
           setIsValid(validation.isValid);
           setErrorMessage(validation.error || null);
-        } else if (type === 'google-drive') {
+        } 
+        else if (type === 'google-drive') {
           // Basic validation for Google Drive links
           try {
             // Check if it's a valid URL format
@@ -48,6 +49,40 @@ export const ValidationResult = ({ link, type }: ValidationResultProps) => {
             }
             
             // Basic format validation passed
+            setIsValid(true);
+            setErrorMessage(null);
+          } catch (err) {
+            setIsValid(false);
+            setErrorMessage('Invalid URL format');
+          }
+        }
+        else if (type === 'pdf') {
+          try {
+            // Check if it's a valid URL format
+            new URL(link);
+            
+            const isPdfLink = link.toLowerCase().endsWith('.pdf');
+            
+            if (!isPdfLink) {
+              setIsValid(false);
+              setErrorMessage('URL does not appear to be a PDF link.');
+              setIsValidating(false);
+              return;
+            }
+            
+            // Basic format validation passed
+            setIsValid(true);
+            setErrorMessage(null);
+          } catch (err) {
+            setIsValid(false);
+            setErrorMessage('Invalid URL format');
+          }
+        }
+        else {
+          // Basic validation for other types
+          try {
+            // Just check if it's a valid URL
+            new URL(link);
             setIsValid(true);
             setErrorMessage(null);
           } catch (err) {
