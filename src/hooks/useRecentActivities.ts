@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useRef } from "react";
 import type { Json } from "@/integrations/supabase/types";
+import { execSql } from "@/utils/rpcUtils";
 
 export const useRecentActivities = () => {
   const queryClient = useQueryClient();
@@ -44,22 +45,27 @@ export const useRecentActivities = () => {
       // If we have client IDs, fetch their names and details
       if (clientIds.length > 0) {
         try {
-          // Fetch client details from ai_agents table with richer information
-          const { data: agentsData, error: agentsError } = await supabase
-            .from("ai_agents")
-            .select("client_id, name, client_name, agent_description, settings")
-            .in("client_id", clientIds)
-            .eq("interaction_type", "config");
+          // Fetch client details from ai_agents table for config entries
+          const agentDetailsQuery = `
+            SELECT 
+              client_id, 
+              name, 
+              settings->>'client_name' as client_name, 
+              client_name as direct_client_name,
+              email,
+              agent_description
+            FROM ai_agents
+            WHERE client_id = ANY($1)
+            AND interaction_type = 'config'
+          `;
           
-          if (agentsError) {
-            console.error("Error fetching agent data:", agentsError);
-          }
-
+          const agentsData = await execSql(agentDetailsQuery, [clientIds]);
+          
           // Map of client info keyed by client_id
           const clientInfoMap: Record<string, any> = {};
           
           // Populate client info map from ai_agents data
-          if (agentsData && agentsData.length > 0) {
+          if (agentsData && Array.isArray(agentsData) && agentsData.length > 0) {
             agentsData.forEach(agent => {
               if (agent.client_id) {
                 const clientId = agent.client_id;
@@ -67,10 +73,15 @@ export const useRecentActivities = () => {
                 // Initialize or get existing entry
                 clientInfoMap[clientId] = clientInfoMap[clientId] || {};
                 
+                // Determine best client name, checking settings->client_name first,
+                // then direct client_name field, then agent name as last resort
+                const clientName = agent.client_name || agent.direct_client_name || agent.name || null;
+                
                 // Update with agent data
                 clientInfoMap[clientId] = {
                   ...clientInfoMap[clientId],
-                  clientName: agent.client_name || agent.name || null,
+                  clientName: clientName,
+                  email: agent.email || null,
                   agentName: agent.name || null,
                   agentDescription: agent.agent_description || null
                 };
@@ -100,7 +111,7 @@ export const useRecentActivities = () => {
             
             return {
               ...activity,
-              client_name: clientInfo.clientName || clientName || (clientId ? `${clientId.substring(0, 6)}` : "System"),
+              client_name: clientInfo.clientName || clientName || null,
               client_email: clientInfo.email || null,
               agent_name: clientInfo.agentName || null,
               agent_description: clientInfo.agentDescription || null
@@ -111,11 +122,8 @@ export const useRecentActivities = () => {
         }
       }
 
-      // If all else fails, return activities with client ID as name
-      return activities.map(activity => ({
-        ...activity,
-        client_name: activity.client_id ? `${activity.client_id.substring(0, 8)}` : "System"
-      }));
+      // If all else fails, return activities with minimal info
+      return activities;
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute
     refetchOnWindowFocus: true,

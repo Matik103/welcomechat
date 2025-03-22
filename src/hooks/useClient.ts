@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
 import { execSql } from '@/utils/rpcUtils';
-import { Json } from '@/integrations/supabase/types';
 
 export const useClient = (clientId: string) => {
   const { 
@@ -24,6 +23,7 @@ export const useClient = (clientId: string) => {
           .from('ai_agents')
           .select('*')
           .eq('id', clientId)
+          .eq('interaction_type', 'config')
           .single();
         
         if (error) {
@@ -34,13 +34,30 @@ export const useClient = (clientId: string) => {
             .from('ai_agents')
             .select('*')
             .eq('client_id', clientId)
+            .eq('interaction_type', 'config')
             .order('created_at', { ascending: false })
             .limit(1)
             .single();
             
           if (clientError) {
             console.error("Error fetching from ai_agents by client_id:", clientError);
-            return null;
+            
+            // Try with SQL query as a last resort
+            const sqlQuery = `
+              SELECT * FROM ai_agents
+              WHERE client_id = $1
+              AND interaction_type = 'config'
+              ORDER BY created_at DESC
+              LIMIT 1
+            `;
+            
+            const sqlResult = await execSql(sqlQuery, [clientId]);
+            
+            if (!sqlResult || !Array.isArray(sqlResult) || sqlResult.length === 0) {
+              return null;
+            }
+            
+            return mapAgentToClient(sqlResult[0]);
           }
           
           if (!clientData) return null;
@@ -66,9 +83,16 @@ export const useClient = (clientId: string) => {
 function mapAgentToClient(agentData: any): Client {
   console.log("Raw agent data:", agentData);
   
+  // Get the best client name
+  const clientName = 
+    agentData.client_name || 
+    (agentData.settings && agentData.settings.client_name) || 
+    agentData.name || 
+    '';
+  
   return {
     id: String(agentData.id || ''),
-    client_name: String(agentData.client_name || agentData.settings?.client_name || ''),
+    client_name: clientName,
     email: String(agentData.email || agentData.settings?.email || ''),
     logo_url: String(agentData.logo_url || agentData.settings?.logo_url || ''),
     logo_storage_path: String(agentData.logo_storage_path || agentData.settings?.logo_storage_path || ''),
