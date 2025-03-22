@@ -49,20 +49,6 @@ serve(async (req) => {
 
     console.log("Sending welcome email with login link:", loginLink);
 
-    // Save the temporary password in the database
-    const { error: passwordError } = await supabase
-      .from("client_temp_passwords")
-      .insert({
-        agent_id: clientId,
-        email: email,
-        temp_password: tempPassword
-      });
-      
-    if (passwordError) {
-      console.error("Error saving temporary password:", passwordError);
-      throw new Error("Failed to save client credentials");
-    }
-
     // Send the email using Resend
     const { data, error } = await resend.emails.send({
       from: "Welcome.Chat <admin@welcome.chat>",
