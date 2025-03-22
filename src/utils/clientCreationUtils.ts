@@ -1,97 +1,143 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { generateSecurePassword } from "@/utils/passwordUtils";
+import { v4 as uuidv4 } from 'uuid';
+import { createClient } from '@supabase/supabase-js';
 
 /**
- * Generates a temporary password for client accounts
- * @returns A randomly generated temporary password
+ * Generates a secure temporary password for client accounts
+ * Uses a combination of random characters that meets security standards
  */
 export const generateTempPassword = (): string => {
-  // Generate a more secure password format: Welcome{Year}#{3 random digits}
-  const currentYear = new Date().getFullYear();
-  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-  return `Welcome${currentYear}#${randomDigits}`;
+  // Generate a secure random password with at least 12 characters
+  // Include uppercase, lowercase, numbers, and special characters
+  const length = 12;
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=";
+  let password = "";
+  
+  // Ensure at least one of each character type
+  password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)];
+  password += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)];
+  password += "0123456789"[Math.floor(Math.random() * 10)];
+  password += "!@#$%^&*()_-+="[Math.floor(Math.random() * 14)];
+  
+  // Fill the rest of the password
+  for (let i = 4; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length);
+    password += charset[randomIndex];
+  }
+  
+  // Shuffle the password characters
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
 };
 
 /**
  * Saves a temporary password for a client
- * @param clientId The client ID
- * @param email The client's email address
- * @param tempPassword The temporary password
  */
-export const saveClientTempPassword = async (
-  clientId: string,
-  email: string,
-  tempPassword: string
-): Promise<void> => {
+export const saveClientTempPassword = async (agentId: string, email: string, tempPassword: string): Promise<void> => {
   try {
+    console.log(`Saving temporary password for ${email}`);
+    
     const { error } = await supabase
       .from("client_temp_passwords")
       .insert({
-        agent_id: clientId,
+        agent_id: agentId,
         email: email,
         temp_password: tempPassword
       });
-    
+      
     if (error) {
       console.error("Error saving temporary password:", error);
-      throw error;
+      throw new Error(`Failed to save temporary password: ${error.message}`);
     }
     
-    // Create auth user with the same password
-    const { data: userData, error: createUserError } = await supabase.functions.invoke(
-      'create-client-user',
-      {
-        body: {
-          email: email,
-          client_id: clientId,
-          temp_password: tempPassword
-        }
-      }
-    );
-    
-    if (createUserError) {
-      console.error("Error creating user auth:", createUserError);
-      // We continue as the temp password is saved
-    } else {
-      console.log("User auth created successfully:", userData);
-    }
-    
+    console.log("Temporary password saved successfully");
   } catch (err) {
-    console.error("Failed to save client temp password:", err);
-    toast.error("Failed to set up client credentials");
+    console.error("Exception saving client temp password:", err);
+    throw err;
   }
 };
 
 /**
- * Logs client creation activity
- * @param clientId The client ID
- * @param clientName The client name
- * @param email The client's email
- * @param agentName The agent name
+ * Logs the client creation activity
  */
 export const logClientCreationActivity = async (
-  clientId: string,
-  clientName: string,
-  email: string,
+  clientId: string, 
+  clientName: string, 
+  email: string, 
   agentName: string
 ): Promise<void> => {
   try {
-    await supabase
-      .from("client_activities")
-      .insert({
-        client_id: clientId,
-        activity_type: "client_created",
-        description: `New client created: ${clientName}`,
-        metadata: {
-          client_name: clientName,
-          email: email,
-          agent_name: agentName
-        }
-      });
-  } catch (err) {
-    console.error("Failed to log client creation activity:", err);
-    // Non-critical error, just log it
+    await supabase.from("client_activities").insert({
+      client_id: clientId,
+      activity_type: "client_created",
+      description: "New client created with AI agent",
+      metadata: {
+        client_name: clientName,
+        email: email,
+        agent_name: agentName
+      }
+    });
+  } catch (activityError) {
+    console.error("Error logging client creation activity:", activityError);
+    // Continue even if activity logging fails
   }
+};
+
+/**
+ * Generates an HTML email template for client welcome emails
+ */
+export const generateClientWelcomeEmailTemplate = (
+  clientName: string,
+  email: string,
+  tempPassword: string,
+  productName: string = "Welcome.Chat"
+): string => {
+  // Get current year for copyright
+  const currentYear = new Date().getFullYear();
+  
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 30px; padding: 20px; background-color: #4f46e5; border-radius: 8px;">
+        <h1 style="color: #ffffff; font-size: 28px; margin: 0; padding: 0;">Welcome to ${productName}!</h1>
+      </div>
+      
+      <p style="color: #333333; font-size: 16px; line-height: 1.5;">Hello <strong>${clientName || 'Client'}</strong>,</p>
+      
+      <p style="color: #333333; font-size: 16px; line-height: 1.5;">Your AI assistant account has been created and is ready for configuration. Here are your login credentials:</p>
+      
+      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #4f46e5;">
+        <p style="margin: 0 0 10px 0; color: #555555;"><strong>Email Address:</strong></p>
+        <p style="margin: 0 0 20px 0; color: #4f46e5; font-size: 16px;">${email || ''}</p>
+        
+        <p style="margin: 0 0 10px 0; color: #555555;"><strong>Temporary Password:</strong></p>
+        <p style="margin: 0 0 0 0; color: #4f46e5; font-family: monospace; font-size: 18px; padding: 10px; background-color: #eef1ff; border-radius: 4px;">${tempPassword || ''}</p>
+      </div>
+      
+      <p style="color: #333333; font-size: 16px; line-height: 1.5;">To get started:</p>
+      <ol style="color: #333333; font-size: 16px; line-height: 1.8; padding-left: 20px;">
+        <li>Click the "Sign In" button below</li>
+        <li>Enter your email and temporary password exactly as shown above</li>
+        <li>You'll be taken to your client dashboard</li>
+        <li>Configure your AI assistant's settings</li>
+      </ol>
+      
+      <div style="text-align: center; margin: 35px 0;">
+        <a href="https://admin.welcome.chat/client/dashboard" 
+           style="background-color: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block; transition: background-color 0.3s;">
+          Sign In
+        </a>
+      </div>
+      
+      <div style="border-top: 1px solid #e0e0e0; margin-top: 30px; padding-top: 20px;">
+        <p style="margin: 0 0 10px 0; color: #555555;"><strong>Security Notice:</strong></p>
+        <p style="margin: 0; color: #555555; font-size: 14px; line-height: 1.5;">This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
+      </div>
+      
+      <p style="margin-top: 25px; color: #333333; font-size: 16px; line-height: 1.5;">Best regards,<br><strong>The ${productName} Team</strong></p>
+      
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #9ca3af; font-size: 12px;">
+        &copy; ${currentYear} ${productName}. All rights reserved.
+      </div>
+    </div>
+  `;
 };
