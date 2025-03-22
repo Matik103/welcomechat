@@ -49,11 +49,7 @@ export function ClientAccountForm() {
     // Generate preview
     const reader = new FileReader();
     reader.onload = (e) => {
-      if (e.target?.result) {
-        // Fix the type issue by ensuring we're working with a string
-        const result = e.target.result;
-        setLogoPreview(typeof result === 'string' ? result : null);
-      }
+      setLogoPreview(e.target?.result as string);
     };
     reader.readAsDataURL(file);
   };
