@@ -18,83 +18,79 @@ export const useClient = (clientId: string) => {
       try {
         console.log("Fetching client data for ID:", clientId);
         
-        // Direct query to ai_agents table with proper error handling
+        // First try to fetch from ai_agents table with client_id
         const { data: agentData, error: agentError } = await supabase
+          .from('ai_agents')
+          .select('*')
+          .eq('client_id', clientId)
+          .eq('interaction_type', 'config')
+          .limit(1)
+          .single();
+        
+        if (!agentError && agentData) {
+          console.log("Found data in ai_agents table with client_id:", agentData);
+          console.log("Logo URL from ai_agents:", agentData.logo_url);
+          
+          return mapAgentDataToClient(agentData);
+        }
+        
+        // If not found by client_id, try using the id directly
+        const { data: directAgentData, error: directAgentError } = await supabase
           .from('ai_agents')
           .select('*')
           .eq('id', clientId)
           .limit(1)
           .single();
-        
-        if (agentError) {
-          console.log("Error fetching from ai_agents, trying with client_id:", agentError);
           
-          // Try with client_id instead of id
-          const { data: clientAgentData, error: clientAgentError } = await supabase
-            .from('ai_agents')
-            .select('*')
-            .eq('client_id', clientId)
-            .limit(1)
-            .single();
+        if (!directAgentError && directAgentData) {
+          console.log("Found data in ai_agents table with direct id:", directAgentData);
+          console.log("Logo URL from ai_agents (direct id):", directAgentData.logo_url);
           
-          if (clientAgentError) {
-            console.log("Error fetching from ai_agents with client_id, trying clients table:", clientAgentError);
-            
-            // If still not found, try the clients table
-            const { data: clientData, error: clientError } = await supabase
-              .from('clients')
-              .select('*')
-              .eq('id', clientId)
-              .limit(1)
-              .single();
-            
-            if (clientError) {
-              console.error("Error fetching client from both tables:", clientError);
-              return null;
-            }
-            
-            if (!clientData) {
-              console.log("No client found in clients table");
-              return null;
-            }
-            
-            // Map clients table data to Client type
-            return {
-              id: clientData.id || '',
-              client_id: clientData.id || '',
-              client_name: clientData.client_name || '',
-              email: clientData.email || '',
-              logo_url: clientData.logo_url || '',
-              logo_storage_path: clientData.logo_storage_path || '',
-              created_at: clientData.created_at || '',
-              updated_at: clientData.updated_at || '',
-              deletion_scheduled_at: clientData.deletion_scheduled_at || null,
-              deleted_at: clientData.deleted_at || null,
-              status: clientData.status || 'active',
-              agent_name: clientData.agent_name || '',
-              description: clientData.description || '',
-              name: clientData.agent_name || '',
-              last_active: clientData.last_active || null,
-              widget_settings: clientData.widget_settings || {},
-            };
-          }
-          
-          // Use the data from ai_agents with client_id
-          if (!clientAgentData) {
-            return null;
-          }
-          
-          return mapAgentDataToClient(clientAgentData);
+          return mapAgentDataToClient(directAgentData);
         }
         
-        if (!agentData) {
-          console.log("No data found in ai_agents table");
+        // If still not found, try the clients table
+        const { data: clientData, error: clientError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('id', clientId)
+          .limit(1)
+          .single();
+        
+        if (clientError) {
+          console.error("Error fetching client from both tables:", clientError);
           return null;
         }
         
-        return mapAgentDataToClient(agentData);
+        if (!clientData) {
+          console.log("No client found in clients table");
+          return null;
+        }
+        
+        console.log("Found data in clients table:", clientData);
+        console.log("Logo URL from clients:", clientData.logo_url);
+        
+        // Map clients table data to Client type
+        return {
+          id: clientData.id || '',
+          client_id: clientData.id || '',
+          client_name: clientData.client_name || '',
+          email: clientData.email || '',
+          logo_url: clientData.logo_url || '',
+          logo_storage_path: clientData.logo_storage_path || '',
+          created_at: clientData.created_at || '',
+          updated_at: clientData.updated_at || '',
+          deletion_scheduled_at: clientData.deletion_scheduled_at || null,
+          deleted_at: clientData.deleted_at || null,
+          status: clientData.status || 'active',
+          agent_name: clientData.agent_name || '',
+          description: clientData.description || '',
+          name: clientData.agent_name || '',
+          last_active: clientData.last_active || null,
+          widget_settings: clientData.widget_settings || {},
+        };
       } catch (error) {
-        console.error("Error fetching client:", error);
+        console.error("Error in useClient hook:", error);
         throw error;
       }
     },
@@ -109,7 +105,7 @@ export const useClient = (clientId: string) => {
     const settings = data.settings || {};
     
     return {
-      id: data.id || '',
+      id: data.client_id || data.id || '',
       client_id: data.client_id || data.id || '',
       client_name: data.client_name || settings.client_name || '',
       email: data.email || settings.email || '',
@@ -121,6 +117,7 @@ export const useClient = (clientId: string) => {
       deleted_at: data.deleted_at || null,
       status: data.status || 'active',
       agent_name: data.name || '',
+      agent_description: data.agent_description || data.description || '',
       description: data.agent_description || data.description || '',
       name: data.name || '',
       last_active: data.last_active || null,

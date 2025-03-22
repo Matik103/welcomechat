@@ -90,28 +90,120 @@ export const updateClient = async (
       email: data.email,
       agent_name: sanitizedAgentName || "AI Assistant",
       agent_description: sanitizedAgentDescription,
-      logo_url: data.widget_settings?.logo_url || null,
-      logo_storage_path: data.widget_settings?.logo_storage_path || null
+      logo_url: data.widget_settings?.logo_url || data.logo_url || null,
+      logo_storage_path: data.widget_settings?.logo_storage_path || data.logo_storage_path || null
     };
 
-    // Update directly in the ai_agents table using Supabase client
-    const { error } = await supabase
+    console.log("Updating client with data:", {
+      clientId,
+      clientName: data.client_name,
+      email: data.email,
+      agentName: sanitizedAgentName,
+      agentDescription: sanitizedAgentDescription,
+      logoUrl: data.widget_settings?.logo_url || data.logo_url,
+      logoStoragePath: data.widget_settings?.logo_storage_path || data.logo_storage_path
+    });
+
+    // First check if we need to upload a new logo file
+    if (data._tempLogoFile) {
+      console.log("Uploading new logo file:", data._tempLogoFile.name);
+      
+      // Create a storage path for the logo
+      const fileExt = data._tempLogoFile.name.split('.').pop();
+      const fileName = `${clientId}-logo-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const storagePath = `clients/${clientId}/logos/${fileName}`;
+      
+      // Upload the file to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(storagePath, data._tempLogoFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (uploadError) {
+        console.error("Error uploading logo:", uploadError);
+        throw uploadError;
+      }
+      
+      // Get public URL for the uploaded file
+      const { data: publicUrlData } = supabase.storage
+        .from('client-assets')
+        .getPublicUrl(storagePath);
+      
+      const publicUrl = publicUrlData?.publicUrl;
+      
+      if (!publicUrl) {
+        throw new Error('Failed to get public URL for uploaded logo');
+      }
+      
+      console.log("Logo uploaded successfully, public URL:", publicUrl);
+      
+      // Update the logo URL and storage path in the settings
+      settings.logo_url = publicUrl;
+      settings.logo_storage_path = storagePath;
+    }
+
+    // Update in the ai_agents table first
+    const { error: aiAgentError } = await supabase
       .from('ai_agents')
       .update({
         client_name: data.client_name,
         email: data.email,
         name: sanitizedAgentName || "AI Assistant",
         agent_description: sanitizedAgentDescription,
-        logo_url: data.widget_settings?.logo_url || null,
-        logo_storage_path: data.widget_settings?.logo_storage_path || null,
+        logo_url: settings.logo_url,
+        logo_storage_path: settings.logo_storage_path,
         settings: settings,
         updated_at: new Date().toISOString()
       })
-      .or(`id.eq.${clientId},client_id.eq.${clientId}`);
+      .eq('client_id', clientId);
+    
+    if (aiAgentError) {
+      console.error("Error updating ai_agents record:", aiAgentError);
+      // Try by direct id instead if client_id fails
+      const { error: directIdError } = await supabase
+        .from('ai_agents')
+        .update({
+          client_name: data.client_name,
+          email: data.email,
+          name: sanitizedAgentName || "AI Assistant",
+          agent_description: sanitizedAgentDescription,
+          logo_url: settings.logo_url,
+          logo_storage_path: settings.logo_storage_path,
+          settings: settings,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', clientId);
+        
+      if (directIdError) {
+        console.error("Error updating ai_agents record by direct id:", directIdError);
+      } else {
+        console.log("Updated ai_agents record by direct id successfully");
+      }
+    } else {
+      console.log("Updated ai_agents record by client_id successfully");
+    }
+
+    // Also update clients table as a fallback
+    const { error } = await supabase
+      .from('clients')
+      .update({
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: sanitizedAgentName || "AI Assistant",
+        description: sanitizedAgentDescription,
+        logo_url: settings.logo_url,
+        logo_storage_path: settings.logo_storage_path,
+        widget_settings: settings,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', clientId);
     
     if (error) {
-      console.error("Error updating client:", error);
-      throw error;
+      console.error("Error updating clients record:", error);
+    } else {
+      console.log("Updated clients record successfully");
     }
     
     // Log activity
@@ -121,7 +213,8 @@ export const updateClient = async (
       description: "Client information updated",
       metadata: {
         client_name: data.client_name,
-        email: data.email
+        email: data.email,
+        logo_updated: !!data._tempLogoFile
       }
     });
     
