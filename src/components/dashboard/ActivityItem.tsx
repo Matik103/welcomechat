@@ -1,4 +1,3 @@
-
 import React from "react";
 import { format } from "date-fns";
 import { 
@@ -84,11 +83,11 @@ const getActivityIcon = (type: string, metadata: Json) => {
 };
 
 export const ActivityItem = ({ item }: ActivityItemProps) => {
-  // Extract client name with better fallback strategy
+  // Get exact client name with safeguards and fallbacks
   const clientName = item.client_name || 
     (item.metadata && typeof item.metadata === 'object' && item.metadata !== null && 'client_name' in item.metadata ? 
     String(item.metadata.client_name) : 
-    "Unknown Client"); // Show "Unknown Client" instead of just "Client"
+    (item.client_id ? `Client ${item.client_id.substring(0, 8)}` : "System"));
     
   return (
     <div className="flex items-center gap-4 py-3 animate-slide-in">

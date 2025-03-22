@@ -40,68 +40,97 @@ export const useRecentActivities = () => {
       // Get all unique client IDs
       const clientIds = [...new Set(activities.map(a => a.client_id))].filter(Boolean);
       
-      // If we have client IDs, fetch their names
+      // If we have client IDs, fetch their names and details
       if (clientIds.length > 0) {
         try {
-          // Fetch client names from ai_agents table where interaction_type is "config"
-          // This query gets the most recent config entry for each client
-          const { data: clientsData, error: clientsError } = await supabase
+          // Fetch client details from ai_agents table with richer information
+          const { data: agentsData, error: agentsError } = await supabase
             .from("ai_agents")
-            .select("client_id, client_name, name")
+            .select("client_id, name, client_name, agent_description, settings")
             .in("client_id", clientIds)
             .eq("interaction_type", "config");
           
-          if (clientsError) {
-            console.error("Error fetching client names:", clientsError);
+          if (agentsError) {
+            console.error("Error fetching agent data:", agentsError);
           }
 
-          // Also fetch client data from the clients table as a backup
-          const { data: clientsTableData, error: clientsTableError } = await supabase
+          // Also fetch from clients table as a backup source
+          const { data: clientsData, error: clientsError } = await supabase
             .from("clients")
-            .select("id, client_name")
+            .select("id, client_name, email, agent_name, widget_settings")
             .in("id", clientIds);
             
-          if (clientsTableError) {
-            console.error("Error fetching clients table data:", clientsTableError);
+          if (clientsError) {
+            console.error("Error fetching clients data:", clientsError);
           }
           
-          // Create a map of client IDs to names, combining both sources
-          const clientNameMap = new Map();
+          // Create a detailed map of client information from both sources
+          const clientInfoMap = new Map();
           
-          // First add names from clients table (if available)
-          if (clientsTableData && clientsTableData.length > 0) {
-            clientsTableData.forEach(client => {
-              if (client.id && client.client_name) {
-                clientNameMap.set(client.id, client.client_name);
-              }
-            });
-          }
-          
-          // Then add/override with names from ai_agents (which should be more up-to-date)
+          // First populate with clients table data (if available)
           if (clientsData && clientsData.length > 0) {
             clientsData.forEach(client => {
-              if (client.client_id) {
-                // Prioritize client_name over agent name
-                clientNameMap.set(client.client_id, client.client_name || client.name || "Unknown Client");
+              if (client.id) {
+                clientInfoMap.set(client.id, {
+                  clientName: client.client_name,
+                  email: client.email,
+                  agentName: client.agent_name,
+                  widgetSettings: client.widget_settings,
+                  source: 'clients_table'
+                });
               }
             });
           }
           
-          // Map activities with client names
+          // Then enhance/override with ai_agents data (which might be more accurate)
+          if (agentsData && agentsData.length > 0) {
+            agentsData.forEach(agent => {
+              if (agent.client_id) {
+                // Get existing client info or create new object
+                const existingInfo = clientInfoMap.get(agent.client_id) || {};
+                
+                // Extract client name from settings if available
+                let settingsClientName = null;
+                if (agent.settings && typeof agent.settings === 'object') {
+                  settingsClientName = agent.settings.client_name;
+                }
+                
+                // Update with agent data, preserving existing fields if not present in agent
+                clientInfoMap.set(agent.client_id, {
+                  ...existingInfo,
+                  clientName: agent.client_name || settingsClientName || existingInfo.clientName,
+                  agentName: agent.name || existingInfo.agentName,
+                  agentDescription: agent.agent_description || (existingInfo.widgetSettings?.agent_description),
+                  source: 'ai_agents_enhanced'
+                });
+              }
+            });
+          }
+          
+          // Map activities with detailed client information
           return activities.map(activity => {
-            // Check if metadata is an object and has client_name property
-            let metadataClientName = null;
+            // First check if metadata contains client information
+            let metadataClientInfo = null;
             if (
               activity.metadata && 
               typeof activity.metadata === 'object' && 
               activity.metadata !== null
             ) {
-              // Type guard to ensure we're dealing with an object that might have client_name
+              // Extract client info from metadata
               const metadataObject = activity.metadata as Record<string, any>;
               if ('client_name' in metadataObject) {
-                metadataClientName = String(metadataObject.client_name);
+                metadataClientInfo = {
+                  clientName: String(metadataObject.client_name),
+                  source: 'metadata'
+                };
               }
             }
+            
+            // Get client info from map, fallback to metadata, or use exact client ID as last resort
+            const clientInfo = clientInfoMap.get(activity.client_id) || metadataClientInfo || {
+              clientName: `Client ${activity.client_id.substring(0, 6)}`,
+              source: 'id_fallback'
+            };
             
             return {
               id: activity.id,
@@ -110,18 +139,21 @@ export const useRecentActivities = () => {
               created_at: activity.created_at,
               metadata: activity.metadata,
               client_id: activity.client_id,
-              client_name: clientNameMap.get(activity.client_id) || metadataClientName || "Unknown Client"
+              client_name: clientInfo.clientName,
+              client_email: clientInfo.email,
+              agent_name: clientInfo.agentName,
+              agent_description: clientInfo.agentDescription
             };
           });
         } catch (err) {
-          console.error("Error processing client names:", err);
+          console.error("Error processing client details:", err);
         }
       }
 
-      // Return activities with default "Unknown Client" if we couldn't fetch names
+      // If all else fails, return activities with client ID as name
       return activities.map(activity => ({
         ...activity,
-        client_name: "Unknown Client"
+        client_name: `Client ${activity.client_id.substring(0, 8)}`
       }));
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute
