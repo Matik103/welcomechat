@@ -39,7 +39,6 @@ export interface ClientFormData {
   logo_storage_path?: string;
 }
 
-// Updated WebsiteUrl to match the expected type
 export interface WebsiteUrl {
   id: number;
   client_id: string;

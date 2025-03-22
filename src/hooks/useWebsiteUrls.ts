@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { WebsiteUrl } from "@/types/client";
@@ -23,11 +24,15 @@ export const useWebsiteUrls = (clientId: string) => {
         throw error;
       }
       
-      // Add the missing properties to match the WebsiteUrl interface
+      // Ensure all properties match the WebsiteUrl interface
       const formattedData: WebsiteUrl[] = data.map(item => ({
-        ...item,
+        id: item.id,
+        client_id: item.client_id,
+        url: item.url,
+        created_at: item.created_at,
         last_crawled: item.last_crawled || null,
-        status: (item.status as "pending" | "processing" | "completed" | "failed" | null) || null,
+        refresh_rate: item.refresh_rate || null,
+        status: (item.status as WebsiteUrl['status']) || null,
         notified_at: item.notified_at || null
       }));
       
@@ -57,12 +62,16 @@ export const useWebsiteUrls = (clientId: string) => {
         throw error;
       }
       
-      // Add the missing properties to match the WebsiteUrl interface
+      // Format the new URL to match the WebsiteUrl interface
       const newUrl: WebsiteUrl = {
-        ...data,
-        last_crawled: null,
-        status: data.status as "pending" | "processing" | "completed" | "failed" | null,
-        notified_at: null
+        id: data.id,
+        client_id: data.client_id,
+        url: data.url,
+        created_at: data.created_at,
+        last_crawled: data.last_crawled || null,
+        refresh_rate: data.refresh_rate || null,
+        status: data.status as WebsiteUrl['status'] || null,
+        notified_at: data.notified_at || null
       };
       
       setWebsiteUrls(prev => [newUrl, ...prev]);
@@ -92,7 +101,7 @@ export const useWebsiteUrls = (clientId: string) => {
     }
   };
 
-  const updateWebsiteUrlStatus = async (id: number, status: "pending" | "processing" | "completed" | "failed" | null): Promise<void> => {
+  const updateWebsiteUrlStatus = async (id: number, status: WebsiteUrl['status']): Promise<void> => {
     try {
       const { error } = await supabase
         .from('website_urls')
