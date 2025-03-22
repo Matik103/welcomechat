@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Upload, X, User, Mail, MessageSquare, Image } from 'lucide-react';
 import { generateTempPassword, saveClientTempPassword, logClientCreationActivity } from '@/utils/clientCreationUtils';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 
 export function ClientAccountForm() {
   const navigate = useNavigate();
@@ -80,7 +81,7 @@ export function ClientAccountForm() {
     toastShownRef.current = loadingToast;
     
     try {
-      // Generate a temporary password - explicitly typed as string
+      // Generate a temporary password - ensuring it returns a string
       const tempPassword = generateTempPassword();
       let logoUrl = '';
       let logoStoragePath = '';
@@ -198,122 +199,151 @@ export function ClientAccountForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="clientName">Client Name *</Label>
-          <Input
-            id="clientName"
-            name="clientName"
-            value={formData.clientName}
-            onChange={handleChange}
-            placeholder="Enter client name"
-            disabled={isSubmitting}
-            required
-          />
-        </div>
+    <Card className="border-0 shadow-md">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xl font-medium">Client Information</CardTitle>
+        <CardDescription>Create a new client account and AI assistant</CardDescription>
+      </CardHeader>
 
-        <div>
-          <Label htmlFor="email">Email Address *</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Enter email address"
-            disabled={isSubmitting}
-            required
-          />
-          <p className="text-xs text-gray-500 mt-1">The welcome email and login details will be sent to this address</p>
-        </div>
-
-        <div className="pt-4 border-t">
-          <h3 className="text-lg font-medium mb-4">AI Assistant Settings</h3>
-          
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-6">
+          {/* Client Information Section */}
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="agentName">AI Assistant Name</Label>
+            <div className="space-y-2">
+              <Label htmlFor="clientName" className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                Client Name <span className="text-red-500">*</span>
+              </Label>
               <Input
-                id="agentName"
-                name="agentName"
-                value={formData.agentName}
+                id="clientName"
+                name="clientName"
+                value={formData.clientName}
                 onChange={handleChange}
-                placeholder="Enter AI assistant name"
+                placeholder="Enter client name"
                 disabled={isSubmitting}
+                className="transition-all focus-visible:ring-primary"
+                required
               />
-              <p className="text-xs text-gray-500 mt-1">Default is "AI Assistant" if left empty</p>
             </div>
 
-            <div>
-              <Label htmlFor="agentDescription">AI Assistant Description</Label>
-              <Textarea
-                id="agentDescription"
-                name="agentDescription"
-                value={formData.agentDescription}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                Email Address <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
                 onChange={handleChange}
-                placeholder="Describe what this AI assistant does and how it can help users"
+                placeholder="Enter email address"
                 disabled={isSubmitting}
-                rows={4}
+                className="transition-all focus-visible:ring-primary"
+                required
               />
-              <p className="text-xs text-gray-500 mt-1">This description helps define how your AI assistant interacts with users</p>
+              <p className="text-xs text-muted-foreground mt-1">The welcome email and login details will be sent to this address</p>
             </div>
           </div>
-        </div>
 
-        <div>
-          <Label>AI Assistant Logo</Label>
-          <div className="mt-2 flex items-center gap-4">
-            {logoPreview ? (
-              <div className="relative inline-block">
-                <img
-                  src={logoPreview}
-                  alt="Logo preview"
-                  className="w-16 h-16 rounded object-cover"
+          {/* AI Assistant Settings Section */}
+          <div className="pt-4 border-t border-border">
+            <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              AI Assistant Settings
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="agentName">AI Assistant Name</Label>
+                <Input
+                  id="agentName"
+                  name="agentName"
+                  value={formData.agentName}
+                  onChange={handleChange}
+                  placeholder="Enter AI assistant name"
+                  disabled={isSubmitting}
+                  className="transition-all focus-visible:ring-primary"
                 />
-                <button
-                  type="button"
-                  onClick={handleRemoveLogo}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center text-xs shadow-md"
-                >
-                  ✕
-                </button>
+                <p className="text-xs text-muted-foreground mt-1">Default is "AI Assistant" if left empty</p>
               </div>
-            ) : (
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => fileInputRef.current?.click()}
-                className="h-16 w-16 flex flex-col items-center justify-center gap-1 border-dashed"
-              >
-                <Upload className="h-5 w-5" />
-                <span className="text-xs">Upload</span>
-              </Button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleLogoChange}
-              accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp"
-              className="hidden"
-            />
-            <div className="text-sm text-gray-500">
-              <p>Recommended: 512×512px</p>
-              <p>Max size: 5MB</p>
+
+              <div className="space-y-2">
+                <Label htmlFor="agentDescription">AI Assistant Description</Label>
+                <Textarea
+                  id="agentDescription"
+                  name="agentDescription"
+                  value={formData.agentDescription}
+                  onChange={handleChange}
+                  placeholder="Describe what this AI assistant does and how it can help users"
+                  disabled={isSubmitting}
+                  className="resize-none min-h-[100px] transition-all focus-visible:ring-primary"
+                  rows={4}
+                />
+                <p className="text-xs text-muted-foreground mt-1">This description helps define how your AI assistant interacts with users</p>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="flex gap-4 pt-4">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Create Client
-        </Button>
-        <Button type="button" variant="outline" onClick={() => navigate('/admin/clients')} disabled={isSubmitting}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+          {/* Logo Upload Section */}
+          <div className="space-y-3 pt-4 border-t border-border">
+            <Label className="flex items-center gap-2">
+              <Image className="h-4 w-4 text-muted-foreground" />
+              AI Assistant Logo
+            </Label>
+            <div className="mt-2 flex items-center gap-4">
+              {logoPreview ? (
+                <div className="relative inline-block">
+                  <img
+                    src={logoPreview}
+                    alt="Logo preview"
+                    className="w-20 h-20 rounded-md object-cover border border-border shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 w-6 h-6 flex items-center justify-center text-xs shadow-md hover:bg-destructive/90 transition-colors"
+                    aria-label="Remove logo"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-20 w-20 flex flex-col items-center justify-center gap-1 border-dashed"
+                >
+                  <Upload className="h-5 w-5" />
+                  <span className="text-xs">Upload</span>
+                </Button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleLogoChange}
+                accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp"
+                className="hidden"
+              />
+              <div className="text-sm text-muted-foreground">
+                <p>Recommended: 512×512px</p>
+                <p>Max size: 5MB</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex gap-4 pt-4 border-t border-border mt-4">
+          <Button type="submit" disabled={isSubmitting} className="transition-all">
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Create Client
+          </Button>
+          <Button type="button" variant="outline" onClick={() => navigate('/admin/clients')} disabled={isSubmitting}>
+            Cancel
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
   );
 }
