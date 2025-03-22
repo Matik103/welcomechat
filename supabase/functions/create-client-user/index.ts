@@ -44,7 +44,7 @@ serve(async (req) => {
     );
     
     // Parse the request body
-    const { email, client_id, client_name, agent_name, agent_description } = await req.json();
+    const { email, client_id, client_name, agent_name, agent_description, temp_password } = await req.json();
     
     if (!email || !client_id) {
       return new Response(
@@ -69,16 +69,16 @@ serve(async (req) => {
     const existingUser = existingUsers?.users?.find(u => u.email === email);
     
     let userId;
-    let generatedPassword = "";
+    // Generate password if not provided
+    const generatedPassword = temp_password || (
+      Math.random().toString(36).slice(-10) + 
+      Math.random().toString(36).toUpperCase().slice(-2) + 
+      String(Math.floor(Math.random() * 10)) +
+      "!"
+    );
     
     if (existingUser) {
       // Update existing user
-      // Generate a random password (Supabase will hash it)
-      generatedPassword = Math.random().toString(36).slice(-10) + 
-                           Math.random().toString(36).toUpperCase().slice(-2) + 
-                           String(Math.floor(Math.random() * 10)) +
-                           "!";
-      
       const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
         password: generatedPassword,
         user_metadata: {
@@ -95,10 +95,10 @@ serve(async (req) => {
       userId = existingUser.id;
       console.log("Updated existing user:", userId);
     } else {
-      // Create new user with auto-generated password
+      // Create new user with provided or generated password
       const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
         email,
-        password: null, // Let Supabase generate a secure random password
+        password: generatedPassword,
         email_confirm: true,
         user_metadata: {
           client_id,
@@ -133,24 +133,12 @@ serve(async (req) => {
       }
     }
     
-    // Send password reset email to the user
-    const { error: resetError } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-    });
-    
-    if (resetError) {
-      console.error("Error sending password reset email:", resetError);
-      // Continue anyway, as we've created the user already
-    } else {
-      console.log("Password reset email sent to:", email);
-    }
-    
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: "Client user created and password reset email sent",
-        userId: userId
+        message: "Client user created successfully",
+        userId: userId,
+        password: generatedPassword
       }),
       { 
         status: 200, 

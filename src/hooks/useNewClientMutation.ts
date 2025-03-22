@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client-form";
-import { logClientCreationActivity, generateClientWelcomeEmailTemplate } from "@/utils/clientCreationUtils";
+import { logClientCreationActivity, generateClientWelcomeEmailTemplate, generateTempPassword } from "@/utils/clientCreationUtils";
 
 export const useNewClientMutation = () => {
   const queryClient = useQueryClient();
@@ -45,7 +45,10 @@ export const useNewClientMutation = () => {
           data.widget_settings?.agent_name || "AI Assistant"
         );
         
-        // Create a Supabase auth user and send password reset email
+        // Generate a secure temporary password
+        const tempPassword = generateTempPassword();
+        
+        // Create a Supabase auth user with our generated password
         let authResult = null;
         let authError = null;
         
@@ -60,7 +63,8 @@ export const useNewClientMutation = () => {
                 client_name: data.client_name,
                 email: data.email,
                 agent_name: data.widget_settings?.agent_name || "AI Assistant",
-                agent_description: data.widget_settings?.agent_description || ""
+                agent_description: data.widget_settings?.agent_description || "",
+                temp_password: tempPassword
               }
             }
           );
@@ -77,18 +81,18 @@ export const useNewClientMutation = () => {
           authError = authErr.message || "Exception occurred creating auth user";
         }
         
-        // Send welcome email
+        // Send welcome email with the generated password
         let emailSent = false;
         let emailError = null;
         
         try {
           console.log("Sending welcome email...");
           
-          // Generate enhanced email template
+          // Generate enhanced email template with the temp password
           const emailHtml = generateClientWelcomeEmailTemplate(
             data.client_name,
             data.email,
-            undefined, // No password as we're using Supabase password reset
+            tempPassword,
             "Welcome.Chat"
           );
           
