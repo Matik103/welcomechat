@@ -1,162 +1,94 @@
 
 import { useState } from "react";
 import { useClientMutation } from "./useClientMutation";
-import { ExtendedActivityType } from "@/types/activity";
-import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { generateTempPassword, saveClientTempPassword } from "@/utils/clientCreationUtils";
+import { ExtendedActivityType } from "@/types/activity";
+import { useLogoPreview } from "@/components/widget/logo/useLogoPreview";
 
 export const useClientFormSubmission = (
   clientId: string | undefined,
   isClientView: boolean,
-  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>
+  logClientActivity: (
+    activity_type: ExtendedActivityType,
+    description: string,
+    metadata?: any
+  ) => Promise<void>
 ) => {
   const [isLoading, setIsLoading] = useState(false);
   const clientMutation = useClientMutation(clientId);
-  const navigate = useNavigate();
-  
+  const { uploadLogo } = useLogoPreview("");
+
   const handleSubmit = async (data: any) => {
-    setIsLoading(true);
     try {
-      // Display initial feedback toast
-      const initialToastId = toast.loading(clientId ? "Updating client..." : "Creating client...");
-      
-      // Check for agent name or description changes to log appropriate activity
-      const widgetSettings = data.widget_settings || {};
-      
-      // Perform the client mutation (create or update)
-      const result = await clientMutation.mutateAsync(data);
-      
-      // Log activity based on user role and changes made
-      if (isClientView) {
-        await logClientActivity(
-          "client_updated", 
-          "Updated client information",
-          {
-            widget_settings: {
-              agent_name: widgetSettings.agent_name,
-              agent_description: widgetSettings.agent_description,
-              logo_url: widgetSettings.logo_url
-            }
-          }
-        );
-        toast.success("Your information has been updated", { id: initialToastId });
-      } else {
-        if (clientId) {
-          // Admin updating existing client
-          await logClientActivity(
-            "client_updated", 
-            "Admin updated client information",
-            {
-              widget_settings: {
-                agent_name: widgetSettings.agent_name,
-                agent_description: widgetSettings.agent_description,
-                logo_url: widgetSettings.logo_url
-              }
-            }
-          );
-          toast.success("Client updated successfully", { id: initialToastId });
-        } else {
-          // Admin creating new client
-          
-          // If a new client was created, handle welcome email
-          if (typeof result === 'object' && result.agentId) {
-            toast.loading("Sending welcome email...", { id: initialToastId });
+      setIsLoading(true);
+
+      // Handle logo upload if there's a temporary file
+      if (data._tempLogoFile && clientId) {
+        try {
+          const uploadResult = await uploadLogo(data._tempLogoFile, clientId);
+          if (uploadResult) {
+            data.logo_url = uploadResult.url;
+            data.logo_storage_path = uploadResult.path;
             
-            try {
-              // Generate temporary password for the new client
-              const tempPassword = generateTempPassword();
-              
-              // Save the temporary password
-              await saveClientTempPassword(result.agentId, data.email, tempPassword);
-              
-              // Directly call the send-email edge function, similar to DeleteClientDialog approach
-              const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
-                'send-email', 
-                {
-                  body: {
-                    to: data.email,
-                    subject: "Welcome to Welcome.Chat - Your Account Details",
-                    html: `
-                      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-                        <div style="text-align: center; margin-bottom: 20px;">
-                          <h1 style="color: #4f46e5;">Welcome to Welcome.Chat!</h1>
-                        </div>
-                        
-                        <p>Hello ${data.client_name || 'Client'},</p>
-                        
-                        <p>Your AI assistant account has been created and is ready for configuration. Here are your login credentials:</p>
-                        
-                        <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                          <p><strong>Email Address:</strong></p>
-                          <p style="color: #4f46e5;">${data.email || ''}</p>
-                          
-                          <p><strong>Temporary Password:</strong></p>
-                          <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${tempPassword || ''}</p>
-                        </div>
-                        
-                        <p>To get started:</p>
-                        <ol>
-                          <li>Click the "Sign In" button below</li>
-                          <li>Enter your email and temporary password exactly as shown above</li>
-                          <li>You'll be taken to your client dashboard</li>
-                          <li>Configure your AI assistant's settings</li>
-                        </ol>
-                        
-                        <div style="text-align: center; margin: 30px 0;">
-                          <a href="https://welcomeai.io/client/auth" 
-                             style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                            Sign In
-                          </a>
-                        </div>
-                        
-                        <div style="border-top: 1px solid #e0e0e0; margin-top: 30px; padding-top: 20px;">
-                          <p><strong>Security Notice:</strong></p>
-                          <p>This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
-                        </div>
-                        
-                        <p>Best regards,<br>The Welcome.Chat Team</p>
-                        
-                        <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
-                          © ${new Date().getFullYear()} Welcome.Chat. All rights reserved.
-                        </div>
-                      </div>
-                    `,
-                    from: "Welcome.Chat <admin@welcome.chat>"
-                  }
-                }
-              );
-              
-              if (emailFnError) {
-                console.error("Email function error:", emailFnError);
-                toast.error("Client created but failed to send invitation email", { id: initialToastId });
-              } else if (emailResult && !emailResult.success) {
-                console.error("Email sending failed:", emailResult.error);
-                toast.error("Client created but invitation email failed to send", { id: initialToastId });
-              } else {
-                toast.success("Client created successfully and invitation sent", { id: initialToastId });
+            // Log logo uploaded activity
+            await logClientActivity(
+              "logo_uploaded" as ExtendedActivityType,
+              "Logo uploaded for client",
+              {
+                logo_url: data.logo_url,
+                logo_path: data.logo_storage_path
               }
-            } catch (emailErr) {
-              console.error("Error sending welcome email:", emailErr);
-              toast.error("Client created but invitation email failed to send", { id: initialToastId });
-            }
-          } else {
-            toast.success("Client created successfully", { id: initialToastId });
+            );
           }
-          
-          navigate('/admin/clients');
+        } catch (error) {
+          console.error("Error uploading logo:", error);
+          toast.error("Failed to upload logo");
         }
       }
-    } catch (error: any) {
+
+      // Remove the temporary file from the data
+      delete data._tempLogoFile;
+
+      // Process the data for widget settings
+      const formattedData = {
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: data.agent_name,
+        logo_url: data.logo_url,
+        logo_storage_path: data.logo_storage_path,
+        widget_settings: {
+          agent_name: data.agent_name,
+          agent_description: data.agent_description,
+          logo_url: data.logo_url,
+          logo_storage_path: data.logo_storage_path
+        }
+      };
+
+      // Submit the data
+      await clientMutation.mutateAsync(formattedData);
+
+      // Log activity
+      await logClientActivity(
+        "client_updated",
+        isClientView
+          ? "Updated client information from client portal"
+          : "Updated client information from admin panel",
+        {
+          client_name: data.client_name,
+          email: data.email,
+          agent_name: data.agent_name
+        }
+      );
+
+      toast.success("Client information updated successfully");
+    } catch (error) {
       console.error("Error submitting client form:", error);
-      toast.error(`Failed to ${clientId ? "update" : "create"} client: ${error.message}`);
+      toast.error("Error updating client information. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   return {
     handleSubmit,
     isLoading,

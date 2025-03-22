@@ -1,21 +1,23 @@
 
 import { UseFormReturn } from "react-hook-form";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { LogoManagement } from "@/components/widget/LogoManagement";
 import { toast } from "sonner";
+import { useLogoPreview } from "@/components/widget/logo/useLogoPreview";
 
 interface LogoFieldProps {
   form: UseFormReturn<any>;
   onLogoFileChange: (file: File | null) => void;
+  clientId?: string;
 }
 
-export const LogoField = ({ form, onLogoFileChange }: LogoFieldProps) => {
+export const LogoField = ({ form, onLogoFileChange, clientId = '' }: LogoFieldProps) => {
   const { watch, setValue } = form;
   const [isUploading, setIsUploading] = useState(false);
-  const [localLogoPreview, setLocalLogoPreview] = useState<string | null>(null);
+  const { logoPreview, handleLocalPreview, uploadLogo } = useLogoPreview(watch("logo_url") || "");
   
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
@@ -31,22 +33,38 @@ export const LogoField = ({ form, onLogoFileChange }: LogoFieldProps) => {
     }
     
     onLogoFileChange(file);
+    handleLocalPreview(file);
     
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const previewUrl = e.target?.result as string;
-      setLocalLogoPreview(previewUrl);
-    };
-    reader.readAsDataURL(file);
-    
-    toast.success("Logo selected. It will be uploaded when you save the client.");
+    // If we have a client ID, upload the logo immediately
+    if (clientId) {
+      setIsUploading(true);
+      
+      try {
+        const result = await uploadLogo(file, clientId);
+        
+        if (result) {
+          setValue("logo_url", result.url);
+          setValue("logo_storage_path", result.path);
+          toast.success("Logo uploaded successfully");
+        } else {
+          toast.error("Failed to upload logo");
+        }
+      } catch (error) {
+        console.error("Error uploading logo:", error);
+        toast.error("Error uploading logo");
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      // If no client ID, we'll upload when the form is submitted
+      toast.success("Logo selected. It will be uploaded when you save the client.");
+    }
   };
   
   const handleRemoveLogo = () => {
     setValue("logo_url", "");
     setValue("logo_storage_path", "");
     onLogoFileChange(null);
-    setLocalLogoPreview(null);
   };
 
   return (
@@ -55,7 +73,7 @@ export const LogoField = ({ form, onLogoFileChange }: LogoFieldProps) => {
         AI Agent Logo
       </Label>
       <LogoManagement
-        logoUrl={localLogoPreview || watch("logo_url") || ""}
+        logoUrl={logoPreview || watch("logo_url") || ""}
         isUploading={isUploading}
         onLogoUpload={handleLogoUpload}
         onRemoveLogo={handleRemoveLogo}
