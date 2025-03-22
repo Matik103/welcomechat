@@ -72,3 +72,11 @@ export interface DriveLinksProps {
   deletingId?: number | null;
   isDeleteLoading?: boolean;
 }
+
+// Add the missing DocumentLinkFormProps interface
+export interface DocumentLinkFormProps {
+  onSubmit: (data: DocumentLinkFormData) => void;
+  onCancel?: () => void;
+  isSubmitting: boolean;
+  agentName?: string;
+}
