@@ -14,7 +14,6 @@ import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { WebsiteUrlFormData } from '@/types/website-url';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { ValidationResult } from '@/types/website-url';
-import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface WebsiteResourcesSectionProps {
@@ -34,7 +33,6 @@ export const WebsiteResourcesSection = ({
   const [refreshRate, setRefreshRate] = useState<number>(30);
   const [validatingUrl, setValidatingUrl] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
-  const { toast } = useToast();
 
   const {
     websiteUrls,
@@ -101,11 +99,7 @@ export const WebsiteResourcesSection = ({
 
   const handleAddWebsiteUrl = async () => {
     if (!newUrl) {
-      toast({
-        title: "Error",
-        description: "URL cannot be empty.",
-        variant: "destructive",
-      });
+      toast.error("URL cannot be empty.");
       return;
     }
 
@@ -113,11 +107,7 @@ export const WebsiteResourcesSection = ({
     try {
       const validation = await validateUrl(newUrl);
       if (!validation.isValid) {
-        toast({
-          title: "Error",
-          description: validation.message,
-          variant: "destructive",
-        });
+        toast.error(validation.message);
         return;
       }
 
@@ -127,17 +117,10 @@ export const WebsiteResourcesSection = ({
       };
       await addWebsiteUrlMutation.mutateAsync(data);
       setNewUrl('');
-      toast({
-        title: "Success",
-        description: "URL added successfully.",
-      });
+      toast.success("URL added successfully.");
     } catch (error) {
       console.error('Error adding website URL:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add website URL.",
-        variant: "destructive",
-      });
+      toast.error("Failed to add website URL.");
     } finally {
       setAddingUrl(false);
     }
@@ -147,17 +130,10 @@ export const WebsiteResourcesSection = ({
     setDeletingUrl(true);
     try {
       await deleteWebsiteUrlMutation.mutateAsync(urlId);
-      toast({
-        title: "Success",
-        description: "URL deleted successfully.",
-      });
+      toast.success("URL deleted successfully.");
     } catch (error) {
       console.error('Error deleting website URL:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete website URL.",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete website URL.");
     } finally {
       setDeletingUrl(false);
     }
