@@ -179,7 +179,7 @@ export const WebsiteResourcesSection = ({
                     <p className="text-sm font-medium truncate">{url.url}</p>
                     <p className="text-xs text-gray-500">
                       Refresh: {url.refresh_rate || 30} minutes
-                      {url.last_scraped_at && ` • Last updated: ${new Date(url.last_scraped_at).toLocaleString()}`}
+                      {url.last_crawled && ` • Last updated: ${new Date(url.last_crawled).toLocaleString()}`}
                     </p>
                     {url.status && (
                       <p className={`text-xs ${url.status === 'completed' ? 'text-green-500' : url.status === 'failed' ? 'text-red-500' : 'text-amber-500'}`}>
