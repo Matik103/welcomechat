@@ -101,7 +101,8 @@ export const updateClient = async (
       agentName: sanitizedAgentName,
       agentDescription: sanitizedAgentDescription,
       logoUrl: data.widget_settings?.logo_url,
-      logoStoragePath: data.widget_settings?.logo_storage_path
+      logoStoragePath: data.widget_settings?.logo_storage_path,
+      settings: settings
     });
 
     // First check if we need to upload a new logo file
@@ -144,46 +145,38 @@ export const updateClient = async (
       settings.logo_storage_path = storagePath;
     }
 
-    // Update in the ai_agents table first
-    const { error: aiAgentError } = await supabase
-      .from('ai_agents')
-      .update({
-        client_name: data.client_name,
-        email: data.email,
-        name: sanitizedAgentName || "AI Assistant",
-        agent_description: sanitizedAgentDescription,
-        logo_url: settings.logo_url,
-        logo_storage_path: settings.logo_storage_path,
-        settings: settings,
-        updated_at: new Date().toISOString()
-      })
-      .eq('client_id', clientId);
+    // Update in the ai_agents table directly using execSql
+    const updateQuery = `
+      UPDATE ai_agents
+      SET 
+        client_name = $1,
+        email = $2,
+        name = $3,
+        agent_description = $4,
+        logo_url = $5,
+        logo_storage_path = $6,
+        settings = $7,
+        updated_at = NOW()
+      WHERE id = $8 OR client_id = $8
+      RETURNING id
+    `;
     
-    if (aiAgentError) {
-      console.error("Error updating ai_agents record:", aiAgentError);
-      // Try by direct id instead if client_id fails
-      const { error: directIdError } = await supabase
-        .from('ai_agents')
-        .update({
-          client_name: data.client_name,
-          email: data.email,
-          name: sanitizedAgentName || "AI Assistant",
-          agent_description: sanitizedAgentDescription,
-          logo_url: settings.logo_url,
-          logo_storage_path: settings.logo_storage_path,
-          settings: settings,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', clientId);
-        
-      if (directIdError) {
-        console.error("Error updating ai_agents record by direct id:", directIdError);
-      } else {
-        console.log("Updated ai_agents record by direct id successfully");
-      }
-    } else {
-      console.log("Updated ai_agents record by client_id successfully");
+    const result = await execSql(updateQuery, [
+      data.client_name,
+      data.email,
+      sanitizedAgentName || "AI Assistant",
+      sanitizedAgentDescription,
+      settings.logo_url,
+      settings.logo_storage_path,
+      JSON.stringify(settings),
+      clientId
+    ]);
+    
+    if (!result || result.length === 0) {
+      throw new Error("Failed to update client information");
     }
+    
+    console.log("Updated ai_agents record successfully:", result);
     
     // Log activity
     await supabase.from("client_activities").insert({
