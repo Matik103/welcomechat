@@ -38,3 +38,27 @@ export interface ClientFormData {
   logo_url?: string;
   logo_storage_path?: string;
 }
+
+// Add these missing type definitions
+export interface WebsiteUrl {
+  id: number;
+  client_id: string;
+  url: string;
+  created_at: string;
+  last_crawled: string | null;
+  refresh_rate: number | null;
+  status: string | null;
+}
+
+export interface DocumentLink {
+  id: number;
+  client_id: string;
+  link: string;
+  created_at: string;
+  document_type: string | null;
+  access_status: AccessStatus | null;
+  notified_at: string | null;
+  refresh_rate: number | null;
+}
+
+export type AccessStatus = 'granted' | 'pending' | 'denied';
