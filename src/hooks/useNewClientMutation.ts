@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client-form";
-import { saveClientTempPassword, generateTempPassword, logClientCreationActivity, generateClientWelcomeEmailTemplate } from "@/utils/clientCreationUtils";
+import { logClientCreationActivity, generateClientWelcomeEmailTemplate } from "@/utils/clientCreationUtils";
 
 export const useNewClientMutation = () => {
   const queryClient = useQueryClient();
@@ -11,9 +11,6 @@ export const useNewClientMutation = () => {
     mutationFn: async (data: ClientFormData) => {
       try {
         console.log("Creating new client with data:", data);
-        
-        // Generate temporary password
-        const tempPassword = generateTempPassword();
         
         // Create the client/agent in ai_agents table
         const { data: clientData, error: clientError } = await supabase
@@ -40,9 +37,6 @@ export const useNewClientMutation = () => {
 
         if (clientError) throw new Error(clientError.message);
         
-        // Save temporary password
-        await saveClientTempPassword(clientData.id, data.email, tempPassword);
-        
         // Log client creation activity
         await logClientCreationActivity(
           clientData.id, 
@@ -50,6 +44,38 @@ export const useNewClientMutation = () => {
           data.email, 
           data.widget_settings?.agent_name || "AI Assistant"
         );
+        
+        // Create a Supabase auth user and send password reset email
+        let authResult = null;
+        let authError = null;
+        
+        try {
+          console.log("Creating Supabase auth user...");
+          
+          const { data: authData, error: authFnError } = await supabase.functions.invoke(
+            'create-client-user', 
+            {
+              body: {
+                client_id: clientData.id,
+                client_name: data.client_name,
+                email: data.email,
+                agent_name: data.widget_settings?.agent_name || "AI Assistant",
+                agent_description: data.widget_settings?.agent_description || ""
+              }
+            }
+          );
+          
+          if (authFnError) {
+            console.error("Auth function error:", authFnError);
+            authError = authFnError.message;
+          } else {
+            authResult = authData;
+            console.log("Supabase auth user created successfully:", authData);
+          }
+        } catch (authErr: any) {
+          console.error("Exception creating auth user:", authErr);
+          authError = authErr.message || "Exception occurred creating auth user";
+        }
         
         // Send welcome email
         let emailSent = false;
@@ -62,7 +88,8 @@ export const useNewClientMutation = () => {
           const emailHtml = generateClientWelcomeEmailTemplate(
             data.client_name,
             data.email,
-            tempPassword
+            undefined, // No password as we're using Supabase password reset
+            "Welcome.Chat"
           );
           
           const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
@@ -98,6 +125,8 @@ export const useNewClientMutation = () => {
         // Return the client data and email status
         return {
           client: clientData,
+          authResult,
+          authError,
           emailSent,
           emailError
         };

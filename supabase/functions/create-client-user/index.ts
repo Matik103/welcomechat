@@ -44,7 +44,7 @@ serve(async (req) => {
     );
     
     // Parse the request body
-    const { email, client_id, client_name, agent_name, agent_description, temp_password } = await req.json();
+    const { email, client_id, client_name, agent_name, agent_description } = await req.json();
     
     if (!email || !client_id) {
       return new Response(
@@ -56,116 +56,101 @@ serve(async (req) => {
       );
     }
     
-    // Use the provided temp_password or generate a new one if not provided
-    const clientPassword = temp_password || (() => {
-      // Generate a secure password format compatible with Supabase requirements
-      const currentYear = new Date().getFullYear();
-      const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-      const specialChars = ['@', '#', '$', '%', '&', '*', '!'];
-      const randomSpecial = specialChars[Math.floor(Math.random() * specialChars.length)];
-      
-      // Format: Welcome{Year}{SpecialChar}{3digits} - e.g., Welcome2025#123
-      return `Welcome${currentYear}${randomSpecial}${randomDigits}`;
-    })();
-
-    console.log(`Using password for client ${client_id}: ${clientPassword}`);
+    console.log(`Creating user with Supabase Auth for client ${client_id}: ${email}`);
     
-    // If no temp_password was provided, store it in the database
-    if (!temp_password) {
-      const { error: tempPasswordError } = await supabase
-        .from("client_temp_passwords")
-        .insert({
-          agent_id: client_id,
-          email: email,
-          temp_password: clientPassword
+    // Check if user already exists
+    const { data: existingUsers, error: listUsersError } = await supabase.auth.admin.listUsers();
+    
+    if (listUsersError) {
+      console.error("Error listing users:", listUsersError);
+      throw listUsersError;
+    }
+    
+    const existingUser = existingUsers?.users?.find(u => u.email === email);
+    
+    let userId;
+    let generatedPassword = "";
+    
+    if (existingUser) {
+      // Update existing user
+      // Generate a random password (Supabase will hash it)
+      generatedPassword = Math.random().toString(36).slice(-10) + 
+                           Math.random().toString(36).toUpperCase().slice(-2) + 
+                           String(Math.floor(Math.random() * 10)) +
+                           "!";
+      
+      const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
+        password: generatedPassword,
+        user_metadata: {
+          client_id,
+          user_type: 'client'
+        }
+      });
+      
+      if (updateUserError) {
+        console.error("Error updating user:", updateUserError);
+        throw updateUserError;
+      }
+      
+      userId = existingUser.id;
+      console.log("Updated existing user:", userId);
+    } else {
+      // Create new user with auto-generated password
+      const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
+        email,
+        password: null, // Let Supabase generate a secure random password
+        email_confirm: true,
+        user_metadata: {
+          client_id,
+          user_type: 'client'
+        }
+      });
+      
+      if (createUserError) {
+        console.error("Error creating user:", createUserError);
+        throw createUserError;
+      }
+      
+      userId = newUser?.user?.id;
+      console.log("Created new user:", userId);
+    }
+    
+    if (userId) {
+      // Ensure there's a user_role record for this user
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .upsert({
+          user_id: userId,
+          role: "client",
+          client_id: client_id
         });
-
-      if (tempPasswordError) {
-        console.error("Error saving temporary password:", tempPasswordError);
-        throw tempPasswordError;
+        
+      if (roleError) {
+        console.error("Error setting user role:", roleError);
+        // Continue anyway, the main user account is created
+      } else {
+        console.log("Successfully set user role for:", userId);
       }
     }
     
-    console.log("Successfully stored or used temp password, now creating user");
+    // Send password reset email to the user
+    const { error: resetError } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
+      email: email,
+    });
     
-    // Attempt to create auth user (or update existing one)
-    try {
-      // Check if user already exists
-      const { data: existingUsers, error: listUsersError } = await supabase.auth.admin.listUsers();
-      
-      if (listUsersError) {
-        console.error("Error listing users:", listUsersError);
-        throw listUsersError;
-      }
-      
-      const existingUser = existingUsers?.users?.find(u => u.email === email);
-      
-      if (existingUser) {
-        // Update existing user
-        const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
-          password: clientPassword,
-          user_metadata: {
-            client_id,
-            user_type: 'client'
-          }
-        });
-        
-        if (updateUserError) {
-          console.error("Error updating user:", updateUserError);
-          throw updateUserError;
-        }
-        
-        console.log("Updated existing user:", existingUser.id);
-      } else {
-        // Create new user
-        const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
-          email,
-          password: clientPassword,
-          email_confirm: true,
-          user_metadata: {
-            client_id,
-            user_type: 'client'
-          }
-        });
-        
-        if (createUserError) {
-          console.error("Error creating user:", createUserError);
-          throw createUserError;
-        }
-        
-        console.log("Created new user:", newUser?.user?.id);
-      }
-      
-      // Ensure there's a user_role record for this user
-      const userAccount = existingUser || 
-        (await supabase.auth.admin.listUsers()).data?.users?.find(u => u.email === email);
-      
-      if (userAccount) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .upsert({
-            user_id: userAccount.id,
-            role: "client",
-            client_id: client_id
-          });
-          
-        if (roleError) {
-          console.error("Error setting user role:", roleError);
-          // Continue, we've still created the user and temp password
-        } else {
-          console.log("Successfully set user role for:", userAccount.id);
-        }
-      }
-    } catch (authError) {
-      console.error("Auth operation error:", authError);
-      // Continue, as we still created the client record and temp password
+    if (resetError) {
+      console.error("Error sending password reset email:", resetError);
+      // Continue anyway, as we've created the user already
+    } else {
+      console.log("Password reset email sent to:", email);
     }
     
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: "Client user setup successfully",
-        temp_password: clientPassword
+        message: "Client user created and password reset email sent",
+        userId: userId
       }),
       { 
         status: 200, 
