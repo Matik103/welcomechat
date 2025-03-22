@@ -20,7 +20,7 @@ serve(async (req) => {
   try {
     // Initialize Supabase client with service role key
     const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
-    const supabaseServiceKey = Deno.env.get("SERVICE_ROLE_KEY") as string;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
     
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error("Missing environment variables for Supabase client");
@@ -87,18 +87,30 @@ serve(async (req) => {
     // Attempt to create auth user (or update existing one)
     try {
       // Check if user already exists
-      const { data: existingUsers } = await supabase.auth.admin.listUsers();
+      const { data: existingUsers, error: listUsersError } = await supabase.auth.admin.listUsers();
+      
+      if (listUsersError) {
+        console.error("Error listing users:", listUsersError);
+        throw listUsersError;
+      }
+      
       const existingUser = existingUsers?.users?.find(u => u.email === email);
       
       if (existingUser) {
         // Update existing user
-        await supabase.auth.admin.updateUserById(existingUser.id, {
+        const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
           password: clientPassword,
           user_metadata: {
             client_id,
             user_type: 'client'
           }
         });
+        
+        if (updateUserError) {
+          console.error("Error updating user:", updateUserError);
+          throw updateUserError;
+        }
+        
         console.log("Updated existing user:", existingUser.id);
       } else {
         // Create new user

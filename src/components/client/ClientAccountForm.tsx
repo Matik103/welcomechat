@@ -22,6 +22,7 @@ export function ClientAccountForm() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toastShownRef = useRef<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -71,7 +72,12 @@ export function ClientAccountForm() {
     }
     
     setIsSubmitting(true);
+    
+    // Reset the toast reference to ensure we don't block new toasts with the same ID
+    toastShownRef.current = null;
+    
     const loadingToast = toast.loading("Creating client account...");
+    toastShownRef.current = loadingToast;
     
     try {
       // Generate a temporary password
@@ -196,7 +202,13 @@ export function ClientAccountForm() {
       
     } catch (error: any) {
       console.error('Error creating client:', error);
-      toast.error(`Failed to create client: ${error.message}`, { id: loadingToast });
+      
+      // Only update the toast if it's the same one we created
+      if (toastShownRef.current === loadingToast) {
+        toast.error(`Failed to create client: ${error.message}`, { id: loadingToast });
+      } else {
+        toast.error(`Failed to create client: ${error.message}`);
+      }
     } finally {
       setIsSubmitting(false);
     }

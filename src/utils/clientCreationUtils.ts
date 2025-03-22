@@ -8,7 +8,10 @@ import { generateSecurePassword } from "@/utils/passwordUtils";
  * @returns A randomly generated temporary password
  */
 export const generateTempPassword = (): string => {
-  return generateSecurePassword();
+  // Generate a more secure password format: Welcome{Year}#{3 random digits}
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+  return `Welcome${currentYear}#${randomDigits}`;
 };
 
 /**
