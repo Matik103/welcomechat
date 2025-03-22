@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -11,12 +12,14 @@ import { execSql } from '@/utils/rpcUtils';
 import { toast } from 'sonner';
 import { DeleteClientDialog } from '@/components/client/DeleteClientDialog';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const { data: clients, isLoading, error, refetch } = useQuery({
     queryKey: ['clients'],
@@ -131,7 +134,7 @@ export default function ClientList() {
   };
 
   const handleAddClientClick = () => {
-    console.log("Add client button clicked - functionality temporarily disabled");
+    navigate('/admin/clients/new');
   };
 
   if (error) {
