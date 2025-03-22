@@ -69,46 +69,46 @@ serve(async (req) => {
       to: email,
       subject: "Welcome to Welcome.Chat - Your Account Details",
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px; background-color: #ffffff;">
-          <div style="text-align: center; margin-bottom: 20px; background-color: #4f46e5; padding: 20px; border-radius: 5px;">
-            <h1 style="color: #ffffff; margin: 0;">Welcome to Welcome.Chat!</h1>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);">
+          <div style="text-align: center; margin-bottom: 30px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 25px; border-radius: 8px;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">Welcome to Welcome.Chat!</h1>
           </div>
           
-          <p style="color: #333333; font-size: 16px;">Hello ${clientName},</p>
+          <p style="color: #333333; font-size: 16px; line-height: 1.6;">Hello ${clientName},</p>
           
-          <p style="color: #333333; font-size: 16px;">Your AI assistant account${agentInfo} has been created and is ready for configuration. Here are your login credentials:</p>
+          <p style="color: #333333; font-size: 16px; line-height: 1.6;">Your AI assistant account${agentInfo} has been created and is ready for configuration. Here are your login credentials:</p>
           
-          <div style="background-color: #f9fafb; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #4f46e5;">
-            <p style="color: #333333; font-weight: bold; margin-bottom: 5px;">Email Address:</p>
-            <p style="color: #4f46e5; margin-top: 0; margin-bottom: 15px;">${email}</p>
+          <div style="background-color: #f9fafb; padding: 25px; border-radius: 8px; margin: 25px 0; border-left: 5px solid #4f46e5;">
+            <p style="color: #333333; font-weight: 600; margin-bottom: 8px; font-size: 16px;">Email Address:</p>
+            <p style="color: #4f46e5; margin-top: 0; margin-bottom: 20px; font-size: 16px;">${email}</p>
             
-            <p style="color: #333333; font-weight: bold; margin-bottom: 5px;">Temporary Password:</p>
-            <p style="color: #4f46e5; font-family: monospace; font-size: 16px; background-color: #eef2ff; padding: 8px; border-radius: 3px; margin-top: 0;">${tempPassword}</p>
+            <p style="color: #333333; font-weight: 600; margin-bottom: 8px; font-size: 16px;">Temporary Password:</p>
+            <p style="color: #4f46e5; font-family: monospace; font-size: 18px; background-color: #eef2ff; padding: 12px; border-radius: 6px; margin-top: 0; letter-spacing: 0.5px; text-align: center;">${tempPassword}</p>
           </div>
           
-          <p style="color: #333333; font-size: 16px;">To get started:</p>
-          <ol style="color: #333333; font-size: 16px; padding-left: 20px;">
+          <p style="color: #333333; font-size: 16px; line-height: 1.6;">To get started:</p>
+          <ol style="color: #333333; font-size: 16px; padding-left: 20px; line-height: 1.8;">
             <li>Click the "Sign In" button below</li>
             <li>Enter your email and temporary password exactly as shown above</li>
-            <li>You'll be taken to your client dashboard</li>
+            <li>You'll be taken directly to your client dashboard</li>
             <li>Configure your AI assistant's settings</li>
           </ol>
           
-          <div style="text-align: center; margin: 35px 0;">
+          <div style="text-align: center; margin: 40px 0;">
             <a href="${loginLink}" 
-               style="background-color: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; font-size: 16px; transition: background-color 0.3s ease;">
+               style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.25);">
               Sign In
             </a>
           </div>
           
-          <div style="border-top: 1px solid #e0e0e0; margin-top: 30px; padding-top: 20px;">
-            <p style="color: #333333; font-weight: bold; font-size: 16px;">Security Notice:</p>
-            <p style="color: #555555; font-size: 14px;">This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
+          <div style="border-top: 1px solid #e0e0e0; margin-top: 35px; padding-top: 25px;">
+            <p style="color: #333333; font-weight: 600; font-size: 16px;">Security Notice:</p>
+            <p style="color: #555555; font-size: 14px; line-height: 1.6;">This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
           </div>
           
-          <p style="color: #333333; font-size: 16px; margin-top: 25px;">Best regards,<br>The Welcome.Chat Team</p>
+          <p style="color: #333333; font-size: 16px; margin-top: 30px; line-height: 1.6;">Best regards,<br>The Welcome.Chat Team</p>
           
-          <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px; border-top: 1px solid #e0e0e0; padding-top: 20px;">
+          <div style="text-align: center; margin-top: 35px; color: #9ca3af; font-size: 12px; border-top: 1px solid #e0e0e0; padding-top: 25px;">
             © ${new Date().getFullYear()} Welcome.Chat. All rights reserved.
           </div>
         </div>
