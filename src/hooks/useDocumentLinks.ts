@@ -58,34 +58,14 @@ export const useDocumentLinks = (clientId?: string) => {
       
       try {
         // Basic validation - check if it's a valid URL
-        const url = new URL(data.link);
-        
-        // Type-specific validation
-        if (data.document_type === 'google_doc' && !data.link.includes('docs.google.com/document')) {
-          toast.error('Please provide a valid Google Doc URL for this document type');
+        try {
+          new URL(data.link);
+        } catch (error) {
+          toast.error('Please enter a valid URL');
           return;
         }
         
-        if (data.document_type === 'google_sheet' && 
-            !(data.link.includes('docs.google.com/spreadsheets') || data.link.includes('sheets.google.com'))) {
-          toast.error('Please provide a valid Google Sheets URL for this document type');
-          return;
-        }
-        
-        if (data.document_type === 'google_drive' && 
-            !(data.link.includes('drive.google.com/drive') || data.link.includes('drive.google.com/folder'))) {
-          toast.error('Please provide a valid Google Drive URL for this document type');
-          return;
-        }
-        
-        if (data.document_type === 'pdf' && !data.link.toLowerCase().endsWith('.pdf')) {
-          // Allow PDFs from Google Drive too
-          if (!data.link.includes('drive.google.com') && !data.link.includes('/pdf')) {
-            toast.warning('This URL does not appear to be a direct PDF link. It will be treated as a generic document.');
-          }
-        }
-        
-        // Add the document link
+        // Add the document link - we'll trust the user's selection of document type
         const { data: newLink, error } = await supabase
           .from('document_links')
           .insert({
@@ -104,12 +84,8 @@ export const useDocumentLinks = (clientId?: string) => {
         return newLink.id;
       } catch (error) {
         if (error instanceof Error) {
-          if (error.message.includes('URL')) {
-            toast.error('Please enter a valid URL');
-          } else {
-            console.error('Error adding document link:', error);
-            toast.error('Failed to add document link');
-          }
+          console.error('Error adding document link:', error);
+          toast.error('Failed to add document link');
         }
         throw error;
       } finally {
