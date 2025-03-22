@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -80,7 +81,7 @@ export function ClientAccountForm() {
     
     try {
       // Generate a temporary password
-      const tempPassword = generateTempPassword();
+      const tempPassword: string = generateTempPassword();
       let logoUrl = '';
       let logoStoragePath = '';
       
