@@ -63,7 +63,9 @@ export const useAuthCallback = ({
         // Check if Google SSO user by looking at provider in app_metadata
         const isGoogleUser = callbackSession.user?.app_metadata?.provider === 'google';
         
-        // For Google SSO users, always set role as admin
+        console.log("Google SSO check:", isGoogleUser, callbackSession.user?.app_metadata);
+        
+        // For Google SSO users, always set role as admin and redirect to admin dashboard
         if (isGoogleUser) {
           console.log("Google SSO user detected in callback, setting role as admin");
           setUserRole('admin');

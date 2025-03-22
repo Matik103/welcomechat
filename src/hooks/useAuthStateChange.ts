@@ -55,9 +55,6 @@ export const useAuthStateChange = ({
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Check if we have a stored role
-          const storedRole = sessionStorage.getItem('user_role_set');
-          
           // Check if Google SSO user by looking at provider in app_metadata
           const isGoogleUser = currentSession.user?.app_metadata?.provider === 'google';
           
@@ -65,21 +62,28 @@ export const useAuthStateChange = ({
             console.log("Google SSO user detected in state change, setting role as admin");
             setUserRole('admin');
             sessionStorage.setItem('user_role_set', 'admin');
+            
+            // Only redirect if we're on the auth page or we're not already on an admin page
+            const isAuthPage = location.pathname === '/auth' || location.pathname === '/';
+            const isAdminPage = location.pathname.startsWith('/admin/');
+            
+            if (isAuthPage || !isAdminPage) {
+              console.log("Redirecting Google user to admin dashboard");
+              navigate('/admin/dashboard', { replace: true });
+            }
           } else {
             // Determine role from database for non-Google users
             const determinedUserRole = await determineUserRole(currentSession.user);
             setUserRole(determinedUserRole);
             sessionStorage.setItem('user_role_set', determinedUserRole);
-          }
-          
-          // Only redirect if we're on the auth page
-          const isAuthPage = location.pathname === '/auth' || location.pathname === '/';
-          if (isAuthPage) {
-            // Get the appropriate dashboard route based on whether it's a Google user or not
-            const dashboardRoute = isGoogleUser ? '/admin/dashboard' : getDashboardRoute(await determineUserRole(currentSession.user));
-            console.log("Redirecting to dashboard:", dashboardRoute);
             
-            navigate(dashboardRoute, { replace: true });
+            // Only redirect if we're on the auth page
+            const isAuthPage = location.pathname === '/auth' || location.pathname === '/';
+            if (isAuthPage) {
+              const dashboardRoute = getDashboardRoute(determinedUserRole);
+              console.log("Redirecting to dashboard:", dashboardRoute);
+              navigate(dashboardRoute, { replace: true });
+            }
           }
           
           // Set loading to false immediately

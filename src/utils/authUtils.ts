@@ -9,6 +9,12 @@ export const determineUserRole = async (user: any): Promise<UserRole | null> => 
   if (!user) return null;
 
   try {
+    // Check if Google SSO user by looking at provider in app_metadata
+    if (user.app_metadata?.provider === 'google') {
+      console.log("Google user detected in determineUserRole");
+      return 'admin';
+    }
+    
     // First check if the role is already in user metadata
     if (user.user_metadata?.role) {
       return user.user_metadata.role as UserRole;
