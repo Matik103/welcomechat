@@ -69,46 +69,46 @@ serve(async (req) => {
       to: email,
       subject: "Welcome to Welcome.Chat - Your Account Details",
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h1 style="color: #4f46e5;">Welcome to Welcome.Chat!</h1>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px; background-color: #ffffff;">
+          <div style="text-align: center; margin-bottom: 20px; background-color: #4f46e5; padding: 20px; border-radius: 5px;">
+            <h1 style="color: #ffffff; margin: 0;">Welcome to Welcome.Chat!</h1>
           </div>
           
-          <p>Hello ${clientName},</p>
+          <p style="color: #333333; font-size: 16px;">Hello ${clientName},</p>
           
-          <p>Your AI assistant account${agentInfo} has been created and is ready for configuration. Here are your login credentials:</p>
+          <p style="color: #333333; font-size: 16px;">Your AI assistant account${agentInfo} has been created and is ready for configuration. Here are your login credentials:</p>
           
-          <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <p><strong>Email Address:</strong></p>
-            <p style="color: #4f46e5;">${email}</p>
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #4f46e5;">
+            <p style="color: #333333; font-weight: bold; margin-bottom: 5px;">Email Address:</p>
+            <p style="color: #4f46e5; margin-top: 0; margin-bottom: 15px;">${email}</p>
             
-            <p><strong>Temporary Password:</strong></p>
-            <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${tempPassword}</p>
+            <p style="color: #333333; font-weight: bold; margin-bottom: 5px;">Temporary Password:</p>
+            <p style="color: #4f46e5; font-family: monospace; font-size: 16px; background-color: #eef2ff; padding: 8px; border-radius: 3px; margin-top: 0;">${tempPassword}</p>
           </div>
           
-          <p>To get started:</p>
-          <ol>
+          <p style="color: #333333; font-size: 16px;">To get started:</p>
+          <ol style="color: #333333; font-size: 16px; padding-left: 20px;">
             <li>Click the "Sign In" button below</li>
             <li>Enter your email and temporary password exactly as shown above</li>
             <li>You'll be taken to your client dashboard</li>
             <li>Configure your AI assistant's settings</li>
           </ol>
           
-          <div style="text-align: center; margin: 30px 0;">
+          <div style="text-align: center; margin: 35px 0;">
             <a href="${loginLink}" 
-               style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+               style="background-color: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; font-size: 16px; transition: background-color 0.3s ease;">
               Sign In
             </a>
           </div>
           
           <div style="border-top: 1px solid #e0e0e0; margin-top: 30px; padding-top: 20px;">
-            <p><strong>Security Notice:</strong></p>
-            <p>This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
+            <p style="color: #333333; font-weight: bold; font-size: 16px;">Security Notice:</p>
+            <p style="color: #555555; font-size: 14px;">This invitation will expire in 48 hours. For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
           </div>
           
-          <p>Best regards,<br>The Welcome.Chat Team</p>
+          <p style="color: #333333; font-size: 16px; margin-top: 25px;">Best regards,<br>The Welcome.Chat Team</p>
           
-          <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
+          <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px; border-top: 1px solid #e0e0e0; padding-top: 20px;">
             © ${new Date().getFullYear()} Welcome.Chat. All rights reserved.
           </div>
         </div>
