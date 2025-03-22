@@ -1,7 +1,12 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
+import { useLocation } from 'react-router-dom';
+import { useAuthCallback } from '@/hooks/useAuthCallback';
+import { useAuthInitialize } from '@/hooks/useAuthInitialize';
+import { useAuthState } from '@/hooks/useAuthState';
+import { useAuthStateChange } from '@/hooks/useAuthStateChange';
 
 export type UserRole = 'admin' | 'client' | 'user' | null;
 
@@ -30,73 +35,50 @@ export const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Initialize auth state
-  useEffect(() => {
-    const initializeAuth = async () => {
-      setIsLoading(true);
-      
-      // Get current session
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setUser(session.user);
-        
-        // Get user role from Supabase
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
-        
-        if (data && !error) {
-          setUserRole(data.role as UserRole);
-        } else {
-          console.error('Error fetching user role:', error);
-          setUserRole(null);
-        }
-      }
-      
-      setIsLoading(false);
-    };
-
-    initializeAuth();
-
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user || null);
-        
-        if (session?.user) {
-          // Get user role on auth state change
-          const { data, error } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .single();
-          
-          if (data && !error) {
-            setUserRole(data.role as UserRole);
-          } else {
-            console.error('Error fetching user role:', error);
-            setUserRole(null);
-          }
-        } else {
-          setUserRole(null);
-        }
-        
-        setIsLoading(false);
-      }
-    );
-
-    // Clean up subscription
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const location = useLocation();
+  const isCallbackUrl = location.pathname.includes('/auth/callback');
+  
+  // Use the combined auth state
+  const {
+    session,
+    setSession,
+    user,
+    setUser,
+    userRole,
+    setUserRole,
+    isLoading,
+    setIsLoading,
+    authInitialized,
+    setAuthInitialized
+  } = useAuthState();
+  
+  // Use the auth callback handler for OAuth flows
+  useAuthCallback({
+    isCallbackUrl,
+    setSession,
+    setUser,
+    setUserRole,
+    setIsLoading
+  });
+  
+  // Use the auth state change handler
+  useAuthStateChange({
+    setSession,
+    setUser,
+    setUserRole,
+    setIsLoading
+  });
+  
+  // Use the auth initialization handler
+  useAuthInitialize({
+    authInitialized,
+    isCallbackUrl,
+    setSession,
+    setUser,
+    setUserRole,
+    setIsLoading,
+    setAuthInitialized
+  });
 
   // Auth methods
   const signIn = async (email: string, password: string) => {

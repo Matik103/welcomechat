@@ -101,10 +101,10 @@ export const useAuthCallback = ({
       }
     };
     
-    // Add a small delay to allow other auth processes to settle
+    // Execute the callback handler with a small delay to ensure the session is available
     const timeoutId = setTimeout(() => {
       handleCallback();
-    }, 300);
+    }, 500);
     
     return () => {
       clearTimeout(timeoutId);
