@@ -21,7 +21,7 @@ export default function CreateClientAccount() {
       // await createOpenAIAssistant(
       //   clientId,
       //   data.agent_name,
-      //   data.agent_description,
+      //   data.agent_description, // Use agent_description here
       //   data.client_name
       // );
       
