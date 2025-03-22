@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { 
@@ -20,15 +21,6 @@ interface ActivityItemProps {
     agent_name?: string;
     agent_description?: string;
   };
-}
-
-// Define a simple interface for agent data
-interface AgentData {
-  name?: string;
-  client_name?: string;
-  settings?: {
-    client_name?: string;
-  } | null;
 }
 
 const getActivityIcon = (type: string, metadata: Json) => {
@@ -96,116 +88,8 @@ const getActivityIcon = (type: string, metadata: Json) => {
 };
 
 export const ActivityItem = ({ item }: ActivityItemProps) => {
-  const [resolvedClientName, setResolvedClientName] = useState<string | null>(null);
-  
-  // Fetch client name from ai_agents table if needed
-  useEffect(() => {
-    // Only fetch if we have a client_id but no proper client_name
-    // or if client_name looks like an ID (starts with "Client" followed by hexadecimal)
-    if (
-      item.client_id && 
-      (!item.client_name || 
-       item.client_name === "Unknown Client" ||
-       item.client_name === "System Activity" ||
-       item.client_name.startsWith("Client ") ||
-       /^[a-f0-9]{6,}$/i.test(item.client_name))
-    ) {
-      const fetchClientName = async () => {
-        try {
-          // Query ai_agents table to get the client name
-          const { data, error } = await supabase
-            .from('ai_agents')
-            .select('name, settings, client_name')
-            .eq('client_id', item.client_id)
-            .eq('interaction_type', 'config')
-            .order('updated_at', { ascending: false })
-            .limit(1);
-          
-          if (error) {
-            console.error("Error fetching client name:", error);
-            return;
-          }
-          
-          if (data && data.length > 0) {
-            const agentData = data[0] as AgentData;
-            
-            // Determine best client name from the result
-            const settingsClientName = agentData.settings?.client_name;
-            const directClientName = agentData.client_name;
-            const agentName = agentData.name;
-            
-            const clientName = 
-              (settingsClientName && typeof settingsClientName === 'string' && settingsClientName.trim() !== '' 
-                ? settingsClientName 
-                : null) || 
-              (directClientName && typeof directClientName === 'string' && directClientName.trim() !== '' 
-                ? directClientName 
-                : null) || 
-              (agentName && typeof agentName === 'string' && agentName.trim() !== '' 
-                ? agentName 
-                : null);
-            
-            if (clientName) {
-              setResolvedClientName(clientName);
-            }
-          }
-        } catch (err) {
-          console.error("Error resolving client name:", err);
-        }
-      };
-      
-      fetchClientName();
-    }
-  }, [item.client_id, item.client_name]);
-  
-  // Get client name, with improved fallbacks
-  const getClientName = (): string => {
-    // First, use our resolved name from the database if we have it
-    if (resolvedClientName) {
-      return resolvedClientName;
-    }
-    
-    // Next check for the client_name from our enriched data
-    if (item.client_name && typeof item.client_name === 'string' && item.client_name.trim().length > 0) {
-      // Check if it's not an ID-like string or "Unknown Client"
-      if (
-        item.client_name !== "Unknown Client" && 
-        item.client_name !== "System Activity" &&
-        !item.client_name.startsWith("Client ") &&
-        !/^[a-f0-9]{6,}$/i.test(item.client_name)
-      ) {
-        return item.client_name;
-      }
-    }
-    
-    // Then check metadata for client_name
-    if (item.metadata && typeof item.metadata === 'object' && item.metadata !== null) {
-      const metadata = item.metadata as Record<string, any>;
-      
-      // Try client_name first
-      if (metadata.client_name && typeof metadata.client_name === 'string' && metadata.client_name.trim().length > 0) {
-        const mdClientName = String(metadata.client_name);
-        if (!/^[a-f0-9]{6,}$/i.test(mdClientName) && mdClientName !== "Unknown Client") {
-          return mdClientName;
-        }
-      }
-      
-      // Try name as fallback
-      if (metadata.name && typeof metadata.name === 'string' && metadata.name.trim().length > 0) {
-        return String(metadata.name);
-      }
-    }
-    
-    // For system updates or activities without a client
-    if (!item.client_id || item.activity_type === 'system_update') {
-      return "System";
-    }
-    
-    // As a last resort, show "Unknown Client" instead of the ID
-    return "Unknown Client";
-  };
-  
-  const clientName = getClientName();
+  // Use the properly resolved client name that comes from useRecentActivities hook
+  const clientName = item.client_name || "System";
     
   return (
     <div className="flex items-center gap-4 py-3 animate-slide-in">
