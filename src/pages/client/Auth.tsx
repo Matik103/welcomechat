@@ -15,7 +15,7 @@ const ClientAuth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { session, isLoading, userRole } = useAuth();
+  const { user, isLoading, userRole } = useAuth();
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [searchParams] = useSearchParams();
   const autoReactivate = searchParams.get("auto_reactivate") === "true";
@@ -40,7 +40,7 @@ const ClientAuth = () => {
   }
 
   // Redirect if already authenticated
-  if (session) {
+  if (user) {
     // If auto reactivate is in the URL, handle account reactivation
     if (autoReactivate && clientId) {
       // Async function to reactivate the account
