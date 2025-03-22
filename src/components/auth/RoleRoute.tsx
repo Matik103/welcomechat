@@ -1,35 +1,41 @@
 
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
-import { UserRole } from "@/types/auth";
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import type { UserRole } from '@/contexts/AuthContext';
 
-type RoleRouteProps = {
+interface RoleRouteProps {
   children: React.ReactNode;
   allowedRoles: UserRole[];
-};
+  redirectTo?: string;
+}
 
-export const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
-  const { user, isLoading, userRole } = useAuth();
-  const location = useLocation();
+const RoleRoute = ({ 
+  children, 
+  allowedRoles, 
+  redirectTo = '/login' 
+}: RoleRouteProps) => {
+  const { user, userRole, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
-  if (!userRole || !allowedRoles.includes(userRole)) {
-    // Redirect admin to admin dashboard, clients to client dashboard
-    const redirectPath = userRole === 'admin' ? '/' : '/client/dashboard';
-    return <Navigate to={redirectPath} replace />;
+  if (!allowedRoles.includes(userRole)) {
+    // Redirect to an unauthorized page or dashboard based on role
+    if (userRole === 'client') {
+      return <Navigate to="/client/dashboard" replace />;
+    } else if (userRole === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;
 };
+
+export default RoleRoute;

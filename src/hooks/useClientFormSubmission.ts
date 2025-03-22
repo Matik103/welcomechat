@@ -25,6 +25,17 @@ export const useClientFormSubmission = (
       
       // Check for agent name or description changes to log appropriate activity
       const widgetSettings = data.widget_settings || {};
+
+      // Create metadata with rich client information
+      const activityMetadata = {
+        widget_settings: {
+          agent_name: widgetSettings.agent_name,
+          agent_description: widgetSettings.agent_description,
+          logo_url: widgetSettings.logo_url
+        },
+        client_name: data.client_name,
+        email: data.email
+      };
       
       // Perform the client mutation (create or update)
       const result = await clientMutation.mutateAsync(data);
@@ -34,13 +45,7 @@ export const useClientFormSubmission = (
         await logClientActivity(
           "client_updated", 
           "Updated client information",
-          {
-            widget_settings: {
-              agent_name: widgetSettings.agent_name,
-              agent_description: widgetSettings.agent_description,
-              logo_url: widgetSettings.logo_url
-            }
-          }
+          activityMetadata
         );
         toast.success("Your information has been updated", { id: initialToastId });
       } else {
@@ -49,13 +54,7 @@ export const useClientFormSubmission = (
           await logClientActivity(
             "client_updated", 
             "Admin updated client information",
-            {
-              widget_settings: {
-                agent_name: widgetSettings.agent_name,
-                agent_description: widgetSettings.agent_description,
-                logo_url: widgetSettings.logo_url
-              }
-            }
+            activityMetadata
           );
           toast.success("Client updated successfully", { id: initialToastId });
         } else {
@@ -137,6 +136,17 @@ export const useClientFormSubmission = (
                 toast.error("Client created but invitation email failed to send", { id: initialToastId });
               } else {
                 toast.success("Client created successfully and invitation sent", { id: initialToastId });
+                
+                // Log the client creation with the client name
+                await logClientActivity(
+                  "client_created", 
+                  "New client created with AI agent",
+                  {
+                    client_name: data.client_name,
+                    email: data.email,
+                    agent_name: widgetSettings.agent_name
+                  }
+                );
               }
             } catch (emailErr) {
               console.error("Error sending welcome email:", emailErr);
