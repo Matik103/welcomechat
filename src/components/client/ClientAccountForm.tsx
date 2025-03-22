@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -51,7 +50,9 @@ export function ClientAccountForm() {
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result) {
-        setLogoPreview(e.target.result as string);
+        // Fix the type issue by ensuring we're working with a string
+        const result = e.target.result;
+        setLogoPreview(typeof result === 'string' ? result : null);
       }
     };
     reader.readAsDataURL(file);
