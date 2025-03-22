@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WebsiteUrls } from '@/components/client/WebsiteUrls';
@@ -6,10 +5,9 @@ import { DriveLinks } from '@/components/client/DriveLinks';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentProcessing } from '@/hooks/useDocumentProcessing';
-import { ExtendedActivityType } from '@/types/activity';
+import { ActivityType } from '@/types/client';
 import { Json } from '@/integrations/supabase/types';
-import { ValidationResult } from '@/types/document-processing';
-import { WebsiteUrlFormData } from '@/types/website-url';
+import { ValidationResult, WebsiteUrlFormData } from '@/types/website-url';
 import { DocumentLinkFormData } from '@/types/document-processing';
 
 interface ClientResourceSectionsProps {
@@ -17,7 +15,7 @@ interface ClientResourceSectionsProps {
   agentName: string;
   className?: string;
   isClientView?: boolean;
-  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
+  logClientActivity: (activity_type: ActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
 export const ClientResourceSections = ({
@@ -27,11 +25,9 @@ export const ClientResourceSections = ({
   isClientView = false,
   logClientActivity
 }: ClientResourceSectionsProps) => {
-  // State for URL validation
   const [validatingUrl, setValidatingUrl] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
 
-  // Get website URLs - explicitly handle mutation props
   const {
     websiteUrls,
     isLoading: isLoadingUrls,
@@ -39,7 +35,6 @@ export const ClientResourceSections = ({
     deleteWebsiteUrlMutation
   } = useWebsiteUrls(clientId);
 
-  // Get document links - explicitly handle mutation props
   const {
     documentLinks,
     isLoading: isLoadingDocs,
@@ -47,17 +42,14 @@ export const ClientResourceSections = ({
     deleteDocumentLink
   } = useDocumentLinks(clientId);
 
-  // Get document processing
   const {
     handleDocumentUpload,
     isUploading
   } = useDocumentProcessing(clientId, agentName);
 
-  // Validate URL function
   const validateUrl = async (url: string): Promise<ValidationResult> => {
     setValidatingUrl(true);
     try {
-      // Mock validation for now
       const result: ValidationResult = {
         isValid: true,
         message: "URL validated successfully",
@@ -79,9 +71,6 @@ export const ClientResourceSections = ({
     }
   };
 
-  /**
-   * Enhanced addWebsiteUrl with activity logging
-   */
   const addWebsiteUrl = async (data: WebsiteUrlFormData) => {
     try {
       await addWebsiteUrlMutation.mutateAsync(data);
@@ -102,9 +91,6 @@ export const ClientResourceSections = ({
     }
   };
 
-  /**
-   * Enhanced deleteWebsiteUrl with activity logging
-   */
   const deleteWebsiteUrl = async (urlId: number) => {
     try {
       const urlToDelete = websiteUrls?.find(url => url.id === urlId);
@@ -128,9 +114,6 @@ export const ClientResourceSections = ({
     }
   };
 
-  /**
-   * Enhanced addDocumentLink with activity logging
-   */
   const handleAddDocumentLink = async (data: DocumentLinkFormData) => {
     try {
       await addDocumentLink.mutateAsync(data);
@@ -152,9 +135,6 @@ export const ClientResourceSections = ({
     }
   };
 
-  /**
-   * Enhanced deleteDocumentLink with activity logging
-   */
   const handleDeleteDocumentLink = async (linkId: number) => {
     try {
       const linkToDelete = documentLinks?.find(link => link.id === linkId);
@@ -179,9 +159,6 @@ export const ClientResourceSections = ({
     }
   };
 
-  /**
-   * Enhanced uploadDocument with activity logging
-   */
   const uploadDocument = async (file: File) => {
     try {
       await handleDocumentUpload(file);
@@ -217,7 +194,10 @@ export const ClientResourceSections = ({
 
         <TabsContent value="websites">
           <WebsiteUrls
-            urls={websiteUrls || []}
+            urls={websiteUrls?.map(url => ({
+              ...url,
+              refresh_rate: url.refresh_rate || 30
+            })) || []}
             isLoading={isLoadingUrls}
             onAdd={addWebsiteUrl}
             onDelete={deleteWebsiteUrl}

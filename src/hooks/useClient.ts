@@ -90,21 +90,37 @@ function mapAgentToClient(agentData: any): Client {
     agentData.name || 
     '';
   
+  // Get the status and ensure it conforms to the Client status type
+  const status = agentData.status || 'active';
+  const validStatus: 'active' | 'inactive' | 'deleted' = 
+    (status === 'active' || status === 'inactive' || status === 'deleted') 
+      ? status as 'active' | 'inactive' | 'deleted'
+      : 'active';
+  
   return {
     id: String(agentData.id || ''),
+    user_id: String(agentData.user_id || ''),
     client_name: clientName,
+    company: String(agentData.company || ''),
+    description: agentData.description || null,
     email: String(agentData.email || agentData.settings?.email || ''),
     logo_url: String(agentData.logo_url || agentData.settings?.logo_url || ''),
     logo_storage_path: String(agentData.logo_storage_path || agentData.settings?.logo_storage_path || ''),
     created_at: String(agentData.created_at || ''),
     updated_at: String(agentData.updated_at || ''),
-    deletion_scheduled_at: agentData.deletion_scheduled_at ? String(agentData.deletion_scheduled_at) : undefined,
-    deleted_at: agentData.deleted_at ? String(agentData.deleted_at) : undefined,
-    status: String(agentData.status || 'active'),
+    deletion_scheduled_at: agentData.deletion_scheduled_at || null,
+    deleted_at: agentData.deleted_at || null,
+    drive_link: agentData.drive_link || null,
+    drive_link_added_at: agentData.drive_link_added_at || null,
+    status: validStatus,
     agent_name: String(agentData.name || ''),
-    description: String(agentData.agent_description || ''),
     name: String(agentData.name || ''),
+    agent_description: String(agentData.agent_description || ''),
     last_active: agentData.last_active ? String(agentData.last_active) : undefined,
     widget_settings: agentData.settings || {},
+    urls: agentData.urls || [],
+    drive_urls: agentData.drive_urls || [],
+    is_error: agentData.is_error || false,
+    error_message: agentData.error_message || null
   };
 }
