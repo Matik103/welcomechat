@@ -39,7 +39,7 @@ export interface ClientFormData {
   logo_storage_path?: string;
 }
 
-// Add these missing type definitions
+// Updated WebsiteUrl to match the expected type
 export interface WebsiteUrl {
   id: number;
   client_id: string;
@@ -47,7 +47,8 @@ export interface WebsiteUrl {
   created_at: string;
   last_crawled: string | null;
   refresh_rate: number | null;
-  status: string | null;
+  status: "pending" | "processing" | "completed" | "failed" | null;
+  notified_at?: string | null;
 }
 
 export interface DocumentLink {

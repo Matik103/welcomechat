@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { ExtendedActivityType } from "@/types/activity";
@@ -112,12 +111,11 @@ export const updateClient = async (
       // Create a storage path for the logo
       const fileExt = data._tempLogoFile.name.split('.').pop();
       const fileName = `${clientId}-logo-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const storagePath = `clients/${clientId}/logos/${fileName}`;
+      const storagePath = `${clientId}/logos/${fileName}`;
       
-      // FIXED: Use correct bucket name - "client-assets"
-      // Upload the file to storage
+      // Upload the file to client_documents bucket instead of client-assets
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client-assets')
+        .from('client_documents')
         .upload(storagePath, data._tempLogoFile, {
           cacheControl: '3600',
           upsert: true
@@ -130,7 +128,7 @@ export const updateClient = async (
       
       // Get public URL for the uploaded file
       const { data: publicUrlData } = supabase.storage
-        .from('client-assets')
+        .from('client_documents')
         .getPublicUrl(storagePath);
       
       const publicUrl = publicUrlData?.publicUrl;
@@ -243,9 +241,9 @@ export const scheduleClientDeletion = async (
     const deletionScheduledTime = new Date();
     deletionScheduledTime.setDate(deletionScheduledTime.getDate() + 30);
     
-    // Use SQL for updating clients
+    // Use SQL for updating ai_agents
     const query = `
-      UPDATE clients
+      UPDATE ai_agents
       SET deletion_scheduled_at = $1, status = $2
       WHERE id = $3
     `;
@@ -271,7 +269,7 @@ export const deleteClient = async (clientId: string): Promise<void> => {
   try {
     // Use SQL for updating client deletion status
     const query = `
-      UPDATE clients
+      UPDATE ai_agents
       SET deleted_at = $1, status = $2
       WHERE id = $3
     `;
@@ -293,9 +291,9 @@ export const deleteClient = async (clientId: string): Promise<void> => {
  */
 export const getClientById = async (clientId: string): Promise<any | null> => {
   try {
-    // Use SQL to query clients
+    // Use execSql to query the database instead of direct Supabase access
     const query = `
-      SELECT * FROM clients
+      SELECT * FROM ai_agents
       WHERE id = $1
       LIMIT 1
     `;
