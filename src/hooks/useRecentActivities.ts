@@ -45,7 +45,7 @@ export const useRecentActivities = () => {
       // If we have client IDs, fetch their names and details
       if (clientIds.length > 0) {
         try {
-          // Enhanced query to get more complete client information with proper column aliases
+          // Simplified query with clearer aliases to avoid type issues
           const agentDetailsQuery = `
             SELECT 
               client_id, 
@@ -74,7 +74,7 @@ export const useRecentActivities = () => {
                 // Initialize or get existing entry
                 clientInfoMap[clientId] = clientInfoMap[clientId] || {};
                 
-                // Determine best client name, checking all possible sources
+                // Determine best client name, checking all possible sources with explicit typing
                 const settingsClientName = agent.settings_client_name;
                 const directClientName = agent.client_name;
                 const agentName = agent.name;
