@@ -25,70 +25,50 @@ export const ValidationResult = ({ link, type }: ValidationResultProps) => {
       setIsValidating(true);
       
       try {
-        if (type === 'website') {
-          // Use the FirecrawlService validation for websites
-          const validation = FirecrawlService.validateUrl(link);
-          setIsValid(validation.isValid);
-          setErrorMessage(validation.error || null);
-        } 
-        else if (type === 'google-drive') {
-          // Basic validation for Google Drive links
-          try {
-            // Check if it's a valid URL format
-            new URL(link);
+        // For all types, first check if it's a valid URL format
+        try {
+          new URL(link);
+          
+          // Simple type-specific checks
+          if (type === 'website') {
+            // Use the FirecrawlService validation for websites
+            const validation = FirecrawlService.validateUrl(link);
+            setIsValid(validation.isValid);
+            setErrorMessage(validation.error || null);
+          } 
+          else if (type === 'google-drive') {
+            // Relaxed validation for Google Drive links - just check if it contains any Google domain
+            const isGoogleLink = link.includes('google.com');
             
-            const isDriveLink = link.includes('drive.google.com') || 
-                               link.includes('docs.google.com') ||
-                               link.includes('sheets.google.com');
-            
-            if (!isDriveLink) {
+            if (!isGoogleLink) {
               setIsValid(false);
-              setErrorMessage('Link does not appear to be a Google Drive link.');
-              setIsValidating(false);
-              return;
+              setErrorMessage('URL does not appear to be a Google link');
+            } else {
+              setIsValid(true);
             }
-            
-            // Basic format validation passed
-            setIsValid(true);
-            setErrorMessage(null);
-          } catch (err) {
-            setIsValid(false);
-            setErrorMessage('Invalid URL format');
           }
-        }
-        else if (type === 'pdf') {
-          try {
-            // Check if it's a valid URL format
-            new URL(link);
-            
-            const isPdfLink = link.toLowerCase().endsWith('.pdf');
+          else if (type === 'pdf') {
+            // For PDFs, either ends with .pdf or contains PDF in the path (for Google Drive PDFs)
+            const isPdfLink = link.toLowerCase().endsWith('.pdf') || 
+                             link.toLowerCase().includes('/pdf') || 
+                             link.toLowerCase().includes('pdf/') ||
+                             link.toLowerCase().includes('pdf=');
             
             if (!isPdfLink) {
-              setIsValid(false);
-              setErrorMessage('URL does not appear to be a PDF link.');
-              setIsValidating(false);
-              return;
+              // Not strictly a PDF link but still valid URL
+              setIsValid(true);
+              setErrorMessage('URL does not appear to be a PDF link, but will be accepted');
+            } else {
+              setIsValid(true);
             }
-            
-            // Basic format validation passed
-            setIsValid(true);
-            setErrorMessage(null);
-          } catch (err) {
-            setIsValid(false);
-            setErrorMessage('Invalid URL format');
           }
-        }
-        else {
-          // Basic validation for other types
-          try {
-            // Just check if it's a valid URL
-            new URL(link);
+          else {
+            // For all other types, just accept any valid URL
             setIsValid(true);
-            setErrorMessage(null);
-          } catch (err) {
-            setIsValid(false);
-            setErrorMessage('Invalid URL format');
           }
+        } catch (err) {
+          setIsValid(false);
+          setErrorMessage('Invalid URL format');
         }
       } catch (err) {
         console.error('Error validating link:', err);
