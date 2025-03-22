@@ -1,79 +1,122 @@
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useClientFormValidation } from "./useClientFormValidation";
+import { Client } from "@/types/client";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Client, ClientFormData } from "@/types/client";
-
-const clientFormSchema = z.object({
-  client_name: z.string().min(2, "Client name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  widget_settings: z.object({
-    agent_name: z.string().min(1, "Agent name is required"),
-    agent_description: z.string().optional(),
-    logo_url: z.string().optional(),
-    logo_storage_path: z.string().optional(),
-  }),
-  _tempLogoFile: z.any().optional(),
-});
 
 export const useClientForm = (initialData?: Client | null, isClientView = false) => {
-  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [tempLogoFile, setTempLogoFile] = useState<File | null>(null);
+  const { schema } = useClientFormValidation(isClientView);
+  
+  // Get agent description from initialData if available
+  // Look for it in widget_settings first (new approach) or ai_agents relation if available
+  const agentDescription = initialData?.widget_settings && 
+                          typeof initialData.widget_settings === 'object' ? 
+                          (initialData.widget_settings as any).agent_description || "" : 
+                          "";
+  
+  // Get agent_name from widget_settings or from the top-level property
+  const agentName = initialData?.widget_settings && 
+                   typeof initialData.widget_settings === 'object' && 
+                   (initialData.widget_settings as any).agent_name ? 
+                   (initialData.widget_settings as any).agent_name : 
+                   initialData?.agent_name || "Chat";
 
-  // Set default values based on initial data or empty values
-  const defaultValues = {
-    client_name: initialData?.client_name || "",
-    email: initialData?.email || "",
-    widget_settings: {
-      agent_name: initialData?.agent_name || initialData?.name || initialData?.widget_settings?.agent_name || "AI Assistant",
-      agent_description: initialData?.agent_description || initialData?.widget_settings?.agent_description || "",
-      logo_url: initialData?.logo_url || initialData?.widget_settings?.logo_url || "",
-      logo_storage_path: initialData?.logo_storage_path || initialData?.widget_settings?.logo_storage_path || "",
-    },
-    _tempLogoFile: null as File | null,
-  };
+  // Get logo url from widget settings
+  const logoUrl = initialData?.widget_settings && 
+                 typeof initialData.widget_settings === 'object' ? 
+                 (initialData.widget_settings as any).logo_url || "" : 
+                 initialData?.logo_url || "";
 
+  const logoStoragePath = initialData?.widget_settings && 
+                         typeof initialData.widget_settings === 'object' ? 
+                         (initialData.widget_settings as any).logo_storage_path || "" : 
+                         initialData?.logo_storage_path || "";
+  
+  // Setup form with validation schema
   const form = useForm({
-    resolver: zodResolver(clientFormSchema),
-    defaultValues,
+    defaultValues: {
+      client_name: initialData?.client_name || "",
+      email: initialData?.email || "",
+      agent_name: agentName,
+      logo_url: logoUrl,
+      logo_storage_path: logoStoragePath,
+      agent_description: agentDescription
+    },
+    resolver: zodResolver(schema)
   });
 
-  // Watch values
-  const watchedValues = form.watch();
+  // Sync form with initialData when it changes
+  useEffect(() => {
+    if (initialData) {
+      const agentDescription = initialData.widget_settings && 
+                              typeof initialData.widget_settings === 'object' ? 
+                              (initialData.widget_settings as any).agent_description || "" : 
+                              "";
+      
+      const agentName = initialData.widget_settings && 
+                       typeof initialData.widget_settings === 'object' && 
+                       (initialData.widget_settings as any).agent_name ? 
+                       (initialData.widget_settings as any).agent_name : 
+                       initialData.agent_name || "Chat";
 
+      const logoUrl = initialData.widget_settings && 
+                     typeof initialData.widget_settings === 'object' ? 
+                     (initialData.widget_settings as any).logo_url || "" : 
+                     initialData.logo_url || "";
+
+      const logoStoragePath = initialData.widget_settings && 
+                             typeof initialData.widget_settings === 'object' ? 
+                             (initialData.widget_settings as any).logo_storage_path || "" : 
+                             initialData.logo_storage_path || "";
+      
+      form.reset({
+        client_name: initialData.client_name || "",
+        email: initialData.email || "",
+        agent_name: agentName,
+        logo_url: logoUrl,
+        logo_storage_path: logoStoragePath,
+        agent_description: agentDescription
+      });
+    }
+  }, [initialData, form]);
+
+  // Handle logo file changes
   const handleLogoChange = (file: File | null) => {
-    setLogoFile(file);
-    form.setValue("_tempLogoFile", file);
+    setTempLogoFile(file);
+    
+    if (file) {
+      console.log("Logo file selected:", file.name);
+    } else {
+      console.log("Logo file cleared");
+    }
   };
 
-  const prepareFormData = (formData: any): ClientFormData => {
-    const clientFormData: ClientFormData = {
-      client_name: formData.client_name,
-      email: formData.email,
-      widget_settings: {
-        agent_name: formData.widget_settings.agent_name,
-        agent_description: formData.widget_settings.agent_description,
-        logo_url: formData.widget_settings.logo_url,
-        logo_storage_path: formData.widget_settings.logo_storage_path,
-      },
-      _tempLogoFile: logoFile,
+  // Prepare form data for submission - now separating client data from widget settings
+  const prepareFormData = (data: any) => {
+    // Create widget settings object
+    const widgetSettings = {
+      agent_name: data.agent_name,
+      agent_description: data.agent_description,
+      logo_url: data.logo_url || "",
+      logo_storage_path: data.logo_storage_path || ""
     };
-
-    if (isClientView) {
-      // In client view, we need to be careful not to overwrite some fields
-      if (initialData) {
-        if (!clientFormData.widget_settings) {
-          clientFormData.widget_settings = {};
-        }
-      }
-    }
-
-    return clientFormData;
+    
+    // Only include client-specific data at the top level
+    const formData = {
+      client_name: data.client_name,
+      email: data.email,
+      _tempLogoFile: tempLogoFile,
+      widget_settings: widgetSettings
+    };
+    
+    return formData;
   };
 
   return {
     form,
     handleLogoChange,
-    prepareFormData,
+    prepareFormData
   };
 };

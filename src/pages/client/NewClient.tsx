@@ -4,7 +4,6 @@ import { ClientRegistrationForm } from "@/components/forms/ClientRegistrationFor
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { TestEmailComponent } from "@/components/client/TestEmailComponent";
-import { generateTempPassword } from "@/utils/clientCreationUtils";
 
 export default function NewClient() {
   const navigate = useNavigate();
@@ -15,7 +14,7 @@ export default function NewClient() {
       const loadingToastId = toast.loading("Creating AI agent and sending welcome email...");
       
       // Generate a temporary password
-      const tempPassword = generateTempPassword();
+      const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
       
       // Create the client/agent in ai_agents table
       const { data: clientData, error: clientError } = await supabase
@@ -42,29 +41,7 @@ export default function NewClient() {
 
       if (clientError) throw new Error(clientError.message);
       
-      console.log("Client created successfully with ID:", clientData.id);
-      
-      // Store the temporary password in the database
-      const { error: passwordError } = await supabase
-        .from("client_temp_passwords")
-        .insert({
-          agent_id: clientData.id,
-          email: data.email,
-          temp_password: tempPassword
-        });
-        
-      if (passwordError) {
-        console.error("Error saving temporary password:", passwordError);
-        toast.error(`Client created but failed to save credentials: ${passwordError.message}`, {
-          id: loadingToastId,
-          duration: 6000
-        });
-        return;
-      }
-      
-      console.log("Temporary password saved successfully, now sending welcome email");
-      
-      // Call the send-welcome-email edge function
+      // Call the edge function to send the welcome email
       const { data: emailResult, error: emailError } = await supabase.functions.invoke(
         'send-welcome-email', 
         {
@@ -77,8 +54,6 @@ export default function NewClient() {
           }
         }
       );
-      
-      console.log("Email function response:", emailResult, "Error:", emailError);
       
       if (emailError) {
         console.error("Email sending error:", emailError);

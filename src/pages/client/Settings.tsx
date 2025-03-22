@@ -1,105 +1,132 @@
-import { useState, useEffect } from 'react';
+
+import { useEffect, useState } from "react";
+import { execSql } from "@/utils/rpcUtils";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { Client } from "@/types/client";
-import { Card } from "@/components/ui/card";
-import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Loader2, Info as InfoIcon } from "lucide-react";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { SecuritySection } from "@/components/settings/SecuritySection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
-import { extractWidgetSettings } from "@/utils/widgetSettingsUtils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, InfoIcon } from "lucide-react";
+import { toast } from "sonner";
 
-const Settings = () => {
+const ClientSettings = () => {
   const { user } = useAuth();
-  const [client, setClient] = useState<Client | null>(null);
+  const [clientInfo, setClientInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  
-  const clientId = user?.user_metadata?.client_id;
-  
-  const getLogoUrl = (data: any): string => {
-    try {
-      if (typeof data?.logo_url === 'string') {
-        return data.logo_url;
-      }
-      
-      if (typeof data?.settings?.logo_url === 'string') {
-        return data.settings.logo_url;
-      }
-      
-      if (typeof data?.widget_settings?.logo_url === 'string') {
-        return data.widget_settings.logo_url;
-      }
-      
-      return '';
-    } catch (err) {
-      console.error("Error extracting logo URL:", err);
-      return '';
-    }
-  };
-  
+  const [error, setError] = useState<string | null>(null);
+  const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
+
   useEffect(() => {
-    const fetchClientData = async () => {
-      if (!clientId) {
-        setIsLoading(false);
+    let isMounted = true;
+    
+    // Set a timeout to ensure we don't get stuck in a loading state - reduced from 5000 to 1000
+    const timeout = setTimeout(() => {
+      if (isMounted) {
+        setLoadTimeout(true);
+      }
+    }, 1000);
+
+    const fetchClientInfo = async () => {
+      if (!user?.email) {
+        if (isMounted) {
+          setIsLoading(false);
+        }
         return;
       }
       
-      setIsLoading(true);
-      
       try {
-        const { data, error } = await supabase
-          .from('ai_agents')
-          .select('*')
-          .eq('id', clientId)
-          .maybeSingle();
-          
-        if (error) {
-          throw error;
+        console.log("Fetching client info for email:", user.email);
+        
+        // Use execSql instead of directly accessing the clients table
+        const query = `
+          SELECT * FROM clients
+          WHERE email = '${user.email}'
+          LIMIT 1
+        `;
+        
+        const result = await execSql(query);
+        
+        if (!result || !Array.isArray(result) || result.length === 0) {
+          throw new Error("Client not found");
         }
         
-        if (data) {
-          const clientData: Client = {
-            id: data.id,
-            client_id: data.client_id,
-            client_name: data.client_name || '',
-            email: data.email || '',
-            agent_name: data.name,
-            agent_description: data.agent_description,
-            logo_url: data.logo_url,
-            logo_storage_path: data.logo_storage_path,
-            status: data.status,
-            widget_settings: extractWidgetSettings(data),
-          };
-          
-          setClient(clientData);
-        } else {
-          setError(new Error("Client not found"));
+        const clientData = result[0];
+        console.log("Client info fetched:", clientData);
+        
+        if (isMounted) {
+          setClientInfo(clientData);
         }
-      } catch (err: any) {
-        console.error("Error fetching client data:", err);
-        setError(err);
+      } catch (error: any) {
+        console.error("Error in fetchClientInfo:", error);
+        if (isMounted) {
+          setError(error.message || "Failed to load client information");
+          toast.error("Failed to load client information");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     
-    fetchClientData();
-  }, [clientId]);
-  
-  if (isLoading) {
+    fetchClientInfo();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+    };
+  }, [user]);
+
+  // If we've been loading for too long or there's a data issue, try to provide a graceful experience
+  if ((isLoading && loadTimeout) || (!isLoading && !clientInfo && !error && user)) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] p-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
+            <p className="text-gray-500">Manage your account preferences</p>
+          </div>
+
+          <ProfileSection 
+            initialFullName={user?.user_metadata?.full_name || ""}
+            initialEmail={user?.email || ""}
+          />
+
+          <SecuritySection />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <InfoIcon className="h-5 w-5" />
+                Client Information
+              </CardTitle>
+              <CardDescription>
+                Information about your AI assistant
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-500">There was an issue loading your client information. Your core account settings are still accessible above.</p>
+            </CardContent>
+          </Card>
+
+          <SignOutSection />
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading && !loadTimeout) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] p-8 flex items-center justify-center flex-col">
-        <div className="text-red-500 mb-4">Error loading settings: {error.message}</div>
+        <div className="text-red-500 mb-4">Error loading settings: {error}</div>
         <button 
           onClick={() => window.location.reload()} 
           className="px-4 py-2 bg-primary text-white rounded-md"
@@ -109,7 +136,7 @@ const Settings = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-4">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -136,46 +163,32 @@ const Settings = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {client ? (
+            {clientInfo ? (
               <>
                 <div>
                   <p className="text-sm text-gray-500">Company Name</p>
-                  <p className="font-medium">{client.client_name}</p>
+                  <p className="font-medium">{clientInfo.client_name}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">AI Assistant Name</p>
-                  <p className="font-medium">{client.agent_name || client.name}</p>
+                  <p className="font-medium">{clientInfo.agent_name}</p>
                 </div>
-                {(client.description || client.agent_description) && (
+                {clientInfo.description && (
                   <div>
                     <p className="text-sm text-gray-500">Description</p>
-                    <p className="font-medium">{client.description || client.agent_description}</p>
-                  </div>
-                )}
-                {getLogoUrl(client) && (
-                  <div>
-                    <p className="text-sm text-gray-500">Logo</p>
-                    <img 
-                      src={getLogoUrl(client)} 
-                      alt="AI Assistant Logo" 
-                      className="h-12 w-12 object-contain mt-1 border border-gray-200 rounded"
-                      onError={(e) => {
-                        console.error("Error loading logo in settings:", getLogoUrl(client));
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
+                    <p className="font-medium">{clientInfo.description}</p>
                   </div>
                 )}
                 <div>
                   <p className="text-sm text-gray-500">Status</p>
                   <span
                     className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      client.status === "active"
+                      clientInfo.status === "active"
                         ? "bg-green-100 text-green-700"
                         : "bg-gray-100 text-gray-600"
                     }`}
                   >
-                    {client.status || "active"}
+                    {clientInfo.status || "active"}
                   </span>
                 </div>
               </>
@@ -191,4 +204,4 @@ const Settings = () => {
   );
 };
 
-export default Settings;
+export default ClientSettings;

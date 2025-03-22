@@ -1,100 +1,70 @@
 
-import { Client, ClientFormData } from "@/types/client";
-import { useState, useEffect } from "react";
+import { Client } from "@/types/client";
 import { useClientForm } from "@/hooks/useClientForm";
-import { Form } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
 import { ClientNameField } from "./form-fields/ClientNameField";
 import { EmailField } from "./form-fields/EmailField";
 import { AgentNameField } from "./form-fields/AgentNameField";
 import { AgentDescriptionField } from "./form-fields/AgentDescriptionField";
 import { LogoField } from "./form-fields/LogoField";
-import { Loader2 } from "lucide-react";
+import { FormActions } from "./form-fields/FormActions";
+import { useEffect } from "react";
 
 interface ClientFormProps {
   initialData?: Client | null;
-  onSubmit: (data: ClientFormData) => Promise<void>;
+  onSubmit: (data: { 
+    client_name: string; 
+    email: string; 
+    agent_name?: string;
+    logo_url?: string;
+    logo_storage_path?: string;
+    _tempLogoFile?: File | null;
+  }) => Promise<void>;
   isLoading?: boolean;
   isClientView?: boolean;
 }
 
-export function ClientForm({
-  initialData,
-  onSubmit,
-  isLoading = false,
-  isClientView = false,
-}: ClientFormProps) {
+export const ClientForm = ({ 
+  initialData, 
+  onSubmit, 
+  isLoading = false, 
+  isClientView = false
+}: ClientFormProps) => {
   const { form, handleLogoChange, prepareFormData } = useClientForm(initialData, isClientView);
-  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
-
-  // Set initial logo preview URL from initial data
+  
+  // Re-initialize form when initialData changes (e.g., when admin switches clients)
   useEffect(() => {
     if (initialData) {
-      let logoUrl = '';
-      
-      // First, check logo_url directly in the client object (ai_agents data)
-      if (initialData.logo_url) {
-        logoUrl = initialData.logo_url;
-        console.log("Found logo_url directly on client object:", logoUrl);
-      }
-      
-      // Fallback to checking widget_settings
-      if (!logoUrl && initialData.widget_settings && typeof initialData.widget_settings === 'object') {
-        logoUrl = (initialData.widget_settings as any).logo_url || '';
-        console.log("Found logo_url in widget_settings:", logoUrl);
-      }
-      
-      if (logoUrl) {
-        setLogoPreviewUrl(logoUrl);
-        console.log("Setting initial logo preview URL:", logoUrl);
-      } else {
-        console.log("No logo URL found in client data");
-        setLogoPreviewUrl(null);
-      }
+      form.reset({
+        client_name: initialData.client_name || "",
+        email: initialData.email || "",
+        agent_name: initialData.agent_name || initialData.name || 
+          (initialData.widget_settings && (initialData.widget_settings as any).agent_name) || "",
+        agent_description: (initialData.widget_settings && (initialData.widget_settings as any).agent_description) || "",
+        logo_url: initialData.logo_url || (initialData.widget_settings && (initialData.widget_settings as any).logo_url) || "",
+        logo_storage_path: initialData.logo_storage_path || 
+          (initialData.widget_settings && (initialData.widget_settings as any).logo_storage_path) || ""
+      });
     }
-  }, [initialData]);
+  }, [initialData, form]);
 
-  const handleSubmitForm = async (formData: any) => {
-    const clientFormData = prepareFormData(formData);
-    await onSubmit(clientFormData);
-  };
-
-  const handleLogoUpload = (file: File | null) => {
-    handleLogoChange(file);
-    
-    // Generate preview URL for the selected file
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setLogoPreviewUrl(url);
-      console.log("Created preview URL for uploaded logo:", url);
-    } else {
-      setLogoPreviewUrl(null);
-      console.log("Cleared logo preview URL");
-    }
+  const handleFormSubmit = async (data: any) => {
+    console.log("ClientForm submitting data:", data);
+    await onSubmit(prepareFormData(data));
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmitForm)} className="space-y-6">
-        <div className="space-y-4">
-          <ClientNameField control={form} />
-          <EmailField control={form} />
-          <AgentNameField control={form} isClientView={isClientView} />
-          <AgentDescriptionField control={form} isRequired={isClientView} />
-          <LogoField 
-            control={form} 
-            onLogoChange={handleLogoUpload} 
-            logoPreviewUrl={logoPreviewUrl}
-          />
-        </div>
-
-        <div className="flex justify-start pt-4">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Changes
-          </Button>
-        </div>
-      </form>
-    </Form>
+    <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+      <ClientNameField form={form} />
+      <EmailField form={form} />
+      <AgentNameField form={form} isClientView={isClientView} />
+      <AgentDescriptionField form={form} isClientView={isClientView} />
+      <LogoField form={form} onLogoFileChange={handleLogoChange} />
+      
+      <FormActions 
+        isLoading={isLoading} 
+        isClientView={isClientView}
+        hasInitialData={!!initialData}
+      />
+    </form>
   );
-}
+};

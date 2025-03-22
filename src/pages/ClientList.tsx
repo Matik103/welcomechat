@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -6,14 +7,14 @@ import { ClientListTable } from '@/components/client/ClientListTable';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { Button } from '@/components/ui/button';
 import { Client } from '@/types/client';
-import { Loader2, Plus, RefreshCcw } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { execSql } from '@/utils/rpcUtils';
 import { toast } from 'sonner';
 import { DeleteClientDialog } from '@/components/client/DeleteClientDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
-const ClientList = () => {
+export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -133,7 +134,7 @@ const ClientList = () => {
   };
 
   const handleAddClientClick = () => {
-    navigate('/admin/clients/create');
+    navigate('/admin/clients/new');
   };
 
   if (error) {
@@ -153,15 +154,20 @@ const ClientList = () => {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Client Management</h1>
-        <Button
-          onClick={handleAddClientClick}
-          className="bg-primary text-white hover:bg-primary/90"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Add Client
-        </Button>
+        <PageHeading>
+          Client Management
+          <p className="text-sm font-normal text-muted-foreground">
+            View and manage all your clients
+          </p>
+        </PageHeading>
+        <div className="flex gap-2">
+          <Button className="flex items-center gap-2" onClick={handleAddClientClick}>
+            <Plus className="w-4 h-4" />
+            Add Client
+          </Button>
+        </div>
       </div>
 
       <ClientSearchBar 
@@ -190,7 +196,7 @@ const ClientList = () => {
           </p>
           {!searchQuery && (
             <Button onClick={handleAddClientClick}>
-              <Plus className="w-4 h-4 mr-2" /> Add Your First Client
+              Add Your First Client
             </Button>
           )}
         </div>
@@ -211,6 +217,4 @@ const ClientList = () => {
       />
     </div>
   );
-};
-
-export default ClientList;
+}

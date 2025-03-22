@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
 serve(async (req) => {
@@ -15,52 +15,47 @@ serve(async (req) => {
       headers: corsHeaders
     });
   }
-
+  
   try {
-    // Check for Resend API key
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const hasResendKey = !!resendApiKey;
+    console.log("Test-env function started");
     
-    // Format information about the key for debugging
-    let resendKeyFormat = "Not present";
-    if (hasResendKey) {
-      if (resendApiKey.startsWith("re_")) {
-        resendKeyFormat = `Valid format (starts with re_), length: ${resendApiKey.length}`;
-      } else {
-        resendKeyFormat = `Invalid format (doesn't start with re_), length: ${resendApiKey.length}`;
-      }
-    }
-
-    // Return environment information (without revealing actual secrets)
+    // Get environment variables
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    console.log("Environment check:", {
+      hasResendKey: !!resendApiKey,
+      hasSupabaseUrl: !!supabaseUrl,
+      hasSupabaseKey: !!supabaseKey,
+      resendKeyLength: resendApiKey?.length || 0,
+      resendKeyPrefix: resendApiKey?.substring(0, 3) || "none"
+    });
+    
     return new Response(
-      JSON.stringify({
+      JSON.stringify({ 
         success: true,
-        timestamp: new Date().toISOString(),
-        environment: Deno.env.get("ENVIRONMENT") || "development",
-        hasResendKey,
-        resendKeyFormat,
-        serviceUrl: Deno.env.get("SUPABASE_URL") || "Not set",
-        publicUrl: Deno.env.get("PUBLIC_SITE_URL") || "Not set"
+        hasResendKey: !!resendApiKey,
+        resendKeyValid: resendApiKey?.startsWith("re_") || false,
+        hasSupabaseUrl: !!supabaseUrl,
+        hasSupabaseKey: !!supabaseKey
       }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
-  } catch (error) {
+  } catch (err) {
+    console.error("Error in test-env function:", err);
+    
     return new Response(
-      JSON.stringify({
+      JSON.stringify({ 
         success: false,
-        error: error.message || "Unknown error checking environment",
-        details: {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        }
+        error: err.message || "Failed to check environment"
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
   }

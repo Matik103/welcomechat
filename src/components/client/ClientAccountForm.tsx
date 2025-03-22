@@ -1,167 +1,318 @@
-
-import { useState } from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { Card, CardContent } from '@/components/ui/card';
-import { LogoUpload } from '@/components/client/LogoUpload';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Loader2, Upload } from 'lucide-react';
+import { generateTempPassword, saveClientTempPassword, logClientCreationActivity } from '@/utils/clientCreationUtils';
 
-// Client form schema
-const clientFormSchema = z.object({
-  client_name: z.string().min(2, "Client name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  agent_name: z.string().min(2, "Agent name must be at least 2 characters").default("AI Assistant"),
-  agent_description: z.string().optional(),
-  _tempLogoFile: z.any().optional(),
-});
-
-type ClientFormData = z.infer<typeof clientFormSchema>;
-
-interface ClientAccountFormProps {
-  onSubmit: (data: ClientFormData) => Promise<void>;
-  isLoading: boolean;
-}
-
-export const ClientAccountForm = ({ onSubmit, isLoading }: ClientAccountFormProps) => {
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  
-  const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientFormSchema),
-    defaultValues: {
-      client_name: '',
-      email: '',
-      agent_name: 'AI Assistant',
-      agent_description: '',
-      _tempLogoFile: null,
-    },
+export function ClientAccountForm() {
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    clientName: '',
+    email: '',
+    agentName: 'AI Assistant',
+    agentDescription: '',
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const toastShownRef = useRef<string | null>(null);
 
-  const handleLogoChange = (file: File | null) => {
-    setLogoFile(file);
-    form.setValue('_tempLogoFile', file);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFormSubmit = async (data: ClientFormData) => {
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file size and type
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Logo file must be less than 5MB");
+      return;
+    }
+    
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Please select a valid image file (JPG, PNG, GIF, SVG, WebP)");
+      return;
+    }
+    
+    setLogoFile(file);
+    
+    // Generate preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setLogoPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.clientName || !formData.email) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    // Reset the toast reference to ensure we don't block new toasts with the same ID
+    toastShownRef.current = null;
+    
+    const loadingToast = toast.loading("Creating client account...");
+    toastShownRef.current = loadingToast;
+    
     try {
-      // Include the logo file in the submission
-      const formData = {
-        ...data,
-        _tempLogoFile: logoFile,
-      };
+      // Generate a temporary password
+      const tempPassword = generateTempPassword();
+      let logoUrl = '';
+      let logoStoragePath = '';
       
-      await onSubmit(formData);
-    } catch (error) {
-      console.error('Form submission error:', error);
+      // Upload logo if exists
+      if (logoFile) {
+        const fileName = `${Date.now()}-${logoFile.name}`;
+        const filePath = `widget-logos/${fileName}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('widget-logos')
+          .upload(filePath, logoFile);
+        
+        if (uploadError) {
+          throw new Error(`Logo upload failed: ${uploadError.message}`);
+        }
+        
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('widget-logos')
+          .getPublicUrl(filePath);
+        
+        logoUrl = publicUrl;
+        logoStoragePath = filePath;
+      }
+      
+      // Create client in ai_agents table
+      const { data: clientData, error: clientError } = await supabase
+        .from('ai_agents')
+        .insert({
+          name: formData.agentName,
+          client_name: formData.clientName,
+          email: formData.email,
+          agent_description: formData.agentDescription,
+          logo_url: logoUrl,
+          logo_storage_path: logoStoragePath,
+          content: '',
+          interaction_type: 'config',
+          settings: {
+            client_name: formData.clientName,
+            email: formData.email,
+            agent_name: formData.agentName,
+            agent_description: formData.agentDescription,
+            logo_url: logoUrl,
+            logo_storage_path: logoStoragePath
+          }
+        })
+        .select('id')
+        .single();
+      
+      if (clientError) {
+        throw new Error(`Client creation failed: ${clientError.message}`);
+      }
+      
+      // Save the client credentials and create auth user
+      await saveClientTempPassword(clientData.id, formData.email, tempPassword);
+      
+      // Log client activity
+      await logClientCreationActivity(
+        clientData.id, 
+        formData.clientName,
+        formData.email,
+        formData.agentName
+      );
+      
+      // Send welcome email
+      const { data: emailData, error: emailError } = await supabase.functions.invoke(
+        'send-welcome-email',
+        {
+          body: {
+            clientId: clientData.id,
+            clientName: formData.clientName,
+            email: formData.email,
+            agentName: formData.agentName,
+            tempPassword: tempPassword
+          }
+        }
+      );
+      
+      if (emailError) {
+        console.error("Email sending error:", emailError);
+        toast.error("Client created but welcome email failed to send", { id: loadingToast });
+      } else if (emailData && !emailData.success) {
+        console.error("Email sending failed:", emailData.error);
+        toast.error("Client created but welcome email failed to send", { id: loadingToast });
+      } else {
+        toast.success("Client created successfully and welcome email sent", { id: loadingToast });
+      }
+      
+      // Reset form
+      setFormData({
+        clientName: '',
+        email: '',
+        agentName: 'AI Assistant',
+        agentDescription: '',
+      });
+      setLogoFile(null);
+      setLogoPreview(null);
+      
+      // Navigate back to clients list
+      navigate('/admin/clients');
+      
+    } catch (error: any) {
+      console.error('Error creating client:', error);
+      
+      // Only update the toast if it's the same one we created
+      if (toastShownRef.current === loadingToast) {
+        toast.error(`Failed to create client: ${error.message}`, { id: loadingToast });
+      } else {
+        toast.error(`Failed to create client: ${error.message}`);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-        <div className="space-y-6">
-          <FormField
-            control={form.control}
-            name="client_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-base font-medium">Client Name *</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="Enter client name" 
-                    className="h-10"
-                    {...field} 
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="clientName">Client Name *</Label>
+          <Input
+            id="clientName"
+            name="clientName"
+            value={formData.clientName}
+            onChange={handleChange}
+            placeholder="Enter client name"
+            disabled={isSubmitting}
+            required
           />
+        </div>
 
-          <FormField
-            control={form.control}
+        <div>
+          <Label htmlFor="email">Email Address *</Label>
+          <Input
+            id="email"
             name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-base font-medium">Email Address *</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="email" 
-                    placeholder="Enter email address" 
-                    className="h-10"
-                    {...field} 
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="Enter email address"
+            disabled={isSubmitting}
+            required
           />
+          <p className="text-xs text-gray-500 mt-1">The welcome email and login details will be sent to this address</p>
+        </div>
 
-          <div className="border-t border-gray-200 pt-6">
-            <h3 className="text-lg font-medium mb-4">AI Assistant Settings</h3>
-            
-            <FormField
-              control={form.control}
-              name="agent_name"
-              render={({ field }) => (
-                <FormItem className="mb-6">
-                  <FormLabel className="text-base font-medium">Assistant Name</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Enter assistant name" 
-                      className="h-10"
-                      {...field} 
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <div className="pt-4 border-t">
+          <h3 className="text-lg font-medium mb-4">AI Assistant Settings</h3>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="agentName">AI Assistant Name</Label>
+              <Input
+                id="agentName"
+                name="agentName"
+                value={formData.agentName}
+                onChange={handleChange}
+                placeholder="Enter AI assistant name"
+                disabled={isSubmitting}
+              />
+              <p className="text-xs text-gray-500 mt-1">Default is "AI Assistant" if left empty</p>
+            </div>
 
-            <FormField
-              control={form.control}
-              name="agent_description"
-              render={({ field }) => (
-                <FormItem className="mb-6">
-                  <FormLabel className="text-base font-medium">Assistant Description</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Enter assistant description" 
-                      className="min-h-[100px] resize-y"
-                      {...field} 
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="mb-6">
-              <FormLabel className="text-base font-medium block mb-2">Assistant Logo</FormLabel>
-              <Card className="border border-gray-200">
-                <CardContent className="p-4">
-                  <LogoUpload onLogoChange={handleLogoChange} />
-                </CardContent>
-              </Card>
+            <div>
+              <Label htmlFor="agentDescription">AI Assistant Description</Label>
+              <Textarea
+                id="agentDescription"
+                name="agentDescription"
+                value={formData.agentDescription}
+                onChange={handleChange}
+                placeholder="Describe what this AI assistant does and how it can help users"
+                disabled={isSubmitting}
+                rows={4}
+              />
+              <p className="text-xs text-gray-500 mt-1">This description helps define how your AI assistant interacts with users</p>
             </div>
           </div>
         </div>
 
-        <Button 
-          type="submit" 
-          className="w-full mt-6"
-          disabled={isLoading}
-        >
-          {isLoading ? "Creating Account..." : "Create Client Account"}
+        <div>
+          <Label>AI Assistant Logo</Label>
+          <div className="mt-2 flex items-center gap-4">
+            {logoPreview ? (
+              <div className="relative inline-block">
+                <img
+                  src={logoPreview}
+                  alt="Logo preview"
+                  className="w-16 h-16 rounded object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center text-xs shadow-md"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => fileInputRef.current?.click()}
+                className="h-16 w-16 flex flex-col items-center justify-center gap-1 border-dashed"
+              >
+                <Upload className="h-5 w-5" />
+                <span className="text-xs">Upload</span>
+              </Button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleLogoChange}
+              accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp"
+              className="hidden"
+            />
+            <div className="text-sm text-gray-500">
+              <p>Recommended: 512×512px</p>
+              <p>Max size: 5MB</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-4 pt-4">
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Create Client
         </Button>
-      </form>
-    </Form>
+        <Button type="button" variant="outline" onClick={() => navigate('/admin/clients')} disabled={isSubmitting}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
-};
+}

@@ -1,7 +1,6 @@
 
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,9 +82,6 @@ serve(async (req) => {
       console.error("ERROR: Invalid RESEND_API_KEY format");
       throw new Error("Email service not configured: Invalid API key format");
     }
-    
-    // Create Resend instance
-    const resend = new Resend(resendApiKey);
     
     const { to, subject, html, from } = body;
     

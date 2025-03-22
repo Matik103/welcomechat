@@ -1,45 +1,97 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { generateSecurePassword } from "@/utils/passwordUtils";
 
 /**
  * Generates a temporary password for client accounts
  * @returns A randomly generated temporary password
  */
 export const generateTempPassword = (): string => {
-  // Generate a password with random uppercase, lowercase, numbers and special chars
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
-  let password = '';
-  
-  // Generate first part - Welcome + year
+  // Generate a more secure password format: Welcome{Year}#{3 random digits}
   const currentYear = new Date().getFullYear();
-  
-  // Generate second part - 3 random digits
   const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-  
-  // Combine for a password like "Welcome2024#123"
-  password = `Welcome${currentYear}#${randomDigits}`;
-  
-  return password;
+  return `Welcome${currentYear}#${randomDigits}`;
 };
 
 /**
- * Saves a temporary password for a client in the database
+ * Saves a temporary password for a client
+ * @param clientId The client ID
+ * @param email The client's email address
+ * @param tempPassword The temporary password
  */
 export const saveClientTempPassword = async (
-  agentId: string,
+  clientId: string,
   email: string,
   tempPassword: string
 ): Promise<void> => {
-  const { error } = await supabase
-    .from("client_temp_passwords")
-    .insert({
-      agent_id: agentId,
-      email: email,
-      temp_password: tempPassword
-    });
+  try {
+    const { error } = await supabase
+      .from("client_temp_passwords")
+      .insert({
+        agent_id: clientId,
+        email: email,
+        temp_password: tempPassword
+      });
     
-  if (error) {
-    console.error("Error saving client temporary password:", error);
-    throw new Error("Failed to save client credentials");
+    if (error) {
+      console.error("Error saving temporary password:", error);
+      throw error;
+    }
+    
+    // Create auth user with the same password
+    const { data: userData, error: createUserError } = await supabase.functions.invoke(
+      'create-client-user',
+      {
+        body: {
+          email: email,
+          client_id: clientId,
+          temp_password: tempPassword
+        }
+      }
+    );
+    
+    if (createUserError) {
+      console.error("Error creating user auth:", createUserError);
+      // We continue as the temp password is saved
+    } else {
+      console.log("User auth created successfully:", userData);
+    }
+    
+  } catch (err) {
+    console.error("Failed to save client temp password:", err);
+    toast.error("Failed to set up client credentials");
+  }
+};
+
+/**
+ * Logs client creation activity
+ * @param clientId The client ID
+ * @param clientName The client name
+ * @param email The client's email
+ * @param agentName The agent name
+ */
+export const logClientCreationActivity = async (
+  clientId: string,
+  clientName: string,
+  email: string,
+  agentName: string
+): Promise<void> => {
+  try {
+    await supabase
+      .from("client_activities")
+      .insert({
+        client_id: clientId,
+        activity_type: "client_created",
+        description: `New client created: ${clientName}`,
+        metadata: {
+          client_name: clientName,
+          email: email,
+          agent_name: agentName
+        }
+      });
+  } catch (err) {
+    console.error("Failed to log client creation activity:", err);
+    // Non-critical error, just log it
   }
 };
