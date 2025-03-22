@@ -52,15 +52,13 @@ export const WebsiteResourcesSection = ({
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
           table: 'website_urls',
           filter: `client_id=eq.${clientId}`
         },
         (payload) => {
           console.log("Real-time website URL update received:", payload);
-          // No need to call refetch manually as the useWebsiteUrls hook will handle this
-          // through the queryClient.invalidateQueries mechanism
         }
       )
       .subscribe();

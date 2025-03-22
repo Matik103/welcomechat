@@ -106,8 +106,9 @@ export default function ClientList() {
         return [];
       }
     },
-    refetchInterval: 30 * 1000,
+    refetchInterval: 5000,
     refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const formatClient = (client: Client): any => {

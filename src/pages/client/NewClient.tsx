@@ -4,9 +4,11 @@ import { ClientRegistrationForm } from "@/components/forms/ClientRegistrationFor
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { TestEmailComponent } from "@/components/client/TestEmailComponent";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function NewClient() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (data: any) => {
     try {
@@ -16,6 +18,9 @@ export default function NewClient() {
       // Generate a temporary password
       const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
       
+      console.log("Creating client with data:", data);
+      console.log("Using temporary password:", tempPassword);
+
       // Create the client/agent in ai_agents table
       const { data: clientData, error: clientError } = await supabase
         .from('ai_agents')
@@ -24,7 +29,7 @@ export default function NewClient() {
           email: data.email,
           company: data.company || null,
           name: data.bot_settings?.bot_name || "AI Assistant",
-          agent_description: data.bot_settings?.bot_personality || "", // Use agent_description field directly
+          agent_description: data.bot_settings?.bot_personality || "", 
           content: "",
           interaction_type: 'config',
           settings: {
@@ -41,6 +46,22 @@ export default function NewClient() {
 
       if (clientError) throw new Error(clientError.message);
       
+      console.log("Client created successfully:", clientData);
+      
+      // Save the temporary password
+      const { error: passwordError } = await supabase
+        .from("client_temp_passwords")
+        .insert({
+          agent_id: clientData.id,
+          email: data.email,
+          temp_password: tempPassword
+        });
+        
+      if (passwordError) {
+        console.error("Error saving temporary password:", passwordError);
+        // Continue even if password save fails
+      }
+
       // Call the edge function to send the welcome email
       const { data: emailResult, error: emailError } = await supabase.functions.invoke(
         'send-welcome-email', 
@@ -97,7 +118,9 @@ export default function NewClient() {
         // Continue even if assistant creation fails
       }
       
-      console.log("Client created successfully:", clientData);
+      // Force refresh of client list
+      await queryClient.invalidateQueries({ queryKey: ['clients'] });
+      
       navigate("/admin/clients");
     } catch (error: any) {
       console.error("Error creating client:", error);

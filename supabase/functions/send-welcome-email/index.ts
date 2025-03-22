@@ -35,6 +35,8 @@ serve(async (req) => {
     const body = await req.json();
     const { clientId, clientName, email, agentName, tempPassword } = body;
     
+    console.log("Processing welcome email request:", { clientId, clientName, email, tempPassword: !!tempPassword });
+    
     // Validate required parameters
     if (!clientId || !clientName || !email || !tempPassword) {
       console.error("Missing required parameters:", { clientId, clientName, email, tempPassword: !!tempPassword });
@@ -49,7 +51,7 @@ serve(async (req) => {
 
     console.log("Sending welcome email with login link:", loginLink);
 
-    // Save the temporary password in the database
+    // Save the temporary password in the database (again, just to be sure)
     const { error: passwordError } = await supabase
       .from("client_temp_passwords")
       .insert({
@@ -60,7 +62,7 @@ serve(async (req) => {
       
     if (passwordError) {
       console.error("Error saving temporary password:", passwordError);
-      throw new Error("Failed to save client credentials");
+      // Continue even if password save fails
     }
 
     // Send the email using Resend
