@@ -1,3 +1,4 @@
+
 /**
  * Extended types for the client application
  */
@@ -6,6 +7,7 @@ import { Json } from "@/types/supabase-extensions";
 
 export interface Client {
   id: string;
+  client_id?: string; // Added to support the field used in useClient.ts
   client_name: string;
   email: string;
   logo_url?: string;
