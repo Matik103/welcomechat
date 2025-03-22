@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -6,6 +5,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import { PrivateRoute } from './components/auth/PrivateRoute';
 import { RoleRoute } from './components/auth/RoleRoute';
+import CreateClientAccount from './pages/CreateClientAccount';
 
 // Import the ensure buckets utility
 import { ensureStorageBuckets } from './utils/ensureStorageBuckets';
@@ -63,7 +63,7 @@ function App() {
             {/* Common routes */}
             <Route path="/clients" element={<PrivateRoute><div>Clients Page</div></PrivateRoute>} />
             <Route path="/clients/:id" element={<PrivateRoute><div>Edit Client Info Page</div></PrivateRoute>} />
-            <Route path="/create-client-account" element={<PrivateRoute><div>Create Client Account Page</div></PrivateRoute>} />
+            <Route path="/create-client-account" element={<PrivateRoute><CreateClientAccount /></PrivateRoute>} />
             
             {/* Default route */}
             <Route path="/" element={<Navigate to="/dashboard" />} />
