@@ -16,8 +16,8 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
     setUploadResult(null);
 
     try {
-      // Show initial toast
-      toast.loading(`Uploading document: ${file.name}`);
+      // Show a single toast that will be updated as the process progresses
+      const toastId = toast.loading(`Processing document: ${file.name}`);
       
       // Create complete options by merging with defaults
       const processingOptions: DocumentProcessingOptions = {
@@ -32,18 +32,14 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
       // Step 1: Upload the document to storage
       const documentPath = await uploadDocument(file, processingOptions);
       
-      toast.loading(`Processing document with LlamaParse: ${file.name}`);
+      // Update toast to indicate document is now processing in the background
+      toast.success(`Document uploaded successfully`, { id: toastId });
       
-      // Step 2: Process the document with LlamaParse
+      // Step 2: Process the document with LlamaParse (happens in the background)
       const result = await processDocument(documentPath, processingOptions);
       
-      // Step 3: Notify the user
-      if (result.success) {
-        toast.success(`Document "${file.name}" uploaded and processing started`);
-      } else {
-        toast.error(`Error processing document: ${result.error}`);
-      }
-      
+      // No need to show another toast here since processing happens in background
+
       setUploadResult(result);
       return result;
     } catch (error) {
