@@ -45,10 +45,10 @@ export const useRecentActivities = () => {
       // If we have client IDs, fetch their names and details
       if (clientIds.length > 0) {
         try {
-          // Fetch client names directly from ai_agents
+          // Use the same approach as Client Management page - directly query ai_agents
           const { data: clientsData, error: clientsError } = await supabase
             .from('ai_agents')
-            .select('client_id, name, settings, client_name, email, agent_description')
+            .select('client_id, name, settings, client_name, email')
             .in('client_id', clientIds)
             .eq('interaction_type', 'config');
             
@@ -79,16 +79,50 @@ export const useRecentActivities = () => {
                   (typeof agentName === 'string' && agentName.trim() !== '' ? agentName : null) || 
                   null;
                 
-                // Update with agent data
                 clientInfoMap[clientId] = {
                   ...clientInfoMap[clientId],
                   clientName: clientName,
                   email: typeof agent.email === 'string' ? agent.email : null,
-                  agentName: typeof agent.name === 'string' ? agent.name : null,
-                  agentDescription: typeof agent.agent_description === 'string' ? agent.agent_description : null
+                  agentName: typeof agent.name === 'string' ? agent.name : null
                 };
               }
             });
+          }
+          
+          // Also try querying by ID for any clients we couldn't find
+          const missingClientIds = clientIds.filter(id => !clientInfoMap[id]);
+          if (missingClientIds.length > 0) {
+            // Try to fetch by ID (for cases where client_id might be the id field)
+            const { data: additionalClientData, error: additionalError } = await supabase
+              .from('ai_agents')
+              .select('id, name, settings, client_name, email')
+              .in('id', missingClientIds)
+              .eq('interaction_type', 'config');
+              
+            if (!additionalError && additionalClientData && additionalClientData.length > 0) {
+              additionalClientData.forEach((agent: any) => {
+                if (agent && typeof agent === 'object' && agent.id) {
+                  const clientId = agent.id;
+                  
+                  // Determine best client name
+                  const settingsClientName = agent.settings?.client_name;
+                  const directClientName = agent.client_name;
+                  const agentName = agent.name;
+                  
+                  const clientName = 
+                    (typeof settingsClientName === 'string' && settingsClientName.trim() !== '' ? settingsClientName : null) || 
+                    (typeof directClientName === 'string' && directClientName.trim() !== '' ? directClientName : null) || 
+                    (typeof agentName === 'string' && agentName.trim() !== '' ? agentName : null) || 
+                    null;
+                  
+                  clientInfoMap[clientId] = {
+                    clientName: clientName,
+                    email: typeof agent.email === 'string' ? agent.email : null,
+                    agentName: typeof agent.name === 'string' ? agent.name : null
+                  };
+                }
+              });
+            }
           }
           
           // Map activities with client information
@@ -113,10 +147,9 @@ export const useRecentActivities = () => {
             
             return {
               ...activity,
-              client_name: clientInfo.clientName || clientName || "System Activity",
+              client_name: clientInfo.clientName || clientName || (clientId ? clientId : "System"),
               client_email: clientInfo.email || null,
-              agent_name: clientInfo.agentName || null,
-              agent_description: clientInfo.agentDescription || null
+              agent_name: clientInfo.agentName || null
             };
           });
         } catch (err) {
@@ -127,7 +160,7 @@ export const useRecentActivities = () => {
       // If all else fails, return activities with a generic info
       return activities.map(activity => ({
         ...activity,
-        client_name: activity.client_id ? "System Activity" : "System"
+        client_name: activity.client_id ? activity.client_id : "System"
       }));
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute
