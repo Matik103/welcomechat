@@ -15,14 +15,14 @@ export interface Client {
   drive_urls: string[];
   email: string;
   agent_name?: string;
-  name?: string; // Added for compatibility
-  agent_description?: string; // Added for OpenAI assistant system prompt
-  logo_url?: string;
-  logo_storage_path?: string;
-  updated_at?: string;
+  name: string;
+  agent_description: string;
+  logo_url: string;
+  logo_storage_path: string;
+  updated_at: string;
   last_active?: string;
-  is_error?: boolean; // Added for compatibility with ai_agents table
-  error_message?: string; // Added for compatibility with ai_agents table
+  is_error: boolean;
+  error_message: string | null;
 }
 
 export interface AIAgent {
@@ -37,7 +37,6 @@ export interface AIAgent {
   query_text?: string;
   response_time_ms?: number;
   is_error?: boolean;
-  error_type?: string;
   error_message?: string;
   error_status?: string;
   topic?: string;
@@ -63,7 +62,7 @@ export interface WebsiteUrl {
   created_at: string;
   last_crawled?: string | null;
   refresh_rate: number;
-  status?: string | null;
+  status?: "pending" | "processing" | "completed" | "failed" | null;
 }
 
 export interface DocumentLink {
@@ -128,8 +127,20 @@ export type ActivityType =
   | 'logo_uploaded'
   | 'ai_agent_table_created'
   | 'source_added'
-  | 'source_deleted';
-  
+  | 'source_deleted'
+  | 'document_link_added'
+  | 'document_link_deleted';
+
+export type ExtendedActivityType = ActivityType | string;
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
 export type Database = {
   public: {
     Tables: {
@@ -457,13 +468,3 @@ export type Database = {
     }
   }
 }
-
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
-
-export type ExtendedActivityType = ActivityType | string;

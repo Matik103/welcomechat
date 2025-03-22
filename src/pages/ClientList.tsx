@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -65,7 +64,6 @@ export default function ClientList() {
           const clientName = settings.client_name || record.client_name || record.name || 'Unnamed Client';
           const email = settings.email || record.email || '';
           
-          // Create client mapping with all necessary properties from the updated Client interface
           const client: Client = {
             id: record.client_id || record.id,
             user_id: record.user_id || '',
@@ -112,6 +110,19 @@ export default function ClientList() {
     refetchInterval: 30 * 1000,
     refetchOnWindowFocus: true,
   });
+
+  const formatClient = (client: Client): any => {
+    return {
+      id: client.id,
+      client_name: client.client_name,
+      agent_name: client.agent_name || client.name,
+      email: client.email,
+      status: client.status,
+      updated_at: client.updated_at,
+      last_active: client.last_active,
+      is_error: client.is_error
+    };
+  };
 
   useEffect(() => {
     if (clients && clients.length > 0) {
@@ -232,3 +243,4 @@ export default function ClientList() {
     </div>
   );
 }
+

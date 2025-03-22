@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WebsiteUrls } from '@/components/client/WebsiteUrls';
@@ -119,7 +120,7 @@ export const ClientResourceSections = ({
       await addDocumentLink.mutateAsync(data);
       
       await logClientActivity(
-        'document_link_added',
+        'document_link_added' as ActivityType, // Cast to ActivityType since it's in our type definition
         `Added ${data.document_type} link: ${data.link}`,
         {
           link: data.link,
@@ -142,7 +143,7 @@ export const ClientResourceSections = ({
       
       if (linkToDelete) {
         await logClientActivity(
-          'document_link_deleted',
+          'document_link_deleted' as ActivityType, // Cast to ActivityType
           `Deleted ${linkToDelete.document_type} link: ${linkToDelete.link}`,
           {
             link: linkToDelete.link,
