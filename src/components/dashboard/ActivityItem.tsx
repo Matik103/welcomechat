@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { 
   Users, Settings, Link, UserPlus, Edit, Trash2, 
@@ -7,6 +7,7 @@ import {
   Key, LogOut, FileText, Mail, ShieldAlert, Calendar
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ActivityItemProps {
   item: {
@@ -87,13 +88,76 @@ const getActivityIcon = (type: string, metadata: Json) => {
 };
 
 export const ActivityItem = ({ item }: ActivityItemProps) => {
+  const [resolvedClientName, setResolvedClientName] = useState<string | null>(null);
+  
+  // Fetch client name from ai_agents table if needed
+  useEffect(() => {
+    // Only fetch if we have a client_id but no proper client_name
+    if (
+      item.client_id && 
+      (!item.client_name || 
+       item.client_name === "Unknown Client" ||
+       item.client_name.startsWith("Client ") ||
+       /^[a-f0-9]{6,}$/i.test(item.client_name))
+    ) {
+      const fetchClientName = async () => {
+        try {
+          // Query ai_agents table to get the client name
+          const { data, error } = await supabase
+            .from('ai_agents')
+            .select('name, settings->client_name as client_name, client_name as direct_client_name')
+            .eq('client_id', item.client_id)
+            .eq('interaction_type', 'config')
+            .order('updated_at', { ascending: false })
+            .limit(1);
+          
+          if (error) {
+            console.error("Error fetching client name:", error);
+            return;
+          }
+          
+          if (data && data.length > 0) {
+            // Determine best client name from the result
+            const agentData = data[0];
+            const clientName = 
+              (agentData.client_name && typeof agentData.client_name === 'string' && agentData.client_name.trim() !== '' 
+                ? agentData.client_name 
+                : null) || 
+              (agentData.direct_client_name && typeof agentData.direct_client_name === 'string' && agentData.direct_client_name.trim() !== '' 
+                ? agentData.direct_client_name 
+                : null) || 
+              (agentData.name && typeof agentData.name === 'string' && agentData.name.trim() !== '' 
+                ? agentData.name 
+                : null);
+            
+            if (clientName) {
+              setResolvedClientName(clientName);
+            }
+          }
+        } catch (err) {
+          console.error("Error resolving client name:", err);
+        }
+      };
+      
+      fetchClientName();
+    }
+  }, [item.client_id, item.client_name]);
+  
   // Get client name, with improved fallbacks
   const getClientName = (): string => {
-    // First check for the client_name from our enriched data
+    // First, use our resolved name from the database if we have it
+    if (resolvedClientName) {
+      return resolvedClientName;
+    }
+    
+    // Next check for the client_name from our enriched data
     if (item.client_name && typeof item.client_name === 'string' && item.client_name.trim().length > 0) {
-      // Check if it's not an ID-like string (e.g., "4f85a4", "bfe4c5")
-      const looksLikeId = /^[a-f0-9]{6,}$/i.test(item.client_name);
-      if (!looksLikeId) {
+      // Check if it's not an ID-like string or "Unknown Client"
+      if (
+        item.client_name !== "Unknown Client" && 
+        !item.client_name.startsWith("Client ") &&
+        !/^[a-f0-9]{6,}$/i.test(item.client_name)
+      ) {
         return item.client_name;
       }
     }
@@ -105,7 +169,7 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
       // Try client_name first
       if (metadata.client_name && typeof metadata.client_name === 'string' && metadata.client_name.trim().length > 0) {
         const mdClientName = String(metadata.client_name);
-        if (!/^[a-f0-9]{6,}$/i.test(mdClientName)) {
+        if (!/^[a-f0-9]{6,}$/i.test(mdClientName) && mdClientName !== "Unknown Client") {
           return mdClientName;
         }
       }
@@ -121,8 +185,17 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
       return item.agent_name;
     }
     
-    // As a last resort, use "Unknown Client" instead of ID
-    return "Unknown Client";
+    // For system updates or activities without a client
+    if (!item.client_id || item.activity_type === 'system_update') {
+      return "System";
+    }
+    
+    // As a last resort, format the ID nicely instead of showing "Unknown Client"
+    if (item.client_id) {
+      return "Client " + item.client_id.substring(0, 6);
+    }
+    
+    return "System Activity";
   };
   
   const clientName = getClientName();

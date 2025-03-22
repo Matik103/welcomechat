@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
 interface Activity {
+  id?: string;
   activity_type: string;
   description: string;
   created_at: string;
@@ -35,7 +36,7 @@ export const ActivityList = ({ activities, isLoading = false }: ActivityListProp
         ) : (
           activities.map((activity, index) => (
             <ActivityItem 
-              key={`${activity.created_at}-${index}`} 
+              key={activity.id || `${activity.created_at}-${index}`} 
               item={activity} 
             />
           ))

@@ -45,7 +45,7 @@ export const useRecentActivities = () => {
       // If we have client IDs, fetch their names and details
       if (clientIds.length > 0) {
         try {
-          // Fetch client details from ai_agents table for config entries
+          // Enhanced query to get more complete client information
           const agentDetailsQuery = `
             SELECT 
               client_id, 
@@ -57,6 +57,7 @@ export const useRecentActivities = () => {
             FROM ai_agents
             WHERE client_id = ANY($1::uuid[])
             AND interaction_type = 'config'
+            ORDER BY updated_at DESC
           `;
           
           const agentsData = await execSql(agentDetailsQuery, [clientIds]);
@@ -76,10 +77,10 @@ export const useRecentActivities = () => {
                 // Determine best client name, checking settings->client_name first,
                 // then direct client_name field, then agent name as last resort
                 const clientName = 
-                  (typeof agent.client_name === 'string' ? agent.client_name : null) || 
-                  (typeof agent.direct_client_name === 'string' ? agent.direct_client_name : null) || 
-                  (typeof agent.name === 'string' ? agent.name : null) || 
-                  null;
+                  (typeof agent.client_name === 'string' && agent.client_name.trim() !== '' ? agent.client_name : null) || 
+                  (typeof agent.direct_client_name === 'string' && agent.direct_client_name.trim() !== '' ? agent.direct_client_name : null) || 
+                  (typeof agent.name === 'string' && agent.name.trim() !== '' ? agent.name : null) || 
+                  "Client " + clientId.substring(0, 6); // Use a formatted client ID prefix rather than "Unknown Client"
                 
                 // Update with agent data
                 clientInfoMap[clientId] = {
@@ -103,9 +104,9 @@ export const useRecentActivities = () => {
             if (activity.metadata && typeof activity.metadata === 'object' && activity.metadata !== null) {
               // Extract client info from metadata
               const metadataObj = activity.metadata as Record<string, any>;
-              if (metadataObj.client_name && typeof metadataObj.client_name === 'string') {
+              if (metadataObj.client_name && typeof metadataObj.client_name === 'string' && metadataObj.client_name.trim() !== '') {
                 clientName = String(metadataObj.client_name);
-              } else if (metadataObj.name && typeof metadataObj.name === 'string') {
+              } else if (metadataObj.name && typeof metadataObj.name === 'string' && metadataObj.name.trim() !== '') {
                 clientName = String(metadataObj.name);
               }
             }
@@ -113,9 +114,15 @@ export const useRecentActivities = () => {
             // Use clientInfoMap if available, otherwise use metadata or fallback
             const clientInfo = clientInfoMap[clientId] || {};
             
+            // If we still don't have a client name, try to extract it directly from ai_agents table
+            if (!clientName && !clientInfo.clientName && clientId) {
+              // We'll handle this in the ActivityItem component as a last resort
+              clientName = null;
+            }
+            
             return {
               ...activity,
-              client_name: clientInfo.clientName || clientName || null,
+              client_name: clientInfo.clientName || clientName || "Client " + clientId.substring(0, 6),
               client_email: clientInfo.email || null,
               agent_name: clientInfo.agentName || null,
               agent_description: clientInfo.agentDescription || null
@@ -127,7 +134,10 @@ export const useRecentActivities = () => {
       }
 
       // If all else fails, return activities with minimal info
-      return activities;
+      return activities.map(activity => ({
+        ...activity,
+        client_name: activity.client_id ? "Client " + activity.client_id.substring(0, 6) : "System Activity"
+      }));
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute
     refetchOnWindowFocus: true,
