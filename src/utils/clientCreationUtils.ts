@@ -2,91 +2,63 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Generates a temporary password for new client accounts
- * @returns A randomly generated password string
+ * Generates a secure temporary password for a client account
  */
-export function generateTempPassword(): string {
-  const length = 12;
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-  let password = "";
-  
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
-  }
-  
-  return password;
-}
+export const generateTempPassword = (): string => {
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+  return `Welcome${currentYear}#${randomDigits}`;
+};
 
 /**
- * Saves a temporary password for a client
- * @param clientId The client's ID
- * @param email The client's email address
- * @param password The temporary password to save
+ * Saves a client's temporary password in the database
  */
-export async function saveClientTempPassword(
-  clientId: string,
-  email: string,
-  password: string
-): Promise<void> {
+export const saveClientTempPassword = async (
+  clientId: string, 
+  email: string, 
+  tempPassword: string
+): Promise<void> => {
   try {
-    // First check if the table exists
-    const { data: tableExistsData, error: tableExistsError } = await supabase
-      .rpc('exec_sql', {
-        sql_query: `
-          SELECT EXISTS (
-            SELECT FROM pg_tables 
-            WHERE schemaname = 'public' 
-            AND tablename = 'client_temp_passwords'
-          ) as "exists"
-        `
-      });
-    
-    if (tableExistsError) {
-      console.error("Error checking if table exists:", tableExistsError);
-      throw tableExistsError;
-    }
-    
-    // Check if the result contains the expected boolean value
-    const tableExists = Array.isArray(tableExistsData) && 
-                        tableExistsData.length > 0 && 
-                        tableExistsData[0] && 
-                        (tableExistsData[0] as any).exists === true;
-    
-    if (!tableExists) {
-      console.error("client_temp_passwords table does not exist");
-      throw new Error("Required database table not found");
-    }
-    
-    // Delete any existing temporary passwords for this client
-    const { error: deleteError } = await supabase
-      .from('client_temp_passwords')
-      .delete()
-      .eq('agent_id', clientId);
-    
-    if (deleteError) {
-      console.error("Error deleting existing temp password:", deleteError);
-      // Continue anyway
-    }
-    
-    // Insert the new temporary password
-    const { error: insertError } = await supabase
-      .from('client_temp_passwords')
+    const { error } = await supabase
+      .from("client_temp_passwords")
       .insert({
         agent_id: clientId,
         email: email,
-        temp_password: password,
-        created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+        temp_password: tempPassword
       });
-    
-    if (insertError) {
-      console.error("Error saving temp password:", insertError);
-      throw insertError;
+
+    if (error) {
+      console.error("Error saving temporary password:", error);
+      throw new Error("Failed to save temporary password");
     }
-    
   } catch (error) {
     console.error("Error in saveClientTempPassword:", error);
     throw error;
   }
-}
+};
+
+/**
+ * Logs a client creation activity
+ */
+export const logClientCreationActivity = async (
+  clientId: string,
+  clientName: string,
+  email: string,
+  agentName: string
+): Promise<void> => {
+  try {
+    await supabase.from("client_activities").insert({
+      client_id: clientId,
+      activity_type: "client_created",
+      description: "New client created with AI agent",
+      metadata: {
+        client_name: clientName,
+        email: email,
+        agent_name: agentName
+      }
+    });
+  } catch (error) {
+    console.error("Error logging client creation activity:", error);
+    // Continue even if activity logging fails
+  }
+};
