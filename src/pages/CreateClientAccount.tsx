@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientAccountForm } from '@/components/client/ClientAccountForm';
 import { toast } from 'sonner';
+import { createOpenAIAssistant } from '@/utils/clientOpenAIUtils';
 
 export default function CreateClientAccount() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -13,6 +14,17 @@ export default function CreateClientAccount() {
     setIsSubmitting(true);
     try {
       // Form submission logic would go here
+      console.log("Creating client with data:", data);
+      
+      // Example: If we had a client ID after creation, we would create the OpenAI assistant
+      // const clientId = "example-client-id";
+      // await createOpenAIAssistant(
+      //   clientId,
+      //   data.agent_name,
+      //   data.agent_description,
+      //   data.client_name
+      // );
+      
       toast.success("Client account created successfully!");
       navigate('/admin/clients');
     } catch (error) {
@@ -35,7 +47,7 @@ export default function CreateClientAccount() {
       </div>
       
       <div className="bg-white rounded-lg shadow p-6">
-        <ClientAccountForm onSubmit={handleSubmit} />
+        <ClientAccountForm onSubmit={handleSubmit} isLoading={isSubmitting} />
       </div>
     </div>
   );

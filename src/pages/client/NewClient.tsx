@@ -73,6 +73,30 @@ export default function NewClient() {
         });
       }
       
+      // Create OpenAI assistant with the description (this would be automatically handled by a trigger)
+      try {
+        const { data: assistantResult, error: assistantError } = await supabase.functions.invoke(
+          'create-openai-assistant',
+          {
+            body: {
+              client_id: clientData.id,
+              agent_name: data.bot_settings?.bot_name || "AI Assistant",
+              agent_description: data.bot_settings?.bot_personality || "",
+              client_name: data.client_name
+            }
+          }
+        );
+        
+        if (assistantError) {
+          console.error("Failed to create OpenAI assistant:", assistantError);
+        } else {
+          console.log("OpenAI assistant created:", assistantResult);
+        }
+      } catch (assistantErr) {
+        console.error("Error creating OpenAI assistant:", assistantErr);
+        // Continue even if assistant creation fails
+      }
+      
       console.log("Client created successfully:", clientData);
       navigate("/admin/clients");
     } catch (error: any) {
