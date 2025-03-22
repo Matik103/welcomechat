@@ -1,16 +1,14 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
-import { WidgetSettings } from "@/types/widget-settings";
 import { Card } from "@/components/ui/card";
 import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2, Info as InfoIcon } from "lucide-react";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { SecuritySection } from "@/components/settings/SecuritySection";
 import { SignOutSection } from "@/components/settings/SignOutSection";
-import { extractWidgetSettings } from "@/utils/clientCreationUtils";
+import { extractWidgetSettings } from "@/utils/widgetSettingsUtils";
 
 const Settings = () => {
   const { user } = useAuth();
