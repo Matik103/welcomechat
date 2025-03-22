@@ -1,153 +1,204 @@
 
-// Import necessary components and hooks
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { generateTempPassword, saveClientTempPassword } from "@/utils/clientCreationUtils";
-import { toast } from "sonner";
+import { useState } from 'react';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { Card, CardContent } from '@/components/ui/card';
+import { generateClientTempPassword } from '@/utils/passwordUtils';
+import { LogoUpload } from '@/components/client/LogoUpload';
 
-const formSchema = z.object({
-  client_name: z.string().min(1, "Client name is required"),
+// Client form schema
+const clientFormSchema = z.object({
+  client_name: z.string().min(2, "Client name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().min(1, "Agent name is required"),
+  agent_name: z.string().min(2, "Agent name must be at least 2 characters").default("AI Assistant"),
+  agent_description: z.string().optional(),
+  tempPassword: z.string().optional(),
+  _tempLogoFile: z.any().optional(),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type ClientFormData = z.infer<typeof clientFormSchema>;
 
 interface ClientAccountFormProps {
-  initialData?: {
-    id?: string;
-    client_name?: string;
-    email?: string;
-    agent_name?: string;
-  };
-  onSubmit: (data: FormValues & { tempPassword?: string }) => Promise<void>;
-  isLoading?: boolean;
+  onSubmit: (data: ClientFormData) => Promise<void>;
+  isLoading: boolean;
 }
 
-export function ClientAccountForm({
-  initialData,
-  onSubmit,
-  isLoading = false,
-}: ClientAccountFormProps) {
-  const [isGeneratingPassword, setIsGeneratingPassword] = useState(false);
-  const [tempPassword, setTempPassword] = useState<string>("");
+export const ClientAccountForm = ({ onSubmit, isLoading }: ClientAccountFormProps) => {
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<ClientFormData>({
+    resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      client_name: initialData?.client_name || "",
-      email: initialData?.email || "",
-      agent_name: initialData?.agent_name || "",
+      client_name: '',
+      email: '',
+      agent_name: 'AI Assistant',
+      agent_description: '',
+      tempPassword: generateClientTempPassword(),
+      _tempLogoFile: null,
     },
   });
 
-  const handleGeneratePassword = async () => {
-    if (!initialData?.id) return;
-    
+  const handleLogoChange = (file: File | null) => {
+    setLogoFile(file);
+    form.setValue('_tempLogoFile', file);
+  };
+
+  const handleFormSubmit = async (data: ClientFormData) => {
     try {
-      setIsGeneratingPassword(true);
-      // Make sure generateTempPassword returns a string
-      const generatedPassword: string = generateTempPassword();
-      setTempPassword(generatedPassword);
+      // Include the logo file in the submission
+      const formData = {
+        ...data,
+        _tempLogoFile: logoFile,
+      };
       
-      await saveClientTempPassword(
-        initialData.id,
-        watch("email"),
-        generatedPassword
-      );
-      
-      toast.success("Generated temporary password");
+      await onSubmit(formData);
     } catch (error) {
-      console.error("Error generating password:", error);
-      toast.error("Failed to generate password");
-    } finally {
-      setIsGeneratingPassword(false);
+      console.error('Form submission error:', error);
     }
   };
 
-  const handleFormSubmit = async (data: FormValues) => {
-    await onSubmit({
-      ...data,
-      tempPassword: tempPassword || undefined,
-    });
-  };
-
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="client_name" className="text-sm font-medium text-gray-900">
-          Client Name
-        </Label>
-        <Input
-          id="client_name"
-          {...register("client_name")}
-          className={errors.client_name ? "border-red-500" : ""}
-        />
-        {errors.client_name && (
-          <p className="text-sm text-red-500">{errors.client_name.message}</p>
-        )}
-      </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+        <div className="space-y-6">
+          <FormField
+            control={form.control}
+            name="client_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-medium">Client Name *</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Enter client name" 
+                    className="h-10"
+                    {...field} 
+                    disabled={isLoading}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-      <div className="space-y-2">
-        <Label htmlFor="email" className="text-sm font-medium text-gray-900">
-          Email Address
-        </Label>
-        <Input
-          id="email"
-          type="email"
-          {...register("email")}
-          className={errors.email ? "border-red-500" : ""}
-        />
-        {errors.email && (
-          <p className="text-sm text-red-500">{errors.email.message}</p>
-        )}
-      </div>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-medium">Email Address *</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="email" 
+                    placeholder="Enter email address" 
+                    className="h-10"
+                    {...field} 
+                    disabled={isLoading}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-      <div className="space-y-2">
-        <Label htmlFor="agent_name" className="text-sm font-medium text-gray-900">
-          AI Agent Name
-        </Label>
-        <Input
-          id="agent_name"
-          {...register("agent_name")}
-          className={errors.agent_name ? "border-red-500" : ""}
-        />
-        {errors.agent_name && (
-          <p className="text-sm text-red-500">{errors.agent_name.message}</p>
-        )}
-      </div>
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-medium mb-4">AI Assistant Settings</h3>
+            
+            <FormField
+              control={form.control}
+              name="agent_name"
+              render={({ field }) => (
+                <FormItem className="mb-6">
+                  <FormLabel className="text-base font-medium">Assistant Name</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Enter assistant name" 
+                      className="h-10"
+                      {...field} 
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-      {initialData?.id && (
-        <div className="space-y-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleGeneratePassword}
-            disabled={isGeneratingPassword}
-          >
-            {isGeneratingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Generate Temporary Password
-          </Button>
-          {tempPassword && (
-            <p className="text-sm text-green-600">
-              Temporary password generated: <code>{tempPassword}</code>
-            </p>
-          )}
+            <FormField
+              control={form.control}
+              name="agent_description"
+              render={({ field }) => (
+                <FormItem className="mb-6">
+                  <FormLabel className="text-base font-medium">Assistant Description</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Enter assistant description" 
+                      className="min-h-[100px] resize-y"
+                      {...field} 
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="mb-6">
+              <FormLabel className="text-base font-medium block mb-2">Assistant Logo</FormLabel>
+              <Card className="border border-gray-200">
+                <CardContent className="p-4">
+                  <LogoUpload onLogoChange={handleLogoChange} />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <FormField
+            control={form.control}
+            name="tempPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-medium">Temporary Password</FormLabel>
+                <FormControl>
+                  <div className="flex items-center space-x-2">
+                    <Input 
+                      value={field.value} 
+                      className="h-10 font-mono bg-gray-50"
+                      readOnly
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => {
+                        const newPassword = generateClientTempPassword();
+                        form.setValue('tempPassword', newPassword);
+                      }}
+                      disabled={isLoading}
+                    >
+                      Regenerate
+                    </Button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+                <p className="text-sm text-gray-500 mt-1">
+                  This temporary password will be sent to the client's email.
+                </p>
+              </FormItem>
+            )}
+          />
         </div>
-      )}
 
-      <div className="flex flex-col md:flex-row gap-4 pt-4">
-        <Button type="submit" disabled={isLoading}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Save Changes
+        <Button 
+          type="submit" 
+          className="w-full mt-6"
+          disabled={isLoading}
+        >
+          {isLoading ? "Creating Account..." : "Create Client Account"}
         </Button>
-      </div>
-    </form>
+      </form>
+    </Form>
   );
-}
+};
