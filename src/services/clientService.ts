@@ -113,6 +113,7 @@ export const updateClient = async (
       const fileName = `${clientId}-logo-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const storagePath = `clients/${clientId}/logos/${fileName}`;
       
+      // FIXED: Use correct bucket name - "client-assets"
       // Upload the file to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client-assets')
