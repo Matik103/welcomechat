@@ -1,4 +1,3 @@
-
 import React from "react";
 import { format } from "date-fns";
 import { 
@@ -15,6 +14,7 @@ interface ActivityItemProps {
     created_at: string;
     metadata: Json;
     client_name?: string;
+    client_id?: string;
   };
 }
 
@@ -87,7 +87,7 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
   const clientName = item.client_name || 
     (item.metadata && typeof item.metadata === 'object' && item.metadata !== null && 'client_name' in item.metadata ? 
     String(item.metadata.client_name) : 
-    "Unknown Client");
+    "Client");
     
   return (
     <div className="flex items-center gap-4 py-3 animate-slide-in">
