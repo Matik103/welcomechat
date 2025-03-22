@@ -3,7 +3,6 @@ import { ClientRegistrationForm } from "@/components/forms/ClientRegistrationFor
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { TestEmailComponent } from "@/components/client/TestEmailComponent";
 
 export default function TestRegistrationForm() {
   const handleSubmit = async (data: any) => {
@@ -25,11 +24,6 @@ export default function TestRegistrationForm() {
             <Link to="/admin/test-new-client">Test New Client</Link>
           </Button>
         </div>
-      </div>
-      
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-4">Test Email Functionality</h2>
-        <TestEmailComponent />
       </div>
       
       <ClientRegistrationForm onSubmit={handleSubmit} />
