@@ -8,7 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Card, CardContent } from '@/components/ui/card';
-import { generateClientTempPassword } from '@/utils/passwordUtils';
 import { LogoUpload } from '@/components/client/LogoUpload';
 
 // Client form schema
@@ -17,7 +16,6 @@ const clientFormSchema = z.object({
   email: z.string().email("Invalid email address"),
   agent_name: z.string().min(2, "Agent name must be at least 2 characters").default("AI Assistant"),
   agent_description: z.string().optional(),
-  tempPassword: z.string().optional(),
   _tempLogoFile: z.any().optional(),
 });
 
@@ -38,7 +36,6 @@ export const ClientAccountForm = ({ onSubmit, isLoading }: ClientAccountFormProp
       email: '',
       agent_name: 'AI Assistant',
       agent_description: '',
-      tempPassword: generateClientTempPassword(),
       _tempLogoFile: null,
     },
   });
@@ -155,40 +152,6 @@ export const ClientAccountForm = ({ onSubmit, isLoading }: ClientAccountFormProp
               </Card>
             </div>
           </div>
-
-          <FormField
-            control={form.control}
-            name="tempPassword"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-base font-medium">Temporary Password</FormLabel>
-                <FormControl>
-                  <div className="flex items-center space-x-2">
-                    <Input 
-                      value={field.value} 
-                      className="h-10 font-mono bg-gray-50"
-                      readOnly
-                    />
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => {
-                        const newPassword = generateClientTempPassword();
-                        form.setValue('tempPassword', newPassword);
-                      }}
-                      disabled={isLoading}
-                    >
-                      Regenerate
-                    </Button>
-                  </div>
-                </FormControl>
-                <FormMessage />
-                <p className="text-sm text-gray-500 mt-1">
-                  This temporary password will be sent to the client's email.
-                </p>
-              </FormItem>
-            )}
-          />
         </div>
 
         <Button 
