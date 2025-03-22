@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
 import { Json } from '@/integrations/supabase/types';
-import { execSql } from "@/utils/rpcUtils";
 
 export const useClient = (clientId: string) => {
   const { 
@@ -19,60 +18,81 @@ export const useClient = (clientId: string) => {
       try {
         console.log("Fetching client data for ID:", clientId);
         
-        // Try to fetch from ai_agents table first
-        const agentQuery = `
-          SELECT * 
-          FROM ai_agents 
-          WHERE client_id = $1 AND interaction_type = 'config'
-          LIMIT 1
-        `;
+        // Direct query to ai_agents table with proper error handling
+        const { data: agentData, error: agentError } = await supabase
+          .from('ai_agents')
+          .select('*')
+          .eq('id', clientId)
+          .limit(1)
+          .single();
         
-        const agentResult = await execSql(agentQuery, [clientId]);
-        
-        if (agentResult && Array.isArray(agentResult) && agentResult.length > 0) {
-          console.log("Found client in ai_agents table:", agentResult[0]);
-          return mapAgentDataToClient(agentResult[0]);
+        if (agentError) {
+          console.log("Error fetching from ai_agents, trying with client_id:", agentError);
+          
+          // Try with client_id instead of id
+          const { data: clientAgentData, error: clientAgentError } = await supabase
+            .from('ai_agents')
+            .select('*')
+            .eq('client_id', clientId)
+            .limit(1)
+            .single();
+          
+          if (clientAgentError) {
+            console.log("Error fetching from ai_agents with client_id, trying clients table:", clientAgentError);
+            
+            // If still not found, try the clients table
+            const { data: clientData, error: clientError } = await supabase
+              .from('clients')
+              .select('*')
+              .eq('id', clientId)
+              .limit(1)
+              .single();
+            
+            if (clientError) {
+              console.error("Error fetching client from both tables:", clientError);
+              return null;
+            }
+            
+            if (!clientData) {
+              console.log("No client found in clients table");
+              return null;
+            }
+            
+            // Map clients table data to Client type
+            return {
+              id: clientData.id || '',
+              client_id: clientData.id || '',
+              client_name: clientData.client_name || '',
+              email: clientData.email || '',
+              logo_url: clientData.logo_url || '',
+              logo_storage_path: clientData.logo_storage_path || '',
+              created_at: clientData.created_at || '',
+              updated_at: clientData.updated_at || '',
+              deletion_scheduled_at: clientData.deletion_scheduled_at || null,
+              deleted_at: clientData.deleted_at || null,
+              status: clientData.status || 'active',
+              agent_name: clientData.agent_name || '',
+              description: clientData.description || '',
+              name: clientData.agent_name || '',
+              last_active: clientData.last_active || null,
+              widget_settings: clientData.widget_settings || {},
+            };
+          }
+          
+          // Use the data from ai_agents with client_id
+          if (!clientAgentData) {
+            return null;
+          }
+          
+          return mapAgentDataToClient(clientAgentData);
         }
         
-        // If not found in ai_agents, try clients table
-        const clientQuery = `
-          SELECT * 
-          FROM clients 
-          WHERE id = $1 
-          LIMIT 1
-        `;
-        
-        const clientResult = await execSql(clientQuery, [clientId]);
-        
-        if (clientResult && Array.isArray(clientResult) && clientResult.length > 0) {
-          console.log("Found client in clients table:", clientResult[0]);
-          
-          const data = clientResult[0];
-          
-          // Map clients table data to Client type
-          return {
-            id: data.id || '',
-            client_id: data.id || '',
-            client_name: data.client_name || '',
-            email: data.email || '',
-            logo_url: data.logo_url || '',
-            logo_storage_path: data.logo_storage_path || '',
-            created_at: data.created_at || '',
-            updated_at: data.updated_at || '',
-            deletion_scheduled_at: data.deletion_scheduled_at || null,
-            deleted_at: data.deleted_at || null,
-            status: data.status || 'active',
-            agent_name: data.agent_name || '',
-            description: data.description || '',
-            name: data.agent_name || '',
-            last_active: data.last_active || null,
-            widget_settings: data.widget_settings || {},
-          };
+        if (!agentData) {
+          console.log("No data found in ai_agents table");
+          return null;
         }
         
-        console.log("No client found in either table for ID:", clientId);
-        return null;
-        
+        return mapAgentDataToClient(agentData);
       } catch (error) {
         console.error("Error fetching client:", error);
         throw error;
