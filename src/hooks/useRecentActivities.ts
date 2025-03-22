@@ -54,14 +54,35 @@ export const useRecentActivities = () => {
           if (clientsError) {
             console.error("Error fetching client names:", clientsError);
           }
+
+          // Also fetch client data from the clients table as a backup
+          const { data: clientsTableData, error: clientsTableError } = await supabase
+            .from("clients")
+            .select("id, client_name")
+            .in("id", clientIds);
+            
+          if (clientsTableError) {
+            console.error("Error fetching clients table data:", clientsTableError);
+          }
           
-          // Create a map of client IDs to names
+          // Create a map of client IDs to names, combining both sources
           const clientNameMap = new Map();
+          
+          // First add names from clients table (if available)
+          if (clientsTableData && clientsTableData.length > 0) {
+            clientsTableData.forEach(client => {
+              if (client.id && client.client_name) {
+                clientNameMap.set(client.id, client.client_name);
+              }
+            });
+          }
+          
+          // Then add/override with names from ai_agents (which should be more up-to-date)
           if (clientsData && clientsData.length > 0) {
             clientsData.forEach(client => {
               if (client.client_id) {
                 // Prioritize client_name over agent name
-                clientNameMap.set(client.client_id, client.client_name || client.name || "Client");
+                clientNameMap.set(client.client_id, client.client_name || client.name || "Unknown Client");
               }
             });
           }
@@ -89,7 +110,7 @@ export const useRecentActivities = () => {
               created_at: activity.created_at,
               metadata: activity.metadata,
               client_id: activity.client_id,
-              client_name: clientNameMap.get(activity.client_id) || metadataClientName || "Client"
+              client_name: clientNameMap.get(activity.client_id) || metadataClientName || "Unknown Client"
             };
           });
         } catch (err) {
@@ -97,10 +118,10 @@ export const useRecentActivities = () => {
         }
       }
 
-      // Return activities with default "Client" if we couldn't fetch names
+      // Return activities with default "Unknown Client" if we couldn't fetch names
       return activities.map(activity => ({
         ...activity,
-        client_name: "Client"
+        client_name: "Unknown Client"
       }));
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute
