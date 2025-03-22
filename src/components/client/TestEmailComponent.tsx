@@ -19,68 +19,6 @@ export const TestEmailComponent = () => {
       setIsTestingSending(true);
       const toastId = toast.loading("Sending test email...");
       
-      // First, test the Supabase connection
-      const { data: testData, error: testError } = await supabase
-        .from('ai_agents')
-        .select('count(*)')
-        .limit(1);
-        
-      if (testError) {
-        console.error("Supabase connection test failed:", testError);
-        toast.error("Failed to connect to Supabase", { id: toastId });
-        setLastTestResult({
-          success: false,
-          message: `Connection error: ${testError.message}`,
-          timestamp: new Date()
-        });
-        setIsTestingSending(false);
-        return;
-      }
-      
-      console.log("Supabase connection test successful");
-      
-      // Check environment configuration using test-env function
-      try {
-        const { data: envData, error: envError } = await supabase.functions.invoke("test-env", {
-          body: {}
-        });
-        
-        if (envError) {
-          console.error("Error checking environment configuration:", envError);
-          toast.error("Failed to check environment configuration", { id: toastId });
-          setLastTestResult({
-            success: false,
-            message: `Environment check failed: ${envError.message}`,
-            timestamp: new Date()
-          });
-          setIsTestingSending(false);
-          return;
-        }
-        
-        console.log("Environment check:", envData);
-        
-        if (!envData?.hasResendKey) {
-          toast.error("Resend API key is not configured in Supabase", { id: toastId });
-          setLastTestResult({
-            success: false,
-            message: "Missing Resend API key in environment",
-            timestamp: new Date()
-          });
-          setIsTestingSending(false);
-          return;
-        }
-      } catch (envCheckError) {
-        console.error("Error calling test-env function:", envCheckError);
-        toast.error("Failed to check email configuration", { id: toastId });
-        setLastTestResult({
-          success: false,
-          message: `Environment check error: ${envCheckError instanceof Error ? envCheckError.message : "Unknown error"}`,
-          timestamp: new Date()
-        });
-        setIsTestingSending(false);
-        return;
-      }
-      
       // Call the send-email Edge Function directly to test email sending
       console.log("Calling send-email Edge Function directly...");
       const { data: emailData, error: emailError } = await supabase.functions.invoke(
@@ -130,7 +68,6 @@ export const TestEmailComponent = () => {
           message: `Edge function error: ${emailError.message}`,
           timestamp: new Date()
         });
-        setIsTestingSending(false);
         return;
       }
       
