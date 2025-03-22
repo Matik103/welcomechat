@@ -27,7 +27,7 @@ export const ActionButtons = () => {
   const navigate = useNavigate();
   
   const handleAddClientClick = () => {
-    navigate('/admin/clients/new');
+    navigate('/admin/clients/create');
   };
   
   return (
