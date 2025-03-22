@@ -60,39 +60,52 @@ export const useAuthCallback = ({
         setSession(callbackSession);
         setUser(callbackSession.user);
         
-        // Check if Google SSO user
+        // Check if Google SSO user by looking at provider in app_metadata
         const isGoogleUser = callbackSession.user?.app_metadata?.provider === 'google';
         
-        let userRole: UserRole;
+        // For Google SSO users, always set role as admin
         if (isGoogleUser) {
-          console.log("Google SSO user detected in callback");
-          userRole = 'admin';
+          console.log("Google SSO user detected in callback, setting role as admin");
+          setUserRole('admin');
+          sessionStorage.setItem('user_role_set', 'admin');
+          
+          // Mark callback as processed to prevent re-processing
+          sessionStorage.setItem('auth_callback_processed', 'true');
+          
+          // Clear processing flag before navigation
+          sessionStorage.removeItem('auth_callback_processing');
+          
+          // Navigate directly to admin dashboard
+          navigate('/admin/dashboard', { replace: true });
+          
+          // Set loading to false after navigation is queued
+          setIsLoading(false);
         } else {
           // For non-Google users, check client status
-          userRole = await determineUserRole(callbackSession.user);
+          const userRole = await determineUserRole(callbackSession.user);
+          
+          setUserRole(userRole);
+          
+          // Store the role in sessionStorage
+          sessionStorage.setItem('user_role_set', userRole);
+          
+          // Mark callback as processed to prevent re-processing
+          sessionStorage.setItem('auth_callback_processed', 'true');
+          
+          console.log(`User identified as ${userRole}, redirecting to appropriate dashboard`);
+          
+          // Get the appropriate dashboard route based on role
+          const dashboardRoute = getDashboardRoute(userRole);
+          
+          // Clear processing flag before navigation
+          sessionStorage.removeItem('auth_callback_processing');
+          
+          // Navigate to the appropriate dashboard
+          navigate(dashboardRoute, { replace: true });
+          
+          // Set loading to false after navigation is queued
+          setIsLoading(false);
         }
-        
-        setUserRole(userRole);
-        
-        // Store the role in sessionStorage
-        sessionStorage.setItem('user_role_set', userRole);
-        
-        // Mark callback as processed to prevent re-processing
-        sessionStorage.setItem('auth_callback_processed', 'true');
-        
-        console.log(`User identified as ${userRole}, redirecting to appropriate dashboard`);
-        
-        // Get the appropriate dashboard route based on role
-        const dashboardRoute = getDashboardRoute(userRole);
-        
-        // Clear processing flag before navigation
-        sessionStorage.removeItem('auth_callback_processing');
-        
-        // Navigate to the appropriate dashboard
-        navigate(dashboardRoute, { replace: true });
-        
-        // Set loading to false after navigation is queued
-        setIsLoading(false);
       } catch (error) {
         console.error("Error handling auth callback:", error);
         sessionStorage.removeItem('auth_callback_processing');
