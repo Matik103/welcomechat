@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Upload } from 'lucide-react';
@@ -16,12 +17,13 @@ export function ClientAccountForm() {
     clientName: '',
     email: '',
     agentName: 'AI Assistant',
+    agentDescription: '',
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -106,6 +108,7 @@ export function ClientAccountForm() {
           name: formData.agentName,
           client_name: formData.clientName,
           email: formData.email,
+          agent_description: formData.agentDescription,
           logo_url: logoUrl,
           logo_storage_path: logoStoragePath,
           content: '',
@@ -114,6 +117,7 @@ export function ClientAccountForm() {
             client_name: formData.clientName,
             email: formData.email,
             agent_name: formData.agentName,
+            agent_description: formData.agentDescription,
             logo_url: logoUrl,
             logo_storage_path: logoStoragePath
           }
@@ -172,7 +176,8 @@ export function ClientAccountForm() {
           metadata: {
             client_name: formData.clientName,
             email: formData.email,
-            agent_name: formData.agentName
+            agent_name: formData.agentName,
+            agent_description: formData.agentDescription
           }
         });
       
@@ -181,6 +186,7 @@ export function ClientAccountForm() {
         clientName: '',
         email: '',
         agentName: 'AI Assistant',
+        agentDescription: '',
       });
       setLogoFile(null);
       setLogoPreview(null);
@@ -227,17 +233,37 @@ export function ClientAccountForm() {
           <p className="text-xs text-gray-500 mt-1">The welcome email and login details will be sent to this address</p>
         </div>
 
-        <div>
-          <Label htmlFor="agentName">AI Assistant Name</Label>
-          <Input
-            id="agentName"
-            name="agentName"
-            value={formData.agentName}
-            onChange={handleChange}
-            placeholder="Enter AI assistant name"
-            disabled={isSubmitting}
-          />
-          <p className="text-xs text-gray-500 mt-1">Default is "AI Assistant" if left empty</p>
+        <div className="pt-4 border-t">
+          <h3 className="text-lg font-medium mb-4">AI Assistant Settings</h3>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="agentName">AI Assistant Name</Label>
+              <Input
+                id="agentName"
+                name="agentName"
+                value={formData.agentName}
+                onChange={handleChange}
+                placeholder="Enter AI assistant name"
+                disabled={isSubmitting}
+              />
+              <p className="text-xs text-gray-500 mt-1">Default is "AI Assistant" if left empty</p>
+            </div>
+
+            <div>
+              <Label htmlFor="agentDescription">AI Assistant Description</Label>
+              <Textarea
+                id="agentDescription"
+                name="agentDescription"
+                value={formData.agentDescription}
+                onChange={handleChange}
+                placeholder="Describe what this AI assistant does and how it can help users"
+                disabled={isSubmitting}
+                rows={4}
+              />
+              <p className="text-xs text-gray-500 mt-1">This description helps define how your AI assistant interacts with users</p>
+            </div>
+          </div>
         </div>
 
         <div>
