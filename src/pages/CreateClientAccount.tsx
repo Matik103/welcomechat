@@ -6,14 +6,12 @@ import { ClientAccountForm } from '@/components/client/ClientAccountForm';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { TestEmailComponent } from '@/components/client/TestEmailComponent';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 
 export default function CreateClientAccount() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
@@ -69,9 +67,6 @@ export default function CreateClientAccount() {
         console.error("Error saving temporary password:", passwordError);
         // Continue even if password save fails
       }
-
-      // Update email status
-      setEmailStatus('sending');
 
       // Call the edge function to send the welcome email
       const { data: emailResult, error: emailError } = await supabase.functions.invoke(
@@ -132,20 +127,17 @@ export default function CreateClientAccount() {
       
       if (emailError) {
         console.error("Email sending error:", emailError);
-        setEmailStatus('error');
         toast.error(`Client created but welcome email failed: ${emailError.message}`, {
           id: loadingToastId,
           duration: 6000
         });
       } else if (emailResult && !emailResult.success) {
         console.error("Email sending failed:", emailResult.error);
-        setEmailStatus('error');
         toast.error(`Client created but welcome email failed: ${emailResult.error || "Unknown error"}`, {
           id: loadingToastId,
           duration: 6000
         });
       } else {
-        setEmailStatus('success');
         toast.success("Client created successfully and welcome email sent", {
           id: loadingToastId
         });
@@ -205,18 +197,6 @@ export default function CreateClientAccount() {
         </div>
         
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Testing</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Before creating a client, you can verify that email sending is working correctly.
-              </p>
-              <TestEmailComponent />
-            </CardContent>
-          </Card>
-          
           <Card>
             <CardHeader>
               <CardTitle>Process Information</CardTitle>
