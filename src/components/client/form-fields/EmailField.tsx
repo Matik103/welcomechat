@@ -2,23 +2,14 @@
 import { UseFormReturn } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useEffect } from "react";
 
 interface EmailFieldProps {
   form: UseFormReturn<any>;
-  defaultValue?: string;
 }
 
-export const EmailField = ({ form, defaultValue }: EmailFieldProps) => {
-  const { register, formState: { errors }, setValue } = form;
+export const EmailField = ({ form }: EmailFieldProps) => {
+  const { register, formState: { errors } } = form;
   
-  // Set default value when component mounts
-  useEffect(() => {
-    if (defaultValue) {
-      setValue("email", defaultValue);
-    }
-  }, [defaultValue, setValue]);
-
   return (
     <div className="space-y-2">
       <Label htmlFor="email" className="text-sm font-medium text-gray-900">

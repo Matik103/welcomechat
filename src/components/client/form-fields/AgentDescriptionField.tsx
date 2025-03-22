@@ -2,24 +2,15 @@
 import { UseFormReturn } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useEffect } from "react";
 
 interface AgentDescriptionFieldProps {
   form: UseFormReturn<any>;
   isClientView?: boolean;
-  defaultValue?: string;
 }
 
-export const AgentDescriptionField = ({ form, isClientView = false, defaultValue }: AgentDescriptionFieldProps) => {
-  const { register, formState: { errors }, setValue } = form;
+export const AgentDescriptionField = ({ form, isClientView = false }: AgentDescriptionFieldProps) => {
+  const { register, formState: { errors } } = form;
   
-  // Set default value when component mounts
-  useEffect(() => {
-    if (defaultValue) {
-      setValue("agent_description", defaultValue);
-    }
-  }, [defaultValue, setValue]);
-
   return (
     <div className="space-y-2">
       <Label htmlFor="agent_description" className="text-sm font-medium text-gray-900">

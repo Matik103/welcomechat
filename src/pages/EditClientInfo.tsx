@@ -22,13 +22,8 @@ const EditClientInfo = () => {
   // For client view, use user metadata clientId, for admin view use the id param
   const clientId = isClientView ? user?.user_metadata?.client_id : id;
   
-  const { client, isLoadingClient, error, refetchClient } = useClientData(clientId);
+  const { client, isLoadingClient, error } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
-  
-  useEffect(() => {
-    // Fetch client data when component mounts
-    refetchClient();
-  }, [clientId, refetchClient]);
   
   useEffect(() => {
     if (error) {
