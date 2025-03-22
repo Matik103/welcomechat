@@ -17,15 +17,15 @@ export const useClient = (clientId: string) => {
       if (!clientId) return null;
       
       try {
-        // Try to get a specific agent with this client ID
+        // Use a simpler SQL query that avoids json_array_elements
         const query = `
           SELECT * FROM ai_agents 
-          WHERE client_id = '${clientId}' OR id = '${clientId}'
+          WHERE id = $1 OR client_id = $1
           ORDER BY created_at DESC
           LIMIT 1
         `;
         
-        const result = await execSql(query);
+        const result = await execSql(query, [clientId]);
         
         if (!result || !Array.isArray(result) || result.length === 0) {
           console.log("No agent found for client ID:", clientId);
