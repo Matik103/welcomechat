@@ -1,3 +1,4 @@
+
 /**
  * Types for website URLs used in the client section
  */
@@ -9,7 +10,7 @@ export interface WebsiteUrl {
   refresh_rate: number;
   created_at: string;
   updated_at?: string;
-  last_scraped_at?: string;
+  last_crawled?: string;
   error?: string;
   status?: 'pending' | 'processing' | 'completed' | 'failed';
   scrapability?: 'high' | 'medium' | 'low' | 'unknown';
