@@ -38,7 +38,7 @@ export async function saveClientTempPassword(
             SELECT FROM pg_tables 
             WHERE schemaname = 'public' 
             AND tablename = 'client_temp_passwords'
-          ) as exists
+          ) as "exists"
         `
       });
     
@@ -47,9 +47,11 @@ export async function saveClientTempPassword(
       throw tableExistsError;
     }
     
+    // Check if the result contains the expected boolean value
     const tableExists = Array.isArray(tableExistsData) && 
-                         tableExistsData.length > 0 && 
-                         tableExistsData[0].exists === true;
+                        tableExistsData.length > 0 && 
+                        tableExistsData[0] && 
+                        (tableExistsData[0] as any).exists === true;
     
     if (!tableExists) {
       console.error("client_temp_passwords table does not exist");
@@ -60,7 +62,7 @@ export async function saveClientTempPassword(
     const { error: deleteError } = await supabase
       .from('client_temp_passwords')
       .delete()
-      .eq('client_id', clientId);
+      .eq('agent_id', clientId);
     
     if (deleteError) {
       console.error("Error deleting existing temp password:", deleteError);
@@ -71,7 +73,7 @@ export async function saveClientTempPassword(
     const { error: insertError } = await supabase
       .from('client_temp_passwords')
       .insert({
-        client_id: clientId,
+        agent_id: clientId,
         email: email,
         temp_password: password,
         created_at: new Date().toISOString(),

@@ -9,7 +9,6 @@ import { EmailField } from "./form-fields/EmailField";
 import { AgentNameField } from "./form-fields/AgentNameField";
 import { AgentDescriptionField } from "./form-fields/AgentDescriptionField";
 import { LogoField } from "./form-fields/LogoField";
-import { FormActions } from "./form-fields/FormActions";
 import { Loader2 } from "lucide-react";
 
 interface ClientFormProps {
@@ -63,6 +62,8 @@ export function ClientForm({
       const url = URL.createObjectURL(file);
       setLogoPreviewUrl(url);
       console.log("Created preview URL for uploaded logo:", url);
+    } else {
+      setLogoPreviewUrl(null);
     }
   };
 
@@ -70,12 +71,12 @@ export function ClientForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmitForm)} className="space-y-6">
         <div className="space-y-4">
-          <ClientNameField control={form.control} />
-          <EmailField control={form.control} />
-          <AgentNameField control={form.control} />
-          <AgentDescriptionField control={form.control} isRequired={isClientView} />
+          <ClientNameField control={form} />
+          <EmailField control={form} />
+          <AgentNameField control={form} isClientView={isClientView} />
+          <AgentDescriptionField control={form} isRequired={isClientView} />
           <LogoField 
-            control={form.control} 
+            control={form} 
             onLogoChange={handleLogoUpload} 
             logoPreviewUrl={logoPreviewUrl}
           />
