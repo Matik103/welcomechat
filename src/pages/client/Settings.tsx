@@ -8,6 +8,7 @@ import { SignOutSection } from "@/components/settings/SignOutSection";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, InfoIcon } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const ClientSettings = () => {
   const { user } = useAuth();
@@ -80,8 +81,17 @@ const ClientSettings = () => {
         
         const clientData = result[0];
         console.log("Client Settings: Client info fetched from clients table:", clientData);
-        if (clientData.logo_url) {
-          console.log("Client Settings: Found logo URL in clients:", clientData.logo_url);
+        
+        // Check if logo_url exists and is accessible
+        let logoUrl = null;
+        if (typeof clientData.widget_settings === 'object' && clientData.widget_settings !== null) {
+          logoUrl = clientData.widget_settings.logo_url || null;
+        } else if (clientData.logo_url) {
+          logoUrl = clientData.logo_url;
+        }
+        
+        if (logoUrl) {
+          console.log("Client Settings: Found logo URL:", logoUrl);
         }
         
         if (isMounted) {
@@ -168,6 +178,21 @@ const ClientSettings = () => {
     );
   }
 
+  // Safe access to logo_url considering different object structures
+  const getLogoUrl = () => {
+    if (!clientInfo) return null;
+    
+    // Direct logo_url property
+    if (clientInfo.logo_url) return clientInfo.logo_url;
+    
+    // Inside widget_settings object
+    if (clientInfo.widget_settings && typeof clientInfo.widget_settings === 'object') {
+      return clientInfo.widget_settings.logo_url || null;
+    }
+    
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-4">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -210,15 +235,15 @@ const ClientSettings = () => {
                     <p className="font-medium">{clientInfo.description || clientInfo.agent_description}</p>
                   </div>
                 )}
-                {clientInfo.logo_url && (
+                {getLogoUrl() && (
                   <div>
                     <p className="text-sm text-gray-500">Logo</p>
                     <img 
-                      src={clientInfo.logo_url} 
+                      src={getLogoUrl()} 
                       alt="AI Assistant Logo" 
                       className="h-12 w-12 object-contain mt-1 border border-gray-200 rounded"
                       onError={(e) => {
-                        console.error("Error loading logo in settings:", clientInfo.logo_url);
+                        console.error("Error loading logo in settings:", getLogoUrl());
                         e.currentTarget.style.display = 'none';
                       }}
                     />
