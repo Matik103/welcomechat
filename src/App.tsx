@@ -19,7 +19,6 @@ import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
 import CreateClientAccount from "@/pages/CreateClientAccount";
 import { useEffect } from "react";
-import { toast } from "sonner";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();

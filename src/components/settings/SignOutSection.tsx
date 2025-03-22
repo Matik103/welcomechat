@@ -4,12 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClientActivity } from '@/hooks/useClientActivity';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 export function SignOutSection() {
   const { signOut, user } = useAuth();
   const { logClientActivity } = useClientActivity(user?.id);
-  const { toast } = useToast();
 
   const handleSignOut = async () => {
     try {
@@ -23,17 +22,10 @@ export function SignOutSection() {
       // Sign out
       await signOut();
       
-      toast({
-        title: 'Signed out successfully',
-        description: 'You have been signed out of your account.',
-      });
+      toast.success('Signed out successfully');
     } catch (error) {
       console.error('Error signing out:', error);
-      toast({
-        title: 'Error signing out',
-        description: 'There was a problem signing out. Please try again.',
-        variant: 'destructive',
-      });
+      toast.error('There was a problem signing out. Please try again.');
     }
   };
 
