@@ -43,12 +43,12 @@ export const useRecentActivities = () => {
       // If we have client IDs, fetch their names
       if (clientIds.length > 0) {
         try {
-          // Fetch client names from ai_agents table
+          // Fetch client names from ai_agents table where interaction_type is "config"
           const { data: clientsData, error: clientsError } = await supabase
             .from("ai_agents")
-            .select("id, client_id, client_name, name, settings")
-            .in("id", clientIds)
-            .order('created_at', { ascending: false });
+            .select("id, client_id, client_name, name")
+            .in("client_id", clientIds)
+            .eq("interaction_type", "config");
           
           if (clientsError) {
             console.error("Error fetching client names:", clientsError);
@@ -59,12 +59,9 @@ export const useRecentActivities = () => {
           if (clientsData && clientsData.length > 0) {
             clientsData.forEach(client => {
               // Use client_name as the primary identifier, fallback to name (agent name)
-              const clientName = client.client_name || 
-                (client.settings && client.settings.client_name) || 
-                client.name || 
-                "Unknown Client";
-              
-              clientNameMap.set(client.id, clientName);
+              if (client.client_id) {
+                clientNameMap.set(client.client_id, client.client_name || client.name || "Unknown Client");
+              }
             });
           }
           

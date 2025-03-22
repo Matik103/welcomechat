@@ -4,12 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { ExtendedActivityType } from '@/types/activity';
 import { Json } from '@/integrations/supabase/types';
 import { callRpcFunction } from '@/utils/rpcUtils';
-import { useClient } from './useClient';
 
 export const useClientActivity = (clientId: string | undefined) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { client } = useClient(clientId || '');
 
   const logClientActivity = useCallback(
     async (
@@ -26,21 +24,12 @@ export const useClientActivity = (clientId: string | undefined) => {
       setError(null);
 
       try {
-        // Enrich metadata with client information
-        const enrichedMetadata = {
-          ...metadata || {},
-          client_name: client?.client_name || metadata?.client_name,
-          agent_name: client?.name || client?.agent_name || metadata?.agent_name
-        };
-
-        console.log("Logging activity with enriched metadata:", enrichedMetadata);
-        
         // Use callRpcFunction instead of direct RPC call to bypass type checking
         const result = await callRpcFunction('log_client_activity', {
           client_id_param: clientId,
           activity_type_param: activity_type,
           description_param: description,
-          metadata_param: enrichedMetadata
+          metadata_param: metadata || {}
         });
         
         return result;
@@ -52,7 +41,7 @@ export const useClientActivity = (clientId: string | undefined) => {
         setIsLoading(false);
       }
     },
-    [clientId, client]
+    [clientId]
   );
 
   return { logClientActivity, isLoading, error };

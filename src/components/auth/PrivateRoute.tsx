@@ -1,19 +1,30 @@
 
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
-const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
+export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+  const { session, isLoading, userRole } = useAuth();
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (!session) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (!userRole) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (userRole !== "admin") {
+    return <Navigate to="/client/dashboard" replace />;
   }
 
   return <>{children}</>;
 };
-
-export default PrivateRoute;
