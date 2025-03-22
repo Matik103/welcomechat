@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { WebsiteUrls } from '@/components/client/WebsiteUrls';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
-import { ExtendedActivityType } from '@/types/activity';
+import { ActivityType } from '@/types/client';
 import { Json } from '@/integrations/supabase/types';
 import { ValidationResult } from '@/types/website-url';
 import { FirecrawlService } from '@/utils/FirecrawlService';
@@ -16,7 +15,7 @@ import { AlertCircle, CheckCircle } from 'lucide-react';
 interface WebsiteResourcesSectionProps {
   clientId: string;
   isClientView: boolean;
-  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
+  logClientActivity: (activity_type: ActivityType | string, description: string, metadata?: Json) => Promise<void>;
 }
 
 export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = ({
@@ -178,7 +177,10 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
 
         <TabsContent value="list">
           <WebsiteUrls
-            urls={websiteUrls || []}
+            urls={websiteUrls?.map(url => ({
+              ...url,
+              refresh_rate: url.refresh_rate || 30 // Ensure refresh_rate is always defined
+            })) || []}
             isLoading={isLoading}
             onAdd={addWebsiteUrl}
             onDelete={deleteWebsiteUrl}

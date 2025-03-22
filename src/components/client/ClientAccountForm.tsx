@@ -76,7 +76,7 @@ export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: 
           className={errors.client_name ? "border-red-500" : ""}
         />
         {errors.client_name && (
-          <p className="text-sm text-red-500">{errors.client_name.message}</p>
+          <p className="text-sm text-red-500">{errors.client_name.message?.toString()}</p>
         )}
       </div>
 
@@ -91,7 +91,7 @@ export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: 
           className={errors.email ? "border-red-500" : ""}
         />
         {errors.email && (
-          <p className="text-sm text-red-500">{errors.email.message}</p>
+          <p className="text-sm text-red-500">{errors.email.message?.toString()}</p>
         )}
       </div>
 
@@ -105,7 +105,7 @@ export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: 
           className={errors.agent_name ? "border-red-500" : ""}
         />
         {errors.agent_name && (
-          <p className="text-sm text-red-500">{errors.agent_name.message}</p>
+          <p className="text-sm text-red-500">{errors.agent_name.message?.toString()}</p>
         )}
       </div>
 

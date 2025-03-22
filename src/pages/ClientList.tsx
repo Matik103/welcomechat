@@ -65,21 +65,35 @@ export default function ClientList() {
           const clientName = settings.client_name || record.client_name || record.name || 'Unnamed Client';
           const email = settings.email || record.email || '';
           
+          // Create client mapping with all necessary properties from the updated Client interface
           const client: Client = {
             id: record.client_id || record.id,
+            user_id: record.user_id || '',
             client_name: clientName,
+            company: record.company || '',
+            description: record.description || null,
             email: email, 
+            status: (record.status === 'active' || record.status === 'inactive' || record.status === 'deleted') 
+                    ? record.status 
+                    : 'active',
             agent_name: record.name || '',
+            name: record.name || '',
             description: record.agent_description || '',
+            agent_description: record.agent_description || '',
             widget_settings: settings,
             created_at: record.created_at || '',
             updated_at: record.updated_at || '',
             last_active: record.last_active || null,
-            status: record.status || 'active',
+            deleted_at: record.deleted_at || null,
+            deletion_scheduled_at: record.deletion_scheduled_at || null,
+            drive_link: record.drive_link || null,
+            drive_link_added_at: record.drive_link_added_at || null,
             logo_url: record.logo_url || '',
             logo_storage_path: record.logo_storage_path || '',
+            urls: record.urls || [],
+            drive_urls: record.drive_urls || [],
             is_error: record.is_error || false,
-            error_message: record.error_message || ''
+            error_message: record.error_message || null
           };
           
           console.log(`Client ${clientName}: id=${client.id}`);

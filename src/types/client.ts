@@ -1,4 +1,3 @@
-
 export interface Client {
   id: string;
   created_at: string;
@@ -22,6 +21,8 @@ export interface Client {
   logo_storage_path?: string;
   updated_at?: string;
   last_active?: string;
+  is_error?: boolean; // Added for compatibility with ai_agents table
+  error_message?: string; // Added for compatibility with ai_agents table
 }
 
 export interface AIAgent {
@@ -55,18 +56,16 @@ export interface AIAgent {
   status?: string;
 }
 
-// Add missing WebsiteUrl type
 export interface WebsiteUrl {
   id: number;
   client_id: string;
   url: string;
   created_at: string;
   last_crawled?: string | null;
-  refresh_rate?: number | null;
+  refresh_rate: number;
   status?: string | null;
 }
 
-// Add missing DocumentLink type
 export interface DocumentLink {
   id: number;
   client_id: string;
@@ -78,10 +77,8 @@ export interface DocumentLink {
   notified_at?: string | null;
 }
 
-// Add missing AccessStatus type
 export type AccessStatus = 'granted' | 'pending' | 'denied';
 
-// Add missing ClientFormData type
 export interface ClientFormData {
   client_name: string;
   email: string;
@@ -461,7 +458,6 @@ export type Database = {
   }
 }
 
-// Types for JSON
 export type Json =
   | string
   | number
@@ -470,5 +466,4 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-// Add ExtendedActivityType for compatibility
 export type ExtendedActivityType = ActivityType | string;
