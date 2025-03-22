@@ -82,10 +82,12 @@ const ResourceSettings = () => {
         
         <WidgetPreviewCard settings={currentSettings} clientId={clientId} />
         
-        <EmbedCodeCard 
-          settings={currentSettings} 
-          onCopy={handleCopyEmbedCode} 
-        />
+        <div className="relative z-0">
+          <EmbedCodeCard 
+            settings={currentSettings} 
+            onCopy={handleCopyEmbedCode} 
+          />
+        </div>
         
         <div className="flex justify-end">
           <Button 

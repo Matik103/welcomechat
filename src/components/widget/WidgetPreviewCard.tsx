@@ -10,7 +10,7 @@ interface WidgetPreviewCardProps {
 
 export function WidgetPreviewCard({ settings, clientId }: WidgetPreviewCardProps) {
   return (
-    <Card className="border-2 border-indigo-100 shadow-lg sticky top-6">
+    <Card className="border-2 border-indigo-100 shadow-lg relative z-10">
       <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50">
         <CardTitle className="text-indigo-700">Live Widget Preview</CardTitle>
         <CardDescription>
