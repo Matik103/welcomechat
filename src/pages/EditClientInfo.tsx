@@ -19,10 +19,14 @@ const EditClientInfo = () => {
   // Determine if we're in client view or admin view
   const isClientView = userRole === 'client';
   
+  console.log("EditClientInfo - id param:", id);
+  console.log("EditClientInfo - userRole:", userRole);
+  console.log("EditClientInfo - isClientView:", isClientView);
+  
   // For client view, use user metadata clientId, for admin view use the id param
   const clientId = isClientView ? user?.user_metadata?.client_id : id;
   
-  const { client, isLoadingClient, error } = useClientData(clientId);
+  const { client, isLoadingClient, error, refetchClient } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   
   useEffect(() => {
@@ -31,6 +35,11 @@ const EditClientInfo = () => {
       console.error("Error loading client data:", error);
     }
   }, [error]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("EditClientInfo - client data:", client);
+  }, [client]);
 
   const handleGoBack = () => {
     if (isClientView) {
