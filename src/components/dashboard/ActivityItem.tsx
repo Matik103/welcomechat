@@ -87,28 +87,42 @@ const getActivityIcon = (type: string, metadata: Json) => {
 };
 
 export const ActivityItem = ({ item }: ActivityItemProps) => {
-  // Get client name, with fallbacks
-  const getClientName = () => {
+  // Get client name, with improved fallbacks
+  const getClientName = (): string => {
     // First check for the client_name from our enriched data
-    if (item.client_name) {
-      return item.client_name;
+    if (item.client_name && typeof item.client_name === 'string' && item.client_name.trim().length > 0) {
+      // Check if it's not an ID-like string (e.g., "4f85a4", "bfe4c5")
+      const looksLikeId = /^[a-f0-9]{6,}$/i.test(item.client_name);
+      if (!looksLikeId) {
+        return item.client_name;
+      }
     }
     
     // Then check metadata for client_name
     if (item.metadata && typeof item.metadata === 'object' && item.metadata !== null) {
       const metadata = item.metadata as Record<string, any>;
-      if (metadata.client_name) {
-        return String(metadata.client_name);
+      
+      // Try client_name first
+      if (metadata.client_name && typeof metadata.client_name === 'string' && metadata.client_name.trim().length > 0) {
+        const mdClientName = String(metadata.client_name);
+        if (!/^[a-f0-9]{6,}$/i.test(mdClientName)) {
+          return mdClientName;
+        }
+      }
+      
+      // Try name as fallback
+      if (metadata.name && typeof metadata.name === 'string' && metadata.name.trim().length > 0) {
+        return String(metadata.name);
       }
     }
     
-    // Finally, use client_id as fallback
-    if (item.client_id) {
-      return `${item.client_id.substring(0, 8)}`;
+    // Use agent_name if available
+    if (item.agent_name && typeof item.agent_name === 'string' && item.agent_name.trim().length > 0) {
+      return item.agent_name;
     }
     
-    // Last resort
-    return "System";
+    // As a last resort, use "Unknown Client" instead of ID
+    return "Unknown Client";
   };
   
   const clientName = getClientName();
