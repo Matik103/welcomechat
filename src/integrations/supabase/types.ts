@@ -3296,27 +3296,33 @@ export type Database = {
       }
       website_urls: {
         Row: {
-          client_id: string | null
+          client_id: string
           created_at: string | null
           id: number
+          last_crawled: string | null
           notified_at: string | null
           refresh_rate: number
+          status: string | null
           url: string
         }
         Insert: {
-          client_id?: string | null
+          client_id: string
           created_at?: string | null
           id?: number
+          last_crawled?: string | null
           notified_at?: string | null
           refresh_rate?: number
+          status?: string | null
           url: string
         }
         Update: {
-          client_id?: string | null
+          client_id?: string
           created_at?: string | null
           id?: number
+          last_crawled?: string | null
           notified_at?: string | null
           refresh_rate?: number
+          status?: string | null
           url?: string
         }
         Relationships: []
