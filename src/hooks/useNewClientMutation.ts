@@ -1,7 +1,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ClientFormData } from "@/types/client-form";
+import { ClientFormData } from "@/types/client";
 import { saveClientTempPassword, generateTempPassword, logClientCreationActivity } from "@/utils/clientCreationUtils";
 
 export const useNewClientMutation = () => {
@@ -49,14 +49,14 @@ export const useNewClientMutation = () => {
           data.widget_settings?.agent_name || "AI Assistant"
         );
         
-        // Call the edge function directly to send the welcome email
+        // Call the edge function to send the welcome email
         let emailSent = false;
         let emailError = null;
         
         try {
           console.log("Sending welcome email...");
           
-          // Direct edge function call, similar to DeleteClientDialog approach
+          // Direct edge function call for sending email
           const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
             'send-email', 
             {
@@ -90,7 +90,7 @@ export const useNewClientMutation = () => {
                     </ol>
                     
                     <div style="text-align: center; margin: 30px 0;">
-                      <a href="https://welcomeai.io/client/auth" 
+                      <a href="https://welcome.chat/client/auth" 
                          style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                         Sign In
                       </a>
