@@ -30,9 +30,9 @@ export const useWebsiteUrls = (clientId: string) => {
         client_id: item.client_id,
         url: item.url,
         created_at: item.created_at,
-        last_crawled: item.last_crawled || null,
+        last_crawled: null, // Default value if not present in DB
         refresh_rate: item.refresh_rate || null,
-        status: (item.status as WebsiteUrl['status']) || null,
+        status: item.status || null,
         notified_at: item.notified_at || null
       }));
       
@@ -52,7 +52,7 @@ export const useWebsiteUrls = (clientId: string) => {
         .insert({
           client_id: clientId,
           url,
-          refresh_rate: refreshRate,
+          refresh_rate: refreshRate || 30,
           status: "pending"
         })
         .select()
@@ -68,9 +68,9 @@ export const useWebsiteUrls = (clientId: string) => {
         client_id: data.client_id,
         url: data.url,
         created_at: data.created_at,
-        last_crawled: data.last_crawled || null,
+        last_crawled: null, // Default value
         refresh_rate: data.refresh_rate || null,
-        status: data.status as WebsiteUrl['status'] || null,
+        status: data.status || null,
         notified_at: data.notified_at || null
       };
       
