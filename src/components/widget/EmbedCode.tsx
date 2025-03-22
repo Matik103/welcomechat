@@ -1,8 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import { WidgetSettings } from "@/types/widget-settings";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { useEffect, useRef, useState } from "react";
 
@@ -12,7 +11,6 @@ interface EmbedCodeProps {
 }
 
 export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
-  const { toast } = useToast();
   const codeRef = useRef<HTMLPreElement>(null);
   const [copied, setCopied] = useState(false);
   
@@ -44,7 +42,6 @@ export function EmbedCode({ settings, onCopy }: EmbedCodeProps) {
         `<img src="${settings.logo_url}" alt="Chat" class="widget-logo" />` : 
         '';
       
-      // Generate different CSS based on display mode
       let customCss = '';
       let widgetHtml = '';
       
@@ -157,9 +154,8 @@ ${widgetHtml}`;
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       
-      toast({
-        title: "Code copied! 📋",
-        description: "The widget code has been copied to your clipboard.",
+      toast.success("Code copied! 📋", {
+        description: "The widget code has been copied to your clipboard."
       });
       
       if (onCopy) {
@@ -167,15 +163,12 @@ ${widgetHtml}`;
       }
     } catch (error) {
       console.error("Failed to copy code:", error);
-      toast({
-        title: "Copy failed",
-        description: "Could not copy code to clipboard. Please try again.",
-        variant: "destructive"
+      toast.error("Copy failed", {
+        description: "Could not copy code to clipboard. Please try again."
       });
     }
   };
   
-  // Function to generate CSS for floating chat widget
   const generateFloatingCss = (settings: WidgetSettings) => {
     return `    /* Chat container styling */
     .welcome-chat-widget {
@@ -235,14 +228,12 @@ ${widgetHtml}`;
     }`;
   };
   
-  // Function to generate HTML for floating chat widget
   const generateFloatingHtml = (settings: WidgetSettings) => {
     return `<div class="welcome-chat-widget">
     <div class="chat-icon">💬</div>
 </div>`;
   };
   
-  // Function to generate CSS for inline chat widget
   const generateInlineCss = (settings: WidgetSettings) => {
     return `    /* Inline chat widget container */
     .welcome-chat-inline-container {
@@ -310,7 +301,6 @@ ${widgetHtml}`;
     }`;
   };
   
-  // Function to generate HTML for inline chat widget
   const generateInlineHtml = (settings: WidgetSettings) => {
     const logoHtml = settings.logo_url ? 
       `<img src="${settings.logo_url}" alt="${settings.agent_name || 'Chat'}" class="widget-logo" />` : 
@@ -331,7 +321,6 @@ ${widgetHtml}`;
 </div>`;
   };
   
-  // Function to generate CSS for sidebar chat widget
   const generateSidebarCss = (settings: WidgetSettings) => {
     return `    /* Sidebar chat widget */
     .welcome-chat-sidebar {
@@ -435,7 +424,6 @@ ${widgetHtml}`;
     }`;
   };
   
-  // Function to generate HTML for sidebar chat widget
   const generateSidebarHtml = (settings: WidgetSettings) => {
     const logoHtml = settings.logo_url ? 
       `<img src="${settings.logo_url}" alt="${settings.agent_name || 'Chat'}" class="widget-logo" />` : 
@@ -470,7 +458,6 @@ ${widgetHtml}`;
 </script>`;
   };
   
-  // Generate the code preview based on the current settings
   const generateCodePreview = () => {
     let customCss = '';
     let widgetHtml = '';
