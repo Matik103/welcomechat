@@ -90,8 +90,8 @@ export const updateClient = async (
       email: data.email,
       agent_name: sanitizedAgentName || "AI Assistant",
       agent_description: sanitizedAgentDescription,
-      logo_url: data.widget_settings?.logo_url || data.logo_url || null,
-      logo_storage_path: data.widget_settings?.logo_storage_path || data.logo_storage_path || null
+      logo_url: data.widget_settings?.logo_url || "",
+      logo_storage_path: data.widget_settings?.logo_storage_path || ""
     };
 
     console.log("Updating client with data:", {
@@ -100,8 +100,8 @@ export const updateClient = async (
       email: data.email,
       agentName: sanitizedAgentName,
       agentDescription: sanitizedAgentDescription,
-      logoUrl: data.widget_settings?.logo_url || data.logo_url,
-      logoStoragePath: data.widget_settings?.logo_storage_path || data.logo_storage_path
+      logoUrl: data.widget_settings?.logo_url,
+      logoStoragePath: data.widget_settings?.logo_storage_path
     });
 
     // First check if we need to upload a new logo file
@@ -184,27 +184,6 @@ export const updateClient = async (
       }
     } else {
       console.log("Updated ai_agents record by client_id successfully");
-    }
-
-    // Also update clients table as a fallback
-    const { error } = await supabase
-      .from('clients')
-      .update({
-        client_name: data.client_name,
-        email: data.email,
-        agent_name: sanitizedAgentName || "AI Assistant",
-        description: sanitizedAgentDescription,
-        logo_url: settings.logo_url,
-        logo_storage_path: settings.logo_storage_path,
-        widget_settings: settings,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', clientId);
-    
-    if (error) {
-      console.error("Error updating clients record:", error);
-    } else {
-      console.log("Updated clients record successfully");
     }
     
     // Log activity

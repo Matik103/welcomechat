@@ -157,10 +157,10 @@ const ClientList = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Client Management</h1>
         <Button
-          onClick={() => navigate('/admin/clients/create')}
+          onClick={handleAddClientClick}
           className="bg-primary text-white hover:bg-primary/90"
         >
-          Add Client
+          <Plus className="w-4 h-4 mr-2" /> Add Client
         </Button>
       </div>
 
@@ -190,7 +190,7 @@ const ClientList = () => {
           </p>
           {!searchQuery && (
             <Button onClick={handleAddClientClick}>
-              Add Your First Client
+              <Plus className="w-4 h-4 mr-2" /> Add Your First Client
             </Button>
           )}
         </div>

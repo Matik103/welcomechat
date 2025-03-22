@@ -49,46 +49,8 @@ export const useClient = (clientId: string) => {
           return mapAgentDataToClient(directAgentData);
         }
         
-        // If still not found, try the clients table
-        const { data: clientData, error: clientError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', clientId)
-          .limit(1)
-          .single();
-        
-        if (clientError) {
-          console.error("Error fetching client from both tables:", clientError);
-          return null;
-        }
-        
-        if (!clientData) {
-          console.log("No client found in clients table");
-          return null;
-        }
-        
-        console.log("Found data in clients table:", clientData);
-        console.log("Logo URL from clients:", clientData.logo_url);
-        
-        // Map clients table data to Client type
-        return {
-          id: clientData.id || '',
-          client_id: clientData.id || '',
-          client_name: clientData.client_name || '',
-          email: clientData.email || '',
-          logo_url: clientData.logo_url || '',
-          logo_storage_path: clientData.logo_storage_path || '',
-          created_at: clientData.created_at || '',
-          updated_at: clientData.updated_at || '',
-          deletion_scheduled_at: clientData.deletion_scheduled_at || null,
-          deleted_at: clientData.deleted_at || null,
-          status: clientData.status || 'active',
-          agent_name: clientData.agent_name || '',
-          description: clientData.description || '',
-          name: clientData.agent_name || '',
-          last_active: clientData.last_active || null,
-          widget_settings: clientData.widget_settings || {},
-        };
+        console.log("No client found in the ai_agents table. Client may not exist or has been deleted.");
+        return null;
       } catch (error) {
         console.error("Error in useClient hook:", error);
         throw error;
@@ -117,13 +79,13 @@ export const useClient = (clientId: string) => {
       deleted_at: data.deleted_at || null,
       status: data.status || 'active',
       agent_name: data.name || '',
-      agent_description: data.agent_description || data.description || '',
-      description: data.agent_description || data.description || '',
+      agent_description: data.agent_description || '',
+      description: data.description || data.agent_description || '',
       name: data.name || '',
       last_active: data.last_active || null,
       widget_settings: {
         agent_name: data.name || '',
-        agent_description: data.agent_description || data.description || '',
+        agent_description: data.agent_description || '',
         logo_url: data.logo_url || '',
         logo_storage_path: data.logo_storage_path || '',
         ...(typeof settings === 'object' ? settings : {})
