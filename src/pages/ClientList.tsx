@@ -13,7 +13,7 @@ import { DeleteClientDialog } from '@/components/client/DeleteClientDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
-export default function ClientList() {
+const ClientList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -153,19 +153,15 @@ export default function ClientList() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Client Management</h1>
-        <div className="flex space-x-3">
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-          <Button onClick={() => navigate('/admin/clients/create')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Client
-          </Button>
-        </div>
+        <h1 className="text-2xl font-semibold">Client Management</h1>
+        <Button
+          onClick={() => navigate('/admin/clients/create')}
+          className="bg-primary text-white hover:bg-primary/90"
+        >
+          Add Client
+        </Button>
       </div>
 
       <ClientSearchBar 
@@ -215,4 +211,6 @@ export default function ClientList() {
       />
     </div>
   );
-}
+};
+
+export default ClientList;

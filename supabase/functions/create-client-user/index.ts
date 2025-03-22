@@ -44,19 +44,9 @@ serve(async (req) => {
     );
     
     // Parse the request body
-    const { email, client_id, client_name, agent_name, agent_description, temp_password } = await req.json();
+    const { email, client_id, clientName, agentName, agent_description, temp_password } = await req.json();
     
-    if (!email || !client_id) {
-      return new Response(
-        JSON.stringify({ error: "Email and client_id are required" }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    // Use the provided temp_password or generate a new one if not provided
+    // Generate a temporary password if not provided
     const clientPassword: string = temp_password || (() => {
       // Generate a password in the format "Welcome2025#123"
       const currentYear = new Date().getFullYear();
@@ -64,25 +54,55 @@ serve(async (req) => {
       return `Welcome${currentYear}#${randomDigits}`;
     })();
 
-    console.log(`Using password for client ${client_id}: ${clientPassword}`);
+    console.log(`Using password for client ${clientName}: ${clientPassword}`);
     
-    // If no temp_password was provided, store it in the database
-    if (!temp_password) {
-      const { error: tempPasswordError } = await supabase
-        .from("client_temp_passwords")
+    // If no client_id was provided, create a new client
+    let clientId = client_id;
+    
+    if (!clientId) {
+      // Create new client entry
+      const { data: newClient, error: clientError } = await supabase
+        .from("ai_agents")
         .insert({
-          agent_id: client_id,
+          name: agentName || "AI Assistant",
+          agent_description: agent_description || "",
+          client_name: clientName,
           email: email,
-          temp_password: clientPassword
-        });
-
-      if (tempPasswordError) {
-        console.error("Error saving temporary password:", tempPasswordError);
-        throw tempPasswordError;
+          content: "",
+          interaction_type: 'config',
+          settings: {
+            agent_name: agentName || "AI Assistant",
+            agent_description: agent_description || "",
+            client_name: clientName,
+            email: email
+          }
+        })
+        .select("id")
+        .single();
+      
+      if (clientError) {
+        console.error("Error creating client:", clientError);
+        throw clientError;
       }
+      
+      clientId = newClient.id;
     }
     
-    console.log("Successfully stored or used temp password, now creating user");
+    // Store the temporary password in the database
+    const { error: tempPasswordError } = await supabase
+      .from("client_temp_passwords")
+      .insert({
+        agent_id: clientId,
+        email: email,
+        temp_password: clientPassword
+      });
+
+    if (tempPasswordError) {
+      console.error("Error saving temporary password:", tempPasswordError);
+      throw tempPasswordError;
+    }
+    
+    console.log("Successfully stored temp password, now creating user");
     
     // Attempt to create auth user (or update existing one)
     try {
@@ -101,7 +121,7 @@ serve(async (req) => {
         const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
           password: clientPassword,
           user_metadata: {
-            client_id,
+            client_id: clientId,
             user_type: 'client'
           }
         });
@@ -119,7 +139,7 @@ serve(async (req) => {
           password: clientPassword,
           email_confirm: true,
           user_metadata: {
-            client_id,
+            client_id: clientId,
             user_type: 'client'
           }
         });
@@ -142,7 +162,7 @@ serve(async (req) => {
           .upsert({
             user_id: userAccount.id,
             role: "client",
-            client_id: client_id
+            client_id: clientId
           });
           
         if (roleError) {
@@ -160,6 +180,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
+        clientId: clientId,
         message: "Client user setup successfully",
         temp_password: clientPassword
       }),
