@@ -1,4 +1,3 @@
-
 /**
  * Types for website URLs used in the client section
  */
@@ -23,14 +22,8 @@ export interface WebsiteUrlFormData {
 
 export interface ValidationResult {
   isValid: boolean;
-  message?: string;
-  details?: {
-    scrapability?: 'high' | 'medium' | 'low';
-    contentType?: string;
-    statusCode?: number;
-    pageSize?: string;
-    estimatedTokens?: number;
-  };
+  message: string;
+  status: 'success' | 'error' | 'warning' | 'info';
 }
 
 // Updated WebsiteUrlsProps interface with all required properties
