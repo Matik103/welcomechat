@@ -3455,6 +3455,7 @@ export type Database = {
       exec_sql: {
         Args: {
           sql_query: string
+          query_params?: Json
         }
         Returns: Json[]
       }

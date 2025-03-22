@@ -81,8 +81,8 @@ export function ClientAccountForm() {
     toastShownRef.current = loadingToast;
     
     try {
-      // Generate a temporary password - ensuring it returns a string
-      const tempPassword = generateTempPassword();
+      // Generate a temporary password - explicitly typed as string to prevent type error
+      const tempPassword: string = generateTempPassword();
       let logoUrl = '';
       let logoStoragePath = '';
       
