@@ -75,21 +75,7 @@ export const normalizeWidgetSettings = (settings: Partial<WidgetSettings>): Widg
  */
 export const getWidgetSettings = async (clientId: string): Promise<WidgetSettings> => {
   try {
-    // Use execSql instead of direct Supabase access
-    const clientQuery = `
-      SELECT widget_settings, agent_name, logo_url, logo_storage_path
-      FROM clients
-      WHERE id = $1
-      LIMIT 1
-    `;
-    
-    const clientResult = await execSql(clientQuery, [clientId]);
-    
-    if (clientResult && Array.isArray(clientResult) && clientResult.length > 0) {
-      return extractWidgetSettings(clientResult[0]);
-    }
-    
-    // Fallback to ai_agents table
+    // Query settings from ai_agents table
     const agentQuery = `
       SELECT settings, name, logo_url, logo_storage_path, agent_description
       FROM ai_agents
@@ -115,22 +101,7 @@ export const getWidgetSettings = async (clientId: string): Promise<WidgetSetting
  */
 export const updateWidgetSettings = async (clientId: string, settings: WidgetSettings): Promise<boolean> => {
   try {
-    // Update settings in clients table using execSql
-    const clientQuery = `
-      UPDATE clients
-      SET 
-        widget_settings = $1,
-        agent_name = $2
-      WHERE id = $3
-    `;
-    
-    await execSql(clientQuery, [
-      JSON.stringify(settings),
-      settings.agent_name,
-      clientId
-    ]);
-    
-    // Also sync settings to ai_agents table
+    // Update settings in ai_agents table
     const agentQuery = `
       UPDATE ai_agents
       SET 

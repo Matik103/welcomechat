@@ -37,10 +37,11 @@ const ClientSettings = () => {
       try {
         console.log("Fetching client info for email:", user.email);
         
-        // Use execSql instead of directly accessing the clients table
+        // Use execSql to query ai_agents table instead of clients
         const query = `
-          SELECT * FROM clients
+          SELECT * FROM ai_agents
           WHERE email = '${user.email}'
+          AND interaction_type = 'config'
           LIMIT 1
         `;
         
@@ -171,12 +172,12 @@ const ClientSettings = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">AI Assistant Name</p>
-                  <p className="font-medium">{clientInfo.agent_name}</p>
+                  <p className="font-medium">{clientInfo.name}</p>
                 </div>
-                {clientInfo.description && (
+                {clientInfo.agent_description && (
                   <div>
                     <p className="text-sm text-gray-500">Description</p>
-                    <p className="font-medium">{clientInfo.description}</p>
+                    <p className="font-medium">{clientInfo.agent_description}</p>
                   </div>
                 )}
                 <div>
