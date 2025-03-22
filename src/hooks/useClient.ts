@@ -17,11 +17,12 @@ export const useClient = (clientId: string) => {
       if (!clientId) return null;
       
       try {
-        // Use a simpler SQL query that avoids json_array_elements
+        console.log("Fetching client data for ID:", clientId);
+        
+        // Simplified query to get client data directly from ai_agents table
         const query = `
           SELECT * FROM ai_agents 
           WHERE id = $1 OR client_id = $1
-          ORDER BY created_at DESC
           LIMIT 1
         `;
         
@@ -41,6 +42,7 @@ export const useClient = (clientId: string) => {
         // Map data to Client type with proper type casting and null checks
         return {
           id: String(clientData.id || ''),
+          client_id: String(clientData.client_id || clientData.id || ''),
           client_name: String(clientData.client_name || ''),
           email: String(clientData.email || ''),
           logo_url: String(clientData.logo_url || ''),
@@ -51,14 +53,14 @@ export const useClient = (clientId: string) => {
           deleted_at: clientData.deleted_at ? String(clientData.deleted_at) : undefined,
           status: String(clientData.status || 'active'),
           agent_name: String(clientData.name || ''),
-          description: String(clientData.agent_description || ''),
+          description: String(clientData.agent_description || clientData.description || ''),
           name: String(clientData.name || ''),
           last_active: clientData.last_active ? String(clientData.last_active) : undefined,
           widget_settings: clientData.settings || {},
         };
       } catch (error) {
         console.error("Error fetching client:", error);
-        return null;
+        throw error;
       }
     },
     enabled: !!clientId,

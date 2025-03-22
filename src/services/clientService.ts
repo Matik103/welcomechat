@@ -99,6 +99,15 @@ export const updateClient = async (
       WHERE id = $8 OR client_id = $8
     `;
     
+    const settingsJson = JSON.stringify({
+      client_name: data.client_name,
+      email: data.email,
+      agent_name: sanitizedAgentName || "AI Assistant",
+      agent_description: sanitizedAgentDescription,
+      logo_url: data.widget_settings?.logo_url,
+      logo_storage_path: data.widget_settings?.logo_storage_path
+    });
+    
     await execSql(query, [
       data.client_name, 
       data.email, 
@@ -106,14 +115,7 @@ export const updateClient = async (
       sanitizedAgentDescription,
       data.widget_settings?.logo_url || null,
       data.widget_settings?.logo_storage_path || null,
-      JSON.stringify({
-        client_name: data.client_name,
-        email: data.email,
-        agent_name: sanitizedAgentName || "AI Assistant",
-        agent_description: sanitizedAgentDescription,
-        logo_url: data.widget_settings?.logo_url,
-        logo_storage_path: data.widget_settings?.logo_storage_path
-      }),
+      settingsJson,
       clientId
     ]);
     
