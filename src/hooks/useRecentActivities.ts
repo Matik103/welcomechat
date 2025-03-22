@@ -45,13 +45,13 @@ export const useRecentActivities = () => {
       // If we have client IDs, fetch their names and details
       if (clientIds.length > 0) {
         try {
-          // Enhanced query to get more complete client information
+          // Enhanced query to get more complete client information with proper column aliases
           const agentDetailsQuery = `
             SELECT 
               client_id, 
               name, 
-              settings->>'client_name' as client_name, 
-              client_name as direct_client_name,
+              settings->'client_name' as settings_client_name, 
+              client_name,
               email,
               agent_description
             FROM ai_agents
@@ -74,12 +74,15 @@ export const useRecentActivities = () => {
                 // Initialize or get existing entry
                 clientInfoMap[clientId] = clientInfoMap[clientId] || {};
                 
-                // Determine best client name, checking settings->client_name first,
-                // then direct client_name field, then agent name as last resort
+                // Determine best client name, checking all possible sources
+                const settingsClientName = agent.settings_client_name;
+                const directClientName = agent.client_name;
+                const agentName = agent.name;
+                
                 const clientName = 
-                  (typeof agent.client_name === 'string' && agent.client_name.trim() !== '' ? agent.client_name : null) || 
-                  (typeof agent.direct_client_name === 'string' && agent.direct_client_name.trim() !== '' ? agent.direct_client_name : null) || 
-                  (typeof agent.name === 'string' && agent.name.trim() !== '' ? agent.name : null) || 
+                  (typeof settingsClientName === 'string' && settingsClientName.trim() !== '' ? settingsClientName : null) || 
+                  (typeof directClientName === 'string' && directClientName.trim() !== '' ? directClientName : null) || 
+                  (typeof agentName === 'string' && agentName.trim() !== '' ? agentName : null) || 
                   "Client " + clientId.substring(0, 6); // Use a formatted client ID prefix rather than "Unknown Client"
                 
                 // Update with agent data
