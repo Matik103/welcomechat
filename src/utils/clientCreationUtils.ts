@@ -1,14 +1,13 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { generateSecurePassword } from "@/utils/passwordUtils";
 
 /**
- * Generates a temporary password for client accounts
- * @returns A randomly generated temporary password
+ * Generates a temporary password for a new client
+ * @returns A secure temporary password as a string
  */
 export const generateTempPassword = (): string => {
-  // Generate a more secure password format: Welcome{Year}#{3 random digits}
+  // Generate a password in the format "Welcome2025#123"
   const currentYear = new Date().getFullYear();
   const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
   return `Welcome${currentYear}#${randomDigits}`;

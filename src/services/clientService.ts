@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
 import { ExtendedActivityType } from "@/types/activity";
@@ -85,41 +84,36 @@ export const updateClient = async (
     const sanitizedAgentName = data.widget_settings?.agent_name?.replace(/["']/g, "") || "";
     const sanitizedAgentDescription = data.widget_settings?.agent_description?.replace(/["']/g, "") || "";
 
-    // Use execSql instead of direct supabase access to clients table
+    // Update directly in the ai_agents table
     const query = `
-      UPDATE clients
+      UPDATE ai_agents
       SET 
         client_name = $1,
         email = $2,
-        widget_settings = $3
-      WHERE id = $4
+        name = $3,
+        agent_description = $4,
+        logo_url = $5,
+        logo_storage_path = $6,
+        settings = $7,
+        updated_at = NOW()
+      WHERE id = $8 OR client_id = $8
     `;
     
     await execSql(query, [
       data.client_name, 
       data.email, 
-      JSON.stringify(data.widget_settings || {}),
-      clientId
-    ]);
-
-    // Also update ai_agents table if it exists - also using execSql
-    const agentQuery = `
-      UPDATE ai_agents
-      SET 
-        name = $1,
-        agent_description = $2,
-        logo_url = $3,
-        logo_storage_path = $4,
-        settings = $5
-      WHERE client_id = $6
-    `;
-    
-    await execSql(agentQuery, [
-      sanitizedAgentName,
+      sanitizedAgentName || "AI Assistant",
       sanitizedAgentDescription,
       data.widget_settings?.logo_url || null,
       data.widget_settings?.logo_storage_path || null,
-      JSON.stringify(data.widget_settings || {}),
+      JSON.stringify({
+        client_name: data.client_name,
+        email: data.email,
+        agent_name: sanitizedAgentName || "AI Assistant",
+        agent_description: sanitizedAgentDescription,
+        logo_url: data.widget_settings?.logo_url,
+        logo_storage_path: data.widget_settings?.logo_storage_path
+      }),
       clientId
     ]);
     

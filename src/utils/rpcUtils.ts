@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
  * @param params Optional parameters for the query
  * @returns The result of the query
  */
-export const execSql = async (sqlQuery: string, params?: any) => {
+export const execSql = async (sqlQuery: string, params?: any[]) => {
   try {
     // Make sure the query returns JSON format when needed
     let formattedQuery = sqlQuery;
@@ -27,12 +27,18 @@ export const execSql = async (sqlQuery: string, params?: any) => {
     }
     
     console.log('Executing SQL query:', formattedQuery);
+    console.log('With params:', params);
 
-    // Use the generic callRpcFunction instead of direct RPC call
+    // Convert array parameters to proper format for RPC call
+    let queryParams = null;
+    if (params && params.length > 0) {
+      queryParams = JSON.stringify(params);
+    }
+
+    // Call the exec_sql RPC function
     const { data, error } = await supabase.rpc('exec_sql', {
       sql_query: formattedQuery,
-      // Only include query_params if they exist to prevent errors
-      ...(params ? { query_params: params } : {})
+      query_params: queryParams
     });
 
     if (error) {

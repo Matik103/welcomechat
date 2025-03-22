@@ -34,15 +34,39 @@ export const ClientForm = ({
   // Re-initialize form when initialData changes (e.g., when admin switches clients)
   useEffect(() => {
     if (initialData) {
+      // Get values from the appropriate places in the data structure
+      const logoUrl = initialData.logo_url || 
+                      (initialData.widget_settings && typeof initialData.widget_settings === 'object' ? 
+                      (initialData.widget_settings as any).logo_url || "" : "");
+                        
+      const logoStoragePath = initialData.logo_storage_path || 
+                             (initialData.widget_settings && typeof initialData.widget_settings === 'object' ? 
+                             (initialData.widget_settings as any).logo_storage_path || "" : "");
+                        
+      const agentName = initialData.agent_name || initialData.name || 
+                        (initialData.widget_settings && typeof initialData.widget_settings === 'object' ? 
+                        (initialData.widget_settings as any).agent_name || "" : "");
+                        
+      const agentDescription = initialData.description || 
+                              (initialData.widget_settings && typeof initialData.widget_settings === 'object' ? 
+                              (initialData.widget_settings as any).agent_description || "" : "");
+      
+      console.log("Setting form values from initialData:", {
+        client_name: initialData.client_name || "",
+        email: initialData.email || "",
+        agent_name: agentName,
+        agent_description: agentDescription,
+        logo_url: logoUrl,
+        logo_storage_path: logoStoragePath
+      });
+      
       form.reset({
         client_name: initialData.client_name || "",
         email: initialData.email || "",
-        agent_name: initialData.agent_name || initialData.name || 
-          (initialData.widget_settings && (initialData.widget_settings as any).agent_name) || "",
-        agent_description: (initialData.widget_settings && (initialData.widget_settings as any).agent_description) || "",
-        logo_url: initialData.logo_url || (initialData.widget_settings && (initialData.widget_settings as any).logo_url) || "",
-        logo_storage_path: initialData.logo_storage_path || 
-          (initialData.widget_settings && (initialData.widget_settings as any).logo_storage_path) || ""
+        agent_name: agentName,
+        agent_description: agentDescription,
+        logo_url: logoUrl,
+        logo_storage_path: logoStoragePath
       });
     }
   }, [initialData, form]);
