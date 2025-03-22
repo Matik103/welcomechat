@@ -24,7 +24,7 @@ export default function NewClient() {
           email: data.email,
           company: data.company || null,
           name: data.bot_settings?.bot_name || "AI Assistant",
-          agent_description: data.bot_settings?.bot_personality || "",
+          agent_description: data.bot_settings?.bot_personality || "", // Use agent_description field directly
           content: "",
           interaction_type: 'config',
           settings: {
