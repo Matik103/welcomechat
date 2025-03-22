@@ -1,3 +1,4 @@
+
 import React from "react";
 import { format } from "date-fns";
 import { 
@@ -15,6 +16,9 @@ interface ActivityItemProps {
     metadata: Json;
     client_name?: string;
     client_id?: string;
+    client_email?: string;
+    agent_name?: string;
+    agent_description?: string;
   };
 }
 
@@ -83,11 +87,31 @@ const getActivityIcon = (type: string, metadata: Json) => {
 };
 
 export const ActivityItem = ({ item }: ActivityItemProps) => {
-  // Get exact client name with safeguards and fallbacks
-  const clientName = item.client_name || 
-    (item.metadata && typeof item.metadata === 'object' && item.metadata !== null && 'client_name' in item.metadata ? 
-    String(item.metadata.client_name) : 
-    (item.client_id ? `Client ${item.client_id.substring(0, 8)}` : "System"));
+  // Get client name, with fallbacks
+  const getClientName = () => {
+    // First check for the client_name from our enriched data
+    if (item.client_name) {
+      return item.client_name;
+    }
+    
+    // Then check metadata for client_name
+    if (item.metadata && typeof item.metadata === 'object' && item.metadata !== null) {
+      const metadata = item.metadata as Record<string, any>;
+      if (metadata.client_name) {
+        return String(metadata.client_name);
+      }
+    }
+    
+    // Finally, use client_id as fallback
+    if (item.client_id) {
+      return `${item.client_id.substring(0, 8)}`;
+    }
+    
+    // Last resort
+    return "System";
+  };
+  
+  const clientName = getClientName();
     
   return (
     <div className="flex items-center gap-4 py-3 animate-slide-in">

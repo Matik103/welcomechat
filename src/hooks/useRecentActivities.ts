@@ -2,6 +2,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useRef } from "react";
+import type { Json } from "@/integrations/supabase/types";
 
 export const useRecentActivities = () => {
   const queryClient = useQueryClient();
@@ -38,7 +39,7 @@ export const useRecentActivities = () => {
       }
       
       // Get all unique client IDs
-      const clientIds = [...new Set(activities.map(a => a.client_id))].filter(Boolean);
+      const clientIds = [...new Set(activities.map(a => a.client_id))].filter(Boolean) as string[];
       
       // If we have client IDs, fetch their names and details
       if (clientIds.length > 0) {
@@ -54,95 +55,55 @@ export const useRecentActivities = () => {
             console.error("Error fetching agent data:", agentsError);
           }
 
-          // Also fetch from clients table as a backup source
-          const { data: clientsData, error: clientsError } = await supabase
-            .from("clients")
-            .select("id, client_name, email, agent_name, widget_settings")
-            .in("id", clientIds);
-            
-          if (clientsError) {
-            console.error("Error fetching clients data:", clientsError);
-          }
+          // Map of client info keyed by client_id
+          const clientInfoMap: Record<string, any> = {};
           
-          // Create a detailed map of client information from both sources
-          const clientInfoMap = new Map();
-          
-          // First populate with clients table data (if available)
-          if (clientsData && clientsData.length > 0) {
-            clientsData.forEach(client => {
-              if (client.id) {
-                clientInfoMap.set(client.id, {
-                  clientName: client.client_name,
-                  email: client.email,
-                  agentName: client.agent_name,
-                  widgetSettings: client.widget_settings,
-                  source: 'clients_table'
-                });
-              }
-            });
-          }
-          
-          // Then enhance/override with ai_agents data (which might be more accurate)
+          // Populate client info map from ai_agents data
           if (agentsData && agentsData.length > 0) {
             agentsData.forEach(agent => {
               if (agent.client_id) {
-                // Get existing client info or create new object
-                const existingInfo = clientInfoMap.get(agent.client_id) || {};
+                const clientId = agent.client_id;
                 
-                // Extract client name from settings if available
-                let settingsClientName = null;
-                if (agent.settings && typeof agent.settings === 'object') {
-                  settingsClientName = agent.settings.client_name;
-                }
+                // Initialize or get existing entry
+                clientInfoMap[clientId] = clientInfoMap[clientId] || {};
                 
-                // Update with agent data, preserving existing fields if not present in agent
-                clientInfoMap.set(agent.client_id, {
-                  ...existingInfo,
-                  clientName: agent.client_name || settingsClientName || existingInfo.clientName,
-                  agentName: agent.name || existingInfo.agentName,
-                  agentDescription: agent.agent_description || (existingInfo.widgetSettings?.agent_description),
-                  source: 'ai_agents_enhanced'
-                });
+                // Update with agent data
+                clientInfoMap[clientId] = {
+                  ...clientInfoMap[clientId],
+                  clientName: agent.client_name || agent.name || null,
+                  agentName: agent.name || null,
+                  agentDescription: agent.agent_description || null
+                };
               }
             });
           }
           
-          // Map activities with detailed client information
+          // Map activities with client information
           return activities.map(activity => {
+            // Get client ID or use a placeholder
+            const clientId = activity.client_id || '';
+            
             // First check if metadata contains client information
-            let metadataClientInfo = null;
-            if (
-              activity.metadata && 
-              typeof activity.metadata === 'object' && 
-              activity.metadata !== null
-            ) {
+            let clientName = null;
+            if (activity.metadata && typeof activity.metadata === 'object' && activity.metadata !== null) {
               // Extract client info from metadata
-              const metadataObject = activity.metadata as Record<string, any>;
-              if ('client_name' in metadataObject) {
-                metadataClientInfo = {
-                  clientName: String(metadataObject.client_name),
-                  source: 'metadata'
-                };
+              const metadataObj = activity.metadata as Record<string, any>;
+              if (metadataObj.client_name) {
+                clientName = String(metadataObj.client_name);
+              } else if (metadataObj.name) {
+                clientName = String(metadataObj.name);
               }
             }
             
-            // Get client info from map, fallback to metadata, or use exact client ID as last resort
-            const clientInfo = clientInfoMap.get(activity.client_id) || metadataClientInfo || {
-              clientName: `Client ${activity.client_id.substring(0, 6)}`,
-              source: 'id_fallback'
-            };
+            // Use clientInfoMap if available, otherwise use metadata or fallback
+            const clientInfo = clientInfoMap[clientId] || {};
             
             return {
-              id: activity.id,
-              activity_type: activity.activity_type,
-              description: activity.description,
-              created_at: activity.created_at,
-              metadata: activity.metadata,
-              client_id: activity.client_id,
-              client_name: clientInfo.clientName,
-              client_email: clientInfo.email,
-              agent_name: clientInfo.agentName,
-              agent_description: clientInfo.agentDescription
+              ...activity,
+              client_name: clientInfo.clientName || clientName || (clientId ? `${clientId.substring(0, 6)}` : "System"),
+              client_email: clientInfo.email || null,
+              agent_name: clientInfo.agentName || null,
+              agent_description: clientInfo.agentDescription || null
             };
           });
         } catch (err) {
@@ -153,7 +114,7 @@ export const useRecentActivities = () => {
       // If all else fails, return activities with client ID as name
       return activities.map(activity => ({
         ...activity,
-        client_name: `Client ${activity.client_id.substring(0, 8)}`
+        client_name: activity.client_id ? `${activity.client_id.substring(0, 8)}` : "System"
       }));
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute
