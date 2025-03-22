@@ -44,9 +44,10 @@ export const useRecentActivities = () => {
       if (clientIds.length > 0) {
         try {
           // Fetch client names from ai_agents table where interaction_type is "config"
+          // This query gets the most recent config entry for each client
           const { data: clientsData, error: clientsError } = await supabase
             .from("ai_agents")
-            .select("id, client_id, client_name, name")
+            .select("client_id, client_name, name")
             .in("client_id", clientIds)
             .eq("interaction_type", "config");
           
@@ -58,9 +59,9 @@ export const useRecentActivities = () => {
           const clientNameMap = new Map();
           if (clientsData && clientsData.length > 0) {
             clientsData.forEach(client => {
-              // Use client_name as the primary identifier, fallback to name (agent name)
               if (client.client_id) {
-                clientNameMap.set(client.client_id, client.client_name || client.name || "Unknown Client");
+                // Prioritize client_name over agent name
+                clientNameMap.set(client.client_id, client.client_name || client.name || "Client");
               }
             });
           }
@@ -88,7 +89,7 @@ export const useRecentActivities = () => {
               created_at: activity.created_at,
               metadata: activity.metadata,
               client_id: activity.client_id,
-              client_name: clientNameMap.get(activity.client_id) || metadataClientName || "Unknown Client"
+              client_name: clientNameMap.get(activity.client_id) || metadataClientName || "Client"
             };
           });
         } catch (err) {
@@ -96,10 +97,10 @@ export const useRecentActivities = () => {
         }
       }
 
-      // Return activities with default "Unknown Client" if we couldn't fetch names
+      // Return activities with default "Client" if we couldn't fetch names
       return activities.map(activity => ({
         ...activity,
-        client_name: "Unknown Client"
+        client_name: "Client"
       }));
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute

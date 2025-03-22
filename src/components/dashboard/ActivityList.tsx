@@ -10,6 +10,7 @@ interface Activity {
   created_at: string;
   metadata: Json;
   client_name?: string;
+  client_id?: string;
 }
 
 interface ActivityListProps {
