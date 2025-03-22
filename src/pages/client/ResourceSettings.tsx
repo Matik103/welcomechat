@@ -74,41 +74,38 @@ const ResourceSettings = () => {
     <div className="container mx-auto py-8 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6">Widget Settings</h1>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <WidgetSection
-            settings={currentSettings}
-            isUploading={isUploading}
-            onSettingsChange={handleSettingsChange}
-            onLogoUpload={handleLogoUpload}
-          />
-          
-          <EmbedCodeCard 
-            settings={currentSettings} 
-            onCopy={handleCopyEmbedCode} 
-          />
-          
-          <div className="flex justify-end">
-            <Button 
-              onClick={handleSave} 
-              disabled={updateSettingsMutation.isPending || isUploading}
-              className="mr-2"
-            >
-              {updateSettingsMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </div>
-        </div>
+      <div className="space-y-6">
+        <WidgetSection
+          settings={currentSettings}
+          isUploading={isUploading}
+          onSettingsChange={handleSettingsChange}
+          onLogoUpload={handleLogoUpload}
+        />
         
-        <div className="lg:col-span-1">
-          <WidgetPreviewCard settings={currentSettings} clientId={clientId} />
+        <EmbedCodeCard 
+          settings={currentSettings} 
+          onCopy={handleCopyEmbedCode} 
+        />
+        
+        <div className="flex justify-end mb-6">
+          <Button 
+            onClick={handleSave} 
+            disabled={updateSettingsMutation.isPending || isUploading}
+            className="mr-2"
+          >
+            {updateSettingsMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
         </div>
+
+        {/* Widget Preview moved here as the last card */}
+        <WidgetPreviewCard settings={currentSettings} clientId={clientId} />
       </div>
     </div>
   );
