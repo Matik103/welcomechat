@@ -7,16 +7,15 @@ export function useLogoPreview(logoUrl: string) {
   useEffect(() => {
     if (logoUrl) {
       try {
-        // Check if it's a valid URL format
+        // Validate URL format
         new URL(logoUrl);
-        console.log("Setting logo preview from URL:", logoUrl);
+        console.log("Setting logo preview from settings:", logoUrl);
         setLogoPreview(logoUrl);
       } catch (e) {
-        console.error("Invalid logo URL format:", logoUrl, e);
+        console.error("Invalid logo URL in settings:", logoUrl, e);
         setLogoPreview(null);
       }
     } else {
-      console.log("No logo URL provided, setting preview to null");
       setLogoPreview(null);
     }
   }, [logoUrl]);
@@ -25,7 +24,7 @@ export function useLogoPreview(logoUrl: string) {
     const reader = new FileReader();
     reader.onload = (e) => {
       const previewUrl = e.target?.result as string;
-      console.log("Generated local preview for file:", file.name);
+      console.log("Setting local preview before upload:", previewUrl.substring(0, 50) + "...");
       setLogoPreview(previewUrl);
     };
     reader.readAsDataURL(file);
