@@ -67,14 +67,19 @@ export const useRecentActivities = () => {
           
           // Map activities with client names
           return activities.map(activity => {
-            // Also check metadata for client_name as a fallback
-            const metadataClientName = 
+            // Check if metadata is an object and has client_name property
+            let metadataClientName = null;
+            if (
               activity.metadata && 
               typeof activity.metadata === 'object' && 
-              activity.metadata !== null && 
-              'client_name' in activity.metadata ? 
-              String(activity.metadata.client_name) : 
-              null;
+              activity.metadata !== null
+            ) {
+              // Type guard to ensure we're dealing with an object that might have client_name
+              const metadataObject = activity.metadata as Record<string, any>;
+              if ('client_name' in metadataObject) {
+                metadataClientName = String(metadataObject.client_name);
+              }
+            }
             
             return {
               id: activity.id,
