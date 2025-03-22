@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
+import { AgentDescriptionField } from "./form-fields/AgentDescriptionField";
 
 interface ClientAccountFormProps {
   initialData?: Client | null;
@@ -23,14 +24,13 @@ const clientFormSchema = z.object({
 });
 
 export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: ClientAccountFormProps) {
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, control } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
-      agent_name: initialData?.name || initialData?.agent_name || initialData?.widget_settings?.agent_name || "",
-      agent_description: initialData?.description || initialData?.agent_description || 
-        (initialData?.widget_settings && initialData?.widget_settings.agent_description) || "",
+      agent_name: initialData?.name || initialData?.agent_name || (initialData?.widget_settings && initialData.widget_settings.agent_name) || "",
+      agent_description: initialData?.agent_description || (initialData?.widget_settings && initialData.widget_settings.agent_description) || "",
     },
   });
 
@@ -40,14 +40,14 @@ export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: 
       setValue("email", initialData.email || "");
       setValue("agent_name", initialData.name || initialData.agent_name || 
         (initialData.widget_settings && initialData.widget_settings.agent_name) || "");
-      setValue("agent_description", initialData.description || initialData.agent_description || 
+      setValue("agent_description", initialData.agent_description || 
         (initialData.widget_settings && initialData.widget_settings.agent_description) || "");
     }
   }, [initialData, setValue]);
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    initialData?.logo_url || initialData?.widget_settings?.logo_url || null
+    initialData?.logo_url || (initialData?.widget_settings && initialData.widget_settings.logo_url) || null
   );
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,24 +109,7 @@ export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: 
         )}
       </div>
 
-      <div className="space-y-2">
-        <label htmlFor="agent_description" className="text-sm font-medium text-gray-900">
-          Chatbot Description
-        </label>
-        <Textarea
-          id="agent_description"
-          {...register("agent_description")}
-          className={errors.agent_description ? "border-red-500" : ""}
-          placeholder="Describe the AI assistant's capabilities and personality..."
-          rows={4}
-        />
-        {errors.agent_description && (
-          <p className="text-sm text-red-500">{errors.agent_description.message}</p>
-        )}
-        <p className="text-xs text-gray-500">
-          This description will be used as the system prompt for the AI chatbot.
-        </p>
-      </div>
+      <AgentDescriptionField form={{ register, formState: { errors } }} />
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">
         <Button type="submit" disabled={isLoading}>

@@ -4,7 +4,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 interface AgentDescriptionFieldProps {
-  form: UseFormReturn<any>;
+  form: {
+    register: UseFormReturn<any>["register"];
+    formState: {
+      errors: Record<string, any>;
+    };
+  };
   isClientView?: boolean;
 }
 
