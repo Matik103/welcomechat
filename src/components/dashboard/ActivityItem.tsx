@@ -102,10 +102,10 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
     ) {
       const fetchClientName = async () => {
         try {
-          // Query ai_agents table to get the client name
+          // Query ai_agents table to get the client name with correct SQL syntax
           const { data, error } = await supabase
             .from('ai_agents')
-            .select('name, settings->client_name as client_name, client_name as direct_client_name')
+            .select('name, settings->client_name, client_name')
             .eq('client_id', item.client_id)
             .eq('interaction_type', 'config')
             .order('updated_at', { ascending: false })
@@ -117,17 +117,29 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
           }
           
           if (data && data.length > 0) {
+            // Type assertion to handle data structure safely
+            const agentData = data[0] as {
+              name?: string;
+              client_name?: string;
+              settings?: {
+                client_name?: string;
+              } | null;
+            };
+            
             // Determine best client name from the result
-            const agentData = data[0];
+            const settingsClientName = agentData.settings?.client_name;
+            const directClientName = agentData.client_name;
+            const agentName = agentData.name;
+            
             const clientName = 
-              (agentData.client_name && typeof agentData.client_name === 'string' && agentData.client_name.trim() !== '' 
-                ? agentData.client_name 
+              (settingsClientName && typeof settingsClientName === 'string' && settingsClientName.trim() !== '' 
+                ? settingsClientName 
                 : null) || 
-              (agentData.direct_client_name && typeof agentData.direct_client_name === 'string' && agentData.direct_client_name.trim() !== '' 
-                ? agentData.direct_client_name 
+              (directClientName && typeof directClientName === 'string' && directClientName.trim() !== '' 
+                ? directClientName 
                 : null) || 
-              (agentData.name && typeof agentData.name === 'string' && agentData.name.trim() !== '' 
-                ? agentData.name 
+              (agentName && typeof agentName === 'string' && agentName.trim() !== '' 
+                ? agentName 
                 : null);
             
             if (clientName) {
