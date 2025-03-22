@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { execSql } from "@/utils/rpcUtils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +19,6 @@ const ClientSettings = () => {
   useEffect(() => {
     let isMounted = true;
     
-    // Set a timeout to ensure we don't get stuck in a loading state
     const timeout = setTimeout(() => {
       if (isMounted) {
         setLoadTimeout(true);
@@ -49,8 +47,12 @@ const ClientSettings = () => {
           
         if (!agentError && agentData) {
           console.log("Client Settings: Found data in ai_agents table:", agentData);
+          
+          // Check for logo URL
+          let logoUrl = null;
           if (agentData.logo_url) {
             console.log("Client Settings: Found logo URL in ai_agents:", agentData.logo_url);
+            logoUrl = agentData.logo_url;
           }
           
           if (isMounted) {
@@ -59,7 +61,10 @@ const ClientSettings = () => {
               client_name: agentData.client_name,
               agent_name: agentData.name,
               description: agentData.agent_description,
-              status: 'active'
+              status: 'active',
+              logo_url: logoUrl,
+              // Handle widget_settings safely
+              widget_settings: typeof agentData.settings === 'object' ? agentData.settings : {}
             });
             setIsLoading(false);
           }

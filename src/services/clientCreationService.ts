@@ -10,11 +10,11 @@ const uploadLogo = async (logoFile: File, clientId: string): Promise<{ url: stri
   try {
     const fileExt = logoFile.name.split('.').pop();
     const fileName = `${clientId}_${uuidv4()}.${fileExt}`;
-    const filePath = `client-assets/${fileName}`;
+    const filePath = `${clientId}/logos/${fileName}`;
     
-    // Upload the file to client-assets bucket
+    // Upload the file to client_documents bucket
     const { error: uploadError } = await supabase.storage
-      .from('client-assets')
+      .from('client_documents')
       .upload(filePath, logoFile);
       
     if (uploadError) {
@@ -24,7 +24,7 @@ const uploadLogo = async (logoFile: File, clientId: string): Promise<{ url: stri
     
     // Get the public URL
     const { data } = supabase.storage
-      .from('client-assets')
+      .from('client_documents')
       .getPublicUrl(filePath);
       
     return {
