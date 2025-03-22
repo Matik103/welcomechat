@@ -133,7 +133,7 @@ const ClientList = () => {
   };
 
   const handleAddClientClick = () => {
-    navigate('/admin/clients/new');
+    navigate('/admin/clients/create');
   };
 
   if (error) {
