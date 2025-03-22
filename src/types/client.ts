@@ -1,4 +1,3 @@
-
 export interface Client {
   id: string;
   client_id?: string;
@@ -44,10 +43,10 @@ export interface WebsiteUrl {
   client_id: string;
   url: string;
   created_at: string;
-  last_crawled: string | null;
   refresh_rate: number | null;
-  status: "pending" | "processing" | "completed" | "failed" | null;
-  notified_at?: string | null;
+  last_crawled: string | null;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | null;
+  notified_at: string | null;
 }
 
 export interface DocumentLink {

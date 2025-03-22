@@ -61,7 +61,10 @@ export const WebsiteResourcesSection = ({
         <CardTitle>Website URLs</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <WebsiteUrlForm onSubmit={handleAddWebsiteUrl} isClientView={isClientView} />
+        <WebsiteUrlForm 
+          onSubmit={handleAddWebsiteUrl} 
+          isClientView={isClientView} 
+        />
         
         {isLoading ? (
           <div className="flex justify-center py-8">
