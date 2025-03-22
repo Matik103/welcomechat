@@ -1,3 +1,4 @@
+
 export interface Client {
   id: string;
   created_at: string;
@@ -14,7 +15,13 @@ export interface Client {
   urls: string[];
   drive_urls: string[];
   email: string;
-  agent_name?: string; // Make agent_name optional to match database schema
+  agent_name?: string;
+  name?: string; // Added for compatibility
+  agent_description?: string; // Added for OpenAI assistant system prompt
+  logo_url?: string;
+  logo_storage_path?: string;
+  updated_at?: string;
+  last_active?: string;
 }
 
 export interface AIAgent {
@@ -46,6 +53,49 @@ export interface AIAgent {
   type?: string;
   uploadDate?: string;
   status?: string;
+}
+
+// Add missing WebsiteUrl type
+export interface WebsiteUrl {
+  id: number;
+  client_id: string;
+  url: string;
+  created_at: string;
+  last_crawled?: string | null;
+  refresh_rate?: number | null;
+  status?: string | null;
+}
+
+// Add missing DocumentLink type
+export interface DocumentLink {
+  id: number;
+  client_id: string;
+  link: string;
+  created_at: string;
+  document_type?: string | null;
+  refresh_rate?: number | null;
+  access_status?: AccessStatus | null;
+  notified_at?: string | null;
+}
+
+// Add missing AccessStatus type
+export type AccessStatus = 'granted' | 'pending' | 'denied';
+
+// Add missing ClientFormData type
+export interface ClientFormData {
+  client_name: string;
+  email: string;
+  agent_name?: string;
+  agent_description?: string;
+  logo_url?: string;
+  logo_storage_path?: string;
+  _tempLogoFile?: File | null;
+  widget_settings?: {
+    agent_name?: string;
+    agent_description?: string;
+    logo_url?: string;
+    logo_storage_path?: string;
+  };
 }
 
 export type ActivityType = 
@@ -419,3 +469,6 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[];
+
+// Add ExtendedActivityType for compatibility
+export type ExtendedActivityType = ActivityType | string;
