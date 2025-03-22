@@ -11,6 +11,9 @@ interface Activity {
   metadata: Json;
   client_name?: string;
   client_id?: string;
+  client_email?: string;
+  agent_name?: string;
+  agent_description?: string;
 }
 
 interface ActivityListProps {
