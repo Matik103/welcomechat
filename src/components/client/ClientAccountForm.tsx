@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,9 @@ export function ClientAccountForm() {
     // Generate preview
     const reader = new FileReader();
     reader.onload = (e) => {
-      setLogoPreview(e.target?.result as string);
+      if (e.target?.result) {
+        setLogoPreview(e.target.result as string);
+      }
     };
     reader.readAsDataURL(file);
   };
