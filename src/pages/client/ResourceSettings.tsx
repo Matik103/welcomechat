@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
@@ -36,9 +35,7 @@ const ResourceSettings = () => {
   };
 
   const handleSettingsChange = (newSettings: Partial<typeof settings>) => {
-    // Create a new settings object with the updated values
     const updatedSettings = { ...settings, ...newSettings };
-    // Update the state
     setCurrentSettings(updatedSettings);
   };
 
@@ -82,12 +79,14 @@ const ResourceSettings = () => {
           onLogoUpload={handleLogoUpload}
         />
         
+        <WidgetPreviewCard settings={currentSettings} clientId={clientId} />
+        
         <EmbedCodeCard 
           settings={currentSettings} 
           onCopy={handleCopyEmbedCode} 
         />
         
-        <div className="flex justify-end mb-6">
+        <div className="flex justify-end">
           <Button 
             onClick={handleSave} 
             disabled={updateSettingsMutation.isPending || isUploading}
@@ -103,9 +102,6 @@ const ResourceSettings = () => {
             )}
           </Button>
         </div>
-
-        {/* Widget Preview moved here as the last card */}
-        <WidgetPreviewCard settings={currentSettings} clientId={clientId} />
       </div>
     </div>
   );
