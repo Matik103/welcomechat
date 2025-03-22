@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -15,6 +15,7 @@ import { WebsiteUrlFormData } from '@/types/website-url';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { ValidationResult } from '@/types/website-url';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WebsiteResourcesSectionProps {
   clientId: string;
@@ -41,6 +42,36 @@ export const WebsiteResourcesSection = ({
     addWebsiteUrlMutation,
     deleteWebsiteUrlMutation,
   } = useWebsiteUrls(clientId);
+
+  // Set up real-time subscription for website URLs
+  useEffect(() => {
+    if (!clientId) return;
+    
+    console.log(`Setting up real-time subscription for website_urls table for client ${clientId}...`);
+    
+    const channel = supabase
+      .channel(`website_urls_${clientId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'website_urls',
+          filter: `client_id=eq.${clientId}`
+        },
+        (payload) => {
+          console.log("Real-time website URL update received:", payload);
+          // No need to call refetch manually as the useWebsiteUrls hook will handle this
+          // through the queryClient.invalidateQueries mechanism
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      console.log("Removing real-time website URLs subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [clientId]);
 
   const validateUrl = async (url: string): Promise<ValidationResult> => {
     setValidatingUrl(true);

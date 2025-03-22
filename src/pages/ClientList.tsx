@@ -124,6 +124,32 @@ export default function ClientList() {
   };
 
   useEffect(() => {
+    console.log("Setting up real-time subscription for ai_agents table...");
+    
+    const channel = supabase
+      .channel('ai_agents_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'ai_agents',
+          filter: 'interaction_type=eq.config'
+        },
+        (payload) => {
+          console.log("Real-time update received:", payload);
+          refetch();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      console.log("Removing real-time subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
+
+  useEffect(() => {
     if (clients && clients.length > 0) {
       console.log(`Filtering ${clients.length} clients with search query: "${searchQuery}"`);
       const filtered = clients.filter(client => {

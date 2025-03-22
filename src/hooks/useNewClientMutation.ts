@@ -1,10 +1,12 @@
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client-form";
 import { saveClientTempPassword, generateTempPassword, logClientCreationActivity } from "@/utils/clientCreationUtils";
 
 export const useNewClientMutation = () => {
+  const queryClient = useQueryClient();
+  
   return useMutation({
     mutationFn: async (data: ClientFormData) => {
       try {
@@ -49,14 +51,13 @@ export const useNewClientMutation = () => {
           data.widget_settings?.agent_name || "AI Assistant"
         );
         
-        // Call the edge function directly to send the welcome email
+        // Send welcome email
         let emailSent = false;
         let emailError = null;
         
         try {
           console.log("Sending welcome email...");
           
-          // Direct edge function call, similar to DeleteClientDialog approach
           const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
             'send-email', 
             {
@@ -128,6 +129,9 @@ export const useNewClientMutation = () => {
           emailError = emailErr.message || "Exception occurred sending email";
         }
         
+        // Invalidate clients query to force a refresh after creation
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
+        
         // Return the client data and email status
         return {
           client: clientData,
@@ -138,6 +142,11 @@ export const useNewClientMutation = () => {
         console.error("Error in useNewClientMutation:", error);
         throw error;
       }
+    },
+    onSuccess: () => {
+      // Additionally invalidate any related queries that might depend on clients data
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['clientStats'] });
     }
   });
 };
