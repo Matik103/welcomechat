@@ -55,7 +55,7 @@ export const useRecentActivities = () => {
               email,
               agent_description
             FROM ai_agents
-            WHERE client_id = ANY($1)
+            WHERE client_id = ANY($1::uuid[])
             AND interaction_type = 'config'
           `;
           
@@ -66,8 +66,8 @@ export const useRecentActivities = () => {
           
           // Populate client info map from ai_agents data
           if (agentsData && Array.isArray(agentsData) && agentsData.length > 0) {
-            agentsData.forEach(agent => {
-              if (agent.client_id) {
+            agentsData.forEach((agent: any) => {
+              if (agent && typeof agent === 'object' && agent.client_id) {
                 const clientId = agent.client_id;
                 
                 // Initialize or get existing entry
@@ -75,15 +75,19 @@ export const useRecentActivities = () => {
                 
                 // Determine best client name, checking settings->client_name first,
                 // then direct client_name field, then agent name as last resort
-                const clientName = agent.client_name || agent.direct_client_name || agent.name || null;
+                const clientName = 
+                  (typeof agent.client_name === 'string' ? agent.client_name : null) || 
+                  (typeof agent.direct_client_name === 'string' ? agent.direct_client_name : null) || 
+                  (typeof agent.name === 'string' ? agent.name : null) || 
+                  null;
                 
                 // Update with agent data
                 clientInfoMap[clientId] = {
                   ...clientInfoMap[clientId],
                   clientName: clientName,
-                  email: agent.email || null,
-                  agentName: agent.name || null,
-                  agentDescription: agent.agent_description || null
+                  email: typeof agent.email === 'string' ? agent.email : null,
+                  agentName: typeof agent.name === 'string' ? agent.name : null,
+                  agentDescription: typeof agent.agent_description === 'string' ? agent.agent_description : null
                 };
               }
             });
@@ -99,9 +103,9 @@ export const useRecentActivities = () => {
             if (activity.metadata && typeof activity.metadata === 'object' && activity.metadata !== null) {
               // Extract client info from metadata
               const metadataObj = activity.metadata as Record<string, any>;
-              if (metadataObj.client_name) {
+              if (metadataObj.client_name && typeof metadataObj.client_name === 'string') {
                 clientName = String(metadataObj.client_name);
-              } else if (metadataObj.name) {
+              } else if (metadataObj.name && typeof metadataObj.name === 'string') {
                 clientName = String(metadataObj.name);
               }
             }
