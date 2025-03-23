@@ -410,82 +410,73 @@ export class DocumentProcessingService {
         metadata: chunk.metadata
       }));
 
-      // Insert/update record in document_processing table
-      const { error } = await supabase
-        .from('document_processing')
-        .upsert({
-          document_url: processingRecord.documentUrl,
-          client_id: processingRecord.clientId,
-          agent_name: processingRecord.agentName,
-          document_type: processingRecord.documentType,
-          status: processingRecord.status,
-          started_at: processingRecord.startedAt,
-          completed_at: processingRecord.completedAt,
-          error: processingRecord.error,
-          metadata: metadata,
-          chunks: chunks,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'document_url,client_id'
-        });
+      try {
+        // First check if the document_processing table exists
+        const { data: tableExists } = await supabase
+          .rpc('exec_sql', {
+            sql_query: `SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = 'document_processing'
+            ) as exists`
+          });
+        
+        if (tableExists && tableExists[0] && tableExists[0].exists) {
+          // Insert/update record in document_processing table
+          const { error } = await supabase
+            .from('document_processing')
+            .upsert({
+              document_url: processingRecord.documentUrl,
+              client_id: processingRecord.clientId,
+              agent_name: processingRecord.agentName,
+              document_type: processingRecord.documentType,
+              status: processingRecord.status,
+              started_at: processingRecord.startedAt,
+              completed_at: processingRecord.completedAt,
+              error: processingRecord.error,
+              metadata: metadata,
+              chunks: chunks,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'document_url,client_id'
+            });
 
-      if (error) {
-        console.error('Error updating document_processing status:', error);
-        
-        // If table doesn't exist yet, log it instead (this can be removed once table is created)
-        console.log("Document processing status updated:", {
-          document_url: processingRecord.documentUrl,
-          client_id: processingRecord.clientId,
-          agent_name: processingRecord.agentName,
-          document_type: processingRecord.documentType,
-          status: processingRecord.status,
-          metadata,
-          chunks: chunks.length
-        });
-        
-        // Attempt to save the content to ai_agents table as a fallback
-        if (processingRecord.status === 'completed' && 
-            processingRecord.chunks && 
-            processingRecord.chunks.length > 0) {
-          
-          // Combine all chunks into one content string
-          const fullContent = processingRecord.chunks.map(chunk => chunk.content).join('\n\n');
-          
-          if (fullContent && fullContent.length > 0) {
-            await storeInAiAgents(
-              processingRecord.clientId,
-              processingRecord.agentName,
-              fullContent,
-              processingRecord.documentType,
-              processingRecord.documentUrl,
-              metadata
-            );
+          if (error) {
+            console.error('Error updating document_processing status:', error);
+            throw error;
           }
+        } else {
+          // Table doesn't exist yet, log instead
+          console.log("document_processing table doesn't exist yet, using ai_agents as fallback");
         }
-      } else {
-        console.log(`Successfully updated document processing status to '${processingRecord.status}'`);
+      } catch (dbError) {
+        console.error('Database error in updateProcessingStatus:', dbError);
+        // Continue to the fallback method below
+      }
+
+      // Also store the content in ai_agents for use by AI (as fallback or additional storage)
+      if (processingRecord.status === 'completed' && 
+          processingRecord.chunks && 
+          processingRecord.chunks.length > 0) {
         
-        // If processing completed successfully, also store the content in ai_agents for use by AI
-        if (processingRecord.status === 'completed' && 
-            processingRecord.chunks && 
-            processingRecord.chunks.length > 0) {
-          
-          // Combine all chunks into one content string
-          const fullContent = processingRecord.chunks.map(chunk => chunk.content).join('\n\n');
-          
-          if (fullContent && fullContent.length > 0) {
-            await storeInAiAgents(
-              processingRecord.clientId,
-              processingRecord.agentName,
-              fullContent,
-              processingRecord.documentType,
-              processingRecord.documentUrl,
-              metadata
-            );
-          }
+        // Combine all chunks into one content string
+        const fullContent = processingRecord.chunks.map(chunk => chunk.content).join('\n\n');
+        
+        if (fullContent && fullContent.length > 0) {
+          await storeInAiAgents(
+            processingRecord.clientId,
+            processingRecord.agentName,
+            fullContent,
+            processingRecord.documentType,
+            processingRecord.documentUrl,
+            metadata
+          );
         }
       }
+      
+      console.log(`Successfully updated document processing status to '${processingRecord.status}'`);
+        
     } catch (error) {
       console.error('Error in updateProcessingStatus:', error);
       // Don't throw here to prevent cascading failures
@@ -500,8 +491,80 @@ export class DocumentProcessingService {
     clientId: string
   ): Promise<DocumentProcessingResult | null> {
     try {
-      // For now, return a mock result until database table is properly created
-      console.log("Checking processing status for document:", documentUrl);
+      // Try to get status from the document_processing table
+      const { data, error } = await supabase
+        .rpc('exec_sql', {
+          sql_query: `
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = 'document_processing'
+            ) as exists
+          `
+        });
+      
+      if (data && data[0] && data[0].exists) {
+        // Query the document_processing table
+        const { data: processingData, error: processingError } = await supabase
+          .rpc('exec_sql', {
+            sql_query: `
+              SELECT * FROM document_processing
+              WHERE document_url = '${documentUrl}'
+              AND client_id = '${clientId}'
+              LIMIT 1
+            `
+          });
+        
+        if (processingError) {
+          console.error('Error fetching processing status:', processingError);
+          return null;
+        }
+        
+        if (processingData && processingData.length > 0) {
+          return convertToDocumentProcessingResult(processingData[0]);
+        }
+      }
+      
+      // If table doesn't exist or no record found, check in ai_agents as fallback
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .eq('url', documentUrl)
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'document')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (agentsError) {
+        console.error('Error fetching from ai_agents:', agentsError);
+        return null;
+      }
+      
+      if (agentsData && agentsData.length > 0) {
+        // Convert ai_agents data to document processing result format
+        return {
+          status: 'completed',
+          documentUrl: documentUrl,
+          documentType: agentsData[0].type || 'unknown',
+          clientId: clientId,
+          agentName: agentsData[0].name || 'AI Assistant',
+          startedAt: agentsData[0].created_at,
+          completedAt: agentsData[0].updated_at,
+          chunks: [],
+          metadata: {
+            path: documentUrl,
+            processedAt: agentsData[0].updated_at,
+            method: agentsData[0].settings?.processing_method || 'llamaparse',
+            publicUrl: documentUrl,
+            totalChunks: 1,
+            characterCount: agentsData[0].content?.length || 0,
+            wordCount: agentsData[0].content?.split(/\s+/).length || 0,
+            averageChunkSize: agentsData[0].content?.length || 0,
+            ...agentsData[0].settings
+          }
+        };
+      }
+      
       return null;
     } catch (error) {
       console.error('Error in getProcessingStatus:', error);
@@ -517,8 +580,86 @@ export class DocumentProcessingService {
     status?: DocumentProcessingStatus
   ): Promise<DocumentProcessingResult[]> {
     try {
-      // For now, return an empty array until database table is properly created
-      console.log("Listing processed documents for client:", clientId, status);
+      // Check if the document_processing table exists
+      const { data, error } = await supabase
+        .rpc('exec_sql', {
+          sql_query: `
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = 'document_processing'
+            ) as exists
+          `
+        });
+      
+      if (data && data[0] && data[0].exists) {
+        // Query the document_processing table
+        let query = `
+          SELECT * FROM document_processing
+          WHERE client_id = '${clientId}'
+        `;
+        
+        if (status) {
+          query += ` AND status = '${status}'`;
+        }
+        
+        query += ` ORDER BY created_at DESC`;
+        
+        const { data: processingData, error: processingError } = await supabase
+          .rpc('exec_sql', {
+            sql_query: query
+          });
+        
+        if (processingError) {
+          console.error('Error listing processed documents:', processingError);
+          return [];
+        }
+        
+        if (processingData && processingData.length > 0) {
+          return processingData.map(convertToDocumentProcessingResult);
+        }
+      }
+      
+      // If table doesn't exist or no records found, get from ai_agents as fallback
+      let query = supabase
+        .from('ai_agents')
+        .select('*')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'document')
+        .order('created_at', { ascending: false });
+      
+      const { data: agentsData, error: agentsError } = await query;
+      
+      if (agentsError) {
+        console.error('Error fetching from ai_agents:', agentsError);
+        return [];
+      }
+      
+      if (agentsData && agentsData.length > 0) {
+        // Convert ai_agents data to document processing result format
+        return agentsData.map(agent => ({
+          status: 'completed',
+          documentUrl: agent.url || '',
+          documentType: agent.type || 'unknown',
+          clientId: clientId,
+          agentName: agent.name || 'AI Assistant',
+          startedAt: agent.created_at,
+          completedAt: agent.updated_at,
+          chunks: [],
+          metadata: {
+            path: agent.url || '',
+            processedAt: agent.updated_at,
+            method: agent.settings?.processing_method || 'llamaparse',
+            publicUrl: agent.url || '',
+            totalChunks: 1,
+            characterCount: agent.content?.length || 0,
+            wordCount: agent.content?.split(/\s+/).length || 0,
+            averageChunkSize: agent.content?.length || 0,
+            ...agent.settings
+          }
+        }));
+      }
+      
       return [];
     } catch (error) {
       console.error('Error in listProcessedDocuments:', error);

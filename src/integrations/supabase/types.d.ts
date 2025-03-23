@@ -41,7 +41,10 @@ export type ActivityType =
   | 'logo_uploaded'
   | 'ai_agent_table_created'
   | 'source_added'
-  | 'source_deleted';
+  | 'source_deleted'
+  | 'document_processing_started'
+  | 'document_processing_completed'
+  | 'document_processing_failed';
 
 export interface Database {
   public: {
@@ -287,6 +290,54 @@ export interface Database {
           }
         ]
       }
+      document_processing: {
+        Row: {
+          id: number
+          document_url: string
+          client_id: string
+          agent_name: string
+          document_type: string
+          status: string
+          started_at: string
+          completed_at?: string
+          error?: string
+          metadata: Json
+          chunks: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          document_url: string
+          client_id: string
+          agent_name: string
+          document_type: string
+          status: string
+          started_at: string
+          completed_at?: string
+          error?: string
+          metadata?: Json
+          chunks?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          document_url?: string
+          client_id?: string
+          agent_name?: string
+          document_type?: string
+          status?: string
+          started_at?: string
+          completed_at?: string
+          error?: string
+          metadata?: Json
+          chunks?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           role: string | null
@@ -471,6 +522,7 @@ export interface Database {
         | "ai_agent_table_created"
         | "document_processing_started"
         | "document_processing_completed"
+        | "document_processing_failed"
         | "source_added"
         | "source_deleted"
     }
