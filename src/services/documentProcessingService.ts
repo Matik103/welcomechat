@@ -1,9 +1,52 @@
 import { supabase } from '@/integrations/supabase/client';
-import { DocumentProcessingOptions, DocumentProcessingResult } from '@/types/document-processing';
+import { DocumentProcessingOptions, DocumentProcessingResult, ParseResponse } from '@/types/document-processing';
 import { Json } from '@/integrations/supabase/types';
 import { callRpcFunction } from '@/utils/rpcUtils';
 import { execSql } from '@/utils/rpcUtils';
 import { LlamaCloudService } from '@/utils/LlamaCloudService';
+import { uploadToOpenAIAssistant } from './openaiAssistantService';
+
+/**
+ * Store content in ai_agents table
+ */
+const storeInAiAgents = async (
+  clientId: string,
+  agentName: string,
+  content: string,
+  documentType: string,
+  documentPath: string,
+  metadata: Record<string, any>
+) => {
+  const { data, error } = await supabase
+    .from('ai_agents')
+    .insert({
+      client_id: clientId,
+      name: agentName,
+      content: content,
+      url: documentPath,
+      interaction_type: "document",
+      settings: {
+        title: metadata.title || "Untitled Document",
+        document_type: documentType,
+        source_url: documentPath,
+        processing_method: metadata.processing_method,
+        processed_at: new Date().toISOString(),
+        ...metadata
+      },
+      status: "active",
+      type: documentType,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
 
 /**
  * Upload a document to the storage bucket
@@ -55,6 +98,55 @@ export const uploadDocument = async (
 };
 
 /**
+ * Chunks document content into manageable pieces
+ */
+const CHUNK_SIZE = 8000;
+const CHUNK_OVERLAP = 200;
+
+export const chunkDocument = (content: string): Array<{
+  content: string;
+  metadata: {
+    chunk_index: number;
+    total_chunks: number;
+    start_position: number;
+    end_position: number;
+  }
+}> => {
+  const chunks: Array<{
+    content: string;
+    metadata: {
+      chunk_index: number;
+      total_chunks: number;
+      start_position: number;
+      end_position: number;
+    }
+  }> = [];
+  
+  let position = 0;
+  let chunkIndex = 0;
+  
+  while (position < content.length) {
+    const end = Math.min(position + CHUNK_SIZE, content.length);
+    const chunk = content.slice(position, end);
+    
+    chunks.push({
+      content: chunk,
+      metadata: {
+        chunk_index: chunkIndex,
+        total_chunks: Math.ceil(content.length / CHUNK_SIZE),
+        start_position: position,
+        end_position: end
+      }
+    });
+    
+    position = end - CHUNK_OVERLAP;
+    chunkIndex++;
+  }
+  
+  return chunks;
+};
+
+/**
  * Process a document that has been uploaded
  */
 export const processDocument = async (
@@ -65,8 +157,7 @@ export const processDocument = async (
     const { 
       clientId, 
       agentName = 'AI Assistant', 
-      processingMethod = 'llamaparse',
-      integrateWithOpenAI = true 
+      processingMethod = 'llamaparse'
     } = options;
     
     // First, log that processing has started
@@ -75,7 +166,7 @@ export const processDocument = async (
         '${clientId}',
         'document_processing_started',
         'Document processing started for: ${documentPath}',
-        '{"path": "${documentPath}", "method": "${processingMethod}", "openai_integration": ${integrateWithOpenAI}}'::jsonb
+        '{"path": "${documentPath}", "method": "${processingMethod}"}'::jsonb
       )
     `);
     
@@ -106,57 +197,59 @@ export const processDocument = async (
       documentType = 'text';
     }
     
-    // Use LlamaCloudService to parse the document
-    const result = await LlamaCloudService.parseDocument(
+    // Parse document with LlamaParse
+    const parseResult = await LlamaCloudService.parseDocument(
       publicUrl,
       documentType,
       clientId,
-      agentName || 'AI Assistant'
+      agentName
     );
     
-    if (!result.success) {
-      throw new Error(result.error || 'Unknown error processing document');
+    if (!parseResult.success) {
+      throw new Error(parseResult.error || 'Failed to parse document');
     }
     
-    // The actual processing happens asynchronously on the server side
-    // For now, we just return a success response
-    const documentId = `doc-${Date.now()}`;
+    // Chunk the content if it's large
+    const chunks = chunkDocument(parseResult.content);
     
-    // Log successful processing request
-    await execSql(`
-      SELECT log_client_activity(
-        '${clientId}',
-        'document_processing_requested',
-        'Document processing requested for: ${documentPath}',
-        '{"document_id": "${documentId}", "path": "${documentPath}"}'::jsonb
-      )
-    `);
-
-    // If OpenAI integration is enabled, schedule the document to be added to the OpenAI Assistant
-    if (integrateWithOpenAI) {
-      await execSql(`
-        SELECT log_client_activity(
-          '${clientId}',
-          'openai_assistant_integration_requested',
-          'Document scheduled for OpenAI Assistant integration: ${documentPath}',
-          '{"document_id": "${documentId}", "path": "${documentPath}"}'::jsonb
-        )
-      `);
-      
-      // This will be handled by the Edge Function after document processing
+    // Store chunks in ai_agents table
+    for (const chunk of chunks) {
+      await storeInAiAgents(
+        clientId,
+        agentName,
+        chunk.content,
+        documentType,
+        documentPath,
+        {
+          ...parseResult.metadata,
+          chunk_metadata: chunk.metadata
+        }
+      );
+    }
+    
+    // Upload to OpenAI Assistant
+    const openaiResult = await uploadToOpenAIAssistant(
+      clientId,
+      agentName,
+      parseResult.content,
+      parseResult.metadata.title || 'Untitled Document'
+    );
+    
+    if (!openaiResult.success) {
+      throw new Error(`Failed to upload to OpenAI Assistant: ${openaiResult.error}`);
     }
     
     return {
       success: true,
-      status: 'processing',
-      documentId,
-      content: `Processing initiated for document at ${documentPath}`,
+      status: 'completed',
+      documentId: parseResult.documentId,
+      chunks: chunks.length,
       metadata: {
         path: documentPath,
         processedAt: new Date().toISOString(),
         method: processingMethod,
         publicUrl: publicUrl,
-        openaiIntegration: integrateWithOpenAI
+        openaiAssistantId: openaiResult.assistantId
       }
     };
   } catch (error: any) {

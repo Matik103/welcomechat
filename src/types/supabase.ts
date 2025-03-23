@@ -49,40 +49,31 @@ export interface AIAgent {
 }
 
 export type ActivityType = 
+  | 'chat_interaction'
   | 'client_created'
-  | 'client_updated' 
+  | 'client_updated'
   | 'client_deleted'
   | 'client_recovered'
   | 'widget_settings_updated'
   | 'website_url_added'
-  | 'website_url_deleted'
   | 'drive_link_added'
-  | 'drive_link_deleted'
   | 'document_uploaded'
-  | 'document_processed'
+  | 'document_processing_started'
+  | 'document_processing_completed'
   | 'document_processing_failed'
-  | 'chat_interaction'
-  | 'agent_name_updated'
-  | 'agent_logo_updated'
-  | 'agent_description_updated'
-  | 'ai_agent_created'
-  | 'ai_agent_updated'
-  | 'error_logged'
-  | 'webhook_sent'
-  | 'system_update'
-  | 'common_query_milestone'
-  | 'interaction_milestone'
-  | 'growth_milestone'
-  | 'invitation_sent'
-  | 'invitation_accepted'
-  | 'user_role_updated'
-  | 'login_success'
-  | 'login_failed'
-  | 'logo_uploaded'
-  | 'ai_agent_table_created'
-  | 'source_added'
-  | 'source_deleted';
-  
+  | 'openai_assistant_document_added'
+  | 'openai_assistant_upload_failed'
+  | 'system_update';
+
+export interface ClientActivity {
+  id: string;
+  client_id: string;
+  activity_type: ActivityType;
+  description: string;
+  metadata?: Json;
+  created_at: string;
+}
+
 export type Database = {
   public: {
     Tables: {

@@ -1,4 +1,3 @@
-
 -- Add new document processing enums if they don't exist
 DO $$
 DECLARE
@@ -35,6 +34,8 @@ BEGIN
     PERFORM add_value_to_enum('activity_type_enum', 'document_processing_completed');
     PERFORM add_value_to_enum('activity_type_enum', 'document_processing_failed');
     PERFORM add_value_to_enum('activity_type_enum', 'system_update');
+    PERFORM add_value_to_enum('activity_type_enum', 'openai_assistant_document_added');
+    PERFORM add_value_to_enum('activity_type_enum', 'openai_assistant_upload_failed');
     
     -- Drop the helper function
     DROP FUNCTION add_value_to_enum(text, text);
@@ -213,3 +214,19 @@ BEGIN
     END LOOP;
 END;
 $$;
+
+-- Create document_processing_status table
+CREATE TABLE IF NOT EXISTS public.document_processing_status (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_id UUID REFERENCES public.document_processing_jobs(id),
+    status VARCHAR(50) NOT NULL,
+    progress INTEGER DEFAULT 0,
+    stage VARCHAR(100),
+    message TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- Add index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_doc_processing_status_job_id ON public.document_processing_status(job_id);
