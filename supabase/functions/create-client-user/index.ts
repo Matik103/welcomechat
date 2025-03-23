@@ -74,7 +74,7 @@ serve(async (req) => {
     
     // If temp_password wasn't provided, generate one that meets Supabase requirements
     if (!actualPassword) {
-      // Use the generateWelcome password format from March 18
+      // Use the same password format that was working on March 18
       actualPassword = generateWelcomePassword();
       console.log("Generated welcome password:", actualPassword);
     }
@@ -201,33 +201,4 @@ function generateWelcomePassword(): string {
   return `Welcome${currentYear}#${randomDigits}`;
 }
 
-/**
- * Generates a complex password that meets Supabase Auth requirements:
- * - At least 8 characters
- * - At least one uppercase letter
- * - At least one lowercase letter
- * - At least one number
- * - At least one special character
- */
-function generateComplexPassword(): string {
-  const uppercaseChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // excluding I and O
-  const lowercaseChars = 'abcdefghijkmnpqrstuvwxyz'; // excluding l
-  const numbers = '23456789'; // excluding 0 and 1
-  const specialChars = '!@#$%^&*';
-  
-  // Ensure at least one character from each required type
-  let password = '';
-  password += uppercaseChars[Math.floor(Math.random() * uppercaseChars.length)];
-  password += lowercaseChars[Math.floor(Math.random() * lowercaseChars.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += specialChars[Math.floor(Math.random() * specialChars.length)];
-  
-  // Add more random characters for a total length of 12
-  const allChars = uppercaseChars + lowercaseChars + numbers + specialChars;
-  for (let i = 0; i < 8; i++) {
-    password += allChars[Math.floor(Math.random() * allChars.length)];
-  }
-  
-  // Shuffle the characters to make the pattern less predictable
-  return password.split('').sort(() => 0.5 - Math.random()).join('');
-}
+// Removing the generateComplexPassword function as we're standardizing on the Welcome format
