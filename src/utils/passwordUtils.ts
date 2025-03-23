@@ -1,19 +1,12 @@
 
 /**
  * Generates a temporary password for client accounts
- * Using the format "Welcome{YEAR}#{RANDOM}" that meets Supabase Auth requirements:
- * - At least 8 characters
- * - Contains at least one uppercase letter (Welcome)
- * - Contains at least one lowercase letter (elcome)
- * - Contains at least one number (2024, 123)
- * - Contains at least one special character (#)
- * 
+ * Using the format "Welcome2024#123" that was working correctly on March 18
  * @returns A randomly generated temporary password
  */
 export const generateClientTempPassword = (): string => {
   const currentYear = new Date().getFullYear();
-  // Generate random digits between 100-999 to ensure 3 digits
-  const randomDigits = Math.floor(Math.random() * 900) + 100; 
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
   
   return `Welcome${currentYear}#${randomDigits}`;
 };

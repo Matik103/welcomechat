@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -9,11 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
 import { AgentDescriptionField } from "./form-fields/AgentDescriptionField";
-import { v4 as uuidv4 } from 'uuid';
 
 interface ClientAccountFormProps {
   initialData?: Client | null;
-  onSubmit: (data: { client_name: string; email: string; agent_name: string; agent_description: string; client_id: string }) => Promise<void>;
+  onSubmit: (data: { client_name: string; email: string; agent_name: string; agent_description: string }) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -22,20 +20,16 @@ const clientFormSchema = z.object({
   email: z.string().email("Invalid email address"),
   agent_name: z.string().min(1, "Agent name is required"),
   agent_description: z.string().optional(),
-  client_id: z.string().optional(), // Add client_id to schema
 });
 
-type ClientFormValues = z.infer<typeof clientFormSchema>;
-
 export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: ClientAccountFormProps) {
-  const { register, handleSubmit, formState: { errors }, setValue, watch, control } = useForm<ClientFormValues>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, control } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || "",
       email: initialData?.email || "",
       agent_name: initialData?.name || initialData?.agent_name || (initialData?.widget_settings && initialData.widget_settings.agent_name) || "",
       agent_description: initialData?.agent_description || (initialData?.widget_settings && initialData.widget_settings.agent_description) || "",
-      client_id: initialData?.client_id || "",
     },
   });
 
@@ -47,7 +41,6 @@ export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: 
         (initialData.widget_settings && initialData.widget_settings.agent_name) || "");
       setValue("agent_description", initialData.agent_description || 
         (initialData.widget_settings && initialData.widget_settings.agent_description) || "");
-      setValue("client_id", initialData.client_id || "");
     }
   }, [initialData, setValue]);
 
@@ -70,21 +63,8 @@ export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: 
     }
   };
 
-  const handleFormSubmit = (data: ClientFormValues) => {
-    // Generate a new client_id if one doesn't exist
-    if (!data.client_id) {
-      data.client_id = uuidv4();
-      console.log("Generated new client_id in ClientAccountForm:", data.client_id);
-    }
-    
-    onSubmit(data as { client_name: string; email: string; agent_name: string; agent_description: string; client_id: string });
-  };
-
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      {/* Hidden field for client_id */}
-      <input type="hidden" {...register("client_id")} />
-      
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-2">
         <label htmlFor="client_name" className="text-sm font-medium text-gray-900">
           Client Name

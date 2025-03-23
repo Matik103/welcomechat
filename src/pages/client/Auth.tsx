@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { execSql } from "@/utils/rpcUtils";
 
@@ -15,7 +16,6 @@ const ClientAuth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const { user, isLoading, userRole } = useAuth();
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [searchParams] = useSearchParams();
@@ -90,163 +90,99 @@ const ClientAuth = () => {
     setErrorMessage("");
 
     try {
-      console.log("Starting email login for:", email);
+      console.log("Attempting to sign in with email:", email);
       
-      // First, try to find client_id associated with this email
-      const { data: clientData, error: clientLookupError } = await supabase
-        .from('ai_agents')
-        .select('id, client_id')
-        .eq('email', email)
-        .eq('interaction_type', 'config')
-        .single();
-          
-      if (clientLookupError) {
-        console.error("Error looking up client by email:", clientLookupError);
-        // Continue with regular login anyway
-      } else if (clientData) {
-        console.log("Found client_id for email:", clientData.client_id || clientData.id);
-      }
-        
-      // Proceed with normal login
-      const { error } = await supabase.auth.signInWithPassword({
+      // Log password format to help with debugging
+      const isWelcomeFormat = /^Welcome\d{4}#\d{3}$/.test(password);
+      const formatCheck = {
+        isWelcomeFormat,
+        passwordLength: password.length,
+        startsWithWelcome: password.startsWith('Welcome'),
+        hasYear: /Welcome\d{4}/.test(password),
+        hasHashSymbol: password.includes('#'),
+        hasThreeDigits: /Welcome\d{4}#\d{3}$/.test(password)
+      };
+      
+      console.log("Password format check:", formatCheck);
+      
+      // Try to sign in
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-        
-      if (error) {
-        throw error;
-      }
-        
-      console.log("Email login successful for:", email);
-      toast.success("Successfully signed in!");
-    } catch (error: any) {
-      console.error("Auth error:", error);
       
-      if (error.message?.includes("Invalid login credentials")) {
-        // Check if there's a client associated with this email
-        try {
-          const { data: clientData, error: clientLookupError } = await supabase
-            .from('ai_agents')
-            .select('id, client_id')
-            .eq('email', email)
-            .eq('interaction_type', 'config')
-            .single();
-            
-          if (clientLookupError) {
-            console.error("Error looking up client by email for password check:", clientLookupError);
-            setErrorMessage("Invalid email or password. Please try again.");
-          } else if (clientData) {
-            const clientId = clientData.client_id || clientData.id;
-            console.log("Found client_id for password check:", clientId);
-            
-            // Check if there's a temporary password for this client
+      if (error) {
+        console.error("Sign in error:", error);
+        
+        if (error.message?.includes("Invalid login credentials")) {
+          // Check if there's a temporary password for this email
+          try {
+            console.log("Checking for stored temporary password");
             const { data: tempPasswords, error: tempPasswordError } = await supabase
               .from('client_temp_passwords')
-              .select('temp_password, id')
-              .eq('agent_id', clientId)
-              .order('id', { ascending: false })
+              .select('temp_password, created_at, expires_at')
+              .eq('email', email)
+              .order('created_at', { ascending: false })
               .limit(1);
               
             if (tempPasswordError) {
               console.error("Error checking temp passwords:", tempPasswordError);
               setErrorMessage("Invalid email or password. Please make sure you're using the exact password from the welcome email.");
-            } 
-            else if (tempPasswords && tempPasswords.length > 0) {
+            } else if (tempPasswords && tempPasswords.length > 0) {
               const tempPassword = tempPasswords[0];
+              
+              console.log("Found temp password record:", {
+                passwordMatch: password === tempPassword.temp_password,
+                passwordLength: password.length,
+                storedPasswordLength: tempPassword.temp_password.length,
+                createdAt: tempPassword.created_at,
+                expiresAt: tempPassword.expires_at,
+                // Show partial password for debugging (not showing full for security)
+                storedPasswordStart: tempPassword.temp_password.substring(0, 7),
+                storedPasswordEnd: tempPassword.temp_password.substring(tempPassword.temp_password.length - 4),
+                userPasswordStart: password.substring(0, 7),
+                userPasswordEnd: password.length > 4 ? password.substring(password.length - 4) : ''
+              });
               
               // Check if passwords match
               if (password !== tempPassword.temp_password) {
                 // Provide a detailed error message
                 const currentYear = new Date().getFullYear();
                 setErrorMessage(
-                  `The password you entered doesn't match. Please use the exact password from the welcome email (format: Welcome${currentYear}#XXX).`
+                  `The password you entered doesn't match our records. Please use the exact password from the welcome email (format: Welcome${currentYear}#XXX).`
                 );
-                
-                // Try to recreate user account
-                try {
-                  const { data, error } = await supabase.functions.invoke(
-                    'create-client-user',
-                    {
-                      body: {
-                        email: email,
-                        client_id: clientId,
-                        temp_password: tempPassword.temp_password
-                      }
-                    }
-                  );
-                  
-                  if (error) {
-                    console.error("Error recreating user:", error);
-                  } else {
-                    console.log("User account recreated/refreshed:", data);
-                  }
-                } catch (createError) {
-                  console.error("Exception recreating user:", createError);
-                }
               } else {
-                // Passwords match but login still failed
+                // If passwords match but login still failed, there might be an issue with the Supabase auth record
                 setErrorMessage(
                   "Your password appears correct but login failed. The account may not be properly set up. Please contact support."
                 );
-                
-                // Try to recreate the user account
-                try {
-                  const { data, error } = await supabase.functions.invoke(
-                    'create-client-user',
-                    {
-                      body: {
-                        email: email,
-                        client_id: clientId,
-                        temp_password: tempPassword.temp_password
-                      }
-                    }
-                  );
-                  
-                  if (error) {
-                    console.error("Error recreating user:", error);
-                  } else {
-                    console.log("User account recreated:", data);
-                    
-                    // Try signing in again
-                    const { error: retryError } = await supabase.auth.signInWithPassword({
-                      email,
-                      password: tempPassword.temp_password,
-                    });
-                    
-                    if (retryError) {
-                      console.error("Retry sign in error:", retryError);
-                      setErrorMessage("Account recreated but sign in still failed. Please try again or contact support.");
-                    } else {
-                      console.log("Retry sign in successful after recreation");
-                      toast.success("Successfully signed in!");
-                    }
-                  }
-                } catch (createError) {
-                  console.error("Exception recreating user:", createError);
-                }
               }
             } else {
-              console.log("No temporary password found for client:", clientId);
+              console.log("No temporary password found for email:", email);
               setErrorMessage("No account found with this email address. Please check your email or contact support.");
             }
-          } else {
-            setErrorMessage("Invalid email or password. Please try again.");
+          } catch (tempCheckError) {
+            console.error("Error checking temporary password:", tempCheckError);
+            setErrorMessage("An error occurred while verifying your credentials. Please try again.");
           }
-        } catch (clientLookupError) {
-          console.error("Error in client lookup process:", clientLookupError);
-          setErrorMessage("An error occurred while verifying your credentials. Please try again.");
+        } else {
+          setErrorMessage(error.message || "Failed to sign in");
         }
+        
+        toast.error(errorMessage || "Authentication failed");
       } else {
-        // For other types of errors (not "Invalid login credentials")
-        setErrorMessage(error.message || "Failed to sign in");
+        console.log("Sign in successful:", authData);
+        
+        if (!autoReactivate) {
+          toast.success("Successfully signed in!");
+        } else {
+          toast.success("Successfully signed in! Reactivating your account...");
+        }
       }
-      
-      // Display toast with the error message
-      if (errorMessage) {
-        toast.error(errorMessage);
-      } else {
-        toast.error("Authentication failed");
-      }
+    } catch (error: any) {
+      console.error("Authentication error:", error);
+      setErrorMessage("An unexpected error occurred. Please try again.");
+      toast.error("Authentication failed");
     } finally {
       setLoading(false);
     }
@@ -289,20 +225,13 @@ const ClientAuth = () => {
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10"
+                  className="pl-10"
                   required
                   disabled={loading}
                 />
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-muted-foreground"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
               <p className="text-xs text-muted-foreground">
                 Password should be in the format: Welcome{new Date().getFullYear()}#XXX

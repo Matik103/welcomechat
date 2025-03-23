@@ -4,40 +4,20 @@ import { generateClientTempPassword } from "./passwordUtils";
 
 /**
  * Sets up a temporary password for the client and stores it in the database
- * @param clientId The ID from the ai_agents table
- * @param email Client's email address
- * @returns The generated temporary password
  */
 export const setupClientPassword = async (clientId: string, email: string) => {
   // Generate a temporary password for this client
   const tempPassword = generateClientTempPassword();
   console.log("Generated temporary password:", tempPassword);
   
-  // Store the temporary password in the database using client_id as primary identifier
+  // Store the temporary password in the database
   try {
-    // First check if there's already a password for this client_id
-    const { data: existingPasswords, error: checkError } = await supabase
-      .from("client_temp_passwords")
-      .select("id, temp_password")
-      .eq("agent_id", clientId)
-      .order('id', { ascending: false })
-      .limit(1);
-    
-    if (checkError) {
-      console.error("Error checking existing temporary passwords:", checkError);
-    } else if (existingPasswords && existingPasswords.length > 0) {
-      console.log("Found existing temporary password for client_id:", clientId);
-      // Return the existing password to avoid creating duplicates
-      return existingPasswords[0].temp_password;
-    }
-    
-    // No existing password found, create a new one
     const { error: tempPasswordError } = await supabase
       .from("client_temp_passwords")
       .insert({
+        agent_id: clientId,
         email: email,
-        temp_password: tempPassword,
-        agent_id: clientId
+        temp_password: tempPassword
       });
     
     if (tempPasswordError) {
@@ -45,7 +25,7 @@ export const setupClientPassword = async (clientId: string, email: string) => {
       throw new Error("Failed to save temporary password");
     }
     
-    console.log("Temporary password saved to database for client_id:", clientId);
+    console.log("Temporary password saved to database");
     return tempPassword;
   } catch (passwordError) {
     console.error("Error in password creation process:", passwordError);
@@ -64,9 +44,9 @@ export const createClientUserAccount = async (
   agentDescription: string, 
   tempPassword: string
 ) => {
-  console.log("Starting user account creation for client_id:", clientId);
+  console.log("Starting user account creation for:", email);
   
-  // Call the edge function to create a user, using client_id as the primary identifier
+  // Call the edge function to create a user
   const { data: userData, error: userError } = await supabase.functions.invoke("create-client-user", {
     body: {
       email: email,
@@ -83,16 +63,15 @@ export const createClientUserAccount = async (
     throw new Error("Failed to create user account");
   }
 
-  console.log("User account created successfully with client_id:", clientId);
+  console.log("User account created successfully:", userData);
   return userData;
 };
 
 /**
  * Creates a client in the database
  */
-export const createClientInDatabase = async (validatedData: any, clientId?: string) => {
+export const createClientInDatabase = async (validatedData: any) => {
   console.log("Creating client with data:", validatedData);
-  console.log("Using provided client_id:", clientId || "none");
 
   // Create the client directly in the ai_agents table
   const { data: newAgent, error } = await supabase
@@ -106,7 +85,6 @@ export const createClientInDatabase = async (validatedData: any, clientId?: stri
       interaction_type: 'config',
       client_name: validatedData.client_name.trim(),
       email: validatedData.email.trim().toLowerCase(),
-      client_id: clientId, // Use the provided clientId if available
       settings: {
         client_name: validatedData.client_name.trim(),
         email: validatedData.email.trim().toLowerCase(),
