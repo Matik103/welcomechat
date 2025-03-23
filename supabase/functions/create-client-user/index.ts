@@ -8,6 +8,19 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
+// Import the generateClientTempPassword function from the passwordUtils.ts file
+/**
+ * Generates a temporary password for client accounts
+ * Using the format "Welcome2024#123" that meets Supabase Auth requirements
+ * @returns A randomly generated temporary password
+ */
+function generateClientTempPassword(): string {
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+  
+  return `Welcome${currentYear}#${randomDigits}`;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -74,9 +87,9 @@ serve(async (req) => {
     
     // If temp_password wasn't provided, generate one that meets Supabase requirements
     if (!actualPassword) {
-      // Using the standard format for passwords
-      actualPassword = generateWelcomePassword();
-      console.log("Generated welcome password:", actualPassword);
+      // Using the standard function for consistent password generation
+      actualPassword = generateClientTempPassword();
+      console.log("Generated welcome password format:", actualPassword.slice(0, 7) + "..." + actualPassword.slice(-4));
     } else {
       console.log("Using provided temporary password");
     }
@@ -191,14 +204,3 @@ serve(async (req) => {
     );
   }
 });
-
-/**
- * Generates a welcome password in the format "Welcome2024#123"
- * This format is more memorable for users while still meeting security requirements
- */
-function generateWelcomePassword(): string {
-  const currentYear = new Date().getFullYear();
-  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-  
-  return `Welcome${currentYear}#${randomDigits}`;
-}

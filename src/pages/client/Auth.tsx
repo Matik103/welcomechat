@@ -131,22 +131,23 @@ const ClientAuth = () => {
             } else if (tempPasswords && tempPasswords.length > 0) {
               const tempPassword = tempPasswords[0];
               
-              // Check the structure of the returned data and then access properties
+              // Check if we have the necessary data before accessing properties
               console.log("Found temp password record:", {
-                passwordMatch: password === tempPassword.temp_password,
+                hasData: !!tempPasswords,
+                recordCount: tempPasswords.length,
+                passwordMatch: tempPassword && password === tempPassword.temp_password,
                 passwordLength: password.length,
-                storedPasswordLength: tempPassword.temp_password.length,
-                createdAt: tempPassword.created_at,
-                expiresAt: tempPassword.expires_at,
+                storedPasswordLength: tempPassword?.temp_password?.length,
                 // Show partial password for debugging (not showing full for security)
-                storedPasswordStart: tempPassword.temp_password.substring(0, 7),
-                storedPasswordEnd: tempPassword.temp_password.substring(tempPassword.temp_password.length - 4),
+                storedPasswordStart: tempPassword?.temp_password ? tempPassword.temp_password.substring(0, 7) : "N/A",
+                storedPasswordEnd: tempPassword?.temp_password ? 
+                  tempPassword.temp_password.substring(tempPassword.temp_password.length - 4) : "N/A",
                 userPasswordStart: password.substring(0, 7),
                 userPasswordEnd: password.length > 4 ? password.substring(password.length - 4) : ''
               });
               
               // Check if passwords match
-              if (password !== tempPassword.temp_password) {
+              if (tempPassword && password !== tempPassword.temp_password) {
                 // Provide a detailed error message
                 const currentYear = new Date().getFullYear();
                 setErrorMessage(

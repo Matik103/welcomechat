@@ -19,10 +19,11 @@ const corsHeaders = {
 };
 
 /**
- * Generates a welcome password in the format "Welcome2024#123"
- * Using the same format that was working on March 18
+ * Generates a temporary password for client accounts
+ * Using the format "Welcome2024#123" that meets Supabase Auth requirements
+ * @returns A randomly generated temporary password
  */
-function generateWelcomePassword(): string {
+function generateClientTempPassword(): string {
   const currentYear = new Date().getFullYear();
   const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
   
@@ -57,7 +58,7 @@ serve(async (req) => {
     console.log("Processing welcome email for:", { clientId, clientName, email });
     
     // Generate a password if one wasn't provided
-    const finalPassword = tempPassword || generateWelcomePassword();
+    const finalPassword = tempPassword || generateClientTempPassword();
     console.log("Using password format:", finalPassword.slice(0, 7) + "..." + finalPassword.slice(-4));
     
     const agentInfo = agentName ? ` with AI assistant "${agentName}"` : '';
@@ -101,7 +102,7 @@ serve(async (req) => {
             <p style="color: #4f46e5; margin-top: 0; margin-bottom: 20px; font-size: 16px;">${email}</p>
             
             <p style="color: #333333; font-weight: 600; margin-bottom: 8px; font-size: 16px;">Temporary Password:</p>
-            <p style="color: #4f46e5; font-family: monospace; font-size: 18px; background-color: #eef2ff; padding: 12px; border-radius: 6px; margin-top: 0; letter-spacing: 0.5px; text-align: center;">${tempPassword}</p>
+            <p style="color: #4f46e5; font-family: monospace; font-size: 18px; background-color: #eef2ff; padding: 12px; border-radius: 6px; margin-top: 0; letter-spacing: 0.5px; text-align: center;">${finalPassword}</p>
           </div>
           
           <p style="color: #333333; font-size: 16px; line-height: 1.6;">To get started:</p>
@@ -150,7 +151,7 @@ serve(async (req) => {
         metadata: { 
           email_type: "welcome_email",
           recipient_email: email,
-          temp_password_length: tempPassword.length
+          temp_password_length: finalPassword.length
         }
       });
 
