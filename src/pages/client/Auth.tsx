@@ -131,6 +131,7 @@ const ClientAuth = () => {
             } else if (tempPasswords && tempPasswords.length > 0) {
               const tempPassword = tempPasswords[0];
               
+              // Check the structure of the returned data and then access properties
               console.log("Found temp password record:", {
                 passwordMatch: password === tempPassword.temp_password,
                 passwordLength: password.length,
