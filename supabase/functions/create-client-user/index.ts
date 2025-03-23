@@ -156,15 +156,13 @@ serve(async (req) => {
       
       // Also save the temporary password in the client_temp_passwords table
       try {
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
-        
+        // Create a simpler insert query that doesn't rely on expires_at if it doesn't exist
         const { error: tempPasswordError } = await supabase
           .from("client_temp_passwords")
           .insert({
             agent_id: client_id,
             email: email,
-            temp_password: actualPassword,
-            expires_at: expiresAt.toISOString() // Set expiration date
+            temp_password: actualPassword
           });
           
         if (tempPasswordError) {
