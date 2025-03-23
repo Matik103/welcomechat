@@ -185,21 +185,25 @@ const ClientAuth = () => {
                     console.error("Error getting client ID:", clientError);
                   }
                   
-                  const { data, error } = await supabase.functions.invoke(
-                    'create-client-user',
-                    {
-                      body: {
-                        email: email,
-                        client_id: effectiveClientId,
-                        temp_password: tempPassword?.temp_password
+                  if (effectiveClientId) {
+                    const { data, error } = await supabase.functions.invoke(
+                      'create-client-user',
+                      {
+                        body: {
+                          email: email,
+                          client_id: effectiveClientId,
+                          temp_password: tempPassword?.temp_password
+                        }
                       }
+                    );
+                    
+                    if (error) {
+                      console.error("Error recreating user:", error);
+                    } else {
+                      console.log("User account recreated/refreshed:", data);
                     }
-                  );
-                  
-                  if (error) {
-                    console.error("Error recreating user:", error);
                   } else {
-                    console.log("User account recreated/refreshed:", data);
+                    console.error("No client ID found for user recreation");
                   }
                 } catch (createError) {
                   console.error("Exception recreating user:", createError);
@@ -225,35 +229,40 @@ const ClientAuth = () => {
                     console.error("Error getting client ID:", clientError);
                   }
                   
-                  const { data, error } = await supabase.functions.invoke(
-                    'create-client-user',
-                    {
-                      body: {
-                        email: email,
-                        client_id: effectiveClientId,
-                        temp_password: tempPassword.temp_password
+                  if (effectiveClientId) {
+                    const { data, error } = await supabase.functions.invoke(
+                      'create-client-user',
+                      {
+                        body: {
+                          email: email,
+                          client_id: effectiveClientId,
+                          temp_password: tempPassword.temp_password
+                        }
+                      }
+                    );
+                    
+                    if (error) {
+                      console.error("Error recreating user:", error);
+                    } else {
+                      console.log("User account recreated:", data);
+                      
+                      // Try signing in again after recreating
+                      const { error: retryError } = await supabase.auth.signInWithPassword({
+                        email,
+                        password: tempPassword.temp_password,
+                      });
+                      
+                      if (retryError) {
+                        console.error("Retry sign in error:", retryError);
+                        setErrorMessage("Account recreated but sign in still failed. Please try again or contact support.");
+                      } else {
+                        console.log("Retry sign in successful after recreation");
+                        toast.success("Successfully signed in!");
                       }
                     }
-                  );
-                  
-                  if (error) {
-                    console.error("Error recreating user:", error);
                   } else {
-                    console.log("User account recreated:", data);
-                    
-                    // Try signing in again after recreating
-                    const { error: retryError } = await supabase.auth.signInWithPassword({
-                      email,
-                      password: tempPassword.temp_password,
-                    });
-                    
-                    if (retryError) {
-                      console.error("Retry sign in error:", retryError);
-                      setErrorMessage("Account recreated but sign in still failed. Please try again or contact support.");
-                    } else {
-                      console.log("Retry sign in successful after recreation");
-                      toast.success("Successfully signed in!");
-                    }
+                    console.error("No client ID found for user recreation");
+                    setErrorMessage("Could not identify your account. Please contact support.");
                   }
                 } catch (createError) {
                   console.error("Exception recreating user:", createError);
@@ -268,9 +277,11 @@ const ClientAuth = () => {
             setErrorMessage("An error occurred while verifying your credentials. Please try again.");
           }
         } else {
+          // For other types of errors (not "Invalid login credentials")
           setErrorMessage(error.message || "Failed to sign in");
         }
         
+        // Display toast with the error message
         toast.error(errorMessage || "Authentication failed");
       } else {
         console.log("Sign in successful:", authData);
@@ -283,8 +294,10 @@ const ClientAuth = () => {
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
-      setErrorMessage("An unexpected error occurred. Please try again.");
-      toast.error("Authentication failed");
+      // Safely handle error objects that might not have a message property
+      const errorMsg = error?.message || "An unexpected error occurred. Please try again.";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
