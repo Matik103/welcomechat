@@ -202,12 +202,13 @@ serve(async (req) => {
       
       // Also save the temporary password in the client_temp_passwords table
       try {
-        // Create a simpler insert query without relying on other columns
+        // Make sure to include agent_id when inserting to client_temp_passwords
         const { error: tempPasswordError } = await supabase
           .from("client_temp_passwords")
           .insert({
             email: email,
-            temp_password: actualPassword
+            temp_password: actualPassword,
+            agent_id: effectiveClientId // Make sure to include agent_id
           });
           
         if (tempPasswordError) {

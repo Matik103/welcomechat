@@ -10,13 +10,14 @@ export const setupClientPassword = async (clientId: string, email: string) => {
   const tempPassword = generateClientTempPassword();
   console.log("Generated temporary password:", tempPassword);
   
-  // Store the temporary password in the database without relying on other fields
+  // Store the temporary password in the database including the required agent_id field
   try {
     const { error: tempPasswordError } = await supabase
       .from("client_temp_passwords")
       .insert({
         email: email,
-        temp_password: tempPassword
+        temp_password: tempPassword,
+        agent_id: clientId  // Adding the required agent_id field
       });
     
     if (tempPasswordError) {
