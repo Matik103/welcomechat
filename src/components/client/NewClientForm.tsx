@@ -1,11 +1,11 @@
 
 import { useState } from 'react';
+import { useNewClientMutation } from "@/hooks/useNewClientMutation";
 import { useNewClientForm } from "@/hooks/useNewClientForm";
 import { ClientFormData } from "@/types/client-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { toast } from 'sonner';
 
@@ -18,8 +18,22 @@ interface NewClientFormProps {
 export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: NewClientFormProps) {
   const { form, handleSubmit, errors } = useNewClientForm({ 
     onSubmit: async (data) => {
-      toast.loading("Creating client account and sending welcome email...");
-      await onSubmit(data);
+      // Use the client mutation directly here to ensure client_id generation
+      const clientMutation = useNewClientMutation();
+      
+      try {
+        toast.loading("Creating client account and sending welcome email...");
+        // Use the mutation directly to create the client with proper client_id generation
+        const result = await clientMutation.mutateAsync(data);
+        
+        console.log("Client created with client_id:", result.client.client_id);
+        
+        // Call the provided onSubmit handler with the processed data
+        await onSubmit(data);
+      } catch (error) {
+        console.error("Error creating client:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to create client");
+      }
     }, 
     initialData 
   });

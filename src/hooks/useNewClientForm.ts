@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ClientFormData, clientFormSchema, ClientFormErrors } from "@/types/client-form";
 import { toast } from "sonner";
+import { v4 as uuidv4 } from 'uuid';
 
 interface UseNewClientFormProps {
   onSubmit: (data: ClientFormData) => Promise<void>;
@@ -63,10 +64,17 @@ export const useNewClientForm = ({ onSubmit, initialData }: UseNewClientFormProp
         };
       }
 
+      // Generate a client_id if not already present
+      if (!data.client_id) {
+        data.client_id = uuidv4();
+        console.log("Generated new client_id in form:", data.client_id);
+      }
+
       // Clean up the data before submission
       const submissionData: ClientFormData = {
         client_name: data.client_name.trim(),
         email: data.email.toLowerCase().trim(),
+        client_id: data.client_id, // Include the client_id
         widget_settings: {
           agent_name: data.widget_settings.agent_name?.trim() || "",
           agent_description: data.widget_settings.agent_description?.trim() || "",

@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
-import { generateTempPassword, saveClientTempPassword, generateClientWelcomeEmailTemplate } from '@/utils/clientCreationUtils';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function CreateClientAccount() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,8 +22,31 @@ export default function CreateClientAccount() {
       // Show loading toast
       const loadingToastId = toast.loading("Creating AI agent and sending welcome email...");
       
-      // Generate a temporary password using our enhanced function
-      const tempPassword = generateTempPassword();
+      // Ensure client_id exists
+      const clientId = data.client_id || uuidv4();
+      console.log("Using client_id:", clientId);
+      
+      // Generate a temporary password
+      const { data: tempPasswordData, error: passwordError } = await supabase.functions.invoke(
+        'create-client-user',
+        {
+          body: {
+            email: data.email,
+            client_id: clientId,
+            client_name: data.client_name,
+            agent_name: data.agent_name || "AI Assistant",
+            agent_description: data.agent_description || "",
+            update_only: false
+          }
+        }
+      );
+      
+      if (passwordError) {
+        console.error("Error generating credentials:", passwordError);
+        throw new Error("Failed to generate secure credentials");
+      }
+      
+      const tempPassword = tempPasswordData?.password || "Failed to retrieve password";
       
       console.log("Creating client with data:", data);
       console.log("Using temporary password:", tempPassword);
@@ -39,6 +62,7 @@ export default function CreateClientAccount() {
           agent_description: data.agent_description || "", 
           content: "",
           interaction_type: 'config',
+          client_id: clientId, // Explicitly set the client_id
           settings: {
             agent_name: data.agent_name || "AI Assistant",
             agent_description: data.agent_description || "",
@@ -55,25 +79,16 @@ export default function CreateClientAccount() {
       
       console.log("Client created successfully:", clientData);
       
-      // Save the temporary password
-      await saveClientTempPassword(clientData.id, data.email, tempPassword);
-
-      // Generate an enhanced email template
-      const emailHtml = generateClientWelcomeEmailTemplate(
-        data.client_name,
-        data.email,
-        tempPassword
-      );
-
-      // Call the edge function to send the welcome email
+      // Generate an email template
       const { data: emailResult, error: emailError } = await supabase.functions.invoke(
-        'send-email', 
+        'send-welcome-email', 
         {
           body: {
-            to: data.email,
-            subject: "Welcome to Welcome.Chat - Your Account Details",
-            html: emailHtml,
-            from: "Welcome.Chat <admin@welcome.chat>"
+            clientId: clientId,
+            clientName: data.client_name,
+            email: data.email,
+            agentName: data.agent_name || "AI Assistant",
+            tempPassword: tempPassword
           }
         }
       );
@@ -102,7 +117,7 @@ export default function CreateClientAccount() {
           'create-openai-assistant',
           {
             body: {
-              client_id: clientData.id,
+              client_id: clientId,
               agent_name: data.agent_name || "AI Assistant",
               agent_description: data.agent_description || "",
               client_name: data.client_name
@@ -161,6 +176,7 @@ export default function CreateClientAccount() {
                 <AlertDescription>
                   When you submit the form, we'll:
                   <ol className="list-decimal ml-4 mt-2 space-y-1 text-sm">
+                    <li>Generate a unique client ID (UUID)</li>
                     <li>Create a new AI agent in the database</li>
                     <li>Generate a secure temporary password</li>
                     <li>Send a welcome email with login details</li>
