@@ -7,18 +7,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-// import { toast } from 'sonner'; - We'll comment this out to prevent potential duplicates
+import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 import { supabase } from '@/integrations/supabase/client';
 import { generateTempPassword, saveClientTempPassword } from '@/utils/clientCreationUtils';
 import { useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 
 // Form validation schema
 const clientFormSchema = z.object({
-  client_name: z.string().min(2, 'Client name must be at least 2 characters'),
+  client_name: z.string().min(2, 'Client name is required'),
   email: z.string().email('Invalid email address'),
   company: z.string().optional(),
   description: z.string().optional(),
+  client_id: z.string().optional(), // Add client_id to schema
   widget_settings: z.object({
     agent_name: z.string().optional(),
     agent_description: z.string().optional(),
@@ -41,6 +43,7 @@ export function NewClientForm() {
       email: '',
       company: '',
       description: '',
+      client_id: '', // Initialize client_id as empty string
       widget_settings: {
         agent_name: '',
         agent_description: '',
@@ -49,19 +52,16 @@ export function NewClientForm() {
   });
 
   const onSubmit = async (data: ClientFormValues) => {
-    // Show toast notification is handled elsewhere now
-    // Remove the duplicate toast notification here
-    // toast.info("Form submission temporarily disabled");
-    
-    // Just log the form data to console for debugging purposes
-    console.log("Form data (submission disabled):", data);
-    
-    // TEMPORARILY DISABLED - Functionality commented out
-    /* 
     setIsLoading(true);
     const initialToastId = toast.loading("Creating client...");
     
     try {
+      // Generate a client_id if one doesn't exist
+      if (!data.client_id) {
+        data.client_id = uuidv4();
+        console.log("Generated new client_id in NewClientForm:", data.client_id);
+      }
+      
       // Create the client/agent in ai_agents table
       const { data: clientData, error: clientError } = await supabase
         .from('ai_agents')
@@ -71,6 +71,7 @@ export function NewClientForm() {
           company: data.company || null,
           name: data.widget_settings?.agent_name || "AI Assistant",
           agent_description: data.widget_settings?.agent_description || "",
+          client_id: data.client_id, // Include the client_id
           content: "",
           interaction_type: 'config',
           settings: {
@@ -79,13 +80,15 @@ export function NewClientForm() {
             logo_url: data.widget_settings?.logo_url || "",
             client_name: data.client_name,
             email: data.email,
-            company: data.company || null
+            company: data.company || null,
+            client_id: data.client_id // Include the client_id in settings
           }
         })
         .select()
         .single();
 
       if (clientError) throw new Error(clientError.message);
+      console.log("Client created successfully:", clientData);
       
       // Log activity for client creation
       await createClientActivity(
@@ -95,7 +98,8 @@ export function NewClientForm() {
         {
           client_name: data.client_name,
           email: data.email,
-          agent_name: data.widget_settings?.agent_name || "AI Assistant"
+          agent_name: data.widget_settings?.agent_name || "AI Assistant",
+          client_id: data.client_id // Include client_id in activity log
         }
       );
       
@@ -117,7 +121,8 @@ export function NewClientForm() {
             clientName: data.client_name,
             email: data.email,
             agentName: data.widget_settings?.agent_name || "AI Assistant",
-            tempPassword: tempPassword
+            tempPassword: tempPassword,
+            client_id: data.client_id // Include client_id in email data
           }
         }
       );
@@ -141,11 +146,13 @@ export function NewClientForm() {
     } finally {
       setIsLoading(false);
     }
-    */
   };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {/* Hidden field for client_id */}
+      <input type="hidden" {...form.register('client_id')} />
+      
       <div className="space-y-4">
         <div>
           <Label htmlFor="client_name">Client Name *</Label>
@@ -226,10 +233,6 @@ export function NewClientForm() {
       <Button type="submit" disabled={isLoading} className="w-full">
         {isLoading ? 'Creating...' : 'Create Client'}
       </Button>
-      
-      <div className="mt-2 p-4 bg-amber-100 rounded-md border border-amber-200">
-        <p className="text-amber-800 text-sm font-medium">⚠️ Note: Form submission is temporarily disabled</p>
-      </div>
     </form>
   );
 }
