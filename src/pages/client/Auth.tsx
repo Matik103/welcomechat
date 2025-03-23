@@ -98,9 +98,9 @@ const ClientAuth = () => {
         console.log("Checking for stored temporary password");
         const { data: tempPasswords, error: tempPasswordError } = await supabase
           .from('client_temp_passwords')
-          .select('temp_password')
+          .select('temp_password, id')
           .eq('email', email)
-          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .limit(1);
           
         if (tempPasswordError) {
@@ -135,9 +135,9 @@ const ClientAuth = () => {
             console.log("Login failed, checking stored temporary password");
             const { data: tempPasswords, error: tempPasswordError } = await supabase
               .from('client_temp_passwords')
-              .select('temp_password')
+              .select('temp_password, id')
               .eq('email', email)
-              .order('created_at', { ascending: false })
+              .order('id', { ascending: false })
               .limit(1);
               
             if (tempPasswordError) {
@@ -172,20 +172,63 @@ const ClientAuth = () => {
                 
                 // Try calling the user creation endpoint again to ensure user exists
                 try {
-                  // Get client_id for this user through a separate query if needed
-                  const { data: clientData, error: clientError } = await supabase
+                  // First, try to get client_id from ai_agents table since it might be NULL
+                  const { data: agentData, error: agentError } = await supabase
                     .from('ai_agents')
-                    .select('id')
+                    .select('id, client_id')
                     .eq('email', email)
                     .single();
                   
-                  const effectiveClientId = clientId || (clientData?.id || null);
+                  // Use provided client_id from URL or the one found in ai_agents
+                  const effectiveClientId = clientId || (agentData?.client_id || null);
                   
-                  if (clientError) {
-                    console.error("Error getting client ID:", clientError);
+                  if (agentError) {
+                    console.error("Error getting agent data:", agentError);
                   }
                   
-                  if (effectiveClientId) {
+                  if (!effectiveClientId) {
+                    console.warn("No client ID found, attempting to retrieve agent ID as fallback");
+                    // If still no client_id, let's try to use the agent's direct id as a fallback
+                    const agentId = agentData?.id;
+                    
+                    if (agentId) {
+                      console.log("Using agent ID as fallback:", agentId);
+                      // Try to update client_id in ai_agents if it's NULL
+                      const { error: updateError } = await supabase
+                        .from('ai_agents')
+                        .update({ client_id: agentId })
+                        .eq('id', agentId);
+                        
+                      if (updateError) {
+                        console.error("Error updating agent with its own ID as client_id:", updateError);
+                      } else {
+                        console.log("Updated ai_agents.client_id with its own ID as fallback");
+                      }
+                      
+                      // Use the agent ID for user creation
+                      const { data, error } = await supabase.functions.invoke(
+                        'create-client-user',
+                        {
+                          body: {
+                            email: email,
+                            client_id: agentId,
+                            temp_password: tempPassword?.temp_password
+                          }
+                        }
+                      );
+                      
+                      if (error) {
+                        console.error("Error recreating user with agent ID:", error);
+                      } else {
+                        console.log("User account recreated/refreshed with agent ID:", data);
+                      }
+                    } else {
+                      console.error("No agent ID or client ID found for user recreation");
+                      setErrorMessage("Account lookup failed. Please contact support with your email address.");
+                    }
+                  } else {
+                    // We have a valid client ID
+                    console.log("Using client ID for user recreation:", effectiveClientId);
                     const { data, error } = await supabase.functions.invoke(
                       'create-client-user',
                       {
@@ -202,8 +245,6 @@ const ClientAuth = () => {
                     } else {
                       console.log("User account recreated/refreshed:", data);
                     }
-                  } else {
-                    console.error("No client ID found for user recreation");
                   }
                 } catch (createError) {
                   console.error("Exception recreating user:", createError);
@@ -216,17 +257,36 @@ const ClientAuth = () => {
                 
                 // Try to recreate/update the user account
                 try {
-                  // Get client_id for this user through a separate query if needed
-                  const { data: clientData, error: clientError } = await supabase
+                  // First, try to get client_id from ai_agents table since it might be NULL
+                  const { data: agentData, error: agentError } = await supabase
                     .from('ai_agents')
-                    .select('id')
+                    .select('id, client_id')
                     .eq('email', email)
                     .single();
                   
-                  const effectiveClientId = clientId || (clientData?.id || null);
+                  // Use provided client_id from URL or the one found in ai_agents
+                  let effectiveClientId = clientId || (agentData?.client_id || null);
                   
-                  if (clientError) {
-                    console.error("Error getting client ID:", clientError);
+                  if (agentError) {
+                    console.error("Error getting agent data:", agentError);
+                  }
+                  
+                  // If still no client_id, use the agent's direct id as a fallback
+                  if (!effectiveClientId && agentData?.id) {
+                    console.log("No client ID found, using agent ID as fallback:", agentData.id);
+                    effectiveClientId = agentData.id;
+                    
+                    // Try to update client_id in ai_agents if it's NULL
+                    const { error: updateError } = await supabase
+                      .from('ai_agents')
+                      .update({ client_id: effectiveClientId })
+                      .eq('id', agentData.id);
+                      
+                    if (updateError) {
+                      console.error("Error updating agent with its own ID as client_id:", updateError);
+                    } else {
+                      console.log("Updated ai_agents.client_id with its own ID");
+                    }
                   }
                   
                   if (effectiveClientId) {
@@ -261,7 +321,7 @@ const ClientAuth = () => {
                       }
                     }
                   } else {
-                    console.error("No client ID found for user recreation");
+                    console.error("No client ID or agent ID found for user recreation");
                     setErrorMessage("Could not identify your account. Please contact support.");
                   }
                 } catch (createError) {
@@ -282,7 +342,11 @@ const ClientAuth = () => {
         }
         
         // Display toast with the error message
-        toast.error(errorMessage || "Authentication failed");
+        if (errorMessage) {
+          toast.error(errorMessage);
+        } else {
+          toast.error("Authentication failed");
+        }
       } else {
         console.log("Sign in successful:", authData);
         

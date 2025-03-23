@@ -10,12 +10,11 @@ export const setupClientPassword = async (clientId: string, email: string) => {
   const tempPassword = generateClientTempPassword();
   console.log("Generated temporary password:", tempPassword);
   
-  // Store the temporary password in the database without relying on created_at
+  // Store the temporary password in the database without relying on other fields
   try {
     const { error: tempPasswordError } = await supabase
       .from("client_temp_passwords")
       .insert({
-        agent_id: clientId,
         email: email,
         temp_password: tempPassword
       });
@@ -93,7 +92,7 @@ export const createClientInDatabase = async (validatedData: any) => {
         logo_url: validatedData.widget_settings?.logo_url || ""
       }
     })
-    .select("id, client_id")
+    .select("id")
     .single();
 
   if (error) {
@@ -103,6 +102,19 @@ export const createClientInDatabase = async (validatedData: any) => {
 
   if (!newAgent) {
     throw new Error("Failed to create client record");
+  }
+
+  // Important: Set client_id to its own id to avoid NULL client_id issues
+  const { error: updateError } = await supabase
+    .from("ai_agents")
+    .update({ client_id: newAgent.id })
+    .eq("id", newAgent.id);
+    
+  if (updateError) {
+    console.error("Error setting client_id to agent's own id:", updateError);
+    // Continue despite this error
+  } else {
+    console.log("Successfully set client_id to agent's own id");
   }
 
   console.log("Client created successfully:", newAgent);

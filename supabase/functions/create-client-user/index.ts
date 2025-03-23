@@ -30,7 +30,6 @@ serve(async (req) => {
   }
   
   try {
-    // Initialize Supabase client with service role key
     const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
     
@@ -45,7 +44,7 @@ serve(async (req) => {
       {
         auth: {
           autoRefreshToken: false,
-          persistSession: false
+          persistSession: false,
         },
         global: {
           headers: {
@@ -59,9 +58,9 @@ serve(async (req) => {
     const body = await req.json();
     const { email, client_id, client_name, agent_name, agent_description, temp_password } = body;
     
-    if (!email || !client_id) {
+    if (!email) {
       return new Response(
-        JSON.stringify({ error: "Email and client_id are required" }),
+        JSON.stringify({ error: "Email is required" }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -69,7 +68,52 @@ serve(async (req) => {
       );
     }
     
-    console.log(`Creating user with Supabase Auth for client ${client_id}: ${email}`);
+    console.log(`Creating user with Supabase Auth for client: ${email}`);
+    
+    // Double-check client_id - if it's NULL, try to find or create a valid ID
+    let effectiveClientId = client_id;
+    
+    if (!effectiveClientId) {
+      console.log("No client_id provided, attempting to find or use agent ID");
+      
+      // Try to look up the agent by email
+      const { data: agentData, error: agentError } = await supabase
+        .from('ai_agents')
+        .select('id, client_id')
+        .eq('email', email)
+        .single();
+      
+      if (agentError) {
+        console.error("Error finding agent by email:", agentError);
+      } else if (agentData) {
+        if (agentData.client_id) {
+          // Use the found client_id
+          effectiveClientId = agentData.client_id;
+          console.log(`Found client_id ${effectiveClientId} for agent ${agentData.id}`);
+        } else if (agentData.id) {
+          // Use the agent's id as client_id and update the record
+          effectiveClientId = agentData.id;
+          console.log(`No client_id found, using agent ID ${effectiveClientId} as fallback`);
+          
+          // Update the agent record to set its own ID as client_id
+          const { error: updateError } = await supabase
+            .from('ai_agents')
+            .update({ client_id: agentData.id })
+            .eq('id', agentData.id);
+            
+          if (updateError) {
+            console.error("Error updating agent with its own ID as client_id:", updateError);
+          } else {
+            console.log(`Updated agent ${agentData.id} with client_id = agent.id`);
+          }
+        }
+      }
+      
+      // If we still don't have a client_id, generate a warning
+      if (!effectiveClientId) {
+        console.warn("Could not determine client_id for auth user creation");
+      }
+    }
     
     // Check if user already exists
     const { data: existingUsers, error: listUsersError } = await supabase.auth.admin.listUsers();
@@ -100,7 +144,7 @@ serve(async (req) => {
         password: actualPassword,
         email_confirm: true,
         user_metadata: {
-          client_id,
+          client_id: effectiveClientId,
           user_type: 'client'
         }
       });
@@ -120,7 +164,7 @@ serve(async (req) => {
         password: actualPassword,
         email_confirm: true, // Skip email verification
         user_metadata: {
-          client_id,
+          client_id: effectiveClientId,
           user_type: 'client'
         }
       });
@@ -142,7 +186,7 @@ serve(async (req) => {
           .upsert({
             user_id: userId,
             role: "client",
-            client_id: client_id
+            client_id: effectiveClientId
           }, { onConflict: 'user_id, role' });
           
         if (roleError) {
@@ -158,11 +202,10 @@ serve(async (req) => {
       
       // Also save the temporary password in the client_temp_passwords table
       try {
-        // Create a simpler insert query without using expires_at or relying on created_at
+        // Create a simpler insert query without relying on other columns
         const { error: tempPasswordError } = await supabase
           .from("client_temp_passwords")
           .insert({
-            agent_id: client_id,
             email: email,
             temp_password: actualPassword
           });
@@ -171,7 +214,7 @@ serve(async (req) => {
           console.error("Error saving temporary password:", tempPasswordError);
           // Continue anyway, the user account is created
         } else {
-          console.log("Saved temporary password for client:", client_id);
+          console.log("Saved temporary password for email:", email);
         }
       } catch (passwordErr) {
         console.error("Exception saving temporary password:", passwordErr);
@@ -184,7 +227,8 @@ serve(async (req) => {
         success: true,
         message: "Client user created successfully",
         userId: userId,
-        password: actualPassword
+        password: actualPassword,
+        effectiveClientId: effectiveClientId
       }),
       { 
         status: 200, 
