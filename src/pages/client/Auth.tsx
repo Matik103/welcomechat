@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Mail, Lock, Loader2 } from "lucide-react";
+import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { execSql } from "@/utils/rpcUtils";
 
@@ -15,6 +15,7 @@ const ClientAuth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const { user, isLoading, userRole } = useAuth();
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [searchParams] = useSearchParams();
@@ -95,16 +96,30 @@ const ClientAuth = () => {
     if (loading) return; // Prevent multiple clicks while processing
     
     setLoading(true);
+    setErrorMessage("");
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting to sign in with email:", email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
+        console.error("Sign in error:", error);
+        
+        if (error.message?.includes("Invalid login credentials")) {
+          setErrorMessage("Invalid email or password. Please check your credentials and try again.");
+        } else {
+          setErrorMessage(error.message || "Failed to sign in");
+        }
+        
+        toast.error(errorMessage || "Authentication failed");
         throw error;
       }
+      
+      console.log("Sign in successful:", data);
       
       // If auto reactivate is in the URL, we'll handle it after redirect
       if (!autoReactivate) {
@@ -113,7 +128,8 @@ const ClientAuth = () => {
         toast.success("Successfully signed in! Reactivating your account...");
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to sign in");
+      console.error("Authentication error:", error);
+      // Error is already handled above
     } finally {
       // Ensure loading state is cleared even if there's an error
       setLoading(false);
@@ -166,6 +182,14 @@ const ClientAuth = () => {
                 />
               </div>
             </div>
+            
+            {errorMessage && (
+              <div className="text-destructive text-sm bg-destructive/10 p-3 rounded-md flex items-start">
+                <AlertCircle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+            
             <Button 
               type="submit" 
               className="w-full" 
@@ -173,10 +197,9 @@ const ClientAuth = () => {
               aria-label={autoReactivate ? "Recover Account" : "Sign In"}
             >
               {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                autoReactivate ? "Recover Account" : "Sign In"
-              )}
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              {loading ? "Signing in..." : autoReactivate ? "Recover Account" : "Sign In"}
             </Button>
           </form>
         </CardContent>
