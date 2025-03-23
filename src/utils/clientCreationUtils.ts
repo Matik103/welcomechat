@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
@@ -31,49 +30,15 @@ export const logClientCreationActivity = async (
 
 /**
  * Generates a secure temporary password for client accounts
- * This creates a password compatible with Supabase Auth requirements
+ * Uses the format "Welcome2024#123" which is memorable but secure
  * @returns A randomly generated temporary password
  */
 export const generateTempPassword = (): string => {
-  // Generate a password that meets Supabase Auth requirements:
-  // - At least 8 characters
-  // - At least one uppercase letter
-  // - At least one lowercase letter
-  // - At least one number
-  // - At least one special character
-  const upperChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // excluding I and O which can be confused
-  const lowerChars = 'abcdefghijkmnpqrstuvwxyz'; // excluding l which can be confused
-  const numbers = '23456789'; // excluding 0 and 1 which can be confused
-  const specialChars = '!@#$%^&*';
+  // Generate a password in the format "Welcome2024#123"
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
   
-  // Create the base password with at least one character from each group
-  let password = '';
-  password += upperChars[Math.floor(Math.random() * upperChars.length)];
-  password += lowerChars[Math.floor(Math.random() * lowerChars.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += specialChars[Math.floor(Math.random() * specialChars.length)];
-  
-  // Add 8 more random characters for a total length of 12
-  const allChars = upperChars + lowerChars + numbers + specialChars;
-  for (let i = 0; i < 8; i++) {
-    password += allChars[Math.floor(Math.random() * allChars.length)];
-  }
-  
-  // Shuffle the password to make it more random
-  password = password.split('').sort(() => 0.5 - Math.random()).join('');
-  
-  // Verify password meets complexity requirements
-  const hasUpper = /[A-Z]/.test(password);
-  const hasLower = /[a-z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecial = /[!@#$%^&*]/.test(password);
-  
-  // This should never happen with our generation method, but just in case
-  if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
-    return generateTempPassword(); // Try again
-  }
-  
-  return password;
+  return `Welcome${currentYear}#${randomDigits}`;
 };
 
 /**

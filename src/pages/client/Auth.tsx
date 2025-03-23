@@ -101,9 +101,12 @@ const ClientAuth = () => {
     try {
       console.log("Attempting to sign in with email:", email);
       
-      // Add detailed logging for authentication debugging
-      console.log("Sign-in credentials:", { 
-        email, 
+      // Check if the password is in the Welcome2024#123 format
+      const isWelcomeFormat = /^Welcome\d{4}#\d{3}$/.test(password);
+      
+      // Log what password format we're using to help with debugging
+      console.log("Password format check:", { 
+        isWelcomeFormat,
         passwordLength: password.length,
         passwordContainsSpecial: /[!@#$%^&*]/.test(password),
         passwordContainsUpper: /[A-Z]/.test(password),
@@ -139,23 +142,14 @@ const ClientAuth = () => {
               
               // Check if the provided password matches the temp password
               if (password !== tempPassword.temp_password) {
-                setErrorMessage("The password you entered doesn't match our records. Please use the exact password from the welcome email.");
+                setErrorMessage(`The password you entered doesn't match our records. Please use the exact password from the welcome email (format: Welcome${new Date().getFullYear()}#XXX).`);
               }
               
               // Log the temp password for debugging
               console.log("Found temp password record:", {
-                storedPassword: tempPassword.temp_password,
+                storedPasswordFormat: tempPassword.temp_password.substring(0, 7) + "..." + tempPassword.temp_password.substring(tempPassword.temp_password.length - 4),
                 passwordMatch: password === tempPassword.temp_password,
                 createdAt: tempPassword.created_at
-              });
-              
-              // Double-check if the password meets Supabase requirements
-              console.log("Password requirements check:", {
-                meetsLengthRequirement: password.length >= 8,
-                hasUppercase: /[A-Z]/.test(password),
-                hasLowercase: /[a-z]/.test(password),
-                hasNumber: /[0-9]/.test(password),
-                hasSpecial: /[!@#$%^&*]/.test(password)
               });
             } else {
               console.log("No temporary password found for email:", email);
@@ -233,6 +227,9 @@ const ClientAuth = () => {
                   disabled={loading}
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Password should be in the format: Welcome{new Date().getFullYear()}#XXX
+              </p>
             </div>
             
             {errorMessage && (
