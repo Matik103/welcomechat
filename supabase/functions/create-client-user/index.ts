@@ -8,7 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
-// Import the generateClientTempPassword function from the passwordUtils.ts file
 /**
  * Generates a temporary password for client accounts
  * Using the format "Welcome2024#123" that meets Supabase Auth requirements
@@ -157,13 +156,15 @@ serve(async (req) => {
       
       // Also save the temporary password in the client_temp_passwords table
       try {
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+        
         const { error: tempPasswordError } = await supabase
           .from("client_temp_passwords")
           .insert({
             agent_id: client_id,
             email: email,
             temp_password: actualPassword,
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days expiry
+            expires_at: expiresAt.toISOString() // Set expiration date
           });
           
         if (tempPasswordError) {

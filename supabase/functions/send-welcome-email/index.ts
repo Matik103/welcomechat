@@ -68,13 +68,15 @@ serve(async (req) => {
     console.log("Sending welcome email with login link:", loginLink);
 
     // Save the temporary password in the database (again, just to be sure)
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+    
     const { error: passwordError } = await supabase
       .from("client_temp_passwords")
       .insert({
         agent_id: clientId,
         email: email,
         temp_password: finalPassword,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days expiry
+        expires_at: expiresAt.toISOString()
       });
       
     if (passwordError) {
