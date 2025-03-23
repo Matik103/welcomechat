@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +21,6 @@ const ClientAuth = () => {
   const autoReactivate = searchParams.get("auto_reactivate") === "true";
   const clientId = searchParams.get("client_id");
 
-  // Set a short timeout to prevent infinite loading state
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
@@ -31,7 +29,6 @@ const ClientAuth = () => {
     return () => clearTimeout(timeout);
   }, []);
 
-  // Show loading state while authentication is being checked
   if (isLoading && !loadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
@@ -40,14 +37,10 @@ const ClientAuth = () => {
     );
   }
 
-  // Redirect if already authenticated
   if (user) {
-    // If auto reactivate is in the URL, handle account reactivation
     if (autoReactivate && clientId) {
-      // Async function to reactivate the account
       const reactivateAccount = async () => {
         try {
-          // Use execSql instead of directly calling the clients table
           const reactivateQuery = `
             UPDATE clients 
             SET deletion_scheduled_at = NULL 
@@ -68,11 +61,9 @@ const ClientAuth = () => {
         }
       };
       
-      // Execute the reactivation
       reactivateAccount();
     }
     
-    // Based on user role, redirect to the appropriate dashboard
     if (userRole === 'client') {
       console.log("Redirecting client to client dashboard");
       return <Navigate to="/client/dashboard" replace />;
@@ -80,7 +71,6 @@ const ClientAuth = () => {
       console.log("Redirecting admin to admin dashboard");
       return <Navigate to="/admin/dashboard" replace />;
     } else {
-      // If role is not determined yet, wait for it
       console.log("User role not yet determined, showing loading");
       return (
         <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
@@ -93,7 +83,7 @@ const ClientAuth = () => {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (loading) return; // Prevent multiple clicks while processing
+    if (loading) return;
     
     setLoading(true);
     setErrorMessage("");
@@ -101,10 +91,8 @@ const ClientAuth = () => {
     try {
       console.log("Attempting to sign in with email:", email);
       
-      // Check if the password is in the Welcome2024#123 format
       const isWelcomeFormat = /^Welcome\d{4}#\d{3}$/.test(password);
       
-      // Log what password format we're using to help with debugging
       console.log("Password format check:", { 
         isWelcomeFormat,
         passwordLength: password.length,
@@ -123,10 +111,8 @@ const ClientAuth = () => {
         console.error("Sign in error:", error);
         
         if (error.message?.includes("Invalid login credentials")) {
-          // Provide more helpful error message for authentication issues
           setErrorMessage("Invalid email or password. Please make sure you're using the exact password from the welcome email.");
           
-          // Try to check if this user exists and if they have a temporary password
           try {
             const { data: tempPasswords, error: tempPasswordError } = await supabase
               .from('client_temp_passwords')
@@ -140,12 +126,10 @@ const ClientAuth = () => {
             } else if (tempPasswords && tempPasswords.length > 0) {
               const tempPassword = tempPasswords[0];
               
-              // Check if the provided password matches the temp password
               if (password !== tempPassword.temp_password) {
                 setErrorMessage(`The password you entered doesn't match our records. Please use the exact password from the welcome email (format: Welcome${new Date().getFullYear()}#XXX).`);
               }
               
-              // Log the temp password for debugging
               console.log("Found temp password record:", {
                 storedPasswordFormat: tempPassword.temp_password.substring(0, 7) + "..." + tempPassword.temp_password.substring(tempPassword.temp_password.length - 4),
                 passwordMatch: password === tempPassword.temp_password,
@@ -165,7 +149,6 @@ const ClientAuth = () => {
       } else {
         console.log("Sign in successful:", authData);
         
-        // If auto reactivate is in the URL, we'll handle it after redirect
         if (!autoReactivate) {
           toast.success("Successfully signed in!");
         } else {
@@ -177,7 +160,6 @@ const ClientAuth = () => {
       setErrorMessage("An unexpected error occurred. Please try again.");
       toast.error("Authentication failed");
     } finally {
-      // Ensure loading state is cleared even if there's an error
       setLoading(false);
     }
   };

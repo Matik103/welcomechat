@@ -45,7 +45,7 @@ export const useNewClientMutation = () => {
           data.widget_settings?.agent_name || "AI Assistant"
         );
         
-        // Generate a secure temporary password
+        // Generate a secure temporary password using our standardized function
         const tempPassword = generateTempPassword();
         
         // Create a Supabase auth user with our generated password
