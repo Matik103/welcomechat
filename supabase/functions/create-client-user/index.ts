@@ -44,7 +44,8 @@ serve(async (req) => {
     );
     
     // Parse the request body
-    const { email, client_id, client_name, agent_name, agent_description } = await req.json();
+    const body = await req.json();
+    const { email, client_id, client_name, agent_name, agent_description, temp_password } = body;
     
     if (!email || !client_id) {
       return new Response(
@@ -69,13 +70,19 @@ serve(async (req) => {
     const existingUser = existingUsers?.users?.find(u => u.email === email);
     
     let userId;
-    let generatedPassword = "";
+    let actualPassword = temp_password;
     
-    // Let Supabase Auth handle password generation for security
+    // If temp_password wasn't provided, generate one that meets Supabase requirements
+    if (!actualPassword) {
+      actualPassword = generateComplexPassword();
+      console.log("Generated secure password:", actualPassword);
+    }
+    
     if (existingUser) {
-      // Update existing user with a new random password
+      // Update existing user
       const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
-        password: null, // null tells Supabase to generate a random password
+        password: actualPassword,
+        email_confirm: true,
         user_metadata: {
           client_id,
           user_type: 'client'
@@ -89,49 +96,11 @@ serve(async (req) => {
       
       userId = existingUser.id;
       console.log("Updated existing user:", userId);
-      
-      // Generate a password for this existing user
-      const { data: passwordData, error: passwordError } = await supabase.auth.admin.generateLink({
-        type: 'recovery',
-        email: email,
-        options: {
-          redirectTo: `${supabaseUrl}/auth/callback`
-        }
-      });
-      
-      if (passwordError) {
-        console.error("Error generating recovery link:", passwordError);
-        throw passwordError;
-      }
-      
-      // Extract password from the hashed portion of the URL
-      if (passwordData && passwordData.properties && passwordData.properties.hashed_token) {
-        // Use first 12 chars of the hashed token as the password
-        generatedPassword = passwordData.properties.hashed_token.slice(0, 12);
-        // Ensure it includes uppercase, lowercase, number and special char
-        generatedPassword = ensurePasswordComplexity(generatedPassword);
-      } else {
-        // Fallback to generating a password manually
-        generatedPassword = generateComplexPassword();
-      }
-      
-      // Update the user with our controlled password
-      const { error: resetError } = await supabase.auth.admin.updateUserById(existingUser.id, {
-        password: generatedPassword
-      });
-      
-      if (resetError) {
-        console.error("Error setting password for existing user:", resetError);
-        throw resetError;
-      }
     } else {
-      // Generate a secure password that meets Supabase requirements
-      generatedPassword = generateComplexPassword();
-      
-      // Create new user with our controlled password
+      // Create new user with our password
       const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
         email,
-        password: generatedPassword,
+        password: actualPassword,
         email_confirm: true, // Skip email verification
         user_metadata: {
           client_id,
@@ -175,10 +144,10 @@ serve(async (req) => {
         const { error: tempPasswordError } = await supabase
           .from("client_temp_passwords")
           .insert({
-            agent_id: client_id, // Use agent_id to match the schema
+            agent_id: client_id,
             email: email,
-            temp_password: generatedPassword,
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
+            temp_password: actualPassword,
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days expiry
           });
           
         if (tempPasswordError) {
@@ -198,7 +167,7 @@ serve(async (req) => {
         success: true,
         message: "Client user created successfully",
         userId: userId,
-        password: generatedPassword
+        password: actualPassword
       }),
       { 
         status: 200, 
@@ -248,30 +217,5 @@ function generateComplexPassword(): string {
   }
   
   // Shuffle the characters to make the pattern less predictable
-  return password.split('').sort(() => 0.5 - Math.random()).join('');
-}
-
-/**
- * Ensures a password meets complexity requirements by adding missing character types
- */
-function ensurePasswordComplexity(basePassword: string): string {
-  let password = basePassword;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecial = /[!@#$%^&*]/.test(password);
-  
-  // Add missing character types
-  if (!hasUppercase) password += 'A';
-  if (!hasLowercase) password += 'a';
-  if (!hasNumber) password += '7';
-  if (!hasSpecial) password += '!';
-  
-  // Ensure the password is at least 8 characters
-  while (password.length < 12) {
-    password += 'Aa7!'.charAt(Math.floor(Math.random() * 4));
-  }
-  
-  // Shuffle the password
   return password.split('').sort(() => 0.5 - Math.random()).join('');
 }
