@@ -1,4 +1,3 @@
-
 -- Create table for storing client temporary passwords
 CREATE TABLE IF NOT EXISTS public.client_temp_passwords (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
