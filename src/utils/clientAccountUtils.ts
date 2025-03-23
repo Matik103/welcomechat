@@ -4,29 +4,29 @@ import { generateClientTempPassword } from "./passwordUtils";
 
 /**
  * Sets up a temporary password for the client and stores it in the database
- * @param clientId The ID from the ai_agents table (used as reference, but we'll identify by email)
+ * @param clientId The ID from the ai_agents table
  * @param email Client's email address
  * @returns The generated temporary password
  */
-export const setupClientPassword = async (clientId: string | null, email: string) => {
+export const setupClientPassword = async (clientId: string, email: string) => {
   // Generate a temporary password for this client
   const tempPassword = generateClientTempPassword();
   console.log("Generated temporary password:", tempPassword);
   
-  // Store the temporary password in the database using email as the primary identifier
+  // Store the temporary password in the database using client_id as primary identifier
   try {
-    // First check if there's already a password for this email
+    // First check if there's already a password for this client_id
     const { data: existingPasswords, error: checkError } = await supabase
       .from("client_temp_passwords")
       .select("id, temp_password")
-      .eq("email", email)
+      .eq("agent_id", clientId)
       .order('id', { ascending: false })
       .limit(1);
     
     if (checkError) {
       console.error("Error checking existing temporary passwords:", checkError);
     } else if (existingPasswords && existingPasswords.length > 0) {
-      console.log("Found existing temporary password for email:", email);
+      console.log("Found existing temporary password for client_id:", clientId);
       // Return the existing password to avoid creating duplicates
       return existingPasswords[0].temp_password;
     }
@@ -37,7 +37,7 @@ export const setupClientPassword = async (clientId: string | null, email: string
       .insert({
         email: email,
         temp_password: tempPassword,
-        agent_id: clientId  // Still store the agent_id for reference if provided
+        agent_id: clientId
       });
     
     if (tempPasswordError) {
@@ -45,7 +45,7 @@ export const setupClientPassword = async (clientId: string | null, email: string
       throw new Error("Failed to save temporary password");
     }
     
-    console.log("Temporary password saved to database for email:", email);
+    console.log("Temporary password saved to database for client_id:", clientId);
     return tempPassword;
   } catch (passwordError) {
     console.error("Error in password creation process:", passwordError);
@@ -58,15 +58,15 @@ export const setupClientPassword = async (clientId: string | null, email: string
  */
 export const createClientUserAccount = async (
   email: string, 
-  clientId: string | null, 
+  clientId: string, 
   clientName: string, 
   agentName: string, 
   agentDescription: string, 
   tempPassword: string
 ) => {
-  console.log("Starting user account creation for:", email);
+  console.log("Starting user account creation for client_id:", clientId);
   
-  // Call the edge function to create a user, using email as the primary identifier
+  // Call the edge function to create a user, using client_id as the primary identifier
   const { data: userData, error: userError } = await supabase.functions.invoke("create-client-user", {
     body: {
       email: email,
@@ -83,7 +83,7 @@ export const createClientUserAccount = async (
     throw new Error("Failed to create user account");
   }
 
-  console.log("User account created successfully:", userData);
+  console.log("User account created successfully with client_id:", clientId);
   return userData;
 };
 
@@ -137,7 +137,7 @@ export const createClientInDatabase = async (validatedData: any, clientId?: stri
       console.error("Error setting client_id to agent's own id:", updateError);
       // Continue despite this error
     } else {
-      console.log("Successfully set client_id to agent's own id");
+      console.log("Successfully set client_id to agent's own id:", newAgent.id);
     }
   }
 

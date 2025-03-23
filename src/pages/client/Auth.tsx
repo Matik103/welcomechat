@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,52 +90,60 @@ const ClientAuth = () => {
     setErrorMessage("");
 
     try {
-      console.log("Attempting to sign in with email:", email);
+      console.log("Starting email login for:", email);
       
-      // Check if there's a temporary password for this email before attempting login
-      try {
-        console.log("Checking for stored temporary password");
-        const { data: tempPasswords, error: tempPasswordError } = await supabase
-          .from('client_temp_passwords')
-          .select('temp_password, id')
-          .eq('email', email)
-          .order('id', { ascending: false })
-          .limit(1);
+      // First, try to find client_id associated with this email
+      const { data: clientData, error: clientLookupError } = await supabase
+        .from('ai_agents')
+        .select('id, client_id')
+        .eq('email', email)
+        .eq('interaction_type', 'config')
+        .single();
           
-        if (tempPasswordError) {
-          console.error("Error checking temp passwords:", tempPasswordError);
-        } 
-        else if (tempPasswords && tempPasswords.length > 0) {
-          const storedTempPassword = tempPasswords[0].temp_password;
-          
-          console.log("Found stored temp password with format:", 
-            storedTempPassword ? 
-            `${storedTempPassword.substring(0, 7)}...${storedTempPassword.substring(storedTempPassword.length - 4)}` : 
-            "none");
-        } else {
-          console.log("No temporary password found in database for:", email);
-        }
-      } catch (checkError) {
-        console.error("Exception checking temp password:", checkError);
+      if (clientLookupError) {
+        console.error("Error looking up client by email:", clientLookupError);
+        // Continue with regular login anyway
+      } else if (clientData) {
+        console.log("Found client_id for email:", clientData.client_id || clientData.id);
       }
-      
-      // Try to sign in
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        
+      // Proceed with normal login
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
-      if (error) {
-        console.error("Sign in error:", error);
         
-        if (error.message?.includes("Invalid login credentials")) {
-          // Check if there's a temporary password for this email
-          try {
-            console.log("Login failed, checking stored temporary password");
+      if (error) {
+        throw error;
+      }
+        
+      console.log("Email login successful for:", email);
+      toast.success("Successfully signed in!");
+    } catch (error: any) {
+      console.error("Auth error:", error);
+      
+      if (error.message?.includes("Invalid login credentials")) {
+        // Check if there's a client associated with this email
+        try {
+          const { data: clientData, error: clientLookupError } = await supabase
+            .from('ai_agents')
+            .select('id, client_id')
+            .eq('email', email)
+            .eq('interaction_type', 'config')
+            .single();
+            
+          if (clientLookupError) {
+            console.error("Error looking up client by email for password check:", clientLookupError);
+            setErrorMessage("Invalid email or password. Please try again.");
+          } else if (clientData) {
+            const clientId = clientData.client_id || clientData.id;
+            console.log("Found client_id for password check:", clientId);
+            
+            // Check if there's a temporary password for this client
             const { data: tempPasswords, error: tempPasswordError } = await supabase
               .from('client_temp_passwords')
               .select('temp_password, id')
-              .eq('email', email)
+              .eq('agent_id', clientId)
               .order('id', { ascending: false })
               .limit(1);
               
@@ -147,221 +154,99 @@ const ClientAuth = () => {
             else if (tempPasswords && tempPasswords.length > 0) {
               const tempPassword = tempPasswords[0];
               
-              // Check if we have the necessary data before accessing properties
-              console.log("Found temp password record:", {
-                hasData: !!tempPasswords,
-                recordCount: tempPasswords.length,
-                passwordMatch: tempPassword && password === tempPassword.temp_password,
-                passwordLength: password.length,
-                storedPasswordLength: tempPassword?.temp_password?.length,
-                // Show partial password for debugging (not showing full for security)
-                storedPasswordStart: tempPassword?.temp_password ? tempPassword.temp_password.substring(0, 7) : "N/A",
-                storedPasswordEnd: tempPassword?.temp_password ? 
-                  tempPassword.temp_password.substring(tempPassword.temp_password.length - 4) : "N/A",
-                userPasswordStart: password.substring(0, 7),
-                userPasswordEnd: password.length > 4 ? password.substring(password.length - 4) : ''
-              });
-              
               // Check if passwords match
-              if (tempPassword && password !== tempPassword.temp_password) {
+              if (password !== tempPassword.temp_password) {
                 // Provide a detailed error message
                 const currentYear = new Date().getFullYear();
                 setErrorMessage(
                   `The password you entered doesn't match. Please use the exact password from the welcome email (format: Welcome${currentYear}#XXX).`
                 );
                 
-                // Try calling the user creation endpoint again to ensure user exists
+                // Try to recreate user account
                 try {
-                  // First, try to get client_id from ai_agents table since it might be NULL
-                  const { data: agentData, error: agentError } = await supabase
-                    .from('ai_agents')
-                    .select('id, client_id')
-                    .eq('email', email)
-                    .single();
-                  
-                  // Use provided client_id from URL or the one found in ai_agents
-                  const effectiveClientId = clientId || (agentData?.client_id || null);
-                  
-                  if (agentError) {
-                    console.error("Error getting agent data:", agentError);
-                  }
-                  
-                  if (!effectiveClientId) {
-                    console.warn("No client ID found, attempting to retrieve agent ID as fallback");
-                    // If still no client_id, let's try to use the agent's direct id as a fallback
-                    const agentId = agentData?.id;
-                    
-                    if (agentId) {
-                      console.log("Using agent ID as fallback:", agentId);
-                      // Try to update client_id in ai_agents if it's NULL
-                      const { error: updateError } = await supabase
-                        .from('ai_agents')
-                        .update({ client_id: agentId })
-                        .eq('id', agentId);
-                        
-                      if (updateError) {
-                        console.error("Error updating agent with its own ID as client_id:", updateError);
-                      } else {
-                        console.log("Updated ai_agents.client_id with its own ID as fallback");
+                  const { data, error } = await supabase.functions.invoke(
+                    'create-client-user',
+                    {
+                      body: {
+                        email: email,
+                        client_id: clientId,
+                        temp_password: tempPassword.temp_password
                       }
-                      
-                      // Use the agent ID for user creation
-                      const { data, error } = await supabase.functions.invoke(
-                        'create-client-user',
-                        {
-                          body: {
-                            email: email,
-                            client_id: agentId,
-                            temp_password: tempPassword?.temp_password
-                          }
-                        }
-                      );
-                      
-                      if (error) {
-                        console.error("Error recreating user with agent ID:", error);
-                      } else {
-                        console.log("User account recreated/refreshed with agent ID:", data);
-                      }
-                    } else {
-                      console.error("No agent ID or client ID found for user recreation");
-                      setErrorMessage("Account lookup failed. Please contact support with your email address.");
                     }
+                  );
+                  
+                  if (error) {
+                    console.error("Error recreating user:", error);
                   } else {
-                    // We have a valid client ID
-                    console.log("Using client ID for user recreation:", effectiveClientId);
-                    const { data, error } = await supabase.functions.invoke(
-                      'create-client-user',
-                      {
-                        body: {
-                          email: email,
-                          client_id: effectiveClientId,
-                          temp_password: tempPassword?.temp_password
-                        }
-                      }
-                    );
-                    
-                    if (error) {
-                      console.error("Error recreating user:", error);
-                    } else {
-                      console.log("User account recreated/refreshed:", data);
-                    }
+                    console.log("User account recreated/refreshed:", data);
                   }
                 } catch (createError) {
                   console.error("Exception recreating user:", createError);
                 }
               } else {
-                // If passwords match but login still failed, there might be an issue with the Supabase auth record
+                // Passwords match but login still failed
                 setErrorMessage(
                   "Your password appears correct but login failed. The account may not be properly set up. Please contact support."
                 );
                 
-                // Try to recreate/update the user account
+                // Try to recreate the user account
                 try {
-                  // First, try to get client_id from ai_agents table since it might be NULL
-                  const { data: agentData, error: agentError } = await supabase
-                    .from('ai_agents')
-                    .select('id, client_id')
-                    .eq('email', email)
-                    .single();
-                  
-                  // Use provided client_id from URL or the one found in ai_agents
-                  let effectiveClientId = clientId || (agentData?.client_id || null);
-                  
-                  if (agentError) {
-                    console.error("Error getting agent data:", agentError);
-                  }
-                  
-                  // If still no client_id, use the agent's direct id as a fallback
-                  if (!effectiveClientId && agentData?.id) {
-                    console.log("No client ID found, using agent ID as fallback:", agentData.id);
-                    effectiveClientId = agentData.id;
-                    
-                    // Try to update client_id in ai_agents if it's NULL
-                    const { error: updateError } = await supabase
-                      .from('ai_agents')
-                      .update({ client_id: effectiveClientId })
-                      .eq('id', agentData.id);
-                      
-                    if (updateError) {
-                      console.error("Error updating agent with its own ID as client_id:", updateError);
-                    } else {
-                      console.log("Updated ai_agents.client_id with its own ID");
-                    }
-                  }
-                  
-                  if (effectiveClientId) {
-                    const { data, error } = await supabase.functions.invoke(
-                      'create-client-user',
-                      {
-                        body: {
-                          email: email,
-                          client_id: effectiveClientId,
-                          temp_password: tempPassword.temp_password
-                        }
-                      }
-                    );
-                    
-                    if (error) {
-                      console.error("Error recreating user:", error);
-                    } else {
-                      console.log("User account recreated:", data);
-                      
-                      // Try signing in again after recreating
-                      const { error: retryError } = await supabase.auth.signInWithPassword({
-                        email,
-                        password: tempPassword.temp_password,
-                      });
-                      
-                      if (retryError) {
-                        console.error("Retry sign in error:", retryError);
-                        setErrorMessage("Account recreated but sign in still failed. Please try again or contact support.");
-                      } else {
-                        console.log("Retry sign in successful after recreation");
-                        toast.success("Successfully signed in!");
+                  const { data, error } = await supabase.functions.invoke(
+                    'create-client-user',
+                    {
+                      body: {
+                        email: email,
+                        client_id: clientId,
+                        temp_password: tempPassword.temp_password
                       }
                     }
+                  );
+                  
+                  if (error) {
+                    console.error("Error recreating user:", error);
                   } else {
-                    console.error("No client ID or agent ID found for user recreation");
-                    setErrorMessage("Could not identify your account. Please contact support.");
+                    console.log("User account recreated:", data);
+                    
+                    // Try signing in again
+                    const { error: retryError } = await supabase.auth.signInWithPassword({
+                      email,
+                      password: tempPassword.temp_password,
+                    });
+                    
+                    if (retryError) {
+                      console.error("Retry sign in error:", retryError);
+                      setErrorMessage("Account recreated but sign in still failed. Please try again or contact support.");
+                    } else {
+                      console.log("Retry sign in successful after recreation");
+                      toast.success("Successfully signed in!");
+                    }
                   }
                 } catch (createError) {
                   console.error("Exception recreating user:", createError);
                 }
               }
             } else {
-              console.log("No temporary password found for email:", email);
+              console.log("No temporary password found for client:", clientId);
               setErrorMessage("No account found with this email address. Please check your email or contact support.");
             }
-          } catch (tempCheckError) {
-            console.error("Error checking temporary password:", tempCheckError);
-            setErrorMessage("An error occurred while verifying your credentials. Please try again.");
+          } else {
+            setErrorMessage("Invalid email or password. Please try again.");
           }
-        } else {
-          // For other types of errors (not "Invalid login credentials")
-          setErrorMessage(error.message || "Failed to sign in");
-        }
-        
-        // Display toast with the error message
-        if (errorMessage) {
-          toast.error(errorMessage);
-        } else {
-          toast.error("Authentication failed");
+        } catch (clientLookupError) {
+          console.error("Error in client lookup process:", clientLookupError);
+          setErrorMessage("An error occurred while verifying your credentials. Please try again.");
         }
       } else {
-        console.log("Sign in successful:", authData);
-        
-        if (!autoReactivate) {
-          toast.success("Successfully signed in!");
-        } else {
-          toast.success("Successfully signed in! Reactivating your account...");
-        }
+        // For other types of errors (not "Invalid login credentials")
+        setErrorMessage(error.message || "Failed to sign in");
       }
-    } catch (error: any) {
-      console.error("Authentication error:", error);
-      // Safely handle error objects that might not have a message property
-      const errorMsg = error?.message || "An unexpected error occurred. Please try again.";
-      setErrorMessage(errorMsg);
-      toast.error(errorMsg);
+      
+      // Display toast with the error message
+      if (errorMessage) {
+        toast.error(errorMessage);
+      } else {
+        toast.error("Authentication failed");
+      }
     } finally {
       setLoading(false);
     }

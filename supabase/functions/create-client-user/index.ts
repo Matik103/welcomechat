@@ -76,46 +76,34 @@ serve(async (req) => {
       );
     }
     
-    console.log(`Creating user with Supabase Auth for email: ${email}`);
-    
-    // Find the agent by email (primary identifier now)
-    const { data: agentData, error: agentError } = await supabase
-      .from('ai_agents')
-      .select('id, client_id')
-      .eq('email', email)
-      .single();
-    
-    let effectiveClientId = client_id;
-    
-    if (agentError) {
-      console.error("Error finding agent by email:", agentError);
-    } else if (agentData) {
-      if (agentData.client_id) {
-        // Use the found client_id
-        effectiveClientId = agentData.client_id;
-        console.log(`Found client_id ${effectiveClientId} for agent with email ${email}`);
-      } else if (agentData.id) {
-        // Use the agent's id as client_id and update the record
-        effectiveClientId = agentData.id;
-        console.log(`No client_id found, using agent ID ${effectiveClientId} as fallback for email ${email}`);
-        
-        // Update the agent record to set its own ID as client_id
-        const { error: updateError } = await supabase
-          .from('ai_agents')
-          .update({ client_id: agentData.id })
-          .eq('id', agentData.id);
-          
-        if (updateError) {
-          console.error("Error updating agent with its own ID as client_id:", updateError);
-        } else {
-          console.log(`Updated agent ${agentData.id} with client_id = agent.id`);
+    if (!client_id) {
+      return new Response(
+        JSON.stringify({ error: "Client ID is required" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
-      }
+      );
     }
     
-    // If we still don't have a client_id, generate a warning but continue with provided client_id
-    if (!effectiveClientId) {
-      console.warn("Could not determine client_id for auth user creation, using provided value:", client_id);
+    console.log(`Creating user with Supabase Auth for client_id: ${client_id}, email: ${email}`);
+    
+    // Verify the client exists in ai_agents table
+    const { data: agentData, error: agentError } = await supabase
+      .from('ai_agents')
+      .select('id, client_id, email')
+      .eq('id', client_id)
+      .single();
+    
+    if (agentError) {
+      console.error("Error verifying client:", agentError);
+      return new Response(
+        JSON.stringify({ error: "Invalid client ID" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
     // Check if user already exists by email
@@ -141,12 +129,12 @@ serve(async (req) => {
     
     if (existingUser) {
       console.log("Existing user found with email:", email);
-      // Update existing user
+      // Update existing user with client_id
       const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
         password: actualPassword,
         email_confirm: true,
         user_metadata: {
-          client_id: effectiveClientId,
+          client_id: client_id,
           user_type: 'client'
         }
       });
@@ -157,16 +145,16 @@ serve(async (req) => {
       }
       
       userId = existingUser.id;
-      console.log("Updated existing user:", userId);
+      console.log("Updated existing user with client_id:", client_id);
     } else if (!update_only) {
       console.log("No existing user found with email:", email, "Creating new user");
-      // Create new user with our password
+      // Create new user with our password and client_id in metadata
       const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
         email,
         password: actualPassword,
         email_confirm: true, // Skip email verification
         user_metadata: {
-          client_id: effectiveClientId,
+          client_id: client_id,
           user_type: 'client'
         }
       });
@@ -177,7 +165,7 @@ serve(async (req) => {
       }
       
       userId = newUser?.user?.id;
-      console.log("Created new user:", userId);
+      console.log("Created new user with client_id:", client_id);
     } else {
       console.log("Update only flag set and no existing user found. Skipping user creation.");
     }
@@ -190,7 +178,7 @@ serve(async (req) => {
           .upsert({
             user_id: userId,
             role: "client",
-            client_id: effectiveClientId
+            client_id: client_id
           }, { onConflict: 'user_id, role' });
           
         if (roleError) {
@@ -204,13 +192,13 @@ serve(async (req) => {
         // Continue anyway, the main user account is created
       }
       
-      // Make sure we have a password record for this email
+      // Make sure we have a password record for this client
       try {
-        // First check if there's already a temp password for this email
+        // First check if there's already a temp password for this client
         const { data: existingPasswords, error: checkError } = await supabase
           .from("client_temp_passwords")
           .select("id")
-          .eq("email", email)
+          .eq("agent_id", client_id)
           .limit(1);
         
         if (checkError) {
@@ -222,17 +210,17 @@ serve(async (req) => {
             .insert({
               email: email,
               temp_password: actualPassword,
-              agent_id: effectiveClientId
+              agent_id: client_id
             });
             
           if (tempPasswordError) {
             console.error("Error saving temporary password:", tempPasswordError);
             // Continue anyway
           } else {
-            console.log("Saved temporary password for email:", email);
+            console.log("Saved temporary password for client_id:", client_id);
           }
         } else {
-          console.log("Temporary password record already exists for:", email);
+          console.log("Temporary password record already exists for client_id:", client_id);
         }
       } catch (passwordErr) {
         console.error("Exception handling temporary password:", passwordErr);
@@ -246,7 +234,7 @@ serve(async (req) => {
         message: "Client user created successfully",
         userId: userId,
         password: actualPassword,
-        effectiveClientId: effectiveClientId
+        clientId: client_id
       }),
       { 
         status: 200, 
