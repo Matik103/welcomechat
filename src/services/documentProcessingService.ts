@@ -1,7 +1,6 @@
-
 /**
  * Document Processing Service
- * Version: 1.0.1
+ * Version: 1.0.2
  * Force deployment: true
  */
 
@@ -25,35 +24,44 @@ const storeInAiAgents = async (
   documentPath: string,
   metadata: Record<string, any>
 ) => {
-  const { data, error } = await supabase
-    .from('ai_agents')
-    .insert({
-      client_id: clientId,
-      name: agentName,
-      content: content,
-      url: documentPath,
-      interaction_type: "document",
-      settings: {
-        title: metadata.title || "Untitled Document",
-        document_type: documentType,
-        source_url: documentPath,
-        processing_method: metadata.processing_method,
-        processed_at: new Date().toISOString(),
-        ...metadata
-      },
-      status: "active",
-      type: documentType,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .select()
-    .single();
+  try {
+    console.log(`Storing document content in ai_agents table for client ${clientId}, agent ${agentName}`);
+    
+    const { data, error } = await supabase
+      .from('ai_agents')
+      .insert({
+        client_id: clientId,
+        name: agentName,
+        content: content,
+        url: documentPath,
+        interaction_type: "document",
+        settings: {
+          title: metadata.title || "Untitled Document",
+          document_type: documentType,
+          source_url: documentPath,
+          processing_method: metadata.processing_method || 'llamaparse',
+          processed_at: new Date().toISOString(),
+          ...metadata
+        },
+        status: "active",
+        type: documentType,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
-  if (error) {
+    if (error) {
+      console.error("Error storing in ai_agents:", error);
+      throw error;
+    }
+
+    console.log("Successfully stored document content in ai_agents with ID:", data.id);
+    return data;
+  } catch (error) {
+    console.error("Error in storeInAiAgents:", error);
     throw error;
   }
-
-  return data;
 };
 
 /**
@@ -351,6 +359,19 @@ export class DocumentProcessingService {
     };
 
     await this.updateProcessingStatus(processingRecord);
+    
+    // Also store error in error_logs table for better visibility
+    try {
+      await supabase.from('error_logs').insert({
+        client_id: processingRecord.clientId,
+        error_type: 'document_processing',
+        message: error,
+        status: 'new'
+      });
+    } catch (logError) {
+      console.error('Failed to log error:', logError);
+    }
+    
     return processingRecord;
   }
 
@@ -389,17 +410,82 @@ export class DocumentProcessingService {
         metadata: chunk.metadata
       }));
 
-      // For now, skip database update to avoid errors with missing table
-      // We'll implement proper table structure in a later migration
-      console.log("Document processing status updated:", {
-        document_url: processingRecord.documentUrl,
-        client_id: processingRecord.clientId,
-        agent_name: processingRecord.agentName,
-        document_type: processingRecord.documentType,
-        status: processingRecord.status,
-        metadata,
-        chunks: chunks.length
-      });
+      // Insert/update record in document_processing table
+      const { error } = await supabase
+        .from('document_processing')
+        .upsert({
+          document_url: processingRecord.documentUrl,
+          client_id: processingRecord.clientId,
+          agent_name: processingRecord.agentName,
+          document_type: processingRecord.documentType,
+          status: processingRecord.status,
+          started_at: processingRecord.startedAt,
+          completed_at: processingRecord.completedAt,
+          error: processingRecord.error,
+          metadata: metadata,
+          chunks: chunks,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'document_url,client_id'
+        });
+
+      if (error) {
+        console.error('Error updating document_processing status:', error);
+        
+        // If table doesn't exist yet, log it instead (this can be removed once table is created)
+        console.log("Document processing status updated:", {
+          document_url: processingRecord.documentUrl,
+          client_id: processingRecord.clientId,
+          agent_name: processingRecord.agentName,
+          document_type: processingRecord.documentType,
+          status: processingRecord.status,
+          metadata,
+          chunks: chunks.length
+        });
+        
+        // Attempt to save the content to ai_agents table as a fallback
+        if (processingRecord.status === 'completed' && 
+            processingRecord.chunks && 
+            processingRecord.chunks.length > 0) {
+          
+          // Combine all chunks into one content string
+          const fullContent = processingRecord.chunks.map(chunk => chunk.content).join('\n\n');
+          
+          if (fullContent && fullContent.length > 0) {
+            await storeInAiAgents(
+              processingRecord.clientId,
+              processingRecord.agentName,
+              fullContent,
+              processingRecord.documentType,
+              processingRecord.documentUrl,
+              metadata
+            );
+          }
+        }
+      } else {
+        console.log(`Successfully updated document processing status to '${processingRecord.status}'`);
+        
+        // If processing completed successfully, also store the content in ai_agents for use by AI
+        if (processingRecord.status === 'completed' && 
+            processingRecord.chunks && 
+            processingRecord.chunks.length > 0) {
+          
+          // Combine all chunks into one content string
+          const fullContent = processingRecord.chunks.map(chunk => chunk.content).join('\n\n');
+          
+          if (fullContent && fullContent.length > 0) {
+            await storeInAiAgents(
+              processingRecord.clientId,
+              processingRecord.agentName,
+              fullContent,
+              processingRecord.documentType,
+              processingRecord.documentUrl,
+              metadata
+            );
+          }
+        }
+      }
     } catch (error) {
       console.error('Error in updateProcessingStatus:', error);
       // Don't throw here to prevent cascading failures

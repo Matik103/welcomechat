@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
+import { toast } from 'sonner';
 
 // Mock implementation for processDocumentWithLlamaParse
 export const processDocumentWithLlamaParse = async (
@@ -38,10 +39,17 @@ export const useDocumentProcessor = (clientId: string, agentName?: string) => {
   const [processingError, setProcessingError] = useState<Error | null>(null);
 
   const processDocument = useCallback(
-    async (documentId: string): Promise<DocumentProcessingResult> => {
+    async (documentId: string, showToasts = true): Promise<DocumentProcessingResult> => {
       setIsProcessing(true);
       setProcessingResult(null);
       setProcessingError(null);
+
+      if (showToasts) {
+        toast.loading(`Processing document: ${documentId}`, {
+          id: `process-doc-${documentId}`,
+          duration: 5000,
+        });
+      }
 
       try {
         // Process with LlamaParse
@@ -51,6 +59,19 @@ export const useDocumentProcessor = (clientId: string, agentName?: string) => {
         });
 
         setProcessingResult(result);
+        
+        if (showToasts) {
+          if (result.success) {
+            toast.success(`Document processed successfully`, {
+              id: `process-doc-${documentId}`,
+            });
+          } else {
+            toast.error(`Processing failed: ${result.error}`, {
+              id: `process-doc-${documentId}`,
+            });
+          }
+        }
+        
         return result;
       } catch (error) {
         console.error('Error processing document:', error);
@@ -82,6 +103,12 @@ export const useDocumentProcessor = (clientId: string, agentName?: string) => {
           }
         };
 
+        if (showToasts) {
+          toast.error(`Processing failed: ${errorResult.error}`, {
+            id: `process-doc-${documentId}`,
+          });
+        }
+
         setProcessingResult(errorResult);
         return errorResult;
       } finally {
@@ -91,8 +118,23 @@ export const useDocumentProcessor = (clientId: string, agentName?: string) => {
     [clientId, agentName]
   );
 
+  const checkProcessingStatus = useCallback(
+    async (documentId: string) => {
+      try {
+        // This would typically fetch the status from the server
+        console.log(`Checking status for document: ${documentId}`);
+        return processingResult;
+      } catch (error) {
+        console.error('Error checking processing status:', error);
+        return null;
+      }
+    },
+    [processingResult]
+  );
+
   return {
     processDocument,
+    checkProcessingStatus,
     isProcessing,
     processingResult,
     processingError
