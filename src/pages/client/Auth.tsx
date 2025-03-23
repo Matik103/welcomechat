@@ -101,6 +101,16 @@ const ClientAuth = () => {
     try {
       console.log("Attempting to sign in with email:", email);
       
+      // Add detailed logging for authentication debugging
+      console.log("Sign-in credentials:", { 
+        email, 
+        passwordLength: password.length,
+        passwordContainsSpecial: /[!@#$%^&*]/.test(password),
+        passwordContainsUpper: /[A-Z]/.test(password),
+        passwordContainsLower: /[a-z]/.test(password),
+        passwordContainsNumber: /[0-9]/.test(password)
+      });
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -110,7 +120,28 @@ const ClientAuth = () => {
         console.error("Sign in error:", error);
         
         if (error.message?.includes("Invalid login credentials")) {
-          setErrorMessage("Invalid email or password. Please check your credentials and try again.");
+          // Provide more helpful error message for authentication issues
+          setErrorMessage("Invalid email or password. Please make sure you're using the exact password from the welcome email.");
+          
+          // Try to check if this user exists
+          const { data: tempPasswords } = await supabase
+            .from('client_temp_passwords')
+            .select('temp_password, expires_at')
+            .eq('email', email)
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+          if (tempPasswords && tempPasswords.length > 0) {
+            const tempPassword = tempPasswords[0];
+            const now = new Date();
+            const expiryDate = new Date(tempPassword.expires_at);
+            
+            if (expiryDate < now) {
+              setErrorMessage("Your temporary password has expired. Please contact support for assistance.");
+            } else if (password !== tempPassword.temp_password) {
+              setErrorMessage("The password you entered doesn't match our records. Please use the exact password from the welcome email.");
+            }
+          }
         } else {
           setErrorMessage(error.message || "Failed to sign in");
         }

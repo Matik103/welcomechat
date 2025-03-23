@@ -35,11 +35,12 @@ export const logClientCreationActivity = async (
  * @returns A randomly generated temporary password
  */
 export const generateTempPassword = (): string => {
-  // Generate a random string with at least:
-  // - 1 uppercase letter
-  // - 1 lowercase letter
-  // - 1 number
-  // - 1 special character
+  // Generate a password that meets Supabase Auth requirements:
+  // - At least 8 characters
+  // - At least one uppercase letter
+  // - At least one lowercase letter
+  // - At least one number
+  // - At least one special character
   const upperChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // excluding I and O which can be confused
   const lowerChars = 'abcdefghijkmnpqrstuvwxyz'; // excluding l which can be confused
   const numbers = '23456789'; // excluding 0 and 1 which can be confused
@@ -59,7 +60,20 @@ export const generateTempPassword = (): string => {
   }
   
   // Shuffle the password to make it more random
-  return password.split('').sort(() => 0.5 - Math.random()).join('');
+  password = password.split('').sort(() => 0.5 - Math.random()).join('');
+  
+  // Verify password meets complexity requirements
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%^&*]/.test(password);
+  
+  // This should never happen with our generation method, but just in case
+  if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+    return generateTempPassword(); // Try again
+  }
+  
+  return password;
 };
 
 /**

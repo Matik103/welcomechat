@@ -44,7 +44,7 @@ serve(async (req) => {
     );
     
     // Parse the request body
-    const { email, client_id, client_name, agent_name, agent_description, temp_password } = await req.json();
+    const { email, client_id, client_name, agent_name, agent_description } = await req.json();
     
     if (!email || !client_id) {
       return new Response(
@@ -69,37 +69,13 @@ serve(async (req) => {
     const existingUser = existingUsers?.users?.find(u => u.email === email);
     
     let userId;
-    // Generate password if not provided - ensuring it's compatible with Supabase auth
-    const generatedPassword = temp_password || (() => {
-      // Generate a random secure password
-      const upperChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // excluding I and O 
-      const lowerChars = 'abcdefghijkmnpqrstuvwxyz'; // excluding l
-      const numbers = '23456789'; // excluding 0 and 1
-      const specialChars = '!@#$%^&*';
-      
-      let password = '';
-      // Guarantee at least one of each required character type
-      password += upperChars[Math.floor(Math.random() * upperChars.length)];
-      password += lowerChars[Math.floor(Math.random() * lowerChars.length)];
-      password += numbers[Math.floor(Math.random() * numbers.length)];
-      password += specialChars[Math.floor(Math.random() * specialChars.length)];
-      
-      // Add more random characters for a total length of 12
-      const allChars = upperChars + lowerChars + numbers + specialChars;
-      for (let i = 0; i < 8; i++) {
-        password += allChars[Math.floor(Math.random() * allChars.length)];
-      }
-      
-      // Shuffle the password to make it more random
-      return password.split('').sort(() => 0.5 - Math.random()).join('');
-    })();
+    let generatedPassword = "";
     
-    console.log("Using generated password for user:", generatedPassword);
-    
+    // Let Supabase Auth handle password generation for security
     if (existingUser) {
-      // Update existing user
+      // Update existing user with a new random password
       const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
-        password: generatedPassword,
+        password: null, // null tells Supabase to generate a random password
         user_metadata: {
           client_id,
           user_type: 'client'
@@ -113,8 +89,46 @@ serve(async (req) => {
       
       userId = existingUser.id;
       console.log("Updated existing user:", userId);
+      
+      // Generate a password for this existing user
+      const { data: passwordData, error: passwordError } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email: email,
+        options: {
+          redirectTo: `${supabaseUrl}/auth/callback`
+        }
+      });
+      
+      if (passwordError) {
+        console.error("Error generating recovery link:", passwordError);
+        throw passwordError;
+      }
+      
+      // Extract password from the hashed portion of the URL
+      if (passwordData && passwordData.properties && passwordData.properties.hashed_token) {
+        // Use first 12 chars of the hashed token as the password
+        generatedPassword = passwordData.properties.hashed_token.slice(0, 12);
+        // Ensure it includes uppercase, lowercase, number and special char
+        generatedPassword = ensurePasswordComplexity(generatedPassword);
+      } else {
+        // Fallback to generating a password manually
+        generatedPassword = generateComplexPassword();
+      }
+      
+      // Update the user with our controlled password
+      const { error: resetError } = await supabase.auth.admin.updateUserById(existingUser.id, {
+        password: generatedPassword
+      });
+      
+      if (resetError) {
+        console.error("Error setting password for existing user:", resetError);
+        throw resetError;
+      }
     } else {
-      // Create new user with provided or generated password
+      // Generate a secure password that meets Supabase requirements
+      generatedPassword = generateComplexPassword();
+      
+      // Create new user with our controlled password
       const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
         email,
         password: generatedPassword,
@@ -205,3 +219,59 @@ serve(async (req) => {
     );
   }
 });
+
+/**
+ * Generates a complex password that meets Supabase Auth requirements:
+ * - At least 8 characters
+ * - At least one uppercase letter
+ * - At least one lowercase letter
+ * - At least one number
+ * - At least one special character
+ */
+function generateComplexPassword(): string {
+  const uppercaseChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // excluding I and O
+  const lowercaseChars = 'abcdefghijkmnpqrstuvwxyz'; // excluding l
+  const numbers = '23456789'; // excluding 0 and 1
+  const specialChars = '!@#$%^&*';
+  
+  // Ensure at least one character from each required type
+  let password = '';
+  password += uppercaseChars[Math.floor(Math.random() * uppercaseChars.length)];
+  password += lowercaseChars[Math.floor(Math.random() * lowercaseChars.length)];
+  password += numbers[Math.floor(Math.random() * numbers.length)];
+  password += specialChars[Math.floor(Math.random() * specialChars.length)];
+  
+  // Add more random characters for a total length of 12
+  const allChars = uppercaseChars + lowercaseChars + numbers + specialChars;
+  for (let i = 0; i < 8; i++) {
+    password += allChars[Math.floor(Math.random() * allChars.length)];
+  }
+  
+  // Shuffle the characters to make the pattern less predictable
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
+}
+
+/**
+ * Ensures a password meets complexity requirements by adding missing character types
+ */
+function ensurePasswordComplexity(basePassword: string): string {
+  let password = basePassword;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%^&*]/.test(password);
+  
+  // Add missing character types
+  if (!hasUppercase) password += 'A';
+  if (!hasLowercase) password += 'a';
+  if (!hasNumber) password += '7';
+  if (!hasSpecial) password += '!';
+  
+  // Ensure the password is at least 8 characters
+  while (password.length < 12) {
+    password += 'Aa7!'.charAt(Math.floor(Math.random() * 4));
+  }
+  
+  // Shuffle the password
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
+}
