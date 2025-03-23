@@ -10,7 +10,7 @@ const corsHeaders = {
 
 /**
  * Generates a temporary password for client accounts
- * Using the format "Welcome2024#123" that meets Supabase Auth requirements
+ * Using the format "Welcome{YEAR}#{RANDOM}" that meets Supabase Auth requirements
  * @returns A randomly generated temporary password
  */
 function generateClientTempPassword(): string {
