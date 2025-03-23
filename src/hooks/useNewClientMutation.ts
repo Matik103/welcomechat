@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client-form";
-import { logClientCreationActivity, generateClientWelcomeEmailTemplate, generateTempPassword } from "@/utils/clientCreationUtils";
+import { logClientCreationActivity, createClientInDatabase, setupClientPassword, createClientUserAccount } from "@/utils/clientAccountUtils";
 
 export const useNewClientMutation = () => {
   const queryClient = useQueryClient();
@@ -12,98 +12,44 @@ export const useNewClientMutation = () => {
       try {
         console.log("Creating new client with data:", data);
         
-        // Create the client/agent in ai_agents table
-        const { data: clientData, error: clientError } = await supabase
-          .from('ai_agents')
-          .insert({
-            client_name: data.client_name,
-            email: data.email,
-            company: data.company || null,
-            name: data.widget_settings?.agent_name || "AI Assistant",
-            agent_description: data.widget_settings?.agent_description || "",
-            content: "",
-            interaction_type: 'config',
-            settings: {
-              agent_name: data.widget_settings?.agent_name || "AI Assistant",
-              agent_description: data.widget_settings?.agent_description || "",
-              logo_url: data.widget_settings?.logo_url || "",
-              client_name: data.client_name,
-              email: data.email,
-              company: data.company || null
-            }
-          })
-          .select()
-          .single();
-
-        if (clientError) throw new Error(clientError.message);
+        // Step 1: Create the client record in the database
+        const newAgent = await createClientInDatabase(data);
         
-        // Log client creation activity
+        // Step 2: Log the client creation activity
         await logClientCreationActivity(
-          clientData.id, 
+          newAgent.id, 
           data.client_name, 
           data.email, 
           data.widget_settings?.agent_name || "AI Assistant"
         );
         
-        // Generate a secure temporary password using our standardized function
-        const tempPassword = generateTempPassword();
+        // Step 3: Generate and save a temporary password
+        const tempPassword = await setupClientPassword(newAgent.id, data.email);
         
-        // Create a Supabase auth user with our generated password
-        let authResult = null;
-        let authError = null;
+        // Step 4: Create the Supabase Auth user account
+        const authResult = await createClientUserAccount(
+          data.email,
+          newAgent.id,
+          data.client_name,
+          data.widget_settings?.agent_name || "AI Assistant",
+          data.widget_settings?.agent_description || "",
+          tempPassword
+        );
         
-        try {
-          console.log("Creating Supabase auth user...");
-          
-          const { data: authData, error: authFnError } = await supabase.functions.invoke(
-            'create-client-user', 
-            {
-              body: {
-                client_id: clientData.id,
-                client_name: data.client_name,
-                email: data.email,
-                agent_name: data.widget_settings?.agent_name || "AI Assistant",
-                agent_description: data.widget_settings?.agent_description || "",
-                temp_password: tempPassword
-              }
-            }
-          );
-          
-          if (authFnError) {
-            console.error("Auth function error:", authFnError);
-            authError = authFnError.message;
-          } else {
-            authResult = authData;
-            console.log("Supabase auth user created successfully:", authData);
-          }
-        } catch (authErr: any) {
-          console.error("Exception creating auth user:", authErr);
-          authError = authErr.message || "Exception occurred creating auth user";
-        }
-        
-        // Send welcome email with the generated password
+        // Step 5: Send welcome email with login credentials
         let emailSent = false;
         let emailError = null;
         
         try {
-          console.log("Sending welcome email...");
-          
-          // Generate enhanced email template with the temp password
-          const emailHtml = generateClientWelcomeEmailTemplate(
-            data.client_name,
-            data.email,
-            tempPassword,
-            "Welcome.Chat"
-          );
-          
           const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
-            'send-email', 
+            'send-welcome-email', 
             {
               body: {
-                to: data.email,
-                subject: "Welcome to Welcome.Chat - Your Account Details",
-                html: emailHtml,
-                from: "Welcome.Chat <admin@welcome.chat>"
+                clientId: newAgent.id,
+                clientName: data.client_name,
+                email: data.email,
+                agentName: data.widget_settings?.agent_name || "AI Assistant",
+                tempPassword: tempPassword
               }
             }
           );
@@ -118,7 +64,7 @@ export const useNewClientMutation = () => {
             emailSent = true;
             console.log("Welcome email sent successfully");
           }
-        } catch (emailErr: any) {
+        } catch (emailErr) {
           console.error("Exception sending email:", emailErr);
           emailError = emailErr.message || "Exception occurred sending email";
         }
@@ -126,15 +72,14 @@ export const useNewClientMutation = () => {
         // Invalidate clients query to force a refresh after creation
         queryClient.invalidateQueries({ queryKey: ['clients'] });
         
-        // Return the client data and email status
+        // Return the results
         return {
-          client: clientData,
+          client: newAgent,
           authResult,
-          authError,
           emailSent,
           emailError
         };
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error in useNewClientMutation:", error);
         throw error;
       }
