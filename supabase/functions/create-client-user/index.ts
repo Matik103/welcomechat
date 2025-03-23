@@ -77,6 +77,8 @@ serve(async (req) => {
       // Use the same password format that was working on March 18
       actualPassword = generateWelcomePassword();
       console.log("Generated welcome password:", actualPassword);
+    } else {
+      console.log("Using provided temporary password");
     }
     
     if (existingUser) {

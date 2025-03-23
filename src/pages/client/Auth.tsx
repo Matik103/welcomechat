@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,17 +92,20 @@ const ClientAuth = () => {
     try {
       console.log("Attempting to sign in with email:", email);
       
+      // Log password format to help with debugging
       const isWelcomeFormat = /^Welcome\d{4}#\d{3}$/.test(password);
-      
-      console.log("Password format check:", { 
+      const formatCheck = {
         isWelcomeFormat,
         passwordLength: password.length,
-        passwordContainsSpecial: /[!@#$%^&*]/.test(password),
-        passwordContainsUpper: /[A-Z]/.test(password),
-        passwordContainsLower: /[a-z]/.test(password),
-        passwordContainsNumber: /[0-9]/.test(password)
-      });
+        startsWithWelcome: password.startsWith('Welcome'),
+        hasYear: /Welcome\d{4}/.test(password),
+        hasHashSymbol: password.includes('#'),
+        hasThreeDigits: /Welcome\d{4}#\d{3}$/.test(password)
+      };
       
+      console.log("Password format check:", formatCheck);
+      
+      // Try to sign in
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -111,35 +115,55 @@ const ClientAuth = () => {
         console.error("Sign in error:", error);
         
         if (error.message?.includes("Invalid login credentials")) {
-          setErrorMessage("Invalid email or password. Please make sure you're using the exact password from the welcome email.");
-          
+          // Check if there's a temporary password for this email
           try {
+            console.log("Checking for stored temporary password");
             const { data: tempPasswords, error: tempPasswordError } = await supabase
               .from('client_temp_passwords')
-              .select('temp_password, created_at')
+              .select('temp_password, created_at, expires_at')
               .eq('email', email)
               .order('created_at', { ascending: false })
               .limit(1);
               
             if (tempPasswordError) {
               console.error("Error checking temp passwords:", tempPasswordError);
+              setErrorMessage("Invalid email or password. Please make sure you're using the exact password from the welcome email.");
             } else if (tempPasswords && tempPasswords.length > 0) {
               const tempPassword = tempPasswords[0];
               
-              if (password !== tempPassword.temp_password) {
-                setErrorMessage(`The password you entered doesn't match our records. Please use the exact password from the welcome email (format: Welcome${new Date().getFullYear()}#XXX).`);
-              }
-              
               console.log("Found temp password record:", {
-                storedPasswordFormat: tempPassword.temp_password.substring(0, 7) + "..." + tempPassword.temp_password.substring(tempPassword.temp_password.length - 4),
                 passwordMatch: password === tempPassword.temp_password,
-                createdAt: tempPassword.created_at
+                passwordLength: password.length,
+                storedPasswordLength: tempPassword.temp_password.length,
+                createdAt: tempPassword.created_at,
+                expiresAt: tempPassword.expires_at,
+                // Show partial password for debugging (not showing full for security)
+                storedPasswordStart: tempPassword.temp_password.substring(0, 7),
+                storedPasswordEnd: tempPassword.temp_password.substring(tempPassword.temp_password.length - 4),
+                userPasswordStart: password.substring(0, 7),
+                userPasswordEnd: password.length > 4 ? password.substring(password.length - 4) : ''
               });
+              
+              // Check if passwords match
+              if (password !== tempPassword.temp_password) {
+                // Provide a detailed error message
+                const currentYear = new Date().getFullYear();
+                setErrorMessage(
+                  `The password you entered doesn't match our records. Please use the exact password from the welcome email (format: Welcome${currentYear}#XXX).`
+                );
+              } else {
+                // If passwords match but login still failed, there might be an issue with the Supabase auth record
+                setErrorMessage(
+                  "Your password appears correct but login failed. The account may not be properly set up. Please contact support."
+                );
+              }
             } else {
               console.log("No temporary password found for email:", email);
+              setErrorMessage("No account found with this email address. Please check your email or contact support.");
             }
           } catch (tempCheckError) {
             console.error("Error checking temporary password:", tempCheckError);
+            setErrorMessage("An error occurred while verifying your credentials. Please try again.");
           }
         } else {
           setErrorMessage(error.message || "Failed to sign in");
