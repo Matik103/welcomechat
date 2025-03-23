@@ -5,7 +5,6 @@
  * @returns A randomly generated temporary password
  */
 export const generateClientTempPassword = (): string => {
-  // Generate a password in the format "Welcome2024#123"
   const currentYear = new Date().getFullYear();
   const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
   
@@ -14,7 +13,7 @@ export const generateClientTempPassword = (): string => {
 
 /**
  * This function is maintained for backward compatibility
- * but internally uses the standard Welcome format
+ * but internally uses the standardized Welcome format
  * @returns A randomly generated secure password
  */
 export const generateSecurePassword = (): string => {
