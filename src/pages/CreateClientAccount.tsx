@@ -1,10 +1,10 @@
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeading } from "@/components/dashboard/PageHeading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { NewClientForm } from "@/components/forms/NewClientForm";
 
 export default function CreateClientAccount() {
@@ -23,13 +23,11 @@ export default function CreateClientAccount() {
         </Button>
       </div>
       
-      <PageHeading>Create New Client</PageHeading>
-      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         <div className="md:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Client Information</CardTitle>
+              <CardTitle>Create New Client Account</CardTitle>
             </CardHeader>
             <CardContent>
               <NewClientForm />
@@ -40,12 +38,21 @@ export default function CreateClientAccount() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle>Guide</CardTitle>
+              <CardTitle>Process Information</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Client Creation Process</AlertTitle>
                 <AlertDescription>
-                  Fill in the client information to create a new account. An email with login credentials will be sent to the client.
+                  When you submit the form, we'll:
+                  <ol className="list-decimal ml-4 mt-2 space-y-1 text-sm">
+                    <li>Generate a unique client ID (UUID)</li>
+                    <li>Create a new AI agent in the database</li>
+                    <li>Generate a secure temporary password</li>
+                    <li>Send a welcome email with login details</li>
+                    <li>Set up the OpenAI assistant (if enabled)</li>
+                  </ol>
                 </AlertDescription>
               </Alert>
             </CardContent>
