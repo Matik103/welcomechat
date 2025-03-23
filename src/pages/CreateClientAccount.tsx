@@ -1,40 +1,14 @@
 
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeading } from "@/components/dashboard/PageHeading";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { NewClientForm } from "@/components/forms/NewClientForm";
-import { ClientFormData } from "@/types/client-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NewClientForm } from "@/components/forms/NewClientForm";
 
 export default function CreateClientAccount() {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (data: ClientFormData) => {
-    try {
-      setIsSubmitting(true);
-      toast.loading("Creating client...");
-      
-      console.log("Client form submission data:", data);
-      
-      // If the form submission is successful, show a success toast
-      toast.success("Client created successfully");
-      
-      // Navigate back to the clients list
-      setTimeout(() => {
-        navigate("/admin/clients");
-      }, 1500);
-    } catch (error: any) {
-      console.error("Error creating client:", error);
-      toast.error(error.message || "Failed to create client");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleGoBack = () => {
     navigate("/admin/clients");
