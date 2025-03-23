@@ -1,10 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-
-interface ParseResponse {
-  success: boolean;
-  error?: string;
-  data?: any;
-}
+import { ParseResponse } from '@/types/document-processing';
 
 export class LlamaCloudService {
   // System prompt template to ensure assistants only respond to client-specific questions
@@ -35,8 +30,11 @@ Example Responses for Off-Limit Questions:
     return this.SYSTEM_PROMPT.replace(/\[CLIENT_NAME\]/g, clientName);
   }
 
+  private static readonly LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
+  private static readonly LLAMA_CLOUD_API_KEY = process.env.LLAMA_CLOUD_API_KEY;
+
   /**
-   * Parses a document using the LlamaParse service
+   * Parse a document using LlamaParse
    */
   static async parseDocument(
     documentUrl: string,
@@ -45,39 +43,98 @@ Example Responses for Off-Limit Questions:
     agentName: string
   ): Promise<ParseResponse> {
     try {
-      console.log(`LlamaParse: Starting document parsing for ${documentType} at ${documentUrl}`);
-      
-      // Call the Supabase Edge Function to process the document
-      const { data, error } = await supabase.functions.invoke('process-document', {
-        method: 'POST',
-        body: {
-          documentUrl,
-          documentType,
-          clientId,
-          agentName,
-          documentId: crypto.randomUUID()
-        },
-      });
-
-      if (error) {
-        console.error('Error parsing document with LlamaCloud:', error);
-        return {
-          success: false,
-          error: error.message || 'Failed to parse document with LlamaCloud',
-        };
+      if (!this.LLAMA_CLOUD_API_KEY) {
+        throw new Error('LLAMA_CLOUD_API_KEY is not configured');
       }
 
-      console.log('LlamaParse: Document processing initiated successfully:', data);
-      
-      return {
-        success: true,
-        data
-      };
+      // Step 1: Upload document to LlamaParse
+      const uploadResponse = await fetch(`${this.LLAMA_CLOUD_API_URL}/upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.LLAMA_CLOUD_API_KEY}`
+        },
+        body: JSON.stringify({
+          file_url: documentUrl,
+          file_type: documentType
+        })
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.statusText}`);
+      }
+
+      const uploadResult = await uploadResponse.json();
+      const jobId = uploadResult.job_id;
+
+      // Step 2: Poll for job completion
+      let attempts = 0;
+      const maxAttempts = 30; // 5 minutes with 10-second intervals
+
+      while (attempts < maxAttempts) {
+        const statusResponse = await fetch(`${this.LLAMA_CLOUD_API_URL}/job/${jobId}`, {
+          headers: {
+            'Authorization': `Bearer ${this.LLAMA_CLOUD_API_KEY}`
+          }
+        });
+
+        if (!statusResponse.ok) {
+          throw new Error(`Failed to check job status: ${statusResponse.statusText}`);
+        }
+
+        const jobStatus = await statusResponse.json();
+
+        if (jobStatus.status === 'completed') {
+          // Step 3: Get the parsed content
+          const resultResponse = await fetch(`${this.LLAMA_CLOUD_API_URL}/result/${jobId}`, {
+            headers: {
+              'Authorization': `Bearer ${this.LLAMA_CLOUD_API_KEY}`
+            }
+          });
+
+          if (!resultResponse.ok) {
+            throw new Error(`Failed to get results: ${resultResponse.statusText}`);
+          }
+
+          const result = await resultResponse.json();
+
+          return {
+            success: true,
+            content: result.content,
+            metadata: {
+              title: result.metadata?.title,
+              pageCount: result.metadata?.page_count,
+              author: result.metadata?.author,
+              createdAt: result.metadata?.created_at,
+              fileType: documentType,
+              processingMethod: 'llamaparse',
+              jobId: jobId,
+              clientId: clientId,
+              agentName: agentName
+            },
+            documentId: `llama-${jobId}`
+          };
+        } else if (jobStatus.status === 'failed') {
+          throw new Error(`Job failed: ${jobStatus.error || 'Unknown error'}`);
+        }
+
+        // Wait 10 seconds before next attempt
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        attempts++;
+      }
+
+      throw new Error('Job timed out after 5 minutes');
     } catch (error) {
-      console.error('Error in parseDocument:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to connect to LlamaCloud API',
+        error: error instanceof Error ? error.message : 'Unknown error in LlamaParse',
+        content: '',
+        metadata: {
+          fileType: documentType,
+          processingMethod: 'llamaparse',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        },
+        documentId: `error-${Date.now()}`
       };
     }
   }

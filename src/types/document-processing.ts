@@ -1,4 +1,3 @@
-
 import { Json } from "@/integrations/supabase/types";
 
 export interface DocumentProcessingOptions {
@@ -6,16 +5,37 @@ export interface DocumentProcessingOptions {
   agentName: string;
   onUploadProgress?: (progress: number) => void;
   processingMethod?: 'llamaparse' | 'firecrawl' | 'manual';
-  integrateWithOpenAI?: boolean;
 }
 
 export interface DocumentProcessingResult {
   success: boolean;
-  status: 'none' | 'processing' | 'completed' | 'failed';
+  status: 'processing' | 'completed' | 'failed';
   documentId: string;
-  content?: string;
-  metadata?: Record<string, any>;
   error?: string;
+  chunks?: number;
+  metadata?: {
+    path?: string;
+    processedAt?: string;
+    method?: string;
+    publicUrl?: string;
+    openaiAssistantId?: string;
+  };
+}
+
+export interface ParseResponse {
+  success: boolean;
+  error?: string;
+  content: string;
+  metadata: {
+    title?: string;
+    pageCount?: number;
+    author?: string;
+    createdAt?: string;
+    fileType?: string;
+    processingMethod?: string;
+    [key: string]: any;
+  };
+  documentId: string;
 }
 
 export interface DocumentLinkFormData {
