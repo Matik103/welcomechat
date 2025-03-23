@@ -74,8 +74,9 @@ serve(async (req) => {
     
     // If temp_password wasn't provided, generate one that meets Supabase requirements
     if (!actualPassword) {
-      actualPassword = generateComplexPassword();
-      console.log("Generated secure password:", actualPassword);
+      // Use the generateWelcome password format from March 18
+      actualPassword = generateWelcomePassword();
+      console.log("Generated welcome password:", actualPassword);
     }
     
     if (existingUser) {
@@ -188,6 +189,17 @@ serve(async (req) => {
     );
   }
 });
+
+/**
+ * Generates a welcome password in the format "Welcome2024#123" (matching March 18 version)
+ * This format is more memorable for users while still meeting security requirements
+ */
+function generateWelcomePassword(): string {
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+  
+  return `Welcome${currentYear}#${randomDigits}`;
+}
 
 /**
  * Generates a complex password that meets Supabase Auth requirements:
