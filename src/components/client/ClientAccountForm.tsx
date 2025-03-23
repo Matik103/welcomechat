@@ -25,8 +25,10 @@ const clientFormSchema = z.object({
   client_id: z.string().optional(), // Add client_id to schema
 });
 
+type ClientFormValues = z.infer<typeof clientFormSchema>;
+
 export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: ClientAccountFormProps) {
-  const { register, handleSubmit, formState: { errors }, setValue, watch, control } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, control } = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || "",
@@ -68,14 +70,14 @@ export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: 
     }
   };
 
-  const handleFormSubmit = (data: any) => {
+  const handleFormSubmit = (data: ClientFormValues) => {
     // Generate a new client_id if one doesn't exist
     if (!data.client_id) {
       data.client_id = uuidv4();
       console.log("Generated new client_id in ClientAccountForm:", data.client_id);
     }
     
-    onSubmit(data);
+    onSubmit(data as { client_name: string; email: string; agent_name: string; agent_description: string; client_id: string });
   };
 
   return (
