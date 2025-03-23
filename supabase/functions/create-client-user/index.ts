@@ -88,12 +88,13 @@ serve(async (req) => {
     if (!actualPassword) {
       // Using the standard function for consistent password generation
       actualPassword = generateClientTempPassword();
-      console.log("Generated welcome password format:", actualPassword.slice(0, 7) + "..." + actualPassword.slice(-4));
+      console.log("Generated welcome password format:", actualPassword);
     } else {
       console.log("Using provided temporary password");
     }
     
     if (existingUser) {
+      console.log("Existing user found with email:", email);
       // Update existing user
       const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
         password: actualPassword,
@@ -112,6 +113,7 @@ serve(async (req) => {
       userId = existingUser.id;
       console.log("Updated existing user:", userId);
     } else {
+      console.log("No existing user found with email:", email, "Creating new user");
       // Create new user with our password
       const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
         email,
@@ -156,7 +158,7 @@ serve(async (req) => {
       
       // Also save the temporary password in the client_temp_passwords table
       try {
-        // Create a simpler insert query that doesn't rely on expires_at if it doesn't exist
+        // Create a simpler insert query that doesn't rely on expires_at
         const { error: tempPasswordError } = await supabase
           .from("client_temp_passwords")
           .insert({
