@@ -200,5 +200,3 @@ function generateWelcomePassword(): string {
   
   return `Welcome${currentYear}#${randomDigits}`;
 }
-
-// Removing the generateComplexPassword function as we're standardizing on the Welcome format

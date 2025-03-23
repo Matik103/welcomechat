@@ -1,7 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
+import { generateClientTempPassword } from './passwordUtils';
 
 /**
  * Logs the client creation activity
@@ -31,16 +31,11 @@ export const logClientCreationActivity = async (
 
 /**
  * Generates a secure temporary password for client accounts
- * Uses the format "Welcome2024#123" which is memorable but secure
- * This is the format that was working correctly on March 18
+ * This now uses the standardized function from passwordUtils
  * @returns A randomly generated temporary password
  */
 export const generateTempPassword = (): string => {
-  // Generate a password in the format "Welcome2024#123"
-  const currentYear = new Date().getFullYear();
-  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-  
-  return `Welcome${currentYear}#${randomDigits}`;
+  return generateClientTempPassword();
 };
 
 /**
