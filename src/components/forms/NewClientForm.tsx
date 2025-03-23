@@ -43,7 +43,7 @@ export function NewClientForm() {
       email: '',
       company: '',
       description: '',
-      client_id: '', // Initialize client_id as empty string
+      client_id: uuidv4(), // Initialize client_id with a new UUID on form creation
       widget_settings: {
         agent_name: '',
         agent_description: '',
@@ -51,16 +51,19 @@ export function NewClientForm() {
     },
   });
 
+  console.log("Form initialized with client_id:", form.getValues('client_id'));
+
   const onSubmit = async (data: ClientFormValues) => {
     setIsLoading(true);
     const initialToastId = toast.loading("Creating client...");
     
     try {
-      // Generate a client_id if one doesn't exist
+      // Ensure client_id exists (it should since we set it in defaultValues)
       if (!data.client_id) {
         data.client_id = uuidv4();
-        console.log("Generated new client_id in NewClientForm:", data.client_id);
       }
+      
+      console.log("Submitting form with client_id:", data.client_id);
       
       // Create the client/agent in ai_agents table
       const { data: clientData, error: clientError } = await supabase
@@ -87,8 +90,13 @@ export function NewClientForm() {
         .select()
         .single();
 
-      if (clientError) throw new Error(clientError.message);
+      if (clientError) {
+        console.error("Error creating client:", clientError);
+        throw new Error(clientError.message);
+      }
+      
       console.log("Client created successfully:", clientData);
+      console.log("Client ID in database:", clientData.client_id);
       
       // Log activity for client creation
       await createClientActivity(
@@ -117,7 +125,7 @@ export function NewClientForm() {
         'send-welcome-email', 
         {
           body: {
-            clientId: clientData.id,
+            clientId: data.client_id, // Use the client_id, not the agent ID
             clientName: data.client_name,
             email: data.email,
             agentName: data.widget_settings?.agent_name || "AI Assistant",
@@ -151,7 +159,11 @@ export function NewClientForm() {
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       {/* Hidden field for client_id */}
-      <input type="hidden" {...form.register('client_id')} />
+      <input 
+        type="hidden" 
+        {...form.register('client_id')} 
+        data-testid="client-id-field"
+      />
       
       <div className="space-y-4">
         <div>
