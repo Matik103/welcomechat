@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { ParseResponse } from '@/types/document-processing';
 
@@ -31,7 +32,12 @@ Example Responses for Off-Limit Questions:
   }
 
   private static readonly LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
-  private static readonly LLAMA_CLOUD_API_KEY = process.env.LLAMA_CLOUD_API_KEY;
+  
+  // Replace direct access to process.env with a method to get API key safely in browser context
+  private static getLlamaCloudApiKey(): string {
+    // During build time, Vite replaces import.meta.env variables
+    return import.meta.env.VITE_LLAMA_CLOUD_API_KEY || '';
+  }
 
   /**
    * Parse a document using LlamaParse
@@ -43,7 +49,8 @@ Example Responses for Off-Limit Questions:
     agentName: string
   ): Promise<ParseResponse> {
     try {
-      if (!this.LLAMA_CLOUD_API_KEY) {
+      const apiKey = this.getLlamaCloudApiKey();
+      if (!apiKey) {
         throw new Error('LLAMA_CLOUD_API_KEY is not configured');
       }
 
@@ -52,7 +59,7 @@ Example Responses for Off-Limit Questions:
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.LLAMA_CLOUD_API_KEY}`
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           file_url: documentUrl,
@@ -74,7 +81,7 @@ Example Responses for Off-Limit Questions:
       while (attempts < maxAttempts) {
         const statusResponse = await fetch(`${this.LLAMA_CLOUD_API_URL}/job/${jobId}`, {
           headers: {
-            'Authorization': `Bearer ${this.LLAMA_CLOUD_API_KEY}`
+            'Authorization': `Bearer ${apiKey}`
           }
         });
 
@@ -88,7 +95,7 @@ Example Responses for Off-Limit Questions:
           // Step 3: Get the parsed content
           const resultResponse = await fetch(`${this.LLAMA_CLOUD_API_URL}/result/${jobId}`, {
             headers: {
-              'Authorization': `Bearer ${this.LLAMA_CLOUD_API_KEY}`
+              'Authorization': `Bearer ${apiKey}`
             }
           });
 
@@ -315,7 +322,7 @@ Example Responses for Off-Limit Questions:
     try {
       console.log('Verifying OpenAI Assistant Integration components...');
       
-      // Check 1: Verify OPENAI_API_KEY, LLAMA_CLOUD_API_KEY, and FIRECRAWL_API_KEY are set
+      // Check 1: Verify required API keys using a safer approach in browser context
       const { data: secretsData, error: secretsError } = await supabase.functions.invoke('check-secrets', {
         method: 'POST',
         body: { 
