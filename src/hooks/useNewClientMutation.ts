@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client-form";
-import { logClientCreationActivity, createClientInDatabase, setupClientPassword, createClientUserAccount } from "@/utils/clientAccountUtils";
+import { createClientInDatabase, setupClientPassword, createClientUserAccount, logClientCreationActivity } from "@/utils/clientAccountUtils";
 import { v4 as uuidv4 } from 'uuid';
 
 export const useNewClientMutation = () => {

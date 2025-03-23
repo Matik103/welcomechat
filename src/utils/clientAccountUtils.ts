@@ -1,7 +1,7 @@
 
 import { ClientFormData } from "@/types/client-form";
 import { supabase } from "@/integrations/supabase/client";
-import { generateClientTempPassword, saveClientTempPassword, createClientUserAccount, logClientCreationActivity } from "./passwordUtils";
+import { generateClientTempPassword, saveClientTempPassword } from "./passwordUtils";
 
 /**
  * Create a client record in the database
@@ -73,5 +73,98 @@ export const setupClientPassword = async (clientId: string, email: string): Prom
   } catch (error: any) {
     console.error("Error in setupClientPassword:", error);
     throw new Error(error?.message || "Failed to setup client password");
+  }
+};
+
+/**
+ * Create a Supabase Auth user account for a client.
+ * 
+ * @param email - The client's email address
+ * @param clientId - The client ID to store in user metadata
+ * @param clientName - The client's name
+ * @param agentName - The agent's name
+ * @param agentDescription - The agent's description
+ * @param tempPassword - The temporary password to set
+ * @returns A promise that resolves to the result of the operation
+ */
+export const createClientUserAccount = async (
+  email: string,
+  clientId: string,
+  clientName: string,
+  agentName: string,
+  agentDescription: string,
+  tempPassword: string
+): Promise<any> => {
+  try {
+    // Import here to avoid circular dependencies
+    const { supabase } = await import('@/integrations/supabase/client');
+    
+    // Call the edge function to create the user
+    const { data, error } = await supabase.functions.invoke(
+      'create-client-user',
+      {
+        body: {
+          email,
+          client_id: clientId,
+          client_name: clientName,
+          agent_name: agentName,
+          agent_description: agentDescription,
+          temp_password: tempPassword
+        }
+      }
+    );
+    
+    if (error) {
+      console.error('Error creating client user account:', error);
+      throw new Error(error.message);
+    }
+    
+    console.log('Client user account created successfully:', data);
+    return data;
+  } catch (err) {
+    console.error('Failed to create client user account:', err);
+    throw err;
+  }
+};
+
+/**
+ * Log client creation activity in the database.
+ * 
+ * @param clientId - The client ID 
+ * @param clientName - The client's name
+ * @param email - The client's email address
+ * @param agentName - The agent's name
+ * @returns A promise that resolves when the operation is complete
+ */
+export const logClientCreationActivity = async (
+  clientId: string,
+  clientName: string,
+  email: string,
+  agentName: string
+): Promise<void> => {
+  try {
+    // Import here to avoid circular dependencies
+    const { supabase } = await import('@/integrations/supabase/client');
+    
+    const { error } = await supabase.from("client_activities").insert({
+      client_id: clientId,
+      activity_type: "client_created",
+      description: "New client created with AI agent: " + agentName,
+      metadata: {
+        client_name: clientName,
+        email: email,
+        agent_name: agentName
+      }
+    });
+    
+    if (error) {
+      console.error('Error logging client creation activity:', error);
+      throw new Error(error.message);
+    }
+    
+    console.log(`Client creation activity logged for ${clientId}`);
+  } catch (err) {
+    console.error('Failed to log client creation activity:', err);
+    // Don't throw here - activity logging is not critical
   }
 };
