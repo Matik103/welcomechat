@@ -111,7 +111,7 @@ const ClientAuth = () => {
         passwordContainsNumber: /[0-9]/.test(password)
       });
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -142,11 +142,20 @@ const ClientAuth = () => {
                 setErrorMessage("The password you entered doesn't match our records. Please use the exact password from the welcome email.");
               }
               
-              // Log the temp password for debugging (in production, you would remove this)
+              // Log the temp password for debugging
               console.log("Found temp password record:", {
                 storedPassword: tempPassword.temp_password,
                 passwordMatch: password === tempPassword.temp_password,
                 createdAt: tempPassword.created_at
+              });
+              
+              // Double-check if the password meets Supabase requirements
+              console.log("Password requirements check:", {
+                meetsLengthRequirement: password.length >= 8,
+                hasUppercase: /[A-Z]/.test(password),
+                hasLowercase: /[a-z]/.test(password),
+                hasNumber: /[0-9]/.test(password),
+                hasSpecial: /[!@#$%^&*]/.test(password)
               });
             } else {
               console.log("No temporary password found for email:", email);
@@ -160,7 +169,7 @@ const ClientAuth = () => {
         
         toast.error(errorMessage || "Authentication failed");
       } else {
-        console.log("Sign in successful:", data);
+        console.log("Sign in successful:", authData);
         
         // If auto reactivate is in the URL, we'll handle it after redirect
         if (!autoReactivate) {
@@ -171,7 +180,8 @@ const ClientAuth = () => {
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
-      // Error is already handled above
+      setErrorMessage("An unexpected error occurred. Please try again.");
+      toast.error("Authentication failed");
     } finally {
       // Ensure loading state is cleared even if there's an error
       setLoading(false);
