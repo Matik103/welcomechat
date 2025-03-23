@@ -10,14 +10,15 @@ export const setupClientPassword = async (clientId: string, email: string) => {
   const tempPassword = generateClientTempPassword();
   console.log("Generated temporary password:", tempPassword);
   
-  // Store the temporary password in the database including the required agent_id field
+  // Store the temporary password in the database
+  // Note: In client_temp_passwords table, agent_id refers to the ai_agents.id value
   try {
     const { error: tempPasswordError } = await supabase
       .from("client_temp_passwords")
       .insert({
         email: email,
         temp_password: tempPassword,
-        agent_id: clientId  // Adding the required agent_id field
+        agent_id: clientId  // Using the AI agent's ID from the ai_agents table
       });
     
     if (tempPasswordError) {
@@ -50,7 +51,7 @@ export const createClientUserAccount = async (
   const { data: userData, error: userError } = await supabase.functions.invoke("create-client-user", {
     body: {
       email: email,
-      client_id: clientId,
+      client_id: clientId,  // This is the ai_agents.id - used for both client_id and agent_id
       client_name: clientName,
       agent_name: agentName,
       agent_description: agentDescription,
