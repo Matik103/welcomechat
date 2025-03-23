@@ -7,38 +7,64 @@ export interface DocumentProcessingOptions {
   processingMethod?: 'llamaparse' | 'firecrawl' | 'manual';
 }
 
-export interface DocumentProcessingResult {
-  success: boolean;
-  status: 'processing' | 'completed' | 'failed' | 'none';
-  documentId: string;
+export interface DocumentChunk {
+  id: string;
+  content: string;
+  length: number;
+  metadata: Json;
+}
+
+export interface DocumentMetadata {
+  path: string;
+  processedAt: string;
+  method: string;
+  publicUrl: string;
+  title?: string;
+  author?: string;
+  createdAt?: string;
+  pageCount?: number;
+  totalChunks: number;
+  characterCount: number;
+  wordCount: number;
+  averageChunkSize: number;
+  language?: string;
   error?: string;
-  chunks?: number;
-  content?: string;
-  metadata?: {
-    path?: string;
-    processedAt?: string;
-    method?: string;
-    publicUrl?: string;
-    openaiAssistantId?: string;
-    [key: string]: any;
-  };
+  errorCode?: string;
+  errorDetails?: any;
+}
+
+export type DocumentProcessingStatus = 'none' | 'pending' | 'processing' | 'completed' | 'failed';
+
+export interface DocumentProcessingResult {
+  status: DocumentProcessingStatus;
+  documentUrl: string;
+  documentType: string;
+  clientId: string;
+  agentName: string;
+  startedAt: string;
+  completedAt?: string;
+  chunks: DocumentChunk[];
+  error?: string;
+  metadata: DocumentMetadata;
 }
 
 export interface ParseResponse {
   success: boolean;
-  error?: string;
-  content: string;
-  metadata: {
+  content?: string;
+  metadata?: {
     title?: string;
-    pageCount?: number;
     author?: string;
     createdAt?: string;
-    fileType?: string;
-    processingMethod?: string;
+    pageCount?: number;
+    language?: string;
     [key: string]: any;
   };
+  error?: string;
+  errorDetails?: {
+    code: string;
+    details?: any;
+  };
   documentId: string;
-  data?: any;
 }
 
 export interface DocumentLinkFormData {
