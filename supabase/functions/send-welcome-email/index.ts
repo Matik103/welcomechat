@@ -18,6 +18,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+/**
+ * Generates a temporary password for client accounts
+ * Using the format "Welcome2024#123" that meets Supabase Auth requirements
+ * @returns A randomly generated temporary password
+ */
+function generateClientTempPassword(): string {
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+  
+  return `Welcome${currentYear}#${randomDigits}`;
+}
+
 serve(async (req) => {
   // Handle preflight CORS request
   if (req.method === "OPTIONS") {
@@ -38,12 +50,16 @@ serve(async (req) => {
     console.log("Processing welcome email request:", { clientId, clientName, email, tempPassword: !!tempPassword });
     
     // Validate required parameters
-    if (!clientId || !clientName || !email || !tempPassword) {
-      console.error("Missing required parameters:", { clientId, clientName, email, tempPassword: !!tempPassword });
-      throw new Error("Missing required parameters: clientId, clientName, email and tempPassword are required");
+    if (!clientId || !clientName || !email) {
+      console.error("Missing required parameters:", { clientId, clientName, email });
+      throw new Error("Missing required parameters: clientId, clientName and email are required");
     }
 
     console.log("Processing welcome email for:", { clientId, clientName, email });
+    
+    // Generate a password if one wasn't provided
+    const finalPassword = tempPassword || generateClientTempPassword();
+    console.log("Using password format:", finalPassword.slice(0, 7) + "..." + finalPassword.slice(-4));
     
     const agentInfo = agentName ? ` with AI assistant "${agentName}"` : '';
     const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://welcomeai.io";
@@ -52,12 +68,13 @@ serve(async (req) => {
     console.log("Sending welcome email with login link:", loginLink);
 
     // Save the temporary password in the database (again, just to be sure)
+    // Simplified - not relying on expires_at column
     const { error: passwordError } = await supabase
       .from("client_temp_passwords")
       .insert({
         agent_id: clientId,
         email: email,
-        temp_password: tempPassword
+        temp_password: finalPassword
       });
       
     if (passwordError) {
@@ -85,7 +102,7 @@ serve(async (req) => {
             <p style="color: #4f46e5; margin-top: 0; margin-bottom: 20px; font-size: 16px;">${email}</p>
             
             <p style="color: #333333; font-weight: 600; margin-bottom: 8px; font-size: 16px;">Temporary Password:</p>
-            <p style="color: #4f46e5; font-family: monospace; font-size: 18px; background-color: #eef2ff; padding: 12px; border-radius: 6px; margin-top: 0; letter-spacing: 0.5px; text-align: center;">${tempPassword}</p>
+            <p style="color: #4f46e5; font-family: monospace; font-size: 18px; background-color: #eef2ff; padding: 12px; border-radius: 6px; margin-top: 0; letter-spacing: 0.5px; text-align: center;">${finalPassword}</p>
           </div>
           
           <p style="color: #333333; font-size: 16px; line-height: 1.6;">To get started:</p>
@@ -134,7 +151,7 @@ serve(async (req) => {
         metadata: { 
           email_type: "welcome_email",
           recipient_email: email,
-          temp_password_length: tempPassword.length
+          temp_password_length: finalPassword.length
         }
       });
 

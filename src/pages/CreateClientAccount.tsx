@@ -1,53 +1,56 @@
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { PageHeading } from '@/components/dashboard/PageHeading';
-import { ClientAccountForm } from '@/components/client/ClientAccountForm';
-import { toast } from 'sonner';
-import { createOpenAIAssistant } from '@/utils/clientOpenAIUtils';
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { PageHeading } from "@/components/dashboard/PageHeading";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NewClientForm } from "@/components/forms/NewClientForm";
 
 export default function CreateClientAccount() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  
-  const handleSubmit = async (data: any) => {
-    setIsSubmitting(true);
-    try {
-      // Form submission logic would go here
-      console.log("Creating client with data:", data);
-      
-      // Example: If we had a client ID after creation, we would create the OpenAI assistant
-      // const clientId = "example-client-id";
-      // await createOpenAIAssistant(
-      //   clientId,
-      //   data.agent_name,
-      //   data.agent_description, // Use agent_description here
-      //   data.client_name
-      // );
-      
-      toast.success("Client account created successfully!");
-      navigate('/admin/clients');
-    } catch (error) {
-      console.error("Error creating client account:", error);
-      toast.error("Failed to create client account. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+
+  const handleGoBack = () => {
+    navigate("/admin/clients");
   };
-  
+
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <PageHeading>
-          Create New Client Account
-          <p className="text-sm font-normal text-muted-foreground">
-            Set up a new client account with AI assistant
-          </p>
-        </PageHeading>
+    <div className="container py-8">
+      <div className="mb-4">
+        <Button variant="ghost" onClick={handleGoBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Clients
+        </Button>
       </div>
       
-      <div className="bg-white rounded-lg shadow p-6">
-        <ClientAccountForm onSubmit={handleSubmit} isLoading={isSubmitting} />
+      <PageHeading>Create New Client</PageHeading>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <div className="md:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Client Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <NewClientForm />
+            </CardContent>
+          </Card>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Guide</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Alert>
+                <AlertDescription>
+                  Fill in the client information to create a new account. An email with login credentials will be sent to the client.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
