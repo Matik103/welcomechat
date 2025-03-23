@@ -78,18 +78,19 @@ serve(async (req) => {
       const specialChars = '!@#$%^&*';
       
       let password = '';
+      // Guarantee at least one of each required character type
       password += upperChars[Math.floor(Math.random() * upperChars.length)];
       password += lowerChars[Math.floor(Math.random() * lowerChars.length)];
       password += numbers[Math.floor(Math.random() * numbers.length)];
       password += specialChars[Math.floor(Math.random() * specialChars.length)];
       
-      // Add more random characters for a length of 10
+      // Add more random characters for a total length of 12
       const allChars = upperChars + lowerChars + numbers + specialChars;
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 8; i++) {
         password += allChars[Math.floor(Math.random() * allChars.length)];
       }
       
-      // Shuffle the password
+      // Shuffle the password to make it more random
       return password.split('').sort(() => 0.5 - Math.random()).join('');
     })();
     
@@ -117,7 +118,7 @@ serve(async (req) => {
       const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
         email,
         password: generatedPassword,
-        email_confirm: true,
+        email_confirm: true, // Skip email verification
         user_metadata: {
           client_id,
           user_type: 'client'
@@ -135,36 +136,46 @@ serve(async (req) => {
     
     if (userId) {
       // Ensure there's a user_role record for this user
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .upsert({
-          user_id: userId,
-          role: "client",
-          client_id: client_id
-        });
-        
-      if (roleError) {
-        console.error("Error setting user role:", roleError);
+      try {
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .upsert({
+            user_id: userId,
+            role: "client",
+            client_id: client_id
+          }, { onConflict: 'user_id, role' });
+          
+        if (roleError) {
+          console.error("Error setting user role:", roleError);
+          // Continue anyway, the main user account is created
+        } else {
+          console.log("Successfully set user role for:", userId);
+        }
+      } catch (roleErr) {
+        console.error("Exception setting user role:", roleErr);
         // Continue anyway, the main user account is created
-      } else {
-        console.log("Successfully set user role for:", userId);
       }
       
       // Also save the temporary password in the client_temp_passwords table
-      const { error: tempPasswordError } = await supabase
-        .from("client_temp_passwords")
-        .insert({
-          agent_id: client_id, // Use agent_id to match the schema
-          email: email,
-          temp_password: generatedPassword,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
-        });
-        
-      if (tempPasswordError) {
-        console.error("Error saving temporary password:", tempPasswordError);
+      try {
+        const { error: tempPasswordError } = await supabase
+          .from("client_temp_passwords")
+          .insert({
+            agent_id: client_id, // Use agent_id to match the schema
+            email: email,
+            temp_password: generatedPassword,
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
+          });
+          
+        if (tempPasswordError) {
+          console.error("Error saving temporary password:", tempPasswordError);
+          // Continue anyway, the user account is created
+        } else {
+          console.log("Saved temporary password for client:", client_id);
+        }
+      } catch (passwordErr) {
+        console.error("Exception saving temporary password:", passwordErr);
         // Continue anyway, the user account is created
-      } else {
-        console.log("Saved temporary password for client:", client_id);
       }
     }
     

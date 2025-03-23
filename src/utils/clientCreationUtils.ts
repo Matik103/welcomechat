@@ -52,9 +52,9 @@ export const generateTempPassword = (): string => {
   password += numbers[Math.floor(Math.random() * numbers.length)];
   password += specialChars[Math.floor(Math.random() * specialChars.length)];
   
-  // Add 6 more random characters for a total length of 10
+  // Add 8 more random characters for a total length of 12
   const allChars = upperChars + lowerChars + numbers + specialChars;
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 8; i++) {
     password += allChars[Math.floor(Math.random() * allChars.length)];
   }
   
@@ -99,11 +99,12 @@ export const generateClientWelcomeEmailTemplate = (
   // Password instructions message based on whether we're including a temp password
   const passwordMessage = tempPassword 
     ? `
-      <p style="margin: 0 0 10px 0; color: #555555;"><strong>Temporary Password:</strong></p>
-      <div style="margin: 0 0 20px 0; background-color: #f5f7fa; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;">
-        <p style="margin: 0; color: #4f46e5; font-family: monospace; font-size: 18px;">${tempPassword}</p>
-        <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Please copy this password exactly as shown</p>
+      <p style="margin: 0 0 10px 0; color: #555555;"><strong>Your Temporary Password:</strong></p>
+      <div style="margin: 0 0 20px 0; background-color: #f5f7fa; border: 1px solid #e2e8f0; border-radius: 4px; padding: 15px;">
+        <p style="margin: 0; color: #4f46e5; font-family: 'Courier New', monospace; font-size: 20px; text-align: center; font-weight: bold;">${tempPassword}</p>
+        <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px; text-align: center;">Please copy this password exactly as shown</p>
       </div>
+      <p style="margin: 0 0 10px 0; color: #555555;"><strong>Important:</strong> Please change your password after your first login for security reasons.</p>
     `
     : `<p style="margin: 0 0 20px 0; color: #555555;">You will receive a separate email to set your password.</p>`;
   
@@ -133,7 +134,7 @@ export const generateClientWelcomeEmailTemplate = (
       </ol>
       
       <div style="text-align: center; margin: 35px 0;">
-        <a href="https://admin.welcome.chat/client/dashboard" 
+        <a href="https://admin.welcome.chat/client/auth" 
            style="background-color: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block; transition: background-color 0.3s;">
           Sign In
         </a>
@@ -152,4 +153,3 @@ export const generateClientWelcomeEmailTemplate = (
     </div>
   `;
 };
-
