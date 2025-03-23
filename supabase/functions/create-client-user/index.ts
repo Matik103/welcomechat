@@ -56,7 +56,15 @@ serve(async (req) => {
     
     // Parse the request body
     const body = await req.json();
-    const { email, client_id, client_name, agent_name, agent_description, temp_password } = body;
+    const { 
+      email, 
+      client_id, 
+      client_name, 
+      agent_name, 
+      agent_description, 
+      temp_password,
+      update_only = false 
+    } = body;
     
     if (!email) {
       return new Response(
@@ -150,7 +158,7 @@ serve(async (req) => {
       
       userId = existingUser.id;
       console.log("Updated existing user:", userId);
-    } else {
+    } else if (!update_only) {
       console.log("No existing user found with email:", email, "Creating new user");
       // Create new user with our password
       const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
@@ -170,6 +178,8 @@ serve(async (req) => {
       
       userId = newUser?.user?.id;
       console.log("Created new user:", userId);
+    } else {
+      console.log("Update only flag set and no existing user found. Skipping user creation.");
     }
     
     if (userId) {

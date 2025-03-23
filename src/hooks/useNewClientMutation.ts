@@ -12,10 +12,46 @@ export const useNewClientMutation = () => {
       try {
         console.log("Creating new client with data:", data);
         
-        // Step 1: Create the client record in the database
-        const newAgent = await createClientInDatabase(data);
+        // Step 1: Generate and save a temporary password first
+        const tempPassword = await setupClientPassword(null, data.email);
+        console.log("Temporary password generated and saved:", tempPassword);
         
-        // Step 2: Log the client creation activity
+        // Step 2: Create the Supabase Auth user account
+        const authResult = await createClientUserAccount(
+          data.email,
+          null, // clientId will be updated later
+          data.client_name,
+          data.widget_settings?.agent_name || "AI Assistant",
+          data.widget_settings?.agent_description || "",
+          tempPassword
+        );
+        
+        console.log("Auth user account created:", authResult);
+        
+        // Step 3: Create the client record in the database with the user's client_id
+        const newAgent = await createClientInDatabase(data, authResult.effectiveClientId);
+        
+        // Step 4: Update the auth user with the proper client_id if needed
+        if (authResult.effectiveClientId !== newAgent.id) {
+          console.log("Updating auth user with correct client_id:", newAgent.id);
+          const { error: updateError } = await supabase.functions.invoke("create-client-user", {
+            body: {
+              email: data.email,
+              client_id: newAgent.id,
+              client_name: data.client_name,
+              agent_name: data.widget_settings?.agent_name || "AI Assistant",
+              agent_description: data.widget_settings?.agent_description || "",
+              temp_password: tempPassword,
+              update_only: true
+            }
+          });
+          
+          if (updateError) {
+            console.error("Error updating auth user client_id:", updateError);
+          }
+        }
+        
+        // Step 5: Log the client creation activity
         await logClientCreationActivity(
           newAgent.id, 
           data.client_name, 
@@ -23,20 +59,7 @@ export const useNewClientMutation = () => {
           data.widget_settings?.agent_name || "AI Assistant"
         );
         
-        // Step 3: Generate and save a temporary password
-        const tempPassword = await setupClientPassword(newAgent.id, data.email);
-        
-        // Step 4: Create the Supabase Auth user account
-        const authResult = await createClientUserAccount(
-          data.email,
-          newAgent.id,
-          data.client_name,
-          data.widget_settings?.agent_name || "AI Assistant",
-          data.widget_settings?.agent_description || "",
-          tempPassword
-        );
-        
-        // Step 5: Send welcome email with login credentials
+        // Step 6: Send welcome email with login credentials
         let emailSent = false;
         let emailError = null;
         
