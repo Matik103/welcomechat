@@ -7,11 +7,28 @@ export const processDocumentWithLlamaParse = async (
   documentId: string, 
   options: DocumentProcessingOptions
 ): Promise<DocumentProcessingResult> => {
-  // Mock implementation
+  // Mock implementation with all required fields
   return {
     success: true,
     status: 'completed',
-    documentId
+    documentId,
+    documentUrl: `https://example.com/documents/${documentId}`,
+    documentType: 'pdf',
+    clientId: options.clientId,
+    agentName: options.agentName || 'AI Assistant',
+    startedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+    chunks: [],
+    metadata: {
+      path: `documents/${documentId}`,
+      processedAt: new Date().toISOString(),
+      method: 'llamaparse',
+      publicUrl: `https://example.com/documents/${documentId}`,
+      totalChunks: 0,
+      characterCount: 0,
+      wordCount: 0,
+      averageChunkSize: 0
+    }
   };
 };
 
@@ -30,7 +47,7 @@ export const useDocumentProcessor = (clientId: string, agentName?: string) => {
         // Process with LlamaParse
         const result = await processDocumentWithLlamaParse(documentId, {
           clientId,
-          agentName
+          agentName: agentName || 'AI Assistant'
         });
 
         setProcessingResult(result);
@@ -39,11 +56,30 @@ export const useDocumentProcessor = (clientId: string, agentName?: string) => {
         console.error('Error processing document:', error);
         setProcessingError(error instanceof Error ? error : new Error(String(error)));
 
+        // Create a properly formed error result with all required fields
         const errorResult: DocumentProcessingResult = {
           success: false,
           status: 'failed',
           documentId,
-          error: error instanceof Error ? error.message : String(error)
+          documentUrl: `https://example.com/documents/${documentId}`,
+          documentType: 'unknown',
+          clientId,
+          agentName: agentName || 'AI Assistant',
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          error: error instanceof Error ? error.message : String(error),
+          chunks: [],
+          metadata: {
+            path: `documents/${documentId}`,
+            processedAt: new Date().toISOString(),
+            method: 'llamaparse',
+            publicUrl: `https://example.com/documents/${documentId}`,
+            totalChunks: 0,
+            characterCount: 0,
+            wordCount: 0,
+            averageChunkSize: 0,
+            error: error instanceof Error ? error.message : String(error)
+          }
         };
 
         setProcessingResult(errorResult);
