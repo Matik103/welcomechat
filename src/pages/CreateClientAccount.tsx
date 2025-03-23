@@ -25,9 +25,9 @@ export default function CreateClientAccount() {
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         <div className="md:col-span-2">
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Create New Client Account</CardTitle>
+              <CardTitle className="text-2xl font-bold">Create New Client Account</CardTitle>
             </CardHeader>
             <CardContent>
               <NewClientForm />
@@ -36,14 +36,14 @@ export default function CreateClientAccount() {
         </div>
         
         <div>
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Process Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert>
+              <Alert className="bg-gray-50 border-gray-200">
                 <Info className="h-4 w-4" />
-                <AlertTitle>Client Creation Process</AlertTitle>
+                <AlertTitle className="text-gray-900 font-medium">Client Creation Process</AlertTitle>
                 <AlertDescription>
                   When you submit the form, we'll:
                   <ol className="list-decimal ml-4 mt-2 space-y-1 text-sm">

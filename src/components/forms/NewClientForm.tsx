@@ -16,16 +16,15 @@ import {
   saveClientTempPassword
 } from '@/utils/passwordUtils';
 import { createClientUserAccount, logClientCreationActivity } from '@/utils/clientAccountUtils';
+import { setupOpenAIAssistant } from '@/utils/clientOpenAIUtils';
 
 // Form validation schema
 const clientFormSchema = z.object({
   client_name: z.string().min(2, 'Client name is required'),
   email: z.string().email('Invalid email address'),
-  client_id: z.string().optional(), // Add client_id to schema
-  widget_settings: z.object({
-    agent_name: z.string().optional(),
-    agent_description: z.string().optional(),
-  }).optional(),
+  client_id: z.string().optional(),
+  agent_name: z.string().min(1, 'Agent name is required'),
+  agent_description: z.string().optional()
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -39,27 +38,21 @@ export function NewClientForm() {
     defaultValues: {
       client_name: '',
       email: '',
-      client_id: uuidv4(), // Initialize client_id with a new UUID on form creation
-      widget_settings: {
-        agent_name: '',
-        agent_description: '',
-      },
+      client_id: uuidv4(),
+      agent_name: 'AI Assistant',
+      agent_description: ''
     },
   });
-
-  console.log("Form initialized with client_id:", form.getValues('client_id'));
 
   const onSubmit = async (data: ClientFormValues) => {
     setIsLoading(true);
     const initialToastId = toast.loading("Creating client...");
     
     try {
-      // Ensure client_id exists (it should since we set it in defaultValues)
+      // Ensure client_id exists
       if (!data.client_id) {
         data.client_id = uuidv4();
       }
-      
-      console.log("Submitting form with client_id:", data.client_id);
       
       // Create the client/agent in ai_agents table
       const { data: clientData, error: clientError } = await supabase
@@ -67,18 +60,18 @@ export function NewClientForm() {
         .insert({
           client_name: data.client_name,
           email: data.email,
-          name: data.widget_settings?.agent_name || "AI Assistant",
-          agent_description: data.widget_settings?.agent_description || "",
-          client_id: data.client_id, // Include the client_id
+          name: data.agent_name,
+          agent_description: data.agent_description || "",
+          client_id: data.client_id,
           content: "",
           interaction_type: 'config',
           settings: {
-            agent_name: data.widget_settings?.agent_name || "AI Assistant",
-            agent_description: data.widget_settings?.agent_description || "",
+            agent_name: data.agent_name,
+            agent_description: data.agent_description || "",
             logo_url: "",
             client_name: data.client_name,
             email: data.email,
-            client_id: data.client_id // Include the client_id in settings
+            client_id: data.client_id
           }
         })
         .select()
@@ -89,23 +82,19 @@ export function NewClientForm() {
         throw new Error(clientError.message);
       }
       
-      console.log("Client created successfully:", clientData);
-      console.log("Client ID in database:", clientData.client_id);
-      
       // Generate temporary password for the new client
       const tempPassword = generateClientTempPassword();
-      console.log("Generated temp password:", tempPassword);
       
       // Save the temporary password
       await saveClientTempPassword(clientData.id, data.email, tempPassword);
       
-      // Create the actual user account in Supabase Auth
+      // Create the user account in Supabase Auth
       await createClientUserAccount(
         data.email,
         data.client_id,
         data.client_name,
-        data.widget_settings?.agent_name || "AI Assistant",
-        data.widget_settings?.agent_description || "",
+        data.agent_name,
+        data.agent_description || "",
         tempPassword
       );
       
@@ -114,7 +103,15 @@ export function NewClientForm() {
         data.client_id,
         data.client_name,
         data.email,
-        data.widget_settings?.agent_name || "AI Assistant"
+        data.agent_name
+      );
+      
+      // Setup OpenAI assistant for this client
+      await setupOpenAIAssistant(
+        data.client_id,
+        data.agent_name,
+        data.agent_description || "",
+        data.client_name
       );
       
       // Update toast to show we're sending welcome email
@@ -125,12 +122,11 @@ export function NewClientForm() {
         'send-welcome-email', 
         {
           body: {
-            clientId: data.client_id, // Use the client_id, not the agent ID
+            clientId: data.client_id,
             clientName: data.client_name,
             email: data.email,
-            agentName: data.widget_settings?.agent_name || "AI Assistant",
-            tempPassword: tempPassword,
-            client_id: data.client_id // Include client_id in email data
+            agentName: data.agent_name,
+            tempPassword: tempPassword
           }
         }
       );
@@ -162,15 +158,15 @@ export function NewClientForm() {
       <input 
         type="hidden" 
         {...form.register('client_id')} 
-        data-testid="client-id-field"
       />
       
       <div className="space-y-4">
         <div>
-          <Label htmlFor="client_name">Client Name *</Label>
+          <Label htmlFor="client_name" className="text-sm font-medium">Client Name</Label>
           <Input
             id="client_name"
             {...form.register('client_name')}
+            className="mt-1"
             placeholder="Enter client name"
             disabled={isLoading}
           />
@@ -182,11 +178,12 @@ export function NewClientForm() {
         </div>
 
         <div>
-          <Label htmlFor="email">Email Address *</Label>
+          <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
           <Input
             id="email"
             type="email"
             {...form.register('email')}
+            className="mt-1"
             placeholder="Enter email address"
             disabled={isLoading}
           />
@@ -198,31 +195,38 @@ export function NewClientForm() {
         </div>
 
         <div>
-          <Label htmlFor="agent_name">AI Agent Name</Label>
+          <Label htmlFor="agent_name" className="text-sm font-medium">AI Agent Name</Label>
           <Input
             id="agent_name"
-            {...form.register('widget_settings.agent_name')}
+            {...form.register('agent_name')}
+            className="mt-1"
             placeholder="Enter AI agent name"
             disabled={isLoading}
           />
+          {form.formState.errors.agent_name && (
+            <p className="text-sm text-red-500 mt-1">
+              {form.formState.errors.agent_name.message}
+            </p>
+          )}
         </div>
 
         <div>
-          <Label htmlFor="agent_description">Chatbot Description</Label>
+          <Label htmlFor="agent_description" className="text-sm font-medium">Chatbot Description</Label>
           <Textarea
             id="agent_description"
-            {...form.register('widget_settings.agent_description')}
+            {...form.register('agent_description')}
+            className="mt-1"
             placeholder="Describe your AI assistant's purpose and personality..."
             disabled={isLoading}
-            rows={4}
+            rows={5}
           />
           <p className="text-xs text-gray-500 mt-1">
-            This description helps define how your AI assistant interacts with users and will be used as the system prompt.
+            This description helps define how your AI assistant interacts with users and will be used as the system prompt. Client can set this later.
           </p>
         </div>
       </div>
 
-      <Button type="submit" disabled={isLoading} className="w-full">
+      <Button type="submit" disabled={isLoading} className="w-full bg-blue-500 hover:bg-blue-600">
         {isLoading ? 'Creating...' : 'Create Client'}
       </Button>
     </form>
