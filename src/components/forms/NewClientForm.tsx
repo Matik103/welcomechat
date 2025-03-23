@@ -13,25 +13,19 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   generateClientTempPassword, 
-  saveClientTempPassword, 
-  createClientUserAccount,
-  logClientCreationActivity
+  saveClientTempPassword
 } from '@/utils/passwordUtils';
+import { createClientUserAccount, logClientCreationActivity } from '@/utils/clientAccountUtils';
 
 // Form validation schema
 const clientFormSchema = z.object({
   client_name: z.string().min(2, 'Client name is required'),
   email: z.string().email('Invalid email address'),
-  company: z.string().optional(),
-  description: z.string().optional(),
   client_id: z.string().optional(), // Add client_id to schema
   widget_settings: z.object({
     agent_name: z.string().optional(),
     agent_description: z.string().optional(),
-    logo_url: z.string().optional(),
-    logo_storage_path: z.string().optional(),
   }).optional(),
-  _tempLogoFile: z.any().optional(),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -45,8 +39,6 @@ export function NewClientForm() {
     defaultValues: {
       client_name: '',
       email: '',
-      company: '',
-      description: '',
       client_id: uuidv4(), // Initialize client_id with a new UUID on form creation
       widget_settings: {
         agent_name: '',
@@ -75,7 +67,6 @@ export function NewClientForm() {
         .insert({
           client_name: data.client_name,
           email: data.email,
-          company: data.company || null,
           name: data.widget_settings?.agent_name || "AI Assistant",
           agent_description: data.widget_settings?.agent_description || "",
           client_id: data.client_id, // Include the client_id
@@ -84,10 +75,9 @@ export function NewClientForm() {
           settings: {
             agent_name: data.widget_settings?.agent_name || "AI Assistant",
             agent_description: data.widget_settings?.agent_description || "",
-            logo_url: data.widget_settings?.logo_url || "",
+            logo_url: "",
             client_name: data.client_name,
             email: data.email,
-            company: data.company || null,
             client_id: data.client_id // Include the client_id in settings
           }
         })
@@ -192,7 +182,7 @@ export function NewClientForm() {
         </div>
 
         <div>
-          <Label htmlFor="email">Email *</Label>
+          <Label htmlFor="email">Email Address *</Label>
           <Input
             id="email"
             type="email"
@@ -208,47 +198,27 @@ export function NewClientForm() {
         </div>
 
         <div>
-          <Label htmlFor="company">Company</Label>
+          <Label htmlFor="agent_name">AI Agent Name</Label>
           <Input
-            id="company"
-            {...form.register('company')}
-            placeholder="Enter company name"
+            id="agent_name"
+            {...form.register('widget_settings.agent_name')}
+            placeholder="Enter AI agent name"
             disabled={isLoading}
           />
         </div>
 
         <div>
-          <Label htmlFor="description">Description</Label>
+          <Label htmlFor="agent_description">Chatbot Description</Label>
           <Textarea
-            id="description"
-            {...form.register('description')}
-            placeholder="Enter client description"
+            id="agent_description"
+            {...form.register('widget_settings.agent_description')}
+            placeholder="Describe your AI assistant's purpose and personality..."
             disabled={isLoading}
+            rows={4}
           />
-        </div>
-
-        <div className="space-y-4 border-t pt-4">
-          <h3 className="text-lg font-medium">Assistant Settings (Optional)</h3>
-          
-          <div>
-            <Label htmlFor="agent_name">Assistant Name</Label>
-            <Input
-              id="agent_name"
-              {...form.register('widget_settings.agent_name')}
-              placeholder="Enter assistant name"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="agent_description">Assistant Description</Label>
-            <Textarea
-              id="agent_description"
-              {...form.register('widget_settings.agent_description')}
-              placeholder="Enter assistant description"
-              disabled={isLoading}
-            />
-          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            This description helps define how your AI assistant interacts with users and will be used as the system prompt.
+          </p>
         </div>
       </div>
 
