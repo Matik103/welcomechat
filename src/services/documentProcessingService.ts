@@ -1,10 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
-import { DocumentProcessingOptions, DocumentProcessingResult, ParseResponse } from '@/types/document-processing';
+import { DocumentProcessingOptions, DocumentProcessingResult, ParseResponse, DocumentProcessingStatus, DocumentChunk, DocumentMetadata } from '@/types/document-processing';
 import { Json } from '@/integrations/supabase/types';
 import { callRpcFunction } from '@/utils/rpcUtils';
 import { execSql } from '@/utils/rpcUtils';
-import { LlamaCloudService } from '@/utils/LlamaCloudService';
+import { LlamaCloudService, LlamaParseError } from '@/utils/LlamaCloudService';
 import { uploadToOpenAIAssistant } from './openaiAssistantService';
+import { chunkContent, validateContent } from '@/utils/documentProcessing';
 
 /**
  * Store content in ai_agents table
@@ -146,133 +147,328 @@ export const chunkDocument = (content: string): Array<{
   return chunks;
 };
 
-/**
- * Process a document that has been uploaded
- */
-export const processDocument = async (
-  documentPath: string,
-  options: DocumentProcessingOptions
-): Promise<DocumentProcessingResult> => {
-  try {
-    const { 
-      clientId, 
-      agentName = 'AI Assistant', 
-      processingMethod = 'llamaparse'
-    } = options;
-    
-    // First, log that processing has started
-    await execSql(`
-      SELECT log_client_activity(
-        '${clientId}',
-        'document_processing_started',
-        'Document processing started for: ${documentPath}',
-        '{"path": "${documentPath}", "method": "${processingMethod}"}'::jsonb
-      )
-    `);
-    
-    // Get public URL for the document
-    const { data: publicUrlData } = await supabase.storage
-      .from('documents')
-      .getPublicUrl(documentPath);
-    
-    if (!publicUrlData?.publicUrl) {
-      throw new Error('Failed to get public URL for document');
-    }
-    
-    const publicUrl = publicUrlData.publicUrl;
-    
-    // Determine document type from file extension
-    const fileExtension = documentPath.split('.').pop()?.toLowerCase();
-    let documentType = 'other';
-    
-    if (['pdf'].includes(fileExtension || '')) {
-      documentType = 'pdf';
-    } else if (['doc', 'docx'].includes(fileExtension || '')) {
-      documentType = 'google_doc';
-    } else if (['xls', 'xlsx'].includes(fileExtension || '')) {
-      documentType = 'google_sheet';
-    } else if (['ppt', 'pptx'].includes(fileExtension || '')) {
-      documentType = 'powerpoint';
-    } else if (['txt', 'md'].includes(fileExtension || '')) {
-      documentType = 'text';
-    }
-    
-    // Parse document with LlamaParse
-    const parseResult = await LlamaCloudService.parseDocument(
-      publicUrl,
-      documentType,
-      clientId,
-      agentName
-    );
-    
-    if (!parseResult.success) {
-      throw new Error(parseResult.error || 'Failed to parse document');
-    }
-    
-    // Chunk the content if it's large
-    const chunks = chunkDocument(parseResult.content);
-    
-    // Store chunks in ai_agents table
-    for (const chunk of chunks) {
-      await storeInAiAgents(
-        clientId,
-        agentName,
-        chunk.content,
-        documentType,
-        documentPath,
-        {
-          ...parseResult.metadata,
-          chunk_metadata: chunk.metadata
-        }
-      );
-    }
-    
-    // Upload to OpenAI Assistant
-    const openaiResult = await uploadToOpenAIAssistant(
-      clientId,
-      agentName,
-      parseResult.content,
-      parseResult.metadata.title || 'Untitled Document'
-    );
-    
-    if (!openaiResult.success) {
-      throw new Error(`Failed to upload to OpenAI Assistant: ${openaiResult.error}`);
-    }
-    
-    return {
-      success: true,
-      status: 'completed',
-      documentId: parseResult.documentId,
-      chunks: chunks.length,
-      metadata: {
-        path: documentPath,
-        processedAt: new Date().toISOString(),
-        method: processingMethod,
-        publicUrl: publicUrl,
-        openaiAssistantId: openaiResult.assistantId
-      }
-    };
-  } catch (error: any) {
-    console.error('Error processing document:', error);
-    
-    // Log processing failure
-    await execSql(`
-      SELECT log_client_activity(
-        '${options.clientId}',
-        'document_processing_failed',
-        'Document processing failed: ${error.message || "Unknown error"}',
-        '{"path": "${documentPath}"}'::jsonb
-      )
-    `);
-    
-    return {
-      success: false,
-      status: 'failed',
-      documentId: `error-${Date.now()}`,
-      error: error instanceof Error ? error.message : 'Unknown error processing document'
+// Type guard for DocumentChunk
+function isDocumentChunk(chunk: unknown): chunk is DocumentChunk {
+  if (!chunk || typeof chunk !== 'object') return false;
+  const c = chunk as any;
+  return (
+    typeof c.id === 'string' &&
+    typeof c.content === 'string' &&
+    typeof c.length === 'number' &&
+    c.metadata !== undefined
+  );
+}
+
+// Type guard for DocumentMetadata
+function isDocumentMetadata(metadata: unknown): metadata is DocumentMetadata {
+  if (!metadata || typeof metadata !== 'object') return false;
+  const m = metadata as any;
+  return (
+    typeof m.path === 'string' &&
+    typeof m.processedAt === 'string' &&
+    typeof m.method === 'string' &&
+    typeof m.publicUrl === 'string' &&
+    typeof m.totalChunks === 'number' &&
+    typeof m.characterCount === 'number' &&
+    typeof m.wordCount === 'number' &&
+    typeof m.averageChunkSize === 'number'
+  );
+}
+
+// Convert database record to DocumentProcessingResult
+function convertToDocumentProcessingResult(record: any): DocumentProcessingResult {
+  // Convert chunks
+  const chunks: DocumentChunk[] = Array.isArray(record.chunks)
+    ? record.chunks.filter(isDocumentChunk)
+    : [];
+
+  // Convert metadata
+  let metadata: DocumentMetadata;
+  if (isDocumentMetadata(record.metadata)) {
+    metadata = record.metadata;
+  } else {
+    // Provide default metadata if the record's metadata is invalid
+    metadata = {
+      path: record.document_url,
+      processedAt: record.created_at,
+      method: 'llamaparse',
+      publicUrl: record.document_url,
+      totalChunks: chunks.length,
+      characterCount: 0,
+      wordCount: 0,
+      averageChunkSize: 0,
+      ...(typeof record.metadata === 'object' ? record.metadata : {})
     };
   }
-};
+
+  return {
+    status: record.status as DocumentProcessingStatus,
+    documentUrl: record.document_url,
+    documentType: record.document_type,
+    clientId: record.client_id,
+    agentName: record.agent_name,
+    startedAt: record.started_at,
+    completedAt: record.completed_at,
+    error: record.error,
+    chunks,
+    metadata
+  };
+}
+
+export class DocumentProcessingService {
+  /**
+   * Process a document using LlamaParse and store the results
+   */
+  static async processDocument(
+    documentUrl: string,
+    documentType: string,
+    clientId: string,
+    agentName: string
+  ): Promise<DocumentProcessingResult> {
+    try {
+      // Create initial processing record
+      const processingRecord: DocumentProcessingResult = {
+        status: 'processing',
+        documentUrl,
+        documentType,
+        clientId,
+        agentName,
+        startedAt: new Date().toISOString(),
+        chunks: [],
+        metadata: {
+          path: documentUrl,
+          processedAt: new Date().toISOString(),
+          method: 'llamaparse',
+          publicUrl: documentUrl,
+          totalChunks: 0,
+          characterCount: 0,
+          wordCount: 0,
+          averageChunkSize: 0
+        }
+      };
+
+      // Store initial processing status
+      await this.updateProcessingStatus(processingRecord);
+
+      // Parse document using LlamaParse
+      const parseResult = await LlamaCloudService.parseDocument(
+        documentUrl,
+        documentType,
+        clientId,
+        agentName
+      );
+
+      if (!parseResult.success || !parseResult.content) {
+        return await this.handleProcessingError(
+          processingRecord,
+          parseResult.error || 'Unknown error',
+          parseResult.errorDetails
+        );
+      }
+
+      // Validate content
+      const validationResult = validateContent(parseResult.content);
+      if (!validationResult.isValid) {
+        return await this.handleProcessingError(
+          processingRecord,
+          `Content validation failed: ${validationResult.error}`,
+          { code: 'VALIDATION_ERROR', details: validationResult }
+        );
+      }
+
+      // Process content into chunks
+      const chunks = await chunkContent(parseResult.content);
+      
+      // Update processing record with results
+      processingRecord.status = 'completed';
+      processingRecord.chunks = chunks;
+      processingRecord.completedAt = new Date().toISOString();
+      processingRecord.metadata = {
+        ...processingRecord.metadata,
+        ...parseResult.metadata,
+        totalChunks: chunks.length,
+        characterCount: parseResult.content.length,
+        wordCount: parseResult.content.split(/\s+/).length,
+        averageChunkSize: chunks.reduce((sum, chunk) => sum + chunk.length, 0) / chunks.length
+      };
+
+      // Store final results
+      await this.updateProcessingStatus(processingRecord);
+      return processingRecord;
+    } catch (error) {
+      const processingRecord: DocumentProcessingResult = {
+        status: 'failed',
+        documentUrl,
+        documentType,
+        clientId,
+        agentName,
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        chunks: [],
+        error: error instanceof Error ? error.message : 'Unknown error',
+        metadata: {
+          path: documentUrl,
+          processedAt: new Date().toISOString(),
+          method: 'llamaparse',
+          publicUrl: documentUrl,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          errorCode: error instanceof LlamaParseError ? error.code : 'UNKNOWN_ERROR',
+          totalChunks: 0,
+          characterCount: 0,
+          wordCount: 0,
+          averageChunkSize: 0
+        }
+      };
+
+      await this.updateProcessingStatus(processingRecord);
+      return processingRecord;
+    }
+  }
+
+  /**
+   * Handle processing errors and update status
+   */
+  private static async handleProcessingError(
+    processingRecord: DocumentProcessingResult,
+    error: string,
+    errorDetails?: any
+  ): Promise<DocumentProcessingResult> {
+    processingRecord.status = 'failed';
+    processingRecord.error = error;
+    processingRecord.completedAt = new Date().toISOString();
+    processingRecord.metadata = {
+      ...processingRecord.metadata,
+      error,
+      errorCode: errorDetails?.code || 'UNKNOWN_ERROR',
+      errorDetails: errorDetails
+    };
+
+    await this.updateProcessingStatus(processingRecord);
+    return processingRecord;
+  }
+
+  /**
+   * Update processing status in the database
+   */
+  private static async updateProcessingStatus(
+    processingRecord: DocumentProcessingResult
+  ): Promise<void> {
+    try {
+      // Convert metadata to a plain object for storage
+      const metadata: { [key: string]: any } = {
+        path: processingRecord.metadata.path,
+        processedAt: processingRecord.metadata.processedAt,
+        method: processingRecord.metadata.method,
+        publicUrl: processingRecord.metadata.publicUrl,
+        totalChunks: processingRecord.metadata.totalChunks,
+        characterCount: processingRecord.metadata.characterCount,
+        wordCount: processingRecord.metadata.wordCount,
+        averageChunkSize: processingRecord.metadata.averageChunkSize,
+        title: processingRecord.metadata.title,
+        author: processingRecord.metadata.author,
+        createdAt: processingRecord.metadata.createdAt,
+        pageCount: processingRecord.metadata.pageCount,
+        language: processingRecord.metadata.language,
+        error: processingRecord.metadata.error,
+        errorCode: processingRecord.metadata.errorCode,
+        errorDetails: processingRecord.metadata.errorDetails
+      };
+
+      // Convert chunks to a plain array for storage
+      const chunks = processingRecord.chunks.map(chunk => ({
+        id: chunk.id,
+        content: chunk.content,
+        length: chunk.length,
+        metadata: chunk.metadata
+      }));
+
+      const { error } = await supabase
+        .from('document_processing')
+        .upsert({
+          document_url: processingRecord.documentUrl,
+          client_id: processingRecord.clientId,
+          agent_name: processingRecord.agentName,
+          document_type: processingRecord.documentType,
+          status: processingRecord.status,
+          started_at: processingRecord.startedAt,
+          completed_at: processingRecord.completedAt,
+          error: processingRecord.error,
+          metadata,
+          chunks
+        });
+
+      if (error) {
+        console.error('Error updating processing status:', error);
+        throw new Error(`Failed to update processing status: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Error in updateProcessingStatus:', error);
+      // Don't throw here to prevent cascading failures
+    }
+  }
+
+  /**
+   * Get the processing status for a document
+   */
+  static async getProcessingStatus(
+    documentUrl: string,
+    clientId: string
+  ): Promise<DocumentProcessingResult | null> {
+    try {
+      const { data, error } = await supabase
+        .from('document_processing')
+        .select('*')
+        .eq('document_url', documentUrl)
+        .eq('client_id', clientId)
+        .single();
+
+      if (error) {
+        console.error('Error getting processing status:', error);
+        return null;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      return convertToDocumentProcessingResult(data);
+    } catch (error) {
+      console.error('Error in getProcessingStatus:', error);
+      return null;
+    }
+  }
+
+  /**
+   * List all processed documents for a client
+   */
+  static async listProcessedDocuments(
+    clientId: string,
+    status?: DocumentProcessingStatus
+  ): Promise<DocumentProcessingResult[]> {
+    try {
+      let query = supabase
+        .from('document_processing')
+        .select('*')
+        .eq('client_id', clientId);
+
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error listing processed documents:', error);
+        return [];
+      }
+
+      return data.map(convertToDocumentProcessingResult);
+    } catch (error) {
+      console.error('Error in listProcessedDocuments:', error);
+      return [];
+    }
+  }
+}
 
 /**
  * Check the access status of a document link
