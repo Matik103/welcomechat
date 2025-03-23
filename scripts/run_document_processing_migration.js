@@ -24,45 +24,57 @@ async function runMigration() {
     const sqlPath = path.join(__dirname, '../supabase/migrations/20240918_document_processing_tables.sql');
     const sql = fs.readFileSync(sqlPath, 'utf8');
     
-    // First check if exec_sql RPC function exists
+    // Check if exec_sql RPC function exists by running a simple query
+    console.log('Checking if exec_sql RPC function exists...');
     try {
-      const { data: rpcExists, error: rpcError } = await supabase.rpc('exec_sql', {
+      const { data, error } = await supabase.rpc('exec_sql', {
         sql_query: "SELECT 'RPC function exists' as result"
       });
       
-      if (rpcError) {
-        console.error('Error: exec_sql RPC function is not available:', rpcError);
+      if (error) {
+        console.error('Error: exec_sql RPC function is not available:', error);
         console.log('Please ensure the exec_sql function is created in your Supabase project');
         process.exit(1);
       }
       
-      // Execute the SQL directly using Supabase's RPC function
-      const { error } = await supabase.rpc('exec_sql', { sql_query: sql });
+      console.log('exec_sql RPC function is available');
       
-      if (error) {
-        console.error('Migration failed:', error);
+      // Execute the SQL migration
+      console.log('Executing migration SQL...');
+      const { error: migrationError } = await supabase.rpc('exec_sql', { 
+        sql_query: sql 
+      });
+      
+      if (migrationError) {
+        console.error('Migration failed:', migrationError);
         process.exit(1);
       }
       
       console.log('Document processing tables migration completed successfully!');
       
-      // Verify the table was created
-      const { data, verifyError } = await supabase.rpc('exec_sql', {
-        sql_query: `
-          SELECT EXISTS (
-            SELECT FROM information_schema.tables 
+      // Verify the table was created with a basic query that returns JSON
+      console.log('Verifying document_processing table was created...');
+      const verifyQuery = `
+        SELECT json_build_object('exists', 
+          EXISTS (
+            SELECT 1 FROM information_schema.tables 
             WHERE table_schema = 'public' 
             AND table_name = 'document_processing'
-          ) as exists
-        `
+          )
+        ) as result
+      `;
+      
+      const { data: verifyData, error: verifyError } = await supabase.rpc('exec_sql', {
+        sql_query: verifyQuery
       });
       
       if (verifyError) {
         console.error('Error verifying table creation:', verifyError);
-      } else if (data && data[0] && data[0].exists) {
+      } else if (verifyData && verifyData.length > 0 && verifyData[0].result && verifyData[0].result.exists) {
         console.log('Verified document_processing table was created successfully');
       } else {
         console.warn('Warning: Could not verify document_processing table creation');
+        console.log('Verification response:', JSON.stringify(verifyData));
       }
       
     } catch (rpcCheckError) {

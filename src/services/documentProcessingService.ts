@@ -1,6 +1,7 @@
+
 /**
  * Document Processing Service
- * Version: 1.0.2
+ * Version: 1.0.3
  * Force deployment: true
  */
 
@@ -12,6 +13,7 @@ import { execSql } from '@/utils/rpcUtils';
 import { LlamaCloudService, LlamaParseError } from '@/utils/LlamaCloudService';
 import { uploadToOpenAIAssistant } from './openaiAssistantService';
 import { validateContent, chunkContent } from '@/utils/documentProcessing';
+import { tableExists } from '@/utils/supabaseUtils';
 
 /**
  * Store content in ai_agents table
@@ -412,42 +414,42 @@ export class DocumentProcessingService {
 
       try {
         // First check if the document_processing table exists
-        const { data: tableExists } = await supabase
-          .rpc('exec_sql', {
-            sql_query: `SELECT EXISTS (
-              SELECT FROM information_schema.tables 
-              WHERE table_schema = 'public' 
-              AND table_name = 'document_processing'
-            ) as exists`
-          });
+        const docProcExists = await tableExists('document_processing');
         
-        if (tableExists && tableExists[0] && tableExists[0].exists) {
-          // Insert/update record in document_processing table
-          const { error } = await supabase
-            .from('document_processing')
-            .upsert({
-              document_url: processingRecord.documentUrl,
-              client_id: processingRecord.clientId,
-              agent_name: processingRecord.agentName,
-              document_type: processingRecord.documentType,
-              status: processingRecord.status,
-              started_at: processingRecord.startedAt,
-              completed_at: processingRecord.completedAt,
-              error: processingRecord.error,
-              metadata: metadata,
-              chunks: chunks,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'document_url,client_id'
-            });
-
-          if (error) {
-            console.error('Error updating document_processing status:', error);
-            throw error;
-          }
+        if (docProcExists) {
+          // Insert/update record in document_processing table using exec_sql RPC
+          const sql = `
+            INSERT INTO document_processing (
+              document_url, client_id, agent_name, document_type, 
+              status, started_at, completed_at, error, metadata, 
+              chunks, created_at, updated_at
+            ) VALUES (
+              '${processingRecord.documentUrl}',
+              '${processingRecord.clientId}',
+              '${processingRecord.agentName}',
+              '${processingRecord.documentType}',
+              '${processingRecord.status}',
+              '${processingRecord.startedAt}',
+              ${processingRecord.completedAt ? `'${processingRecord.completedAt}'` : 'NULL'},
+              ${processingRecord.error ? `'${processingRecord.error}'` : 'NULL'},
+              '${JSON.stringify(metadata)}'::jsonb,
+              '${JSON.stringify(chunks)}'::jsonb,
+              NOW(),
+              NOW()
+            )
+            ON CONFLICT (document_url, client_id) DO UPDATE SET
+              status = EXCLUDED.status,
+              completed_at = EXCLUDED.completed_at,
+              error = EXCLUDED.error,
+              metadata = EXCLUDED.metadata,
+              chunks = EXCLUDED.chunks,
+              updated_at = NOW()
+            RETURNING id
+          `;
+          
+          await execSql(sql);
+          console.log(`Updated document processing record for ${processingRecord.documentUrl}`);
         } else {
-          // Table doesn't exist yet, log instead
           console.log("document_processing table doesn't exist yet, using ai_agents as fallback");
         }
       } catch (dbError) {
@@ -470,7 +472,19 @@ export class DocumentProcessingService {
             fullContent,
             processingRecord.documentType,
             processingRecord.documentUrl,
-            metadata
+            {
+              title: processingRecord.metadata.title,
+              author: processingRecord.metadata.author,
+              createdAt: processingRecord.metadata.createdAt,
+              pageCount: processingRecord.metadata.pageCount,
+              language: processingRecord.metadata.language,
+              processing_method: processingRecord.metadata.method,
+              processedAt: processingRecord.metadata.processedAt,
+              totalChunks: processingRecord.metadata.totalChunks,
+              characterCount: processingRecord.metadata.characterCount,
+              wordCount: processingRecord.metadata.wordCount,
+              averageChunkSize: processingRecord.metadata.averageChunkSize
+            }
           );
         }
       }
@@ -491,37 +505,22 @@ export class DocumentProcessingService {
     clientId: string
   ): Promise<DocumentProcessingResult | null> {
     try {
-      // Try to get status from the document_processing table
-      const { data, error } = await supabase
-        .rpc('exec_sql', {
-          sql_query: `
-            SELECT EXISTS (
-              SELECT FROM information_schema.tables 
-              WHERE table_schema = 'public' 
-              AND table_name = 'document_processing'
-            ) as exists
-          `
-        });
+      // Check if document_processing table exists
+      const docProcExists = await tableExists('document_processing');
       
-      if (data && data[0] && data[0].exists) {
-        // Query the document_processing table
-        const { data: processingData, error: processingError } = await supabase
-          .rpc('exec_sql', {
-            sql_query: `
-              SELECT * FROM document_processing
-              WHERE document_url = '${documentUrl}'
-              AND client_id = '${clientId}'
-              LIMIT 1
-            `
-          });
+      if (docProcExists) {
+        // Query the document_processing table using SQL to avoid type issues
+        const sql = `
+          SELECT * FROM document_processing
+          WHERE document_url = '${documentUrl}'
+          AND client_id = '${clientId}'
+          LIMIT 1
+        `;
         
-        if (processingError) {
-          console.error('Error fetching processing status:', processingError);
-          return null;
-        }
+        const result = await execSql(sql);
         
-        if (processingData && processingData.length > 0) {
-          return convertToDocumentProcessingResult(processingData[0]);
+        if (result && Array.isArray(result) && result.length > 0) {
+          return convertToDocumentProcessingResult(result[0]);
         }
       }
       
@@ -541,26 +540,35 @@ export class DocumentProcessingService {
       }
       
       if (agentsData && agentsData.length > 0) {
+        const agent = agentsData[0];
+        const settings = agent.settings || {};
+        
         // Convert ai_agents data to document processing result format
         return {
           status: 'completed',
           documentUrl: documentUrl,
-          documentType: agentsData[0].type || 'unknown',
+          documentType: agent.type || 'unknown',
           clientId: clientId,
-          agentName: agentsData[0].name || 'AI Assistant',
-          startedAt: agentsData[0].created_at,
-          completedAt: agentsData[0].updated_at,
+          agentName: agent.name || 'AI Assistant',
+          startedAt: agent.created_at || new Date().toISOString(),
+          completedAt: agent.updated_at || new Date().toISOString(),
           chunks: [],
           metadata: {
             path: documentUrl,
-            processedAt: agentsData[0].updated_at,
-            method: agentsData[0].settings?.processing_method || 'llamaparse',
+            processedAt: agent.updated_at || new Date().toISOString(),
+            method: typeof settings === 'object' && 'processing_method' in settings ? 
+              String(settings.processing_method) : 'llamaparse',
             publicUrl: documentUrl,
             totalChunks: 1,
-            characterCount: agentsData[0].content?.length || 0,
-            wordCount: agentsData[0].content?.split(/\s+/).length || 0,
-            averageChunkSize: agentsData[0].content?.length || 0,
-            ...agentsData[0].settings
+            characterCount: agent.content?.length || 0,
+            wordCount: agent.content?.split(/\s+/).length || 0,
+            averageChunkSize: agent.content?.length || 0,
+            title: typeof settings === 'object' && 'title' in settings ? String(settings.title) : undefined,
+            author: typeof settings === 'object' && 'author' in settings ? String(settings.author) : undefined,
+            createdAt: typeof settings === 'object' && 'createdAt' in settings ? String(settings.createdAt) : undefined,
+            pageCount: typeof settings === 'object' && 'pageCount' in settings ? 
+              Number(settings.pageCount) : undefined,
+            language: typeof settings === 'object' && 'language' in settings ? String(settings.language) : undefined
           }
         };
       }
@@ -581,42 +589,25 @@ export class DocumentProcessingService {
   ): Promise<DocumentProcessingResult[]> {
     try {
       // Check if the document_processing table exists
-      const { data, error } = await supabase
-        .rpc('exec_sql', {
-          sql_query: `
-            SELECT EXISTS (
-              SELECT FROM information_schema.tables 
-              WHERE table_schema = 'public' 
-              AND table_name = 'document_processing'
-            ) as exists
-          `
-        });
+      const docProcExists = await tableExists('document_processing');
       
-      if (data && data[0] && data[0].exists) {
+      if (docProcExists) {
         // Query the document_processing table
-        let query = `
+        let sql = `
           SELECT * FROM document_processing
           WHERE client_id = '${clientId}'
         `;
         
         if (status) {
-          query += ` AND status = '${status}'`;
+          sql += ` AND status = '${status}'`;
         }
         
-        query += ` ORDER BY created_at DESC`;
+        sql += ` ORDER BY created_at DESC`;
         
-        const { data: processingData, error: processingError } = await supabase
-          .rpc('exec_sql', {
-            sql_query: query
-          });
+        const result = await execSql(sql);
         
-        if (processingError) {
-          console.error('Error listing processed documents:', processingError);
-          return [];
-        }
-        
-        if (processingData && processingData.length > 0) {
-          return processingData.map(convertToDocumentProcessingResult);
+        if (result && Array.isArray(result) && result.length > 0) {
+          return result.map(convertToDocumentProcessingResult);
         }
       }
       
@@ -637,27 +628,37 @@ export class DocumentProcessingService {
       
       if (agentsData && agentsData.length > 0) {
         // Convert ai_agents data to document processing result format
-        return agentsData.map(agent => ({
-          status: 'completed',
-          documentUrl: agent.url || '',
-          documentType: agent.type || 'unknown',
-          clientId: clientId,
-          agentName: agent.name || 'AI Assistant',
-          startedAt: agent.created_at,
-          completedAt: agent.updated_at,
-          chunks: [],
-          metadata: {
-            path: agent.url || '',
-            processedAt: agent.updated_at,
-            method: agent.settings?.processing_method || 'llamaparse',
-            publicUrl: agent.url || '',
-            totalChunks: 1,
-            characterCount: agent.content?.length || 0,
-            wordCount: agent.content?.split(/\s+/).length || 0,
-            averageChunkSize: agent.content?.length || 0,
-            ...agent.settings
-          }
-        }));
+        return agentsData.map(agent => {
+          const settings = agent.settings || {};
+          
+          return {
+            status: 'completed',
+            documentUrl: agent.url || '',
+            documentType: agent.type || 'unknown',
+            clientId: clientId,
+            agentName: agent.name || 'AI Assistant',
+            startedAt: agent.created_at || new Date().toISOString(),
+            completedAt: agent.updated_at || new Date().toISOString(),
+            chunks: [],
+            metadata: {
+              path: agent.url || '',
+              processedAt: agent.updated_at || new Date().toISOString(),
+              method: typeof settings === 'object' && 'processing_method' in settings ? 
+                String(settings.processing_method) : 'llamaparse',
+              publicUrl: agent.url || '',
+              totalChunks: 1,
+              characterCount: agent.content?.length || 0,
+              wordCount: agent.content?.split(/\s+/).length || 0,
+              averageChunkSize: agent.content?.length || 0,
+              title: typeof settings === 'object' && 'title' in settings ? String(settings.title) : undefined,
+              author: typeof settings === 'object' && 'author' in settings ? String(settings.author) : undefined,
+              createdAt: typeof settings === 'object' && 'createdAt' in settings ? String(settings.createdAt) : undefined,
+              pageCount: typeof settings === 'object' && 'pageCount' in settings ? 
+                Number(settings.pageCount) : undefined,
+              language: typeof settings === 'object' && 'language' in settings ? String(settings.language) : undefined
+            }
+          };
+        });
       }
       
       return [];

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { callRpcFunction } from "./rpcUtils";
 
@@ -8,17 +9,20 @@ import { callRpcFunction } from "./rpcUtils";
  */
 export const tableExists = async (tableName: string): Promise<boolean> => {
   try {
+    // Use proper JSON formatting in the query
     const query = `
-      SELECT EXISTS (
-        SELECT 1 FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = '${tableName}'
-      ) as exists
+      SELECT json_build_object('exists', (
+        SELECT EXISTS (
+          SELECT 1 FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = '${tableName}'
+        )
+      )) as result
     `;
     
-    // Direct query with JSON result
+    // Direct query with JSON formatted result
     const { data, error } = await supabase.rpc('exec_sql', {
-      sql_query: `SELECT json_build_object('exists', (${query}))`
+      sql_query: query
     });
     
     if (error) {
@@ -26,10 +30,16 @@ export const tableExists = async (tableName: string): Promise<boolean> => {
       return false;
     }
     
-    // Parse the result correctly
+    // Handle the result properly
     if (data && Array.isArray(data) && data.length > 0) {
-      const result = data[0] as Record<string, any>;
-      return result.exists === true;
+      // The result will be in the format [{result: {exists: true|false}}]
+      const row = data[0];
+      if (row && typeof row === 'object' && 'result' in row) {
+        const result = row.result;
+        if (typeof result === 'object' && result !== null && 'exists' in result) {
+          return Boolean(result.exists);
+        }
+      }
     }
     
     return false;
@@ -48,8 +58,9 @@ export const initializeRpcFunctions = async () => {
     
     // Check if the exec_sql function exists by running a simple query
     try {
+      const testQuery = "SELECT json_build_object('test', 1) as result";
       const testResult = await supabase.rpc('exec_sql', {
-        sql_query: 'SELECT json_build_object(\'test\', 1)'
+        sql_query: testQuery
       });
       
       if (testResult.error) {
@@ -61,28 +72,13 @@ export const initializeRpcFunctions = async () => {
       console.error("Error checking exec_sql function:", error);
     }
     
-    // Check if document_links table exists using a direct query
-    try {
-      const { data, error } = await supabase.rpc('exec_sql', {
-        sql_query: `
-          SELECT json_build_object('exists', EXISTS (
-            SELECT FROM pg_tables 
-            WHERE schemaname = 'public' 
-            AND tablename = 'document_links'
-          ))
-        `
-      });
-      
-      if (error) {
-        console.error("Error checking document_links table:", error);
-      } else if (data && Array.isArray(data) && data.length > 0) {
-        const result = data[0] as Record<string, any>;
-        const exists = result.exists === true;
-        console.log("document_links table exists:", exists);
-      }
-    } catch (error) {
-      console.warn("document_links table check failed:", error);
-    }
+    // Check if document_processing table exists
+    const docProcessingExists = await tableExists('document_processing');
+    console.log("document_processing table exists:", docProcessingExists);
+    
+    // Check if document_links table exists using same method
+    const docLinksExists = await tableExists('document_links');
+    console.log("document_links table exists:", docLinksExists);
     
     // Check required functions with safer approaches
     try {
@@ -92,15 +88,6 @@ export const initializeRpcFunctions = async () => {
       console.log("get_document_access_status function exists");
     } catch (error) {
       console.warn("get_document_access_status function check failed:", error);
-    }
-    
-    try {
-      await callRpcFunction('get_ai_interactions', {
-        client_id_param: '00000000-0000-0000-0000-000000000000'
-      });
-      console.log("get_ai_interactions function exists");
-    } catch (error) {
-      console.warn("get_ai_interactions function check failed:", error);
     }
     
     console.log("Supabase RPC functions initialized successfully");
