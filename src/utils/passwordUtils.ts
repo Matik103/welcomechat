@@ -1,7 +1,7 @@
 
 /**
  * Generates a temporary password for client accounts
- * Using the format "Welcome2024#123" that was working correctly on March 18
+ * Using the format "Welcome2024#123" that meets Supabase Auth requirements
  * @returns A randomly generated temporary password
  */
 export const generateClientTempPassword = (): string => {
