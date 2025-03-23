@@ -172,12 +172,25 @@ const ClientAuth = () => {
                 
                 // Try calling the user creation endpoint again to ensure user exists
                 try {
+                  // Get client_id for this user through a separate query if needed
+                  const { data: clientData, error: clientError } = await supabase
+                    .from('ai_agents')
+                    .select('id')
+                    .eq('email', email)
+                    .single();
+                  
+                  const effectiveClientId = clientId || (clientData?.id || null);
+                  
+                  if (clientError) {
+                    console.error("Error getting client ID:", clientError);
+                  }
+                  
                   const { data, error } = await supabase.functions.invoke(
                     'create-client-user',
                     {
                       body: {
                         email: email,
-                        client_id: tempPassword?.agent_id || clientId,
+                        client_id: effectiveClientId,
                         temp_password: tempPassword?.temp_password
                       }
                     }
@@ -199,13 +212,26 @@ const ClientAuth = () => {
                 
                 // Try to recreate/update the user account
                 try {
+                  // Get client_id for this user through a separate query if needed
+                  const { data: clientData, error: clientError } = await supabase
+                    .from('ai_agents')
+                    .select('id')
+                    .eq('email', email)
+                    .single();
+                  
+                  const effectiveClientId = clientId || (clientData?.id || null);
+                  
+                  if (clientError) {
+                    console.error("Error getting client ID:", clientError);
+                  }
+                  
                   const { data, error } = await supabase.functions.invoke(
                     'create-client-user',
                     {
                       body: {
                         email: email,
-                        client_id: tempPassword?.agent_id || clientId,
-                        temp_password: tempPassword?.temp_password
+                        client_id: effectiveClientId,
+                        temp_password: tempPassword.temp_password
                       }
                     }
                   );
