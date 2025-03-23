@@ -13,7 +13,7 @@ import { toast } from "sonner";
 export const processExistingDocuments = async (
   clientId: string,
   agentName: string
-): Promise<{ success: boolean; processed: number; failed: number; details: any[] }> {
+): Promise<{ success: boolean; processed: number; failed: number; details: any[] }> => {
   try {
     console.log(`Processing existing documents for client ${clientId} with agent ${agentName}`);
     
@@ -149,7 +149,7 @@ export const processDocument = async (
   documentId: string,
   clientId: string, 
   agentName: string
-): Promise<{ success: boolean; details: any }> {
+): Promise<{ success: boolean; details: any }> => {
   try {
     // Get the document from ai_agents
     const { data: doc, error } = await supabase
