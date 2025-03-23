@@ -114,7 +114,7 @@ export const createClientInDatabase = async (validatedData: any, clientId?: stri
         logo_url: validatedData.widget_settings?.logo_url || ""
       }
     })
-    .select("id")
+    .select("id, client_id")
     .single();
 
   if (error) {
@@ -127,7 +127,7 @@ export const createClientInDatabase = async (validatedData: any, clientId?: stri
   }
 
   // Important: Set client_id to its own id if not provided
-  if (!clientId) {
+  if (!newAgent.client_id) {
     const { error: updateError } = await supabase
       .from("ai_agents")
       .update({ client_id: newAgent.id })
@@ -135,9 +135,11 @@ export const createClientInDatabase = async (validatedData: any, clientId?: stri
       
     if (updateError) {
       console.error("Error setting client_id to agent's own id:", updateError);
-      // Continue despite this error
+      throw new Error(`Failed to set client_id: ${updateError.message}`);
     } else {
       console.log("Successfully set client_id to agent's own id:", newAgent.id);
+      // Update our local copy of newAgent
+      newAgent.client_id = newAgent.id;
     }
   }
 
