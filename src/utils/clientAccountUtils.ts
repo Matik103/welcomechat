@@ -92,6 +92,7 @@ export const createClientUserAccount = async (
  */
 export const createClientInDatabase = async (validatedData: any, clientId?: string) => {
   console.log("Creating client with data:", validatedData);
+  console.log("Using provided client_id:", clientId || "none");
 
   // Create the client directly in the ai_agents table
   const { data: newAgent, error } = await supabase
@@ -124,23 +125,6 @@ export const createClientInDatabase = async (validatedData: any, clientId?: stri
 
   if (!newAgent) {
     throw new Error("Failed to create client record");
-  }
-
-  // Important: Set client_id to its own id if not provided
-  if (!newAgent.client_id) {
-    const { error: updateError } = await supabase
-      .from("ai_agents")
-      .update({ client_id: newAgent.id })
-      .eq("id", newAgent.id);
-      
-    if (updateError) {
-      console.error("Error setting client_id to agent's own id:", updateError);
-      throw new Error(`Failed to set client_id: ${updateError.message}`);
-    } else {
-      console.log("Successfully set client_id to agent's own id:", newAgent.id);
-      // Update our local copy of newAgent
-      newAgent.client_id = newAgent.id;
-    }
   }
 
   console.log("Client created successfully:", newAgent);

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client-form";
 import { logClientCreationActivity, createClientInDatabase, setupClientPassword, createClientUserAccount } from "@/utils/clientAccountUtils";
+import { v4 as uuidv4 } from 'uuid';
 
 export const useNewClientMutation = () => {
   const queryClient = useQueryClient();
@@ -12,15 +13,19 @@ export const useNewClientMutation = () => {
       try {
         console.log("Creating new client with data:", data);
         
-        // Step 1: Create the client record in the database first to get a client_id
-        const newAgent = await createClientInDatabase(data);
-        console.log("Client created in database with ID:", newAgent.id);
+        // Generate a separate client_id first
+        const uniqueClientId = uuidv4();
+        console.log("Generated unique client_id:", uniqueClientId);
         
-        // Set client_id to its own ID if not already set
-        if (!newAgent.client_id) {
+        // Step 1: Create the client record in the database with the generated client_id
+        const newAgent = await createClientInDatabase(data, uniqueClientId);
+        console.log("Client created in database with agent ID:", newAgent.id, "and client_id:", uniqueClientId);
+        
+        // Make sure client_id is properly set
+        if (newAgent.client_id !== uniqueClientId) {
           const { error: updateError } = await supabase
             .from("ai_agents")
-            .update({ client_id: newAgent.id })
+            .update({ client_id: uniqueClientId })
             .eq("id", newAgent.id);
             
           if (updateError) {
@@ -28,17 +33,17 @@ export const useNewClientMutation = () => {
             throw new Error("Failed to set client_id");
           }
           
-          console.log("Set client_id to match agent ID:", newAgent.id);
+          console.log("Updated client_id to:", uniqueClientId);
         }
         
         // Step 2: Generate and save a temporary password using client_id as the reference
-        const tempPassword = await setupClientPassword(newAgent.id, data.email);
+        const tempPassword = await setupClientPassword(uniqueClientId, data.email);
         console.log("Temporary password generated and saved:", tempPassword);
         
         // Step 3: Create the Supabase Auth user account with client_id
         const authResult = await createClientUserAccount(
           data.email,
-          newAgent.id, // Use the newly created client_id
+          uniqueClientId, // Use the generated client_id
           data.client_name,
           data.widget_settings?.agent_name || "AI Assistant",
           data.widget_settings?.agent_description || "",
@@ -49,7 +54,7 @@ export const useNewClientMutation = () => {
         
         // Step 4: Log the client creation activity
         await logClientCreationActivity(
-          newAgent.id, 
+          uniqueClientId, 
           data.client_name, 
           data.email, 
           data.widget_settings?.agent_name || "AI Assistant"
@@ -64,7 +69,7 @@ export const useNewClientMutation = () => {
             'send-welcome-email', 
             {
               body: {
-                clientId: newAgent.id,
+                clientId: uniqueClientId,
                 clientName: data.client_name,
                 email: data.email,
                 agentName: data.widget_settings?.agent_name || "AI Assistant",
@@ -93,7 +98,10 @@ export const useNewClientMutation = () => {
         
         // Return the results
         return {
-          client: newAgent,
+          client: {
+            ...newAgent,
+            client_id: uniqueClientId // Ensure client_id is in the response
+          },
           authResult,
           emailSent,
           emailError
