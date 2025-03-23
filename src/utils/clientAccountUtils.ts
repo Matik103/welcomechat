@@ -4,6 +4,9 @@ import { generateClientTempPassword } from "./passwordUtils";
 
 /**
  * Sets up a temporary password for the client and stores it in the database
+ * @param clientId The ID from the ai_agents table to use as agent_id
+ * @param email Client's email address
+ * @returns The generated temporary password
  */
 export const setupClientPassword = async (clientId: string, email: string) => {
   // Generate a temporary password for this client
