@@ -74,7 +74,7 @@ serve(async (req) => {
     
     // If temp_password wasn't provided, generate one that meets Supabase requirements
     if (!actualPassword) {
-      // Use the same password format that was working on March 18
+      // Using the standard format for passwords
       actualPassword = generateWelcomePassword();
       console.log("Generated welcome password:", actualPassword);
     } else {
@@ -193,7 +193,7 @@ serve(async (req) => {
 });
 
 /**
- * Generates a welcome password in the format "Welcome2024#123" (matching March 18 version)
+ * Generates a welcome password in the format "Welcome2024#123"
  * This format is more memorable for users while still meeting security requirements
  */
 function generateWelcomePassword(): string {
