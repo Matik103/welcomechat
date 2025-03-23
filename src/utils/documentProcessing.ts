@@ -169,4 +169,3 @@ const detectLanguage = (content: string): string => {
     return 'en'; // Default to English
   }
 };
-

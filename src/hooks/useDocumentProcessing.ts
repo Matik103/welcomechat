@@ -1,7 +1,8 @@
 
 import { useState } from 'react';
 import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
-import { uploadDocument, processDocument } from '@/services/documentProcessingService';
+import { uploadDocument } from '@/services/documentProcessingService';
+import { DocumentProcessingService } from '@/services/documentProcessingService';
 import { toast } from 'sonner';
 
 // Document processing hook
@@ -35,10 +36,13 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
       toast.success(`Document uploaded successfully`, { id: toastId });
       
       // Step 2: Process the document with LlamaParse (happens in the background)
-      const result = await processDocument(documentPath, processingOptions);
+      const result = await DocumentProcessingService.processDocument(
+        documentPath,
+        file.type || 'application/pdf',
+        clientId,
+        processingOptions.agentName
+      );
       
-      // No need to show another toast here since processing happens in background
-
       setUploadResult(result);
       return result;
     } catch (error) {
@@ -50,7 +54,23 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
         success: false,
         status: 'failed',
         documentId: 'error-' + Date.now(),
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        documentUrl: '',
+        documentType: '',
+        clientId,
+        agentName: agentName || 'AI Assistant',
+        startedAt: new Date().toISOString(),
+        chunks: [],
+        metadata: {
+          path: '',
+          processedAt: new Date().toISOString(),
+          method: 'llamaparse',
+          publicUrl: '',
+          totalChunks: 0,
+          characterCount: 0,
+          wordCount: 0,
+          averageChunkSize: 0,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       };
       
       setUploadResult(errorResult);
@@ -67,7 +87,23 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
     uploadResult: uploadResult || {
       success: false,
       status: 'none',
-      documentId: ''
+      documentId: '',
+      documentUrl: '',
+      documentType: '',
+      clientId,
+      agentName: agentName || 'AI Assistant',
+      startedAt: new Date().toISOString(),
+      chunks: [],
+      metadata: {
+        path: '',
+        processedAt: new Date().toISOString(),
+        method: '',
+        publicUrl: '',
+        totalChunks: 0,
+        characterCount: 0,
+        wordCount: 0,
+        averageChunkSize: 0
+      }
     }
   };
 };

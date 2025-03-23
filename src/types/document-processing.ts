@@ -1,3 +1,4 @@
+
 import { Json } from "@/integrations/supabase/types";
 
 export interface DocumentProcessingOptions {
@@ -36,7 +37,9 @@ export interface DocumentMetadata {
 export type DocumentProcessingStatus = 'none' | 'pending' | 'processing' | 'completed' | 'failed';
 
 export interface DocumentProcessingResult {
+  success?: boolean; // Adding this to fix TypeScript errors
   status: DocumentProcessingStatus;
+  documentId?: string; // Adding this to fix TypeScript errors
   documentUrl: string;
   documentType: string;
   clientId: string;
@@ -51,6 +54,7 @@ export interface DocumentProcessingResult {
 export interface ParseResponse {
   success: boolean;
   content?: string;
+  data?: any; // Adding this to fix TypeScript errors
   metadata?: {
     title?: string;
     author?: string;
@@ -86,6 +90,7 @@ export interface DocumentUploadFormProps {
 export interface ValidationResult {
   isValid: boolean;
   message?: string;
+  error?: string; // Adding this to fix TypeScript errors
   details?: {
     scrapability?: 'high' | 'medium' | 'low';
     contentType?: string;
