@@ -85,11 +85,15 @@ export const saveClientTempPassword = async (
   tempPassword: string
 ): Promise<void> => {
   try {
+    // Set expiry date to 7 days from now
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 7);
+
     await supabase.from("client_temp_passwords").insert({
-      agent_id: clientId, // Using agent_id per schema
+      agent_id: clientId,
       email: email,
       temp_password: tempPassword,
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
+      expires_at: expiryDate.toISOString()
     });
     console.log("Saved temporary password for client:", clientId);
   } catch (error) {
