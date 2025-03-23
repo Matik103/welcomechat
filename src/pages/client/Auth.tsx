@@ -98,7 +98,7 @@ const ClientAuth = () => {
         console.log("Checking for stored temporary password");
         const { data: tempPasswords, error: tempPasswordError } = await supabase
           .from('client_temp_passwords')
-          .select('temp_password, created_at')
+          .select('temp_password')
           .eq('email', email)
           .order('created_at', { ascending: false })
           .limit(1);
@@ -135,7 +135,7 @@ const ClientAuth = () => {
             console.log("Login failed, checking stored temporary password");
             const { data: tempPasswords, error: tempPasswordError } = await supabase
               .from('client_temp_passwords')
-              .select('temp_password, created_at')
+              .select('temp_password')
               .eq('email', email)
               .order('created_at', { ascending: false })
               .limit(1);

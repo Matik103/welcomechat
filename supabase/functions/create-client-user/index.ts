@@ -158,7 +158,7 @@ serve(async (req) => {
       
       // Also save the temporary password in the client_temp_passwords table
       try {
-        // Create a simpler insert query that doesn't rely on expires_at
+        // Create a simpler insert query without using expires_at or relying on created_at
         const { error: tempPasswordError } = await supabase
           .from("client_temp_passwords")
           .insert({
