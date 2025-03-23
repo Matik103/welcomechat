@@ -25,7 +25,6 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
         agentName: agentName || 'AI Assistant',
         onUploadProgress: (progress) => setUploadProgress(progress),
         processingMethod: 'llamaparse', // Default to LlamaParse processing
-        integrateWithOpenAI: true, // Enable OpenAI Assistant integration
         ...options
       };
 

@@ -9,16 +9,18 @@ export interface DocumentProcessingOptions {
 
 export interface DocumentProcessingResult {
   success: boolean;
-  status: 'processing' | 'completed' | 'failed';
+  status: 'processing' | 'completed' | 'failed' | 'none';
   documentId: string;
   error?: string;
   chunks?: number;
+  content?: string;
   metadata?: {
     path?: string;
     processedAt?: string;
     method?: string;
     publicUrl?: string;
     openaiAssistantId?: string;
+    [key: string]: any;
   };
 }
 
@@ -36,6 +38,7 @@ export interface ParseResponse {
     [key: string]: any;
   };
   documentId: string;
+  data?: any;
 }
 
 export interface DocumentLinkFormData {
@@ -93,7 +96,6 @@ export interface DriveLinksProps {
   isDeleteLoading?: boolean;
 }
 
-// Add the missing DocumentLinkFormProps interface
 export interface DocumentLinkFormProps {
   onSubmit: (data: DocumentLinkFormData) => void;
   onCancel?: () => void;

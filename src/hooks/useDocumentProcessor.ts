@@ -11,8 +11,7 @@ export const processDocumentWithLlamaParse = async (
   return {
     success: true,
     status: 'completed',
-    documentId,
-    content: `Processed document ${documentId} with LlamaParse`
+    documentId
   };
 };
 

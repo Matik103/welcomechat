@@ -23,7 +23,9 @@ export const VerifyIntegration = () => {
         message: response.success 
           ? "Integration verified successfully!" 
           : `Verification failed: ${response.error}`,
-        details: response.data || null
+        details: response.success && response.data 
+          ? response.data 
+          : null
       });
       
       console.log("Verification result:", response);

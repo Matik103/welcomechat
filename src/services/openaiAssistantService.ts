@@ -1,4 +1,6 @@
+
 import { supabase } from '@/integrations/supabase/client';
+import { callRpcFunction } from '@/utils/rpcUtils';
 
 interface OpenAIAssistantResponse {
   success: boolean;
@@ -123,12 +125,12 @@ export const uploadToOpenAIAssistant = async (
       throw error;
     }
 
-    // Log successful upload
-    await supabase.from('client_activities').insert({
-      client_id: clientId,
-      activity_type: 'openai_assistant_document_added',
-      description: `Document "${title}" added to OpenAI Assistant`,
-      metadata: {
+    // Log successful upload using RPC function instead of direct insert
+    await callRpcFunction('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'openai_assistant_document_added',
+      description_param: `Document "${title}" added to OpenAI Assistant`,
+      metadata_param: {
         document_title: title,
         agent_name: agentName,
         openai_file_id: data.file_id,
@@ -145,12 +147,12 @@ export const uploadToOpenAIAssistant = async (
   } catch (error) {
     console.error('Error uploading to OpenAI Assistant:', error);
     
-    // Log failure
-    await supabase.from('client_activities').insert({
-      client_id: clientId,
-      activity_type: 'openai_assistant_upload_failed',
-      description: `Failed to add document "${title}" to OpenAI Assistant`,
-      metadata: {
+    // Log failure using RPC function
+    await callRpcFunction('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'openai_assistant_upload_failed',
+      description_param: `Failed to add document "${title}" to OpenAI Assistant`,
+      metadata_param: {
         document_title: title,
         agent_name: agentName,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -162,4 +164,4 @@ export const uploadToOpenAIAssistant = async (
       error: error instanceof Error ? error.message : 'Failed to upload to OpenAI Assistant'
     };
   }
-}; 
+};
