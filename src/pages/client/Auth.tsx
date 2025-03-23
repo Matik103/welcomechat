@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { execSql } from "@/utils/rpcUtils";
 
@@ -15,13 +15,13 @@ const ClientAuth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
   const { user, isLoading, userRole } = useAuth();
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [searchParams] = useSearchParams();
   const autoReactivate = searchParams.get("auto_reactivate") === "true";
   const clientId = searchParams.get("client_id");
 
+  // Set a short timeout to prevent infinite loading state
   useEffect(() => {
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
@@ -30,6 +30,7 @@ const ClientAuth = () => {
     return () => clearTimeout(timeout);
   }, []);
 
+  // Show loading state while authentication is being checked
   if (isLoading && !loadTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
@@ -38,10 +39,14 @@ const ClientAuth = () => {
     );
   }
 
+  // Redirect if already authenticated
   if (user) {
+    // If auto reactivate is in the URL, handle account reactivation
     if (autoReactivate && clientId) {
+      // Async function to reactivate the account
       const reactivateAccount = async () => {
         try {
+          // Use execSql instead of directly calling the clients table
           const reactivateQuery = `
             UPDATE clients 
             SET deletion_scheduled_at = NULL 
@@ -62,9 +67,11 @@ const ClientAuth = () => {
         }
       };
       
+      // Execute the reactivation
       reactivateAccount();
     }
     
+    // Based on user role, redirect to the appropriate dashboard
     if (userRole === 'client') {
       console.log("Redirecting client to client dashboard");
       return <Navigate to="/client/dashboard" replace />;
@@ -72,6 +79,7 @@ const ClientAuth = () => {
       console.log("Redirecting admin to admin dashboard");
       return <Navigate to="/admin/dashboard" replace />;
     } else {
+      // If role is not determined yet, wait for it
       console.log("User role not yet determined, showing loading");
       return (
         <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
@@ -84,106 +92,30 @@ const ClientAuth = () => {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (loading) return;
+    if (loading) return; // Prevent multiple clicks while processing
     
     setLoading(true);
-    setErrorMessage("");
 
     try {
-      console.log("Attempting to sign in with email:", email);
-      
-      // Log password format to help with debugging
-      const isWelcomeFormat = /^Welcome\d{4}#\d{3}$/.test(password);
-      const formatCheck = {
-        isWelcomeFormat,
-        passwordLength: password.length,
-        startsWithWelcome: password.startsWith('Welcome'),
-        hasYear: /Welcome\d{4}/.test(password),
-        hasHashSymbol: password.includes('#'),
-        hasThreeDigits: /Welcome\d{4}#\d{3}$/.test(password)
-      };
-      
-      console.log("Password format check:", formatCheck);
-      
-      // Try to sign in
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
-        console.error("Sign in error:", error);
-        
-        if (error.message?.includes("Invalid login credentials")) {
-          // Check if there's a temporary password for this email
-          try {
-            console.log("Checking for stored temporary password");
-            const { data: tempPasswords, error: tempPasswordError } = await supabase
-              .from('client_temp_passwords')
-              .select('temp_password, created_at, expires_at')
-              .eq('email', email)
-              .order('created_at', { ascending: false })
-              .limit(1);
-              
-            if (tempPasswordError) {
-              console.error("Error checking temp passwords:", tempPasswordError);
-              setErrorMessage("Invalid email or password. Please make sure you're using the exact password from the welcome email.");
-            } else if (tempPasswords && tempPasswords.length > 0) {
-              const tempPassword = tempPasswords[0];
-              
-              console.log("Found temp password record:", {
-                passwordMatch: password === tempPassword.temp_password,
-                passwordLength: password.length,
-                storedPasswordLength: tempPassword.temp_password.length,
-                createdAt: tempPassword.created_at,
-                expiresAt: tempPassword.expires_at,
-                // Show partial password for debugging (not showing full for security)
-                storedPasswordStart: tempPassword.temp_password.substring(0, 7),
-                storedPasswordEnd: tempPassword.temp_password.substring(tempPassword.temp_password.length - 4),
-                userPasswordStart: password.substring(0, 7),
-                userPasswordEnd: password.length > 4 ? password.substring(password.length - 4) : ''
-              });
-              
-              // Check if passwords match
-              if (password !== tempPassword.temp_password) {
-                // Provide a detailed error message
-                const currentYear = new Date().getFullYear();
-                setErrorMessage(
-                  `The password you entered doesn't match our records. Please use the exact password from the welcome email (format: Welcome${currentYear}#XXX).`
-                );
-              } else {
-                // If passwords match but login still failed, there might be an issue with the Supabase auth record
-                setErrorMessage(
-                  "Your password appears correct but login failed. The account may not be properly set up. Please contact support."
-                );
-              }
-            } else {
-              console.log("No temporary password found for email:", email);
-              setErrorMessage("No account found with this email address. Please check your email or contact support.");
-            }
-          } catch (tempCheckError) {
-            console.error("Error checking temporary password:", tempCheckError);
-            setErrorMessage("An error occurred while verifying your credentials. Please try again.");
-          }
-        } else {
-          setErrorMessage(error.message || "Failed to sign in");
-        }
-        
-        toast.error(errorMessage || "Authentication failed");
+        throw error;
+      }
+      
+      // If auto reactivate is in the URL, we'll handle it after redirect
+      if (!autoReactivate) {
+        toast.success("Successfully signed in!");
       } else {
-        console.log("Sign in successful:", authData);
-        
-        if (!autoReactivate) {
-          toast.success("Successfully signed in!");
-        } else {
-          toast.success("Successfully signed in! Reactivating your account...");
-        }
+        toast.success("Successfully signed in! Reactivating your account...");
       }
     } catch (error: any) {
-      console.error("Authentication error:", error);
-      setErrorMessage("An unexpected error occurred. Please try again.");
-      toast.error("Authentication failed");
+      toast.error(error.message || "Failed to sign in");
     } finally {
+      // Ensure loading state is cleared even if there's an error
       setLoading(false);
     }
   };
@@ -233,18 +165,7 @@ const ClientAuth = () => {
                   disabled={loading}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Password should be in the format: Welcome{new Date().getFullYear()}#XXX
-              </p>
             </div>
-            
-            {errorMessage && (
-              <div className="text-destructive text-sm bg-destructive/10 p-3 rounded-md flex items-start">
-                <AlertCircle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-            
             <Button 
               type="submit" 
               className="w-full" 
@@ -252,9 +173,10 @@ const ClientAuth = () => {
               aria-label={autoReactivate ? "Recover Account" : "Sign In"}
             >
               {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
-              {loading ? "Signing in..." : autoReactivate ? "Recover Account" : "Sign In"}
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                autoReactivate ? "Recover Account" : "Sign In"
+              )}
             </Button>
           </form>
         </CardContent>

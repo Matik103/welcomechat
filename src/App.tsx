@@ -1,3 +1,4 @@
+
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -16,7 +17,7 @@ import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/EditClientInfo";
 import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
-import CreateClientAccount from "@/pages/CreateClientAccount"; // Using CreateClientAccount now
+import NewClient from "@/pages/client/NewClient"; // Import NewClient instead of CreateClientAccount
 import { useEffect } from "react";
 
 function App() {
@@ -78,7 +79,7 @@ function App() {
           <Route path="/admin/dashboard" element={<Index />} />
           <Route path="/admin/clients" element={<ClientList />} />
           <Route path="/admin/settings" element={<Settings />} />
-          <Route path="/admin/clients/new" element={<CreateClientAccount />} /> {/* Using CreateClientAccount now */}
+          <Route path="/admin/clients/new" element={<NewClient />} /> {/* Changed to NewClient */}
           <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
