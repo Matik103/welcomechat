@@ -1,7 +1,62 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ParseResponse } from '@/types/document-processing';
 import { callRpcFunction } from '@/utils/rpcUtils';
+
+// Add these utility functions at the top of the file after imports
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+interface RetryOptions {
+  maxAttempts: number;
+  initialDelay: number;
+  maxDelay: number;
+  factor: number;
+}
+
+const DEFAULT_RETRY_OPTIONS: RetryOptions = {
+  maxAttempts: 5,
+  initialDelay: 1000, // 1 second
+  maxDelay: 32000,    // 32 seconds
+  factor: 2,          // exponential factor
+};
+
+async function retryWithExponentialBackoff<T>(
+  operation: () => Promise<T>,
+  options: Partial<RetryOptions> = {}
+): Promise<T> {
+  const retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...options };
+  let lastError: Error | null = null;
+  let delay = retryOptions.initialDelay;
+
+  for (let attempt = 1; attempt <= retryOptions.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      if (attempt === retryOptions.maxAttempts) {
+        throw new Error(`Failed after ${attempt} attempts. Last error: ${lastError.message}`);
+      }
+
+      console.warn(`Attempt ${attempt} failed, retrying in ${delay}ms...`, error);
+      await sleep(delay);
+      delay = Math.min(delay * retryOptions.factor, retryOptions.maxDelay);
+    }
+  }
+
+  throw lastError; // TypeScript requires this, but it should never be reached
+}
+
+// Enhanced error types
+export class LlamaParseError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly details?: any
+  ) {
+    super(message);
+    this.name = 'LlamaParseError';
+  }
+}
 
 export class LlamaCloudService {
   // System prompt template to ensure assistants only respond to client-specific questions
@@ -52,91 +107,98 @@ Example Responses for Off-Limit Questions:
     try {
       const apiKey = this.getLlamaCloudApiKey();
       if (!apiKey) {
-        return {
-          success: false,
-          error: 'LLAMA_CLOUD_API_KEY is not configured',
-          content: '',
-          metadata: {
-            error: 'LLAMA_CLOUD_API_KEY is not configured'
-          },
-          documentId: `error-${Date.now()}`
-        };
+        throw new LlamaParseError(
+          'LLAMA_CLOUD_API_KEY is not configured',
+          'CONFIG_ERROR'
+        );
       }
 
-      // Step 1: Upload document to LlamaParse
-      const uploadResponse = await fetch(`${this.LLAMA_CLOUD_API_URL}/upload`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          file_url: documentUrl,
-          file_type: documentType
-        })
-      });
-
-      if (!uploadResponse.ok) {
-        return {
-          success: false,
-          error: `Upload failed: ${uploadResponse.statusText}`,
-          content: '',
-          metadata: {
-            error: `Upload failed: ${uploadResponse.statusText}`
-          },
-          documentId: `error-${Date.now()}`
-        };
-      }
-
-      const uploadResult = await uploadResponse.json();
-      const jobId = uploadResult.job_id;
-
-      // Step 2: Poll for job completion
-      let attempts = 0;
-      const maxAttempts = 30; // 5 minutes with 10-second intervals
-
-      while (attempts < maxAttempts) {
-        const statusResponse = await fetch(`${this.LLAMA_CLOUD_API_URL}/job/${jobId}`, {
+      // Step 1: Upload document to LlamaParse with retry
+      const uploadResult = await retryWithExponentialBackoff(async () => {
+        const response = await fetch(`${this.LLAMA_CLOUD_API_URL}/upload`, {
+          method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
-          }
+          },
+          body: JSON.stringify({
+            file_url: documentUrl,
+            file_type: documentType
+          })
         });
 
-        if (!statusResponse.ok) {
-          return {
-            success: false,
-            error: `Failed to check job status: ${statusResponse.statusText}`,
-            content: '',
-            metadata: {
-              error: `Failed to check job status: ${statusResponse.statusText}`
-            },
-            documentId: `error-${Date.now()}`
-          };
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new LlamaParseError(
+            `Upload failed: ${response.statusText}`,
+            'UPLOAD_ERROR',
+            { status: response.status, body: errorBody }
+          );
         }
 
-        const jobStatus = await statusResponse.json();
+        return response.json();
+      }, {
+        maxAttempts: 3,
+        initialDelay: 2000
+      });
 
-        if (jobStatus.status === 'completed') {
-          // Step 3: Get the parsed content
-          const resultResponse = await fetch(`${this.LLAMA_CLOUD_API_URL}/result/${jobId}`, {
+      const jobId = uploadResult.job_id;
+
+      // Step 2: Poll for job completion with improved error handling
+      let attempts = 0;
+      const maxAttempts = 30;
+      const pollInterval = 10000; // 10 seconds
+
+      while (attempts < maxAttempts) {
+        const jobStatus = await retryWithExponentialBackoff(async () => {
+          const response = await fetch(`${this.LLAMA_CLOUD_API_URL}/job/${jobId}`, {
             headers: {
               'Authorization': `Bearer ${apiKey}`
             }
           });
 
-          if (!resultResponse.ok) {
-            return {
-              success: false,
-              error: `Failed to get results: ${resultResponse.statusText}`,
-              content: '',
-              metadata: {
-                error: `Failed to get results: ${resultResponse.statusText}`
-              },
-              documentId: `error-${Date.now()}`
-            };
+          if (!response.ok) {
+            throw new LlamaParseError(
+              `Failed to check job status: ${response.statusText}`,
+              'STATUS_CHECK_ERROR',
+              { status: response.status }
+            );
           }
 
-          const result = await resultResponse.json();
+          return response.json();
+        }, {
+          maxAttempts: 2,
+          initialDelay: 1000
+        });
+
+        if (jobStatus.status === 'completed') {
+          // Step 3: Get the parsed content with retry
+          const result = await retryWithExponentialBackoff(async () => {
+            const response = await fetch(`${this.LLAMA_CLOUD_API_URL}/result/${jobId}`, {
+              headers: {
+                'Authorization': `Bearer ${apiKey}`
+              }
+            });
+
+            if (!response.ok) {
+              throw new LlamaParseError(
+                `Failed to get results: ${response.statusText}`,
+                'RESULT_FETCH_ERROR',
+                { status: response.status }
+              );
+            }
+
+            return response.json();
+          });
+
+          // Validate the content
+          if (!result.content || typeof result.content !== 'string') {
+            throw new LlamaParseError(
+              'Invalid content received from LlamaParse',
+              'INVALID_CONTENT',
+              { result }
+            );
+          }
 
           return {
             success: true,
@@ -150,45 +212,55 @@ Example Responses for Off-Limit Questions:
               processingMethod: 'llamaparse',
               jobId: jobId,
               clientId: clientId,
-              agentName: agentName
+              agentName: agentName,
+              processedAt: new Date().toISOString(),
+              contentLength: result.content.length,
+              language: result.metadata?.language || 'unknown'
             },
             documentId: `llama-${jobId}`
           };
         } else if (jobStatus.status === 'failed') {
-          return {
-            success: false,
-            error: `Job failed: ${jobStatus.error || 'Unknown error'}`,
-            content: '',
-            metadata: {
-              error: `Job failed: ${jobStatus.error || 'Unknown error'}`
-            },
-            documentId: `error-${Date.now()}`
-          };
+          throw new LlamaParseError(
+            `Job failed: ${jobStatus.error || 'Unknown error'}`,
+            'JOB_FAILED',
+            jobStatus
+          );
         }
 
-        // Wait 10 seconds before next attempt
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        await sleep(pollInterval);
         attempts++;
       }
 
-      return {
-        success: false,
-        error: 'Job timed out after 5 minutes',
-        content: '',
-        metadata: {
-          error: 'Job timed out after 5 minutes'
-        },
-        documentId: `error-${Date.now()}`
-      };
+      throw new LlamaParseError(
+        'Job timed out after 5 minutes',
+        'TIMEOUT_ERROR'
+      );
     } catch (error) {
+      console.error('Error in parseDocument:', error);
+      
+      // Convert all errors to LlamaParseError format
+      const llamaError = error instanceof LlamaParseError
+        ? error
+        : new LlamaParseError(
+            error instanceof Error ? error.message : 'Unknown error in LlamaParse',
+            'UNKNOWN_ERROR',
+            { originalError: error }
+          );
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error in LlamaParse',
+        error: llamaError.message,
+        errorDetails: {
+          code: llamaError.code,
+          details: llamaError.details
+        },
         content: '',
         metadata: {
           fileType: documentType,
           processingMethod: 'llamaparse',
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: llamaError.message,
+          errorCode: llamaError.code,
+          failedAt: new Date().toISOString()
         },
         documentId: `error-${Date.now()}`
       };
