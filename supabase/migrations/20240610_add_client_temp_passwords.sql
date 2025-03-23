@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS public.client_temp_passwords (
   temp_password TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   used_at TIMESTAMP WITH TIME ZONE,
-  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (now() + interval '7 days'),
   CONSTRAINT fk_agent FOREIGN KEY (agent_id) REFERENCES public.ai_agents(id) ON DELETE CASCADE
 );
 

@@ -18,17 +18,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-/**
- * Generates a welcome password in the format "Welcome2024#123"
- * Using the same format that was working on March 18
- */
-function generateWelcomePassword(): string {
-  const currentYear = new Date().getFullYear();
-  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-  
-  return `Welcome${currentYear}#${randomDigits}`;
-}
-
 serve(async (req) => {
   // Handle preflight CORS request
   if (req.method === "OPTIONS") {
@@ -49,16 +38,12 @@ serve(async (req) => {
     console.log("Processing welcome email request:", { clientId, clientName, email, tempPassword: !!tempPassword });
     
     // Validate required parameters
-    if (!clientId || !clientName || !email) {
-      console.error("Missing required parameters:", { clientId, clientName, email });
-      throw new Error("Missing required parameters: clientId, clientName and email are required");
+    if (!clientId || !clientName || !email || !tempPassword) {
+      console.error("Missing required parameters:", { clientId, clientName, email, tempPassword: !!tempPassword });
+      throw new Error("Missing required parameters: clientId, clientName, email and tempPassword are required");
     }
 
     console.log("Processing welcome email for:", { clientId, clientName, email });
-    
-    // Generate a password if one wasn't provided
-    const finalPassword = tempPassword || generateWelcomePassword();
-    console.log("Using password format:", finalPassword.slice(0, 7) + "..." + finalPassword.slice(-4));
     
     const agentInfo = agentName ? ` with AI assistant "${agentName}"` : '';
     const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL") || "https://welcomeai.io";
@@ -72,8 +57,7 @@ serve(async (req) => {
       .insert({
         agent_id: clientId,
         email: email,
-        temp_password: finalPassword,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days expiry
+        temp_password: tempPassword
       });
       
     if (passwordError) {
