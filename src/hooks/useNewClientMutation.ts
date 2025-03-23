@@ -16,6 +16,21 @@ export const useNewClientMutation = () => {
         const newAgent = await createClientInDatabase(data);
         console.log("Client created in database with ID:", newAgent.id);
         
+        // Set client_id to its own ID if not already set
+        if (!newAgent.client_id) {
+          const { error: updateError } = await supabase
+            .from("ai_agents")
+            .update({ client_id: newAgent.id })
+            .eq("id", newAgent.id);
+            
+          if (updateError) {
+            console.error("Error setting client_id:", updateError);
+            throw new Error("Failed to set client_id");
+          }
+          
+          console.log("Set client_id to match agent ID:", newAgent.id);
+        }
+        
         // Step 2: Generate and save a temporary password using client_id as the reference
         const tempPassword = await setupClientPassword(newAgent.id, data.email);
         console.log("Temporary password generated and saved:", tempPassword);

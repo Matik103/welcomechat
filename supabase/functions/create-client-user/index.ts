@@ -106,6 +106,23 @@ serve(async (req) => {
       );
     }
     
+    // Ensure client_id is set in the ai_agents table
+    if (!agentData.client_id || agentData.client_id !== client_id) {
+      console.log("Client record doesn't have client_id set correctly. Setting client_id to:", client_id);
+      
+      const { error: updateClientIdError } = await supabase
+        .from('ai_agents')
+        .update({ client_id: client_id })
+        .eq('id', client_id);
+        
+      if (updateClientIdError) {
+        console.error("Error updating client_id:", updateClientIdError);
+        // Continue anyway, but log the error
+      } else {
+        console.log("Successfully updated client_id in ai_agents table");
+      }
+    }
+    
     // Check if user already exists by email
     const { data: existingUsers, error: listUsersError } = await supabase.auth.admin.listUsers();
     
