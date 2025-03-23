@@ -19,11 +19,10 @@ const corsHeaders = {
 };
 
 /**
- * Generates a temporary password for client accounts
- * Using the format "Welcome2024#123" that meets Supabase Auth requirements
- * @returns A randomly generated temporary password
+ * Generates a welcome password in the format "Welcome2024#123"
+ * Using the same format that was working on March 18
  */
-function generateClientTempPassword(): string {
+function generateWelcomePassword(): string {
   const currentYear = new Date().getFullYear();
   const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
   
@@ -58,7 +57,7 @@ serve(async (req) => {
     console.log("Processing welcome email for:", { clientId, clientName, email });
     
     // Generate a password if one wasn't provided
-    const finalPassword = tempPassword || generateClientTempPassword();
+    const finalPassword = tempPassword || generateWelcomePassword();
     console.log("Using password format:", finalPassword.slice(0, 7) + "..." + finalPassword.slice(-4));
     
     const agentInfo = agentName ? ` with AI assistant "${agentName}"` : '';
@@ -68,13 +67,13 @@ serve(async (req) => {
     console.log("Sending welcome email with login link:", loginLink);
 
     // Save the temporary password in the database (again, just to be sure)
-    // Simplified - not relying on expires_at column
     const { error: passwordError } = await supabase
       .from("client_temp_passwords")
       .insert({
         agent_id: clientId,
         email: email,
-        temp_password: finalPassword
+        temp_password: finalPassword,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days expiry
       });
       
     if (passwordError) {
@@ -102,7 +101,7 @@ serve(async (req) => {
             <p style="color: #4f46e5; margin-top: 0; margin-bottom: 20px; font-size: 16px;">${email}</p>
             
             <p style="color: #333333; font-weight: 600; margin-bottom: 8px; font-size: 16px;">Temporary Password:</p>
-            <p style="color: #4f46e5; font-family: monospace; font-size: 18px; background-color: #eef2ff; padding: 12px; border-radius: 6px; margin-top: 0; letter-spacing: 0.5px; text-align: center;">${finalPassword}</p>
+            <p style="color: #4f46e5; font-family: monospace; font-size: 18px; background-color: #eef2ff; padding: 12px; border-radius: 6px; margin-top: 0; letter-spacing: 0.5px; text-align: center;">${tempPassword}</p>
           </div>
           
           <p style="color: #333333; font-size: 16px; line-height: 1.6;">To get started:</p>
@@ -151,7 +150,7 @@ serve(async (req) => {
         metadata: { 
           email_type: "welcome_email",
           recipient_email: email,
-          temp_password_length: finalPassword.length
+          temp_password_length: tempPassword.length
         }
       });
 

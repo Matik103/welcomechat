@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
@@ -48,11 +47,15 @@ export const saveClientTempPassword = async (
   tempPassword: string
 ): Promise<void> => {
   try {
-    // Insert without expires_at to handle tables that might not have this column
+    // Set expiry date to 7 days from now
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 7);
+
     await supabase.from("client_temp_passwords").insert({
       agent_id: clientId,
       email: email,
-      temp_password: tempPassword
+      temp_password: tempPassword,
+      expires_at: expiryDate.toISOString()
     });
     console.log("Saved temporary password for client:", clientId);
   } catch (error) {

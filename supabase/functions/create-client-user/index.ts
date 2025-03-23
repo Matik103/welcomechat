@@ -8,18 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
-/**
- * Generates a temporary password for client accounts
- * Using the format "Welcome{YEAR}#{RANDOM}" that meets Supabase Auth requirements
- * @returns A randomly generated temporary password
- */
-function generateClientTempPassword(): string {
-  const currentYear = new Date().getFullYear();
-  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
-  
-  return `Welcome${currentYear}#${randomDigits}`;
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -30,6 +18,7 @@ serve(async (req) => {
   }
   
   try {
+    // Initialize Supabase client with service role key
     const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
     
@@ -44,7 +33,7 @@ serve(async (req) => {
       {
         auth: {
           autoRefreshToken: false,
-          persistSession: false,
+          persistSession: false
         },
         global: {
           headers: {
@@ -56,19 +45,11 @@ serve(async (req) => {
     
     // Parse the request body
     const body = await req.json();
-    const { 
-      email, 
-      client_id, 
-      client_name, 
-      agent_name, 
-      agent_description, 
-      temp_password,
-      update_only = false 
-    } = body;
+    const { email, client_id, client_name, agent_name, agent_description, temp_password } = body;
     
-    if (!email) {
+    if (!email || !client_id) {
       return new Response(
-        JSON.stringify({ error: "Email is required" }),
+        JSON.stringify({ error: "Email and client_id are required" }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -76,65 +57,9 @@ serve(async (req) => {
       );
     }
     
-    if (!client_id) {
-      return new Response(
-        JSON.stringify({ error: "Client ID is required" }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
+    console.log(`Creating user with Supabase Auth for client ${client_id}: ${email}`);
     
-    console.log(`Creating user with Supabase Auth for client_id: ${client_id}, email: ${email}`);
-    
-    // Verify the client exists in ai_agents table with this client_id
-    const { data: agentData, error: agentError } = await supabase
-      .from('ai_agents')
-      .select('id, client_id, email')
-      .eq('client_id', client_id)
-      .single();
-    
-    if (agentError) {
-      console.error("Error verifying client:", agentError);
-      
-      // Check if we should continue despite error - maybe try using the agent_id
-      console.log("Trying to verify by agent id instead");
-      const { data: agentByIdData, error: agentByIdError } = await supabase
-        .from('ai_agents')
-        .select('id, client_id, email')
-        .eq('id', client_id)
-        .single();
-        
-      if (agentByIdError) {
-        return new Response(
-          JSON.stringify({ error: "Invalid client ID - not found in ai_agents table" }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
-      }
-      
-      // Update client_id if not matching
-      if (!agentByIdData.client_id || agentByIdData.client_id !== client_id) {
-        console.log(`Setting client_id (${client_id}) for agent ${agentByIdData.id}`);
-        
-        const { error: updateClientIdError } = await supabase
-          .from('ai_agents')
-          .update({ client_id: client_id })
-          .eq('id', agentByIdData.id);
-          
-        if (updateClientIdError) {
-          console.error("Error updating client_id:", updateClientIdError);
-          // Continue anyway, but log the error
-        } else {
-          console.log("Successfully updated client_id in ai_agents table");
-        }
-      }
-    }
-    
-    // Check if user already exists by email
+    // Check if user already exists
     const { data: existingUsers, error: listUsersError } = await supabase.auth.admin.listUsers();
     
     if (listUsersError) {
@@ -149,20 +74,20 @@ serve(async (req) => {
     
     // If temp_password wasn't provided, generate one that meets Supabase requirements
     if (!actualPassword) {
-      actualPassword = generateClientTempPassword();
-      console.log("Generated welcome password format:", actualPassword);
+      // Using the standard format for passwords
+      actualPassword = generateWelcomePassword();
+      console.log("Generated welcome password:", actualPassword);
     } else {
       console.log("Using provided temporary password");
     }
     
     if (existingUser) {
-      console.log("Existing user found with email:", email);
-      // Update existing user with client_id
+      // Update existing user
       const { data: updatedUser, error: updateUserError } = await supabase.auth.admin.updateUserById(existingUser.id, {
         password: actualPassword,
         email_confirm: true,
         user_metadata: {
-          client_id: client_id,
+          client_id,
           user_type: 'client'
         }
       });
@@ -173,16 +98,15 @@ serve(async (req) => {
       }
       
       userId = existingUser.id;
-      console.log("Updated existing user with client_id:", client_id);
-    } else if (!update_only) {
-      console.log("No existing user found with email:", email, "Creating new user");
-      // Create new user with our password and client_id in metadata
+      console.log("Updated existing user:", userId);
+    } else {
+      // Create new user with our password
       const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
         email,
         password: actualPassword,
         email_confirm: true, // Skip email verification
         user_metadata: {
-          client_id: client_id,
+          client_id,
           user_type: 'client'
         }
       });
@@ -193,9 +117,7 @@ serve(async (req) => {
       }
       
       userId = newUser?.user?.id;
-      console.log("Created new user with client_id:", client_id);
-    } else {
-      console.log("Update only flag set and no existing user found. Skipping user creation.");
+      console.log("Created new user:", userId);
     }
     
     if (userId) {
@@ -220,38 +142,25 @@ serve(async (req) => {
         // Continue anyway, the main user account is created
       }
       
-      // Make sure we have a password record for this client
+      // Also save the temporary password in the client_temp_passwords table
       try {
-        // First check if there's already a temp password for this client
-        const { data: existingPasswords, error: checkError } = await supabase
+        const { error: tempPasswordError } = await supabase
           .from("client_temp_passwords")
-          .select("id")
-          .eq("agent_id", client_id)
-          .limit(1);
-        
-        if (checkError) {
-          console.error("Error checking existing temporary passwords:", checkError);
-        } else if (existingPasswords && existingPasswords.length === 0) {
-          // No existing password found, create a new one
-          const { error: tempPasswordError } = await supabase
-            .from("client_temp_passwords")
-            .insert({
-              email: email,
-              temp_password: actualPassword,
-              agent_id: client_id
-            });
-            
-          if (tempPasswordError) {
-            console.error("Error saving temporary password:", tempPasswordError);
-            // Continue anyway
-          } else {
-            console.log("Saved temporary password for client_id:", client_id);
-          }
+          .insert({
+            agent_id: client_id,
+            email: email,
+            temp_password: actualPassword,
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days expiry
+          });
+          
+        if (tempPasswordError) {
+          console.error("Error saving temporary password:", tempPasswordError);
+          // Continue anyway, the user account is created
         } else {
-          console.log("Temporary password record already exists for client_id:", client_id);
+          console.log("Saved temporary password for client:", client_id);
         }
       } catch (passwordErr) {
-        console.error("Exception handling temporary password:", passwordErr);
+        console.error("Exception saving temporary password:", passwordErr);
         // Continue anyway, the user account is created
       }
     }
@@ -261,8 +170,7 @@ serve(async (req) => {
         success: true,
         message: "Client user created successfully",
         userId: userId,
-        password: actualPassword,
-        clientId: client_id
+        password: actualPassword
       }),
       { 
         status: 200, 
@@ -283,3 +191,14 @@ serve(async (req) => {
     );
   }
 });
+
+/**
+ * Generates a welcome password in the format "Welcome2024#123"
+ * This format is more memorable for users while still meeting security requirements
+ */
+function generateWelcomePassword(): string {
+  const currentYear = new Date().getFullYear();
+  const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+  
+  return `Welcome${currentYear}#${randomDigits}`;
+}

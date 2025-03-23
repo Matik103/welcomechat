@@ -1,4 +1,3 @@
-
 export interface Client {
   id: string;
   created_at: string;
@@ -24,7 +23,6 @@ export interface Client {
   last_active?: string;
   is_error: boolean;
   error_message: string | null;
-  client_id?: string; // Add client_id as optional property
 }
 
 export interface AIAgent {
