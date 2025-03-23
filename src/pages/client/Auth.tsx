@@ -123,40 +123,51 @@ const ClientAuth = () => {
           // Provide more helpful error message for authentication issues
           setErrorMessage("Invalid email or password. Please make sure you're using the exact password from the welcome email.");
           
-          // Try to check if this user exists
-          const { data: tempPasswords } = await supabase
-            .from('client_temp_passwords')
-            .select('temp_password, expires_at')
-            .eq('email', email)
-            .order('created_at', { ascending: false })
-            .limit(1);
-            
-          if (tempPasswords && tempPasswords.length > 0) {
-            const tempPassword = tempPasswords[0];
-            const now = new Date();
-            const expiryDate = new Date(tempPassword.expires_at);
-            
-            if (expiryDate < now) {
-              setErrorMessage("Your temporary password has expired. Please contact support for assistance.");
-            } else if (password !== tempPassword.temp_password) {
-              setErrorMessage("The password you entered doesn't match our records. Please use the exact password from the welcome email.");
+          // Try to check if this user exists and if they have a temporary password
+          try {
+            const { data: tempPasswords, error: tempPasswordError } = await supabase
+              .from('client_temp_passwords')
+              .select('temp_password, created_at')
+              .eq('email', email)
+              .order('created_at', { ascending: false })
+              .limit(1);
+              
+            if (tempPasswordError) {
+              console.error("Error checking temp passwords:", tempPasswordError);
+            } else if (tempPasswords && tempPasswords.length > 0) {
+              const tempPassword = tempPasswords[0];
+              
+              // Check if the provided password matches the temp password
+              if (password !== tempPassword.temp_password) {
+                setErrorMessage("The password you entered doesn't match our records. Please use the exact password from the welcome email.");
+              }
+              
+              // Log the temp password for debugging (in production, you would remove this)
+              console.log("Found temp password record:", {
+                storedPassword: tempPassword.temp_password,
+                passwordMatch: password === tempPassword.temp_password,
+                createdAt: tempPassword.created_at
+              });
+            } else {
+              console.log("No temporary password found for email:", email);
             }
+          } catch (tempCheckError) {
+            console.error("Error checking temporary password:", tempCheckError);
           }
         } else {
           setErrorMessage(error.message || "Failed to sign in");
         }
         
         toast.error(errorMessage || "Authentication failed");
-        throw error;
-      }
-      
-      console.log("Sign in successful:", data);
-      
-      // If auto reactivate is in the URL, we'll handle it after redirect
-      if (!autoReactivate) {
-        toast.success("Successfully signed in!");
       } else {
-        toast.success("Successfully signed in! Reactivating your account...");
+        console.log("Sign in successful:", data);
+        
+        // If auto reactivate is in the URL, we'll handle it after redirect
+        if (!autoReactivate) {
+          toast.success("Successfully signed in!");
+        } else {
+          toast.success("Successfully signed in! Reactivating your account...");
+        }
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
