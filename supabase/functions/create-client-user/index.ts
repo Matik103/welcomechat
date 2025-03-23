@@ -88,38 +88,49 @@ serve(async (req) => {
     
     console.log(`Creating user with Supabase Auth for client_id: ${client_id}, email: ${email}`);
     
-    // Verify the client exists in ai_agents table
+    // Verify the client exists in ai_agents table with this client_id
     const { data: agentData, error: agentError } = await supabase
       .from('ai_agents')
       .select('id, client_id, email')
-      .eq('id', client_id)
+      .eq('client_id', client_id)
       .single();
     
     if (agentError) {
       console.error("Error verifying client:", agentError);
-      return new Response(
-        JSON.stringify({ error: "Invalid client ID" }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    // Ensure client_id is set in the ai_agents table
-    if (!agentData.client_id || agentData.client_id !== client_id) {
-      console.log("Client record doesn't have client_id set correctly. Setting client_id to:", client_id);
       
-      const { error: updateClientIdError } = await supabase
+      // Check if we should continue despite error - maybe try using the agent_id
+      console.log("Trying to verify by agent id instead");
+      const { data: agentByIdData, error: agentByIdError } = await supabase
         .from('ai_agents')
-        .update({ client_id: client_id })
-        .eq('id', client_id);
+        .select('id, client_id, email')
+        .eq('id', client_id)
+        .single();
         
-      if (updateClientIdError) {
-        console.error("Error updating client_id:", updateClientIdError);
-        // Continue anyway, but log the error
-      } else {
-        console.log("Successfully updated client_id in ai_agents table");
+      if (agentByIdError) {
+        return new Response(
+          JSON.stringify({ error: "Invalid client ID - not found in ai_agents table" }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      // Update client_id if not matching
+      if (!agentByIdData.client_id || agentByIdData.client_id !== client_id) {
+        console.log(`Setting client_id (${client_id}) for agent ${agentByIdData.id}`);
+        
+        const { error: updateClientIdError } = await supabase
+          .from('ai_agents')
+          .update({ client_id: client_id })
+          .eq('id', agentByIdData.id);
+          
+        if (updateClientIdError) {
+          console.error("Error updating client_id:", updateClientIdError);
+          // Continue anyway, but log the error
+        } else {
+          console.log("Successfully updated client_id in ai_agents table");
+        }
       }
     }
     
