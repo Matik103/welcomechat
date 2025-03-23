@@ -1,3 +1,9 @@
+/**
+ * Document Processing Service
+ * Version: 1.0.1
+ * Force deployment: true
+ */
+
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingOptions, DocumentProcessingResult, ParseResponse, DocumentProcessingStatus, DocumentChunk, DocumentMetadata } from '@/types/document-processing';
 import { Json } from '@/integrations/supabase/types';
