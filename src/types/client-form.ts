@@ -13,7 +13,7 @@ export const widgetSettingsSchema = z.object({
 export const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  client_id: z.string().optional(), // Add client_id field as optional
+  client_id: z.string().optional(), // Ensure client_id field is properly defined
   widget_settings: widgetSettingsSchema.optional().default({}),
   _tempLogoFile: z.any().optional(), // For file uploads
 });
