@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { ParseResponse } from '@/types/document-processing';
+import { callRpcFunction } from '@/utils/rpcUtils';
 
 export class LlamaCloudService {
   // System prompt template to ensure assistants only respond to client-specific questions
@@ -51,7 +52,15 @@ Example Responses for Off-Limit Questions:
     try {
       const apiKey = this.getLlamaCloudApiKey();
       if (!apiKey) {
-        throw new Error('LLAMA_CLOUD_API_KEY is not configured');
+        return {
+          success: false,
+          error: 'LLAMA_CLOUD_API_KEY is not configured',
+          content: '',
+          metadata: {
+            error: 'LLAMA_CLOUD_API_KEY is not configured'
+          },
+          documentId: `error-${Date.now()}`
+        };
       }
 
       // Step 1: Upload document to LlamaParse
@@ -68,7 +77,15 @@ Example Responses for Off-Limit Questions:
       });
 
       if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.statusText}`);
+        return {
+          success: false,
+          error: `Upload failed: ${uploadResponse.statusText}`,
+          content: '',
+          metadata: {
+            error: `Upload failed: ${uploadResponse.statusText}`
+          },
+          documentId: `error-${Date.now()}`
+        };
       }
 
       const uploadResult = await uploadResponse.json();
@@ -86,7 +103,15 @@ Example Responses for Off-Limit Questions:
         });
 
         if (!statusResponse.ok) {
-          throw new Error(`Failed to check job status: ${statusResponse.statusText}`);
+          return {
+            success: false,
+            error: `Failed to check job status: ${statusResponse.statusText}`,
+            content: '',
+            metadata: {
+              error: `Failed to check job status: ${statusResponse.statusText}`
+            },
+            documentId: `error-${Date.now()}`
+          };
         }
 
         const jobStatus = await statusResponse.json();
@@ -100,7 +125,15 @@ Example Responses for Off-Limit Questions:
           });
 
           if (!resultResponse.ok) {
-            throw new Error(`Failed to get results: ${resultResponse.statusText}`);
+            return {
+              success: false,
+              error: `Failed to get results: ${resultResponse.statusText}`,
+              content: '',
+              metadata: {
+                error: `Failed to get results: ${resultResponse.statusText}`
+              },
+              documentId: `error-${Date.now()}`
+            };
           }
 
           const result = await resultResponse.json();
@@ -122,7 +155,15 @@ Example Responses for Off-Limit Questions:
             documentId: `llama-${jobId}`
           };
         } else if (jobStatus.status === 'failed') {
-          throw new Error(`Job failed: ${jobStatus.error || 'Unknown error'}`);
+          return {
+            success: false,
+            error: `Job failed: ${jobStatus.error || 'Unknown error'}`,
+            content: '',
+            metadata: {
+              error: `Job failed: ${jobStatus.error || 'Unknown error'}`
+            },
+            documentId: `error-${Date.now()}`
+          };
         }
 
         // Wait 10 seconds before next attempt
@@ -130,7 +171,15 @@ Example Responses for Off-Limit Questions:
         attempts++;
       }
 
-      throw new Error('Job timed out after 5 minutes');
+      return {
+        success: false,
+        error: 'Job timed out after 5 minutes',
+        content: '',
+        metadata: {
+          error: 'Job timed out after 5 minutes'
+        },
+        documentId: `error-${Date.now()}`
+      };
     } catch (error) {
       return {
         success: false,
@@ -173,11 +222,24 @@ Example Responses for Off-Limit Questions:
         return {
           success: false,
           error: error.message || 'Failed to create embeddings',
+          content: '',
+          metadata: {
+            error: error.message || 'Failed to create embeddings'
+          },
+          documentId
         };
       }
       
       return {
         success: true,
+        content: 'Embeddings created successfully',
+        metadata: {
+          processingMethod: 'embeddings',
+          clientId,
+          agentName,
+          documentId
+        },
+        documentId,
         data
       };
     } catch (error) {
@@ -185,6 +247,11 @@ Example Responses for Off-Limit Questions:
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to create embeddings',
+        content: '',
+        metadata: {
+          error: error instanceof Error ? error.message : 'Failed to create embeddings'
+        },
+        documentId
       };
     }
   }
@@ -229,7 +296,12 @@ Example Responses for Off-Limit Questions:
             console.error('Failed to add openai_assistant_id column:', migrationError);
             return {
               success: false,
-              error: `Failed to add required column: ${migrationError.message}`
+              error: `Failed to add required column: ${migrationError.message}`,
+              content: '',
+              metadata: {
+                error: `Failed to add required column: ${migrationError.message}`
+              },
+              documentId: `error-${Date.now()}`
             };
           }
           
@@ -250,7 +322,12 @@ Example Responses for Off-Limit Questions:
           console.error('Failed to create OpenAI Assistant:', createError);
           return {
             success: false,
-            error: createError?.message || 'Failed to create OpenAI Assistant'
+            error: createError?.message || 'Failed to create OpenAI Assistant',
+            content: '',
+            metadata: {
+              error: createError?.message || 'Failed to create OpenAI Assistant'
+            },
+            documentId: `error-${Date.now()}`
           };
         }
         
@@ -272,7 +349,12 @@ Example Responses for Off-Limit Questions:
           console.error('Failed to create OpenAI Assistant:', createError);
           return {
             success: false,
-            error: createError?.message || 'Failed to create OpenAI Assistant'
+            error: createError?.message || 'Failed to create OpenAI Assistant',
+            content: '',
+            metadata: {
+              error: createError?.message || 'Failed to create OpenAI Assistant'
+            },
+            documentId: `error-${Date.now()}`
           };
         }
         
@@ -296,7 +378,12 @@ Example Responses for Off-Limit Questions:
         console.error('Error adding document to OpenAI Assistant:', error);
         return {
           success: false,
-          error: error.message || 'Failed to add document to OpenAI Assistant'
+          error: error.message || 'Failed to add document to OpenAI Assistant',
+          content: '',
+          metadata: {
+            error: error.message || 'Failed to add document to OpenAI Assistant'
+          },
+          documentId: `error-${Date.now()}`
         };
       }
       
@@ -304,13 +391,26 @@ Example Responses for Off-Limit Questions:
       
       return {
         success: true,
+        content: documentContent.substring(0, 100) + '...',
+        metadata: {
+          title: documentTitle,
+          processingMethod: 'openai-assistant',
+          assistantId: data.assistant_id,
+          fileId: data.file_id
+        },
+        documentId: `openai-${data.file_id}`,
         data
       };
     } catch (error) {
       console.error('Error in addDocumentToOpenAIAssistant:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to add document to OpenAI Assistant'
+        error: error instanceof Error ? error.message : 'Failed to add document to OpenAI Assistant',
+        content: '',
+        metadata: {
+          error: error instanceof Error ? error.message : 'Failed to add document to OpenAI Assistant'
+        },
+        documentId: `error-${Date.now()}`
       };
     }
   }
@@ -333,7 +433,12 @@ Example Responses for Off-Limit Questions:
       if (secretsError || !secretsData?.success) {
         return {
           success: false,
-          error: 'Missing required API keys: ' + (secretsData?.missing?.join(', ') || 'Unknown')
+          error: 'Missing required API keys: ' + (secretsData?.missing?.join(', ') || 'Unknown'),
+          content: '',
+          metadata: {
+            error: 'Missing required API keys'
+          },
+          documentId: `verify-${Date.now()}`
         };
       }
       
@@ -346,7 +451,12 @@ Example Responses for Off-Limit Questions:
       if (columnError || !columnData?.exists) {
         return {
           success: false,
-          error: 'The ai_agents table is missing or inaccessible'
+          error: 'The ai_agents table is missing or inaccessible',
+          content: '',
+          metadata: {
+            error: 'The ai_agents table is missing or inaccessible'
+          },
+          documentId: `verify-${Date.now()}`
         };
       }
       
@@ -379,7 +489,12 @@ Example Responses for Off-Limit Questions:
       if (missingFunctions.length > 0) {
         return {
           success: false,
-          error: `Required Edge Functions are not deployed correctly: ${missingFunctions.join(', ')}`
+          error: `Required Edge Functions are not deployed correctly: ${missingFunctions.join(', ')}`,
+          content: '',
+          metadata: {
+            error: `Required Edge Functions are not deployed correctly: ${missingFunctions.join(', ')}`
+          },
+          documentId: `verify-${Date.now()}`
         };
       }
       
@@ -389,14 +504,19 @@ Example Responses for Off-Limit Questions:
       if (bucketError) {
         return {
           success: false,
-          error: 'Document storage bucket is missing or inaccessible'
+          error: 'Document storage bucket is missing or inaccessible',
+          content: '',
+          metadata: {
+            error: 'Document storage bucket is missing or inaccessible'
+          },
+          documentId: `verify-${Date.now()}`
         };
       }
       
       // Check 5: Run the OpenAI migration if needed
       try {
         // This checks if the openai_assistant_id column exists in the ai_agents table
-        const { data: columnCheckData, error: columnCheckError } = await supabase.rpc('exec_sql', {
+        const { data: columnCheckData, error: columnCheckError } = await callRpcFunction('exec_sql', {
           sql_query: `
             SELECT EXISTS (
               SELECT FROM information_schema.columns 
@@ -431,7 +551,12 @@ Example Responses for Off-Limit Questions:
             console.error('Failed to add openai_assistant_id column:', migrationError);
             return {
               success: false,
-              error: `Failed to add required column: ${migrationError.message}`
+              error: `Failed to add required column: ${migrationError.message}`,
+              content: '',
+              metadata: {
+                error: `Failed to add required column: ${migrationError.message}`
+              },
+              documentId: `verify-${Date.now()}`
             };
           }
           
@@ -442,22 +567,35 @@ Example Responses for Off-Limit Questions:
         // Non-fatal error, continue with verification
       }
       
+      const verificationDetails = {
+        message: 'All OpenAI Assistant and Firecrawl integration components verified successfully',
+        apiKeysAvailable: true,
+        databaseReady: true,
+        edgeFunctionsDeployed: true,
+        storageBucketReady: true,
+        firecrawlConfigured: true
+      };
+      
       return {
         success: true,
-        data: {
-          message: 'All OpenAI Assistant and Firecrawl integration components verified successfully',
-          apiKeysAvailable: true,
-          databaseReady: true,
-          edgeFunctionsDeployed: true,
-          storageBucketReady: true,
-          firecrawlConfigured: true
-        }
+        content: 'Verification successful',
+        metadata: {
+          processingMethod: 'verification',
+          verificationDetails
+        },
+        documentId: `verify-${Date.now()}`,
+        data: verificationDetails
       };
     } catch (error) {
       console.error('Error verifying assistant integration:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to verify assistant integration'
+        error: error instanceof Error ? error.message : 'Failed to verify assistant integration',
+        content: '',
+        metadata: {
+          error: error instanceof Error ? error.message : 'Failed to verify assistant integration'
+        },
+        documentId: `verify-${Date.now()}`
       };
     }
   }

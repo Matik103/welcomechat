@@ -1,4 +1,3 @@
-
 /**
  * Extended activity types for client activities
  */
@@ -47,7 +46,10 @@ export type ExtendedActivityType =
   | "widget_previewed"
   | "user_role_updated"
   | "login_success"
-  | "login_failed";
+  | "login_failed"
+  | "openai_assistant_document_added"
+  | "openai_assistant_upload_failed"
+  | "schema_update";
 
 export interface ClientActivity {
   id: string;
