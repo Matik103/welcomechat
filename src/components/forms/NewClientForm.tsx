@@ -8,11 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { createClientActivity } from '@/services/clientActivityService';
-import { supabase } from '@/integrations/supabase/client';
-import { generateTempPassword, saveClientTempPassword } from '@/utils/clientCreationUtils';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  generateClientTempPassword, 
+  saveClientTempPassword, 
+  createClientUserAccount,
+  logClientCreationActivity
+} from '@/utils/passwordUtils';
 
 // Form validation schema
 const clientFormSchema = z.object({
@@ -98,24 +102,30 @@ export function NewClientForm() {
       console.log("Client created successfully:", clientData);
       console.log("Client ID in database:", clientData.client_id);
       
-      // Log activity for client creation
-      await createClientActivity(
-        clientData.id,
-        "client_created",
-        `New client created: ${data.client_name}`,
-        {
-          client_name: data.client_name,
-          email: data.email,
-          agent_name: data.widget_settings?.agent_name || "AI Assistant",
-          client_id: data.client_id // Include client_id in activity log
-        }
-      );
-      
       // Generate temporary password for the new client
-      const tempPassword = generateTempPassword();
+      const tempPassword = generateClientTempPassword();
+      console.log("Generated temp password:", tempPassword);
       
       // Save the temporary password
       await saveClientTempPassword(clientData.id, data.email, tempPassword);
+      
+      // Create the actual user account in Supabase Auth
+      await createClientUserAccount(
+        data.email,
+        data.client_id,
+        data.client_name,
+        data.widget_settings?.agent_name || "AI Assistant",
+        data.widget_settings?.agent_description || "",
+        tempPassword
+      );
+      
+      // Log activity for client creation
+      await logClientCreationActivity(
+        data.client_id,
+        data.client_name,
+        data.email,
+        data.widget_settings?.agent_name || "AI Assistant"
+      );
       
       // Update toast to show we're sending welcome email
       toast.loading("Sending welcome email...", { id: initialToastId });

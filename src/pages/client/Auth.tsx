@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { execSql } from "@/utils/rpcUtils";
 
 const ClientAuth = () => {
   const [loading, setLoading] = useState(false);
@@ -19,8 +19,6 @@ const ClientAuth = () => {
   const { user, isLoading, userRole } = useAuth();
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [searchParams] = useSearchParams();
-  const autoReactivate = searchParams.get("auto_reactivate") === "true";
-  const clientId = searchParams.get("client_id");
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -29,6 +27,11 @@ const ClientAuth = () => {
     
     return () => clearTimeout(timeout);
   }, []);
+
+  // For debugging only
+  useEffect(() => {
+    console.log("Current user state:", { user, userRole, isLoading });
+  }, [user, userRole, isLoading]);
 
   if (isLoading && !loadTimeout) {
     return (
@@ -39,32 +42,6 @@ const ClientAuth = () => {
   }
 
   if (user) {
-    if (autoReactivate && clientId) {
-      const reactivateAccount = async () => {
-        try {
-          const reactivateQuery = `
-            UPDATE clients 
-            SET deletion_scheduled_at = NULL 
-            WHERE id = '${clientId}'
-          `;
-          
-          const result = await execSql(reactivateQuery);
-            
-          if (!result) {
-            console.error("Error reactivating account");
-            toast.error("Failed to reactivate your account. Please contact support.");
-          } else {
-            toast.success("Your account has been successfully reactivated!");
-          }
-        } catch (error) {
-          console.error("Error in reactivation process:", error);
-          toast.error("An unexpected error occurred. Please contact support.");
-        }
-      };
-      
-      reactivateAccount();
-    }
-    
     if (userRole === 'client') {
       console.log("Redirecting client to client dashboard");
       return <Navigate to="/client/dashboard" replace />;
@@ -144,7 +121,7 @@ const ClientAuth = () => {
               .from('client_temp_passwords')
               .select('temp_password, id')
               .eq('agent_id', clientId)
-              .order('id', { ascending: false })
+              .order('created_at', { ascending: false })
               .limit(1);
               
             if (tempPasswordError) {
@@ -153,44 +130,26 @@ const ClientAuth = () => {
             } 
             else if (tempPasswords && tempPasswords.length > 0) {
               const tempPassword = tempPasswords[0];
+              console.log("Found temp password record:", tempPassword.id);
               
               // Check if passwords match
               if (password !== tempPassword.temp_password) {
+                console.log("Password mismatch. Expected:", tempPassword.temp_password, "Got:", password);
                 // Provide a detailed error message
                 const currentYear = new Date().getFullYear();
                 setErrorMessage(
                   `The password you entered doesn't match. Please use the exact password from the welcome email (format: Welcome${currentYear}#XXX).`
                 );
-                
-                // Try to recreate user account
-                try {
-                  const { data, error } = await supabase.functions.invoke(
-                    'create-client-user',
-                    {
-                      body: {
-                        email: email,
-                        client_id: clientId,
-                        temp_password: tempPassword.temp_password
-                      }
-                    }
-                  );
-                  
-                  if (error) {
-                    console.error("Error recreating user:", error);
-                  } else {
-                    console.log("User account recreated/refreshed:", data);
-                  }
-                } catch (createError) {
-                  console.error("Exception recreating user:", createError);
-                }
               } else {
+                console.log("Password matches stored temp password but login still failed");
                 // Passwords match but login still failed
                 setErrorMessage(
-                  "Your password appears correct but login failed. The account may not be properly set up. Please contact support."
+                  "Your password appears correct but login failed. The account may not be properly set up."
                 );
                 
                 // Try to recreate the user account
                 try {
+                  console.log("Attempting to recreate user account with matching password");
                   const { data, error } = await supabase.functions.invoke(
                     'create-client-user',
                     {
@@ -257,12 +216,10 @@ const ClientAuth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">
-            {autoReactivate ? "Recover your account" : "Sign in to your account"}
+            Sign in to your account
           </CardTitle>
           <CardDescription>
-            {autoReactivate 
-              ? "Enter your credentials to reactivate your account" 
-              : "Enter your credentials to access your AI agent dashboard"}
+            Enter your credentials to access your AI agent dashboard
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -320,12 +277,11 @@ const ClientAuth = () => {
               type="submit" 
               className="w-full" 
               disabled={loading}
-              aria-label={autoReactivate ? "Recover Account" : "Sign In"}
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              {loading ? "Signing in..." : autoReactivate ? "Recover Account" : "Sign In"}
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
         </CardContent>
