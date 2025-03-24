@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LlamaCloudService } from "@/utils/LlamaCloudService";
 import { Loader2, CheckCircle, AlertTriangle } from "lucide-react";
-import { verifyStorageBuckets } from "@/utils/storageUtils";
 
 export const VerifyIntegration = () => {
   const [isVerifying, setIsVerifying] = useState(false);
@@ -16,32 +16,19 @@ export const VerifyIntegration = () => {
   const runVerification = async () => {
     setIsVerifying(true);
     try {
-      // Verify storage buckets
-      const storageBuckets = await verifyStorageBuckets();
-      
-      // Check that LLAMA_CLOUD_API_KEY is set
-      const llamaCloudApiKey = import.meta.env.VITE_LLAMA_CLOUD_API_KEY;
-      const hasLlamaCloudKey = !!llamaCloudApiKey;
-      
-      // Determine overall success
-      const success = Object.values(storageBuckets).every(exists => exists) && hasLlamaCloudKey;
+      const response = await LlamaCloudService.verifyAssistantIntegration();
       
       setResult({
-        success,
-        message: success ? "All integration components verified successfully" : "Some integration components failed verification",
-        details: {
-          "API Connection": true,
-          "Document Processing": hasLlamaCloudKey,
-          "Storage Access": true,
-          "Document Storage": storageBuckets['Document Storage'] || false,
-          "Client Documents": storageBuckets['Client Documents'] || false
-        }
+        success: response.success,
+        message: response.success 
+          ? "Integration verified successfully!" 
+          : `Verification failed: ${response.error}`,
+        details: response.success && response.data 
+          ? response.data 
+          : null
       });
       
-      console.log("Verification complete:", {
-        storageBuckets,
-        hasLlamaCloudKey
-      });
+      console.log("Verification result:", response);
     } catch (error) {
       console.error("Error during verification:", error);
       setResult({
@@ -57,11 +44,6 @@ export const VerifyIntegration = () => {
   // Automatically run verification on component mount
   useEffect(() => {
     runVerification();
-    
-    // Cleanup function to ensure state is reset if component unmounts
-    return () => {
-      setIsVerifying(false);
-    };
   }, []);
 
   return (

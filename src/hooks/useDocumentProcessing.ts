@@ -16,10 +16,10 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
     setUploadProgress(0);
     setUploadResult(null);
 
-    // Create a toast ID to manage the toast
-    let toastId = toast.loading(`Processing document: ${file.name}`);
-
     try {
+      // Show a single toast that will be updated as the process progresses
+      const toastId = toast.loading(`Processing document: ${file.name}`);
+      
       // Create complete options by merging with defaults
       const processingOptions: DocumentProcessingOptions = {
         clientId,
@@ -34,7 +34,6 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
       
       // Update toast to indicate document is now processing in the background
       toast.success(`Document uploaded successfully`, { id: toastId });
-      toastId = null; // Clear toastId so we don't try to update it again
       
       // Step 2: Process the document with LlamaParse (happens in the background)
       const result = await DocumentProcessingService.processDocument(
@@ -49,21 +48,7 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
     } catch (error) {
       console.error('Error uploading document:', error);
       
-      // Make sure to dismiss the loading toast
-      if (toastId) {
-        toast.dismiss(toastId);
-        toastId = null;
-      }
-      
-      // Show specific error message
-      let errorMessage = 'Unknown error';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
-      toast.error(`Upload failed: ${errorMessage}`);
+      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       
       const errorResult: DocumentProcessingResult = {
         success: false,
@@ -84,18 +69,14 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
           characterCount: 0,
           wordCount: 0,
           averageChunkSize: 0,
-          error: errorMessage
+          error: error instanceof Error ? error.message : 'Unknown error'
         }
       };
       
       setUploadResult(errorResult);
       return errorResult;
     } finally {
-      // Always set uploading to false when done and clear any lingering toast
       setIsUploading(false);
-      if (toastId) {
-        toast.dismiss(toastId);
-      }
     }
   };
 

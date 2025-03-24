@@ -75,65 +75,6 @@ export function determineProcessingMethod(documentType: string, documentUrl: str
   return 'llamaparse';
 }
 
-// Helper function to get public URL for a file path in storage
-async function getPublicUrl(
-  supabase: SupabaseClient,
-  filePath: string
-): Promise<string> {
-  // First check if the document URL is already a public URL
-  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-    return filePath;
-  }
-  
-  // If the path starts with a bucket name, extract it
-  let bucketName = 'Document Storage'; // Default bucket name
-  let path = filePath;
-  
-  if (filePath.includes('/')) {
-    const parts = filePath.split('/');
-    if (parts.length >= 2) {
-      // Check if this might be a full path including the bucket
-      const possibleBucket = parts[0];
-      if (possibleBucket === 'Document Storage' || possibleBucket === 'Client Documents') {
-        bucketName = possibleBucket;
-        path = filePath.substring(bucketName.length + 1);
-      }
-    }
-  }
-  
-  try {
-    console.log(`Getting public URL for file: ${path} in bucket: ${bucketName}`);
-    const { data, error } = await supabase.storage
-      .from(bucketName)
-      .createSignedUrl(path, 60 * 60); // 1 hour expiry
-    
-    if (error) {
-      console.error('Error creating signed URL:', error);
-      throw error;
-    }
-    
-    if (!data || !data.signedUrl) {
-      // Try to get a public URL as fallback
-      const { data: publicUrlData } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(path);
-        
-      if (publicUrlData && publicUrlData.publicUrl) {
-        console.log(`Using public URL: ${publicUrlData.publicUrl}`);
-        return publicUrlData.publicUrl;
-      } else {
-        throw new Error('Failed to get signed or public URL for file');
-      }
-    }
-    
-    console.log(`Got signed URL: ${data.signedUrl}`);
-    return data.signedUrl;
-  } catch (error) {
-    console.error('Error in getPublicUrl:', error);
-    throw error;
-  }
-}
-
 // Helper function to store content in ai_agents table and integrate with OpenAI
 async function storeInAiAgents(
   supabase: SupabaseClient,
@@ -239,27 +180,6 @@ export async function processWithLlamaParse(
     // Update job status to processing
     await updateJobStatus(supabase, jobId, "processing", "Starting LlamaParse processing");
     
-    // Ensure we have a publicly accessible URL for LlamaParse
-    let accessibleUrl = documentUrl;
-    if (!documentUrl.startsWith('http://') && !documentUrl.startsWith('https://')) {
-      try {
-        accessibleUrl = await getPublicUrl(supabase, documentUrl);
-        console.log(`Converted storage path to accessible URL: ${accessibleUrl}`);
-      } catch (urlError) {
-        console.error("Failed to get accessible URL:", urlError);
-        await updateJobStatus(
-          supabase, 
-          jobId, 
-          "failed", 
-          `Failed to get accessible URL for document: ${urlError.message}`
-        );
-        return {
-          success: false,
-          error: `Failed to get accessible URL for document: ${urlError.message}`
-        };
-      }
-    }
-    
     // Determine file type for LlamaParse API
     let fileType = "pdf";
     if (documentType.includes("google_doc")) {
@@ -275,7 +195,7 @@ export async function processWithLlamaParse(
     }
 
     // Step 1: Upload document to LlamaParse
-    console.log(`Uploading document to LlamaParse with type: ${fileType} and URL: ${accessibleUrl}`);
+    console.log(`Uploading document to LlamaParse with type: ${fileType}`);
     const uploadResponse = await fetch('https://api.cloud.llamaindex.ai/api/parsing/upload', {
       method: 'POST',
       headers: {
@@ -283,7 +203,7 @@ export async function processWithLlamaParse(
         'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`
       },
       body: JSON.stringify({
-        file_url: accessibleUrl,
+        file_url: documentUrl,
         file_type: fileType
       })
     });

@@ -1,26 +1,14 @@
 
 import React from 'react';
-import { PageHeading } from '@/components/dashboard/PageHeading';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { VerifyIntegration } from '@/components/dashboard/VerifyIntegration';
 
-const AdminDashboardPage = () => {
+export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="container py-8">
-        <PageHeading 
-          title="Admin Dashboard" 
-          description="Manage your system configuration and integrations" 
-        />
-        
-        <div className="grid gap-6">
-          <VerifyIntegration />
-          
-          {/* Additional dashboard components can be added here */}
-        </div>
+        <h1 className="text-3xl font-bold mb-4">Admin Dashboard</h1>
+        <p>Welcome to the admin dashboard.</p>
       </div>
     </AdminLayout>
   );
-};
-
-export default AdminDashboardPage;
+}
