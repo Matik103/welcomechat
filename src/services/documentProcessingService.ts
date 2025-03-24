@@ -1,4 +1,3 @@
-
 /**
  * Document Processing Service
  * Version: 1.0.3
@@ -264,9 +263,6 @@ export class DocumentProcessingService {
         }
       };
 
-      // Store initial processing status
-      await this.updateProcessingStatus(processingRecord);
-
       // Parse document using LlamaParse
       const parseResult = await LlamaCloudService.parseDocument(
         documentUrl,
@@ -275,70 +271,61 @@ export class DocumentProcessingService {
         agentName
       );
 
-      if (!parseResult.success || !parseResult.content) {
-        return await this.handleProcessingError(
+      if (!parseResult.success) {
+        return this.handleProcessingError(
           processingRecord,
-          parseResult.error || 'Unknown error',
-          parseResult.errorDetails
+          'Document parsing failed',
+          parseResult
         );
       }
 
-      // Validate content
-      const validationResult = validateContent(parseResult.content);
-      if (!validationResult.isValid) {
-        return await this.handleProcessingError(
-          processingRecord,
-          `Content validation failed: ${validationResult.error || 'Unknown error'}`,
-          { code: 'VALIDATION_ERROR', details: validationResult }
-        );
-      }
+      // Store the content in ai_agents table
+      await storeInAiAgents(
+        clientId,
+        agentName,
+        parseResult.content,
+        documentType,
+        documentUrl,
+        parseResult.metadata
+      );
 
-      // Process content into chunks
-      const chunks = await chunkContent(parseResult.content);
-      
-      // Update processing record with results
+      // Update processing record with success status
       processingRecord.status = 'completed';
-      processingRecord.chunks = chunks;
       processingRecord.completedAt = new Date().toISOString();
       processingRecord.metadata = {
         ...processingRecord.metadata,
-        ...parseResult.metadata,
-        totalChunks: chunks.length,
-        characterCount: parseResult.content.length,
-        wordCount: parseResult.content.split(/\s+/).length,
-        averageChunkSize: chunks.reduce((sum, chunk) => sum + chunk.length, 0) / chunks.length
+        ...parseResult.metadata
       };
 
-      // Store final results
+      // Update the processing status
       await this.updateProcessingStatus(processingRecord);
+
       return processingRecord;
     } catch (error) {
-      const processingRecord: DocumentProcessingResult = {
-        status: 'failed',
-        documentUrl,
-        documentType,
-        clientId,
-        agentName,
-        startedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        chunks: [],
-        error: error instanceof Error ? error.message : 'Unknown error',
-        metadata: {
-          path: documentUrl,
-          processedAt: new Date().toISOString(),
-          method: 'llamaparse',
-          publicUrl: documentUrl,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          errorCode: error instanceof LlamaParseError ? error.code : 'UNKNOWN_ERROR',
-          totalChunks: 0,
-          characterCount: 0,
-          wordCount: 0,
-          averageChunkSize: 0
-        }
-      };
-
-      await this.updateProcessingStatus(processingRecord);
-      return processingRecord;
+      console.error('Error in processDocument:', error);
+      return this.handleProcessingError(
+        {
+          status: 'failed',
+          documentUrl,
+          documentType,
+          clientId,
+          agentName,
+          startedAt: new Date().toISOString(),
+          chunks: [],
+          metadata: {
+            path: documentUrl,
+            processedAt: new Date().toISOString(),
+            method: 'llamaparse',
+            publicUrl: documentUrl,
+            totalChunks: 0,
+            characterCount: 0,
+            wordCount: 0,
+            averageChunkSize: 0
+          }
+        },
+        error instanceof Error ? error.message : 'Unknown error',
+        error
+      );
     }
   }
 
@@ -384,113 +371,41 @@ export class DocumentProcessingService {
     processingRecord: DocumentProcessingResult
   ): Promise<void> {
     try {
-      // Convert metadata to a plain object for storage
-      const metadata: { [key: string]: any } = {
-        path: processingRecord.metadata.path,
-        processedAt: processingRecord.metadata.processedAt,
-        method: processingRecord.metadata.method,
-        publicUrl: processingRecord.metadata.publicUrl,
-        totalChunks: processingRecord.metadata.totalChunks,
-        characterCount: processingRecord.metadata.characterCount,
-        wordCount: processingRecord.metadata.wordCount,
-        averageChunkSize: processingRecord.metadata.averageChunkSize,
-        title: processingRecord.metadata.title,
-        author: processingRecord.metadata.author,
-        createdAt: processingRecord.metadata.createdAt,
-        pageCount: processingRecord.metadata.pageCount,
-        language: processingRecord.metadata.language,
-        error: processingRecord.metadata.error,
-        errorCode: processingRecord.metadata.errorCode,
-        errorDetails: processingRecord.metadata.errorDetails
-      };
+      // Log the status update to ai_agents table
+      const { data, error } = await supabase
+        .from('ai_agents')
+        .update({
+          status: processingRecord.status === 'completed' ? 'active' : 'failed',
+          updated_at: new Date().toISOString(),
+          settings: {
+            ...processingRecord.metadata,
+            processing_status: processingRecord.status,
+            error: processingRecord.error
+          }
+        })
+        .eq('client_id', processingRecord.clientId)
+        .eq('name', processingRecord.agentName)
+        .eq('url', processingRecord.documentUrl);
 
-      // Convert chunks to a plain array for storage
-      const chunks = processingRecord.chunks.map(chunk => ({
-        id: chunk.id,
-        content: chunk.content,
-        length: chunk.length,
-        metadata: chunk.metadata
-      }));
-
-      try {
-        // First check if the document_processing table exists
-        const docProcExists = await tableExists('document_processing');
-        
-        if (docProcExists) {
-          // Insert/update record in document_processing table using exec_sql RPC
-          const sql = `
-            INSERT INTO document_processing (
-              document_url, client_id, agent_name, document_type, 
-              status, started_at, completed_at, error, metadata, 
-              chunks, created_at, updated_at
-            ) VALUES (
-              '${processingRecord.documentUrl}',
-              '${processingRecord.clientId}',
-              '${processingRecord.agentName}',
-              '${processingRecord.documentType}',
-              '${processingRecord.status}',
-              '${processingRecord.startedAt}',
-              ${processingRecord.completedAt ? `'${processingRecord.completedAt}'` : 'NULL'},
-              ${processingRecord.error ? `'${processingRecord.error}'` : 'NULL'},
-              '${JSON.stringify(metadata)}'::jsonb,
-              '${JSON.stringify(chunks)}'::jsonb,
-              NOW(),
-              NOW()
-            )
-            ON CONFLICT (document_url, client_id) DO UPDATE SET
-              status = EXCLUDED.status,
-              completed_at = EXCLUDED.completed_at,
-              error = EXCLUDED.error,
-              metadata = EXCLUDED.metadata,
-              chunks = EXCLUDED.chunks,
-              updated_at = NOW()
-            RETURNING id
-          `;
-          
-          await execSql(sql);
-          console.log(`Updated document processing record for ${processingRecord.documentUrl}`);
-        } else {
-          console.log("document_processing table doesn't exist yet, using ai_agents as fallback");
-        }
-      } catch (dbError) {
-        console.error('Database error in updateProcessingStatus:', dbError);
-        // Continue to the fallback method below
+      if (error) {
+        console.error('Error updating processing status:', error);
+        throw error;
       }
 
-      // Also store the content in ai_agents for use by AI (as fallback or additional storage)
-      if (processingRecord.status === 'completed' && 
-          processingRecord.chunks && 
-          processingRecord.chunks.length > 0) {
-        
-        // Combine all chunks into one content string
-        const fullContent = processingRecord.chunks.map(chunk => chunk.content).join('\n\n');
-        
-        if (fullContent && fullContent.length > 0) {
-          await storeInAiAgents(
-            processingRecord.clientId,
-            processingRecord.agentName,
-            fullContent,
-            processingRecord.documentType,
-            processingRecord.documentUrl,
-            {
-              title: processingRecord.metadata.title,
-              author: processingRecord.metadata.author,
-              createdAt: processingRecord.metadata.createdAt,
-              pageCount: processingRecord.metadata.pageCount,
-              language: processingRecord.metadata.language,
-              processing_method: processingRecord.metadata.method,
-              processedAt: processingRecord.metadata.processedAt,
-              totalChunks: processingRecord.metadata.totalChunks,
-              characterCount: processingRecord.metadata.characterCount,
-              wordCount: processingRecord.metadata.wordCount,
-              averageChunkSize: processingRecord.metadata.averageChunkSize
-            }
-          );
-        }
-      }
-      
-      console.log(`Successfully updated document processing status to '${processingRecord.status}'`);
-        
+      // Log the status update
+      await execSql(`
+        SELECT log_client_activity(
+          '${processingRecord.clientId}',
+          'document_processing_${processingRecord.status}',
+          'Document processing ${processingRecord.status}: ${processingRecord.documentUrl}',
+          '${JSON.stringify({
+            status: processingRecord.status,
+            documentUrl: processingRecord.documentUrl,
+            documentType: processingRecord.documentType,
+            error: processingRecord.error
+          })}'::jsonb
+        )
+      `);
     } catch (error) {
       console.error('Error in updateProcessingStatus:', error);
       // Don't throw here to prevent cascading failures

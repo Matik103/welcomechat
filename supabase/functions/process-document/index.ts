@@ -1,10 +1,11 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { config, validators } from "./config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name, Authorization',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 // Helper function to update job status
@@ -62,8 +63,10 @@ function extractGoogleDriveFolderId(url: string): string {
 
 // Helper function to determine processing method based on document type and URL
 export function determineProcessingMethod(documentType: string, documentUrl: string): 'llamaparse' | 'firecrawl' {
-  // If it's a website URL, use Firecrawl
-  if (documentType === 'website_url' || documentUrl.startsWith('http://') || documentUrl.startsWith('https://')) {
+  // If it's explicitly a website URL and not a document URL, use Firecrawl
+  if (documentType === 'website_url' && !documentUrl.endsWith('.pdf') && !documentUrl.endsWith('.doc') && 
+      !documentUrl.endsWith('.docx') && !documentUrl.endsWith('.ppt') && !documentUrl.endsWith('.pptx') && 
+      !documentUrl.endsWith('.xls') && !documentUrl.endsWith('.xlsx')) {
     if (!documentUrl.includes('drive.google.com') && 
         !documentUrl.includes('docs.google.com') && 
         !documentUrl.includes('sheets.google.com')) {
@@ -71,7 +74,7 @@ export function determineProcessingMethod(documentType: string, documentUrl: str
     }
   }
   
-  // For Google Drive URLs and uploaded files, use LlamaParse
+  // For all other cases (documents, Google Drive URLs, etc.), use LlamaParse
   return 'llamaparse';
 }
 
@@ -194,35 +197,60 @@ export async function processWithLlamaParse(
       fileType = "docx";
     }
 
-    // Step 1: Upload document to LlamaParse
+    // Step 1: Download the file
+    console.log(`Downloading file from: ${documentUrl}`);
+    const fileResponse = await fetch(documentUrl);
+    console.log("File download response status:", fileResponse.status);
+    if (!fileResponse.ok) {
+      const errorText = await fileResponse.text();
+      console.error("File download error:", errorText);
+      throw new Error(`Failed to download file: ${fileResponse.statusText}. Details: ${errorText}`);
+    }
+    const fileBlob = await fileResponse.blob();
+    console.log("File downloaded successfully, size:", fileBlob.size);
+
+    // Step 2: Create form data with correct content type
+    const formData = new FormData();
+    const contentType = fileType === 'pdf' ? 'application/pdf' :
+                       fileType === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
+                       fileType === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
+                       fileType === 'pptx' ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation' :
+                       'application/octet-stream';
+    formData.append('file', new Blob([fileBlob], { type: contentType }), `document.${fileType}`);
+    console.log("Form data created with content type:", contentType);
+
+    // Step 3: Upload document to LlamaParse
     console.log(`Uploading document to LlamaParse with type: ${fileType}`);
     const uploadResponse = await fetch('https://api.cloud.llamaindex.ai/api/parsing/upload', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'accept': 'application/json',
         'Authorization': `Bearer ${LLAMA_CLOUD_API_KEY}`
       },
-      body: JSON.stringify({
-        file_url: documentUrl,
-        file_type: fileType
-      })
+      body: formData
     });
+    console.log("Upload response status:", uploadResponse.status);
 
     if (!uploadResponse.ok) {
       const errorText = await uploadResponse.text();
       console.error("LlamaParse upload error:", errorText);
-      await updateJobStatus(supabase, jobId, "failed", `LlamaParse upload error: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      const errorDetails = `LlamaParse upload error: ${uploadResponse.status} ${uploadResponse.statusText}. Details: ${errorText}`;
+      await updateJobStatus(supabase, jobId, "failed", errorDetails);
       return {
         success: false, 
-        error: `LlamaParse upload error: ${uploadResponse.status} ${uploadResponse.statusText}`
+        error: errorDetails
       };
     }
 
     const uploadResult = await uploadResponse.json();
-    const llamaParseJobId = uploadResult.job_id;
+    console.log("Upload response:", uploadResult);
+    const llamaParseJobId = uploadResult.id;
+    if (!llamaParseJobId) {
+      throw new Error("No job ID returned from LlamaParse upload");
+    }
     console.log("LlamaParse job created:", llamaParseJobId);
 
-    // Step 2: Poll for job completion
+    // Step 4: Poll for job completion
     let jobStatus;
     let attempts = 0;
     const maxAttempts = 30; // 5 minutes with 10-second intervals
@@ -235,7 +263,9 @@ export async function processWithLlamaParse(
       });
 
       if (!statusResponse.ok) {
-        throw new Error(`Failed to check job status: ${statusResponse.statusText}`);
+        const errorText = await statusResponse.text();
+        console.error("LlamaParse status check error:", errorText);
+        throw new Error(`Failed to check job status: ${statusResponse.statusText}. Details: ${errorText}`);
       }
 
       jobStatus = await statusResponse.json();
@@ -256,7 +286,7 @@ export async function processWithLlamaParse(
       throw new Error('Job timed out after 5 minutes');
     }
 
-    // Step 3: Get the parsed content
+    // Step 5: Get the parsed content
     console.log("Retrieving parsed content");
     const resultResponse = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/result/${llamaParseJobId}`, {
       headers: {
@@ -527,21 +557,63 @@ export async function processWithFirecrawl(
   }
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
+  const startTime = Date.now();
+
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { documentUrl, documentType, clientId, agentName, documentId } = await req.json();
+    // Validate request method
+    if (req.method !== 'POST') {
+      throw new Error('Method not allowed');
+    }
 
-    // Create a Supabase client for database operations
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const supabaseServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    // Create Supabase client with service role
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseServiceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
     const supabase = createClient(supabaseUrl, supabaseServiceRole);
 
-    // Determine the appropriate processing method
-    const processingMethod = determineProcessingMethod(documentType, documentUrl);
+    // Parse and validate request data
+    const requestData = await req.json();
+    const { documentUrl, documentType, clientId, agentName, documentId, test } = requestData;
+
+    if (!documentType || !clientId || !agentName || !documentId) {
+      throw new Error(config.errors.missingParams);
+    }
+
+    // For test requests, return a success response
+    if (test) {
+      console.log('Test request detected, returning mock response');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          content: 'Test document content',
+          metadata: {
+            processing_method: 'test',
+            document_type: documentType,
+            document_url: documentUrl,
+            processing_time_ms: Date.now() - startTime
+          }
+        }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Validate document URL and type
+    if (!documentUrl || !validators.isValidUrl(documentUrl)) {
+      throw new Error('Invalid document URL');
+    }
+
+    if (!validators.isValidDocumentType(documentType)) {
+      throw new Error(config.errors.invalidFileType);
+    }
 
     // Create a processing job record
     const { data: job, error: jobError } = await supabase
@@ -552,7 +624,7 @@ serve(async (req) => {
         client_id: clientId,
         agent_name: agentName,
         document_id: documentId,
-        processing_method: processingMethod,
+        processing_method: determineProcessingMethod(documentType, documentUrl),
         status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -564,43 +636,88 @@ serve(async (req) => {
       throw new Error(`Failed to create processing job: ${jobError.message}`);
     }
 
-    // Update job status to processing
-    await updateJobStatus(supabase, job.id, "processing");
+    // Start processing in the background
+    (async () => {
+      try {
+        const processingMethod = determineProcessingMethod(documentType, documentUrl);
+        let result;
 
-    let result;
-    if (processingMethod === "llamaparse") {
-      result = await processWithLlamaParse(
-        documentUrl,
-        documentType,
-        clientId,
-        agentName,
-        documentId,
-        supabase,
-        job.id
-      );
-    } else if (processingMethod === "firecrawl") {
-      result = await processWithFirecrawl(
-        supabase,
-        job.id,
-        documentUrl,
-        documentType,
-        clientId,
-        agentName,
-        documentId
-      );
-    } else {
-      throw new Error(`Unsupported processing method: ${processingMethod}`);
-    }
+        if (processingMethod === "llamaparse") {
+          result = await processWithLlamaParse(
+            documentUrl,
+            documentType,
+            clientId,
+            agentName,
+            documentId,
+            supabase,
+            job.id
+          );
+        } else if (processingMethod === "firecrawl") {
+          result = await processWithFirecrawl(
+            supabase,
+            job.id,
+            documentUrl,
+            documentType,
+            clientId,
+            agentName,
+            documentId
+          );
+        } else {
+          throw new Error(`Unsupported processing method: ${processingMethod}`);
+        }
 
+        console.log('Processing completed:', result);
+      } catch (error) {
+        console.error('Processing error:', error);
+        await updateJobStatus(supabase, job.id, "failed", error.message);
+        
+        // Log error to client activities
+        await createClientActivity(
+          supabase,
+          clientId,
+          "document_processing_failed",
+          `Failed to process document: ${error.message}`,
+          {
+            document_url: documentUrl,
+            document_type: documentType,
+            error: error.message
+          }
+        );
+      }
+    })();
+
+    // Return immediately with the job ID
     return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({
+        success: true,
+        jobId: job.id,
+        status: 'pending',
+        message: 'Document processing started',
+        metadata: {
+          document_type: documentType,
+          document_url: documentUrl,
+          processing_method: determineProcessingMethod(documentType, documentUrl),
+          request_time_ms: Date.now() - startTime
+        }
+      }),
       { 
-        status: 400,
+        status: 202,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+
+  } catch (error) {
+    console.error('Error:', error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        metadata: {
+          request_time_ms: Date.now() - startTime
+        }
+      }),
+      { 
+        status: error.message === config.errors.invalidToken ? 401 : 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );

@@ -1,172 +1,92 @@
-
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
+import OpenAI from 'https://esm.sh/openai@4.20.1'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS"
-};
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
   
   try {
-    // Get OpenAI API key from environment
-    const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openAIApiKey) {
-      console.error("Missing OpenAI API key");
-      throw new Error("Server is not configured with OpenAI API key");
-    }
-    
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SERVICE_ROLE_KEY");
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase credentials");
-      throw new Error("Server is not configured with Supabase credentials");
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    console.log("Supabase client initialized successfully");
-    
-    // Parse the request body
-    const requestData = await req.json();
-    const { clientId, agentName, documentContent, documentTitle } = requestData;
-    
-    console.log("Request data received:", {
-      clientId,
-      agentName,
-      documentTitle,
-      contentLength: documentContent?.length || 0
-    });
-    
-    if (!clientId || !documentContent) {
+    const openai = new OpenAI({
+      apiKey: Deno.env.get('OPENAI_API_KEY'),
+    })
+
+    const { client_id, document_url, document_type } = await req.json()
+
+    if (!client_id || !document_url) {
       return new Response(
-        JSON.stringify({ error: "Missing required parameters: clientId and documentContent are required" }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+        JSON.stringify({ error: 'client_id and document_url are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
-    
-    // Get the OpenAI Assistant ID for this client
-    const { data: assistantData, error: assistantError } = await supabase
-      .from("ai_agents")
-      .select("openai_assistant_id")
-      .eq("client_id", clientId)
-      .eq("interaction_type", "config")
-      .single();
-    
-    if (assistantError || !assistantData?.openai_assistant_id) {
-      console.error("No OpenAI Assistant ID found for this client");
-      return new Response(
-        JSON.stringify({ error: "No OpenAI Assistant configured for this client" }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
+
+    // Get the OpenAI Assistant ID from the database
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    const { data: agentData, error: agentError } = await supabaseClient
+      .from('ai_agents')
+      .select('openai_assistant_id')
+      .eq('client_id', client_id)
+      .eq('interaction_type', 'config')
+      .single()
+
+    if (agentError || !agentData?.openai_assistant_id) {
+      throw new Error('Failed to find OpenAI Assistant ID for the client')
     }
-    
-    const assistantId = assistantData.openai_assistant_id;
-    console.log(`Found OpenAI Assistant ID: ${assistantId}`);
-    
-    // Step 1: Create a file with the document content
-    console.log("Creating file with OpenAI API...");
-    const fileResponse = await fetch('https://api.openai.com/v1/files', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'multipart/form-data'
-      },
-      body: JSON.stringify({
-        purpose: 'assistants',
-        file: new File([documentContent], documentTitle, { type: 'text/plain' })
-      })
-    });
-    
-    if (!fileResponse.ok) {
-      const errorText = await fileResponse.text();
-      console.error("OpenAI file creation error:", errorText);
-      throw new Error(`Failed to create file with OpenAI: ${errorText}`);
+
+    // Download the document from the URL
+    const response = await fetch(document_url)
+    if (!response.ok) {
+      throw new Error('Failed to download document from URL')
     }
-    
-    const fileData = await fileResponse.json();
-    const fileId = fileData.id;
-    console.log(`Created file with ID: ${fileId}`);
-    
-    // Step 2: Attach the file to the OpenAI Assistant
-    console.log(`Attaching file to assistant ${assistantId}...`);
-    const attachResponse = await fetch(`https://api.openai.com/v1/assistants/${assistantId}/files`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-        'OpenAI-Beta': 'assistants=v1'
-      },
-      body: JSON.stringify({
-        file_id: fileId
-      })
-    });
-    
-    if (!attachResponse.ok) {
-      const errorText = await attachResponse.text();
-      console.error("OpenAI file attachment error:", errorText);
-      throw new Error(`Failed to attach file to assistant: ${errorText}`);
-    }
-    
-    const attachData = await attachResponse.json();
-    console.log("File attached successfully:", attachData);
-    
-    // Step 3: Log this activity to the database
-    await supabase
-      .from("client_activities")
-      .insert({
-        client_id: clientId,
-        activity_type: "openai_assistant_document_added",
-        description: `Document "${documentTitle}" added to OpenAI Assistant`,
-        metadata: {
-          document_title: documentTitle,
-          agent_name: agentName,
-          openai_file_id: fileId,
-          openai_assistant_id: assistantId,
-          content_length: documentContent.length
-        }
-      });
+
+    const blob = await response.blob()
+    const file = new File([blob], 'document.' + (document_type || 'pdf'), {
+      type: document_type === 'txt' ? 'text/plain' : 'application/pdf'
+    })
+
+    // Upload the file to OpenAI
+    const uploadedFile = await openai.files.create({
+      file,
+      purpose: 'assistants'
+    })
+
+    // Attach the file to the assistant
+    await openai.beta.assistants.files.create(
+      agentData.openai_assistant_id,
+      { file_id: uploadedFile.id }
+    )
     
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Document successfully added to OpenAI Assistant",
-        file_id: fileId,
-        assistant_id: assistantId
+        file_id: uploadedFile.id,
+        assistant_id: agentData.openai_assistant_id
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
       }
-    );
-  } catch (err) {
-    console.error("Error in upload-document-to-assistant function:", err);
-    
+    )
+  } catch (error) {
+    console.error('Error:', error)
     return new Response(
       JSON.stringify({ 
-        error: err.message || "Failed to add document to OpenAI Assistant", 
-        details: JSON.stringify(err)
+        error: error.message
       }),
       { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
       }
-    );
+    )
   }
-});
+})

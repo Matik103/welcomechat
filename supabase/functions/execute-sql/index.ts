@@ -1,5 +1,5 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,46 +7,47 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Create a Supabase client with the service role key
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const { sql_command } = await req.json()
 
-    // Get the SQL query to execute
-    const { sql } = await req.json()
-    
-    if (!sql) {
+    if (!sql_command) {
       return new Response(
-        JSON.stringify({ error: 'No SQL query specified' }),
+        JSON.stringify({ error: 'sql_command is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-    
-    // Execute the SQL query
-    const { data, error } = await supabaseClient.rpc('execute_sql', { sql_command: sql })
-    
+
+    // Create Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') || '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    )
+
+    // Execute the SQL command using rpc
+    const { data, error } = await supabase.rpc('execute_sql', { sql_command })
+
     if (error) {
+      console.error('Error executing SQL:', error)
       return new Response(
         JSON.stringify({ error: error.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-    
+
     return new Response(
       JSON.stringify({ data }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+
   } catch (error) {
+    console.error('Error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
-})
+}) 

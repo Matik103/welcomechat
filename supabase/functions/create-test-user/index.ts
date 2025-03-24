@@ -13,42 +13,28 @@ serve(async (req) => {
   }
 
   try {
-    // Create a Supabase client with the service role key
+    // Create Supabase client with service role key
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get the table name to check
-    const { table_name } = await req.json()
-    
-    if (!table_name) {
+    // Create a test user
+    const { data: userData, error: userError } = await supabaseClient.auth.admin.createUser({
+      email: 'test@example.com',
+      password: 'test123',
+      email_confirm: true
+    })
+
+    if (userError) {
       return new Response(
-        JSON.stringify({ error: 'No table name specified' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-    
-    // Check if the table exists using a direct query
-    const { data, error } = await supabaseClient
-      .from(table_name)
-      .select('*')
-      .limit(1)
-    
-    if (error && error.message.includes('does not exist')) {
-      return new Response(
-        JSON.stringify({ exists: false, table: table_name }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    } else if (error) {
-      return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: userError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-    
+
     return new Response(
-      JSON.stringify({ exists: true, table: table_name }),
+      JSON.stringify({ success: true, user: userData }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
@@ -57,4 +43,4 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
-})
+}) 

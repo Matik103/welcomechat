@@ -1,69 +1,130 @@
-# Welcome to your Lovable project
+# Document Processing Service
 
-## Project info
+A Supabase Edge Function for processing documents using LlamaParse and Firecrawl.
 
-**URL**: https://lovable.dev/projects/0d5c6a3b-7227-45a3-ae03-72c126be75be
+## Features
 
-## How can I edit this code?
+- Asynchronous document processing
+- Support for multiple document types (PDF, DOCX, XLSX, PPTX)
+- Website crawling and content extraction
+- Job status tracking
+- Error handling and logging
+- Rate limiting and file size validation
+- OpenAI Assistant integration
 
-There are several ways of editing your application.
+## Setup
 
-**Use Lovable**
+1. **Environment Variables**
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0d5c6a3b-7227-45a3-ae03-72c126be75be) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+LLAMA_CLOUD_API_KEY=your_llama_cloud_api_key
+FIRECRAWL_API_KEY=your_firecrawl_api_key
 ```
 
-**Edit a file directly in GitHub**
+2. **Deploy Function**
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+supabase functions deploy process-document
+```
 
-**Use GitHub Codespaces**
+## Usage
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Process Document
 
-## What technologies are used for this project?
+```bash
+curl -X POST 'https://[PROJECT_REF].supabase.co/functions/v1/process-document' \
+-H 'Authorization: Bearer [ANON_KEY]' \
+-H 'Content-Type: application/json' \
+-d '{
+  "documentType": "pdf",
+  "clientId": "your-client-id",
+  "agentName": "your-agent",
+  "documentId": "your-doc-id",
+  "documentUrl": "your-document-url"
+}'
+```
 
-This project is built with .
+### Response
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```json
+{
+  "success": true,
+  "jobId": "job-uuid",
+  "status": "pending",
+  "message": "Document processing started",
+  "metadata": {
+    "document_type": "pdf",
+    "document_url": "url",
+    "processing_method": "llamaparse",
+    "request_time_ms": 123
+  }
+}
+```
 
-## How can I deploy this project?
+## Configuration
 
-Simply open [Lovable](https://lovable.dev/projects/0d5c6a3b-7227-45a3-ae03-72c126be75be) and click on Share -> Publish.
+The service includes configurable settings in `config.ts`:
 
-## I want to use a custom domain - is that possible?
+- Rate limiting (30 requests/minute)
+- Maximum file size (50MB)
+- Processing timeout (5 minutes)
+- Supported document types
+- Error messages
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+## Database Tables
+
+1. `document_processing_jobs`: Tracks processing jobs
+2. `client_activities`: Logs client activities
+3. `ai_agents`: Stores processed content
+4. `function_metrics`: Monitors function performance
+
+## Error Handling
+
+The service includes comprehensive error handling:
+- Input validation
+- File type validation
+- Processing errors
+- API errors
+- Timeout handling
+
+## Monitoring
+
+Monitor function performance through:
+- Job status tracking
+- Error logging
+- Performance metrics
+- Client activity tracking
+
+## Development
+
+1. Clone the repository
+2. Install dependencies
+3. Set up environment variables
+4. Run locally:
+```bash
+supabase start
+supabase functions serve process-document
+```
+
+## Production
+
+For production deployment:
+1. Update environment variables
+2. Deploy function
+3. Monitor logs and metrics
+4. Set up alerts for errors
+
+## Security
+
+- JWT authentication
+- Rate limiting
+- File size validation
+- Input sanitization
+- Error message sanitization
+
+## License
+
+MIT

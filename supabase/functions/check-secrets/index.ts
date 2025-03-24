@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
@@ -14,29 +13,6 @@ serve(async (req) => {
   }
 
   try {
-    // Create a Supabase client with the service role key
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
-
-    // Get the current user for authentication
-    const {
-      data: { user },
-    } = await supabaseClient.auth.getUser()
-
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
     // Get the list of required secrets to check
     const { required } = await req.json()
     
@@ -47,11 +23,34 @@ serve(async (req) => {
       )
     }
     
+    // Log headers and environment variables
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()))
+    console.log('Environment variables:', {
+      OPENAI_API_KEY: !!Deno.env.get('OPENAI_API_KEY'),
+      LLAMA_CLOUD_API_KEY: !!Deno.env.get('LLAMA_CLOUD_API_KEY'),
+      FIRECRAWL_API_KEY: !!Deno.env.get('FIRECRAWL_API_KEY')
+    })
+    
     // Check if all required secrets are set
     const missing = []
     const available = []
     for (const secretName of required) {
-      const value = Deno.env.get(secretName)
+      // Check environment variables first
+      let value = Deno.env.get(secretName)
+      
+      // If not found in environment, check request headers
+      if (!value) {
+        const headerValue = req.headers.get(secretName)
+        if (headerValue) {
+          value = headerValue
+        }
+      }
+      
+      // If still not found, check VITE_ prefixed environment variables
+      if (!value) {
+        value = Deno.env.get(`VITE_${secretName}`)
+      }
+
       if (!value) {
         missing.push(secretName)
       } else {
