@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { ParseResponse } from '@/types/document-processing';
 import { callRpcFunction } from '@/utils/rpcUtils';
-import { LlamaParseError } from './errors'
 
 // Add these utility functions at the top of the file after imports
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -71,6 +70,13 @@ interface UploadDocumentBody {
 
 type TestBody = { test: boolean } | ProcessDocumentBody | CreateAssistantBody | UploadDocumentBody;
 
+export class LlamaParseError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'LlamaParseError';
+  }
+}
+
 export class LlamaCloudService {
   private supabaseUrl: string
   private supabaseKey: string
@@ -85,7 +91,7 @@ export class LlamaCloudService {
     return supabase;
   }
 
-  async parseDocument(documentUrl: string, documentType: string, clientId: string, agentName: string): Promise<{ content: string; metadata: any }> {
+  static async parseDocument(documentUrl: string, documentType: string, clientId: string, agentName: string): Promise<{ content: string; metadata: any }> {
     if (!documentUrl || !documentType || !clientId || !agentName) {
       throw new LlamaParseError('Missing required parameters', 'INVALID_PARAMS')
     }
@@ -101,40 +107,24 @@ export class LlamaCloudService {
           documentType,
           clientId,
           agentName,
-          documentId: `doc-${Date.now()}`
+          documentId: crypto.randomUUID()
         }
       });
 
       if (processError) {
-        throw new LlamaParseError(
-          processError.message || 'Failed to process document',
-          'PROCESSING_ERROR'
-        );
-      }
-
-      if (!processData?.success) {
-        throw new LlamaParseError(
-          processData?.error || 'Failed to process document',
-          'PROCESSING_ERROR'
-        );
+        throw new LlamaParseError(`Error processing document: ${processError.message}`, 'PROCESSING_ERROR')
       }
 
       return {
-        content: processData.content,
-        metadata: {
-          ...processData.metadata,
-          clientId,
-          agentName,
-          documentType,
-          documentUrl,
-          processed_at: new Date().toISOString()
-        }
-      };
-    } catch (error) {
-      if (error instanceof LlamaParseError) {
-        throw error;
+        content: processData.content || '',
+        metadata: processData.metadata || {}
       }
-      throw new LlamaParseError(`Failed to process document: ${error.message}`, 'PROCESSING_ERROR');
+    } catch (error) {
+      console.error('Error in parseDocument:', error)
+      throw new LlamaParseError(
+        error instanceof Error ? error.message : 'Unknown error occurred',
+        'PROCESSING_ERROR'
+      )
     }
   }
 

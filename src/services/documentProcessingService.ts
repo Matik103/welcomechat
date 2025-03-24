@@ -264,43 +264,30 @@ export class DocumentProcessingService {
       };
 
       // Parse document using LlamaParse
-      const parseResult = await LlamaCloudService.parseDocument(
-        documentUrl,
-        documentType,
-        clientId,
-        agentName
-      );
+      try {
+        const parseResult = await LlamaCloudService.parseDocument(
+          documentUrl,
+          documentType,
+          clientId,
+          agentName
+        );
 
-      if (!parseResult.success) {
+        processingRecord.content = parseResult.content;
+        processingRecord.metadata = {
+          ...processingRecord.metadata,
+          ...parseResult.metadata,
+          processedAt: new Date().toISOString()
+        };
+        processingRecord.status = 'completed';
+        
+        await this.updateProcessingStatus(processingRecord);
+        return processingRecord;
+      } catch (error) {
         return this.handleProcessingError(
           processingRecord,
-          'Document parsing failed',
-          parseResult
+          error instanceof Error ? error.message : 'Document processing failed'
         );
       }
-
-      // Store the content in ai_agents table
-      await storeInAiAgents(
-        clientId,
-        agentName,
-        parseResult.content,
-        documentType,
-        documentUrl,
-        parseResult.metadata
-      );
-
-      // Update processing record with success status
-      processingRecord.status = 'completed';
-      processingRecord.completedAt = new Date().toISOString();
-      processingRecord.metadata = {
-        ...processingRecord.metadata,
-        ...parseResult.metadata
-      };
-
-      // Update the processing status
-      await this.updateProcessingStatus(processingRecord);
-
-      return processingRecord;
     } catch (error) {
       console.error('Error in processDocument:', error);
       return this.handleProcessingError(
