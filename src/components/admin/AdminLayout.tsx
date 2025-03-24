@@ -1,6 +1,6 @@
 
 import React from 'react';
-import AdminSidebar from './AdminSidebar';
+import { AdminSidebar } from './AdminSidebar';
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
