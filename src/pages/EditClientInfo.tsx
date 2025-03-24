@@ -45,7 +45,7 @@ const EditClientInfo = () => {
     if (isClientView) {
       navigate('/client/dashboard');
     } else {
-      navigate(`/admin/agents`);
+      navigate('/admin/clients');
     }
   };
 
