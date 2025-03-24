@@ -39,8 +39,8 @@ export const routes: RouteObject[] = [
     element: <AuthPage />,
   },
   {
-    path: '/client',
-    element: <ProtectedRoute><React.Suspense fallback={<div>Loading...</div>}><ClientDashboardPage /></React.Suspense></ProtectedRoute>,
+    path: '/client/dashboard',
+    element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><ClientDashboardPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/admin',
@@ -94,5 +94,9 @@ export const routes: RouteObject[] = [
   {
     path: '/client/edit-info',
     element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><EditClientInfoPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/client/widget-settings',
+    element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><WidgetSettingsPage /></React.Suspense></ProtectedRoute>,
   },
 ];
