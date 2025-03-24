@@ -22,9 +22,12 @@ const EditClientInfo = () => {
   console.log("EditClientInfo - id param:", id);
   console.log("EditClientInfo - userRole:", userRole);
   console.log("EditClientInfo - isClientView:", isClientView);
+  console.log("EditClientInfo - user metadata:", user?.user_metadata);
   
   // For client view, use user metadata clientId, for admin view use the id param
   const clientId = isClientView ? user?.user_metadata?.client_id : id;
+  
+  console.log("EditClientInfo - using clientId:", clientId);
   
   const { client, isLoadingClient, error, refetchClient } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
@@ -116,4 +119,3 @@ const EditClientInfo = () => {
 };
 
 export default EditClientInfo;
-
