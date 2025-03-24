@@ -17,7 +17,7 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
     setUploadResult(null);
 
     try {
-      // Show a single toast that will be updated as the process progresses
+      // Create a toast ID to manage the toast
       const toastId = toast.loading(`Processing document: ${file.name}`);
       
       // Create complete options by merging with defaults
@@ -48,6 +48,10 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
     } catch (error) {
       console.error('Error uploading document:', error);
       
+      // Dismiss any loading toasts
+      toast.dismiss();
+      
+      // Show error toast
       toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       
       const errorResult: DocumentProcessingResult = {
@@ -76,6 +80,7 @@ export const useDocumentProcessing = (clientId: string, agentName?: string) => {
       setUploadResult(errorResult);
       return errorResult;
     } finally {
+      // Always set uploading to false when done, whether successful or not
       setIsUploading(false);
     }
   };
