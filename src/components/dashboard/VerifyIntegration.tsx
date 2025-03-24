@@ -17,6 +17,8 @@ export const VerifyIntegration = () => {
     try {
       // Verification logic would go here
       // For now, we'll just return a placeholder response
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network request
+      
       setResult({
         success: true,
         message: "Integration verification placeholder",
@@ -43,6 +45,11 @@ export const VerifyIntegration = () => {
   // Automatically run verification on component mount
   useEffect(() => {
     runVerification();
+    
+    // Cleanup function to ensure state is reset if component unmounts
+    return () => {
+      setIsVerifying(false);
+    };
   }, []);
 
   return (
