@@ -59,3 +59,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# OS
+Thumbs.db
+
+# Docker
+Docker.dmg
