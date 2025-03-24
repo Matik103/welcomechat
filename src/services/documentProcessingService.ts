@@ -1,3 +1,4 @@
+
 /**
  * Document Processing Service
  * Version: 1.0.3
@@ -80,9 +81,9 @@ export const uploadDocument = async (
     const fileExt = file.name.split('.').pop();
     const fileName = `${clientId}/${timestamp}-${file.name}`;
     
-    // Upload file to storage - Updated to use the correct bucket name "Document Storage"
+    // Upload file to storage
     const { data, error } = await supabase.storage
-      .from('Document Storage')
+      .from('documents')
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false,
@@ -682,4 +683,3 @@ export const checkDocumentAccess = async (documentId: number): Promise<string> =
     return 'unknown';
   }
 };
-

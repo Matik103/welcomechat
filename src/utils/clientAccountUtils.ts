@@ -4,18 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { generateClientTempPassword, saveClientTempPassword } from "./passwordUtils";
 
 /**
- * Create a client record in the database
+ * Create an agent record in the database
  */
 export const createClientInDatabase = async (data: ClientFormData, clientId: string): Promise<any> => {
   try {
-    console.log("Creating client in database with client_id:", clientId);
+    console.log("Creating agent in database with client_id:", clientId);
     
     // Sanitize agent name and description
     const sanitizedAgentName = data.widget_settings?.agent_name?.replace(/["']/g, "") || "AI Assistant";
     const sanitizedAgentDescription = data.widget_settings?.agent_description?.replace(/["']/g, "") || "";
 
-    // Insert the client record
-    const { data: newClient, error } = await supabase
+    // Insert the agent record
+    const { data: newAgent, error } = await supabase
       .from("ai_agents")
       .insert({
         client_name: data.client_name,
@@ -41,19 +41,19 @@ export const createClientInDatabase = async (data: ClientFormData, clientId: str
       .single();
 
     if (error) {
-      console.error("Error creating client in database:", error);
+      console.error("Error creating agent in database:", error);
       throw new Error(error.message);
     }
 
-    if (!newClient) {
-      throw new Error("Failed to create client - no record returned");
+    if (!newAgent) {
+      throw new Error("Failed to create agent - no record returned");
     }
 
-    console.log("Client created in database successfully:", newClient);
-    return newClient;
+    console.log("Agent created in database successfully:", newAgent);
+    return newAgent;
   } catch (error: any) {
     console.error("Error in createClientInDatabase:", error);
-    throw new Error(error?.message || "Failed to create client in database");
+    throw new Error(error?.message || "Failed to create agent in database");
   }
 };
 
@@ -149,7 +149,7 @@ export const logClientCreationActivity = async (
     const { error } = await supabase.from("client_activities").insert({
       client_id: clientId,
       activity_type: "client_created",
-      description: "New client created with AI agent: " + agentName,
+      description: "New agent created: " + agentName,
       metadata: {
         client_name: clientName,
         email: email,
@@ -162,9 +162,9 @@ export const logClientCreationActivity = async (
       throw new Error(error.message);
     }
     
-    console.log(`Client creation activity logged for ${clientId}`);
+    console.log(`Agent creation activity logged for ${clientId}`);
   } catch (err) {
-    console.error('Failed to log client creation activity:', err);
+    console.error('Failed to log agent creation activity:', err);
     // Don't throw here - activity logging is not critical
   }
 };
