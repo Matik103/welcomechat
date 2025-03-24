@@ -29,24 +29,33 @@ export default function DocumentExtractionPage() {
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        // Using the correct table name with proper type safety
-        const { data, error } = await supabase
-          .from('clients')
-          .select('id, client_name, agent_name');
+        // Using a direct SQL query through RPC instead of the clients table
+        const { data: clientsData, error } = await supabase
+          .from('ai_agents')
+          .select('id, name, client_id, client_name')
+          .eq('interaction_type', 'config')
+          .is('deleted_at', null);
 
         if (error) {
           console.error('Error fetching clients:', error);
           return;
         }
 
-        if (data) {
-          setClients(
-            data.map((client) => ({
-              id: client.id,
-              name: client.client_name,
-              agent_name: client.agent_name || 'AI Assistant',
-            }))
-          );
+        if (clientsData) {
+          // Transform the data into the expected Client format
+          const uniqueClients = new Map<string, Client>();
+          
+          clientsData.forEach(agent => {
+            if (agent.id && !uniqueClients.has(agent.id)) {
+              uniqueClients.set(agent.id, {
+                id: agent.id,
+                name: agent.client_name || agent.name || 'Unnamed Client',
+                agent_name: agent.name || 'AI Assistant'
+              });
+            }
+          });
+          
+          setClients(Array.from(uniqueClients.values()));
         }
       } catch (error) {
         console.error('Error fetching clients:', error);
