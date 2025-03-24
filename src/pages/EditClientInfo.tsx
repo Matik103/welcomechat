@@ -31,8 +31,8 @@ const EditClientInfo = () => {
   
   useEffect(() => {
     if (error) {
-      toast.error("Failed to load agent data");
-      console.error("Error loading agent data:", error);
+      toast.error("Failed to load client data");
+      console.error("Error loading client data:", error);
     }
   }, [error]);
 
@@ -61,8 +61,8 @@ const EditClientInfo = () => {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Agent Information Not Found</h1>
-          <p className="text-gray-600 mb-6">We couldn't find the agent information. Please check the agent ID and try again.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Client Information Not Found</h1>
+          <p className="text-gray-600 mb-6">We couldn't find the client information. Please check the client ID and try again.</p>
           <Button onClick={handleGoBack} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Go Back
@@ -84,12 +84,12 @@ const EditClientInfo = () => {
           </button>
           <div>
             <PageHeading>
-              {isClientView ? 'Edit Information' : `Edit Agent: ${client?.client_name}`}
+              {isClientView ? 'Edit Information' : `Edit Client: ${client?.client_name}`}
             </PageHeading>
             <p className="text-muted-foreground">
               {isClientView 
                 ? 'Update your information and settings'
-                : 'Update agent information and settings'}
+                : 'Update client information and settings'}
             </p>
           </div>
         </div>
