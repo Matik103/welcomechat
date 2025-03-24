@@ -20,30 +20,11 @@ const EditClientInfo = () => {
   // Determine if we're in client view or admin view
   const isClientView = userRole === 'client';
   
-  console.log("EditClientInfo - id param:", id);
-  console.log("EditClientInfo - userRole:", userRole);
-  console.log("EditClientInfo - isClientView:", isClientView);
-  console.log("EditClientInfo - user:", user);
-  
   // For client view, we'll use the client ID from user metadata
   // For admin view, we'll use the ID from URL params
   const clientId = isClientView 
     ? user?.user_metadata?.client_id 
     : id;
-  
-  console.log("EditClientInfo - resolved clientId:", clientId);
-  
-  // If we don't have a clientId by this point, we'll show an error message
-  useEffect(() => {
-    if (!clientId) {
-      console.error(`No client ID found for ${isClientView ? 'client' : 'admin'} view`);
-      if (isClientView) {
-        toast.error("Your account is not properly linked to a client");
-      } else {
-        toast.error("No client ID provided");
-      }
-    }
-  }, [clientId, isClientView]);
   
   const { 
     client, 
@@ -63,11 +44,6 @@ const EditClientInfo = () => {
     }
   }, [error]);
 
-  // Debug logging for client data
-  useEffect(() => {
-    console.log("EditClientInfo - client data:", client);
-  }, [client]);
-
   const handleGoBack = () => {
     if (isClientView) {
       navigate('/client/dashboard');
@@ -78,7 +54,6 @@ const EditClientInfo = () => {
 
   const handleSubmit = async (data: any) => {
     try {
-      console.log("Submitting client form data:", data);
       await clientMutation.mutateAsync(data);
       
       // Log activity
