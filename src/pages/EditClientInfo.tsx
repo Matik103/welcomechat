@@ -23,24 +23,43 @@ const EditClientInfo = () => {
   console.log("EditClientInfo - id param:", id);
   console.log("EditClientInfo - userRole:", userRole);
   console.log("EditClientInfo - isClientView:", isClientView);
-  console.log("EditClientInfo - user metadata:", user?.user_metadata);
+  console.log("EditClientInfo - user:", user);
   
   // For client view, use user metadata clientId, for admin view use the id param
   const clientId = isClientView ? user?.user_metadata?.client_id : id;
   
-  console.log("EditClientInfo - using clientId:", clientId);
+  console.log("EditClientInfo - resolved clientId:", clientId);
   
-  const { client, isLoadingClient, error, refetchClient, clientMutation } = useClientData(clientId);
+  // If we don't have a clientId by this point, show an error message
+  useEffect(() => {
+    if (!clientId && !isClientView) {
+      console.error("No client ID found in URL parameters for admin view");
+      toast.error("No client ID provided");
+    } else if (!clientId && isClientView) {
+      console.error("No client ID found in user metadata for client view");
+      toast.error("Your account is not properly configured");
+    }
+  }, [clientId, isClientView]);
+  
+  const { 
+    client, 
+    isLoadingClient, 
+    error, 
+    refetchClient, 
+    clientMutation 
+  } = useClientData(clientId);
+  
   const { logClientActivity } = useClientActivity(clientId);
   
+  // Debug logging
   useEffect(() => {
     if (error) {
+      console.error("Failed to load client data:", error);
       toast.error("Failed to load client data");
-      console.error("Error loading client data:", error);
     }
   }, [error]);
 
-  // Debug logging
+  // Debug logging for client data
   useEffect(() => {
     console.log("EditClientInfo - client data:", client);
   }, [client]);
@@ -55,6 +74,7 @@ const EditClientInfo = () => {
 
   const handleSubmit = async (data: any) => {
     try {
+      console.log("Submitting client form data:", data);
       await clientMutation.mutateAsync(data);
       
       // Log activity
