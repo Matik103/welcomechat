@@ -59,7 +59,13 @@ export const routes: RouteObject[] = [
   },
   {
     path: '/admin/clients/:id/edit-info',
-    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><EditClientInfoPage /></React.Suspense></ProtectedRoute>,
+    element: (
+      <ProtectedRoute requiredRole="admin">
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <EditClientInfoPage />
+        </React.Suspense>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/admin/clients/:clientId/widget-settings',
@@ -91,7 +97,13 @@ export const routes: RouteObject[] = [
   },
   {
     path: '/client/edit-info',
-    element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><EditClientInfoPage /></React.Suspense></ProtectedRoute>,
+    element: (
+      <ProtectedRoute requiredRole="client">
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <EditClientInfoPage />
+        </React.Suspense>
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/client/widget-settings',
