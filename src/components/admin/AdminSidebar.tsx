@@ -52,8 +52,8 @@ const navItems = [
     icon: <LayoutDashboard size={18} />,
   },
   {
-    to: '/admin/agents',
-    label: 'Agents',
+    to: '/admin/clients',
+    label: 'Clients',
     icon: <Users size={18} />,
   },
   {

@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client-form";
-import { setupClientPassword, createClientUserAccount, logClientCreationActivity } from "@/utils/clientAccountUtils";
+import { createClientInDatabase, setupClientPassword, createClientUserAccount, logClientCreationActivity } from "@/utils/clientAccountUtils";
 import { v4 as uuidv4 } from 'uuid';
 
 export const useNewClientMutation = () => {
@@ -11,15 +11,15 @@ export const useNewClientMutation = () => {
   return useMutation({
     mutationFn: async (data: ClientFormData) => {
       try {
-        console.log("Creating new agent with data:", data);
+        console.log("Creating new client with data:", data);
         
         // Generate a separate client_id first
         const uniqueClientId = uuidv4();
         console.log("Generated unique client_id:", uniqueClientId);
         
-        // Step 1: Create the agent record in the database with the generated client_id
-        const newAgent = await createAgentInDatabase(data, uniqueClientId);
-        console.log("Agent created in database with agent ID:", newAgent.id, "and client_id:", uniqueClientId);
+        // Step 1: Create the client record in the database with the generated client_id
+        const newAgent = await createClientInDatabase(data, uniqueClientId);
+        console.log("Client created in database with agent ID:", newAgent.id, "and client_id:", uniqueClientId);
         
         // Make sure client_id is properly set
         if (newAgent.client_id !== uniqueClientId) {
@@ -118,55 +118,3 @@ export const useNewClientMutation = () => {
     }
   });
 };
-
-// Function to create agent in database
-async function createAgentInDatabase(data: ClientFormData, clientId: string): Promise<any> {
-  try {
-    console.log("Creating agent in database with client_id:", clientId);
-    
-    // Sanitize agent name and description
-    const sanitizedAgentName = data.widget_settings?.agent_name?.replace(/["']/g, "") || "AI Assistant";
-    const sanitizedAgentDescription = data.widget_settings?.agent_description?.replace(/["']/g, "") || "";
-
-    // Insert the agent record
-    const { data: newAgent, error } = await supabase
-      .from("ai_agents")
-      .insert({
-        client_name: data.client_name,
-        email: data.email,
-        name: sanitizedAgentName,
-        agent_description: sanitizedAgentDescription,
-        logo_url: data.widget_settings?.logo_url || null,
-        logo_storage_path: data.widget_settings?.logo_storage_path || null,
-        client_id: clientId, // Explicitly set the client_id
-        content: "",
-        interaction_type: 'config',
-        settings: {
-          client_name: data.client_name,
-          email: data.email,
-          agent_name: sanitizedAgentName,
-          agent_description: sanitizedAgentDescription,
-          logo_url: data.widget_settings?.logo_url,
-          logo_storage_path: data.widget_settings?.logo_storage_path,
-          client_id: clientId // Include client_id in settings for consistency
-        }
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating agent in database:", error);
-      throw new Error(error.message);
-    }
-
-    if (!newAgent) {
-      throw new Error("Failed to create agent - no record returned");
-    }
-
-    console.log("Agent created in database successfully:", newAgent);
-    return newAgent;
-  } catch (error: any) {
-    console.error("Error in createAgentInDatabase:", error);
-    throw new Error(error?.message || "Failed to create agent in database");
-  }
-}

@@ -804,54 +804,6 @@ export type Database = {
           },
         ]
       }
-      document_processing: {
-        Row: {
-          agent_name: string
-          chunks: Json
-          client_id: string
-          completed_at: string | null
-          created_at: string
-          document_type: string
-          document_url: string
-          error: string | null
-          id: number
-          metadata: Json
-          started_at: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          agent_name: string
-          chunks?: Json
-          client_id: string
-          completed_at?: string | null
-          created_at?: string
-          document_type: string
-          document_url: string
-          error?: string | null
-          id?: number
-          metadata?: Json
-          started_at: string
-          status: string
-          updated_at?: string
-        }
-        Update: {
-          agent_name?: string
-          chunks?: Json
-          client_id?: string
-          completed_at?: string | null
-          created_at?: string
-          document_type?: string
-          document_url?: string
-          error?: string | null
-          id?: number
-          metadata?: Json
-          started_at?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       document_processing_jobs: {
         Row: {
           agent_name: string
@@ -5704,7 +5656,6 @@ export type Database = {
         | "signed_out"
         | "embed_code_copied"
         | "widget_previewed"
-        | "document_extracted"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"
