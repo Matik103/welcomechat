@@ -10,12 +10,16 @@ const AuthPage = React.lazy(() => import('./pages/Auth'));
 const ClientDashboardPage = React.lazy(() => import('./pages/client/ClientDashboard'));
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminAgentsPage = React.lazy(() => import('./pages/admin/AdminAgents'));
+const AdminClientsPage = React.lazy(() => import('./pages/admin/AdminClients'));
 const AdminUsersPage = React.lazy(() => import('./pages/admin/AdminUsers'));
 const AdminLogsPage = React.lazy(() => import('./pages/admin/AdminLogs'));
 const AdminSettingsPage = React.lazy(() => import('./pages/admin/AdminSettings'));
 const AdminMigrationsPage = React.lazy(() => import('./pages/admin/AdminMigrations'));
 const AdminAnalyticsPage = React.lazy(() => import('./pages/admin/AdminAnalytics'));
 const DocumentExtractionPage = React.lazy(() => import('./pages/admin/DocumentExtraction'));
+const ClientViewPage = React.lazy(() => import('./pages/ClientView'));
+const EditClientInfoPage = React.lazy(() => import('./pages/EditClientInfo'));
+const WidgetSettingsPage = React.lazy(() => import('./pages/WidgetSettings'));
 
 export const routes: RouteObject[] = [
   {
@@ -45,6 +49,22 @@ export const routes: RouteObject[] = [
   {
     path: '/admin/agents',
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AdminAgentsPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/admin/clients',
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AdminClientsPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/admin/clients/view/:clientId',
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><ClientViewPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/admin/clients/:id/edit-info',
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><EditClientInfoPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/admin/clients/:clientId/widget-settings',
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><WidgetSettingsPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/admin/users',

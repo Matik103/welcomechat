@@ -11,6 +11,7 @@ import {
   MoveUp,
   BarChart3,
   FilePlus,
+  Building,
 } from 'lucide-react';
 
 const AdminSidebar = () => {
@@ -55,6 +56,11 @@ const navItems = [
     to: '/admin/agents',
     label: 'Agents',
     icon: <Users size={18} />,
+  },
+  {
+    to: '/admin/clients',
+    label: 'Clients',
+    icon: <Building size={18} />,
   },
   {
     to: '/admin/users',
