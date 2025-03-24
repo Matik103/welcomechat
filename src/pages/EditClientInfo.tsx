@@ -25,19 +25,23 @@ const EditClientInfo = () => {
   console.log("EditClientInfo - isClientView:", isClientView);
   console.log("EditClientInfo - user:", user);
   
-  // For client view, use user metadata clientId, for admin view use the id param
-  const clientId = isClientView ? user?.user_metadata?.client_id : id;
+  // For client view, we'll use the client ID from user metadata
+  // For admin view, we'll use the ID from URL params
+  const clientId = isClientView 
+    ? user?.user_metadata?.client_id 
+    : id;
   
   console.log("EditClientInfo - resolved clientId:", clientId);
   
-  // If we don't have a clientId by this point, show an error message
+  // If we don't have a clientId by this point, we'll show an error message
   useEffect(() => {
-    if (!clientId && !isClientView) {
-      console.error("No client ID found in URL parameters for admin view");
-      toast.error("No client ID provided");
-    } else if (!clientId && isClientView) {
-      console.error("No client ID found in user metadata for client view");
-      toast.error("Your account is not properly configured");
+    if (!clientId) {
+      console.error(`No client ID found for ${isClientView ? 'client' : 'admin'} view`);
+      if (isClientView) {
+        toast.error("Your account is not properly linked to a client");
+      } else {
+        toast.error("No client ID provided");
+      }
     }
   }, [clientId, isClientView]);
   
@@ -107,7 +111,11 @@ const EditClientInfo = () => {
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Client Information Not Found</h1>
-          <p className="text-gray-600 mb-6">We couldn't find the client information. Please check the client ID and try again.</p>
+          <p className="text-gray-600 mb-6">
+            {isClientView 
+              ? "We couldn't find your client information. Your account may not be properly configured."
+              : "We couldn't find the client information. Please check the client ID and try again."}
+          </p>
           <Button onClick={handleGoBack} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Go Back
@@ -156,13 +164,15 @@ const EditClientInfo = () => {
             </CardContent>
           </Card>
 
-          <ClientResourceSections 
-            clientId={clientId || ''}
-            agentName={client?.agent_name || client?.name || ''}
-            className="mt-6"
-            isClientView={isClientView}
-            logClientActivity={logClientActivity}
-          />
+          {clientId && (
+            <ClientResourceSections 
+              clientId={clientId}
+              agentName={client?.agent_name || client?.name || ''}
+              className="mt-6"
+              isClientView={isClientView}
+              logClientActivity={logClientActivity}
+            />
+          )}
         </div>
       </div>
     </div>
