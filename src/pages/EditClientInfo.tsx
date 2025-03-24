@@ -35,12 +35,11 @@ const EditClientInfo = () => {
   } = useClientData(clientId);
   
   const { logClientActivity } = useClientActivity(clientId);
-  
-  // Debug logging
+
+  // Show error toast if client data fails to load
   useEffect(() => {
     if (error) {
-      console.error("Failed to load client data:", error);
-      toast.error("Failed to load client data");
+      toast.error("Failed to load client information");
     }
   }, [error]);
 
@@ -56,7 +55,6 @@ const EditClientInfo = () => {
     try {
       await clientMutation.mutateAsync(data);
       
-      // Log activity
       await logClientActivity(
         'client_updated',
         `Updated client information`,
@@ -64,8 +62,6 @@ const EditClientInfo = () => {
       );
       
       toast.success("Client information updated successfully");
-      
-      // Refresh client data
       refetchClient();
     } catch (error) {
       console.error("Error updating client:", error);
@@ -88,7 +84,7 @@ const EditClientInfo = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Client Information Not Found</h1>
           <p className="text-gray-600 mb-6">
             {isClientView 
-              ? "We couldn't find your client information. Your account may not be properly configured."
+              ? "Your account may not be properly configured. Please contact support."
               : "We couldn't find the client information. Please check the client ID and try again."}
           </p>
           <Button onClick={handleGoBack} variant="outline">
