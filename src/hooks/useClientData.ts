@@ -22,7 +22,7 @@ export const useClientData = (id: string | undefined) => {
   console.log("useClientData: using clientId =", clientId);
   
   const { 
-    data: client, 
+    client, 
     isLoading, 
     error,
     refetch
