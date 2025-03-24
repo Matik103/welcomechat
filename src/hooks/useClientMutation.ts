@@ -79,10 +79,10 @@ export const useClientMutation = (clientId?: string) => {
           
         if (updateError) {
           console.error("Error updating AI agent:", updateError);
-          throw new Error(`Failed to update client: ${updateError.message}`);
+          throw new Error(`Failed to update agent: ${updateError.message}`);
         }
         
-        console.log("Client updated successfully:", updateData);
+        console.log("Agent updated successfully:", updateData);
         return clientId;
       } else {
         // Create new client in AI agents table
@@ -106,10 +106,10 @@ export const useClientMutation = (clientId?: string) => {
           
         if (insertError) {
           console.error("Error creating AI agent:", insertError);
-          throw new Error(`Failed to create client: ${insertError.message}`);
+          throw new Error(`Failed to create agent: ${insertError.message}`);
         }
         
-        console.log("Client created successfully:", insertData);
+        console.log("Agent created successfully:", insertData);
         return { agentId: insertData.id };
       }
     },
@@ -119,7 +119,7 @@ export const useClientMutation = (clientId?: string) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       
       toast.success(
-        clientId ? "Client updated successfully" : "Client created successfully"
+        clientId ? "Agent updated successfully" : "Agent created successfully"
       );
     },
     onError: (error: Error) => {

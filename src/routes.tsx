@@ -9,7 +9,7 @@ const ContactPage = React.lazy(() => import('./pages/Contact'));
 const AuthPage = React.lazy(() => import('./pages/Auth'));
 const ClientDashboardPage = React.lazy(() => import('./pages/client/ClientDashboard'));
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboard'));
-const AdminClientsPage = React.lazy(() => import('./pages/admin/AdminClients'));
+const AdminAgentsPage = React.lazy(() => import('./pages/admin/AdminAgents'));
 const AdminUsersPage = React.lazy(() => import('./pages/admin/AdminUsers'));
 const AdminLogsPage = React.lazy(() => import('./pages/admin/AdminLogs'));
 const AdminSettingsPage = React.lazy(() => import('./pages/admin/AdminSettings'));
@@ -43,8 +43,8 @@ export const routes: RouteObject[] = [
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AdminDashboardPage /></React.Suspense></ProtectedRoute>,
   },
   {
-    path: '/admin/clients',
-    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AdminClientsPage /></React.Suspense></ProtectedRoute>,
+    path: '/admin/agents',
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AdminAgentsPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/admin/users',
