@@ -4,7 +4,6 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
-import { ClientDetailsCard } from "@/components/client/ClientDetailsCard";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { toast } from 'sonner';
