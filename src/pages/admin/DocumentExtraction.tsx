@@ -7,10 +7,16 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useCheckAdmin } from '@/hooks/useCheckAdmin';
 import { Loader2 } from 'lucide-react';
 
+interface Client {
+  id: string;
+  name: string;
+  agent_name: string;
+}
+
 export default function DocumentExtractionPage() {
   const { isAdmin, isLoading: isCheckingAdmin } = useCheckAdmin();
   const navigate = useNavigate();
-  const [clients, setClients] = useState<{ id: string; name: string; agent_name: string }[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -23,23 +29,25 @@ export default function DocumentExtractionPage() {
   useEffect(() => {
     const fetchClients = async () => {
       try {
+        // Using the correct table name with proper type safety
         const { data, error } = await supabase
           .from('clients')
-          .select('id, client_name, agent_name')
-          .order('client_name', { ascending: true });
+          .select('id, client_name, agent_name');
 
         if (error) {
           console.error('Error fetching clients:', error);
           return;
         }
 
-        setClients(
-          data.map((client) => ({
-            id: client.id,
-            name: client.client_name,
-            agent_name: client.agent_name || 'AI Assistant',
-          }))
-        );
+        if (data) {
+          setClients(
+            data.map((client) => ({
+              id: client.id,
+              name: client.client_name,
+              agent_name: client.agent_name || 'AI Assistant',
+            }))
+          );
+        }
       } catch (error) {
         console.error('Error fetching clients:', error);
       } finally {

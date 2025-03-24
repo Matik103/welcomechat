@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { RouteObject } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -68,9 +69,5 @@ export const routes: RouteObject[] = [
   {
     path: '/admin/document-extraction',
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><DocumentExtractionPage /></React.Suspense></ProtectedRoute>,
-    async lazy() {
-      const { default: DocumentExtractionPage } = await import('./pages/admin/DocumentExtraction');
-      return { Component: DocumentExtractionPage };
-    },
   },
 ];
