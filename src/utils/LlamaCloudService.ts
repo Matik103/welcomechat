@@ -9,6 +9,7 @@ export interface ParseResponse {
   metadata?: any;
   error?: string;
   errorDetails?: any;
+  documentId?: string;
 }
 
 export class LlamaParseError extends Error {
@@ -101,7 +102,8 @@ export class LlamaCloudService {
         return {
           success: false,
           error: 'LlamaCloud API key is not configured',
-          errorDetails: { code: 'API_KEY_MISSING' }
+          errorDetails: { code: 'API_KEY_MISSING' },
+          documentId: documentUrl
         };
       }
       
@@ -131,7 +133,8 @@ export class LlamaCloudService {
         return {
           success: false,
           error: `LlamaParse upload failed with status ${uploadResponse.status}`,
-          errorDetails: { response: errorText, code: 'LLAMAPARSE_UPLOAD_ERROR' }
+          errorDetails: { response: errorText, code: 'LLAMAPARSE_UPLOAD_ERROR' },
+          documentId: documentUrl
         };
       }
       
@@ -143,7 +146,8 @@ export class LlamaCloudService {
         return {
           success: false,
           error: 'LlamaParse upload did not return a document ID',
-          errorDetails: { response: uploadData, code: 'LLAMAPARSE_INVALID_RESPONSE' }
+          errorDetails: { response: uploadData, code: 'LLAMAPARSE_INVALID_RESPONSE' },
+          documentId: documentUrl
         };
       }
       
@@ -177,7 +181,8 @@ export class LlamaCloudService {
                 documentId, 
                 lastResponse: errorText, 
                 code: 'LLAMAPARSE_STATUS_ERROR' 
-              }
+              },
+              documentId
             };
           }
           
@@ -197,7 +202,8 @@ export class LlamaCloudService {
           return {
             success: false,
             error: 'Document parsing failed',
-            errorDetails: { response: parseResult, code: 'LLAMAPARSE_PROCESSING_FAILED' }
+            errorDetails: { response: parseResult, code: 'LLAMAPARSE_PROCESSING_FAILED' },
+            documentId
           };
         }
         
@@ -212,7 +218,8 @@ export class LlamaCloudService {
         return {
           success: false,
           error: 'Document parsing timed out',
-          errorDetails: { documentId, code: 'LLAMAPARSE_TIMEOUT' }
+          errorDetails: { documentId, code: 'LLAMAPARSE_TIMEOUT' },
+          documentId
         };
       }
       
@@ -222,7 +229,8 @@ export class LlamaCloudService {
         return {
           success: false,
           error: 'No parsing results found',
-          errorDetails: { response: parseResult, code: 'LLAMAPARSE_EMPTY_RESULT' }
+          errorDetails: { response: parseResult, code: 'LLAMAPARSE_EMPTY_RESULT' },
+          documentId
         };
       }
       
@@ -249,7 +257,8 @@ export class LlamaCloudService {
       return {
         success: true,
         content,
-        metadata
+        metadata,
+        documentId
       };
     } catch (error) {
       console.error('Error in LlamaCloudService.parseDocument:', error);
@@ -260,7 +269,8 @@ export class LlamaCloudService {
         errorDetails: {
           code: isLlamaParseError ? (error as LlamaParseError).code : 'UNEXPECTED_ERROR',
           details: isLlamaParseError ? (error as LlamaParseError).details : undefined
-        }
+        },
+        documentId: 'error'
       };
     }
   }

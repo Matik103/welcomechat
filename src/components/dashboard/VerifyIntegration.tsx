@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import { verifyStorageBuckets } from "@/utils/storageUtils";
 
 export const VerifyIntegration = () => {
   const [isVerifying, setIsVerifying] = useState(false);
@@ -15,21 +16,32 @@ export const VerifyIntegration = () => {
   const runVerification = async () => {
     setIsVerifying(true);
     try {
-      // Verification logic would go here
-      // For now, we'll just return a placeholder response
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network request
+      // Verify storage buckets
+      const storageBuckets = await verifyStorageBuckets();
+      
+      // Check that LLAMA_CLOUD_API_KEY is set
+      const llamaCloudApiKey = import.meta.env.VITE_LLAMA_CLOUD_API_KEY;
+      const hasLlamaCloudKey = !!llamaCloudApiKey;
+      
+      // Determine overall success
+      const success = Object.values(storageBuckets).every(exists => exists) && hasLlamaCloudKey;
       
       setResult({
-        success: true,
-        message: "Integration verification placeholder",
+        success,
+        message: success ? "All integration components verified successfully" : "Some integration components failed verification",
         details: {
           "API Connection": true,
-          "Document Processing": true,
+          "Document Processing": hasLlamaCloudKey,
           "Storage Access": true,
+          "Document Storage": storageBuckets['Document Storage'] || false,
+          "Client Documents": storageBuckets['Client Documents'] || false
         }
       });
       
-      console.log("Verification placeholder");
+      console.log("Verification complete:", {
+        storageBuckets,
+        hasLlamaCloudKey
+      });
     } catch (error) {
       console.error("Error during verification:", error);
       setResult({
