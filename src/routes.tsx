@@ -934,3 +934,188 @@ export const appRoutes: RouteObject[] = [
   },
   {
     path: "/admin/privacy-shield",
+    element: <AdminPrivacyShieldPage />,
+  },
+  {
+    path: "/client/:clientId/privacy-shield",
+    element: <ClientPrivacyShieldPage />,
+  },
+  {
+    path: "/admin/terms-of-service",
+    element: <AdminTermsOfServicePage />,
+  },
+  {
+    path: "/client/:clientId/terms-of-service",
+    element: <ClientTermsOfServicePage />,
+  },
+  {
+    path: "/admin/legal",
+    element: <AdminLegalPage />,
+  },
+  {
+    path: "/client/:clientId/legal",
+    element: <ClientLegalPage />,
+  },
+  {
+    path: "/admin/compliance-reports",
+    element: <AdminComplianceReportsPage />,
+  },
+  {
+    path: "/client/:clientId/compliance-reports",
+    element: <ClientComplianceReportsPage />,
+  },
+  {
+    path: "/admin/risk-assessments",
+    element: <AdminRiskAssessmentsPage />,
+  },
+  {
+    path: "/client/:clientId/risk-assessments",
+    element: <ClientRiskAssessmentsPage />,
+  },
+  {
+    path: "/admin/data-breach-response",
+    element: <AdminDataBreachResponsePage />,
+  },
+  {
+    path: "/client/:clientId/data-breach-response",
+    element: <ClientDataBreachResponsePage />,
+  },
+  {
+    path: "/admin/insurance",
+    element: <AdminInsurancePage />,
+  },
+  {
+    path: "/client/:clientId/insurance",
+    element: <ClientInsurancePage />,
+  },
+  {
+    path: "/admin/certifications",
+    element: <AdminCertificationsPage />,
+  },
+  {
+    path: "/client/:clientId/certifications",
+    element: <ClientCertificationsPage />,
+  },
+  {
+    path: "/admin/training-programs",
+    element: <AdminTrainingProgramsPage />,
+  },
+  {
+    path: "/client/:clientId/training-programs",
+    element: <ClientTrainingProgramsPage />,
+  },
+  {
+    path: "/admin/consulting-services",
+    element: <AdminConsultingServicesPage />,
+  },
+  {
+    path: "/client/:clientId/consulting-services",
+    element: <ClientConsultingServicesPage />,
+  },
+  {
+    path: "/admin/ebooks-directory",
+    element: <AdminEbooksDirectoryPage />,
+  },
+  {
+    path: "/client/:clientId/ebooks-directory",
+    element: <ClientEbooksDirectoryPage />,
+  },
+  {
+    path: "/admin/webinars-directory",
+    element: <AdminWebinarsDirectoryPage />,
+  },
+  {
+    path: "/client/:clientId/webinars-directory",
+    element: <ClientWebinarsDirectoryPage />,
+  },
+  {
+    path: "/admin/support-channels",
+    element: <AdminSupportChannelsPage />,
+  },
+  {
+    path: "/client/:clientId/support-channels",
+    element: <ClientSupportChannelsPage />,
+  },
+  {
+    path: "/admin/knowledge-base-directory",
+    element: <AdminKnowledgeBaseDirectoryPage />,
+  },
+  {
+    path: "/client/:clientId/knowledge-base-directory",
+    element: <ClientKnowledgeBaseDirectoryPage />,
+  },
+  {
+    path: "/admin/community-forums",
+    element: <AdminCommunityForumsPage />,
+  },
+  {
+    path: "/client/:clientId/community-forums",
+    element: <ClientCommunityForumsPage />,
+  },
+  {
+    path: "/admin/events-calendar",
+    element: <AdminEventsCalendarPage />,
+  },
+  {
+    path: "/client/:clientId/events-calendar",
+    element: <ClientEventsCalendarPage />,
+  },
+  {
+    path: "/admin/marketplace-directory",
+    element: <AdminMarketplaceDirectoryPage />,
+  },
+  {
+    path: "/client/:clientId/marketplace-directory",
+    element: <ClientMarketplaceDirectoryPage />,
+  },
+  {
+    path: "/admin/app-store",
+    element: <AdminAppStorePage />,
+  },
+  {
+    path: "/client/:clientId/app-store",
+    element: <ClientAppStorePage />,
+  },
+  {
+    path: "/admin/partner-network",
+    element: <AdminPartnerNetworkPage />,
+  },
+  {
+    path: "/client/:clientId/partner-network",
+    element: <ClientPartnerNetworkPage />,
+  },
+  {
+    path: "/admin/affiliate-program",
+    element: <AdminAffiliateProgramPage />,
+  },
+  {
+    path: "/client/:clientId/affiliate-program",
+    element: <ClientAffiliateProgramPage />,
+  },
+  {
+    path: "/admin/referral-program",
+    element: <AdminReferralProgramPage />,
+  },
+  {
+    path: "/client/:clientId/referral-program",
+    element: <ClientReferralProgramPage />,
+  },
+  {
+    path: "/admin/reward-programs",
+    element: <AdminRewardProgramsPage />,
+  },
+  {
+    path: "/client/:clientId/reward-programs",
+    element: <ClientRewardProgramsPage />,
+  },
+  {
+    path: "/admin/storage-browser",
+    element: <StorageBrowserPage />,
+  },
+  {
+    path: "*",
+    element: <NotFoundPage />,
+  },
+];
+
+export const routes = appRoutes;

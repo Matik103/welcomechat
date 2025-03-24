@@ -1,674 +1,305 @@
-import { supabase } from "@/integrations/supabase/client";
-import { ParseResponse } from '@/types/document-processing';
-import { callRpcFunction } from '@/utils/rpcUtils';
 
-// Add these utility functions at the top of the file after imports
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * LlamaCloudService.ts - Service for interacting with LlamaCloud API for document parsing
+ */
 
-interface RetryOptions {
-  maxAttempts: number;
-  initialDelay: number;
-  maxDelay: number;
-  factor: number;
+export interface ParseResponse {
+  success: boolean;
+  content?: string;
+  metadata?: any;
+  error?: string;
+  errorDetails?: any;
 }
 
-const DEFAULT_RETRY_OPTIONS: RetryOptions = {
-  maxAttempts: 5,
-  initialDelay: 1000, // 1 second
-  maxDelay: 32000,    // 32 seconds
-  factor: 2,          // exponential factor
-};
-
-async function retryWithExponentialBackoff<T>(
-  operation: () => Promise<T>,
-  options: Partial<RetryOptions> = {}
-): Promise<T> {
-  const retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...options };
-  let lastError: Error | null = null;
-  let delay = retryOptions.initialDelay;
-
-  for (let attempt = 1; attempt <= retryOptions.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      
-      if (attempt === retryOptions.maxAttempts) {
-        throw new Error(`Failed after ${attempt} attempts. Last error: ${lastError.message}`);
-      }
-
-      console.warn(`Attempt ${attempt} failed, retrying in ${delay}ms...`, error);
-      await sleep(delay);
-      delay = Math.min(delay * retryOptions.factor, retryOptions.maxDelay);
-    }
-  }
-
-  throw lastError; // TypeScript requires this, but it should never be reached
-}
-
-// Enhanced error types
 export class LlamaParseError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly details?: any
-  ) {
+  code: string;
+  details?: any;
+
+  constructor(message: string, code: string, details?: any) {
     super(message);
     this.name = 'LlamaParseError';
+    this.code = code;
+    this.details = details;
   }
 }
 
 export class LlamaCloudService {
-  // System prompt template to ensure assistants only respond to client-specific questions
-  static readonly SYSTEM_PROMPT = `You are an AI assistant created within the ByClicks AI system, designed to serve individual clients with their own unique knowledge bases. Each assistant is assigned to a specific client, and must only respond based on the information available for that specific client.
-
-Rules & Limitations:
-✅ Client-Specific Knowledge Only:
-- You must only provide answers based on the knowledge base assigned to your specific client.
-- If a question is outside your assigned knowledge, politely decline to answer.
-
-✅ Professional, Friendly, and Helpful:
-- Maintain a conversational and approachable tone.
-- Always prioritize clear, concise, and accurate responses.
-
-🚫 Do NOT Answer These Types of Questions:
-- Personal or existential questions (e.g., "What's your age?" or "Do you have feelings?").
-- Philosophical or abstract discussions (e.g., "What is the meaning of life?").
-- Technical questions about your own system or how you are built.
-- Anything unrelated to the client you are assigned to serve.
-
-Example Responses for Off-Limit Questions:
-- "I'm here to assist with questions related to [CLIENT_NAME] and their business. How can I help you with that?"
-- "I focus on providing support for [CLIENT_NAME]. If you need assistance with something else, I recommend checking an appropriate resource."
-- "I'm designed to assist with [CLIENT_NAME]'s needs. Let me know how I can help with that!"`;
-
-  // Get client-specific system prompt
-  static getClientSystemPrompt(clientName: string): string {
-    return this.SYSTEM_PROMPT.replace(/\[CLIENT_NAME\]/g, clientName);
-  }
-
-  private static readonly LLAMA_CLOUD_API_URL = 'https://api.cloud.llamaindex.ai/api/parsing';
-  
-  // Replace direct access to process.env with a method to get API key safely in browser context
-  private static getLlamaCloudApiKey(): string {
-    // During build time, Vite replaces import.meta.env variables
-    return import.meta.env.VITE_LLAMA_CLOUD_API_KEY || '';
-  }
+  private static LLAMA_CLOUD_API_KEY = import.meta.env.VITE_LLAMA_CLOUD_API_KEY || '';
 
   /**
-   * Parse a document using LlamaParse
+   * Gets a public URL for a document stored in Supabase
+   * @param documentPath The path to the document in the storage bucket
+   * @returns A URL that can be accessed by LlamaParse
    */
-  static async parseDocument(
-    documentUrl: string,
-    documentType: string,
-    clientId: string,
-    agentName: string
-  ): Promise<ParseResponse> {
+  private static async getPublicUrl(documentPath: string): Promise<string> {
     try {
-      const apiKey = this.getLlamaCloudApiKey();
-      if (!apiKey) {
+      // Import dynamically to avoid circular dependencies
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      // Extract bucket and file path from the document path
+      // The format is typically 'bucket/filePath'
+      let bucketName = 'Document Storage'; // Default bucket
+      let filePath = documentPath;
+      
+      if (documentPath.includes('/')) {
+        const pathParts = documentPath.split('/');
+        if (pathParts.length > 1 && pathParts[0] !== 'Document Storage') {
+          filePath = documentPath; // Keep the full path for the file
+        }
+      }
+      
+      // Get public URL or signed URL depending on bucket privacy settings
+      const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+      
+      if (!data?.publicUrl) {
         throw new LlamaParseError(
-          'LLAMA_CLOUD_API_KEY is not configured',
-          'CONFIG_ERROR'
+          'Failed to generate public URL for document',
+          'STORAGE_URL_ERROR'
         );
       }
-
-      // Step 1: Upload document to LlamaParse with retry
-      const uploadResult = await retryWithExponentialBackoff(async () => {
-        const response = await fetch(`${this.LLAMA_CLOUD_API_URL}/upload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            file_url: documentUrl,
-            file_type: documentType
-          })
-        });
-
-        if (!response.ok) {
-          const errorBody = await response.text();
-          throw new LlamaParseError(
-            `Upload failed: ${response.statusText}`,
-            'UPLOAD_ERROR',
-            { status: response.status, body: errorBody }
-          );
-        }
-
-        return response.json();
-      }, {
-        maxAttempts: 3,
-        initialDelay: 2000
+      
+      console.log(`Generated public URL for document: ${data.publicUrl}`);
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error getting public URL:', error);
+      throw new LlamaParseError(
+        `Failed to get public URL: ${error instanceof Error ? error.message : String(error)}`,
+        'STORAGE_ACCESS_ERROR',
+        { documentPath }
+      );
+    }
+  }
+  
+  /**
+   * Parse a document using the LlamaCloud API
+   * @param documentUrl The URL or path to the document
+   * @param fileType The MIME type of the document
+   * @param clientId The client ID for logging (optional)
+   * @param agentName The agent name for logging (optional)
+   * @returns A response containing the parsed content or error
+   */
+  static async parseDocument(
+    documentUrl: string, 
+    fileType: string = 'application/pdf',
+    clientId?: string,
+    agentName?: string
+  ): Promise<ParseResponse> {
+    try {
+      console.log(`Starting document parsing for ${documentUrl}`);
+      
+      // If documentUrl doesn't start with http or https, it's likely a storage path
+      // so get the public URL for it
+      let accessibleUrl = documentUrl;
+      if (!documentUrl.startsWith('http://') && !documentUrl.startsWith('https://')) {
+        console.log(`Getting public URL for document path: ${documentUrl}`);
+        accessibleUrl = await this.getPublicUrl(documentUrl);
+      }
+      
+      // Verify the API key is available
+      if (!this.LLAMA_CLOUD_API_KEY) {
+        console.error('LlamaCloud API key is not configured');
+        return {
+          success: false,
+          error: 'LlamaCloud API key is not configured',
+          errorDetails: { code: 'API_KEY_MISSING' }
+        };
+      }
+      
+      // Standardize file type for LlamaParse API
+      // LlamaParse expects types like 'pdf', 'txt', etc.
+      const standardizedFileType = this.standardizeFileType(fileType);
+      
+      console.log(`Parsing document using LlamaParse: URL=${accessibleUrl}, type=${standardizedFileType}`);
+      
+      // Step 1: Upload document to LlamaParse
+      console.log(`Uploading document to LlamaParse with type: ${standardizedFileType}`);
+      const uploadResponse = await fetch('https://api.cloud.llamaindex.ai/api/parsing/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.LLAMA_CLOUD_API_KEY}`
+        },
+        body: JSON.stringify({
+          file_url: accessibleUrl,
+          file_type: standardizedFileType
+        })
       });
-
-      const jobId = uploadResult.job_id;
-
-      // Step 2: Poll for job completion with improved error handling
+      
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error(`LlamaParse upload failed: ${errorText}`);
+        return {
+          success: false,
+          error: `LlamaParse upload failed with status ${uploadResponse.status}`,
+          errorDetails: { response: errorText, code: 'LLAMAPARSE_UPLOAD_ERROR' }
+        };
+      }
+      
+      const uploadData = await uploadResponse.json();
+      const documentId = uploadData.id;
+      
+      if (!documentId) {
+        console.error('LlamaParse upload did not return a document ID', uploadData);
+        return {
+          success: false,
+          error: 'LlamaParse upload did not return a document ID',
+          errorDetails: { response: uploadData, code: 'LLAMAPARSE_INVALID_RESPONSE' }
+        };
+      }
+      
+      console.log(`Document uploaded to LlamaParse with ID: ${documentId}`);
+      
+      // Step 2: Wait for parsing to complete and retrieve the result
+      let parseResult;
       let attempts = 0;
-      const maxAttempts = 30;
-      const pollInterval = 10000; // 10 seconds
-
-      while (attempts < maxAttempts) {
-        const jobStatus = await retryWithExponentialBackoff(async () => {
-          const response = await fetch(`${this.LLAMA_CLOUD_API_URL}/job/${jobId}`, {
-            headers: {
-              'Authorization': `Bearer ${apiKey}`
-            }
-          });
-
-          if (!response.ok) {
-            throw new LlamaParseError(
-              `Failed to check job status: ${response.statusText}`,
-              'STATUS_CHECK_ERROR',
-              { status: response.status }
-            );
+      const MAX_ATTEMPTS = 20; // Increase timeout for larger documents
+      
+      while (attempts < MAX_ATTEMPTS) {
+        console.log(`Checking parse status (attempt ${attempts + 1}/${MAX_ATTEMPTS})...`);
+        
+        const statusResponse = await fetch(`https://api.cloud.llamaindex.ai/api/parsing/${documentId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${this.LLAMA_CLOUD_API_KEY}`
           }
-
-          return response.json();
-        }, {
-          maxAttempts: 2,
-          initialDelay: 1000
         });
-
-        if (jobStatus.status === 'completed') {
-          // Step 3: Get the parsed content with retry
-          const result = await retryWithExponentialBackoff(async () => {
-            const response = await fetch(`${this.LLAMA_CLOUD_API_URL}/result/${jobId}`, {
-              headers: {
-                'Authorization': `Bearer ${apiKey}`
+        
+        if (!statusResponse.ok) {
+          const errorText = await statusResponse.text();
+          console.error(`Error checking parse status: ${errorText}`);
+          attempts++;
+          
+          if (attempts >= MAX_ATTEMPTS) {
+            return {
+              success: false,
+              error: `Failed to check parse status after ${MAX_ATTEMPTS} attempts`,
+              errorDetails: { 
+                documentId, 
+                lastResponse: errorText, 
+                code: 'LLAMAPARSE_STATUS_ERROR' 
               }
-            });
-
-            if (!response.ok) {
-              throw new LlamaParseError(
-                `Failed to get results: ${response.statusText}`,
-                'RESULT_FETCH_ERROR',
-                { status: response.status }
-              );
-            }
-
-            return response.json();
-          });
-
-          // Validate the content
-          if (!result.content || typeof result.content !== 'string') {
-            throw new LlamaParseError(
-              'Invalid content received from LlamaParse',
-              'INVALID_CONTENT',
-              { result }
-            );
+            };
           }
-
-          return {
-            success: true,
-            content: result.content,
-            metadata: {
-              title: result.metadata?.title,
-              pageCount: result.metadata?.page_count,
-              author: result.metadata?.author,
-              createdAt: result.metadata?.created_at,
-              fileType: documentType,
-              processingMethod: 'llamaparse',
-              jobId: jobId,
-              clientId: clientId,
-              agentName: agentName,
-              processedAt: new Date().toISOString(),
-              contentLength: result.content.length,
-              language: result.metadata?.language || 'unknown'
-            },
-            documentId: `llama-${jobId}`
-          };
-        } else if (jobStatus.status === 'failed') {
-          throw new LlamaParseError(
-            `Job failed: ${jobStatus.error || 'Unknown error'}`,
-            'JOB_FAILED',
-            jobStatus
-          );
+          
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue;
         }
-
-        await sleep(pollInterval);
+        
+        parseResult = await statusResponse.json();
+        
+        // Check the status of the parsing
+        if (parseResult.status === 'processed') {
+          console.log('Document parsing completed successfully');
+          break;
+        } else if (parseResult.status === 'failed') {
+          console.error('Document parsing failed', parseResult);
+          return {
+            success: false,
+            error: 'Document parsing failed',
+            errorDetails: { response: parseResult, code: 'LLAMAPARSE_PROCESSING_FAILED' }
+          };
+        }
+        
+        // If still processing, wait and try again
+        console.log(`Document still processing (status: ${parseResult.status}), waiting...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
         attempts++;
       }
-
-      throw new LlamaParseError(
-        'Job timed out after 5 minutes',
-        'TIMEOUT_ERROR'
-      );
-    } catch (error) {
-      console.error('Error in parseDocument:', error);
       
-      // Convert all errors to LlamaParseError format
-      const llamaError = error instanceof LlamaParseError
-        ? error
-        : new LlamaParseError(
-            error instanceof Error ? error.message : 'Unknown error in LlamaParse',
-            'UNKNOWN_ERROR',
-            { originalError: error }
-          );
-
+      if (attempts >= MAX_ATTEMPTS) {
+        console.error('Document parsing timed out');
+        return {
+          success: false,
+          error: 'Document parsing timed out',
+          errorDetails: { documentId, code: 'LLAMAPARSE_TIMEOUT' }
+        };
+      }
+      
+      // Step 3: Extract the document content
+      if (!parseResult || !parseResult.results || parseResult.results.length === 0) {
+        console.error('No parsing results found', parseResult);
+        return {
+          success: false,
+          error: 'No parsing results found',
+          errorDetails: { response: parseResult, code: 'LLAMAPARSE_EMPTY_RESULT' }
+        };
+      }
+      
+      // Extract the text content from the results
+      const content = parseResult.results.map((chunk: any) => chunk.text).join('\n\n');
+      
+      // Extract metadata from the results
+      const metadata = {
+        title: parseResult.metadata?.title || '',
+        author: parseResult.metadata?.author || '',
+        createdAt: parseResult.metadata?.created_at || '',
+        pageCount: parseResult.metadata?.page_count || 0,
+        language: parseResult.metadata?.language || 'en',
+        processingMethod: 'llamaparse',
+        processedAt: new Date().toISOString(),
+        llamaparseId: documentId,
+        documentUrl: accessibleUrl,
+        clientId,
+        agentName
+      };
+      
+      console.log(`Document parsed successfully with ${content.length} characters`);
+      
+      return {
+        success: true,
+        content,
+        metadata
+      };
+    } catch (error) {
+      console.error('Error in LlamaCloudService.parseDocument:', error);
+      const isLlamaParseError = error instanceof LlamaParseError;
       return {
         success: false,
-        error: llamaError.message,
+        error: `Error parsing document: ${error instanceof Error ? error.message : String(error)}`,
         errorDetails: {
-          code: llamaError.code,
-          details: llamaError.details
-        },
-        content: '',
-        metadata: {
-          fileType: documentType,
-          processingMethod: 'llamaparse',
-          error: llamaError.message,
-          errorCode: llamaError.code,
-          failedAt: new Date().toISOString()
-        },
-        documentId: `error-${Date.now()}`
+          code: isLlamaParseError ? (error as LlamaParseError).code : 'UNEXPECTED_ERROR',
+          details: isLlamaParseError ? (error as LlamaParseError).details : undefined
+        }
       };
     }
   }
-
+  
   /**
-   * Creates embeddings and stores them in the vector database
-   * This would typically be done after document parsing
+   * Standardize file type for LlamaParse API
+   * @param fileType The MIME type or file extension
+   * @returns A standardized file type
    */
-  static async createEmbeddings(
-    clientId: string,
-    agentName: string,
-    documentId: string
-  ): Promise<ParseResponse> {
-    try {
-      console.log(`Creating embeddings for document ${documentId}`);
-      
-      // Call a Supabase function to create embeddings (we'd need to create this)
-      const { data, error } = await supabase.functions.invoke('create-embeddings', {
-        method: 'POST',
-        body: {
-          clientId,
-          agentName,
-          documentId
-        },
-      });
-      
-      if (error) {
-        console.error('Error creating embeddings:', error);
-        return {
-          success: false,
-          error: error.message || 'Failed to create embeddings',
-          content: '',
-          metadata: {
-            error: error.message || 'Failed to create embeddings'
-          },
-          documentId
-        };
-      }
-      
-      return {
-        success: true,
-        content: 'Embeddings created successfully',
-        metadata: {
-          processingMethod: 'embeddings',
-          clientId,
-          agentName,
-          documentId
-        },
-        documentId,
-        data
-      };
-    } catch (error) {
-      console.error('Error in createEmbeddings:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create embeddings',
-        content: '',
-        metadata: {
-          error: error instanceof Error ? error.message : 'Failed to create embeddings'
-        },
-        documentId
-      };
+  private static standardizeFileType(fileType: string): string {
+    // If file type is already just an extension (pdf, txt, etc.), return it
+    if (/^[a-z0-9]+$/.test(fileType.toLowerCase())) {
+      return fileType.toLowerCase();
     }
-  }
-
-  /**
-   * Adds a processed document to an OpenAI Assistant
-   */
-  static async addDocumentToOpenAIAssistant(
-    clientId: string,
-    agentName: string,
-    documentContent: string,
-    documentTitle: string
-  ): Promise<ParseResponse> {
-    try {
-      console.log(`Adding document "${documentTitle}" to OpenAI Assistant for client ${clientId}`);
+    
+    // Handle MIME types
+    if (fileType.includes('/')) {
+      const mimeType = fileType.toLowerCase();
       
-      // Get the OpenAI Assistant ID for this client
-      const result = await supabase
-        .from("ai_agents")
-        .select("openai_assistant_id")
-        .eq("client_id", clientId)
-        .eq("interaction_type", "config")
-        .single();
-      
-      // Properly handle errors and check for the column
-      if (result.error) {
-        console.error('Error finding OpenAI Assistant ID for this client:', result.error);
-        
-        // Special handling for missing column error
-        if (result.error.message?.includes("column 'openai_assistant_id' does not exist")) {
-          console.error('The openai_assistant_id column is missing. Running migration...');
-          
-          // Run the migration to add the column via the Edge Function
-          const { data: migrationData, error: migrationError } = await supabase.functions.invoke('execute_sql', {
-            method: 'POST',
-            body: {
-              sql: `ALTER TABLE public.ai_agents ADD COLUMN IF NOT EXISTS openai_assistant_id text;`
-            },
-          });
-          
-          if (migrationError) {
-            console.error('Failed to add openai_assistant_id column:', migrationError);
-            return {
-              success: false,
-              error: `Failed to add required column: ${migrationError.message}`,
-              content: '',
-              metadata: {
-                error: `Failed to add required column: ${migrationError.message}`
-              },
-              documentId: `error-${Date.now()}`
-            };
-          }
-          
-          console.log('Successfully added openai_assistant_id column');
-        }
-        
-        // Create a new OpenAI Assistant for this client
-        const { data: createData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
-          method: 'POST',
-          body: {
-            client_id: clientId,
-            agent_name: agentName,
-            agent_description: `Assistant for ${agentName}`,
-          },
-        });
-        
-        if (createError || !createData?.assistant_id) {
-          console.error('Failed to create OpenAI Assistant:', createError);
-          return {
-            success: false,
-            error: createError?.message || 'Failed to create OpenAI Assistant',
-            content: '',
-            metadata: {
-              error: createError?.message || 'Failed to create OpenAI Assistant'
-            },
-            documentId: `error-${Date.now()}`
-          };
-        }
-        
-        // The new assistant_id will be used in the subsequent call to upload-document-to-assistant
-      } else if (!result.data || !result.data.openai_assistant_id) {
-        console.log('No openai_assistant_id found for this client. Creating new assistant...');
-        
-        // Create a new OpenAI Assistant for this client
-        const { data: createData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
-          method: 'POST',
-          body: {
-            client_id: clientId,
-            agent_name: agentName,
-            agent_description: `Assistant for ${agentName}`,
-          },
-        });
-        
-        if (createError || !createData?.assistant_id) {
-          console.error('Failed to create OpenAI Assistant:', createError);
-          return {
-            success: false,
-            error: createError?.message || 'Failed to create OpenAI Assistant',
-            content: '',
-            metadata: {
-              error: createError?.message || 'Failed to create OpenAI Assistant'
-            },
-            documentId: `error-${Date.now()}`
-          };
-        }
-        
-        console.log('Created new OpenAI Assistant with ID:', createData.assistant_id);
-      } else {
-        console.log('Found existing OpenAI Assistant ID:', result.data.openai_assistant_id);
-      }
-      
-      // Now call the Supabase function to add the document to the assistant
-      const { data, error } = await supabase.functions.invoke('upload-document-to-assistant', {
-        method: 'POST',
-        body: {
-          clientId,
-          agentName,
-          documentContent,
-          documentTitle
-        },
-      });
-      
-      if (error) {
-        console.error('Error adding document to OpenAI Assistant:', error);
-        return {
-          success: false,
-          error: error.message || 'Failed to add document to OpenAI Assistant',
-          content: '',
-          metadata: {
-            error: error.message || 'Failed to add document to OpenAI Assistant'
-          },
-          documentId: `error-${Date.now()}`
-        };
-      }
-      
-      console.log('Successfully added document to OpenAI Assistant:', data);
-      
-      return {
-        success: true,
-        content: documentContent.substring(0, 100) + '...',
-        metadata: {
-          title: documentTitle,
-          processingMethod: 'openai-assistant',
-          assistantId: data.assistant_id,
-          fileId: data.file_id
-        },
-        documentId: `openai-${data.file_id}`,
-        data
-      };
-    } catch (error) {
-      console.error('Error in addDocumentToOpenAIAssistant:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to add document to OpenAI Assistant',
-        content: '',
-        metadata: {
-          error: error instanceof Error ? error.message : 'Failed to add document to OpenAI Assistant'
-        },
-        documentId: `error-${Date.now()}`
-      };
+      // Map common MIME types to expected LlamaParse formats
+      if (mimeType.includes('pdf')) return 'pdf';
+      if (mimeType.includes('text/plain')) return 'txt';
+      if (mimeType.includes('text/csv') || mimeType.includes('csv')) return 'csv';
+      if (mimeType.includes('word') || mimeType.includes('docx') || mimeType.includes('doc')) return 'docx';
+      if (mimeType.includes('excel') || mimeType.includes('xlsx') || mimeType.includes('xls')) return 'xlsx';
+      if (mimeType.includes('powerpoint') || mimeType.includes('pptx') || mimeType.includes('ppt')) return 'pptx';
+      if (mimeType.includes('html')) return 'html';
+      if (mimeType.includes('markdown') || mimeType.includes('md')) return 'md';
+      if (mimeType.includes('json')) return 'json';
     }
-  }
-
-  /**
-   * Verifies that all required components for OpenAI Assistant integration are in place
-   */
-  static async verifyAssistantIntegration(): Promise<ParseResponse> {
-    try {
-      console.log('Verifying OpenAI Assistant Integration components...');
-      
-      // Check 1: Verify required API keys using a safer approach in browser context
-      const { data: secretsData, error: secretsError } = await supabase.functions.invoke('check-secrets', {
-        method: 'POST',
-        body: { 
-          required: ['OPENAI_API_KEY', 'LLAMA_CLOUD_API_KEY', 'FIRECRAWL_API_KEY'] 
-        },
-      });
-      
-      if (secretsError || !secretsData?.success) {
-        return {
-          success: false,
-          error: 'Missing required API keys: ' + (secretsData?.missing?.join(', ') || 'Unknown'),
-          content: '',
-          metadata: {
-            error: 'Missing required API keys'
-          },
-          documentId: `verify-${Date.now()}`
-        };
-      }
-      
-      // Check 2: Verify the openai_assistant_id column exists in ai_agents table
-      const { data: columnData, error: columnError } = await supabase.functions.invoke('check-table-exists', {
-        method: 'POST',
-        body: { table_name: 'ai_agents' },
-      });
-      
-      if (columnError || !columnData?.exists) {
-        return {
-          success: false,
-          error: 'The ai_agents table is missing or inaccessible',
-          content: '',
-          metadata: {
-            error: 'The ai_agents table is missing or inaccessible'
-          },
-          documentId: `verify-${Date.now()}`
-        };
-      }
-      
-      // Check 3: Verify the edge functions are deployed - uses basic ping test
-      const requiredFunctions = [
-        'process-document', 
-        'create-openai-assistant', 
-        'upload-document-to-assistant'
-      ];
-      
-      let missingFunctions = [];
-      for (const funcName of requiredFunctions) {
-        try {
-          // Simple test call to check if function exists and responds
-          const { error } = await supabase.functions.invoke(funcName, {
-            method: 'GET',
-            body: { test: true }
-          });
-          
-          if (error) {
-            console.error(`Edge function ${funcName} appears to be unavailable:`, error);
-            missingFunctions.push(funcName);
-          }
-        } catch (e) {
-          console.error(`Edge function ${funcName} appears to be missing:`, e);
-          missingFunctions.push(funcName);
-        }
-      }
-      
-      if (missingFunctions.length > 0) {
-        return {
-          success: false,
-          error: `Required Edge Functions are not deployed correctly: ${missingFunctions.join(', ')}`,
-          content: '',
-          metadata: {
-            error: `Required Edge Functions are not deployed correctly: ${missingFunctions.join(', ')}`
-          },
-          documentId: `verify-${Date.now()}`
-        };
-      }
-      
-      // Check 4: Verify document storage bucket exists
-      const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('documents');
-      
-      if (bucketError) {
-        return {
-          success: false,
-          error: 'Document storage bucket is missing or inaccessible',
-          content: '',
-          metadata: {
-            error: 'Document storage bucket is missing or inaccessible'
-          },
-          documentId: `verify-${Date.now()}`
-        };
-      }
-      
-      // Check 5: Run the OpenAI migration if needed
-      try {
-        // This checks if the openai_assistant_id column exists in the ai_agents table
-        const { data: columnCheckData, error: columnCheckError } = await callRpcFunction('exec_sql', {
-          sql_query: `
-            SELECT EXISTS (
-              SELECT FROM information_schema.columns 
-              WHERE table_schema = 'public' 
-              AND table_name = 'ai_agents' 
-              AND column_name = 'openai_assistant_id'
-            ) as exists
-          `
-        });
-        
-        // Fixed type error - properly check the response structure
-        const columnExists = columnCheckData && 
-                            Array.isArray(columnCheckData) && 
-                            columnCheckData.length > 0 && 
-                            columnCheckData[0] !== null && 
-                            typeof columnCheckData[0] === 'object' &&
-                            'exists' in columnCheckData[0] && 
-                            columnCheckData[0].exists === true;
-        
-        if (columnCheckError || !columnExists) {
-          console.log('The openai_assistant_id column is missing. Running migration...');
-          
-          // Run the migration to add the column via the Edge Function
-          const { data: migrationData, error: migrationError } = await supabase.functions.invoke('execute_sql', {
-            method: 'POST',
-            body: {
-              sql: `ALTER TABLE public.ai_agents ADD COLUMN IF NOT EXISTS openai_assistant_id text;`
-            },
-          });
-          
-          if (migrationError) {
-            console.error('Failed to add openai_assistant_id column:', migrationError);
-            return {
-              success: false,
-              error: `Failed to add required column: ${migrationError.message}`,
-              content: '',
-              metadata: {
-                error: `Failed to add required column: ${migrationError.message}`
-              },
-              documentId: `verify-${Date.now()}`
-            };
-          }
-          
-          console.log('Successfully added openai_assistant_id column');
-        }
-      } catch (error) {
-        console.error('Error checking for openai_assistant_id column:', error);
-        // Non-fatal error, continue with verification
-      }
-      
-      const verificationDetails = {
-        message: 'All OpenAI Assistant and Firecrawl integration components verified successfully',
-        apiKeysAvailable: true,
-        databaseReady: true,
-        edgeFunctionsDeployed: true,
-        storageBucketReady: true,
-        firecrawlConfigured: true
-      };
-      
-      return {
-        success: true,
-        content: 'Verification successful',
-        metadata: {
-          processingMethod: 'verification',
-          verificationDetails
-        },
-        documentId: `verify-${Date.now()}`,
-        data: verificationDetails
-      };
-    } catch (error) {
-      console.error('Error verifying assistant integration:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to verify assistant integration',
-        content: '',
-        metadata: {
-          error: error instanceof Error ? error.message : 'Failed to verify assistant integration'
-        },
-        documentId: `verify-${Date.now()}`
-      };
+    
+    // For file paths, extract extension
+    if (fileType.includes('.')) {
+      const extension = fileType.split('.').pop()?.toLowerCase();
+      if (extension) return extension;
     }
+    
+    // Default to pdf if we can't determine the type
+    console.warn(`Could not determine standardized file type for: ${fileType}, defaulting to pdf`);
+    return 'pdf';
   }
 }
