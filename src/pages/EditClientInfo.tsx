@@ -4,12 +4,14 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientData } from "@/hooks/useClientData";
-import { ClientDetails } from "@/components/client/ClientDetails";
+import { ClientDetailsCard } from "@/components/client/ClientDetailsCard";
 import { ClientResourceSections } from "@/components/client/ClientResourceSections";
 import { useClientActivity } from "@/hooks/useClientActivity";
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/dashboard/PageHeading';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientForm } from "@/components/client/ClientForm";
 
 const EditClientInfo = () => {
   const navigate = useNavigate();
@@ -29,7 +31,7 @@ const EditClientInfo = () => {
   
   console.log("EditClientInfo - using clientId:", clientId);
   
-  const { client, isLoadingClient, error, refetchClient } = useClientData(clientId);
+  const { client, isLoadingClient, error, refetchClient, clientMutation } = useClientData(clientId);
   const { logClientActivity } = useClientActivity(clientId);
   
   useEffect(() => {
@@ -49,6 +51,27 @@ const EditClientInfo = () => {
       navigate('/client/dashboard');
     } else {
       navigate('/admin/clients');
+    }
+  };
+
+  const handleSubmit = async (data: any) => {
+    try {
+      await clientMutation.mutateAsync(data);
+      
+      // Log activity
+      await logClientActivity(
+        'client_updated',
+        `Updated client information`,
+        { fields_updated: Object.keys(data) }
+      );
+      
+      toast.success("Client information updated successfully");
+      
+      // Refresh client data
+      refetchClient();
+    } catch (error) {
+      console.error("Error updating client:", error);
+      toast.error("Failed to update client information");
     }
   };
 
@@ -98,12 +121,21 @@ const EditClientInfo = () => {
         </div>
 
         <div className="space-y-8">
-          <ClientDetails 
-            client={client}
-            clientId={clientId || ''}
-            isClientView={isClientView}
-            logClientActivity={logClientActivity}
-          />
+          <Card className="border border-gray-100 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {isClientView ? 'Your Information' : 'Client Information'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ClientForm
+                initialData={client}
+                onSubmit={handleSubmit}
+                isLoading={clientMutation.isPending}
+                isClientView={isClientView}
+              />
+            </CardContent>
+          </Card>
 
           <ClientResourceSections 
             clientId={clientId || ''}
