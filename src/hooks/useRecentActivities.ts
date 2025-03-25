@@ -2,6 +2,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useRef } from "react";
+import type { Json } from "@/integrations/supabase/types";
 import { execSql } from "@/utils/rpcUtils";
 
 export const useRecentActivities = () => {
@@ -14,45 +15,152 @@ export const useRecentActivities = () => {
     queryFn: async () => {
       console.log("Fetching recent activities...");
       
-      // Use the SQL function to avoid type issues
-      const result = await execSql(`
-        SELECT 
-          ca.id,
-          ca.activity_type,
-          ca.description,
-          ca.created_at,
-          ca.metadata,
-          ca.client_id,
-          COALESCE(a.name, 'System') as agent_name,
-          COALESCE(a.client_name, 'Unknown Client') as client_name,
-          a.email as client_email
-        FROM 
-          client_activities ca
-        LEFT JOIN 
-          ai_agents a ON ca.client_id = a.client_id AND a.interaction_type = 'config'
-        ORDER BY 
-          ca.created_at DESC
-        LIMIT 15
-      `);
-      
-      if (!result || !Array.isArray(result)) {
-        console.error("No activities found or invalid response format");
+      // First, fetch the activities
+      const { data: activities, error } = await supabase
+        .from("client_activities")
+        .select(`
+          id,
+          activity_type,
+          description,
+          created_at,
+          metadata,
+          client_id
+        `)
+        .order('created_at', { ascending: false })
+        .limit(15);
+
+      if (error) {
+        console.error("Error fetching activities:", error);
+        throw error;
+      }
+
+      // If there are no activities, return empty array
+      if (!activities || activities.length === 0) {
         return [];
       }
       
-      console.log("Found activities:", result.length);
+      // Get all unique client IDs
+      const clientIds = [...new Set(activities.map(a => a.client_id))].filter(Boolean) as string[];
       
-      // Format the activities
-      return result.map(activity => ({
-        id: activity.id,
-        activity_type: activity.activity_type,
-        description: activity.description,
-        created_at: activity.created_at,
-        metadata: activity.metadata,
-        client_id: activity.client_id,
-        client_name: activity.client_name,
-        client_email: activity.client_email,
-        agent_name: activity.agent_name
+      // If we have client IDs, fetch their names and details
+      if (clientIds.length > 0) {
+        try {
+          // Use the same approach as Client Management page - directly query ai_agents
+          const { data: clientsData, error: clientsError } = await supabase
+            .from('ai_agents')
+            .select('client_id, name, settings, client_name, email')
+            .in('client_id', clientIds)
+            .eq('interaction_type', 'config');
+            
+          if (clientsError) {
+            console.error("Error fetching client info:", clientsError);
+          }
+          
+          // Map of client info keyed by client_id
+          const clientInfoMap: Record<string, any> = {};
+          
+          // Populate client info map from ai_agents data
+          if (clientsData && Array.isArray(clientsData) && clientsData.length > 0) {
+            clientsData.forEach((agent: any) => {
+              if (agent && typeof agent === 'object' && agent.client_id) {
+                const clientId = agent.client_id;
+                
+                // Initialize or get existing entry
+                clientInfoMap[clientId] = clientInfoMap[clientId] || {};
+                
+                // Determine best client name from multiple possible sources
+                const settingsClientName = agent.settings?.client_name;
+                const directClientName = agent.client_name;
+                const agentName = agent.name;
+                
+                const clientName = 
+                  (typeof settingsClientName === 'string' && settingsClientName.trim() !== '' ? settingsClientName : null) || 
+                  (typeof directClientName === 'string' && directClientName.trim() !== '' ? directClientName : null) || 
+                  (typeof agentName === 'string' && agentName.trim() !== '' ? agentName : null) || 
+                  null;
+                
+                clientInfoMap[clientId] = {
+                  ...clientInfoMap[clientId],
+                  clientName: clientName,
+                  email: typeof agent.email === 'string' ? agent.email : null,
+                  agentName: typeof agent.name === 'string' ? agent.name : null
+                };
+              }
+            });
+          }
+          
+          // Also try querying by ID for any clients we couldn't find
+          const missingClientIds = clientIds.filter(id => !clientInfoMap[id]);
+          if (missingClientIds.length > 0) {
+            // Try to fetch by ID (for cases where client_id might be the id field)
+            const { data: additionalClientData, error: additionalError } = await supabase
+              .from('ai_agents')
+              .select('id, name, settings, client_name, email')
+              .in('id', missingClientIds)
+              .eq('interaction_type', 'config');
+              
+            if (!additionalError && additionalClientData && additionalClientData.length > 0) {
+              additionalClientData.forEach((agent: any) => {
+                if (agent && typeof agent === 'object' && agent.id) {
+                  const clientId = agent.id;
+                  
+                  // Determine best client name
+                  const settingsClientName = agent.settings?.client_name;
+                  const directClientName = agent.client_name;
+                  const agentName = agent.name;
+                  
+                  const clientName = 
+                    (typeof settingsClientName === 'string' && settingsClientName.trim() !== '' ? settingsClientName : null) || 
+                    (typeof directClientName === 'string' && directClientName.trim() !== '' ? directClientName : null) || 
+                    (typeof agentName === 'string' && agentName.trim() !== '' ? agentName : null) || 
+                    null;
+                  
+                  clientInfoMap[clientId] = {
+                    clientName: clientName,
+                    email: typeof agent.email === 'string' ? agent.email : null,
+                    agentName: typeof agent.name === 'string' ? agent.name : null
+                  };
+                }
+              });
+            }
+          }
+          
+          // Map activities with client information
+          return activities.map(activity => {
+            // Get client ID or use a placeholder
+            const clientId = activity.client_id || '';
+            
+            // First check if metadata contains client information
+            let clientName = null;
+            if (activity.metadata && typeof activity.metadata === 'object' && activity.metadata !== null) {
+              // Extract client info from metadata
+              const metadataObj = activity.metadata as Record<string, any>;
+              if (metadataObj.client_name && typeof metadataObj.client_name === 'string' && metadataObj.client_name.trim() !== '') {
+                clientName = String(metadataObj.client_name);
+              } else if (metadataObj.name && typeof metadataObj.name === 'string' && metadataObj.name.trim() !== '') {
+                clientName = String(metadataObj.name);
+              }
+            }
+            
+            // Use clientInfoMap if available, otherwise use metadata or fallback
+            const clientInfo = clientInfoMap[clientId] || {};
+            
+            return {
+              ...activity,
+              client_name: clientInfo.clientName || clientName || (clientId ? clientId : "System"),
+              client_email: clientInfo.email || null,
+              agent_name: clientInfo.agentName || null
+            };
+          });
+        } catch (err) {
+          console.error("Error processing client details:", err);
+        }
+      }
+
+      // If all else fails, return activities with a generic info
+      return activities.map(activity => ({
+        ...activity,
+        client_name: activity.client_id ? activity.client_id : "System"
       }));
     },
     refetchInterval: 1 * 60 * 1000, // Refetch every minute

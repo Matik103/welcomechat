@@ -3,7 +3,7 @@ import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
-import { MessageCircle, Loader2, AlertCircle } from "lucide-react";
+import { MessageCircle, Loader2 } from "lucide-react";
 import { useChatPreview } from "@/hooks/useChatPreview";
 
 interface WidgetPreviewProps {
@@ -16,25 +16,21 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const effectiveClientId = clientId || 'test-client-id';
-  if (!clientId) {
-    console.warn('No client ID provided to WidgetPreview, using test-client-id as fallback');
-  }
-
   const {
     messages: chatMessages,
     isLoading,
     error,
     sendMessage,
     clearChat
-  } = useChatPreview(effectiveClientId);
+  } = useChatPreview(clientId || '');
 
+  // Transform messages for the UI
   const displayMessages = [
     { text: settings.welcome_text || "Hi 👋, how can I help?", isUser: false },
-    ...(Array.isArray(chatMessages) ? chatMessages.map(msg => ({
+    ...chatMessages.map(msg => ({
       text: msg.content,
       isUser: msg.role === 'user'
-    })) : [])
+    }))
   ];
 
   const scrollToBottom = () => {
@@ -54,25 +50,10 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
 
     const message = inputValue;
     setInputValue("");
-    try {
-      await sendMessage(message);
-    } catch (err) {
-      console.error('Error sending message:', err);
-      // The error will be handled by the useChatPreview hook
-    }
+    await sendMessage(message);
   };
 
-  const renderError = () => {
-    if (!error) return null;
-    
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-opacity-50 bg-gray-100 p-4">
-        <AlertCircle className="w-8 h-8 text-red-500 mb-2" />
-        <p className="text-center text-red-500 text-sm">{error}</p>
-      </div>
-    );
-  };
-
+  // Render the appropriate widget based on the display mode
   const renderWidgetPreview = () => {
     switch(settings.display_mode) {
       case 'inline':
@@ -85,6 +66,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     }
   };
 
+  // Render the floating widget preview
   const renderFloatingWidget = () => {
     return (
       <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex justify-end items-end p-4 bg-gray-50">
@@ -122,9 +104,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                 </div>
               )}
               
-              {error && renderError()}
-              
-              {!isLoading && !error && (
+              {!isLoading && (
                 <>
                   <ChatMessages 
                     messages={displayMessages}
@@ -172,6 +152,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     );
   };
 
+  // Render the inline widget preview
   const renderInlineWidget = () => {
     return (
       <div className="w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex flex-col justify-center items-center p-4 bg-gray-50">
@@ -191,44 +172,39 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           </div>
           
           <div className="h-[250px] overflow-y-auto p-3" style={{ backgroundColor: settings.background_color }}>
-            {error ? (
-              <div className="flex flex-col items-center justify-center h-full">
-                <AlertCircle className="w-6 h-6 text-red-500 mb-2" />
-                <p className="text-center text-red-500 text-sm">{error}</p>
+            {displayMessages.map((message, index) => (
+              <div 
+                key={index} 
+                className={`mb-2 ${message.isUser ? 'text-right' : 'text-left'}`}
+              >
+                <div 
+                  className={`inline-block px-3 py-2 rounded-lg max-w-[80%] ${
+                    message.isUser 
+                      ? 'bg-indigo-600 text-white' 
+                      : `bg-${settings.secondary_color} text-${settings.text_color}`
+                  }`}
+                  style={{ 
+                    backgroundColor: message.isUser ? settings.chat_color : settings.secondary_color,
+                    color: message.isUser ? 'white' : settings.text_color
+                  }}
+                >
+                  {message.text}
+                </div>
               </div>
-            ) : (
-              <>
-                {displayMessages.map((message, index) => (
-                  <div 
-                    key={index} 
-                    className={`mb-2 ${message.isUser ? 'text-right' : 'text-left'}`}
-                  >
-                    <div 
-                      className={`inline-block px-3 py-2 rounded-lg max-w-[80%]`}
-                      style={{ 
-                        backgroundColor: message.isUser ? settings.chat_color : settings.secondary_color,
-                        color: message.isUser ? 'white' : settings.text_color
-                      }}
-                    >
-                      {message.text}
-                    </div>
+            ))}
+            {isLoading && (
+              <div className="text-left mb-2">
+                <div 
+                  className="inline-block px-3 py-2 rounded-lg bg-gray-200"
+                  style={{ backgroundColor: settings.secondary_color, color: settings.text_color }}
+                >
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-100"></div>
+                    <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-200"></div>
+                    <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-300"></div>
                   </div>
-                ))}
-                {isLoading && (
-                  <div className="text-left mb-2">
-                    <div 
-                      className="inline-block px-3 py-2 rounded-lg bg-gray-200"
-                      style={{ backgroundColor: settings.secondary_color, color: settings.text_color }}
-                    >
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-100"></div>
-                        <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-200"></div>
-                        <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-300"></div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
+                </div>
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>
@@ -240,14 +216,14 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
               onChange={(e) => setInputValue(e.target.value)}
               className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-1"
               placeholder="Type your message..."
-              disabled={isLoading || !!error}
+              disabled={isLoading}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             />
             <button 
               onClick={handleSendMessage}
               className="px-4 py-2 rounded-md text-white"
               style={{ backgroundColor: settings.chat_color }}
-              disabled={isLoading || !inputValue.trim() || !!error}
+              disabled={isLoading || !inputValue.trim()}
             >
               Send
             </button>
@@ -261,6 +237,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     );
   };
 
+  // Render the sidebar widget preview
   const renderSidebarWidget = () => {
     return (
       <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4 bg-gray-50">
@@ -275,6 +252,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           `}
           style={{ backgroundColor: settings.background_color }}
         >
+          {/* Tab */}
           <div 
             className={`absolute top-1/2 transform -translate-y-1/2 ${
               settings.position === 'left' ? 'right-[-40px]' : 'left-[-40px]'
@@ -298,53 +276,41 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                     src={settings.logo_url} 
                     alt="Assistant" 
                     className="w-6 h-6 object-contain rounded-full"
-                    onError={(e) => {
-                      e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";
-                    }}
                   />
                 )}
                 <span className="font-medium">{settings.agent_name || 'Chat'}</span>
               </div>
               
               <div className="flex-1 overflow-y-auto p-3">
-                {error ? (
-                  <div className="flex flex-col items-center justify-center h-full">
-                    <AlertCircle className="w-6 h-6 text-red-500 mb-2" />
-                    <p className="text-center text-red-500 text-sm">{error}</p>
+                {displayMessages.map((message, index) => (
+                  <div 
+                    key={index} 
+                    className={`mb-2 ${message.isUser ? 'text-right' : 'text-left'}`}
+                  >
+                    <div 
+                      className={`inline-block px-3 py-2 rounded-lg max-w-[80%]`}
+                      style={{ 
+                        backgroundColor: message.isUser ? settings.chat_color : settings.secondary_color,
+                        color: message.isUser ? 'white' : settings.text_color
+                      }}
+                    >
+                      {message.text}
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    {displayMessages.map((message, index) => (
-                      <div 
-                        key={index} 
-                        className={`mb-2 ${message.isUser ? 'text-right' : 'text-left'}`}
-                      >
-                        <div 
-                          className={`inline-block px-3 py-2 rounded-lg max-w-[80%]`}
-                          style={{ 
-                            backgroundColor: message.isUser ? settings.chat_color : settings.secondary_color,
-                            color: message.isUser ? 'white' : settings.text_color
-                          }}
-                        >
-                          {message.text}
-                        </div>
+                ))}
+                {isLoading && (
+                  <div className="text-left mb-2">
+                    <div 
+                      className="inline-block px-3 py-2 rounded-lg"
+                      style={{ backgroundColor: settings.secondary_color, color: settings.text_color }}
+                    >
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-100"></div>
+                        <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-200"></div>
+                        <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-300"></div>
                       </div>
-                    ))}
-                    {isLoading && (
-                      <div className="text-left mb-2">
-                        <div 
-                          className="inline-block px-3 py-2 rounded-lg"
-                          style={{ backgroundColor: settings.secondary_color, color: settings.text_color }}
-                        >
-                          <div className="flex gap-1">
-                            <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-100"></div>
-                            <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-200"></div>
-                            <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-300"></div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </>
+                    </div>
+                  </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
@@ -356,14 +322,14 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                   onChange={(e) => setInputValue(e.target.value)}
                   className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-1"
                   placeholder="Type your message..."
-                  disabled={isLoading || !!error}
+                  disabled={isLoading}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 />
                 <button 
                   onClick={handleSendMessage}
                   className="px-4 py-2 rounded-md text-white"
                   style={{ backgroundColor: settings.chat_color }}
-                  disabled={isLoading || !inputValue.trim() || !!error}
+                  disabled={isLoading || !inputValue.trim()}
                 >
                   Send
                 </button>
