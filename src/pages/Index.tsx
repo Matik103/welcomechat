@@ -88,6 +88,10 @@ const Index = () => {
     });
   }, [clientStats, interactionStats, recentActivities]);
 
+  const handleRefreshActivities = () => {
+    refetchActivities();
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -147,6 +151,7 @@ const Index = () => {
         <ActivityList 
           activities={recentActivities} 
           isLoading={isActivitiesLoading}
+          onRefresh={handleRefreshActivities}
         />
         <ActionButtons />
       </div>

@@ -36,3 +36,8 @@ export const createClientActivity = async (
     throw error;
   }
 };
+
+/**
+ * Legacy alias for createClientActivity to maintain backward compatibility
+ */
+export const createClientActivityLog = createClientActivity;

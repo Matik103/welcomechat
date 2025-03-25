@@ -1,205 +1,111 @@
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useRef } from "react";
-import type { Json } from "@/integrations/supabase/types";
-import { execSql } from "@/utils/rpcUtils";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { callRpcFunction } from '@/utils/rpcUtils';
 
-export const useRecentActivities = () => {
-  const queryClient = useQueryClient();
-  const subscriptionRef = useRef<any>(null);
-  
-  // Query recent activities
-  const query = useQuery({
-    queryKey: ["recent-activities"],
-    queryFn: async () => {
-      console.log("Fetching recent activities...");
-      
-      // First, fetch the activities
+interface Activity {
+  id: string;
+  activity_type: string;
+  description: string;
+  created_at: string;
+  metadata: any;
+  client_id: string;
+  client_name?: string;
+  client_email?: string;
+  agent_name?: string;
+  agent_description?: string;
+}
+
+export const useRecentActivities = (limit: number = 20) => {
+  const fetchRecentActivities = async (): Promise<Activity[]> => {
+    try {
+      console.log(`Fetching recent activities (limit: ${limit})`);
+
+      // First attempt: Try to use direct Supabase query with proper joins
       const { data: activities, error } = await supabase
-        .from("client_activities")
+        .from('client_activities')
         .select(`
           id,
+          client_id,
           activity_type,
           description,
           created_at,
           metadata,
-          client_id
+          ai_agents!client_id(name, client_name, email)
         `)
         .order('created_at', { ascending: false })
-        .limit(15);
+        .limit(limit);
 
       if (error) {
-        console.error("Error fetching activities:", error);
+        console.error('Error fetching recent activities:', error);
         throw error;
       }
 
-      // If there are no activities, return empty array
-      if (!activities || activities.length === 0) {
+      // Process and format the activities
+      const formattedActivities = activities.map(activity => {
+        // Extract client info from the joined ai_agents
+        const agentInfo = Array.isArray(activity.ai_agents) 
+          ? activity.ai_agents[0] 
+          : activity.ai_agents;
+
+        return {
+          id: activity.id,
+          activity_type: activity.activity_type,
+          description: activity.description,
+          created_at: activity.created_at,
+          metadata: activity.metadata || {},
+          client_id: activity.client_id,
+          client_name: agentInfo?.client_name || 'Unknown Client',
+          client_email: agentInfo?.email || '',
+          agent_name: agentInfo?.name || ''
+        };
+      });
+
+      console.log(`Retrieved ${formattedActivities.length} recent activities`);
+      return formattedActivities;
+    } catch (firstError) {
+      console.error('First attempt failed, trying fallback method:', firstError);
+      
+      // Fallback: Use SQL via RPC function for complex join
+      try {
+        const sqlQuery = `
+          SELECT 
+            ca.id, 
+            ca.client_id,
+            ca.activity_type,
+            ca.description,
+            ca.created_at,
+            ca.metadata,
+            a.client_name,
+            a.email as client_email,
+            a.name as agent_name,
+            a.agent_description
+          FROM client_activities ca
+          LEFT JOIN ai_agents a ON ca.client_id = a.client_id AND a.interaction_type = 'config'
+          ORDER BY ca.created_at DESC
+          LIMIT $1
+        `;
+        
+        const result = await callRpcFunction('exec_sql', [sqlQuery, [limit]]);
+        
+        if (!result || !Array.isArray(result)) {
+          console.error('Failed to fetch activities via SQL', result);
+          return [];
+        }
+        
+        console.log(`Retrieved ${result.length} recent activities via SQL`);
+        return result as Activity[];
+      } catch (secondError) {
+        console.error('Both activity fetching methods failed:', secondError);
         return [];
       }
-      
-      // Get all unique client IDs
-      const clientIds = [...new Set(activities.map(a => a.client_id))].filter(Boolean) as string[];
-      
-      // If we have client IDs, fetch their names and details
-      if (clientIds.length > 0) {
-        try {
-          // Use the same approach as Client Management page - directly query ai_agents
-          const { data: clientsData, error: clientsError } = await supabase
-            .from('ai_agents')
-            .select('client_id, name, settings, client_name, email')
-            .in('client_id', clientIds)
-            .eq('interaction_type', 'config');
-            
-          if (clientsError) {
-            console.error("Error fetching client info:", clientsError);
-          }
-          
-          // Map of client info keyed by client_id
-          const clientInfoMap: Record<string, any> = {};
-          
-          // Populate client info map from ai_agents data
-          if (clientsData && Array.isArray(clientsData) && clientsData.length > 0) {
-            clientsData.forEach((agent: any) => {
-              if (agent && typeof agent === 'object' && agent.client_id) {
-                const clientId = agent.client_id;
-                
-                // Initialize or get existing entry
-                clientInfoMap[clientId] = clientInfoMap[clientId] || {};
-                
-                // Determine best client name from multiple possible sources
-                const settingsClientName = agent.settings?.client_name;
-                const directClientName = agent.client_name;
-                const agentName = agent.name;
-                
-                const clientName = 
-                  (typeof settingsClientName === 'string' && settingsClientName.trim() !== '' ? settingsClientName : null) || 
-                  (typeof directClientName === 'string' && directClientName.trim() !== '' ? directClientName : null) || 
-                  (typeof agentName === 'string' && agentName.trim() !== '' ? agentName : null) || 
-                  null;
-                
-                clientInfoMap[clientId] = {
-                  ...clientInfoMap[clientId],
-                  clientName: clientName,
-                  email: typeof agent.email === 'string' ? agent.email : null,
-                  agentName: typeof agent.name === 'string' ? agent.name : null
-                };
-              }
-            });
-          }
-          
-          // Also try querying by ID for any clients we couldn't find
-          const missingClientIds = clientIds.filter(id => !clientInfoMap[id]);
-          if (missingClientIds.length > 0) {
-            // Try to fetch by ID (for cases where client_id might be the id field)
-            const { data: additionalClientData, error: additionalError } = await supabase
-              .from('ai_agents')
-              .select('id, name, settings, client_name, email')
-              .in('id', missingClientIds)
-              .eq('interaction_type', 'config');
-              
-            if (!additionalError && additionalClientData && additionalClientData.length > 0) {
-              additionalClientData.forEach((agent: any) => {
-                if (agent && typeof agent === 'object' && agent.id) {
-                  const clientId = agent.id;
-                  
-                  // Determine best client name
-                  const settingsClientName = agent.settings?.client_name;
-                  const directClientName = agent.client_name;
-                  const agentName = agent.name;
-                  
-                  const clientName = 
-                    (typeof settingsClientName === 'string' && settingsClientName.trim() !== '' ? settingsClientName : null) || 
-                    (typeof directClientName === 'string' && directClientName.trim() !== '' ? directClientName : null) || 
-                    (typeof agentName === 'string' && agentName.trim() !== '' ? agentName : null) || 
-                    null;
-                  
-                  clientInfoMap[clientId] = {
-                    clientName: clientName,
-                    email: typeof agent.email === 'string' ? agent.email : null,
-                    agentName: typeof agent.name === 'string' ? agent.name : null
-                  };
-                }
-              });
-            }
-          }
-          
-          // Map activities with client information
-          return activities.map(activity => {
-            // Get client ID or use a placeholder
-            const clientId = activity.client_id || '';
-            
-            // First check if metadata contains client information
-            let clientName = null;
-            if (activity.metadata && typeof activity.metadata === 'object' && activity.metadata !== null) {
-              // Extract client info from metadata
-              const metadataObj = activity.metadata as Record<string, any>;
-              if (metadataObj.client_name && typeof metadataObj.client_name === 'string' && metadataObj.client_name.trim() !== '') {
-                clientName = String(metadataObj.client_name);
-              } else if (metadataObj.name && typeof metadataObj.name === 'string' && metadataObj.name.trim() !== '') {
-                clientName = String(metadataObj.name);
-              }
-            }
-            
-            // Use clientInfoMap if available, otherwise use metadata or fallback
-            const clientInfo = clientInfoMap[clientId] || {};
-            
-            return {
-              ...activity,
-              client_name: clientInfo.clientName || clientName || (clientId ? clientId : "System"),
-              client_email: clientInfo.email || null,
-              agent_name: clientInfo.agentName || null
-            };
-          });
-        } catch (err) {
-          console.error("Error processing client details:", err);
-        }
-      }
+    }
+  };
 
-      // If all else fails, return activities with a generic info
-      return activities.map(activity => ({
-        ...activity,
-        client_name: activity.client_id ? activity.client_id : "System"
-      }));
-    },
-    refetchInterval: 1 * 60 * 1000, // Refetch every minute
-    refetchOnWindowFocus: true,
-    staleTime: 30 * 1000, // Data stays fresh for 30 seconds
+  return useQuery({
+    queryKey: ['recentActivities', limit],
+    queryFn: fetchRecentActivities,
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000, // 1 minute
   });
-
-  // Setup realtime subscription only once
-  useEffect(() => {
-    // Skip if we already have a subscription
-    if (subscriptionRef.current) return;
-    
-    console.log("Setting up realtime subscription for activities");
-    
-    const channel = supabase
-      .channel('recent-activities-realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'client_activities',
-      }, (payload) => {
-        // Invalidate the cache to trigger a refetch
-        console.log("Activity changed in real-time, invalidating query cache:", payload);
-        queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
-      })
-      .subscribe((status) => {
-        console.log("Realtime subscription status:", status);
-      });
-    
-    subscriptionRef.current = channel;
-    
-    return () => {
-      console.log("Removing realtime subscription for activities");
-      if (subscriptionRef.current) {
-        supabase.removeChannel(subscriptionRef.current);
-        subscriptionRef.current = null;
-      }
-    };
-  }, [queryClient]);
-
-  return query;
 };
