@@ -1,21 +1,10 @@
--- Create and configure the documents storage bucket
+-- Configure the Document Storage bucket
 DO $$
 BEGIN
-    -- Create the bucket if it doesn't exist
+    -- Update bucket configuration
     BEGIN
         EXECUTE format('
-            CREATE BUCKET IF NOT EXISTS documents
-            WITH (public = false);
-        ');
-    EXCEPTION WHEN OTHERS THEN
-        -- Bucket might already exist
-        NULL;
-    END;
-
-    -- Set bucket configuration
-    BEGIN
-        EXECUTE format('
-            ALTER BUCKET documents
+            ALTER BUCKET "Document Storage"
             SET public = false,
             SET file_size_limit = 52428800, -- 50MB in bytes
             SET allowed_mime_types = ARRAY[
@@ -32,17 +21,17 @@ BEGIN
     BEGIN
         EXECUTE format('
             -- Allow authenticated users to perform all operations
-            GRANT ALL ON BUCKET documents TO authenticated;
+            GRANT ALL ON BUCKET "Document Storage" TO authenticated;
             
             -- Allow anonymous users to read public files
-            GRANT SELECT ON BUCKET documents TO anon;
+            GRANT SELECT ON BUCKET "Document Storage" TO anon;
             
             -- Create RLS policy for uploads
             CREATE POLICY "Users can upload their own documents"
             ON storage.objects FOR INSERT
             TO authenticated
             WITH CHECK (
-                bucket_id = ''documents'' AND
+                bucket_id = ''Document Storage'' AND
                 (storage.foldername(name))[1] = auth.uid()::text
             );
 
@@ -51,7 +40,7 @@ BEGIN
             ON storage.objects FOR SELECT
             TO authenticated
             USING (
-                bucket_id = ''documents'' AND
+                bucket_id = ''Document Storage'' AND
                 (storage.foldername(name))[1] = auth.uid()::text
             );
         ');
