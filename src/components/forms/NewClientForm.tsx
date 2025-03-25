@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  generateClientTempPassword, 
+  generateTempPassword, 
   saveClientTempPassword
 } from '@/utils/passwordUtils';
 import { createClientUserAccount, logClientCreationActivity } from '@/utils/clientAccountUtils';
@@ -83,7 +82,7 @@ export function NewClientForm() {
       }
       
       // Generate temporary password for the new client
-      const tempPassword = generateClientTempPassword();
+      const tempPassword = generateTempPassword();
       
       // Save the temporary password
       await saveClientTempPassword(clientData.id, data.email, tempPassword);

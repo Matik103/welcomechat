@@ -1,6 +1,8 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { createActivityDirect } from "@/services/clientActivityService";
 import { ActivityType } from "@/types/activity";
+import { generateTempPassword, saveClientTempPassword } from "@/utils/passwordUtils";
 
 /**
  * Creates a new client account

@@ -1,38 +1,48 @@
 
+import { useState } from "react";
 import { z } from "zod";
+import { ClientFormData, ClientFormErrors, clientFormSchema } from "@/types/client-form";
 
-export const createClientFormSchema = z.object({
-  client_name: z.string().min(1, "Client name is required"),
-  email: z.string().email("Invalid email address"),
-  agent_name: z.string()
-    .transform(val => val.trim())
-    .refine(val => !val.includes('"'), {
-      message: "Agent name cannot contain double quotes"
-    })
-    .refine(val => !val.includes("'"), {
-      message: "Agent name cannot contain single quotes"
-    })
-    .optional(),
-  agent_description: z.string().optional(),
-  logo_url: z.string().optional(),
-  logo_storage_path: z.string().optional(),
-});
+export const useClientFormValidation = () => {
+  const [errors, setErrors] = useState<ClientFormErrors>({});
+  
+  // Validate client form data
+  const validateClientForm = (data: ClientFormData): boolean => {
+    try {
+      // Reset errors
+      setErrors({});
+      
+      // Validate with Zod schema
+      const validationResult = clientFormSchema.safeParse(data);
+      
+      if (!validationResult.success) {
+        // Format and set errors
+        const formattedErrors: ClientFormErrors = {};
+        const formErrors = validationResult.error.flatten().fieldErrors;
+        
+        Object.entries(formErrors).forEach(([key, value]) => {
+          if (value && value.length > 0) {
+            formattedErrors[key] = value[0];
+          }
+        });
+        
+        setErrors(formattedErrors);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Validation error:", error);
+      setErrors({ _form: "Validation failed. Please check all fields." });
+      return false;
+    }
+  };
 
-// Create a more strict client view schema that requires agent fields
-export const clientViewSchema = createClientFormSchema.extend({
-  agent_name: z.string()
-    .min(1, "Agent name is required")
-    .transform(val => val.trim())
-    .refine(val => !val.includes('"'), {
-      message: "Agent name cannot contain double quotes"
-    })
-    .refine(val => !val.includes("'"), {
-      message: "Agent name cannot contain single quotes"
-    }),
-  agent_description: z.string().min(1, "Agent description is required"),
-});
-
-export const useClientFormValidation = (isClientView: boolean = false) => {
-  const schema = isClientView ? clientViewSchema : createClientFormSchema;
-  return { schema };
+  return {
+    errors,
+    setErrors,
+    validateClientForm,
+  };
 };
+
+export default useClientFormValidation;

@@ -69,5 +69,5 @@ export class OpenAIAssistantService {
   }
 }
 
-// Export the class
+// Export the class and make it the default export
 export default OpenAIAssistantService;

@@ -24,7 +24,9 @@ export type ActivityType =
   | 'embed_code_copied'
   | 'widget_settings_updated'
   | 'logo_uploaded'
-  | 'document_processed';
+  | 'document_processed'
+  | 'client_recovered'
+  | 'stats_accessed';
 
 // Define extended activity types (legacy/deprecated)
 export type ExtendedActivityType = ActivityType;
@@ -76,5 +78,7 @@ export const ActivityTypeMap: Record<string, ActivityType> = {
   'embed_code_copied': 'embed_code_copied',
   'widget_settings_updated': 'widget_settings_updated',
   'logo_uploaded': 'logo_uploaded',
-  'document_processed': 'document_processed'
+  'document_processed': 'document_processed',
+  'client_recovered': 'client_recovered',
+  'stats_accessed': 'stats_accessed'
 };

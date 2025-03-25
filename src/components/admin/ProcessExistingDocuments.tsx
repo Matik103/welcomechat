@@ -1,83 +1,31 @@
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { processExistingDocuments } from '@/utils/documentReprocessing';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, CheckCircle, Info, Loader2 } from "lucide-react";
+import { processExistingDocuments } from "@/utils/documentReprocessing";
 
-interface ProcessExistingDocumentsProps {
-  clients: { id: string; name: string; agent_name: string }[];
-}
-
-export const ProcessExistingDocuments: React.FC<ProcessExistingDocumentsProps> = ({ clients }) => {
+export function ProcessExistingDocuments() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<string>('');
-  const [processingStats, setProcessingStats] = useState<{
-    processed: number;
-    failed: number;
-    total: number;
-    progress: number;
-  } | null>(null);
+  const [results, setResults] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleProcessDocuments = async () => {
-    if (!selectedClient) {
-      toast.error('Please select a client first');
-      return;
-    }
-
     try {
       setIsProcessing(true);
-      setProcessingStats(null);
+      setError(null);
       
-      const client = clients.find(c => c.id === selectedClient);
+      // Process all pending documents
+      const result = await processExistingDocuments();
+      setResults(result);
       
-      if (!client) {
-        toast.error('Selected client not found');
-        return;
+      if (!result.success) {
+        setError("Failed to process documents. Check console for details.");
       }
-      
-      toast.info(`Starting to process documents for ${client.name}...`, {
-        duration: 3000,
-      });
-      
-      const result = await processExistingDocuments(
-        client.id,
-        client.agent_name || 'AI Assistant'
-      );
-      
-      if (result.success) {
-        const total = result.processed + result.failed;
-        setProcessingStats({
-          processed: result.processed,
-          failed: result.failed,
-          total,
-          progress: total > 0 ? Math.round((result.processed / total) * 100) : 0
-        });
-        
-        if (result.processed === 0 && result.failed === 0) {
-          toast.info('No documents found that need processing');
-        } else if (result.failed === 0) {
-          toast.success(`Successfully processed ${result.processed} documents`);
-        } else if (result.processed === 0) {
-          toast.error(`Failed to process ${result.failed} documents`);
-        } else {
-          toast.success(`Processed ${result.processed} documents with ${result.failed} failures`);
-        }
-      } else {
-        toast.error('Failed to process documents');
-      }
-    } catch (error) {
-      console.error('Error processing documents:', error);
-      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (err) {
+      console.error("Error processing documents:", err);
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsProcessing(false);
     }
@@ -88,66 +36,78 @@ export const ProcessExistingDocuments: React.FC<ProcessExistingDocumentsProps> =
       <CardHeader>
         <CardTitle>Process Existing Documents</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex flex-col space-y-2">
-            <label htmlFor="client-select" className="text-sm font-medium">
-              Select Client
-            </label>
-            <Select
-              value={selectedClient}
-              onValueChange={setSelectedClient}
-              disabled={isProcessing}
-            >
-              <SelectTrigger id="client-select">
-                <SelectValue placeholder="Select a client" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {processingStats && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Progress</span>
-                <span>{processingStats.progress}%</span>
-              </div>
-              <Progress value={processingStats.progress} className="h-2" />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Processed: {processingStats.processed}</span>
-                <span>Failed: {processingStats.failed}</span>
-                <span>Total: {processingStats.total}</span>
-              </div>
-            </div>
-          )}
-
-          <Button
-            onClick={handleProcessDocuments}
-            disabled={isProcessing || !selectedClient}
-            className="w-full"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              'Process Documents with LlamaParse'
-            )}
-          </Button>
-          
-          <p className="text-xs text-muted-foreground">
-            This will find all unprocessed documents for the selected client and send them to LlamaParse for text extraction.
+      <CardContent className="space-y-4">
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Document Processing</AlertTitle>
+          <AlertDescription>
+            This will attempt to process all documents with status "pending" or "needs_processing".
             The process may take several minutes depending on the number of documents.
-          </p>
-        </div>
+          </AlertDescription>
+        </Alert>
+
+        <Button 
+          onClick={handleProcessDocuments}
+          disabled={isProcessing}
+          className="w-full"
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            "Process All Pending Documents"
+          )}
+        </Button>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {results && results.success && (
+          <div className="pt-4 space-y-4">
+            <Alert variant={results.processed.length > 0 ? "default" : "warning"}>
+              <CheckCircle className="h-4 w-4" />
+              <AlertTitle>Processing Complete</AlertTitle>
+              <AlertDescription>
+                Processed {results.processed.length} documents successfully.
+                {results.failed.length > 0 && ` Failed to process ${results.failed.length} documents.`}
+              </AlertDescription>
+            </Alert>
+
+            {results.processed.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Successfully Processed:</h4>
+                <ul className="space-y-1 text-sm">
+                  {results.processed.map((doc: any) => (
+                    <li key={doc.id} className="text-green-600">
+                      Document ID: {doc.id}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {results.failed.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Failed to Process:</h4>
+                <ul className="space-y-1 text-sm">
+                  {results.failed.map((doc: any) => (
+                    <li key={doc.id} className="text-red-600">
+                      Document ID: {doc.id} - {doc.error || "Unknown error"}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
-};
+}

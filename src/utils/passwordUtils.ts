@@ -54,6 +54,12 @@ export const generateTempPassword = (): string => {
 };
 
 /**
+ * Alias for generateTempPassword for backward compatibility
+ * @returns A temporary password
+ */
+export const generateClientTempPassword = generateTempPassword;
+
+/**
  * Resets a client's password to a new temporary password
  * @param clientId The client ID
  * @param email The client's email

@@ -38,7 +38,7 @@ export const useClientStats = () => {
         try {
           await createActivityDirect(
             'system',
-            'stats_accessed' as any,
+            'stats_accessed',
             'Admin dashboard client stats accessed',
             { total_clients: totalCount || 0, active_clients: activeCount || 0 }
           );

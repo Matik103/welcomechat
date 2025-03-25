@@ -1,60 +1,42 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { ActivityType, ExtendedActivityType } from "@/types/activity";
-import { callRpcFunction } from "@/utils/rpcUtils";
+import { ActivityType, ActivityWithClientInfo } from "@/types/activity";
+import { Json } from "@/integrations/supabase/types";
 
 /**
- * Log an activity for a client
+ * Create a new activity record for a client
  * @param clientId The client ID
- * @param activityType The activity type
- * @param description A description of the activity
- * @param metadata Optional metadata
- * @returns The created activity or null if creation failed
- */
-export const createClientActivity = async (
-  clientId: string,
-  activityType: ActivityType | ExtendedActivityType,
-  description: string,
-  metadata?: Record<string, any>
-): Promise<any> => {
-  try {
-    if (!clientId) {
-      console.warn('No client ID provided for activity logging');
-      return null;
-    }
-
-    console.log(`Logging activity ${activityType} for client ${clientId}: ${description}`);
-    
-    // Use RPC function to log activity
-    const result = await callRpcFunction('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: activityType,
-      description_param: description,
-      metadata_param: metadata || {}
-    });
-    
-    return result;
-  } catch (error) {
-    console.error('Error logging client activity:', error);
-    return null;
-  }
-};
-
-/**
- * Direct insertion method for special cases (e.g. server-side or system operations)
- * This is a compatibility method for existing code that expects this function
+ * @param activityType The type of activity
+ * @param description The activity description
+ * @param metadata Additional metadata for the activity
+ * @returns The created activity record
  */
 export const createActivityDirect = async (
   clientId: string,
-  activityType: ActivityType | ExtendedActivityType,
+  activityType: ActivityType,
   description: string,
   metadata?: Record<string, any>
 ): Promise<any> => {
   try {
-    // Use createClientActivity to execute the activity logging
-    return await createClientActivity(clientId, activityType, description, metadata);
+    console.log(`Creating activity for client ${clientId}: ${activityType} - ${description}`);
+    
+    // Insert the activity record
+    const { data, error } = await supabase
+      .from('client_activities')
+      .insert({
+        client_id: clientId,
+        activity_type: activityType,
+        description: description,
+        metadata: metadata || {}
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
   } catch (error) {
-    console.error('Error in createActivityDirect:', error);
+    console.error("Error creating activity:", error);
+    // Don't throw - activities should be non-blocking
     return null;
   }
 };
@@ -62,12 +44,17 @@ export const createActivityDirect = async (
 /**
  * Get recent activities for a client
  * @param clientId The client ID
- * @param limit Max number of activities to return
+ * @param limit The maximum number of activities to retrieve
  * @returns Recent activities
  */
-export const getClientActivities = async (clientId: string, limit = 10): Promise<any[]> => {
+export const getRecentActivities = async (
+  clientId: string, 
+  limit: number = 10
+): Promise<ActivityWithClientInfo[]> => {
   try {
-    // Query client activities
+    console.log(`Getting recent activities for client ${clientId}, limit: ${limit}`);
+    
+    // Query recent activities
     const { data, error } = await supabase
       .from('client_activities')
       .select('*')
@@ -76,16 +63,63 @@ export const getClientActivities = async (clientId: string, limit = 10): Promise
       .limit(limit);
     
     if (error) throw error;
-    return data || [];
+    
+    // Convert to the expected format
+    const activities = (data || []).map(activity => ({
+      id: activity.id,
+      activity_type: activity.activity_type as ActivityType,
+      description: activity.description || '',
+      created_at: activity.created_at,
+      client_id: activity.client_id,
+      metadata: activity.metadata || {}
+    }));
+    
+    return activities;
   } catch (error) {
-    console.error('Error fetching client activities:', error);
+    console.error("Error getting recent activities:", error);
     return [];
   }
 };
 
-// Legacy export for backwards compatibility
-export const ClientActivityService = {
-  createClientActivity,
-  createActivityDirect,
-  getClientActivities
+/**
+ * Get all activities
+ * @param limit The maximum number of activities to retrieve
+ * @returns All activities with client info
+ */
+export const getAllActivities = async (
+  limit: number = 50
+): Promise<ActivityWithClientInfo[]> => {
+  try {
+    console.log(`Getting all activities, limit: ${limit}`);
+    
+    // Query activities with client info
+    const { data, error } = await supabase
+      .from('client_activities')
+      .select(`
+        *,
+        ai_agents!client_activities_client_id_fkey (
+          client_name
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) throw error;
+    
+    // Convert to the expected format
+    const activities = (data || []).map(activity => ({
+      id: activity.id,
+      activity_type: activity.activity_type as ActivityType,
+      description: activity.description || '',
+      created_at: activity.created_at,
+      client_id: activity.client_id,
+      client_name: activity.ai_agents?.client_name || '',
+      metadata: activity.metadata || {}
+    }));
+    
+    return activities;
+  } catch (error) {
+    console.error("Error getting all activities:", error);
+    return [];
+  }
 };

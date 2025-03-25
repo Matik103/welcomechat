@@ -2,12 +2,25 @@
 import { supabase } from "@/integrations/supabase/client";
 import { DocumentProcessingService } from "@/services/documentProcessingService";
 
+interface ProcessDocumentResult {
+  id: number | string;
+  success: boolean;
+  document_url?: string;
+  error?: string;
+}
+
+interface ProcessingResults {
+  processed: ProcessDocumentResult[];
+  failed: ProcessDocumentResult[];
+  success: boolean;
+}
+
 /**
  * Process existing documents
  * @param clientId Optional client ID to filter by
- * @returns The processed documents
+ * @returns The processed documents with success/failure counts
  */
-export const processExistingDocuments = async (clientId?: string): Promise<any[]> => {
+export const processExistingDocuments = async (clientId?: string): Promise<ProcessingResults> => {
   try {
     console.log(`Processing existing documents${clientId ? ` for client ${clientId}` : ''}`);
     
@@ -43,9 +56,21 @@ export const processExistingDocuments = async (clientId?: string): Promise<any[]
       })
     );
     
-    return results;
+    // Separate successful and failed documents
+    const processed = results.filter(r => r.success);
+    const failed = results.filter(r => !r.success);
+    
+    return {
+      processed,
+      failed,
+      success: true
+    };
   } catch (error) {
     console.error("Error in processExistingDocuments:", error);
-    throw error;
+    return {
+      processed: [],
+      failed: [],
+      success: false
+    };
   }
 };
