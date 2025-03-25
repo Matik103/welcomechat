@@ -17,20 +17,20 @@ export const useClientFormSubmission = (
   const clientMutation = useClientMutation(clientId);
   const navigate = useNavigate();
   
-  const handleSubmit = async (data: ClientFormData) => {
+  const handleSubmit = async (data: Partial<ClientFormData>) => {
+    // Ensure data conforms to ClientFormData type by providing default values
+    const formData: ClientFormData = {
+      client_name: data.client_name || "", // Required field
+      email: data.email || "", // Required field
+      client_id: data.client_id,
+      widget_settings: data.widget_settings || {},
+      _tempLogoFile: data._tempLogoFile
+    };
+    
     setIsLoading(true);
     try {
       // Display initial feedback toast
       const initialToastId = toast.loading(clientId ? "Updating client..." : "Creating client...");
-      
-      // Ensure data conforms to ClientFormData type
-      const formData: ClientFormData = {
-        client_name: data.client_name,
-        email: data.email,
-        client_id: data.client_id,
-        widget_settings: data.widget_settings || {},
-        _tempLogoFile: data._tempLogoFile
-      };
       
       // Perform the client mutation (create or update)
       const result = await clientMutation.mutateAsync(formData);
@@ -68,14 +68,14 @@ export const useClientFormSubmission = (
               const tempPassword = generateTempPassword();
               
               // Save the temporary password
-              await saveClientTempPassword(result.agentId, data.email, tempPassword);
+              await saveClientTempPassword(result.agentId, formData.email, tempPassword);
               
               // Directly call the send-email edge function
               const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
                 'send-email', 
                 {
                   body: {
-                    to: data.email,
+                    to: formData.email,
                     subject: "Welcome to Welcome.Chat - Your Account Details",
                     html: `
                       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
@@ -83,13 +83,13 @@ export const useClientFormSubmission = (
                           <h1 style="color: #4f46e5;">Welcome to Welcome.Chat!</h1>
                         </div>
                         
-                        <p>Hello ${data.client_name || 'Client'},</p>
+                        <p>Hello ${formData.client_name || 'Client'},</p>
                         
                         <p>Your AI assistant account has been created and is ready for configuration. Here are your login credentials:</p>
                         
                         <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
                           <p><strong>Email Address:</strong></p>
-                          <p style="color: #4f46e5;">${data.email || ''}</p>
+                          <p style="color: #4f46e5;">${formData.email || ''}</p>
                           
                           <p><strong>Temporary Password:</strong></p>
                           <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${tempPassword || ''}</p>

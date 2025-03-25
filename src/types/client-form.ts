@@ -10,6 +10,7 @@ export const widgetSettingsSchema = z.object({
 });
 
 // Define the ActivityType enum to match the database enum
+// These types MUST match the database's activity_type_enum values
 export type ActivityType =
   | "chat_interaction"
   | "client_created"
@@ -25,9 +26,11 @@ export type ActivityType =
   | "document_link_added"
   | "document_link_deleted"
   | "document_uploaded"
+  | "document_processed"
   | "document_processing_failed"
   | "document_processing_started"
   | "document_processing_completed"
+  | "document_stored"
   | "agent_name_updated"
   | "agent_description_updated"
   | "agent_updated"
@@ -56,7 +59,8 @@ export type ActivityType =
   | "openai_assistant_document_added"
   | "openai_assistant_upload_failed"
   | "schema_update"
-  | "embed_code_copied";
+  | "embed_code_copied"
+  | "agent_error";
 
 // Client form schema
 export const clientFormSchema = z.object({

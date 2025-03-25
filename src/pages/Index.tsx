@@ -29,7 +29,7 @@ const Index = () => {
 
   // Set up global activity tracking for the admin dashboard
   const { 
-    data: recentActivities,
+    activities: recentActivities,
     isLoading: isActivitiesLoading,
     refetch: refetchActivities 
   } = useRecentActivities();

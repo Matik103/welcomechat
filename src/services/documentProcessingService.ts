@@ -15,6 +15,7 @@ import { validateContent, chunkContent } from '@/utils/documentProcessing';
 import { tableExists } from '@/utils/supabaseUtils';
 import { LlamaParseError, DatabaseError } from '@/utils/errors';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
+import { createClientActivity } from './clientActivityService';
 
 /**
  * Store content in ai_agents table
@@ -585,19 +586,63 @@ export class DocumentProcessingService {
       return [];
     }
   }
-}
 
-/**
- * Check the access status of a document link
- */
-export const checkDocumentAccess = async (documentId: number): Promise<string> => {
-  try {
-    const result = await callRpcFunction<string>('get_document_access_status', {
-      document_id: documentId
-    });
-    return result || 'unknown';
-  } catch (error) {
-    console.error('Error checking document access:', error);
-    return 'unknown';
+  /**
+   * Fetch document processing jobs for a client
+   */
+  static async fetchDocumentProcessingJobs(clientId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('document_processing')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching document processing jobs:', error);
+      throw error;
+    }
   }
-};
+
+  /**
+   * Check the access status of a document link
+   */
+  export const checkDocumentAccess = async (documentId: number): Promise<string> => {
+    try {
+      const result = await callRpcFunction<string>('get_document_access_status', {
+        document_id: documentId
+      });
+      return result || 'unknown';
+    } catch (error) {
+      console.error('Error checking document access:', error);
+      return 'unknown';
+    }
+  };
+
+  /**
+   * Check the processing status of a document processing job
+   */
+  static async checkProcessingStatus(jobId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('document_processing')
+        .select('*')
+        .eq('id', jobId)
+        .single();
+      
+      if (error) {
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error checking processing status:', error);
+      throw error;
+    }
+  }
+}

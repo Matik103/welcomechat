@@ -48,9 +48,25 @@ export async function updateWidgetSettings(
   settings: WidgetSettings
 ): Promise<WidgetSettings> {
   try {
+    // Convert WidgetSettings to Record<string, any> to match jsonb type
+    const settingsObject: Record<string, any> = {
+      agent_name: settings.agent_name,
+      agent_description: settings.agent_description,
+      logo_url: settings.logo_url,
+      logo_storage_path: settings.logo_storage_path,
+      chat_color: settings.chat_color,
+      background_color: settings.background_color,
+      text_color: settings.text_color,
+      secondary_color: settings.secondary_color,
+      position: settings.position,
+      welcome_text: settings.welcome_text,
+      response_time_text: settings.response_time_text,
+      display_mode: settings.display_mode
+    };
+
     const { data, error } = await supabase
       .from('ai_agents')
-      .update({ settings })
+      .update({ settings: settingsObject })
       .eq('client_id', clientId)
       .eq('interaction_type', 'config')
       .select('settings')
@@ -66,7 +82,7 @@ export async function updateWidgetSettings(
       clientId,
       'widget_settings_updated',
       'Updated widget settings',
-      { settings }
+      { settings: settingsObject }
     );
 
     toast.success('Widget settings updated successfully');

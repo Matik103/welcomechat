@@ -1,7 +1,7 @@
-
 import { ClientFormData } from "@/types/client-form";
 import { supabase } from "@/integrations/supabase/client";
 import { generateClientTempPassword, saveClientTempPassword } from "./passwordUtils";
+import { callRpcFunction } from "./rpcUtils";
 
 /**
  * Create an agent record in the database
@@ -128,43 +128,28 @@ export const createClientUserAccount = async (
 };
 
 /**
- * Log client creation activity in the database.
- * 
- * @param clientId - The client ID 
- * @param clientName - The client's name
- * @param email - The client's email address
- * @param agentName - The agent's name
- * @returns A promise that resolves when the operation is complete
+ * Logs the client creation activity
  */
-export const logClientCreationActivity = async (
+export async function logClientCreationActivity(
   clientId: string,
   clientName: string,
   email: string,
-  agentName: string
-): Promise<void> => {
+  agentName?: string
+): Promise<void> {
   try {
-    // Import here to avoid circular dependencies
-    const { supabase } = await import('@/integrations/supabase/client');
-    
-    const { error } = await supabase.from("client_activities").insert({
-      client_id: clientId,
-      activity_type: "client_created",
-      description: "New agent created: " + agentName,
-      metadata: {
-        client_name: clientName,
-        email: email,
+    // Use callRpcFunction for activity logging to avoid type checking issues
+    await callRpcFunction('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'client_created',
+      description_param: `New client created: ${clientName}`,
+      metadata_param: {
+        email,
         agent_name: agentName
       }
     });
     
-    if (error) {
-      console.error('Error logging client creation activity:', error);
-      throw new Error(error.message);
-    }
-    
-    console.log(`Agent creation activity logged for ${clientId}`);
-  } catch (err) {
-    console.error('Failed to log agent creation activity:', err);
-    // Don't throw here - activity logging is not critical
+    console.log(`Logged creation activity for client ${clientId}`);
+  } catch (error) {
+    console.error("Error logging client creation activity:", error);
   }
-};
+}

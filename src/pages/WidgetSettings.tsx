@@ -80,6 +80,14 @@ export default function WidgetSettings() {
     return <div className="flex justify-center items-center min-h-screen">Loading widget settings...</div>;
   }
 
+  // Create a wrapper for updateSettingsMutation to match expected props
+  const updateSettingsWrapper = {
+    isPending: updateSettingsMutation.isPending,
+    mutateAsync: async (newSettings: IWidgetSettings) => {
+      await updateSettingsMutation.mutateAsync(newSettings);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <WidgetSettingsContainer
@@ -87,12 +95,7 @@ export default function WidgetSettings() {
         settings={settings || defaultSettings}
         isClientView={!isAdmin}
         isUploading={isUploading}
-        updateSettingsMutation={{
-          isPending: updateSettingsMutation.isPending,
-          mutateAsync: async (newSettings) => {
-            await updateSettingsMutation.mutateAsync(newSettings);
-          }
-        }}
+        updateSettingsMutation={updateSettingsWrapper}
         handleBack={handleNavigateBack}
         handleLogoUpload={handleLogoUploadChange}
         logClientActivity={logClientActivity}

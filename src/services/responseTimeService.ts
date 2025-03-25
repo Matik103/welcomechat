@@ -1,34 +1,56 @@
 
-import { callRpcFunction } from '@/utils/rpcUtils';
+import { createClient } from "@/integrations/supabase/client";
+import { getDateRange } from "@/utils/dateUtils";
 
 /**
- * Get the average response time for a client
- * @param client_id The client ID
- * @param agent_name Optional agent name parameter
- * @returns The average response time
+ * Gets the average response time for chat interactions
+ * @param timeRange The time range to check
+ * @param clientId Optional client ID to filter by
+ * @returns Promise that resolves to the average response time in seconds
  */
-export const getAverageResponseTime = async (client_id: string, agent_name?: string): Promise<number> => {
+export const getAverageResponseTime = async (
+  timeRange: "1d" | "1m" | "1y" | "all",
+  clientId?: string
+): Promise<number> => {
   try {
-    // Use direct SQL query to get average response time
-    const query = `
-      SELECT COALESCE(AVG(response_time_ms)::numeric / 1000, 0) as avg_time
-      FROM ai_agents
-      WHERE client_id = '${client_id}'
-      ${agent_name ? `AND name = '${agent_name}'` : ''}
-      AND interaction_type = 'chat_interaction'
-      AND response_time_ms IS NOT NULL
-    `;
+    const supabase = createClient();
+    const { startDate } = getDateRange(timeRange);
     
-    const result = await callRpcFunction<any[]>('exec_sql', { sql_query: query });
+    // Create query for chat interactions with response time
+    let query = supabase
+      .from("ai_agents")
+      .select("response_time_ms")
+      .eq("interaction_type", "chat_interaction")
+      .not("response_time_ms", "is", null)
+      .gte("created_at", startDate.toISOString());
+      
+    // Add client filter if specified
+    if (clientId) {
+      query = query.eq("client_id", clientId);
+    }
+
+    const { data, error } = await query;
     
-    if (result && Array.isArray(result) && result.length > 0) {
-      const avgTime = parseFloat(result[0].avg_time);
-      return !isNaN(avgTime) ? avgTime : 0;
+    if (error) {
+      console.error("Error fetching response times:", error);
+      return 0;
     }
     
-    return 0;
+    if (!data || data.length === 0) {
+      return 0;
+    }
+    
+    // Calculate average response time in seconds
+    const totalResponseTimeMs = data.reduce(
+      (sum, interaction) => sum + (interaction.response_time_ms || 0),
+      0
+    );
+    
+    const avgResponseTimeSeconds = (totalResponseTimeMs / data.length) / 1000;
+    
+    return parseFloat(avgResponseTimeSeconds.toFixed(2));
   } catch (error) {
-    console.error("Error getting average response time:", error);
+    console.error("Error in getAverageResponseTime:", error);
     return 0;
   }
 };

@@ -589,7 +589,9 @@ export type Database = {
           activity_type: Database["public"]["Enums"]["activity_type_enum"]
           client_id: string | null
           created_at: string
+          description: string | null
           id: string
+          metadata: Json | null
           updated_at: string
         }
         Insert: {
@@ -597,7 +599,9 @@ export type Database = {
           activity_type: Database["public"]["Enums"]["activity_type_enum"]
           client_id?: string | null
           created_at?: string
+          description?: string | null
           id?: string
+          metadata?: Json | null
           updated_at?: string
         }
         Update: {
@@ -605,7 +609,9 @@ export type Database = {
           activity_type?: Database["public"]["Enums"]["activity_type_enum"]
           client_id?: string | null
           created_at?: string
+          description?: string | null
           id?: string
+          metadata?: Json | null
           updated_at?: string
         }
         Relationships: []
@@ -5873,6 +5879,48 @@ export type Database = {
         | "openai_assistant_document_added"
         | "openai_assistant_upload_failed"
         | "schema_update"
+        | "client_created"
+        | "client_updated"
+        | "client_deleted"
+        | "client_recovered"
+        | "widget_settings_updated"
+        | "website_url_added"
+        | "website_url_deleted"
+        | "website_url_processed"
+        | "drive_link_added"
+        | "drive_link_deleted"
+        | "document_link_added"
+        | "document_link_deleted"
+        | "document_processed"
+        | "document_stored"
+        | "agent_name_updated"
+        | "agent_description_updated"
+        | "agent_updated"
+        | "agent_logo_updated"
+        | "ai_agent_updated"
+        | "ai_agent_created"
+        | "ai_agent_table_created"
+        | "error_logged"
+        | "system_update"
+        | "common_query_milestone"
+        | "interaction_milestone"
+        | "growth_milestone"
+        | "webhook_sent"
+        | "signed_out"
+        | "email_sent"
+        | "invitation_sent"
+        | "invitation_accepted"
+        | "logo_uploaded"
+        | "url_deleted"
+        | "source_deleted"
+        | "source_added"
+        | "widget_previewed"
+        | "user_role_updated"
+        | "login_success"
+        | "login_failed"
+        | "embed_code_copied"
+        | "agent_error"
+        | "chat_interaction"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       document_status: "pending" | "processing" | "processed" | "failed"

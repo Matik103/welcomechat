@@ -1,4 +1,3 @@
-
 /**
  * Generates a temporary password for client accounts
  * Using the format "Welcome{YEAR}#{RANDOM}" that meets Supabase Auth requirements:
@@ -190,5 +189,73 @@ export const logClientCreationActivity = async (
   } catch (err) {
     console.error('Failed to log client creation activity:', err);
     // Don't throw here - activity logging is not critical
+  }
+};
+
+/**
+ * Creates a new client in the database
+ */
+export const createNewClientInDatabase = async (
+  clientName: string,
+  email: string,
+  agent_name: string,
+  agent_description?: string
+) => {
+  try {
+    // Check if client already exists
+    const { data: existingClients } = await supabase
+      .from('ai_agents')
+      .select('*')
+      .eq('email', email)
+      .eq('interaction_type', 'config');
+
+    if (existingClients && existingClients.length > 0) {
+      throw new Error(`A client with the email ${email} already exists.`);
+    }
+
+    // Generate UUID for new client
+    const clientId = crypto.randomUUID();
+
+    // Create the client in DB
+    const { data: newClient, error } = await supabase
+      .from('ai_agents')
+      .insert({
+        id: crypto.randomUUID(),
+        client_id: clientId,
+        interaction_type: 'config',
+        client_name: clientName,
+        email: email,
+        name: agent_name,
+        agent_description: agent_description,
+        content: '',
+        settings: {
+          agent_name,
+          agent_description,
+          client_name: clientName,
+          email: email
+        }
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    // Log client creation activity using callRpcFunction
+    await callRpcFunction('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'client_created',
+      description_param: `New client created: ${clientName}`,
+      metadata_param: {
+        email,
+        agent_name: agent_name
+      }
+    });
+
+    return newClient;
+  } catch (error) {
+    console.error("Error creating client in database:", error);
+    throw error;
   }
 };
