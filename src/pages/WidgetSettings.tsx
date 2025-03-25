@@ -1,236 +1,462 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useWidgetSettings } from "@/hooks/useWidgetSettings";
+import { WidgetPreview } from "@/components/widget/WidgetPreview";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
+import { useClientActivity } from "@/hooks/useClientActivity";
+import { ActivityType } from "@/types/client-form";
+import { LogoManagement } from "@/components/widget/logo/LogoManagement";
+import { updateWidgetSettings as updateWidgetSettingsAction } from "@/services/widgetSettingsService";
+import { uploadLogo } from "@/services/uploadService";
+import { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Switch } from "@/components/ui/switch"
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import React, { useState, useEffect, ChangeEvent } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { useParams } from 'react-router-dom';
-import { useClientData } from '@/hooks/useClientData';
-import { useWidgetSettings } from '@/hooks/useWidgetSettings';
-import { PageHeading } from '@/components/dashboard/PageHeading';
-import { toast } from 'sonner';
-import LogoManagement from '@/components/widget/logo/LogoManagement';
-import { supabase } from '@/integrations/supabase/client';
-import { useClientActivity } from '@/hooks/useClientActivity';
-import { v4 as uuidv4 } from 'uuid';
+const widgetSettingsSchema = z.object({
+  agent_name: z.string().min(2, {
+    message: "Agent name must be at least 2 characters.",
+  }),
+  agent_description: z.string().optional(),
+  welcome_text: z.string().optional(),
+  response_time_text: z.string().optional(),
+  chat_color: z.string().optional(),
+  background_color: z.string().optional(),
+  text_color: z.string().optional(),
+  secondary_color: z.string().optional(),
+  position: z.enum(["bottom-right", "bottom-left", "top-right", "top-left", "left", "right"]).optional(),
+  display_mode: z.enum(["floating", "inline", "sidebar"]).optional(),
+});
+
+type WidgetSettingsFormValues = z.infer<typeof widgetSettingsSchema>;
 
 export default function WidgetSettings() {
-  const { clientId } = useParams<{ clientId: string }>();
-  const { client, isLoadingClient, error: clientError, refetchClient } = useClientData(clientId);
-  const { updateAgentName, updateAgentDescription, updateLogo, isUpdating, error: updateError } = useWidgetSettings(clientId || '');
+  const { clientId } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isUploading, setIsUploading] = useState(false);
+  const { widgetSettings, isLoading, error, updateWidgetSettings } = useWidgetSettings(clientId || "");
   const { logClientActivity } = useClientActivity(clientId);
+  const [localLogoPreview, setLocalLogoPreview] = useState<string | null>(null);
   
-  const [agentName, setAgentName] = useState('');
-  const [agentDescription, setAgentDescription] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
-  const [logoStoragePath, setLogoStoragePath] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const form = useForm<WidgetSettingsFormValues>({
+    resolver: zodResolver(widgetSettingsSchema),
+    defaultValues: {
+      agent_name: widgetSettings?.agent_name || "",
+      agent_description: widgetSettings?.agent_description || "",
+      welcome_text: widgetSettings?.welcome_text || "",
+      response_time_text: widgetSettings?.response_time_text || "",
+      chat_color: widgetSettings?.chat_color || "",
+      background_color: widgetSettings?.background_color || "",
+      text_color: widgetSettings?.text_color || "",
+      secondary_color: widgetSettings?.secondary_color || "",
+      position: widgetSettings?.position || "bottom-right",
+      display_mode: widgetSettings?.display_mode || "floating",
+    },
+    mode: "onChange",
+  });
+  
+  useEffect(() => {
+    if (widgetSettings) {
+      form.reset({
+        agent_name: widgetSettings.agent_name || "",
+        agent_description: widgetSettings.agent_description || "",
+        welcome_text: widgetSettings.welcome_text || "",
+        response_time_text: widgetSettings.response_time_text || "",
+        chat_color: widgetSettings.chat_color || "",
+        background_color: widgetSettings.background_color || "",
+        text_color: widgetSettings.text_color || "",
+        secondary_color: widgetSettings.secondary_color || "",
+        position: widgetSettings.position || "bottom-right",
+        display_mode: widgetSettings.display_mode || "floating",
+      });
+    }
+  }, [widgetSettings, form]);
 
   useEffect(() => {
-    if (client) {
-      setAgentName(client.agent_name || '');
-      if (client.widget_settings) {
-        setAgentDescription(client.widget_settings.agent_description || '');
-        setLogoUrl(client.widget_settings.logo_url || '');
-        setLogoStoragePath(client.widget_settings.logo_storage_path || '');
-      }
+    if (error) {
+      toast.error(`Error fetching widget settings: ${error.message}`);
     }
-  }, [client]);
+  }, [error]);
 
-  const handleAgentNameSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!agentName.trim()) {
-      toast.error('Agent name cannot be empty');
-      return;
-    }
-    
-    try {
-      const result = await updateAgentName(agentName);
-      if (result) {
-        refetchClient();
-      }
-    } catch (error: any) {
-      toast.error(`Failed to update agent name: ${error.message}`);
-    }
-  };
+  if (!user) {
+    return <div>Not authenticated.</div>;
+  }
 
-  const handleAgentDescriptionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const result = await updateAgentDescription(agentDescription);
-      if (result) {
-        refetchClient();
-      }
-    } catch (error: any) {
-      toast.error(`Failed to update agent description: ${error.message}`);
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading widget settings...
+      </div>
+    );
+  }
 
-  const handleLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) {
-      return;
-    }
+  if (!clientId) {
+    return <div>Client ID is missing.</div>;
+  }
+
+  const handleLogoUpload = async (file: File) => {
+    if (!clientId) return;
     
-    const file = event.target.files[0];
-    setIsProcessing(true);
-    
+    setIsUploading(true);
     try {
-      // Generate a unique path for the file
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${uuidv4()}.${fileExt}`;
-      const filePath = `logos/${clientId}/${fileName}`;
-      
-      // Upload file to storage
-      const { error: uploadError } = await supabase.storage
-        .from('widget-logos')
-        .upload(filePath, file);
+      const result = await uploadLogo(file, clientId);
+      if (result.url) {
+        const updatedSettings = {
+          ...widgetSettings,
+          logo_url: result.url,
+          logo_storage_path: result.storagePath || ""
+        };
         
-      if (uploadError) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
-      
-      // Get public URL for the uploaded file
-      const { data: { publicUrl } } = supabase.storage
-        .from('widget-logos')
-        .getPublicUrl(filePath);
+        await updateWidgetSettings(updatedSettings);
+        await logClientActivity("logo_uploaded" as ActivityType, "Logo uploaded successfully", { logo_url: result.url });
         
-      // Update the logo in the database
-      await updateLogo(publicUrl, filePath);
-      
-      // Update local state
-      setLogoUrl(publicUrl);
-      setLogoStoragePath(filePath);
-      
-      // Refresh client data
-      refetchClient();
-      
-      // Log activity
-      await logClientActivity('logo_uploaded', 'Uploaded new logo for AI assistant', {
-        logo_url: publicUrl,
-        file_name: file.name,
-        file_size: file.size
-      });
-      
-      toast.success('Logo uploaded successfully');
-    } catch (error: any) {
-      console.error('Logo upload error:', error);
-      toast.error(`Failed to upload logo: ${error.message}`);
+        toast.success("Logo uploaded and settings updated");
+      }
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      toast.error("Failed to upload logo");
     } finally {
-      setIsProcessing(false);
+      setIsUploading(false);
     }
+  };
+  
+  const handleRemoveLogo = async () => {
+    if (!clientId) return;
     
-    // Reset the file input
-    event.target.value = '';
+    setIsUploading(true);
+    try {
+      const updatedSettings = {
+        ...widgetSettings,
+        logo_url: "",
+        logo_storage_path: ""
+      };
+      
+      await updateWidgetSettings(updatedSettings);
+      await logClientActivity("agent_logo_updated" as ActivityType, "Logo removed successfully");
+      
+      toast.success("Logo removed and settings updated");
+    } catch (error) {
+      console.error("Error removing logo:", error);
+      toast.error("Failed to remove logo");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  if (isLoadingClient) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p>Loading widget settings...</p>
-      </div>
-    );
-  }
+  const onSubmit = async (values: WidgetSettingsFormValues) => {
+    if (!clientId) return;
 
-  if (clientError) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-red-500">Error loading client: {clientError.message}</p>
-      </div>
-    );
-  }
+    try {
+      const updatedSettings: WidgetSettingsType = {
+        ...widgetSettings,
+        agent_name: values.agent_name,
+        agent_description: values.agent_description || "",
+        welcome_text: values.welcome_text || "",
+        response_time_text: values.response_time_text || "",
+        chat_color: values.chat_color || "",
+        background_color: values.background_color || "",
+        text_color: values.text_color || "",
+        secondary_color: values.secondary_color || "",
+        position: values.position || "bottom-right",
+        display_mode: values.display_mode || "floating",
+      };
+
+      await updateWidgetSettings(updatedSettings);
+      await logClientActivity("widget_settings_updated" as ActivityType, "Widget settings updated");
+      toast.success("Widget settings updated successfully!");
+    } catch (error: any) {
+      console.error("Error updating widget settings:", error);
+      toast.error(`Failed to update widget settings: ${error.message}`);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-4xl mx-auto">
-        <PageHeading>Widget Settings</PageHeading>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Agent Name</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAgentNameSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="agentName">Name</Label>
-                  <Input
-                    id="agentName"
-                    value={agentName}
-                    onChange={(e) => setAgentName(e.target.value)}
-                    placeholder="AI Assistant"
-                  />
-                </div>
-                <Button type="submit" disabled={isUpdating}>Save Name</Button>
-              </form>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Agent Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAgentDescriptionSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="agentDescription">Description</Label>
-                  <Textarea
-                    id="agentDescription"
-                    value={agentDescription}
-                    onChange={(e) => setAgentDescription(e.target.value)}
-                    placeholder="Describe what your assistant can help with"
-                    rows={4}
-                  />
-                </div>
-                <Button type="submit" disabled={isUpdating}>Save Description</Button>
-              </form>
-            </CardContent>
-          </Card>
-          
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Agent Logo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <LogoManagement 
-                logoUrl={logoUrl}
-                isLoading={isProcessing}
-                onLogoChange={handleLogoChange}
-                onLogoDelete={async () => {
-                  if (logoStoragePath) {
-                    try {
-                      // Remove the file from storage if it exists
-                      await supabase.storage
-                        .from('widget-logos')
-                        .remove([logoStoragePath]);
-                        
-                      // Update the database
-                      await updateLogo('', '');
-                      
-                      // Update local state
-                      setLogoUrl('');
-                      setLogoStoragePath('');
-                      
-                      // Refresh client data
-                      refetchClient();
-                      
-                      toast.success('Logo removed successfully');
-                    } catch (error: any) {
-                      toast.error(`Failed to remove logo: ${error.message}`);
-                    }
-                  } else {
-                    // Just clear the URL if no storage path
-                    await updateLogo('', '');
-                    setLogoUrl('');
-                    refetchClient();
-                    toast.success('Logo removed successfully');
-                  }
-                }}
-              />
-            </CardContent>
-          </Card>
+    <div className="container py-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Widget Settings</h1>
+          <p className="text-muted-foreground">
+            Customize the appearance and behavior of your widget.
+          </p>
         </div>
+        <Button variant="outline" onClick={() => navigate(-1)}>
+          Back
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription>
+              Customize how your widget looks and behaves.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="agent_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Agent Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="AI Assistant" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          This is the name that will be displayed in the widget header.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="agent_description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Agent Description</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Your AI assistant" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          A brief description of your AI assistant.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="welcome_text"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Welcome Text</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Hi there! How can I help you?" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          The initial message displayed in the chat widget.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="response_time_text"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Response Time Text</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Usually responds within a few minutes" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          The text displayed to indicate the typical response time.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="chat_color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chat Color</FormLabel>
+                        <FormControl>
+                          <Input type="color" defaultValue="#854fff" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          The main color of the chat widget.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="background_color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Background Color</FormLabel>
+                        <FormControl>
+                          <Input type="color" defaultValue="#ffffff" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          The background color of the chat widget.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="text_color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Text Color</FormLabel>
+                        <FormControl>
+                          <Input type="color" defaultValue="#333333" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          The color of the text in the chat widget.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="secondary_color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Secondary Color</FormLabel>
+                        <FormControl>
+                          <Input type="color" defaultValue="#f0f0f0" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          A secondary color for accents in the chat widget.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="position"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Position</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a position" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                            <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                            <SelectItem value="top-right">Top Right</SelectItem>
+                            <SelectItem value="top-left">Top Left</SelectItem>
+                            <SelectItem value="left">Left</SelectItem>
+                            <SelectItem value="right">Right</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          The position of the chat widget on the screen.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="display_mode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Display Mode</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a display mode" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="floating">Floating</SelectItem>
+                            <SelectItem value="inline">Inline</SelectItem>
+                            <SelectItem value="sidebar">Sidebar</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          The display mode of the chat widget.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <Button type="submit">Update Settings</Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Logo</CardTitle>
+            <CardDescription>
+              Upload or remove your logo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LogoManagement
+              logoUrl={localLogoPreview || widgetSettings?.logo_url || ""}
+              isUploading={isUploading}
+              onLogoUpload={handleLogoUpload}
+              onRemoveLogo={handleRemoveLogo}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-bold mb-4">Widget Preview</h2>
+        <Card>
+          <CardContent>
+            <WidgetPreview settings={widgetSettings} clientId={clientId} />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -1,14 +1,20 @@
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useParams } from 'react-router-dom';
-import WebsiteUrlForm from '@/components/client/website-urls/WebsiteUrlForm';
-import WebsiteUrlsList from '@/components/client/website-urls/WebsiteUrlsList';
-import DocumentLinkForm from '@/components/client/drive-links/DocumentLinkForm';
-import DocumentLinksList from '@/components/client/drive-links/DocumentLinksList';
-import { PageHeading } from '@/components/dashboard/PageHeading';
-import { useClientActivity } from '@/hooks/useClientActivity';
+import { useState, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { useParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useClientProfile } from "@/hooks/useClientProfile";
+import { WebsiteUrlForm } from "@/components/client/website-urls/WebsiteUrlForm";
+import { WebsiteUrlsList } from "@/components/client/website-urls/WebsiteUrlsList";
+import { DocumentLinkForm } from "@/components/client/drive-links/DocumentLinkForm";
+import { DocumentLinksList } from "@/components/client/drive-links/DocumentLinksList";
+import { Button } from "@/components/ui/button";
+import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
+import { useDocumentLinks } from "@/hooks/useDocumentLinks";
+import { useWebsiteProcessing } from "@/hooks/useWebsiteProcessing";
+import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useClientActivity } from "@/hooks/useClientActivity";
+import { ActivityType } from "@/types/client-form";
 
 export default function ResourceSettings() {
   const { clientId } = useParams<{ clientId: string }>();

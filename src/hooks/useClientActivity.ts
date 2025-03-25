@@ -46,3 +46,5 @@ export const useClientActivity = (clientId: string | undefined) => {
 
   return { logClientActivity, isLoading, error };
 };
+
+export default useClientActivity;
