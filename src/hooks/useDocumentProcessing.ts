@@ -19,15 +19,14 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
         const timestamp = new Date().getTime();
         const fileName = `${clientId}/${timestamp}-${file.name}`;
         
-        // Upload file to storage
+        // Upload file to storage - fixing the parameter structure
         const { data, error } = await supabase.storage
           .from(DOCUMENTS_BUCKET)
           .upload(fileName, file, {
             cacheControl: '3600',
             upsert: false,
             contentType: file.type,
-          }, {
-            onProgress: (progress) => {
+            onUploadProgress: (progress) => {
               const percent = Math.round((progress.loaded / progress.total) * 100);
               setUploadProgress(percent);
             }
