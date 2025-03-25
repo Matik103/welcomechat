@@ -4,6 +4,7 @@ import { ensurePublicUrl } from "@/utils/supabaseStorage";
 import { toast } from "sonner";
 import { LlamaParseError } from "@/utils/errors";
 import { ParseResponse } from "@/types/document-processing";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 
 // Define the bucket name constant
 const DOCUMENTS_BUCKET = 'documents';
@@ -35,7 +36,7 @@ export class LlamaCloudService {
       console.log(`Parsing document: ${documentUrl} (type: ${documentType})`);
       
       // Ensure we're using the correct bucket name when dealing with Supabase storage URLs
-      if (documentUrl.includes(supabase.supabaseUrl + '/storage/v1/object/public/')) {
+      if (documentUrl.includes(SUPABASE_URL + '/storage/v1/object/public/')) {
         try {
           // Extract the path and ensure it's a valid Supabase storage URL
           const bucketPath = documentUrl.split('/storage/v1/object/public/')[1];
