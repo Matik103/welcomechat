@@ -1,167 +1,138 @@
+import { createClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
 
-import { supabase } from '@/integrations/supabase/client';
-import { callRpcFunction } from '@/utils/rpcUtils';
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL!,
+  process.env.REACT_APP_SUPABASE_ANON_KEY!
+);
 
-interface OpenAIAssistantResponse {
-  success: boolean;
-  assistantId?: string;
-  fileId?: string;
+interface AssistantResponse {
+  message: string;
   error?: string;
 }
 
-/**
- * Creates or gets an OpenAI Assistant for a client
- */
-export const createOrGetAssistant = async (
-  clientId: string,
-  agentName: string,
-  agentDescription: string
-): Promise<OpenAIAssistantResponse> => {
-  try {
-    // First check if client already has an assistant
-    const { data: existingAssistant, error: queryError } = await supabase
+export class OpenAIAssistantService {
+  private openai: OpenAI;
+  private clientId: string;
+
+  constructor(clientId: string) {
+    this.clientId = clientId;
+    this.openai = new OpenAI({
+      apiKey: process.env.REACT_APP_OPENAI_API_KEY,
+    });
+  }
+
+  private async getAssistantId(): Promise<string | null> {
+    try {
+      const { data, error } = await supabase
       .from('ai_agents')
-      .select('openai_assistant_id')
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config')
+        .select('assistant_id')
+        .eq('client_id', this.clientId)
       .single();
 
-    if (existingAssistant?.openai_assistant_id) {
-      return {
-        success: true,
-        assistantId: existingAssistant.openai_assistant_id
-      };
+      if (error) throw error;
+      return data?.assistant_id || null;
+    } catch (error) {
+      console.error('Error fetching assistant ID:', error);
+      return null;
     }
+  }
 
-    // Create new assistant via edge function
-    const { data: createData, error: createError } = await supabase.functions.invoke('create-openai-assistant', {
-      body: {
-        clientId,
-        agentName,
-        agentDescription,
-        instructions: `You are ${agentName}, an AI assistant designed to help with questions about the client's documents and data. ${agentDescription}`
-      }
-    });
-
-    if (createError || !createData?.assistant_id) {
-      throw new Error(createError?.message || 'Failed to create OpenAI Assistant');
+  private async createThread(): Promise<string | null> {
+    try {
+      const thread = await this.openai.beta.threads.create();
+      return thread.id;
+    } catch (error) {
+      console.error('Error creating thread:', error);
+      return null;
     }
+  }
 
-    // Store the assistant ID in ai_agents
-    const { error: updateError } = await supabase
-      .from('ai_agents')
-      .upsert({
-        client_id: clientId,
-        name: agentName,
-        agent_description: agentDescription,
-        interaction_type: 'config',
-        openai_assistant_id: createData.assistant_id,
-        settings: {
-          assistant_type: 'openai',
-          created_at: new Date().toISOString(),
-          instructions: `You are ${agentName}, an AI assistant designed to help with questions about the client's documents and data. ${agentDescription}`
-        }
+  private async addMessageToThread(threadId: string, content: string): Promise<boolean> {
+    try {
+      await this.openai.beta.threads.messages.create(threadId, {
+        role: 'user',
+        content,
+      });
+      return true;
+    } catch (error) {
+      console.error('Error adding message to thread:', error);
+      return false;
+    }
+  }
+
+  private async runAssistant(threadId: string, assistantId: string): Promise<string | null> {
+    try {
+      const run = await this.openai.beta.threads.runs.create(threadId, {
+        assistant_id: assistantId,
       });
 
-    if (updateError) {
-      console.error('Error storing assistant ID:', updateError);
-    }
+      // Wait for the run to complete
+      let runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
+      while (runStatus.status === 'in_progress' || runStatus.status === 'queued') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
+      }
 
-    return {
-      success: true,
-      assistantId: createData.assistant_id
-    };
-  } catch (error) {
-    console.error('Error in createOrGetAssistant:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to create/get assistant'
-    };
+      if (runStatus.status === 'completed') {
+        const messages = await this.openai.beta.threads.messages.list(threadId);
+        const lastMessage = messages.data[0];
+        const content = lastMessage.content[0];
+        
+        if (content.type === 'text') {
+          return content.text.value;
+        }
+        return null;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error running assistant:', error);
+      return null;
+    }
   }
-};
 
-/**
- * Uploads document content to OpenAI Assistant
- */
-export const uploadToOpenAIAssistant = async (
-  clientId: string,
-  agentName: string,
-  content: string,
-  title: string
-): Promise<OpenAIAssistantResponse> => {
-  try {
-    // First ensure the client has an assistant
-    const { data: assistantData, error: assistantError } = await supabase
-      .from('ai_agents')
-      .select('openai_assistant_id, agent_description')
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config')
-      .single();
-
-    if (assistantError || !assistantData?.openai_assistant_id) {
-      // Create new assistant if none exists
-      const { success, assistantId, error } = await createOrGetAssistant(
-        clientId,
-        agentName,
-        assistantData?.agent_description || `AI Assistant for ${agentName}`
-      );
-
-      if (!success || !assistantId) {
-        throw new Error(error || 'Failed to create assistant');
+  public async sendMessage(message: string): Promise<AssistantResponse> {
+    try {
+      const assistantId = await this.getAssistantId();
+      if (!assistantId) {
+        return {
+          message: "I apologize, but I'm having trouble connecting to our knowledge base at the moment. Please try again later.",
+          error: 'Assistant ID not found'
+        };
       }
-    }
 
-    // Upload document to the assistant
-    const { data, error } = await supabase.functions.invoke('upload-document-to-assistant', {
-      body: {
-        clientId,
-        agentName,
-        documentContent: content,
-        documentTitle: title
+      const threadId = await this.createThread();
+      if (!threadId) {
+        return {
+          message: "I apologize, but I'm having trouble starting a new conversation. Please try again later.",
+          error: 'Failed to create thread'
+        };
       }
-    });
 
-    if (error) {
-      throw error;
-    }
-
-    // Log successful upload using RPC function instead of direct insert
-    await callRpcFunction('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: 'openai_assistant_document_added',
-      description_param: `Document "${title}" added to OpenAI Assistant`,
-      metadata_param: {
-        document_title: title,
-        agent_name: agentName,
-        openai_file_id: data.file_id,
-        openai_assistant_id: data.assistant_id,
-        content_length: content.length
+      const messageAdded = await this.addMessageToThread(threadId, message);
+      if (!messageAdded) {
+        return {
+          message: "I apologize, but I'm having trouble processing your message. Please try again later.",
+          error: 'Failed to add message to thread'
+        };
       }
-    });
 
+      const response = await this.runAssistant(threadId, assistantId);
+      if (!response) {
     return {
-      success: true,
-      assistantId: data.assistant_id,
-      fileId: data.file_id
-    };
-  } catch (error) {
-    console.error('Error uploading to OpenAI Assistant:', error);
-    
-    // Log failure using RPC function
-    await callRpcFunction('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: 'openai_assistant_upload_failed',
-      description_param: `Failed to add document "${title}" to OpenAI Assistant`,
-      metadata_param: {
-        document_title: title,
-        agent_name: agentName,
-        error: error instanceof Error ? error.message : 'Unknown error'
+          message: "I apologize, but I'm having trouble generating a response. Please try again later.",
+          error: 'Failed to get response from assistant'
+        };
       }
-    });
 
+      return { message: response };
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
     return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to upload to OpenAI Assistant'
+        message: "I apologize, but I'm experiencing some technical difficulties. Please try again later.",
+        error: 'Unexpected error'
     };
+    }
   }
-};
+}

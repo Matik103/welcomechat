@@ -1,11 +1,10 @@
-
 import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { MessageCircle, Loader2 } from "lucide-react";
-import { useAgentContent } from "@/hooks/useAgentContent";
+import { useChatPreview } from "@/hooks/useChatPreview";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -14,17 +13,25 @@ interface WidgetPreviewProps {
 
 export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const [expanded, setExpanded] = useState(false);
-  const [messages, setMessages] = useState<{ text: string; isUser: boolean }[]>([
-    { text: settings.welcome_text || "Hi 👋, how can I help?", isUser: false }
-  ]);
   const [inputValue, setInputValue] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const { agentContent, sources, isLoading: isAgentLoading } = useAgentContent(
-    clientId, 
-    "" // Use empty string instead of "AI Assistant"
-  );
+  const {
+    messages: chatMessages,
+    isLoading,
+    error,
+    sendMessage,
+    clearChat
+  } = useChatPreview(clientId || '');
+
+  // Transform messages for the UI
+  const displayMessages = [
+    { text: settings.welcome_text || "Hi 👋, how can I help?", isUser: false },
+    ...chatMessages.map(msg => ({
+      text: msg.content,
+      isUser: msg.role === 'user'
+    }))
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -32,113 +39,18 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [displayMessages]);
 
   const handleToggleExpand = () => {
     setExpanded(!expanded);
   };
 
-  const typeResponse = (response: string) => {
-    setIsTyping(true);
-    
-    const newMessageIndex = messages.length;
-    setMessages(prev => [...prev, { text: "", isUser: false }]);
-    
-    let i = 0;
-    const typingInterval = setInterval(() => {
-      if (i < response.length) {
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[newMessageIndex] = { 
-            text: response.substring(0, i + 1), 
-            isUser: false 
-          };
-          return updated;
-        });
-        i++;
-      } else {
-        clearInterval(typingInterval);
-        setIsTyping(false);
-      }
-    }, 15);
-  };
-
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isTyping) return;
+    if (!inputValue.trim() || isLoading) return;
 
-    setMessages(prev => [...prev, { text: inputValue, isUser: true }]);
-    const userQuery = inputValue;
+    const message = inputValue;
     setInputValue("");
-    
-    if (clientId) {
-      try {
-        setIsTyping(true);
-        
-        const response = await fetch('https://mgjodiqecnnltsgorife.supabase.co/functions/v1/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompt: userQuery,
-            agent_name: "",
-            client_id: clientId,
-            context: agentContent.substring(0, 3000)
-          })
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          typeResponse(data.generatedText || "I couldn't generate a response. Please try again.");
-        } else {
-          simulateResponse(userQuery);
-        }
-      } catch (error) {
-        console.error("Error calling chat API:", error);
-        simulateResponse(userQuery);
-      }
-    } else {
-      simulateResponse(userQuery);
-    }
-  };
-
-  const simulateResponse = (userQuery: string) => {
-    setTimeout(() => {
-      let responseText = "I'm your AI assistant. This is a preview of how the widget will look on your website.";
-      
-      if (agentContent && agentContent.length > 0) {
-        if (userQuery.toLowerCase().includes("what") && 
-            (userQuery.toLowerCase().includes("know") || 
-             userQuery.toLowerCase().includes("about") ||
-             userQuery.toLowerCase().includes("learn"))) {
-          responseText = `Based on the content I have access to, I can help with information about: ${agentContent.substring(0, 150)}...`;
-        } else if (userQuery.toLowerCase().includes("help")) {
-          responseText = "I can help answer questions based on the documents and websites that have been shared with me. What would you like to know?";
-        } else if (userQuery.toLowerCase().includes("document") || userQuery.toLowerCase().includes("information")) {
-          const sourceInfo = sources && sources.length > 0 
-            ? `I have access to ${sources.length} documents including ${sources[0]?.url || 'various resources'}.` 
-            : "I have access to your organization's knowledge base.";
-          responseText = `${sourceInfo} How can I help you today?`;
-        } else {
-          const words = userQuery.toLowerCase().split(' ').filter(w => w.length > 3);
-          let relevantContent = agentContent;
-          
-          for (const word of words) {
-            const index = agentContent.toLowerCase().indexOf(word);
-            if (index > -1) {
-              const start = Math.max(0, index - 100);
-              const end = Math.min(agentContent.length, index + 200);
-              relevantContent = agentContent.substring(start, end);
-              break;
-            }
-          }
-          
-          responseText = `Based on the available information, I can tell you that ${relevantContent.substring(0, 150)}...`;
-        }
-      }
-      
-      typeResponse(responseText);
-    }, 1000);
+    await sendMessage(message);
   };
 
   // Render the appropriate widget based on the display mode
@@ -186,20 +98,20 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                 onClose={handleToggleExpand}
               />
               
-              {isAgentLoading && (
+              {isLoading && (
                 <div className="flex-1 flex items-center justify-center bg-opacity-50 bg-gray-100">
                   <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
                 </div>
               )}
               
-              {!isAgentLoading && (
+              {!isLoading && (
                 <>
                   <ChatMessages 
-                    messages={messages}
+                    messages={displayMessages}
                     backgroundColor={settings.background_color}
                     textColor={settings.text_color}
                     secondaryColor={settings.secondary_color}
-                    isTyping={isTyping}
+                    isTyping={false}
                     messagesEndRef={messagesEndRef}
                   />
                   
@@ -210,7 +122,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                     primaryColor={settings.chat_color}
                     secondaryColor={settings.secondary_color}
                     textColor={settings.text_color}
-                    disabled={isTyping}
+                    disabled={isLoading}
                   />
                 </>
               )}
@@ -260,7 +172,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
           </div>
           
           <div className="h-[250px] overflow-y-auto p-3" style={{ backgroundColor: settings.background_color }}>
-            {messages.map((message, index) => (
+            {displayMessages.map((message, index) => (
               <div 
                 key={index} 
                 className={`mb-2 ${message.isUser ? 'text-right' : 'text-left'}`}
@@ -280,7 +192,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                 </div>
               </div>
             ))}
-            {isTyping && (
+            {isLoading && (
               <div className="text-left mb-2">
                 <div 
                   className="inline-block px-3 py-2 rounded-lg bg-gray-200"
@@ -304,14 +216,14 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
               onChange={(e) => setInputValue(e.target.value)}
               className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-1"
               placeholder="Type your message..."
-              disabled={isTyping}
+              disabled={isLoading}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             />
             <button 
               onClick={handleSendMessage}
               className="px-4 py-2 rounded-md text-white"
               style={{ backgroundColor: settings.chat_color }}
-              disabled={isTyping || !inputValue.trim()}
+              disabled={isLoading || !inputValue.trim()}
             >
               Send
             </button>
@@ -370,7 +282,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
               </div>
               
               <div className="flex-1 overflow-y-auto p-3">
-                {messages.map((message, index) => (
+                {displayMessages.map((message, index) => (
                   <div 
                     key={index} 
                     className={`mb-2 ${message.isUser ? 'text-right' : 'text-left'}`}
@@ -386,7 +298,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                     </div>
                   </div>
                 ))}
-                {isTyping && (
+                {isLoading && (
                   <div className="text-left mb-2">
                     <div 
                       className="inline-block px-3 py-2 rounded-lg"
@@ -410,14 +322,14 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                   onChange={(e) => setInputValue(e.target.value)}
                   className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-1"
                   placeholder="Type your message..."
-                  disabled={isTyping}
+                  disabled={isLoading}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 />
                 <button 
                   onClick={handleSendMessage}
                   className="px-4 py-2 rounded-md text-white"
                   style={{ backgroundColor: settings.chat_color }}
-                  disabled={isTyping || !inputValue.trim()}
+                  disabled={isLoading || !inputValue.trim()}
                 >
                   Send
                 </button>
