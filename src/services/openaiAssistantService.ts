@@ -7,11 +7,8 @@ const SUPABASE_URL = import.meta.env.REACT_APP_SUPABASE_URL || import.meta.env.V
 const SUPABASE_ANON_KEY = import.meta.env.REACT_APP_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 const OPENAI_API_KEY = import.meta.env.REACT_APP_OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY;
 
-// Create Supabase client
-const supabase = createClient(
-  SUPABASE_URL || '',
-  SUPABASE_ANON_KEY || ''
-);
+// Create Supabase client with proper import from the project
+import { supabase as projectSupabase } from "@/integrations/supabase/client";
 
 interface AssistantResponse {
   message: string;
@@ -37,7 +34,7 @@ export class OpenAIAssistantService {
         return null;
       }
       
-      const { data, error } = await supabase
+      const { data, error } = await projectSupabase
         .from('ai_agents')
         .select('assistant_id')
         .eq('client_id', this.clientId)
