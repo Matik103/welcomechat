@@ -1,4 +1,3 @@
-
 /**
  * Document Processing Service
  * Version: 1.0.3
@@ -18,7 +17,6 @@ import { LlamaParseError, DatabaseError } from '@/utils/errors';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 // No need to redefine the bucket name constant here
-// const DOCUMENTS_BUCKET = 'documents'; // Remove this line
 
 /**
  * Store content in ai_agents table

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ensurePublicUrl } from "@/utils/supabaseStorage";
 import { toast } from "sonner";
@@ -6,9 +5,6 @@ import { LlamaParseError } from "@/utils/errors";
 import { ParseResponse } from "@/types/document-processing";
 import { SUPABASE_URL } from "@/integrations/supabase/client";
 import { DOCUMENTS_BUCKET } from "@/utils/supabaseStorage";
-
-// No need to redefine the bucket name here since we're importing it
-// const DOCUMENTS_BUCKET = 'documents'; // Remove this line
 
 interface ParseDocumentResult {
   success: boolean;
