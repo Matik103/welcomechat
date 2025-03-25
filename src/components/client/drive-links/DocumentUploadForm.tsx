@@ -13,11 +13,41 @@ export const DocumentUploadForm = ({
   isUploading
 }: DocumentUploadFormProps) => {
   const [file, setFile] = useState<File | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorMsg(null);
     const files = e.target.files;
     if (files && files.length > 0) {
-      setFile(files[0]);
+      // Validate file type
+      const selectedFile = files[0];
+      const validTypes = [
+        'application/pdf', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain',
+        'text/csv'
+      ];
+      
+      if (!validTypes.includes(selectedFile.type) && 
+          !selectedFile.name.endsWith('.pdf') && 
+          !selectedFile.name.endsWith('.docx') && 
+          !selectedFile.name.endsWith('.xlsx') && 
+          !selectedFile.name.endsWith('.pptx') && 
+          !selectedFile.name.endsWith('.txt') && 
+          !selectedFile.name.endsWith('.csv')) {
+        setErrorMsg('Unsupported file type. Please select a PDF, Word, Excel, PowerPoint, or text file.');
+        return;
+      }
+      
+      // Validate file size (max 50MB)
+      if (selectedFile.size > 50 * 1024 * 1024) {
+        setErrorMsg('File is too large. Maximum size is 50MB.');
+        return;
+      }
+      
+      setFile(selectedFile);
     }
   };
 
@@ -25,6 +55,7 @@ export const DocumentUploadForm = ({
     e.preventDefault();
     if (file) {
       try {
+        setErrorMsg(null);
         await onSubmitDocument(file);
         setFile(null);
         
@@ -35,6 +66,7 @@ export const DocumentUploadForm = ({
         }
       } catch (error) {
         console.error('Error uploading document:', error);
+        setErrorMsg(error instanceof Error ? error.message : 'Failed to upload document');
       }
     }
   };
@@ -53,8 +85,11 @@ export const DocumentUploadForm = ({
             className="mt-1"
           />
           <p className="text-sm text-muted-foreground mt-1">
-            Supported formats: PDF, Word, Excel, PowerPoint, and text files
+            Supported formats: PDF, Word, Excel, PowerPoint, and text files (Max 50MB)
           </p>
+          {errorMsg && (
+            <p className="text-sm text-destructive mt-1">{errorMsg}</p>
+          )}
         </div>
         
         <Button

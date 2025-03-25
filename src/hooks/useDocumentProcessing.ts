@@ -68,7 +68,7 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
           }
         });
         
-        // Process the document through LlamaParse
+        // Process the document through the edge function
         const { data: processData, error: processError } = await supabase.functions.invoke(
           'process-document',
           {
@@ -76,7 +76,8 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
               documentUrl: urlData.publicUrl,
               documentType: file.type,
               clientId: clientId,
-              agentName: agentName
+              agentName: agentName,
+              documentId: crypto.randomUUID() // Add a unique ID for the document
             }
           }
         );
@@ -84,6 +85,30 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
         if (processError) {
           console.error('Error processing document:', processError);
           toast.error('Document uploaded but processing failed. Please try again later.');
+          
+          // Log the processing error
+          await supabase.from('client_activities').insert({
+            client_id: clientId,
+            activity_type: 'document_processing_failed',
+            description: `Document processing failed: ${file.name}`,
+            metadata: {
+              file_name: file.name,
+              error: processError.message || 'Unknown error',
+              path: data.path
+            }
+          });
+        } else {
+          // Log successful processing
+          await supabase.from('client_activities').insert({
+            client_id: clientId,
+            activity_type: 'document_processing_started',
+            description: `Document processing started: ${file.name}`,
+            metadata: {
+              file_name: file.name,
+              job_id: processData?.jobId,
+              path: data.path
+            }
+          });
         }
         
         return {
