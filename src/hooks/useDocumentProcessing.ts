@@ -17,7 +17,7 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
         
         // Create a unique filename to prevent collisions
         const timestamp = new Date().getTime();
-        const fileName = `${clientId}/${timestamp}-${file.name}`;
+        const fileName = `${timestamp}-${file.name}`;
         
         // Get authenticated user
         const { data: userData } = await supabase.auth.getUser();
@@ -25,18 +25,20 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
           throw new Error('Authentication required for uploads');
         }
         
+        // Create folder path with user ID as the folder name to organize uploads
+        const folderPath = `${userData.user.id}/${fileName}`;
+        
         // Upload the file to the storage bucket
         const { data, error } = await supabase.storage
           .from(DOCUMENTS_BUCKET)
-          .upload(fileName, file, {
+          .upload(folderPath, file, {
             cacheControl: '3600',
             upsert: false,
             contentType: file.type
           });
         
-        // Set up a separate progress event listener if needed
-        // This is a workaround since onUploadProgress isn't in FileOptions
-        setUploadProgress(100); // Since we can't track progress easily, set to 100% when done
+        // Set progress to 100% when complete (since we can't track real-time progress)
+        setUploadProgress(100);
         
         if (error) {
           throw error;
@@ -100,6 +102,13 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
 
   const handleDocumentUpload = async (file: File) => {
     try {
+      // Check authentication status before attempting upload
+      const { data: authData } = await supabase.auth.getSession();
+      if (!authData.session) {
+        toast.error('You must be logged in to upload documents');
+        return null;
+      }
+      
       const result = await uploadMutation.mutateAsync(file);
       
       toast.success('Document uploaded successfully! Processing started.');

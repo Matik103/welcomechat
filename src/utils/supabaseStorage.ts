@@ -73,3 +73,16 @@ export const parseStorageUrl = (url: string) => {
   }
 };
 
+/**
+ * Creates a folder path for a user's document
+ * @param userId The user's ID
+ * @param fileName The file name
+ * @returns The folder path for the user's document
+ */
+export const createUserDocumentPath = (userId: string, fileName: string): string => {
+  if (!userId) {
+    throw new Error('User ID is required for creating document paths');
+  }
+  
+  return `${userId}/${fileName}`;
+};
