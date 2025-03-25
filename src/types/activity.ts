@@ -53,10 +53,11 @@ export interface Activity {
   id?: string;
   client_id?: string;
   activity_type: ActivityType;
-  description: string;
+  description?: string;
   metadata?: Record<string, any>;
   created_at: string;
   updated_at?: string;
+  activity_data?: Record<string, any>;
 }
 
 /**

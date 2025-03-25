@@ -1,119 +1,101 @@
+
+import { supabase } from "@/integrations/supabase/client";
+import { execSql } from "@/utils/rpcUtils";
 import { QueryItem } from "@/types/client-dashboard";
-import { callRpcFunction } from "@/utils/rpcUtils";
+
+export interface TopQuery {
+  query_text: string;
+  frequency: number;
+}
 
 /**
- * Get the top queries for a client
- * @param clientId The client ID
- * @param agentName Optional agent name
- * @returns The top queries
+ * Fetch top queries for a client from the common_queries table
  */
-export const fetchTopQueries = async (clientId: string, agentName?: string): Promise<QueryItem[]> => {
+export const fetchTopQueries = async (clientId: string, agentName?: string, limit = 5): Promise<QueryItem[]> => {
   try {
-    // Try to use the get_common_queries RPC function
-    const results = await callRpcFunction<Array<{query_text: string, frequency: number}>>(
-      'get_common_queries', 
-      { 
-        client_id_param: clientId,
-        agent_name_param: agentName,
-        limit_param: 5
-      }
+    // Use execSql without type arguments
+    const result = await execSql(
+      `
+      SELECT query_text, COUNT(*) as frequency
+      FROM ai_agents
+      WHERE client_id = $1
+      AND interaction_type = 'chat_interaction'
+      ${agentName ? `AND name = $2` : ''}
+      AND query_text IS NOT NULL
+      GROUP BY query_text
+      ORDER BY frequency DESC
+      LIMIT $3
+      `,
+      agentName ? [clientId, agentName, limit] : [clientId, limit]
     );
     
-    if (Array.isArray(results)) {
-      return results.map(item => ({
-        id: `query-${item.query_text.substring(0, 10)}`,
-        query_text: item.query_text,
-        frequency: item.frequency
-      }));
+    if (!result || !Array.isArray(result)) {
+      return [];
     }
-    
-    // Fallback to direct SQL query if RPC fails
-    const { data, error } = await callRpcFunction<any>('exec_sql', {
-      sql_query: `
-        SELECT query_text, COUNT(*) as frequency
-        FROM ai_agents
-        WHERE client_id = '${clientId}'
-        ${agentName ? `AND name = '${agentName}'` : ''}
-        AND interaction_type = 'chat_interaction'
-        AND query_text IS NOT NULL
-        GROUP BY query_text
-        ORDER BY frequency DESC
-        LIMIT 5
-      `
-    });
-    
-    if (error) throw error;
-    
-    return Array.isArray(data) 
-      ? data.map(item => ({
-          id: `query-${item.query_text.substring(0, 10)}`,
-          query_text: item.query_text,
-          frequency: parseInt(item.frequency)
-        }))
-      : [];
+
+    // Map to QueryItem format
+    return result.map((item, index) => ({
+      id: `query-${index}`,
+      query_text: item.query_text,
+      frequency: parseInt(item.frequency),
+      client_id: clientId
+    }));
   } catch (error) {
     console.error("Error fetching top queries:", error);
     return [];
   }
 };
 
-export const getTopQueriesByClient = async (clientId: string, limit: number = 5): Promise<TopQuery[]> => {
+/**
+ * Get recent common queries with pagination
+ */
+export const getCommonQueries = async (clientId: string, page = 1, pageSize = 10): Promise<QueryItem[]> => {
   try {
-    // No need for the type parameter in execSql
+    // Use execSql without type arguments
     const result = await execSql(
       `
-      SELECT 
-        metadata->>'query_text' AS query,
-        COUNT(*) AS count
-      FROM client_activities
-      WHERE 
-        activity_type = 'chat_interaction'
-        AND client_id = $1
-        AND metadata->>'query_text' IS NOT NULL
-      GROUP BY metadata->>'query_text'
-      ORDER BY count DESC
-      LIMIT $2
+      SELECT query_text, COUNT(*) as frequency
+      FROM ai_agents
+      WHERE client_id = $1
+      AND interaction_type = 'chat_interaction'
+      AND query_text IS NOT NULL
+      GROUP BY query_text
+      ORDER BY frequency DESC
+      LIMIT $2 OFFSET $3
       `,
-      [clientId, limit]
+      [clientId, pageSize, (page - 1) * pageSize]
     );
     
-    return result.map(item => ({
-      id: `query-${item.query_text.substring(0, 10)}`,
+    if (!result || !Array.isArray(result)) {
+      return [];
+    }
+
+    // Map to QueryItem interface
+    return result.map((item, index) => ({
+      id: `query-${index}`,
       query_text: item.query_text,
-      frequency: item.count
+      frequency: parseInt(item.frequency),
+      client_id: clientId
     }));
   } catch (error) {
-    console.error("Error fetching top queries by client:", error);
+    console.error("Error fetching common queries:", error);
     return [];
   }
 };
 
-export const getGlobalTopQueries = async (limit: number = 10): Promise<TopQuery[]> => {
+/**
+ * Archive a common query (mark it as reviewed or hide it)
+ */
+export const archiveCommonQuery = async (queryId: string): Promise<boolean> => {
   try {
-    // No need for the type parameter in execSql
-    const result = await execSql(
-      `
-      SELECT 
-        metadata->>'query_text' AS query,
-        COUNT(*) AS count
-      FROM client_activities
-      WHERE 
-        activity_type = 'chat_interaction'
-        AND metadata->>'query_text' IS NOT NULL
-      GROUP BY metadata->>'query_text'
-      ORDER BY count DESC
-      LIMIT $1
-      `,
-      [limit]
-    );
-    
-    return result.map(item => ({
-      id: `query-${item.query_text.substring(0, 10)}`,
-      query_text: item.query_text,
-      frequency: item.count
-    }));
+    const { error } = await supabase
+      .from('common_queries')
+      .update({ archived: true })
+      .eq('id', queryId);
+      
+    return !error;
   } catch (error) {
-    console.error("Error fetching global top queries:", error);
-    return [];
+    console.error("Error archiving query:", error);
+    return false;
   }
 };

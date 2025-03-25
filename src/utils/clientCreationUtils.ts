@@ -1,7 +1,9 @@
+import { callRpcFunction } from "@/utils/rpcUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 import { generateClientTempPassword } from './passwordUtils';
+import { ActivityType } from "@/types/activity";
 
 /**
  * Logs client creation activity
@@ -10,21 +12,36 @@ export const logClientCreation = async (
   clientId: string,
   clientName: string,
   email: string
-): Promise<void> => {
+): Promise<boolean> => {
   try {
-    // Use callRpcFunction instead of direct insert
-    await callRpcFunction('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: 'client_created',
-      description_param: `Client ${clientName} created`,
-      metadata_param: {
-        client_name: clientName,
-        email: email
-      }
-    });
-  } catch (error: any) {
-    console.error("Error logging client creation:", error);
-    // Don't throw error here, just log it
+    // Log client creation in the activity log
+    const { error } = await supabase
+      .from('client_activities')
+      .insert({
+        client_id: clientId,
+        activity_type: 'client_created' as ActivityType,
+        activity_data: { email, client_name: clientName }
+      });
+    
+    if (error) {
+      console.error("Error logging client creation:", error);
+      return false;
+    }
+    
+    try {
+      await callRpcFunction('send_welcome_email', { 
+        email_to: email,
+        client_name: clientName
+      });
+    } catch (error) {
+      console.error("Error sending welcome email:", error);
+      // Continue despite email sending error
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error in logClientCreation:", error);
+    return false;
   }
 };
 

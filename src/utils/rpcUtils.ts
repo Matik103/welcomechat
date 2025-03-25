@@ -8,20 +8,20 @@ import { supabase } from "@/integrations/supabase/client";
  * @param params Parameters to pass to the function
  * @returns The result of the function call
  */
-export const callRpcFunction = async (
+export const callRpcFunction = async <T = any>(
   functionName: string, 
   params: Record<string, any>
-): Promise<any> => {
+): Promise<T> => {
   try {
-    // Use 'any' type to bypass TypeScript limitations with dynamic function names
-    const { data, error } = await supabase.rpc(functionName as any, params);
+    // Call the RPC function dynamically
+    const { data, error } = await supabase.rpc(functionName, params);
     
     if (error) {
       console.error(`Error calling ${functionName} RPC function:`, error);
       throw error;
     }
     
-    return data;
+    return data as T;
   } catch (error) {
     console.error(`Error in callRpcFunction (${functionName}):`, error);
     throw error;
@@ -40,8 +40,8 @@ export const execSql = async (
   params: any[] = []
 ): Promise<any> => {
   try {
-    // Use 'any' type to bypass TypeScript limitations with function name
-    const { data, error } = await supabase.rpc('exec_sql' as any, {
+    // Call the exec_sql RPC function
+    const { data, error } = await supabase.rpc('exec_sql', {
       sql_query: sqlQuery,
       query_params: params.length > 0 ? JSON.stringify(params) : null
     });

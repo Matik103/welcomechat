@@ -1,12 +1,23 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { fetchTopQueries } from "./topQueriesService";
-import { getInteractionCount } from "./interactionCountService";
-import { getActiveDays } from "./activeDaysService";
-import { getAverageResponseTime } from "./responseTimeService";
-import { InteractionStats } from "@/types/client-dashboard";
-import { QueryItem } from "@/types/client-dashboard";
-import { callRpcFunction } from "@/utils/rpcUtils";
-import { execSql } from "@/utils/execSql";
+import { getInteractionsByDay } from "./interactionCountService";
+import { getActiveDays, ActiveDay } from "./activeDaysService";
+import { getAverageResponseTime, getAverageResponseTimeByDay } from "./responseTimeService";
+import { InteractionStats, QueryItem } from "@/types/client-dashboard";
+import { callRpcFunction, execSql } from "@/utils/rpcUtils";
+
+// Define missing interfaces
+interface TopClient {
+  client_id: string;
+  client_name: string;
+  interaction_count: number;
+}
+
+interface InteractionTrend {
+  day: string;
+  count: number;
+}
 
 /**
  * Gets all interaction stats for a client
@@ -19,7 +30,7 @@ export const getInteractionStats = async (clientId: string, agentName?: string):
     // Get agent name if not provided
     if (!agentName) {
       try {
-        const { data: agentData } = await callRpcFunction<any>('exec_sql', { 
+        const { data: agentData } = await callRpcFunction('exec_sql', { 
           sql_query: `SELECT name FROM ai_agents WHERE client_id = '${clientId}' LIMIT 1` 
         });
         
@@ -35,13 +46,7 @@ export const getInteractionStats = async (clientId: string, agentName?: string):
     }
 
     // Use RPC function to get all stats at once - use get_agent_dashboard_stats (not get_client_dashboard_stats)
-    const result = await callRpcFunction<{
-      total_interactions: number;
-      active_days: number;
-      average_response_time: number;
-      top_queries?: Array<{query_text: string, frequency: number}>;
-      success_rate?: number;
-    }>('get_agent_dashboard_stats', { 
+    const result = await callRpcFunction('get_agent_dashboard_stats', { 
       client_id_param: clientId,
       agent_name_param: agentName 
     });
@@ -91,18 +96,20 @@ const getFallbackStats = async (clientId: string, agentName?: string): Promise<I
   try {
     // Make individual calls to get the stats
     let totalInteractions = 0;
-    let activeDays = 0;
+    let activeDays: number = 0;
     let averageResponseTime = 0;
     let topQueries: QueryItem[] = [];
     
     try {
-      totalInteractions = await getInteractionCount(clientId, agentName);
+      const interactionsData = await getInteractionsByDay(clientId);
+      totalInteractions = interactionsData.reduce((sum, item) => sum + item.count, 0);
     } catch (error) {
       console.error("Error getting total interactions:", error);
     }
     
     try {
-      activeDays = await getActiveDays(clientId, agentName);
+      const activeDaysData = await getActiveDays(clientId);
+      activeDays = activeDaysData.length;
     } catch (error) {
       console.error("Error getting active days:", error);
     }

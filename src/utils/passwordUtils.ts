@@ -74,14 +74,12 @@ export const saveClientTempPassword = async (
  * @param tempPassword - The temporary password to set
  * @returns A promise that resolves to the result of the operation
  */
-export const createClientUserAccount = async (
+export const createClientUser = async (
   email: string,
-  clientId: string,
+  password: string,
   clientName: string,
-  agentName: string,
-  agentDescription: string,
-  tempPassword: string
-): Promise<any> => {
+  clientId: string
+): Promise<boolean> => {
   try {
     // Import here to avoid circular dependencies
     const { supabase } = await import('@/integrations/supabase/client');
@@ -94,9 +92,7 @@ export const createClientUserAccount = async (
           email,
           client_id: clientId,
           client_name: clientName,
-          agent_name: agentName,
-          agent_description: agentDescription,
-          temp_password: tempPassword
+          password
         }
       }
     );
@@ -107,10 +103,10 @@ export const createClientUserAccount = async (
     }
     
     console.log('Client user account created successfully:', data);
-    return data;
+    return true;
   } catch (err) {
     console.error('Failed to create client user account:', err);
-    throw err;
+    return false;
   }
 };
 
@@ -171,24 +167,19 @@ export const logClientCreationActivity = async (
     
     const { error } = await supabase.from("client_activities").insert({
       client_id: clientId,
-      activity_type: "client_created",
-      description: "New client created with AI agent: " + agentName,
-      metadata: {
-        client_name: clientName,
-        email: email,
-        agent_name: agentName
-      }
+      activity_type: 'client_created',
+      activity_data: { email, client_name: clientName }
     });
     
     if (error) {
       console.error('Error logging client creation activity:', error);
-      throw new Error(error.message);
+      // Don't throw here - activity logging is not critical
     }
     
     console.log(`Client creation activity logged for ${clientId}`);
   } catch (err) {
     console.error('Failed to log client creation activity:', err);
-    // Don't throw here - activity logging is not critical
+    // Don't throw here to avoid blocking onboarding flow
   }
 };
 

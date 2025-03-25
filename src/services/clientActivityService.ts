@@ -1,78 +1,66 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { ExtendedActivityType } from '@/types/activity';
-import type { Json } from '@/integrations/supabase/types';
-import { callRpcFunction } from '@/utils/rpcUtils';
+import { supabase } from "@/integrations/supabase/client";
+import { Activity, ActivityType } from "@/types/activity";
 
 /**
- * Creates a client activity record
+ * Logs an activity for a client
  * @param clientId The client ID
- * @param activity_type The type of activity
- * @param description Description of the activity
- * @param metadata Additional metadata for the activity
- * @returns The created activity
+ * @param activityType Type of activity
+ * @param activityData Additional data about the activity
+ * @returns Success flag
  */
-export const createClientActivity = async (
+export async function logClientActivity(
   clientId: string,
-  activity_type: ExtendedActivityType,
-  description: string,
-  metadata: Record<string, any> = {}
-) => {
+  activityType: ActivityType,
+  activityData?: Record<string, any>
+): Promise<boolean> {
   try {
-    if (!clientId) {
-      throw new Error('Client ID is required for activity logging');
-    }
+    console.log(`Logging activity: ${activityType} for client ${clientId}`);
 
-    // Try to log the activity via RPC function first
-    try {
-      const result = await callRpcFunction('log_client_activity', {
-        client_id_param: clientId,
-        activity_type_param: activity_type,
-        description_param: description,
-        metadata_param: metadata
-      });
-      return result;
-    } catch (rpcError) {
-      console.warn('RPC function failed, falling back to direct insert:', rpcError);
-      
-      // Fall back to direct insert if RPC doesn't work
-      return createActivityDirect(clientId, activity_type, description, metadata);
-    }
-  } catch (error) {
-    console.error('Error creating client activity:', error);
-    throw error;
-  }
-};
-
-// This is a fallback function to directly insert into the activities table
-// when the RPC function is not available or for testing purposes
-export const createActivityDirect = async (
-  clientId: string,
-  activityType: ExtendedActivityType,
-  description: string,
-  metadata: Record<string, any> = {}
-) => {
-  try {
-    // Insert directly into client_activities table with a type cast for activity_type
-    const { data, error } = await supabase
-      .from('client_activities')
-      .insert({
-        client_id: clientId,
-        activity_type: activityType as any, // Type cast to avoid TS errors with enum
-        description: description,
-        metadata: metadata as Json
-      })
-      .select()
-      .single();
+    const { error } = await supabase.from("client_activities").insert({
+      client_id: clientId,
+      activity_type: activityType,
+      activity_data: activityData || {},
+    });
 
     if (error) {
-      console.error('Error creating activity directly:', error);
+      console.error(`Error logging activity (${activityType}):`, error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error(`Exception logging activity (${activityType}):`, err);
+    return false;
+  }
+}
+
+/**
+ * Get recent activities for a client
+ * @param clientId The client ID
+ * @param limit Maximum number of activities to return (default: 20)
+ * @returns List of activities
+ */
+export async function getClientActivities(
+  clientId: string,
+  limit: number = 20
+): Promise<Activity[]> {
+  try {
+    const { data, error } = await supabase
+      .from("client_activities")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("Error fetching client activities:", error);
       throw error;
     }
 
-    return data;
-  } catch (error) {
-    console.error('Error creating activity directly:', error);
-    throw error;
+    return data as Activity[];
+  } catch (err) {
+    console.error("Exception fetching client activities:", err);
+    return [];
   }
-};
+}

@@ -1,4 +1,13 @@
-import { callRpcFunction } from '@/utils/rpcUtils';
+
+import { callRpcFunction, execSql } from '@/utils/rpcUtils';
+
+/**
+ * Interface for response time by day data structure
+ */
+export interface ResponseTimeByDay {
+  day: string;
+  avg_response_time: number;
+}
 
 /**
  * Get the average response time for a client
@@ -18,7 +27,7 @@ export const getAverageResponseTime = async (client_id: string, agent_name?: str
       AND response_time_ms IS NOT NULL
     `;
     
-    const result = await callRpcFunction<any[]>('exec_sql', { sql_query: query });
+    const result = await execSql(query);
     
     if (result && Array.isArray(result) && result.length > 0) {
       const avgTime = parseFloat(result[0].avg_time);

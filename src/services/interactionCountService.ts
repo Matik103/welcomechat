@@ -1,3 +1,4 @@
+
 import { execSql } from "@/utils/rpcUtils";
 
 export interface DailyInteractions {
@@ -39,5 +40,16 @@ export const getInteractionsByDay = async (clientId: string, days: number = 30):
   } catch (error) {
     console.error("Error fetching interactions by day:", error);
     return [];
+  }
+};
+
+// Alias function to support old references
+export const getInteractionCount = async (clientId: string): Promise<number> => {
+  try {
+    const interactions = await getInteractionsByDay(clientId);
+    return interactions.reduce((sum, item) => sum + item.count, 0);
+  } catch (error) {
+    console.error("Error getting interaction count:", error);
+    return 0;
   }
 };

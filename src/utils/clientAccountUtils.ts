@@ -1,5 +1,6 @@
-import { ClientFormData } from "@/types/client-form";
+import { callRpcFunction } from "@/utils/rpcUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { ActivityType } from "@/types/activity";
 import { generateClientTempPassword, saveClientTempPassword } from "./passwordUtils";
 
 /**
@@ -123,6 +124,43 @@ export const createClientUserAccount = async (
   } catch (err) {
     console.error('Failed to create client user account:', err);
     throw err;
+  }
+};
+
+/**
+ * Create a client account (partial function showing only the fixed part)
+ */
+export const createClientAccount = async (email: string, password: string, clientId: string, agentName: string): Promise<boolean> => {
+  try {
+    // Log client creation activity - need to cast to ActivityType
+    const { error: activityError } = await supabase
+      .from('client_activities')
+      .insert({
+        client_id: clientId,
+        activity_type: 'client_created' as ActivityType,
+        activity_data: { email, agent_name: agentName }
+      });
+
+    if (activityError) {
+      console.error("Error logging client account creation:", activityError);
+      // Continue despite activity logging error
+    }
+
+    // Send welcome email using edge function
+    try {
+      await callRpcFunction('send_welcome_email', { 
+        email_to: email,
+        client_name: agentName
+      });
+    } catch (error) {
+      console.error("Error sending welcome email:", error);
+      // Continue despite email sending error
+    }
+
+    return true;
+  } catch (error) {
+    // Continue despite error
+    return false;
   }
 };
 
