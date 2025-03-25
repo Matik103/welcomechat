@@ -30,7 +30,7 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       const { data: currentPeriodInteractions, error: currentError } = await supabase
         .from("client_activities")
         .select("*")
-        .eq('activity_type', 'chat_interaction')
+        .eq('activity_type', 'chat_interaction' as any)
         .gte("created_at", startDate.toISOString());
 
       if (currentError) throw currentError;
@@ -55,7 +55,7 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       const { data: previousInteractions, error: prevError } = await supabase
         .from("client_activities")
         .select("*")
-        .eq('activity_type', 'chat_interaction')
+        .eq('activity_type', 'chat_interaction' as any)
         .gte("created_at", previousStartDate.toISOString())
         .lt("created_at", startDate.toISOString());
 

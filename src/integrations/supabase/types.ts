@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      activities: {
+        Row: {
+          ai_agent_id: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          type: Database["public"]["Enums"]["activity_type"]
+        }
+        Insert: {
+          ai_agent_id: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          type: Database["public"]["Enums"]["activity_type"]
+        }
+        Update: {
+          ai_agent_id?: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          type?: Database["public"]["Enums"]["activity_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_ai_agent_id_fkey"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ai_agent"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_1742397281528: {
         Row: {
           content: string | null
@@ -949,6 +988,60 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "document_processing_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          ai_agent_id: string
+          content: string | null
+          created_at: string | null
+          error_message: string | null
+          filename: string
+          id: string
+          metadata: Json | null
+          status: Database["public"]["Enums"]["document_status"]
+          type: Database["public"]["Enums"]["document_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          ai_agent_id: string
+          content?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          filename: string
+          id?: string
+          metadata?: Json | null
+          status?: Database["public"]["Enums"]["document_status"]
+          type: Database["public"]["Enums"]["document_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          ai_agent_id?: string
+          content?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          filename?: string
+          id?: string
+          metadata?: Json | null
+          status?: Database["public"]["Enums"]["document_status"]
+          type?: Database["public"]["Enums"]["document_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_ai_agent_id_fkey"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ai_agent"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
             referencedColumns: ["id"]
           },
         ]
@@ -5761,6 +5854,17 @@ export type Database = {
       }
     }
     Enums: {
+      activity_type:
+        | "document_added"
+        | "document_removed"
+        | "document_processed"
+        | "document_processing_failed"
+        | "url_added"
+        | "url_removed"
+        | "url_processed"
+        | "url_processing_failed"
+        | "chat_message_sent"
+        | "chat_message_received"
       activity_type_enum:
         | "document_uploaded"
         | "document_processing_started"
@@ -5771,6 +5875,8 @@ export type Database = {
         | "schema_update"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
+      document_status: "pending" | "processing" | "processed" | "failed"
+      document_type: "pdf" | "doc" | "docx" | "txt" | "url"
       invitation_status: "pending" | "accepted" | "expired"
       role_type: "admin" | "client"
       source_type: "google_drive" | "website"

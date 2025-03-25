@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useRef } from "react";
 import type { Json } from "@/integrations/supabase/types";
+import { ActivityWithClientInfo } from "@/types/activity";
 
 export const useRecentActivities = () => {
   const queryClient = useQueryClient();
@@ -150,7 +151,7 @@ export const useRecentActivities = () => {
                 client_name: clientInfo.clientName || clientName || (clientId ? clientId : "System"),
                 client_email: clientInfo.email || null,
                 agent_name: clientInfo.agentName || null
-              };
+              } as ActivityWithClientInfo;
             });
           } catch (err) {
             console.error("Error processing client details:", err);
@@ -161,7 +162,7 @@ export const useRecentActivities = () => {
         return activities.map(activity => ({
           ...activity,
           client_name: activity.client_id ? activity.client_id : "System"
-        }));
+        })) as ActivityWithClientInfo[];
       } catch (error) {
         console.error("Error in useRecentActivities:", error);
         return [];

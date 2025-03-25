@@ -13,7 +13,7 @@ export const callRpcFunction = async (
   params: Record<string, any>
 ): Promise<any> => {
   try {
-    const { data, error } = await supabase.rpc(functionName, params);
+    const { data, error } = await supabase.rpc(functionName as any, params);
     
     if (error) {
       console.error(`Error calling ${functionName} RPC function:`, error);
@@ -39,8 +39,9 @@ export const execSql = async (
   params: any[] = []
 ): Promise<any> => {
   try {
-    const { data, error } = await supabase.rpc('exec_sql', {
-      sql_query: sqlQuery
+    const { data, error } = await supabase.rpc('exec_sql' as any, {
+      sql_query: sqlQuery,
+      query_params: params.length > 0 ? JSON.stringify(params) : null
     });
     
     if (error) {

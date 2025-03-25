@@ -47,13 +47,12 @@ export const createActivityDirect = async (
   metadata: Record<string, any> = {}
 ) => {
   try {
-    // We need to handle this based on table schema
-    // First try client_activities table (newer schema)
+    // Insert directly into client_activities table with a type cast for activity_type
     const { data, error } = await supabase
       .from('client_activities')
       .insert({
         client_id: clientId,
-        activity_type: activityType,
+        activity_type: activityType as any, // Type cast to avoid TS errors with enum
         description: description,
         metadata: metadata as Json
       })
@@ -62,9 +61,6 @@ export const createActivityDirect = async (
 
     if (error) {
       console.error('Error creating activity directly:', error);
-      
-      // For now, just throw the error instead of attempting fallback logic
-      // to avoid type issues until the database schema is stabilized
       throw error;
     }
 

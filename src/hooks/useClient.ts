@@ -46,13 +46,13 @@ export const useClient = (clientId: string) => {
             try {
               const sqlQuery = `
                 SELECT * FROM ai_agents
-                WHERE client_id = '${clientId}'
+                WHERE client_id = $1
                 AND interaction_type = 'config'
                 ORDER BY created_at DESC
                 LIMIT 1
               `;
               
-              const sqlResult = await execSql(sqlQuery);
+              const sqlResult = await execSql(sqlQuery, [clientId]);
               
               if (!sqlResult || !Array.isArray(sqlResult) || sqlResult.length === 0) {
                 return null;

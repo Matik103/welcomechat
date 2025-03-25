@@ -37,7 +37,7 @@ export const useClientStats = () => {
       const { data: activeClients } = await supabase
         .from("client_activities")
         .select("DISTINCT client_id")
-        .eq('activity_type', 'chat_interaction')
+        .eq('activity_type', 'chat_interaction' as any)
         .gte("created_at", fortyEightHoursAgo.toISOString());
 
       const currentActiveCount = activeClients?.length ?? 0;
@@ -47,7 +47,7 @@ export const useClientStats = () => {
       const { data: previousActive } = await supabase
         .from("client_activities")
         .select("DISTINCT client_id")
-        .eq('activity_type', 'chat_interaction')
+        .eq('activity_type', 'chat_interaction' as any)
         .gte("created_at", previousFortyEightHours.toISOString())
         .lt("created_at", fortyEightHoursAgo.toISOString());
 
@@ -60,7 +60,7 @@ export const useClientStats = () => {
       const { data: interactions } = await supabase
         .from("client_activities")
         .select("*")
-        .eq('activity_type', 'chat_interaction')
+        .eq('activity_type', 'chat_interaction' as any)
         .gte("created_at", fortyEightHoursAgo.toISOString()) as { data: ClientActivity[] | null };
 
       const totalInteractions = interactions?.length ?? 0;

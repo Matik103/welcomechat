@@ -142,9 +142,9 @@ export const uploadToOpenAIAssistant = async (
       apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     });
     
-    // Attach the file to the assistant
-    await openai.beta.assistants.files.create(assistantId, {
-      file_id: fileId
+    // Attach the file to the assistant using the correct API
+    await openai.beta.assistants.update(assistantId, {
+      file_ids: [fileId]
     });
     
     return true;
