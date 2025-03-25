@@ -67,4 +67,7 @@ export interface InteractionStats {
   successRate?: number; // camelCase version for consistency
   avgInteractionsChange?: string; // For metrics card
   avgInteractions?: number; // For metrics card
+  totalClients?: number; // Add for dashboard metrics
+  activeClients?: number; // Add for dashboard metrics
+  activeClientsChange?: string; // Add for dashboard metrics
 }

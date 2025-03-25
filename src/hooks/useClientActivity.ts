@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ActivityType } from '@/types/client-form';
 import { Json } from '@/integrations/supabase/types';
 import { callRpcFunction } from '@/utils/rpcUtils';
+import { createClientActivity } from '@/services/clientActivityService';
 
 export const useClientActivity = (clientId: string | undefined) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -24,13 +25,12 @@ export const useClientActivity = (clientId: string | undefined) => {
       setError(null);
 
       try {
-        // Use callRpcFunction instead of direct RPC call to bypass type checking
-        const result = await callRpcFunction('log_client_activity', {
-          client_id_param: clientId,
-          activity_type_param: activity_type,
-          description_param: description,
-          metadata_param: metadata || {}
-        });
+        const result = await createClientActivity(
+          clientId,
+          activity_type,
+          description,
+          metadata || {}
+        );
         
         return result;
       } catch (err) {

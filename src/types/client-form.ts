@@ -35,6 +35,7 @@ export type ActivityType =
   | "agent_logo_updated"
   | "ai_agent_updated"
   | "ai_agent_created"
+  | "ai_agent_table_created"
   | "error_logged"
   | "system_update"
   | "common_query_milestone"

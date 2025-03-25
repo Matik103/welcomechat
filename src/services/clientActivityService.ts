@@ -37,5 +37,31 @@ export const createClientActivity = async (
   }
 };
 
-// Alias for compatibility with existing code
-export const logActivity = createClientActivity;
+// Alternative direct database insert method
+export const logActivity = async (
+  clientId: string,
+  activity_type: ActivityType,
+  description: string,
+  metadata: Record<string, any> = {}
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('client_activities')
+      .insert({
+        client_id: clientId,
+        activity_type,
+        description,
+        metadata
+      });
+
+    if (error) {
+      console.error("Error logging activity:", error);
+      throw error;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error in logActivity:', err);
+    throw err;
+  }
+};

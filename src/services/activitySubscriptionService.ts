@@ -21,7 +21,9 @@ export const subscribeToClientActivities = (clientId: string, onUpdate: () => vo
         onUpdate();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log(`Realtime subscription status for client ${clientId} activities: ${status}`);
+    });
 
   return channel;
 };
@@ -44,7 +46,9 @@ export const subscribeToAllActivities = (onUpdate: () => void): RealtimeChannel 
         onUpdate();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log(`Realtime subscription status for all activities: ${status}`);
+    });
 
   return channel;
 };
@@ -68,7 +72,9 @@ export const subscribeToChatInteractions = (clientId: string, onUpdate: () => vo
         onUpdate();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log(`Realtime subscription status for client ${clientId} chat interactions: ${status}`);
+    });
 
   return channel;
 };
@@ -92,7 +98,9 @@ export const subscribeToAllChatInteractions = (onUpdate: () => void): RealtimeCh
         onUpdate();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log(`Realtime subscription status for all chat interactions: ${status}`);
+    });
 
   return channel;
 };

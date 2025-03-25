@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientForm } from "@/components/client/ClientForm";
+import { createClientActivity } from '@/services/clientActivityService';
 
 const EditClientInfo = () => {
   const navigate = useNavigate();
@@ -55,11 +56,14 @@ const EditClientInfo = () => {
     try {
       await clientMutation.mutateAsync(data);
       
-      await logClientActivity(
-        'client_updated',
-        `Updated client information`,
-        { fields_updated: Object.keys(data) }
-      );
+      if (clientId) {
+        await createClientActivity(
+          clientId,
+          'client_updated',
+          `Updated client information`,
+          { fields_updated: Object.keys(data) }
+        );
+      }
       
       toast.success("Client information updated successfully");
       refetchClient();
@@ -141,7 +145,11 @@ const EditClientInfo = () => {
               agentName={client?.agent_name || client?.name || ''}
               className="mt-6"
               isClientView={isClientView}
-              logClientActivity={logClientActivity}
+              logClientActivity={async (activityType, description, metadata) => {
+                if (clientId) {
+                  return createClientActivity(clientId, activityType, description, metadata);
+                }
+              }}
             />
           )}
         </div>
