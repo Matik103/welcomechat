@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ExtendedActivityType } from '@/types/activity';
+import { ActivityType } from '@/types/client-form';
 import { Json } from '@/integrations/supabase/types';
 import { callRpcFunction } from '@/utils/rpcUtils';
 
@@ -11,7 +11,7 @@ export const useClientActivity = (clientId: string | undefined) => {
 
   const logClientActivity = useCallback(
     async (
-      activity_type: ExtendedActivityType,
+      activity_type: ActivityType,
       description: string,
       metadata?: Record<string, any>
     ) => {

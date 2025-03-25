@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      activities: {
+        Row: {
+          ai_agent_id: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          type: Database["public"]["Enums"]["activity_type"]
+        }
+        Insert: {
+          ai_agent_id: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          type: Database["public"]["Enums"]["activity_type"]
+        }
+        Update: {
+          ai_agent_id?: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          type?: Database["public"]["Enums"]["activity_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_ai_agent_id_fkey"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ai_agent"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_1742397281528: {
         Row: {
           content: string | null
@@ -122,6 +161,7 @@ export type Database = {
           logo_storage_path: string | null
           logo_url: string | null
           metadata: Json | null
+          model: string
           name: string
           openai_assistant_id: string | null
           query_text: string | null
@@ -166,6 +206,7 @@ export type Database = {
           logo_storage_path?: string | null
           logo_url?: string | null
           metadata?: Json | null
+          model?: string
           name: string
           openai_assistant_id?: string | null
           query_text?: string | null
@@ -210,6 +251,7 @@ export type Database = {
           logo_storage_path?: string | null
           logo_url?: string | null
           metadata?: Json | null
+          model?: string
           name?: string
           openai_assistant_id?: string | null
           query_text?: string | null
@@ -543,28 +585,28 @@ export type Database = {
       }
       client_activities: {
         Row: {
+          activity_data: Json | null
           activity_type: Database["public"]["Enums"]["activity_type_enum"]
           client_id: string | null
-          created_at: string | null
-          description: string
+          created_at: string
           id: string
-          metadata: Json | null
+          updated_at: string
         }
         Insert: {
+          activity_data?: Json | null
           activity_type: Database["public"]["Enums"]["activity_type_enum"]
           client_id?: string | null
-          created_at?: string | null
-          description: string
+          created_at?: string
           id?: string
-          metadata?: Json | null
+          updated_at?: string
         }
         Update: {
+          activity_data?: Json | null
           activity_type?: Database["public"]["Enums"]["activity_type_enum"]
           client_id?: string | null
-          created_at?: string | null
-          description?: string
+          created_at?: string
           id?: string
-          metadata?: Json | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -946,6 +988,60 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "document_processing_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          ai_agent_id: string
+          content: string | null
+          created_at: string | null
+          error_message: string | null
+          filename: string
+          id: string
+          metadata: Json | null
+          status: Database["public"]["Enums"]["document_status"]
+          type: Database["public"]["Enums"]["document_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          ai_agent_id: string
+          content?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          filename: string
+          id?: string
+          metadata?: Json | null
+          status?: Database["public"]["Enums"]["document_status"]
+          type: Database["public"]["Enums"]["document_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          ai_agent_id?: string
+          content?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          filename?: string
+          id?: string
+          metadata?: Json | null
+          status?: Database["public"]["Enums"]["document_status"]
+          type?: Database["public"]["Enums"]["document_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_ai_agent_id_fkey"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ai_agent"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
             referencedColumns: ["id"]
           },
         ]
@@ -5758,42 +5854,29 @@ export type Database = {
       }
     }
     Enums: {
+      activity_type:
+        | "document_added"
+        | "document_removed"
+        | "document_processed"
+        | "document_processing_failed"
+        | "url_added"
+        | "url_removed"
+        | "url_processed"
+        | "url_processing_failed"
+        | "chat_message_sent"
+        | "chat_message_received"
       activity_type_enum:
-        | "chat_interaction"
-        | "client_created"
-        | "client_updated"
-        | "client_deleted"
-        | "client_recovered"
-        | "widget_settings_updated"
-        | "website_url_added"
-        | "drive_link_added"
-        | "url_deleted"
-        | "source_added"
-        | "source_deleted"
-        | "agent_name_updated"
-        | "drive_link_deleted"
-        | "error_logged"
-        | "interaction_milestone"
-        | "common_query_milestone"
-        | "growth_milestone"
-        | "ai_agent_table_created"
-        | "ai_agent_created"
+        | "document_uploaded"
         | "document_processing_started"
         | "document_processing_completed"
         | "document_processing_failed"
-        | "system_update"
-        | "ai_agent_updated"
-        | "document_stored"
-        | "document_processed"
-        | "document_link_added"
-        | "document_link_deleted"
-        | "document_uploaded"
-        | "signed_out"
-        | "embed_code_copied"
-        | "widget_previewed"
-        | "document_extracted"
+        | "openai_assistant_document_added"
+        | "openai_assistant_upload_failed"
+        | "schema_update"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
+      document_status: "pending" | "processing" | "processed" | "failed"
+      document_type: "pdf" | "doc" | "docx" | "txt" | "url"
       invitation_status: "pending" | "accepted" | "expired"
       role_type: "admin" | "client"
       source_type: "google_drive" | "website"

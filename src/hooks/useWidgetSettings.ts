@@ -1,168 +1,208 @@
 
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { createClientActivity } from '@/services/clientActivityService';
+import { WidgetSettings } from '@/types/client-form';
 import { toast } from 'sonner';
-import { getWidgetSettings, updateWidgetSettings } from '@/utils/widgetSettingsUtils';
-import { useClientActivity } from './useClientActivity';
-import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
 
-export const useWidgetSettings = (clientId?: string, isClientView = false) => {
-  const queryClient = useQueryClient();
-  const [isUploading, setIsUploading] = useState(false);
-  const { logClientActivity } = useClientActivity(clientId);
+export const useWidgetSettings = (clientId: string) => {
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
-  // Get widget settings for the client
-  const { 
-    data: settings, 
-    isLoading, 
-    error, 
-    refetch
-  } = useQuery({
-    queryKey: ['widgetSettings', clientId],
-    queryFn: async () => {
-      if (!clientId) return defaultSettings;
-      try {
-        const result = await getWidgetSettings(clientId);
-        
-        // Ensure we have a valid object with all expected properties
-        if (!result) return defaultSettings;
-        
-        // If settings from the DB are a string, parse them
-        let parsedSettings = {}; 
-        if (typeof result === 'string') {
-          try {
-            parsedSettings = JSON.parse(result);
-          } catch (e) {
-            console.error('Failed to parse widget settings:', e);
-            parsedSettings = {};
-          }
-        } else if (typeof result === 'object') {
-          parsedSettings = result;
-        }
-        
-        // Merge with defaults to ensure all properties exist
-        return {
-          ...defaultSettings,
-          ...parsedSettings
-        };
-      } catch (error) {
-        console.error('Error fetching widget settings:', error);
-        return defaultSettings;
-      }
-    },
-    enabled: !!clientId,
-  });
-
-  // Mutation to update widget settings
-  const updateSettingsMutation = useMutation({
-    mutationFn: async (newSettings: WidgetSettings) => {
-      if (!clientId) throw new Error('Client ID is required');
-      
-      // Merge with existing settings
-      const updatedSettings = {
-        ...settings,
-        ...newSettings
-      };
-      
-      // Update widget settings in database
-      const result = await updateWidgetSettings(clientId, updatedSettings);
-      
-      // Log the activity
-      await logClientActivity(
-        'widget_settings_updated',
-        'Widget settings updated',
-        { settings: updatedSettings }
-      );
-      
-      return result;
-    },
-    onSuccess: () => {
-      toast.success('Widget settings updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['widgetSettings', clientId] });
-      
-      // Also invalidate client data since widget settings are part of it
-      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
-    },
-    onError: (error) => {
-      console.error('Error updating widget settings:', error);
-      toast.error('Failed to update widget settings');
-    }
-  });
-
-  // Function to handle logo upload
-  const handleLogoUpload = async (file: File) => {
+  // Update agent name
+  const updateAgentName = useCallback(async (agentName: string) => {
     if (!clientId) {
-      toast.error('Client ID is required to upload a logo');
+      console.error('Client ID is required');
       return;
     }
-    
-    setIsUploading(true);
-    
+
+    setIsUpdating(true);
+    setError(null);
+
     try {
-      // Create a storage path
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${clientId}-logo-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const storagePath = `clients/${clientId}/logos/${fileName}`;
-      
-      // Upload the file to storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client-assets')
-        .upload(storagePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-      
-      if (uploadError) {
-        throw uploadError;
+      // First update the agent_name in the clients table
+      const { error: clientUpdateError } = await supabase
+        .from('clients')
+        .update({ agent_name: agentName })
+        .eq('id', clientId);
+
+      if (clientUpdateError) {
+        throw new Error(`Failed to update agent name: ${clientUpdateError.message}`);
       }
-      
-      // Get public URL for the uploaded file
-      const { data: publicUrlData } = supabase.storage
-        .from('client-assets')
-        .getPublicUrl(storagePath);
-      
-      const publicUrl = publicUrlData?.publicUrl;
-      
-      if (!publicUrl) {
-        throw new Error('Failed to get public URL for uploaded logo');
+
+      // Then update the name in the ai_agents table
+      const { error: agentUpdateError } = await supabase
+        .from('ai_agents')
+        .update({ name: agentName })
+        .eq('client_id', clientId);
+
+      if (agentUpdateError) {
+        console.warn(`Warning: Could not update AI agent name: ${agentUpdateError.message}`);
       }
-      
-      // Update widget settings with new logo URL
-      await updateSettingsMutation.mutateAsync({
-        ...defaultSettings,
-        logo_url: publicUrl,
-        logo_storage_path: storagePath
-      });
-      
+
       // Log the activity
-      await logClientActivity(
-        'logo_uploaded',
-        'Logo uploaded',
+      await createClientActivity(
+        clientId,
+        "agent_name_updated",
+        `Updated agent name to "${agentName}"`,
+        { agent_name: agentName }
+      );
+
+      toast.success('Agent name updated successfully');
+      return true;
+    } catch (err) {
+      console.error('Error updating agent name:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+      toast.error(`Failed to update agent name: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [clientId]);
+
+  // Update agent description
+  const updateAgentDescription = useCallback(async (description: string) => {
+    if (!clientId) {
+      console.error('Client ID is required');
+      return;
+    }
+
+    setIsUpdating(true);
+    setError(null);
+
+    try {
+      // Update the widget_settings in the clients table
+      const { data: clientData, error: clientGetError } = await supabase
+        .from('clients')
+        .select('widget_settings')
+        .eq('id', clientId)
+        .single();
+
+      if (clientGetError) {
+        throw new Error(`Failed to get client: ${clientGetError.message}`);
+      }
+
+      const widgetSettings = clientData?.widget_settings || {};
+      widgetSettings.agent_description = description;
+
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update({ widget_settings })
+        .eq('id', clientId);
+
+      if (updateError) {
+        throw new Error(`Failed to update agent description: ${updateError.message}`);
+      }
+
+      // Also update in the ai_agents table
+      const { error: agentUpdateError } = await supabase
+        .from('ai_agents')
+        .update({ agent_description: description })
+        .eq('client_id', clientId);
+
+      if (agentUpdateError) {
+        console.warn(`Warning: Could not update AI agent description: ${agentUpdateError.message}`);
+      }
+
+      // Log the activity
+      await createClientActivity(
+        clientId,
+        "agent_description_updated",
+        `Updated agent description`,
+        { description_length: description.length }
+      );
+
+      toast.success('Agent description updated successfully');
+      return true;
+    } catch (err) {
+      console.error('Error updating agent description:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+      toast.error(`Failed to update agent description: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [clientId]);
+
+  // Update logo
+  const updateLogo = useCallback(async (logoUrl: string, storageFilePath?: string) => {
+    if (!clientId) {
+      console.error('Client ID is required');
+      return;
+    }
+
+    setIsUpdating(true);
+    setError(null);
+
+    try {
+      // Update the widget_settings in the clients table
+      const { data: clientData, error: clientGetError } = await supabase
+        .from('clients')
+        .select('widget_settings')
+        .eq('id', clientId)
+        .single();
+
+      if (clientGetError) {
+        throw new Error(`Failed to get client: ${clientGetError.message}`);
+      }
+
+      const widgetSettings = clientData?.widget_settings || {};
+      widgetSettings.logo_url = logoUrl;
+      
+      if (storageFilePath) {
+        widgetSettings.logo_storage_path = storageFilePath;
+      }
+
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update({ widget_settings })
+        .eq('id', clientId);
+
+      if (updateError) {
+        throw new Error(`Failed to update logo: ${updateError.message}`);
+      }
+
+      // Also update in the ai_agents table
+      const { error: agentUpdateError } = await supabase
+        .from('ai_agents')
+        .update({ 
+          logo_url: logoUrl, 
+          logo_storage_path: storageFilePath 
+        })
+        .eq('client_id', clientId);
+
+      if (agentUpdateError) {
+        console.warn(`Warning: Could not update AI agent logo: ${agentUpdateError.message}`);
+      }
+
+      // Log the activity
+      await createClientActivity(
+        clientId,
+        "agent_logo_updated",
+        `Updated agent logo`,
         { 
-          logo_url: publicUrl,
-          logo_storage_path: storagePath
+          logo_url: logoUrl,
+          has_storage_path: !!storageFilePath 
         }
       );
-      
-      toast.success('Logo uploaded successfully');
-      return { publicUrl, storagePath };
-    } catch (error) {
-      console.error('Error uploading logo:', error);
-      toast.error('Failed to upload logo');
-      throw error;
+
+      toast.success('Logo updated successfully');
+      return true;
+    } catch (err) {
+      console.error('Error updating logo:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+      toast.error(`Failed to update logo: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
     } finally {
-      setIsUploading(false);
+      setIsUpdating(false);
     }
-  };
+  }, [clientId]);
 
   return {
-    settings: settings || defaultSettings,
-    isLoading,
-    error,
-    updateSettingsMutation,
-    handleLogoUpload,
-    isUploading,
-    refetch
+    updateAgentName,
+    updateAgentDescription,
+    updateLogo,
+    isUpdating,
+    error
   };
 };

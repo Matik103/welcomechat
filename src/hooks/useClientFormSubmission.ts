@@ -1,30 +1,28 @@
 
 import { useState } from "react";
 import { useClientMutation } from "./useClientMutation";
-import { ExtendedActivityType } from "@/types/activity";
+import { ActivityType } from "@/types/client-form";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { generateTempPassword, saveClientTempPassword } from "@/utils/clientCreationUtils";
+import { ClientFormData } from "@/types/client-form";
 
 export const useClientFormSubmission = (
   clientId: string | undefined,
   isClientView: boolean,
-  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>
+  logClientActivity: (activity_type: ActivityType, description: string, metadata?: Json) => Promise<void>
 ) => {
   const [isLoading, setIsLoading] = useState(false);
   const clientMutation = useClientMutation(clientId);
   const navigate = useNavigate();
   
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: ClientFormData) => {
     setIsLoading(true);
     try {
       // Display initial feedback toast
       const initialToastId = toast.loading(clientId ? "Updating client..." : "Creating client...");
-      
-      // Check for agent name or description changes to log appropriate activity
-      const widgetSettings = data.widget_settings || {};
       
       // Perform the client mutation (create or update)
       const result = await clientMutation.mutateAsync(data);
@@ -35,11 +33,7 @@ export const useClientFormSubmission = (
           "client_updated", 
           "Updated client information",
           {
-            widget_settings: {
-              agent_name: widgetSettings.agent_name,
-              agent_description: widgetSettings.agent_description,
-              logo_url: widgetSettings.logo_url
-            }
+            widget_settings: data.widget_settings
           }
         );
         toast.success("Your information has been updated", { id: initialToastId });
@@ -50,11 +44,7 @@ export const useClientFormSubmission = (
             "client_updated", 
             "Admin updated client information",
             {
-              widget_settings: {
-                agent_name: widgetSettings.agent_name,
-                agent_description: widgetSettings.agent_description,
-                logo_url: widgetSettings.logo_url
-              }
+              widget_settings: data.widget_settings
             }
           );
           toast.success("Client updated successfully", { id: initialToastId });
@@ -72,7 +62,7 @@ export const useClientFormSubmission = (
               // Save the temporary password
               await saveClientTempPassword(result.agentId, data.email, tempPassword);
               
-              // Directly call the send-email edge function, similar to DeleteClientDialog approach
+              // Directly call the send-email edge function
               const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
                 'send-email', 
                 {

@@ -1,123 +1,237 @@
 
-import { useParams, useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useClientActivity } from "@/hooks/useClientActivity";
-import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
-import { useWidgetSettings } from "@/hooks/useWidgetSettings";
-import { WidgetPosition } from "@/types/widget-settings";
-import { useClientData } from "@/hooks/useClientData";
+import React, { useState, useEffect, ChangeEvent } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { useParams } from 'react-router-dom';
+import { useClientData } from '@/hooks/useClientData';
+import { useWidgetSettings } from '@/hooks/useWidgetSettings';
+import { PageHeading } from '@/components/dashboard/PageHeading';
+import { toast } from 'sonner';
+import LogoManagement from '@/components/widget/logo/LogoManagement';
+import { supabase } from '@/integrations/supabase/client';
+import { useClientActivity } from '@/hooks/useClientActivity';
+import { v4 as uuidv4 } from 'uuid';
 
-const WidgetSettings = () => {
-  const { clientId } = useParams();
-  const navigate = useNavigate();
-  const { user, userRole } = useAuth();
+export default function WidgetSettings() {
+  const { clientId } = useParams<{ clientId: string }>();
+  const { client, isLoadingClient, error: clientError, refetchClient } = useClientData(clientId);
+  const { updateAgentName, updateAgentDescription, updateLogo, isUpdating, error: updateError } = useWidgetSettings(clientId || '');
+  const { logClientActivity } = useClientActivity(clientId);
+  
+  const [agentName, setAgentName] = useState('');
+  const [agentDescription, setAgentDescription] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [logoStoragePath, setLogoStoragePath] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Determine if this is a client view or admin view
-  const isClientView = userRole === 'client';
-  
-  // Get the appropriate client ID based on the role and URL parameters
-  // For admin view with empty clientId (from double-slash URL), we'll use a default
-  const activeClientId = (clientId && clientId !== "") 
-    ? clientId 
-    : (isClientView ? user?.user_metadata?.client_id : undefined);
-  
-  console.log("WidgetSettings: Using client ID:", activeClientId);
-  console.log("WidgetSettings: User role:", userRole);
-  console.log("WidgetSettings: Is client view:", isClientView);
-  console.log("WidgetSettings: URL clientId param:", clientId);
-  
-  // Fetch client data if we're in admin view and don't have a specific clientId
-  // This will fetch the first client for admin when using /admin/clients//widget-settings
-  const { client: firstClient, isLoadingClient } = !isClientView && !activeClientId
-    ? useClientData(undefined)
-    : { client: null, isLoadingClient: false };
+  useEffect(() => {
+    if (client) {
+      setAgentName(client.agent_name || '');
+      if (client.widget_settings) {
+        setAgentDescription(client.widget_settings.agent_description || '');
+        setLogoUrl(client.widget_settings.logo_url || '');
+        setLogoStoragePath(client.widget_settings.logo_storage_path || '');
+      }
+    }
+  }, [client]);
+
+  const handleAgentNameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!agentName.trim()) {
+      toast.error('Agent name cannot be empty');
+      return;
+    }
     
-  // Use activeClientId for client activity if available, otherwise use the first client's ID
-  const effectiveClientId = activeClientId || (firstClient?.id || undefined);
-  const { logClientActivity } = useClientActivity(effectiveClientId);
-
-  const { 
-    settings, 
-    isLoading: isLoadingSettings, 
-    isUploading, 
-    updateSettingsMutation,
-    handleLogoUpload: originalHandleLogoUpload 
-  } = useWidgetSettings(effectiveClientId, isClientView);
-
-  // Check if we are still loading required data
-  const isLoading = (isLoadingSettings || (!activeClientId && isLoadingClient));
-
-  // Adapter for the logo upload handler to match the expected type
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      await originalHandleLogoUpload(event.target.files[0]);
+    try {
+      const result = await updateAgentName(agentName);
+      if (result) {
+        refetchClient();
+      }
+    } catch (error: any) {
+      toast.error(`Failed to update agent name: ${error.message}`);
     }
   };
 
-  // Adapter for the update settings mutation to match the expected type
-  const adaptedUpdateMutation = {
-    isPending: updateSettingsMutation.isPending,
-    mutateAsync: async (newSettings: typeof settings) => {
-      await updateSettingsMutation.mutateAsync(newSettings);
+  const handleAgentDescriptionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const result = await updateAgentDescription(agentDescription);
+      if (result) {
+        refetchClient();
+      }
+    } catch (error: any) {
+      toast.error(`Failed to update agent description: ${error.message}`);
     }
   };
 
-  const handleBack = () => {
-    if (isClientView) {
-      navigate('/client/dashboard');
-    } else {
-      // Always navigate to the client management page for admins
-      navigate('/admin/clients');
+  const handleLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
     }
+    
+    const file = event.target.files[0];
+    setIsProcessing(true);
+    
+    try {
+      // Generate a unique path for the file
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${uuidv4()}.${fileExt}`;
+      const filePath = `logos/${clientId}/${fileName}`;
+      
+      // Upload file to storage
+      const { error: uploadError } = await supabase.storage
+        .from('widget-logos')
+        .upload(filePath, file);
+        
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+      
+      // Get public URL for the uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from('widget-logos')
+        .getPublicUrl(filePath);
+        
+      // Update the logo in the database
+      await updateLogo(publicUrl, filePath);
+      
+      // Update local state
+      setLogoUrl(publicUrl);
+      setLogoStoragePath(filePath);
+      
+      // Refresh client data
+      refetchClient();
+      
+      // Log activity
+      await logClientActivity('logo_uploaded', 'Uploaded new logo for AI assistant', {
+        logo_url: publicUrl,
+        file_name: file.name,
+        file_size: file.size
+      });
+      
+      toast.success('Logo uploaded successfully');
+    } catch (error: any) {
+      console.error('Logo upload error:', error);
+      toast.error(`Failed to upload logo: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+    
+    // Reset the file input
+    event.target.value = '';
   };
 
-  if (isLoading) {
+  if (isLoadingClient) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p>Loading widget settings...</p>
       </div>
     );
   }
 
-  // For admin with double-slash URL, show settings for the first client
-  // This is only needed when activeClientId is undefined and we're not in client view
-  const shouldUseFirstClient = !isClientView && !activeClientId && firstClient;
-
-  // If we couldn't find any client, show the not found message
-  if (!activeClientId && !shouldUseFirstClient) {
+  if (clientError) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <h1 className="text-2xl font-bold mb-4">Client not found</h1>
-        <button
-          onClick={handleBack}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Go Back
-        </button>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-red-500">Error loading client: {clientError.message}</p>
       </div>
     );
   }
-
-  // Ensure settings has all required properties and correct types
-  const completeSettings = {
-    ...settings,
-    // Ensure position is a valid WidgetPosition
-    position: (settings.position as WidgetPosition) || 'bottom-right'
-  };
 
   return (
-    <WidgetSettingsContainer
-      clientId={effectiveClientId}
-      settings={completeSettings}
-      isClientView={isClientView}
-      isUploading={isUploading}
-      updateSettingsMutation={adaptedUpdateMutation}
-      handleBack={handleBack}
-      handleLogoUpload={handleLogoUpload}
-      logClientActivity={logClientActivity}
-    />
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-4xl mx-auto">
+        <PageHeading>Widget Settings</PageHeading>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Agent Name</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleAgentNameSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="agentName">Name</Label>
+                  <Input
+                    id="agentName"
+                    value={agentName}
+                    onChange={(e) => setAgentName(e.target.value)}
+                    placeholder="AI Assistant"
+                  />
+                </div>
+                <Button type="submit" disabled={isUpdating}>Save Name</Button>
+              </form>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Agent Description</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleAgentDescriptionSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="agentDescription">Description</Label>
+                  <Textarea
+                    id="agentDescription"
+                    value={agentDescription}
+                    onChange={(e) => setAgentDescription(e.target.value)}
+                    placeholder="Describe what your assistant can help with"
+                    rows={4}
+                  />
+                </div>
+                <Button type="submit" disabled={isUpdating}>Save Description</Button>
+              </form>
+            </CardContent>
+          </Card>
+          
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Agent Logo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <LogoManagement 
+                logoUrl={logoUrl}
+                isLoading={isProcessing}
+                onLogoChange={handleLogoChange}
+                onLogoDelete={async () => {
+                  if (logoStoragePath) {
+                    try {
+                      // Remove the file from storage if it exists
+                      await supabase.storage
+                        .from('widget-logos')
+                        .remove([logoStoragePath]);
+                        
+                      // Update the database
+                      await updateLogo('', '');
+                      
+                      // Update local state
+                      setLogoUrl('');
+                      setLogoStoragePath('');
+                      
+                      // Refresh client data
+                      refetchClient();
+                      
+                      toast.success('Logo removed successfully');
+                    } catch (error: any) {
+                      toast.error(`Failed to remove logo: ${error.message}`);
+                    }
+                  } else {
+                    // Just clear the URL if no storage path
+                    await updateLogo('', '');
+                    setLogoUrl('');
+                    refetchClient();
+                    toast.success('Logo removed successfully');
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
-};
-
-export default WidgetSettings;
+}

@@ -1,81 +1,75 @@
 
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Json } from "@/integrations/supabase/types";
+import { useState, useEffect } from 'react';
+import { getActiveDays } from '@/services/activeDaysService';
+import { getInteractionCount } from '@/services/interactionCountService'; 
+import { getAverageResponseTime } from '@/services/responseTimeService';
+import { createClientActivity } from '@/services/clientActivityService';
 
-type ActivityMetadata = {
-  success?: boolean;
-  [key: string]: any;
-};
+interface ClientStats {
+  totalInteractions: number;
+  activeDays: number;
+  averageResponseTime: number;
+}
 
-type ClientActivity = {
-  id: string;
-  client_id: string;
-  activity_type: string;
-  description: string;
-  created_at: string;
-  metadata: ActivityMetadata;
-};
-
-export const useClientStats = () => {
-  return useQuery({
-    queryKey: ["client-stats"],
-    queryFn: async () => {
-      const now = new Date();
-      
-      // Get total clients from ai_agents table with interaction_type = config
-      const { count: totalClientCount, error: countError } = await supabase
-        .from("ai_agents")
-        .select("*", { count: "exact", head: true })
-        .eq("interaction_type", "config")
-        .is("deletion_scheduled_at", null);
-      
-      if (countError) throw countError;
-
-      // Get active clients (always last 48 hours)
-      const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
-      const { data: activeClients } = await supabase
-        .from("client_activities")
-        .select("DISTINCT client_id")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", fortyEightHoursAgo.toISOString());
-
-      const currentActiveCount = activeClients?.length ?? 0;
-
-      // Previous 48-hour window for active clients change calculation
-      const previousFortyEightHours = new Date(fortyEightHoursAgo.getTime() - (48 * 60 * 60 * 1000));
-      const { data: previousActive } = await supabase
-        .from("client_activities")
-        .select("DISTINCT client_id")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", previousFortyEightHours.toISOString())
-        .lt("created_at", fortyEightHoursAgo.toISOString());
-
-      const previousActiveCount = previousActive?.length ?? 0;
-      const activeChangePercentage = previousActiveCount === 0 
-        ? currentActiveCount > 0 ? 100 : 0
-        : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
-
-      // Calculate response rate (last 24 hours)
-      const { data: interactions } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", fortyEightHoursAgo.toISOString()) as { data: ClientActivity[] | null };
-
-      const totalInteractions = interactions?.length ?? 0;
-      const successfulInteractions = interactions?.filter(i => i.metadata?.success)?.length ?? 0;
-      const responseRate = totalInteractions === 0 ? 0 : Math.round((successfulInteractions / totalInteractions) * 100);
-
-      return {
-        totalClients: totalClientCount ?? 0,
-        activeClients: currentActiveCount,
-        activeClientsChange: activeChangePercentage.toFixed(1),
-        responseRate,
-      };
-    },
-    refetchInterval: 1 * 60 * 1000, // Refetch every minute
-    refetchOnWindowFocus: true,
-    staleTime: 1 * 60 * 1000, // Data stays fresh for 1 minute
+export const useClientStats = (clientId?: string, agentName?: string) => {
+  const [totalClients, setTotalClients] = useState(0);
+  const [activeClients, setActiveClients] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [stats, setStats] = useState<ClientStats>({
+    totalInteractions: 0,
+    activeDays: 0,
+    averageResponseTime: 0
   });
+
+  const fetchStats = async () => {
+    if (!clientId) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Log the stat fetching activity
+      await createClientActivity(
+        clientId,
+        "client_updated",
+        "Fetched client statistics",
+        { agent_name: agentName || '' }
+      );
+      
+      // Fetch all stats in parallel
+      const [interactions, days, avgTime] = await Promise.all([
+        getInteractionCount(clientId, agentName),
+        getActiveDays(clientId, agentName),
+        getAverageResponseTime(clientId, agentName)
+      ]);
+      
+      setStats({
+        totalInteractions: interactions,
+        activeDays: days,
+        averageResponseTime: avgTime
+      });
+    } catch (err) {
+      console.error('Error fetching client stats:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, [clientId, agentName]);
+
+  const refetch = () => {
+    fetchStats();
+  };
+
+  return {
+    ...stats,
+    totalClients,
+    activeClients,
+    isLoading,
+    error,
+    refetch
+  };
 };

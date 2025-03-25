@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { ExtendedActivityType } from '@/types/activity';
+import { ActivityType } from '@/types/client-form';
 import { callRpcFunction } from '@/utils/rpcUtils';
 
 /**
@@ -13,7 +13,7 @@ import { callRpcFunction } from '@/utils/rpcUtils';
  */
 export const createClientActivity = async (
   clientId: string,
-  activity_type: ExtendedActivityType,
+  activity_type: ActivityType,
   description: string,
   metadata: Record<string, any> = {}
 ) => {
@@ -36,3 +36,6 @@ export const createClientActivity = async (
     throw error;
   }
 };
+
+// Alias for compatibility with existing code
+export const logActivity = createClientActivity;

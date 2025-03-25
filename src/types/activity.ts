@@ -1,3 +1,4 @@
+
 /**
  * Extended activity types for client activities
  */
@@ -28,6 +29,7 @@ export type ExtendedActivityType =
   | "webhook_sent"
   | "ai_agent_created"
   | "ai_agent_updated"
+  | "agent_updated"
   | "ai_agent_table_created"
   | "agent_name_updated"
   | "agent_description_updated"
