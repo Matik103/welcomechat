@@ -1,38 +1,71 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { ExtendedActivityType } from '@/types/activity';
-import { callRpcFunction } from '@/utils/rpcUtils';
+import { supabase } from "@/integrations/supabase/client";
+import { execSql } from "@/utils/rpcUtils";
 
 /**
- * Creates a client activity record
- * @param clientId The client ID
- * @param activity_type The type of activity
+ * Logs a client activity using the RPC function
+ * @param clientId Client ID 
+ * @param activityType Type of activity
  * @param description Description of the activity
- * @param metadata Additional metadata for the activity
- * @returns The created activity
+ * @param metadata Additional metadata
+ * @returns Promise with the result
  */
-export const createClientActivity = async (
+export const createClientActivityLog = async (
   clientId: string,
-  activity_type: ExtendedActivityType,
+  activityType: string, 
   description: string,
   metadata: Record<string, any> = {}
-) => {
+): Promise<any> => {
   try {
-    if (!clientId) {
-      throw new Error('Client ID is required for activity logging');
-    }
+    // Use the RPC function to avoid type issues
+    const result = await execSql(`
+      SELECT * FROM log_client_activity(
+        $1, $2, $3, $4::jsonb
+      )
+    `, [
+      clientId,
+      activityType,
+      description,
+      JSON.stringify(metadata)
+    ]);
 
-    // Use callRpcFunction to avoid type checking issues
-    const result = await callRpcFunction('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: activity_type,
-      description_param: description,
-      metadata_param: metadata
-    });
-
+    console.log('Activity logged successfully:', { clientId, activityType, description });
     return result;
   } catch (error) {
-    console.error('Error creating client activity:', error);
+    console.error('Error logging client activity:', error);
     throw error;
+  }
+};
+
+/**
+ * Gets recent activities for a client
+ * @param clientId Client ID
+ * @param limit Number of activities to return
+ * @returns Array of activities
+ */
+export const getRecentClientActivities = async (clientId: string, limit: number = 10) => {
+  try {
+    const { data, error } = await supabase
+      .from('client_activities')
+      .select(`
+        id,
+        activity_type,
+        description,
+        created_at,
+        metadata
+      `)
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching client activities:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getRecentClientActivities:', error);
+    return [];
   }
 };

@@ -9,6 +9,7 @@ import { useRecentActivities } from "@/hooks/useRecentActivities";
 import { setupRealtimeActivities } from "@/utils/setupRealtimeActivities";
 import { subscribeToAllActivities } from "@/services/activitySubscriptionService";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
@@ -87,6 +88,23 @@ const Index = () => {
       recentActivities: recentActivities?.length
     });
   }, [clientStats, interactionStats, recentActivities]);
+  
+  // Handle refresh button click
+  const handleRefreshActivities = () => {
+    refetchActivities().then(() => {
+      toast({
+        title: "Activities refreshed",
+        description: "The activity list has been updated with the latest data",
+      });
+    }).catch((error) => {
+      console.error("Failed to refresh activities:", error);
+      toast({
+        title: "Refresh failed",
+        description: "There was a problem refreshing the activities",
+        variant: "destructive",
+      });
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
@@ -147,7 +165,9 @@ const Index = () => {
         <ActivityList 
           activities={recentActivities} 
           isLoading={isActivitiesLoading}
+          onRefresh={handleRefreshActivities}
         />
+        
         <ActionButtons />
       </div>
     </div>

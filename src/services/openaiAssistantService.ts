@@ -1,6 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import { createClientActivityLog } from '@/services/clientActivityService';
 
 // Get environment variables in a way that works in browser environment
 const SUPABASE_URL = import.meta.env.REACT_APP_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
@@ -44,6 +45,10 @@ export class OpenAIAssistantService {
         console.error('Error fetching assistant ID:', error);
         throw error;
       }
+      
+      // Log activity for the attempted assistant fetch
+      await this.logActivity('Fetched assistant ID', 'system_update');
+      
       return data?.assistant_id || null;
     } catch (error) {
       console.error('Error fetching assistant ID:', error);
@@ -55,6 +60,10 @@ export class OpenAIAssistantService {
     try {
       const thread = await this.openai.beta.threads.create();
       this.threadId = thread.id;
+      
+      // Log thread creation
+      await this.logActivity('Created new chat thread', 'system_update');
+      
       return thread.id;
     } catch (error) {
       console.error('Error creating thread:', error);
@@ -68,6 +77,12 @@ export class OpenAIAssistantService {
         role: 'user',
         content,
       });
+      
+      // Log message added to thread
+      await this.logActivity('Added message to thread', 'chat_interaction', {
+        message_preview: content.substring(0, 50) + (content.length > 50 ? '...' : '')
+      });
+      
       return true;
     } catch (error) {
       console.error('Error adding message to thread:', error);
@@ -117,16 +132,34 @@ export class OpenAIAssistantService {
         const content = lastMessage.content[0];
         
         if (content.type === 'text') {
+          // Log successful response
+          await this.logActivity('Received response from assistant', 'chat_interaction');
           return content.text.value;
         }
         return null;
       } else {
         console.error('Run did not complete successfully:', runStatus.status);
+        // Log the error
+        await this.logActivity(`Run did not complete: ${runStatus.status}`, 'error_logged');
         return null;
       }
     } catch (error) {
       console.error('Error running assistant:', error);
       return null;
+    }
+  }
+
+  // Helper method to log activities
+  private async logActivity(description: string, activityType: string, metadata: Record<string, any> = {}) {
+    try {
+      await createClientActivityLog(
+        this.clientId,
+        activityType,
+        description,
+        { ...metadata, threadId: this.threadId }
+      );
+    } catch (error) {
+      console.error('Failed to log activity:', error);
     }
   }
 
@@ -141,6 +174,7 @@ export class OpenAIAssistantService {
 
       const assistantId = await this.getAssistantId();
       if (!assistantId) {
+        await this.logActivity("Failed to find assistant ID", "error_logged");
         return {
           message: "I apologize, but I'm having trouble connecting to our knowledge base at the moment. Please try again later.",
           error: 'Assistant ID not found'
@@ -152,6 +186,7 @@ export class OpenAIAssistantService {
       if (!threadId) {
         threadId = await this.createThread();
         if (!threadId) {
+          await this.logActivity("Failed to create thread", "error_logged");
           return {
             message: "I apologize, but I'm having trouble starting a new conversation. Please try again later.",
             error: 'Failed to create thread'
@@ -162,6 +197,7 @@ export class OpenAIAssistantService {
 
       const messageAdded = await this.addMessageToThread(threadId, message);
       if (!messageAdded) {
+        await this.logActivity("Failed to add message to thread", "error_logged");
         return {
           message: "I apologize, but I'm having trouble processing your message. Please try again later.",
           error: 'Failed to add message to thread'
@@ -170,6 +206,7 @@ export class OpenAIAssistantService {
 
       const response = await this.runAssistant(threadId, assistantId);
       if (!response) {
+        await this.logActivity("Failed to get response from assistant", "error_logged");
         return {
           message: "I apologize, but I'm having trouble generating a response. Please try again later.",
           error: 'Failed to get response from assistant'
@@ -179,6 +216,8 @@ export class OpenAIAssistantService {
       return { message: response };
     } catch (error) {
       console.error('Error in sendMessage:', error);
+      // Log the unexpected error
+      await this.logActivity(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`, "error_logged");
       return {
         message: "I apologize, but I'm experiencing some technical difficulties. Please try again later.",
         error: 'Unexpected error'
