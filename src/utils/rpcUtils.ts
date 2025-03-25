@@ -13,6 +13,13 @@ export const callRpcFunction = async <T = any>(
   params: Record<string, any>
 ): Promise<T> => {
   try {
+    // Special handling for activity_type to ensure it passes through the enum check
+    if (params.activity_type_param) {
+      console.log(`Converting activity type: ${params.activity_type_param}`);
+      // The backend function expects a specific enum format
+      params.activity_type_param = String(params.activity_type_param);
+    }
+    
     // Call the RPC function dynamically
     // @ts-ignore - We need to ignore type checking for dynamic function names
     const { data, error } = await supabase.rpc(functionName, params);

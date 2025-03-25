@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { execSql } from "@/utils/rpcUtils";
 
-interface DocumentProcessingJob {
+export interface DocumentProcessingJob {
   id: number;
   document_url: string;
   client_id: string;
@@ -41,4 +41,9 @@ export const getPendingDocuments = async (): Promise<DocumentProcessingJob[]> =>
     console.error("Error fetching pending documents:", error);
     return [];
   }
+};
+
+// Export a namespace to match the expected import in other files
+export const DocumentProcessingService = {
+  getPendingDocuments
 };

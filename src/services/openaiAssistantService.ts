@@ -1,207 +1,120 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import OpenAI from 'openai';
+import { callRpcFunction } from "@/utils/rpcUtils";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-  dangerouslyAllowBrowser: true
-});
+// Basic types for OpenAI Assistant
+interface AssistantCreateParams {
+  name: string;
+  instructions?: string;
+  description?: string;
+  model: string;
+  tools?: Array<{
+    type: "code_interpreter" | "file_search" | "function";
+  }>;
+  file_ids?: string[];
+  metadata?: Record<string, string>;
+}
+
+interface AssistantUpdateParams {
+  name?: string;
+  instructions?: string;
+  description?: string;
+  model?: string;
+  tools?: Array<{
+    type: "code_interpreter" | "file_search" | "function";
+  }>;
+  metadata?: Record<string, string>;
+}
 
 /**
- * Create a new assistant for a client
- * @param clientId Client identifier
- * @param agentName Name of the AI agent
- * @param prompt The instruction prompt for the assistant
- * @returns Created assistant data
+ * Creates a new OpenAI Assistant for a client
+ * @param clientId The client ID
+ * @param agentName The agent name
+ * @param instructions Instructions for the assistant
+ * @returns The assistant ID or null if creation failed
  */
-export const createAssistant = async (
+export const createAssistantForClient = async (
   clientId: string,
   agentName: string,
-  prompt: string
-) => {
+  instructions: string
+): Promise<string | null> => {
   try {
-    console.log("Creating OpenAI assistant for:", agentName);
+    console.log(`Creating OpenAI Assistant for client ${clientId} with name ${agentName}`);
     
-    if (!openai.apiKey) {
-      throw new Error("OpenAI API key is not configured");
-    }
+    // Create a new assistant with retrieval tool
+    const assistantParams: AssistantCreateParams = {
+      name: agentName || 'AI Assistant',
+      instructions: instructions || 'You are a helpful AI assistant that answers questions based on provided documents.',
+      model: 'gpt-4-turbo-preview',
+      tools: [
+        {
+          type: "code_interpreter" // Changed from "retrieval" to "code_interpreter"
+        }
+      ]
+    };
     
-    // Create the assistant
-    const assistant = await openai.beta.assistants.create({
-      name: agentName,
-      instructions: prompt || "You are a helpful assistant that answers questions based on the provided documents.",
-      model: "gpt-4-turbo-preview",
-      tools: [{ type: "retrieval" }]
+    // Use the Edge Function to create the assistant
+    const { data, error } = await supabase.functions.invoke('create-openai-assistant', {
+      body: {
+        assistant_params: assistantParams,
+        client_id: clientId
+      }
     });
     
-    console.log("Assistant created:", assistant.id);
-    
-    // Store the assistant ID in the client record
-    const { error: updateError } = await supabase
-      .from('ai_agents')
-      .update({ 
-        openai_assistant_id: assistant.id,
-        settings: {
-          assistant_id: assistant.id,
-          model: "gpt-4-turbo-preview"
-        }
-      })
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config');
-    
-    if (updateError) {
-      console.error("Error updating client with assistant ID:", updateError);
-      throw updateError;
+    if (error) {
+      console.error('Error creating OpenAI Assistant:', error);
+      return null;
     }
     
-    return {
-      assistant_id: assistant.id,
-      success: true
-    };
-  } catch (error) {
-    console.error("Error creating OpenAI assistant:", error);
+    if (!data || !data.assistant_id) {
+      console.error('No assistant ID returned from function');
+      return null;
+    }
     
-    return {
-      error: error instanceof Error ? error.message : "Unknown error creating assistant",
-      success: false
-    };
+    console.log(`OpenAI Assistant created with ID: ${data.assistant_id}`);
+    return data.assistant_id;
+  } catch (err) {
+    console.error('Exception creating OpenAI Assistant:', err);
+    return null;
   }
 };
 
 /**
- * Update an existing assistant
- * @param assistantId OpenAI Assistant ID
- * @param name New name for the assistant
- * @param instructions New instructions for the assistant
+ * Updates an existing OpenAI Assistant
+ * @param assistantId The assistant ID
+ * @param params Update parameters
+ * @returns Success flag
  */
 export const updateAssistant = async (
   assistantId: string,
-  name?: string,
-  instructions?: string
-) => {
+  params: AssistantUpdateParams
+): Promise<boolean> => {
   try {
-    console.log("Updating assistant:", assistantId);
+    console.log(`Updating OpenAI Assistant ${assistantId}`);
     
-    if (!openai.apiKey) {
-      throw new Error("OpenAI API key is not configured");
+    // Use the Edge Function to update the assistant
+    const { data, error } = await supabase.functions.invoke('update-openai-assistant', {
+      body: {
+        assistant_id: assistantId,
+        update_params: params
+      }
+    });
+    
+    if (error) {
+      console.error('Error updating OpenAI Assistant:', error);
+      return false;
     }
     
-    const updateParams: any = {};
-    
-    if (name) updateParams.name = name;
-    if (instructions) updateParams.instructions = instructions;
-    
-    // Only update if there are changes
-    if (Object.keys(updateParams).length === 0) {
-      return { success: true, message: "No changes to update" };
-    }
-    
-    // Update the assistant
-    const assistant = await openai.beta.assistants.update(
-      assistantId,
-      updateParams
-    );
-    
-    return {
-      success: true,
-      assistant_id: assistant.id
-    };
-  } catch (error) {
-    console.error("Error updating OpenAI assistant:", error);
-    
-    return {
-      error: error instanceof Error ? error.message : "Unknown error updating assistant",
-      success: false
-    };
+    console.log(`OpenAI Assistant updated: ${assistantId}`);
+    return true;
+  } catch (err) {
+    console.error('Exception updating OpenAI Assistant:', err);
+    return false;
   }
 };
 
-/**
- * Add a document to an assistant
- * @param assistantId The OpenAI Assistant ID
- * @param fileId The OpenAI File ID
- */
-export const addDocumentToAssistant = async (
-  assistantId: string,
-  fileId: string
-) => {
-  try {
-    console.log(`Adding file ${fileId} to assistant ${assistantId}`);
-    
-    if (!openai.apiKey) {
-      throw new Error("OpenAI API key is not configured");
-    }
-    
-    // First get the current file IDs to avoid duplicates
-    const assistant = await openai.beta.assistants.retrieve(assistantId);
-    
-    // Update the assistant with the new file
-    await openai.beta.assistants.update(assistantId, {
-      file_ids: [...(assistant.file_ids || []), fileId]
-    });
-    
-    return {
-      success: true,
-      message: `File ${fileId} added to assistant ${assistantId}`
-    };
-  } catch (error) {
-    console.error("Error adding document to assistant:", error);
-    
-    return {
-      error: error instanceof Error ? error.message : "Unknown error adding document",
-      success: false
-    };
-  }
-};
-
-/**
- * Upload a document to OpenAI for use with an assistant
- * @param documentUrl URL to the document to upload
- * @param purpose Purpose of the document (default: 'assistants')
- */
-export const uploadDocumentToOpenAI = async (
-  documentUrl: string,
-  purpose: 'assistants' = 'assistants'
-) => {
-  try {
-    console.log("Uploading document to OpenAI:", documentUrl);
-    
-    if (!openai.apiKey) {
-      throw new Error("OpenAI API key is not configured");
-    }
-    
-    // Download the file from the URL
-    const response = await fetch(documentUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download document: ${response.statusText}`);
-    }
-    
-    const blob = await response.blob();
-    const fileName = documentUrl.split('/').pop() || 'document';
-    
-    // Create a File object
-    const file = new File([blob], fileName, { type: blob.type });
-    
-    // Upload the file to OpenAI
-    const uploadedFile = await openai.files.create({
-      file,
-      purpose
-    });
-    
-    console.log("Document uploaded to OpenAI:", uploadedFile.id);
-    
-    return {
-      success: true,
-      file_id: uploadedFile.id,
-      filename: fileName
-    };
-  } catch (error) {
-    console.error("Error uploading document to OpenAI:", error);
-    
-    return {
-      error: error instanceof Error ? error.message : "Unknown error uploading document",
-      success: false
-    };
-  }
+// Export a namespace to match expected imports
+export const OpenAIAssistantService = {
+  createAssistantForClient,
+  updateAssistant
 };

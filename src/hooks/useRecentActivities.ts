@@ -1,98 +1,60 @@
 
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Activity, ActivityWithClientInfo } from "@/types/activity";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { ActivityWithClientInfo } from '@/types/activity';
 
-export const formatActivityTimestamp = (timestamp: string): string => {
-  const date = new Date(timestamp);
-  return date.toLocaleString();
-};
-
-export const useRecentActivities = (limit = 20) => {
+/**
+ * Hook to get recent activities across all clients for the admin dashboard
+ */
+export const useRecentActivities = (limit: number = 20) => {
   return useQuery({
-    queryKey: ["recent-activities", limit],
+    queryKey: ['recentActivities', limit],
     queryFn: async (): Promise<ActivityWithClientInfo[]> => {
       try {
-        // Fetch recent activities
+        // Get recent activities with client information
         const { data: activities, error } = await supabase
-          .from("client_activities")
-          .select("*")
-          .order("created_at", { ascending: false })
+          .from('client_activities')
+          .select(`
+            *,
+            ai_agents!client_activities_client_id_fkey(
+              name, 
+              settings
+            )
+          `)
+          .order('created_at', { ascending: false })
           .limit(limit);
-
+          
         if (error) {
           console.error("Error fetching recent activities:", error);
-          return [];
+          throw error;
         }
-
-        if (!activities || activities.length === 0) {
-          return [];
-        }
-
-        // Extract unique client IDs
-        const clientIds = [...new Set(activities.filter(a => a.client_id).map(a => a.client_id))];
-
-        // If no client IDs, return activities as is
-        if (clientIds.length === 0) {
-          return activities.map(activity => ({
-            ...activity,
-            client_name: "Unknown Client",
-          }));
-        }
-
-        // Fetch client info for these IDs
-        const { data: clientInfo, error: clientError } = await supabase
-          .from("ai_agents")
-          .select("client_id, name")
-          .in("client_id", clientIds)
-          .eq("interaction_type", "config"); // Only get config entries
-
-        if (clientError) {
-          console.error("Error fetching client info:", clientError);
-          // Still return activities but without client names
-          return activities.map(activity => ({
-            ...activity,
-            client_name: "Unknown Client",
-          }));
-        }
-
-        // Create a map of client IDs to names
-        const clientNameMap: Record<string, string> = {};
-        if (clientInfo) {
-          clientInfo.forEach(client => {
-            if (client.client_id) {
-              clientNameMap[client.client_id] = client.name || "Unnamed Client";
-            }
-          });
-        }
-
-        // Map activities to include client name
-        return activities.map(activity => {
-          // Extract metadata values if available
-          const queryText = activity.activity_data?.query_text || activity.metadata?.query_text || "";
-          const responseTime = activity.activity_data?.response_time_ms || activity.metadata?.response_time_ms;
+        
+        // Transform data to include client info
+        const activitiesWithClientInfo: ActivityWithClientInfo[] = activities.map(activity => {
+          const clientAgent = activity.ai_agents ? activity.ai_agents[0] : null;
+          const settings = clientAgent?.settings || {};
           
-          // Get agent name from metadata if available
-          const agentName = activity.activity_data?.agent_name || activity.metadata?.agent_name;
-          
-          // Get client name from map or use default
-          const clientName = activity.client_id ? 
-            clientNameMap[activity.client_id] || "Unnamed Client" : 
-            "System";
-
           return {
-            ...activity,
-            client_name: clientName,
-            agent_name: agentName,
-            query_text: queryText,
-            response_time: responseTime,
+            id: activity.id,
+            client_id: activity.client_id || '',
+            activity_type: activity.activity_type,
+            description: activity.description || '',
+            metadata: activity.metadata || {},
+            created_at: activity.created_at,
+            updated_at: activity.updated_at,
+            // Extract client name from related ai_agents record
+            client_name: settings.client_name || clientAgent?.name || 'Unknown Client',
+            // Add other useful fields from the metadata if available
+            agent_name: settings.agent_name || clientAgent?.name
           };
         });
+        
+        return activitiesWithClientInfo;
       } catch (error) {
-        console.error("Error in useRecentActivities:", error);
+        console.error("Error in useRecentActivities hook:", error);
         return [];
       }
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 60 * 1000, // 1 minute
   });
 };

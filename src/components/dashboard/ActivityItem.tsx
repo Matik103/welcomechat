@@ -15,7 +15,7 @@ export const ActivityItem: React.FC<ActivityItemProps> = ({ activity }) => {
   // Determine activity color based on type
   const getActivityColor = (type: string) => {
     if (type.includes('error') || type.includes('failed')) return 'destructive';
-    if (type.includes('created') || type.includes('added')) return 'success';
+    if (type.includes('created') || type.includes('added')) return 'default'; // Changed from 'success' to 'default'
     if (type.includes('updated') || type.includes('completed')) return 'default';
     if (type.includes('deleted')) return 'secondary';
     return 'default';

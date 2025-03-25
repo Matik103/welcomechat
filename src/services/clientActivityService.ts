@@ -39,7 +39,7 @@ export async function logClientActivity(
 }
 
 /**
- * Creates a client activity with a description (used by DeleteClientDialog)
+ * Creates a client activity with a description (needed for DeleteClientDialog and other components)
  * @param clientId The client ID
  * @param activityType Type of activity
  * @param description Human-readable description of the activity

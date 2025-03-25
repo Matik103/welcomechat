@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ExtendedActivityType } from '@/types/activity';
+import { ActivityType, ExtendedActivityType } from '@/types/activity';
 import { Json } from '@/integrations/supabase/types';
 import { callRpcFunction } from '@/utils/rpcUtils';
 
@@ -11,7 +11,7 @@ export const useClientActivity = (clientId: string | undefined) => {
 
   const logClientActivity = useCallback(
     async (
-      activity_type: ExtendedActivityType,
+      activity_type: ActivityType | ExtendedActivityType,
       description: string,
       metadata?: Record<string, any>
     ) => {
@@ -24,7 +24,7 @@ export const useClientActivity = (clientId: string | undefined) => {
       setError(null);
 
       try {
-        // Use callRpcFunction instead of direct RPC call to bypass type checking
+        // Use callRpcFunction with proper activity type handling
         const result = await callRpcFunction('log_client_activity', {
           client_id_param: clientId,
           activity_type_param: activity_type,

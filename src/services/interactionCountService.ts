@@ -33,7 +33,7 @@ export const getInteractionsByDay = async (clientId: string, days: number = 30):
     // Map the data to the DailyInteractions interface
     const dailyInteractions: DailyInteractions[] = result.map((row: any) => ({
       day: row.day,
-      count: row.count,
+      count: Number(row.count), // Ensure count is a number
     }));
 
     return dailyInteractions;
