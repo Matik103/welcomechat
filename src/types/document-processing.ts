@@ -1,4 +1,3 @@
-
 import { Json } from "@/integrations/supabase/types";
 
 export interface DocumentProcessingOptions {
@@ -37,9 +36,9 @@ export interface DocumentMetadata {
 export type DocumentProcessingStatus = 'none' | 'pending' | 'processing' | 'completed' | 'failed';
 
 export interface DocumentProcessingResult {
-  success?: boolean; // Adding this to fix TypeScript errors
+  success?: boolean;
   status: DocumentProcessingStatus;
-  documentId?: string; // Adding this to fix TypeScript errors
+  documentId?: string;
   documentUrl: string;
   documentType: string;
   clientId: string;
@@ -47,6 +46,7 @@ export interface DocumentProcessingResult {
   startedAt: string;
   completedAt?: string;
   chunks: DocumentChunk[];
+  content?: string;
   error?: string;
   metadata: DocumentMetadata;
 }
