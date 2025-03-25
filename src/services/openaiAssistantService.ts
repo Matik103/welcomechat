@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
@@ -14,6 +15,7 @@ interface AssistantResponse {
 export class OpenAIAssistantService {
   private openai: OpenAI;
   private clientId: string;
+  private threadId: string | null = null;
 
   constructor(clientId: string) {
     this.clientId = clientId;
@@ -24,13 +26,21 @@ export class OpenAIAssistantService {
 
   private async getAssistantId(): Promise<string | null> {
     try {
+      if (!this.clientId) {
+        console.error('No client ID provided');
+        return null;
+      }
+      
       const { data, error } = await supabase
-      .from('ai_agents')
+        .from('ai_agents')
         .select('assistant_id')
         .eq('client_id', this.clientId)
-      .single();
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching assistant ID:', error);
+        throw error;
+      }
       return data?.assistant_id || null;
     } catch (error) {
       console.error('Error fetching assistant ID:', error);
@@ -41,6 +51,7 @@ export class OpenAIAssistantService {
   private async createThread(): Promise<string | null> {
     try {
       const thread = await this.openai.beta.threads.create();
+      this.threadId = thread.id;
       return thread.id;
     } catch (error) {
       console.error('Error creating thread:', error);
@@ -69,23 +80,47 @@ export class OpenAIAssistantService {
 
       // Wait for the run to complete
       let runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
-      while (runStatus.status === 'in_progress' || runStatus.status === 'queued') {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      let retries = 0;
+      const maxRetries = 10;
+      const retryDelay = 1000;
+      
+      while (
+        (runStatus.status === 'in_progress' || 
+         runStatus.status === 'queued' || 
+         runStatus.status === 'requires_action') && 
+        retries < maxRetries
+      ) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
         runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
+        retries++;
       }
 
       if (runStatus.status === 'completed') {
         const messages = await this.openai.beta.threads.messages.list(threadId);
+        
+        if (messages.data.length === 0) {
+          console.error('No messages found in thread');
+          return null;
+        }
+        
         const lastMessage = messages.data[0];
+        
+        if (!lastMessage.content || lastMessage.content.length === 0) {
+          console.error('Empty message content');
+          return null;
+        }
+        
         const content = lastMessage.content[0];
         
         if (content.type === 'text') {
           return content.text.value;
         }
         return null;
+      } else {
+        console.error('Run did not complete successfully:', runStatus.status);
+        return null;
       }
-
-      return null;
     } catch (error) {
       console.error('Error running assistant:', error);
       return null;
@@ -94,6 +129,13 @@ export class OpenAIAssistantService {
 
   public async sendMessage(message: string): Promise<AssistantResponse> {
     try {
+      if (!message || message.trim() === '') {
+        return {
+          message: "Please provide a message to send.",
+          error: 'Empty message'
+        };
+      }
+
       const assistantId = await this.getAssistantId();
       if (!assistantId) {
         return {
@@ -102,12 +144,17 @@ export class OpenAIAssistantService {
         };
       }
 
-      const threadId = await this.createThread();
+      // Use existing thread if available, otherwise create a new one
+      let threadId = this.threadId;
       if (!threadId) {
-        return {
-          message: "I apologize, but I'm having trouble starting a new conversation. Please try again later.",
-          error: 'Failed to create thread'
-        };
+        threadId = await this.createThread();
+        if (!threadId) {
+          return {
+            message: "I apologize, but I'm having trouble starting a new conversation. Please try again later.",
+            error: 'Failed to create thread'
+          };
+        }
+        this.threadId = threadId;
       }
 
       const messageAdded = await this.addMessageToThread(threadId, message);
@@ -120,7 +167,7 @@ export class OpenAIAssistantService {
 
       const response = await this.runAssistant(threadId, assistantId);
       if (!response) {
-    return {
+        return {
           message: "I apologize, but I'm having trouble generating a response. Please try again later.",
           error: 'Failed to get response from assistant'
         };
@@ -129,10 +176,10 @@ export class OpenAIAssistantService {
       return { message: response };
     } catch (error) {
       console.error('Error in sendMessage:', error);
-    return {
+      return {
         message: "I apologize, but I'm experiencing some technical difficulties. Please try again later.",
         error: 'Unexpected error'
-    };
+      };
     }
   }
 }

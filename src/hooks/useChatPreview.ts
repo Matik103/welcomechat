@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+
+import { useState, useCallback, useEffect } from 'react';
 import { OpenAIAssistantService } from '@/services/openaiAssistantService';
 
 interface Message {
@@ -10,10 +11,25 @@ export const useChatPreview = (clientId: string) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assistantService, setAssistantService] = useState<OpenAIAssistantService | null>(null);
 
-  const assistantService = new OpenAIAssistantService(clientId);
+  // Initialize the assistant service when clientId changes
+  useEffect(() => {
+    if (clientId) {
+      setAssistantService(new OpenAIAssistantService(clientId));
+    } else {
+      console.warn('No client ID provided to useChatPreview');
+      setError('No client ID available. Please provide a client ID to use the chat preview.');
+      setAssistantService(null);
+    }
+  }, [clientId]);
 
   const sendMessage = useCallback(async (content: string) => {
+    if (!assistantService) {
+      setError('Chat service not available. Please try again later.');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);

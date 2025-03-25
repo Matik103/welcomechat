@@ -122,6 +122,7 @@ export type Database = {
           logo_storage_path: string | null
           logo_url: string | null
           metadata: Json | null
+          model: string
           name: string
           openai_assistant_id: string | null
           query_text: string | null
@@ -166,6 +167,7 @@ export type Database = {
           logo_storage_path?: string | null
           logo_url?: string | null
           metadata?: Json | null
+          model?: string
           name: string
           openai_assistant_id?: string | null
           query_text?: string | null
@@ -210,6 +212,7 @@ export type Database = {
           logo_storage_path?: string | null
           logo_url?: string | null
           metadata?: Json | null
+          model?: string
           name?: string
           openai_assistant_id?: string | null
           query_text?: string | null
@@ -543,28 +546,28 @@ export type Database = {
       }
       client_activities: {
         Row: {
+          activity_data: Json | null
           activity_type: Database["public"]["Enums"]["activity_type_enum"]
           client_id: string | null
-          created_at: string | null
-          description: string
+          created_at: string
           id: string
-          metadata: Json | null
+          updated_at: string
         }
         Insert: {
+          activity_data?: Json | null
           activity_type: Database["public"]["Enums"]["activity_type_enum"]
           client_id?: string | null
-          created_at?: string | null
-          description: string
+          created_at?: string
           id?: string
-          metadata?: Json | null
+          updated_at?: string
         }
         Update: {
+          activity_data?: Json | null
           activity_type?: Database["public"]["Enums"]["activity_type_enum"]
           client_id?: string | null
-          created_at?: string | null
-          description?: string
+          created_at?: string
           id?: string
-          metadata?: Json | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -5759,39 +5762,13 @@ export type Database = {
     }
     Enums: {
       activity_type_enum:
-        | "chat_interaction"
-        | "client_created"
-        | "client_updated"
-        | "client_deleted"
-        | "client_recovered"
-        | "widget_settings_updated"
-        | "website_url_added"
-        | "drive_link_added"
-        | "url_deleted"
-        | "source_added"
-        | "source_deleted"
-        | "agent_name_updated"
-        | "drive_link_deleted"
-        | "error_logged"
-        | "interaction_milestone"
-        | "common_query_milestone"
-        | "growth_milestone"
-        | "ai_agent_table_created"
-        | "ai_agent_created"
+        | "document_uploaded"
         | "document_processing_started"
         | "document_processing_completed"
         | "document_processing_failed"
-        | "system_update"
-        | "ai_agent_updated"
-        | "document_stored"
-        | "document_processed"
-        | "document_link_added"
-        | "document_link_deleted"
-        | "document_uploaded"
-        | "signed_out"
-        | "embed_code_copied"
-        | "widget_previewed"
-        | "document_extracted"
+        | "openai_assistant_document_added"
+        | "openai_assistant_upload_failed"
+        | "schema_update"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       invitation_status: "pending" | "accepted" | "expired"
