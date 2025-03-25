@@ -903,6 +903,53 @@ export type Database = {
         }
         Relationships: []
       }
+      document_processing_status: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error: string | null
+          id: string
+          job_id: string | null
+          metadata: Json | null
+          processing_duration: number | null
+          retries: number | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          job_id?: string | null
+          metadata?: Json | null
+          processing_duration?: number | null
+          retries?: number | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          job_id?: string | null
+          metadata?: Json | null
+          processing_duration?: number | null
+          retries?: number | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_processing_status_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "document_processing_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_logs: {
         Row: {
           email_to: string
@@ -978,6 +1025,36 @@ export type Database = {
           embedding?: string | null
           id?: number
           metadata?: Json | null
+        }
+        Relationships: []
+      }
+      function_metrics: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          execution_time_ms: number
+          function_name: string
+          id: string
+          metadata: Json | null
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          execution_time_ms: number
+          function_name: string
+          id?: string
+          metadata?: Json | null
+          success?: boolean
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          execution_time_ms?: number
+          function_name?: string
+          id?: string
+          metadata?: Json | null
+          success?: boolean
         }
         Relationships: []
       }
@@ -5577,6 +5654,16 @@ export type Database = {
           agent_name: string
         }
         Returns: number
+      }
+      record_function_metric: {
+        Args: {
+          p_function_name: string
+          p_execution_time_ms: number
+          p_success: boolean
+          p_error_message?: string
+          p_metadata?: Json
+        }
+        Returns: string
       }
       search_similar_content: {
         Args: {

@@ -1,6 +1,6 @@
 /**
  * Document Processing Service
- * Version: 1.0.3
+ * Version: 1.0.4
  * Force deployment: true
  */
 
@@ -15,8 +15,6 @@ import { validateContent, chunkContent } from '@/utils/documentProcessing';
 import { tableExists } from '@/utils/supabaseUtils';
 import { LlamaParseError, DatabaseError } from '@/utils/errors';
 import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
-
-// No need to redefine the bucket name constant here
 
 /**
  * Store content in ai_agents table

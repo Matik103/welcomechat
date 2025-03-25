@@ -4,7 +4,7 @@ DO $$
 BEGIN
     INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
     VALUES (
-        'documents',
+        'document-storage',
         'Document Storage',
         true,
         52428800, -- 50MB in bytes
@@ -28,7 +28,7 @@ END $$;
 -- Enable RLS
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
--- Create policies for documents bucket
+-- Create policies for document-storage bucket
 DO $$
 BEGIN
     -- Drop existing policies if they exist
@@ -42,7 +42,7 @@ BEGIN
     ON storage.objects FOR INSERT
     TO authenticated
     WITH CHECK (
-        bucket_id = 'documents'
+        bucket_id = 'document-storage'
         AND (storage.foldername(name))[1] = auth.uid()::text
     );
 
@@ -50,7 +50,7 @@ BEGIN
     ON storage.objects FOR SELECT
     TO authenticated
     USING (
-        bucket_id = 'documents'
+        bucket_id = 'document-storage'
         AND (storage.foldername(name))[1] = auth.uid()::text
     );
 
@@ -58,7 +58,7 @@ BEGIN
     ON storage.objects FOR DELETE
     TO authenticated
     USING (
-        bucket_id = 'documents'
+        bucket_id = 'document-storage'
         AND (storage.foldername(name))[1] = auth.uid()::text
     );
         
@@ -66,5 +66,5 @@ BEGIN
     CREATE POLICY "Allow public read access to documents"
     ON storage.objects FOR SELECT
     TO anon
-    USING (bucket_id = 'documents');
+    USING (bucket_id = 'document-storage');
 END $$; 

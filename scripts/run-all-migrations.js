@@ -56,27 +56,27 @@ if (successCount === migrationFiles.length) {
   console.log('\n⚠️ Some migrations failed. Check the error messages above.');
 }
 
-// Verify the documents bucket and create it directly if needed
-console.log('\nVerifying "documents" storage bucket...');
+// Verify the document-storage bucket and create it directly if needed
+console.log('\nVerifying "document-storage" storage bucket...');
 try {
-  const verifyCommand = `psql "${dbUrl}" -c "SELECT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'documents')"`;
+  const verifyCommand = `psql "${dbUrl}" -c "SELECT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'document-storage')"`;
   const result = execSync(verifyCommand).toString();
   
   if (result.includes('t')) {
-    console.log('✅ The "documents" bucket exists in storage');
+    console.log('✅ The "document-storage" bucket exists in storage');
   } else {
-    console.log('❌ The "documents" bucket does not exist in storage');
+    console.log('❌ The "document-storage" bucket does not exist in storage');
     console.log('Creating the bucket directly...');
     
-    const createBucketCommand = `psql "${dbUrl}" -c "INSERT INTO storage.buckets (id, name, public) VALUES ('documents', 'Document Storage', true) ON CONFLICT (id) DO NOTHING;"`;
+    const createBucketCommand = `psql "${dbUrl}" -c "INSERT INTO storage.buckets (id, name, public) VALUES ('document-storage', 'Document Storage', true) ON CONFLICT (id) DO NOTHING;"`;
     execSync(createBucketCommand);
     
     // Verify again
-    const verifyAgain = execSync(`psql "${dbUrl}" -c "SELECT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'documents')"`).toString();
+    const verifyAgain = execSync(`psql "${dbUrl}" -c "SELECT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'document-storage')"`).toString();
     if (verifyAgain.includes('t')) {
-      console.log('✅ Successfully created the "documents" bucket');
+      console.log('✅ Successfully created the "document-storage" bucket');
     } else {
-      console.log('❌ Failed to create the "documents" bucket');
+      console.log('❌ Failed to create the "document-storage" bucket');
     }
     
     // Apply policies
@@ -84,14 +84,14 @@ try {
     const policiesCommand = `psql "${dbUrl}" -c "
       BEGIN;
       DROP POLICY IF EXISTS \\"Allow authenticated users to upload their own documents\\" ON storage.objects;
-      CREATE POLICY \\"Allow authenticated users to upload their own documents\\" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'documents');
+      CREATE POLICY \\"Allow authenticated users to upload their own documents\\" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'document-storage');
       DROP POLICY IF EXISTS \\"Allow public read access to documents\\" ON storage.objects;
-      CREATE POLICY \\"Allow public read access to documents\\" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'documents');
+      CREATE POLICY \\"Allow public read access to documents\\" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'document-storage');
       COMMIT;
     "`;
     execSync(policiesCommand);
     console.log('✅ Storage policies created');
   }
 } catch (error) {
-  console.error('Error verifying or creating documents bucket:', error.message);
+  console.error('Error verifying or creating document-storage bucket:', error.message);
 }
