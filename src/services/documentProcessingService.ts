@@ -74,6 +74,29 @@ export const uploadDocument = async (
 ): Promise<string> => {
   try {
     const { clientId, onUploadProgress } = options;
+    const bucketName = 'documents';
+    
+    // Verify bucket exists and create if needed
+    let { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketName);
+    
+    if (bucketError?.message === 'Bucket not found' || !bucketData) {
+      console.log('Document storage bucket not found, creating it...');
+      const { error: createError } = await supabase.storage.createBucket(bucketName, {
+        public: false,
+        allowedMimeTypes: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'],
+        fileSizeLimit: 52428800 // 50MB in bytes
+      });
+      
+      if (createError) {
+        throw new Error(`Failed to create document storage bucket: ${createError.message}`);
+      }
+      
+      // Verify bucket was created
+      ({ data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketName));
+      if (bucketError || !bucketData) {
+        throw new Error(`Failed to verify bucket creation: ${bucketError?.message || 'Unknown error'}`);
+      }
+    }
     
     // Create a unique filename to prevent collisions
     const timestamp = new Date().getTime();
@@ -82,7 +105,7 @@ export const uploadDocument = async (
     
     // Upload file to storage
     const { data, error } = await supabase.storage
-      .from('documents')
+      .from(bucketName)
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false,
