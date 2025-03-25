@@ -42,7 +42,7 @@ export const useRecentActivities = (clientId?: string, limit: number = 10) => {
         // For each activity, fetch the client name if it's an admin view (no clientId provided)
         if (!clientId) {
           const activitiesWithClientNames = await Promise.all(
-            data.map(async (activity) => {
+            data.map(async (activity: any) => {
               if (activity.client_id) {
                 // Fetch client name from ai_agents table
                 const { data: clientData } = await supabase

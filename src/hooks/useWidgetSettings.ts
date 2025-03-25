@@ -75,7 +75,7 @@ export const useWidgetSettings = (clientId: string) => {
       }
 
       // Update the settings with the new description
-      const settings = agentData?.settings || {};
+      const settings = agentData?.settings as Record<string, any> || {};
       settings.agent_description = description;
 
       // Update the ai_agents table with the new settings
@@ -136,7 +136,7 @@ export const useWidgetSettings = (clientId: string) => {
       }
 
       // Update settings with new logo info
-      const settings = agentData?.settings || {};
+      const settings = agentData?.settings as Record<string, any> || {};
       settings.logo_url = logoUrl;
       
       if (storageFilePath) {

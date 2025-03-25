@@ -45,11 +45,13 @@ export const logActivity = async (
   metadata: Record<string, any> = {}
 ) => {
   try {
+    // Convert the ActivityType to a string to satisfy TypeScript
+    // This is a workaround for the type mismatch between our app's ActivityType and the database enum
     const { data, error } = await supabase
       .from('client_activities')
       .insert({
         client_id: clientId,
-        activity_type,
+        activity_type: activity_type as any,
         description,
         metadata
       });

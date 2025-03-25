@@ -12,6 +12,7 @@ import { PageHeading } from '@/components/dashboard/PageHeading';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientForm } from "@/components/client/ClientForm";
 import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/client-form';
 
 const EditClientInfo = () => {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ const EditClientInfo = () => {
       if (clientId) {
         await createClientActivity(
           clientId,
-          'client_updated',
+          'client_updated' as ActivityType,
           `Updated client information`,
           { fields_updated: Object.keys(data) }
         );
@@ -147,7 +148,7 @@ const EditClientInfo = () => {
               isClientView={isClientView}
               logClientActivity={async (activityType, description, metadata) => {
                 if (clientId) {
-                  return createClientActivity(clientId, activityType, description, metadata);
+                  return createClientActivity(clientId, activityType as ActivityType, description, metadata || {});
                 }
               }}
             />

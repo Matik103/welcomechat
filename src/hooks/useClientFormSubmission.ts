@@ -1,13 +1,12 @@
 
 import { useState } from "react";
 import { useClientMutation } from "./useClientMutation";
-import { ActivityType } from "@/types/client-form";
+import { ActivityType, ClientFormData } from "@/types/client-form";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { generateTempPassword, saveClientTempPassword } from "@/utils/clientCreationUtils";
-import { ClientFormData } from "@/types/client-form";
 
 export const useClientFormSubmission = (
   clientId: string | undefined,
@@ -24,8 +23,17 @@ export const useClientFormSubmission = (
       // Display initial feedback toast
       const initialToastId = toast.loading(clientId ? "Updating client..." : "Creating client...");
       
+      // Ensure data conforms to ClientFormData type
+      const formData: ClientFormData = {
+        client_name: data.client_name,
+        email: data.email,
+        client_id: data.client_id,
+        widget_settings: data.widget_settings || {},
+        _tempLogoFile: data._tempLogoFile
+      };
+      
       // Perform the client mutation (create or update)
-      const result = await clientMutation.mutateAsync(data);
+      const result = await clientMutation.mutateAsync(formData);
       
       // Log activity based on user role and changes made
       if (isClientView) {

@@ -25,7 +25,6 @@ export type ActivityType =
   | "document_link_added"
   | "document_link_deleted"
   | "document_uploaded"
-  | "document_processed"
   | "document_processing_failed"
   | "document_processing_started"
   | "document_processing_completed"

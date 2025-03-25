@@ -10,10 +10,12 @@ import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettin
 import { handleLogoUpload } from "@/services/uploadService";
 import { WidgetSettings as IWidgetSettings } from "@/types/widget-settings";
 import { toast } from "sonner";
+import { defaultSettings } from "@/types/widget-settings";
 
 export default function WidgetSettings() {
   const { clientId } = useParams<{ clientId: string }>();
-  const { currentUser, isAdmin } = useAuth();
+  const { user, userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
   const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
   const { logClientActivity } = useClientActivity(clientId);
@@ -22,14 +24,14 @@ export default function WidgetSettings() {
   // Fetch widget settings
   const { data: settings, isLoading, refetch } = useQuery({
     queryKey: ["widget-settings", clientId],
-    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve({}),
+    queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
     enabled: !!clientId,
   });
 
   // Update widget settings mutation
   const updateSettingsMutation = useMutation({
     mutationFn: (newSettings: IWidgetSettings) => 
-      clientId ? updateWidgetSettings(clientId, newSettings) : Promise.resolve({}),
+      clientId ? updateWidgetSettings(clientId, newSettings) : Promise.resolve(defaultSettings),
     onSuccess: () => {
       refetch();
       if (isAdmin) {
@@ -82,10 +84,15 @@ export default function WidgetSettings() {
     <div className="min-h-screen bg-gray-50">
       <WidgetSettingsContainer
         clientId={clientId}
-        settings={settings || {}}
+        settings={settings || defaultSettings}
         isClientView={!isAdmin}
         isUploading={isUploading}
-        updateSettingsMutation={updateSettingsMutation}
+        updateSettingsMutation={{
+          isPending: updateSettingsMutation.isPending,
+          mutateAsync: async (newSettings) => {
+            await updateSettingsMutation.mutateAsync(newSettings);
+          }
+        }}
         handleBack={handleNavigateBack}
         handleLogoUpload={handleLogoUploadChange}
         logClientActivity={logClientActivity}
