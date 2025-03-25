@@ -3,9 +3,25 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { logActivity } from '@/services/clientActivityService';
-import { generateBubbleEmbedCode, generateInlineEmbedCode } from '@/utils/widgetSettingsUtils';
 import { toast } from 'sonner';
 import { WidgetSettings } from '@/types/widget-settings';
+
+// Utility functions for generating embed codes
+const generateBubbleEmbedCode = (clientId: string, settings: Partial<WidgetSettings> = {}): string => {
+  return `<script src="https://ai-chat-widget.vercel.app/widget.js" 
+  data-client-id="${clientId}" 
+  data-mode="bubble" 
+  ${settings.position ? `data-position="${settings.position}"` : ''}
+  ${settings.chat_color ? `data-color="${settings.chat_color}"` : ''}></script>`;
+};
+
+const generateInlineEmbedCode = (clientId: string, settings: Partial<WidgetSettings> = {}): string => {
+  return `<script src="https://ai-chat-widget.vercel.app/widget.js" 
+  data-client-id="${clientId}" 
+  data-mode="inline" 
+  ${settings.chat_color ? `data-color="${settings.chat_color}"` : ''}></script>
+  <div id="ai-chat-container"></div>`;
+};
 
 export const useWidgetSettings = (clientId: string) => {
   const queryClient = useQueryClient();
@@ -30,18 +46,19 @@ export const useWidgetSettings = (clientId: string) => {
       
       // Ensure settings object exists
       const widgetSettings = data?.settings || {};
+      const typedSettings = widgetSettings as Record<string, any>;
       
       // Add logo URL if it exists
       if (data?.logo_url) {
-        widgetSettings.logoUrl = data.logo_url;
+        typedSettings.logo_url = data.logo_url;
       }
       
       // Add agent name if it exists
       if (data?.name) {
-        widgetSettings.agentName = data.name;
+        typedSettings.agent_name = data.name;
       }
       
-      return widgetSettings as WidgetSettings;
+      return typedSettings as WidgetSettings;
     },
     staleTime: 60000, // 1 minute
   });
@@ -54,8 +71,8 @@ export const useWidgetSettings = (clientId: string) => {
       };
 
       // Remove logo URL from settings if present (it's stored separately)
-      if (payload.settings.logoUrl) {
-        delete payload.settings.logoUrl;
+      if (payload.settings.logo_url) {
+        delete payload.settings.logo_url;
       }
       
       const { data, error } = await supabase
@@ -85,12 +102,12 @@ export const useWidgetSettings = (clientId: string) => {
   });
 
   // Generate embed codes
-  const getBubbleEmbedCode = (settings?: WidgetSettings) => {
-    return generateBubbleEmbedCode(clientId, settings || {});
+  const getBubbleEmbedCode = (customSettings?: WidgetSettings) => {
+    return generateBubbleEmbedCode(clientId, customSettings || settings || {});
   };
   
-  const getInlineEmbedCode = (settings?: WidgetSettings) => {
-    return generateInlineEmbedCode(clientId, settings || {});
+  const getInlineEmbedCode = (customSettings?: WidgetSettings) => {
+    return generateInlineEmbedCode(clientId, customSettings || settings || {});
   };
 
   // Copy embed code to clipboard
@@ -170,7 +187,7 @@ export const useWidgetSettings = (clientId: string) => {
   });
 
   return {
-    settings,
+    settings: settings || {} as WidgetSettings,
     isLoading,
     error,
     updateSettings: updateMutation.mutate,
@@ -180,6 +197,9 @@ export const useWidgetSettings = (clientId: string) => {
     copyEmbedCode,
     embedCopied,
     uploadLogo: uploadLogo.mutate,
-    isUploading: uploadLogo.isPending
+    isUploading: uploadLogo.isPending,
+    // For compatibility with WidgetSettings component
+    updateSettingsMutation: updateMutation,
+    handleLogoUpload: (file: File) => uploadLogo.mutate(file)
   };
 };

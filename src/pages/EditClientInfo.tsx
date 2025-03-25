@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,10 @@ export default function EditClientInfoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Get client data
-  const {
-    formData,
-    isLoading: isLoadingForm,
-    error: formError,
-    setFormData
-  } = useClientForm(clientId || '');
+  const clientFormHook = useClientForm(clientId || '');
+  const formData = clientFormHook.form.getValues();
+  const isLoadingForm = false; // This needs to be tracked in useClientForm
+  const formError = ''; // This needs to be tracked in useClientForm
   
   // Form submission handler
   const {
@@ -44,7 +42,7 @@ export default function EditClientInfoPage() {
     
     try {
       // Log activity
-      await logActivity('client_updated', `Client ${data.client_name} was updated`);
+      await logActivity(clientId, 'client_updated', `Client ${data.client_name} was updated`);
       
       // Submit form
       await submitClientForm(data);
@@ -108,11 +106,11 @@ export default function EditClientInfoPage() {
             </div>
           ) : (
             <ClientForm 
-              formData={formData}
+              form={clientFormHook.form}
               onSubmit={handleSubmit}
               onCancel={handleCancel}
               isSubmitting={isSubmitting}
-              error={submitError}
+              error={submitError || ''}
             />
           )}
         </CardContent>

@@ -9,12 +9,17 @@ export default function NewClientPage() {
   const navigate = useNavigate();
   
   const {
-    handleSubmit,
+    handleSubmit: submitForm,
     isSubmitting,
     error
   } = useClientFormSubmission(false, (clientId) => {
     navigate(`/admin/clients/view/${clientId}`);
   });
+
+  // Create a wrapper for the form submission that doesn't return a value
+  const handleSubmit = async (data: any) => {
+    await submitForm(data);
+  };
 
   return (
     <div className="container py-8">

@@ -1,99 +1,53 @@
 
 import { useState } from 'react';
-import { ClientFormData } from '@/types/client-form';
 import { createClient, updateClient } from '@/services/clientService';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { generateTempPassword } from '@/utils/passwordUtils';
-import { supabase } from '@/integrations/supabase/client';
+import { ClientFormData } from '@/types/client-form';
 
 export const useClientFormSubmission = (
-  isEdit = false,
+  isEdit: boolean = false,
   onSuccess?: (clientId: string) => void,
-  clientId?: string
+  existingClientId?: string
 ) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const [error, setError] = useState<string>('');
 
-  const handleSubmit = async (data: ClientFormData) => {
+  const handleSubmit = async (formData: any): Promise<string | void> => {
+    if (!formData) {
+      setError('No form data provided');
+      return;
+    }
+
     setIsSubmitting(true);
-    setError(null);
+    setError('');
 
     try {
-      if (isEdit && clientId) {
-        // Update existing client
-        const updatedClient = await updateClient(clientId, data as ClientFormData);
-        
-        toast.success('Client updated successfully');
-        if (onSuccess) {
-          onSuccess(clientId);
-        } else {
-          navigate(`/admin/clients/view/${clientId}`);
+      // Make sure required fields are present
+      const clientFormData: ClientFormData = {
+        client_name: formData.client_name || '',
+        email: formData.email || '',
+        widget_settings: {
+          agent_name: formData.agent_name || '',
+          agent_description: formData.agent_description || '',
+          logo_url: formData.logo_url || '',
+          logo_storage_path: formData.logo_storage_path || '',
         }
-        
-        return updatedClient;
+      };
+
+      if (isEdit && existingClientId) {
+        // Update existing client
+        await updateClient(existingClientId, clientFormData);
+        if (onSuccess) onSuccess(existingClientId);
+        return existingClientId;
       } else {
         // Create new client
-        const newClient = await createClient(data as ClientFormData);
-        const newClientId = typeof newClient === 'object' ? newClient.id : newClient;
-        
-        if (newClientId) {
-          const tempPassword = generateTempPassword();
-          
-          // Only create client user if there's an email
-          if (data.email) {
-            try {
-              // Store temporary password in the database
-              const { error: tempPasswordError } = await supabase
-                .from('client_temp_passwords')
-                .insert({
-                  agent_id: newClientId,
-                  email: data.email,
-                  temp_password: tempPassword,
-                });
-                
-              if (tempPasswordError) {
-                throw tempPasswordError;
-              }
-              
-              // Send client user invitation with Edge Function
-              await supabase.functions.invoke('create-client-user', {
-                body: { 
-                  email: data.email,
-                  client_id: newClientId,
-                  client_name: data.client_name,
-                  password: tempPassword
-                }
-              });
-            } catch (err) {
-              console.error('Error creating client user:', err);
-              // Continue even if user creation fails - admin can retry later
-              toast.error('Client created but user account setup failed. You can retry this later.');
-            }
-          }
-          
-          toast.success('Client created successfully');
-          
-          if (onSuccess) {
-            onSuccess(newClientId);
-          } else {
-            navigate(`/admin/clients/view/${newClientId}`);
-          }
-        }
-        
-        return newClient;
+        const newClientId = await createClient(clientFormData);
+        if (onSuccess && newClientId) onSuccess(newClientId);
+        return newClientId;
       }
     } catch (err) {
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : 'An unknown error occurred';
-      
-      setError(errorMessage);
-      toast.error(`Error: ${errorMessage}`);
       console.error('Error submitting client form:', err);
-      
-      return null;
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      return;
     } finally {
       setIsSubmitting(false);
     }

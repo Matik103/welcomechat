@@ -37,6 +37,9 @@ export const createActivityDirect = async (
   }
 };
 
+// Export logActivity as an alias for createActivityDirect for backward compatibility
+export const logActivity = createActivityDirect;
+
 // Alias for backward compatibility
 export const createClientActivity = createActivityDirect;
 
