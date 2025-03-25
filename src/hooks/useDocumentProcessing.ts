@@ -27,7 +27,6 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
             upsert: false,
             contentType: file.type,
           }, {
-            // Use the progress event to update state
             onProgress: (progress) => {
               const percent = Math.round((progress.loaded / progress.total) * 100);
               setUploadProgress(percent);
