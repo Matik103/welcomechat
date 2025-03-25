@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // Define the document bucket name constant
-export const DOCUMENTS_BUCKET = 'documents';
+export const DOCUMENTS_BUCKET = 'Document Storage';
 
 /**
  * Ensures a Supabase storage file has a public URL

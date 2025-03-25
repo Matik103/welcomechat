@@ -1,3 +1,4 @@
+
 /**
  * Document Processing Service
  * Version: 1.0.3
@@ -14,6 +15,10 @@ import { uploadToOpenAIAssistant } from './openaiAssistantService';
 import { validateContent, chunkContent } from '@/utils/documentProcessing';
 import { tableExists } from '@/utils/supabaseUtils';
 import { LlamaParseError, DatabaseError } from '@/utils/errors';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
+
+// No need to redefine the bucket name constant here
+// const DOCUMENTS_BUCKET = 'documents'; // Remove this line
 
 /**
  * Store content in ai_agents table
@@ -75,7 +80,7 @@ export const uploadDocument = async (
 ): Promise<string> => {
   try {
     const { clientId, onUploadProgress } = options;
-    const bucketName = 'documents';
+    const bucketName = DOCUMENTS_BUCKET;
     
     // Verify bucket exists
     let { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketName);
