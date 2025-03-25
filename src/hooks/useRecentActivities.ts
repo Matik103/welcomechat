@@ -21,6 +21,13 @@ export const useRecentActivities = ({
 
   // Function to normalize activity data
   const normalizeActivity = (activity: any): ActivityLogEntry => {
+    // Handle client name safely
+    const clientName = activity.ai_agents && 
+                     typeof activity.ai_agents === 'object' && 
+                     'client_name' in activity.ai_agents ? 
+                     activity.ai_agents.client_name || '' : 
+                     activity.client_name || '';
+    
     // Handle the metadata correctly depending on its type
     let description = '';
     let metadata = {};
@@ -49,7 +56,7 @@ export const useRecentActivities = ({
       description: description,
       timestamp: activity.created_at,
       clientId: activity.client_id,
-      clientName: activity.client_name || activity.clientName || '',
+      clientName: clientName,
       metadata: metadata
     };
   };
@@ -61,21 +68,15 @@ export const useRecentActivities = ({
       
       let query = supabase
         .from('client_activities')
-        .select(`
-          *,
-          ai_agents!client_activities_client_id_fkey (
-            client_name
-          )
-        `)
-        .order('created_at', { ascending: false });
+        .select(`*`);
       
       // Filter by client_id if provided
       if (clientId) {
         query = query.eq('client_id', clientId);
       }
       
-      // Apply limit
-      query = query.limit(limit);
+      // Apply order and limit
+      query = query.order('created_at', { ascending: false }).limit(limit);
       
       const { data, error: fetchError } = await query;
       
@@ -83,32 +84,7 @@ export const useRecentActivities = ({
       
       // Process and normalize the data
       const normalizedActivities = (data || []).map(activity => {
-        // Extract client name from the joined data
-        const clientName = activity.ai_agents?.client_name;
-        
-        // Handle the metadata correctly depending on its type
-        let description = '';
-        let metadata = {};
-        
-        if (activity.description && typeof activity.description === 'string') {
-          description = activity.description;
-        }
-        
-        if (activity.metadata) {
-          if (typeof activity.metadata === 'object') {
-            metadata = activity.metadata;
-          }
-        }
-        
-        return {
-          id: activity.id.toString(),
-          type: activity.activity_type as ActivityType,
-          description: description,
-          timestamp: activity.created_at,
-          clientId: activity.client_id,
-          clientName: clientName || '',
-          metadata: metadata
-        };
+        return normalizeActivity(activity);
       });
       
       setActivities(normalizedActivities);
@@ -143,6 +119,8 @@ export const useRecentActivities = ({
     activities, 
     isLoading, 
     error,
-    refresh: fetchActivities
+    refresh: fetchActivities,
+    // Add data property for compatibility with older code
+    data: { activities }
   };
 };

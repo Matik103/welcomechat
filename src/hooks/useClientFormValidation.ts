@@ -3,8 +3,13 @@ import { useState } from "react";
 import { z } from "zod";
 import { ClientFormData, ClientFormErrors, clientFormSchema } from "@/types/client-form";
 
-export const useClientFormValidation = () => {
+export const useClientFormValidation = (isClientView = false) => {
   const [errors, setErrors] = useState<ClientFormErrors>({});
+  
+  // Create a schema based on whether it's client view or not
+  const schema = isClientView 
+    ? clientFormSchema.omit({ client_name: true, email: true })
+    : clientFormSchema;
   
   // Validate client form data
   const validateClientForm = (data: ClientFormData): boolean => {
@@ -13,7 +18,7 @@ export const useClientFormValidation = () => {
       setErrors({});
       
       // Validate with Zod schema
-      const validationResult = clientFormSchema.safeParse(data);
+      const validationResult = schema.safeParse(data);
       
       if (!validationResult.success) {
         // Format and set errors
@@ -42,6 +47,7 @@ export const useClientFormValidation = () => {
     errors,
     setErrors,
     validateClientForm,
+    schema
   };
 };
 

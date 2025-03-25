@@ -20,17 +20,13 @@ export const createActivityDirect = async (
   try {
     console.log(`Creating activity for client ${clientId}: ${activityType} - ${description}`);
     
-    // Insert the activity record
-    const { data, error } = await supabase
-      .from('client_activities')
-      .insert({
-        client_id: clientId,
-        activity_type: activityType,
-        description: description,
-        metadata: metadata || {}
-      })
-      .select()
-      .single();
+    // Use the RPC function instead of direct table insert to handle type validation
+    const { data, error } = await supabase.rpc('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: activityType,
+      description_param: description,
+      metadata_param: metadata || {}
+    });
     
     if (error) throw error;
     return data;
@@ -40,6 +36,9 @@ export const createActivityDirect = async (
     return null;
   }
 };
+
+// Alias for backward compatibility
+export const createClientActivity = createActivityDirect;
 
 /**
  * Get recent activities for a client
@@ -66,7 +65,7 @@ export const getRecentActivities = async (
     
     // Convert to the expected format
     const activities = (data || []).map(activity => ({
-      id: activity.id,
+      id: activity.id.toString(),
       activity_type: activity.activity_type as ActivityType,
       description: activity.description || '',
       created_at: activity.created_at,
@@ -106,16 +105,25 @@ export const getAllActivities = async (
     
     if (error) throw error;
     
-    // Convert to the expected format
-    const activities = (data || []).map(activity => ({
-      id: activity.id,
-      activity_type: activity.activity_type as ActivityType,
-      description: activity.description || '',
-      created_at: activity.created_at,
-      client_id: activity.client_id,
-      client_name: activity.ai_agents?.client_name || '',
-      metadata: activity.metadata || {}
-    }));
+    // Convert to the expected format with proper null checks
+    const activities = (data || []).map(activity => {
+      // Extract client name safely
+      const clientName = activity.ai_agents && 
+                       typeof activity.ai_agents === 'object' && 
+                       'client_name' in activity.ai_agents ? 
+                       activity.ai_agents.client_name || '' : 
+                       '';
+      
+      return {
+        id: activity.id.toString(),
+        activity_type: activity.activity_type as ActivityType,
+        description: activity.description || '',
+        created_at: activity.created_at,
+        client_id: activity.client_id,
+        client_name: clientName,
+        metadata: activity.metadata || {}
+      };
+    });
     
     return activities;
   } catch (error) {

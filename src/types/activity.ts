@@ -5,6 +5,7 @@ export type ActivityType =
   | 'client_created'
   | 'client_updated'
   | 'client_deleted'
+  | 'client_recovered'
   | 'document_uploaded'
   | 'document_processing_started'
   | 'document_processing_completed'
@@ -26,7 +27,13 @@ export type ActivityType =
   | 'logo_uploaded'
   | 'document_processed'
   | 'client_recovered'
-  | 'stats_accessed';
+  | 'stats_accessed'
+  | 'website_url_added'
+  | 'website_url_deleted'
+  | 'drive_link_added'
+  | 'drive_link_deleted'
+  | 'source_added'
+  | 'source_deleted';
 
 // Define extended activity types (legacy/deprecated)
 export type ExtendedActivityType = ActivityType;
@@ -80,5 +87,11 @@ export const ActivityTypeMap: Record<string, ActivityType> = {
   'logo_uploaded': 'logo_uploaded',
   'document_processed': 'document_processed',
   'client_recovered': 'client_recovered',
-  'stats_accessed': 'stats_accessed'
+  'stats_accessed': 'stats_accessed',
+  'website_url_added': 'website_url_added',
+  'website_url_deleted': 'website_url_deleted',
+  'drive_link_added': 'drive_link_added',
+  'drive_link_deleted': 'drive_link_deleted',
+  'source_added': 'source_added',
+  'source_deleted': 'source_deleted'
 };

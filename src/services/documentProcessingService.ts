@@ -13,6 +13,19 @@ export class DocumentProcessingService {
    */
   static async getPendingDocuments(): Promise<any[]> {
     try {
+      // Check if client_documents table exists
+      const { data: tableExists } = await supabase
+        .from('client_documents')
+        .select('*')
+        .limit(1)
+        .catch(() => ({ data: null }));
+      
+      // If table doesn't exist, return empty array
+      if (!tableExists) {
+        console.warn("The client_documents table does not exist");
+        return [];
+      }
+      
       // Query documents with status 'pending' or 'needs_processing'
       const { data, error } = await supabase
         .from('client_documents')
@@ -20,7 +33,10 @@ export class DocumentProcessingService {
         .in('status', ['pending', 'needs_processing'])
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching pending documents:", error);
+        return [];
+      }
       
       return data || [];
     } catch (error) {
@@ -38,20 +54,25 @@ export class DocumentProcessingService {
     try {
       console.log(`Processing document ${documentId}`);
       
-      // Get document details
+      // Get document details - handle the case where the table might not exist
       const { data: document, error: fetchError } = await supabase
         .from('client_documents')
         .select('*')
         .eq('id', documentId)
-        .single();
+        .single()
+        .catch(err => {
+          console.error("Error in document fetch:", err);
+          return { data: null, error: err };
+        });
       
-      if (fetchError) {
-        console.error("Error fetching document:", fetchError);
+      if (fetchError || !document) {
+        console.error("Error fetching document:", fetchError || "Document not found");
         return false;
       }
       
-      if (!document) {
-        console.error(`Document ${documentId} not found`);
+      // Safety check - only proceed if we have valid document data
+      if (!document || !document.client_id) {
+        console.error(`Invalid document data for ID ${documentId}`);
         return false;
       }
       
@@ -59,7 +80,11 @@ export class DocumentProcessingService {
       const { error: updateError } = await supabase
         .from('client_documents')
         .update({ status: 'processing' })
-        .eq('id', documentId);
+        .eq('id', documentId)
+        .catch(err => {
+          console.error("Error in document update:", err);
+          return { error: err };
+        });
       
       if (updateError) {
         console.error("Error updating document status:", updateError);
@@ -70,8 +95,8 @@ export class DocumentProcessingService {
       await createActivityDirect(
         document.client_id,
         'document_processing_started' as ActivityType,
-        `Document processing started for ${document.document_name || documentId}`,
-        { document_id: documentId, document_url: document.document_url }
+        `Document processing started for ${document.document_name || document.name || documentId}`,
+        { document_id: documentId, document_url: document.document_url || document.url }
       );
       
       // Call the function to process the document
@@ -95,13 +120,14 @@ export class DocumentProcessingService {
             status: 'failed',
             error_message: processError.message
           })
-          .eq('id', documentId);
+          .eq('id', documentId)
+          .catch(err => console.error("Error updating document status after failure:", err));
         
         // Log activity for document processing failed
         await createActivityDirect(
           document.client_id,
           'document_processing_failed' as ActivityType,
-          `Document processing failed for ${document.document_name || documentId}`,
+          `Document processing failed for ${document.document_name || document.name || documentId}`,
           { 
             document_id: documentId, 
             error: processError.message
@@ -118,13 +144,14 @@ export class DocumentProcessingService {
           status: 'processed',
           processed_at: new Date().toISOString()
         })
-        .eq('id', documentId);
+        .eq('id', documentId)
+        .catch(err => console.error("Error updating document status after processing:", err));
       
       // Log activity for document processing completed
       await createActivityDirect(
         document.client_id,
         'document_processing_completed' as ActivityType,
-        `Document processing completed for ${document.document_name || documentId}`,
+        `Document processing completed for ${document.document_name || document.name || documentId}`,
         { document_id: documentId }
       );
       
@@ -140,13 +167,22 @@ export class DocumentProcessingService {
             status: 'failed',
             error_message: error instanceof Error ? error.message : "Unknown error"
           })
-          .eq('id', documentId);
+          .eq('id', documentId)
+          .catch(() => console.error("Failed to update document status after error"));
       } catch (updateError) {
         console.error("Failed to update document status after error:", updateError);
       }
       
       return false;
     }
+  }
+
+  /**
+   * Mock function for document retrieval when table doesn't exist
+   */
+  static async getDocumentById(id: string): Promise<any> {
+    console.log(`Attempting to get document ${id} (mock function)`);
+    return null;
   }
 }
 

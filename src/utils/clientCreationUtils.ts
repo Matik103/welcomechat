@@ -3,61 +3,69 @@ import { supabase } from "@/integrations/supabase/client";
 import { createActivityDirect } from "@/services/clientActivityService";
 
 /**
- * Generates a temporary password for a client
- * @returns A secure random password
+ * Generate a temporary password for a new client
+ * @returns A secure temporary password
  */
 export const generateTempPassword = (): string => {
   const length = 12;
-  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=';
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+';
   let password = '';
+  
+  // Generate random password
   for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
+  
   return password;
 };
 
+// Alias for backward compatibility
+export const generateClientTempPassword = generateTempPassword;
+
 /**
- * Saves a temporary password for a client
- * @param agentId Agent ID
- * @param email Client email
- * @param tempPassword Temporary password
- * @returns The result of the operation
+ * Save a temporary password for a client
+ * @param clientId The client ID
+ * @param email The client email
+ * @param tempPassword The temporary password
  */
-export const saveClientTempPassword = async (agentId: string, email: string, tempPassword: string): Promise<any> => {
+export const saveClientTempPassword = async (
+  clientId: string, 
+  email: string, 
+  tempPassword: string
+): Promise<void> => {
   try {
-    console.log(`Saving temporary password for agent ${agentId} with email ${email}`);
-    
-    // Insert into client_temp_passwords table
-    const { data, error } = await supabase
+    // Save temporary password in the database
+    const { error } = await supabase
       .from('client_temp_passwords')
       .insert({
-        agent_id: agentId,
+        client_id: clientId,
         email: email,
-        temp_password: tempPassword
-      })
-      .select()
-      .single();
+        temp_password: tempPassword,
+        created_at: new Date().toISOString(),
+        used: false
+      });
     
-    if (error) {
-      console.error("Error saving client temp password:", error);
-      throw new Error(error.message);
-    }
+    if (error) throw error;
     
-    console.log("Temporary password saved successfully:", data);
-    return data;
+    // Log activity
+    await createActivityDirect(
+      clientId,
+      'client_created',
+      `Temporary password generated for ${email}`,
+      { email }
+    );
   } catch (error) {
-    console.error("Error in saveClientTempPassword:", error);
-    throw new Error(`Failed to save temporary password: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error("Error saving temporary password:", error);
+    throw error;
   }
 };
 
 /**
- * Generates a welcome email template for a client
- * @param clientName Client name
- * @param email Client email
- * @param tempPassword Temporary password
- * @returns The email HTML
+ * Generate a welcome email template for a new client
+ * @param clientName The client name
+ * @param email The client email
+ * @param tempPassword The temporary password
+ * @returns HTML email template
  */
 export const generateClientWelcomeEmailTemplate = (
   clientName: string,
@@ -109,4 +117,28 @@ export const generateClientWelcomeEmailTemplate = (
       </div>
     </div>
   `;
+};
+
+/**
+ * Log client creation activity
+ * @param clientId The client ID
+ * @param clientName The client name
+ * @param email The client email
+ */
+export const logClientCreationActivity = async (
+  clientId: string,
+  clientName: string,
+  email: string
+): Promise<void> => {
+  try {
+    await createActivityDirect(
+      clientId,
+      'client_created',
+      `Client ${clientName} created with email ${email}`,
+      { client_name: clientName, email }
+    );
+  } catch (error) {
+    console.error("Error logging client creation activity:", error);
+    // Non-blocking - don't throw
+  }
 };

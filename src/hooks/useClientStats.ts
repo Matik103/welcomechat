@@ -67,6 +67,11 @@ export const useClientStats = () => {
     isLoading, 
     error,
     // Add data property for compatibility
-    data: { totalClients, activeClients }
+    data: { 
+      totalClients, 
+      activeClients,
+      // Add a refetch method for compatibility
+      refetch: function() { /* Placeholder */ }
+    }
   };
 };

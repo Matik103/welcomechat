@@ -34,6 +34,14 @@ export const processExistingDocuments = async (clientId?: string): Promise<Proce
     
     console.log(`Found ${documents.length} pending documents to process`);
     
+    if (documents.length === 0) {
+      return {
+        processed: [],
+        failed: [],
+        success: true
+      };
+    }
+    
     // Process each document
     const results = await Promise.all(
       documents.map(async doc => {
@@ -42,14 +50,14 @@ export const processExistingDocuments = async (clientId?: string): Promise<Proce
           return {
             id: doc.id,
             success: processed,
-            document_url: doc.document_url
+            document_url: doc.document_url || doc.url
           };
         } catch (error) {
           console.error(`Error processing document ${doc.id}:`, error);
           return {
             id: doc.id,
             success: false,
-            document_url: doc.document_url,
+            document_url: doc.document_url || doc.url,
             error: error instanceof Error ? error.message : "Unknown error"
           };
         }
