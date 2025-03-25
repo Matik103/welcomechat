@@ -20,6 +20,41 @@ export const generateTempPassword = (length = 12): string => {
 export const generateClientTempPassword = generateTempPassword;
 
 /**
+ * Save a temporary password for a client
+ * @param agentId The agent ID
+ * @param email The client email
+ * @param tempPassword The temporary password
+ * @returns Promise resolving to the insert result
+ */
+export const saveClientTempPassword = async (
+  agentId: string,
+  email: string,
+  tempPassword: string
+): Promise<any> => {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    
+    // Save the temporary password in the client_temp_passwords table
+    const { data, error } = await supabase
+      .from('client_temp_passwords')
+      .insert({
+        agent_id: agentId,
+        email: email,
+        temp_password: tempPassword,
+        created_at: new Date().toISOString(),
+        used: false
+      });
+    
+    if (error) throw error;
+    
+    return data;
+  } catch (error) {
+    console.error("Error saving client temporary password:", error);
+    throw error;
+  }
+};
+
+/**
  * Check if a password meets minimum security requirements
  * @param password The password to check
  * @returns Whether the password is secure

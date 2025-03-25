@@ -1,68 +1,44 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { createActivityDirect } from "@/services/clientActivityService";
-import { ActivityType } from "@/types/activity";
 
 /**
- * Sets up an OpenAI assistant for a client
+ * Set up an OpenAI assistant for a client
  * @param clientId The client ID
  * @param agentName The agent name
  * @param agentDescription The agent description
  * @param clientName The client name
- * @returns The result of the operation
+ * @returns The response data
  */
 export const setupOpenAIAssistant = async (
   clientId: string,
   agentName: string,
   agentDescription: string,
   clientName: string
-): Promise<{
-  success: boolean;
-  message: string;
-  assistantId?: string;
-}> => {
+): Promise<any> => {
   try {
-    console.log(`Setting up OpenAI assistant for client ${clientId}`);
-    
-    // Call the edge function to create an OpenAI assistant
+    // Call the create-openai-assistant edge function
     const { data, error } = await supabase.functions.invoke(
       'create-openai-assistant',
       {
         body: {
           client_id: clientId,
-          agent_name: agentName,
-          agent_description: agentDescription,
+          agent_name: agentName || "AI Assistant",
+          agent_description: agentDescription || "",
           client_name: clientName
         }
       }
     );
     
     if (error) {
-      console.error("Error creating OpenAI assistant:", error);
-      return {
-        success: false,
-        message: `Failed to create OpenAI assistant: ${error.message}`
-      };
+      console.error("Failed to create OpenAI assistant:", error);
+      throw error;
     }
     
-    // Log the activity
-    await createActivityDirect(
-      clientId,
-      'client_created' as ActivityType,
-      `OpenAI assistant created for ${clientName}`,
-      { agent_name: agentName }
-    );
-    
-    return {
-      success: true,
-      message: "OpenAI assistant created successfully",
-      assistantId: data?.assistant_id
-    };
+    console.log("OpenAI assistant created:", data);
+    return data;
   } catch (error) {
-    console.error("Error in setupOpenAIAssistant:", error);
-    return {
-      success: false,
-      message: `An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
-    };
+    console.error("Error creating OpenAI assistant:", error);
+    // Don't throw, as this is a non-critical operation
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 };

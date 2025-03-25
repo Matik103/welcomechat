@@ -14,7 +14,7 @@ import {
   generateTempPassword, 
   saveClientTempPassword
 } from '@/utils/passwordUtils';
-import { createClientUserAccount, logClientCreationActivity } from '@/utils/clientAccountUtils';
+import { createClientAccount, logClientCreationActivity } from '@/utils/clientAccountUtils';
 import { setupOpenAIAssistant } from '@/utils/clientOpenAIUtils';
 
 // Form validation schema
@@ -87,22 +87,11 @@ export function NewClientForm() {
       // Save the temporary password
       await saveClientTempPassword(clientData.id, data.email, tempPassword);
       
-      // Create the user account in Supabase Auth
-      await createClientUserAccount(
-        data.email,
-        data.client_id,
-        data.client_name,
-        data.agent_name,
-        data.agent_description || "",
-        tempPassword
-      );
-      
       // Log activity for client creation
       await logClientCreationActivity(
         data.client_id,
         data.client_name,
-        data.email,
-        data.agent_name
+        data.email
       );
       
       // Setup OpenAI assistant for this client

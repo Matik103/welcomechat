@@ -9,6 +9,7 @@ export const clientFormSchema = z.object({
   agent_description: z.string().max(500, "Description must be 500 characters or less").optional(),
   logo_url: z.string().optional(),
   logo_storage_path: z.string().optional(),
+  client_id: z.string().uuid().optional(),
   widget_settings: z.object({
     agent_name: z.string().min(2, "Agent name must be at least 2 characters").max(50).optional(),
     agent_description: z.string().max(500, "Description must be 500 characters or less").optional(),
@@ -29,6 +30,7 @@ export interface ClientFormErrors {
   agent_description?: string;
   logo_url?: string;
   logo_storage_path?: string;
+  client_id?: string;
   widget_settings?: {
     agent_name?: string;
     agent_description?: string;
