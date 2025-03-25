@@ -35,6 +35,7 @@ BEGIN
     DROP POLICY IF EXISTS "Allow authenticated users to upload their own documents" ON storage.objects;
     DROP POLICY IF EXISTS "Allow users to view their own documents" ON storage.objects;
     DROP POLICY IF EXISTS "Allow authenticated users to delete their own documents" ON storage.objects;
+    DROP POLICY IF EXISTS "Allow public read access to documents" ON storage.objects;
 
     -- Create new policies
     CREATE POLICY "Allow authenticated users to upload their own documents"

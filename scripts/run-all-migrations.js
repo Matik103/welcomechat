@@ -56,7 +56,7 @@ if (successCount === migrationFiles.length) {
   console.log('\n⚠️ Some migrations failed. Check the error messages above.');
 }
 
-// Verify the documents bucket
+// Verify the documents bucket and create it directly if needed
 console.log('\nVerifying "documents" storage bucket...');
 try {
   const verifyCommand = `psql "${dbUrl}" -c "SELECT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'documents')"`;
@@ -66,8 +66,32 @@ try {
     console.log('✅ The "documents" bucket exists in storage');
   } else {
     console.log('❌ The "documents" bucket does not exist in storage');
-    console.log('Try running the migration 20240325_storage_bucket_setup.sql directly');
+    console.log('Creating the bucket directly...');
+    
+    const createBucketCommand = `psql "${dbUrl}" -c "INSERT INTO storage.buckets (id, name, public) VALUES ('documents', 'Document Storage', true) ON CONFLICT (id) DO NOTHING;"`;
+    execSync(createBucketCommand);
+    
+    // Verify again
+    const verifyAgain = execSync(`psql "${dbUrl}" -c "SELECT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'documents')"`).toString();
+    if (verifyAgain.includes('t')) {
+      console.log('✅ Successfully created the "documents" bucket');
+    } else {
+      console.log('❌ Failed to create the "documents" bucket');
+    }
+    
+    // Apply policies
+    console.log('Creating storage policies...');
+    const policiesCommand = `psql "${dbUrl}" -c "
+      BEGIN;
+      DROP POLICY IF EXISTS \\"Allow authenticated users to upload their own documents\\" ON storage.objects;
+      CREATE POLICY \\"Allow authenticated users to upload their own documents\\" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'documents');
+      DROP POLICY IF EXISTS \\"Allow public read access to documents\\" ON storage.objects;
+      CREATE POLICY \\"Allow public read access to documents\\" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'documents');
+      COMMIT;
+    "`;
+    execSync(policiesCommand);
+    console.log('✅ Storage policies created');
   }
 } catch (error) {
-  console.error('Error verifying documents bucket:', error.message);
+  console.error('Error verifying or creating documents bucket:', error.message);
 }
