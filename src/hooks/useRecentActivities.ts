@@ -1,60 +1,63 @@
 
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityWithClientInfo } from '@/types/activity';
 
-/**
- * Hook to get recent activities across all clients for the admin dashboard
- */
-export const useRecentActivities = (limit: number = 20) => {
-  return useQuery({
-    queryKey: ['recentActivities', limit],
-    queryFn: async (): Promise<ActivityWithClientInfo[]> => {
+export const useRecentActivities = (limit: number = 10) => {
+  const [activities, setActivities] = useState<ActivityWithClientInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchActivities = async () => {
       try {
-        // Get recent activities with client information
-        const { data: activities, error } = await supabase
+        setIsLoading(true);
+        setError(null);
+
+        // Query joined data from client_activities and ai_agents
+        const { data, error } = await supabase
           .from('client_activities')
           .select(`
             *,
-            ai_agents!client_activities_client_id_fkey(
-              name, 
-              settings
-            )
+            ai_agents:client_id(id, client_name)
           `)
           .order('created_at', { ascending: false })
           .limit(limit);
+
+        if (error) throw error;
+
+        // Transform the data to match ActivityWithClientInfo
+        const transformedActivities: ActivityWithClientInfo[] = data.map(item => {
+          // Extract client info from joined data
+          const clientInfo = item.ai_agents as any;
+          const clientName = clientInfo?.client_name || 'Unknown Client';
           
-        if (error) {
-          console.error("Error fetching recent activities:", error);
-          throw error;
-        }
-        
-        // Transform data to include client info
-        const activitiesWithClientInfo: ActivityWithClientInfo[] = activities.map(activity => {
-          const clientAgent = activity.ai_agents ? activity.ai_agents[0] : null;
-          const settings = clientAgent?.settings || {};
-          
+          // Get description from activity_data if available
+          const description = item.activity_data?.description || undefined;
+          const metadata = item.activity_data?.metadata || undefined;
+
           return {
-            id: activity.id,
-            client_id: activity.client_id || '',
-            activity_type: activity.activity_type,
-            description: activity.description || '',
-            metadata: activity.metadata || {},
-            created_at: activity.created_at,
-            updated_at: activity.updated_at,
-            // Extract client name from related ai_agents record
-            client_name: settings.client_name || clientAgent?.name || 'Unknown Client',
-            // Add other useful fields from the metadata if available
-            agent_name: settings.agent_name || clientAgent?.name
+            id: item.id,
+            activity_type: item.activity_type,
+            description: description,
+            created_at: item.created_at,
+            client_id: item.client_id,
+            client_name: clientName,
+            metadata: metadata
           };
         });
-        
-        return activitiesWithClientInfo;
-      } catch (error) {
-        console.error("Error in useRecentActivities hook:", error);
-        return [];
+
+        setActivities(transformedActivities);
+      } catch (err) {
+        console.error('Error fetching recent activities:', err);
+        setError(err instanceof Error ? err : new Error('Failed to fetch activities'));
+      } finally {
+        setIsLoading(false);
       }
-    },
-    staleTime: 60 * 1000, // 1 minute
-  });
+    };
+
+    fetchActivities();
+  }, [limit]);
+
+  return { activities, isLoading, error };
 };

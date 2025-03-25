@@ -1,221 +1,181 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { LlamaCloudService } from "@/utils/LlamaCloudService";
 import { DocumentProcessingService } from "@/services/documentProcessingService";
+import { createActivityDirect } from "@/services/clientActivityService";
 import { toast } from "sonner";
 
 /**
- * Process existing documents with LlamaParse
- * @param clientId Client ID to process documents for
- * @param agentName Agent name for document association
- * @returns Object containing success status and details
+ * Reprocess document function that handles failures and retries
+ * @param document The document to reprocess
+ * @returns Success status and message
  */
-export const processExistingDocuments = async (
-  clientId: string,
-  agentName: string
-): Promise<{ success: boolean; processed: number; failed: number; details: any[] }> => {
+export const reprocessDocument = async (document: any): Promise<{ success: boolean; message: string }> => {
   try {
-    console.log(`Processing existing documents for client ${clientId} with agent ${agentName}`);
-    
-    // Get documents from the ai_agents table that haven't been processed by LlamaParse yet
-    const { data: documents, error } = await supabase
-      .from("ai_agents")
-      .select("*")
-      .eq("client_id", clientId)
-      .eq("interaction_type", "document")
-      .is("settings->processing_method", null)
-      .order("created_at", { ascending: false });
-    
-    if (error) {
-      console.error("Error fetching documents:", error);
-      return { 
-        success: false, 
-        processed: 0, 
-        failed: 0, 
-        details: [{ error: error.message }] 
+    // Validate document data
+    if (!document || !document.id || !document.client_id || !document.document_url) {
+      return {
+        success: false,
+        message: "Invalid document data for reprocessing"
       };
     }
-    
-    console.log(`Found ${documents?.length || 0} documents to process`);
-    
-    if (!documents || documents.length === 0) {
-      return { 
-        success: true, 
-        processed: 0, 
-        failed: 0, 
-        details: [{ message: "No documents found that need processing" }] 
+
+    console.log(`Reprocessing document ${document.id} for client ${document.client_id}`);
+
+    // Update document status to "pending"
+    const { error: updateError } = await supabase
+      .from("document_processing_jobs")
+      .update({
+        status: "pending",
+        error: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", document.id);
+
+    if (updateError) {
+      console.error("Error updating document status:", updateError);
+      return {
+        success: false,
+        message: `Failed to update document status: ${updateError.message}`
       };
     }
-    
-    // Process each document
-    const results = [];
-    let processed = 0;
-    let failed = 0;
-    
-    for (const doc of documents) {
-      try {
-        // Get document URL from the document record
-        const documentUrl = doc.url;
-        const documentType = doc.type || "application/pdf";
-        
-        if (!documentUrl) {
-          console.warn(`Document ${doc.id} has no URL, skipping`);
-          results.push({ 
-            id: doc.id, 
-            status: "skipped", 
-            reason: "No document URL found" 
-          });
-          failed++;
-          continue;
-        }
-        
-        console.log(`Processing document: ${documentUrl}`);
-        
-        // Submit the document to LlamaParse
-        const parseResult = await LlamaCloudService.parseDocument(
-          documentUrl,
-          documentType,
-          clientId,
-          agentName
-        );
-        
-        if ('success' in parseResult && !parseResult.success) {
-          const errorMsg = 'error' in parseResult ? parseResult.error : 'Unknown error';
-          console.error(`Failed to process document ${doc.id}:`, errorMsg);
-          results.push({ 
-            id: doc.id, 
-            url: documentUrl, 
-            status: "failed", 
-            error: errorMsg 
-          });
-          failed++;
-          continue;
-        }
-        
-        // Update the document with the LlamaParse result
-        const updatedDoc = await DocumentProcessingService.processDocument(
-          documentUrl,
-          documentType,
-          clientId,
-          agentName
-        );
-        
-        results.push({ 
-          id: doc.id, 
-          url: documentUrl, 
-          status: "processed", 
-          result: updatedDoc 
-        });
-        processed++;
-        
-        // Add a short delay to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (docError) {
-        console.error(`Error processing document ${doc.id}:`, docError);
-        results.push({ 
-          id: doc.id, 
-          status: "error", 
-          error: docError instanceof Error ? docError.message : String(docError) 
-        });
-        failed++;
+
+    // Log activity
+    await createActivityDirect(
+      document.client_id,
+      "document_processing_started",
+      `Reprocessing document: ${document.document_type || 'Unknown type'}`,
+      {
+        document_id: document.id,
+        document_url: document.document_url
       }
+    );
+
+    // Process document
+    const processResult = await DocumentProcessingService.processDocument(document.id);
+
+    if (!processResult) {
+      throw new Error("Document processing service returned false");
     }
-    
-    // Return the processing results
+
     return {
       success: true,
-      processed,
-      failed,
-      details: results
+      message: `Document reprocessing started for ${document.document_url}`
     };
   } catch (error) {
-    console.error("Error in processExistingDocuments:", error);
+    console.error("Error reprocessing document:", error);
+    
+    // Update document status to "failed" with error
+    try {
+      await supabase
+        .from("document_processing_jobs")
+        .update({
+          status: "failed",
+          error: error instanceof Error ? error.message : "Unknown error during reprocessing",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", document.id);
+    } catch (updateError) {
+      console.error("Failed to update document error status:", updateError);
+    }
+
     return {
       success: false,
-      processed: 0,
-      failed: 0,
-      details: [{ error: error instanceof Error ? error.message : String(error) }]
+      message: `Failed to reprocess document: ${error instanceof Error ? error.message : 'Unknown error'}`
     };
   }
 };
 
 /**
- * Process a single document with LlamaParse
- * @param documentId Document ID to process
- * @param clientId Client ID
- * @param agentName Agent name
- * @returns Object containing success status and details
+ * Process multiple pending documents
+ * @param limit The maximum number of documents to process
+ * @returns The number of documents processed
  */
-export const processDocument = async (
-  documentId: string,
-  clientId: string, 
-  agentName: string
-): Promise<{ success: boolean; details: any }> => {
+export const processAllPendingDocuments = async (limit: number = 10): Promise<number> => {
   try {
-    // Get the document from ai_agents
-    const { data: doc, error } = await supabase
-      .from("ai_agents")
-      .select("*")
-      .eq("id", documentId)
-      .eq("client_id", clientId)
-      .single();
+    const pendingDocuments = await DocumentProcessingService.getPendingDocuments();
     
-    if (error || !doc) {
-      console.error("Error fetching document:", error);
-      return { 
-        success: false, 
-        details: { error: error?.message || "Document not found" } 
-      };
+    if (!pendingDocuments || pendingDocuments.length === 0) {
+      console.log("No pending documents found for processing");
+      return 0;
     }
     
-    // Get document URL and type
-    const documentUrl = doc.url;
-    const documentType = doc.type || "application/pdf";
+    console.log(`Found ${pendingDocuments.length} pending documents, processing up to ${limit}`);
     
-    if (!documentUrl) {
-      console.warn(`Document ${doc.id} has no URL`);
-      return { 
-        success: false, 
-        details: { error: "No document URL found" } 
-      };
+    let processedCount = 0;
+    const documentsToProcess = pendingDocuments.slice(0, limit);
+    
+    for (const document of documentsToProcess) {
+      try {
+        // Convert document ID to string if it's a number
+        const documentId = typeof document.id === 'number' ? document.id.toString() : document.id;
+        
+        console.log(`Processing document ${documentId} for client ${document.client_id}`);
+        
+        // Process document
+        const processResult = await DocumentProcessingService.processDocument(documentId);
+        
+        if (processResult) {
+          processedCount++;
+          console.log(`Successfully processed document ${documentId}`);
+        } else {
+          console.error(`Failed to process document ${documentId}`);
+        }
+      } catch (docError) {
+        console.error(`Error processing document ${document.id}:`, docError);
+      }
     }
     
-    console.log(`Processing document: ${documentUrl}`);
-    
-    // Submit to LlamaParse
-    const parseResult = await LlamaCloudService.parseDocument(
-      documentUrl,
-      documentType,
-      clientId,
-      agentName
-    );
-    
-    if ('success' in parseResult && !parseResult.success) {
-      const errorMsg = 'error' in parseResult ? parseResult.error : 'Unknown error';
-      console.error(`Failed to process document ${doc.id}:`, errorMsg);
-      return { 
-        success: false, 
-        details: { error: errorMsg } 
-      };
-    }
-    
-    // Process the document with our document processing service
-    const processedDoc = await DocumentProcessingService.processDocument(
-      documentUrl,
-      documentType,
-      clientId,
-      agentName
-    );
-    
-    return {
-      success: true,
-      details: processedDoc
-    };
+    console.log(`Processed ${processedCount} out of ${documentsToProcess.length} documents`);
+    return processedCount;
   } catch (error) {
-    console.error("Error in processDocument:", error);
-    return {
-      success: false,
-      details: { error: error instanceof Error ? error.message : String(error) }
-    };
+    console.error("Error in processAllPendingDocuments:", error);
+    throw error;
+  }
+};
+
+/**
+ * Reprocess all failed documents
+ */
+export const reprocessAllFailedDocuments = async (): Promise<void> => {
+  try {
+    // Fetch all failed documents
+    const { data: failedDocuments, error: fetchError } = await supabase
+      .from('document_processing_jobs')
+      .select('*')
+      .eq('status', 'failed');
+
+    if (fetchError) {
+      console.error("Error fetching failed documents:", fetchError);
+      toast.error(`Failed to fetch failed documents: ${fetchError.message}`);
+      return;
+    }
+
+    if (!failedDocuments || failedDocuments.length === 0) {
+      console.log("No failed documents found for reprocessing");
+      toast.info("No failed documents found for reprocessing");
+      return;
+    }
+
+    console.log(`Found ${failedDocuments.length} failed documents, reprocessing all`);
+
+    // Reprocess each failed document
+    for (const document of failedDocuments) {
+      try {
+        const reprocessResult = await reprocessDocument(document);
+
+        if (reprocessResult.success) {
+          console.log(`Reprocessing started for document ${document.id}`);
+          toast.success(reprocessResult.message);
+        } else {
+          console.error(`Failed to start reprocessing for document ${document.id}:`, reprocessResult.message);
+          toast.error(reprocessResult.message);
+        }
+      } catch (reprocessError) {
+        console.error(`Error reprocessing document ${document.id}:`, reprocessError);
+        toast.error(`Error reprocessing document ${document.id}: ${reprocessError instanceof Error ? reprocessError.message : 'Unknown error'}`);
+      }
+    }
+  } catch (error) {
+    console.error("Error in reprocessAllFailedDocuments:", error);
+    toast.error(`Failed to reprocess all failed documents: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };

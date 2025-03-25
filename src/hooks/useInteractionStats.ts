@@ -1,88 +1,117 @@
 
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { ActivityType } from "@/types/activity";
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { execSql } from '@/utils/rpcUtils';
+import { createActivityDirect } from '@/services/clientActivityService';
 
-export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
-  return useQuery({
-    queryKey: ["interaction-stats", timeRange],
-    queryFn: async () => {
-      const now = new Date();
-      let startDate = new Date();
+// Interface for daily interaction counts
+interface DailyInteraction {
+  day: string;
+  count: number;
+}
 
-      // Calculate the start date based on the selected time range
-      switch (timeRange) {
-        case "1d":
-          startDate.setDate(now.getDate() - 1);
-          break;
-        case "1m":
-          startDate.setMonth(now.getMonth() - 1);
-          break;
-        case "1y":
-          startDate.setFullYear(now.getFullYear() - 1);
-          break;
-        default:
-          // For "all", set a very old date
-          startDate = new Date(0); // January 1, 1970
+// Interface for client with interaction count
+interface TopClient {
+  client_id: string;
+  client_name: string;
+  interaction_count: number;
+}
+
+export const useInteractionStats = (days: number = 30) => {
+  const [totalInteractions, setTotalInteractions] = useState(0);
+  const [dailyInteractions, setDailyInteractions] = useState<DailyInteraction[]>([]);
+  const [topClients, setTopClients] = useState<TopClient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Log activity
+        try {
+          await createActivityDirect(
+            'system',
+            'stats_accessed' as any,
+            'Admin dashboard interaction stats accessed',
+            { days: days }
+          );
+        } catch (logError) {
+          console.error('Error logging stats access:', logError);
+          // Non-critical error, don't throw
+        }
+
+        // Get total interactions
+        const totalSql = `
+          SELECT COUNT(*) as count
+          FROM client_activities
+          WHERE activity_type = 'chat_interaction'
+          AND created_at >= CURRENT_DATE - INTERVAL '${days} days'
+        `;
+        
+        const totalResult = await execSql(totalSql);
+        const total = totalResult?.[0]?.count || 0;
+        setTotalInteractions(Number(total));
+        
+        // Get daily interactions
+        const dailySql = `
+          SELECT 
+            date_trunc('day', created_at) AS day,
+            COUNT(*) AS count
+          FROM client_activities
+          WHERE 
+            activity_type = 'chat_interaction'
+            AND created_at >= CURRENT_DATE - INTERVAL '${days} days'
+          GROUP BY date_trunc('day', created_at)
+          ORDER BY day
+        `;
+        
+        const dailyResult = await execSql(dailySql);
+        
+        if (Array.isArray(dailyResult)) {
+          setDailyInteractions(dailyResult.map(row => ({
+            day: row.day,
+            count: Number(row.count)
+          })));
+        }
+        
+        // Get top clients by interaction count
+        const topClientsSql = `
+          SELECT 
+            a.client_id,
+            c.client_name AS client_name,
+            COUNT(*) AS interaction_count
+          FROM client_activities a
+          LEFT JOIN ai_agents c ON a.client_id = c.id
+          WHERE 
+            a.activity_type = 'chat_interaction'
+            AND a.created_at >= CURRENT_DATE - INTERVAL '${days} days'
+            AND c.interaction_type = 'config'
+          GROUP BY a.client_id, c.client_name
+          ORDER BY interaction_count DESC
+          LIMIT 5
+        `;
+        
+        const topClientsResult = await execSql(topClientsSql);
+        
+        if (Array.isArray(topClientsResult)) {
+          setTopClients(topClientsResult.map(row => ({
+            client_id: row.client_id,
+            client_name: row.client_name || 'Unknown Client',
+            interaction_count: Number(row.interaction_count)
+          })));
+        }
+      } catch (err) {
+        console.error('Error fetching interaction stats:', err);
+        setError(err instanceof Error ? err : new Error('Failed to fetch interaction stats'));
+      } finally {
+        setIsLoading(false);
       }
-
-      // Get interactions for the selected time period
-      // We've changed to use chat_interaction activities from client_activities table
-      const { data: currentPeriodInteractions, error: currentError } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq('activity_type', 'chat_interaction' as ActivityType)
-        .gte("created_at", startDate.toISOString());
-
-      if (currentError) throw currentError;
-
-      const totalInteractions = currentPeriodInteractions?.length ?? 0;
-
-      // Get total clients for average calculation - using ai_agents with interaction_type=config
-      const { data: allClients, error: clientsError } = await supabase
-        .from("ai_agents")
-        .select("DISTINCT client_id")
-        .eq("interaction_type", "config");
-      
-      if (clientsError) throw clientsError;
-      
-      const totalClientCount = allClients?.length ?? 0;
-      const avgInteractions = totalClientCount > 0 ? Math.round(totalInteractions / totalClientCount) : 0;
-
-      // Calculate previous period for comparison
-      // For example, if timeRange is 1 month, previous period is the month before that
-      const previousStartDate = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()));
-      
-      const { data: previousInteractions, error: prevError } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq('activity_type', 'chat_interaction' as ActivityType)
-        .gte("created_at", previousStartDate.toISOString())
-        .lt("created_at", startDate.toISOString());
-
-      if (prevError) throw prevError;
-
-      const prevTotalInteractions = previousInteractions?.length ?? 0;
-      
-      // Calculate average interactions for previous period
-      const prevAvgInteractions = totalClientCount > 0 ? Math.round(prevTotalInteractions / totalClientCount) : 0;
-
-      // Calculate percentage change, handling edge cases (like division by zero)
-      const avgInteractionsChange = prevAvgInteractions === 0
-        ? avgInteractions > 0 ? 100 : 0
-        : ((avgInteractions - prevAvgInteractions) / prevAvgInteractions * 100);
-
-      return {
-        avgInteractions,
-        avgInteractionsChange: avgInteractionsChange.toFixed(1),
-        totalInteractions,
-        // Adding previous period data for potential future UI enhancements
-        prevTotalInteractions,
-        prevAvgInteractions,
-      };
-    },
-    staleTime: 30000, // Data stays fresh for 30 seconds
-    gcTime: 5 * 60 * 1000, // Cache data for 5 minutes (formerly cacheTime)
-    refetchOnWindowFocus: true, // Refetch when window regains focus
-  });
+    };
+    
+    fetchStats();
+  }, [days]);
+  
+  return { totalInteractions, dailyInteractions, topClients, isLoading, error };
 };

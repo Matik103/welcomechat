@@ -113,8 +113,53 @@ export const updateAssistant = async (
   }
 };
 
-// Export a namespace to match expected imports
-export const OpenAIAssistantService = {
+/**
+ * Sends a message to an OpenAI Assistant instance
+ * @param content The message content
+ * @returns The assistant's response or an error
+ */
+export const sendAssistantMessage = async (
+  content: string
+): Promise<{ message?: string; error?: string }> => {
+  try {
+    // This is a stub implementation - in reality, you would call a backend API
+    // that handles the thread and message creation with OpenAI
+    return {
+      message: `This is a mock response to: "${content}"`
+    };
+  } catch (error) {
+    console.error('Error sending message to assistant:', error);
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+};
+
+// Create an OpenAIAssistantService class for backwards compatibility
+export class OpenAIAssistantService {
+  private clientId: string;
+
+  constructor(clientId: string) {
+    this.clientId = clientId;
+  }
+
+  async sendMessage(content: string): Promise<{ message?: string; error?: string }> {
+    try {
+      // Mock implementation for preview purposes
+      return {
+        message: `Mock response for client ${this.clientId}: "${content}"`
+      };
+    } catch (error) {
+      console.error('Error in OpenAIAssistantService.sendMessage:', error);
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+}
+
+// Export a namespace for backwards compatibility
+export const OpenAIAssistantServiceNamespace = {
   createAssistantForClient,
   updateAssistant
 };

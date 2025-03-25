@@ -43,7 +43,25 @@ export const getPendingDocuments = async (): Promise<DocumentProcessingJob[]> =>
   }
 };
 
+/**
+ * Process a document (stub implementation for compatibility)
+ * @param jobId The document processing job ID
+ * @returns Success flag
+ */
+export const processDocument = async (jobId: string): Promise<boolean> => {
+  try {
+    console.log(`Processing document job: ${jobId}`);
+    // This would normally call a backend service to process the document
+    // For now, we'll just log and return success
+    return true;
+  } catch (error) {
+    console.error("Error processing document:", error);
+    return false;
+  }
+};
+
 // Export a namespace to match the expected import in other files
 export const DocumentProcessingService = {
-  getPendingDocuments
+  getPendingDocuments,
+  processDocument
 };

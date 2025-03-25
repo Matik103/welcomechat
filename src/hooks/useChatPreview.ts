@@ -32,7 +32,7 @@ export const useChatPreview = (clientId: string) => {
         // Add assistant response
         const assistantMessage: Message = {
           role: 'assistant',
-          content: response.message
+          content: response.message || 'I apologize, but I couldn\'t generate a response.'
         };
         setMessages(prev => [...prev, assistantMessage]);
       }

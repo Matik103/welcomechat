@@ -1,28 +1,34 @@
 
-import { z } from "zod";
+// Define the structure for client form data
+export interface ClientFormData {
+  client_name: string;
+  email: string;
+  company?: string;
+  bot_settings?: {
+    bot_name?: string;
+    bot_personality?: string;
+  };
+  logo_url?: string;
+  status?: 'active' | 'inactive' | 'deleted';
+}
 
-// Widget settings schema
-export const widgetSettingsSchema = z.object({
-  agent_name: z.string().optional().default(""),
-  agent_description: z.string().optional().default(""),
-  logo_url: z.string().optional().default(""),
-  logo_storage_path: z.string().optional(),
-});
+// Define structure for client account info
+export interface ClientAccountInfo {
+  id: string;
+  client_name: string;
+  email: string;
+  company?: string;
+  created_at: string;
+  status: string;
+  agent_name?: string;
+  agent_description?: string;
+  settings?: Record<string, any>;
+}
 
-// Client form schema
-export const clientFormSchema = z.object({
-  client_name: z.string().min(1, "Client name is required"),
-  email: z.string().email("Invalid email address"),
-  client_id: z.string().optional(), // Ensure client_id field is properly defined
-  widget_settings: widgetSettingsSchema.optional().default({}),
-  _tempLogoFile: z.any().optional(), // For file uploads
-});
-
-// Types derived from schemas
-export type WidgetSettings = z.infer<typeof widgetSettingsSchema>;
-export type ClientFormData = z.infer<typeof clientFormSchema>;
-
-// Additional custom types
-export type ClientFormErrors = {
-  [key in keyof ClientFormData]?: string;
-};
+// Define structure for client update response
+export interface ClientUpdateResponse {
+  success: boolean;
+  message: string;
+  clientId?: string;
+  clientData?: any;
+}

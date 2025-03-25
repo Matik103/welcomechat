@@ -1,71 +1,66 @@
 
-/**
- * Defines the allowed activity types for the client_activities table.
- * These values are enforced by database constraints.
- */
+// Define activity types for the application
 export type ActivityType = 
-  | 'document_uploaded'  
+  | 'chat_interaction'
+  | 'client_created'
+  | 'client_updated'
+  | 'client_deleted'
+  | 'document_uploaded'
   | 'document_processing_started'
   | 'document_processing_completed'
   | 'document_processing_failed'
   | 'openai_assistant_document_added'
   | 'openai_assistant_upload_failed'
   | 'schema_update'
-  | 'client_created'
-  | 'client_updated'
-  | 'client_deleted'
-  | 'client_recovered'
-  | 'widget_settings_updated'
-  | 'website_url_added'
-  | 'drive_link_added'
-  | 'url_deleted'
-  | 'source_added'
-  | 'source_deleted'
-  | 'agent_name_updated'
-  | 'drive_link_deleted'
-  | 'error_logged'
-  | 'interaction_milestone'
-  | 'common_query_milestone'
-  | 'growth_milestone'
-  | 'ai_agent_table_created'
-  | 'ai_agent_created'
-  | 'ai_agent_updated'
-  | 'document_stored'
-  | 'document_processed'
-  | 'document_link_added'
-  | 'document_link_deleted'
-  | 'signed_out'
-  | 'embed_code_copied'
-  | 'widget_previewed'
-  | 'chat_interaction'
-  | 'agent_updated';
+  | 'password_reset'
+  | 'login_success'
+  | 'login_failed'
+  | 'widget_updated'
+  | 'client_activated'
+  | 'client_deactivated';
 
-/**
- * Extended activity type includes custom types not enforced by the database
- * but used by the application for more specific logging needs.
- */
-export type ExtendedActivityType = ActivityType | string;
+// Define extended activity types (legacy/deprecated)
+export type ExtendedActivityType = ActivityType;
 
-/**
- * Activity data structure representing a client activity record
- */
-export interface Activity {
-  id?: string;
-  client_id?: string;
+// Activity data with client info
+export interface ActivityWithClientInfo {
+  id: string;
   activity_type: ActivityType;
   description?: string;
-  metadata?: Record<string, any>;
   created_at: string;
-  updated_at?: string;
-  activity_data?: Record<string, any>;
+  client_id?: string;
+  client_name?: string;
+  metadata?: Record<string, any>;
 }
 
-/**
- * Extended activity interface that includes client information
- * Used for displaying activities with context about the related client
- */
-export interface ActivityWithClientInfo extends Activity {
-  client_name?: string;
-  client_email?: string;
-  agent_name?: string;
+// Activity log entry format
+export interface ActivityLogEntry {
+  id: string;
+  type: ActivityType;
+  description: string;
+  timestamp: string;
+  clientId?: string;
+  clientName?: string;
+  metadata?: Record<string, any>;
 }
+
+// Backwards compatibility type mapping for database
+export const ActivityTypeMap: Record<string, ActivityType> = {
+  'chat_interaction': 'chat_interaction',
+  'client_created': 'client_created',
+  'client_updated': 'client_updated',
+  'client_deleted': 'client_deleted',
+  'document_uploaded': 'document_uploaded',
+  'document_processing_started': 'document_processing_started',
+  'document_processing_completed': 'document_processing_completed',
+  'document_processing_failed': 'document_processing_failed',
+  'openai_assistant_document_added': 'openai_assistant_document_added',
+  'openai_assistant_upload_failed': 'openai_assistant_upload_failed',
+  'schema_update': 'schema_update',
+  'password_reset': 'password_reset',
+  'login_success': 'login_success',
+  'login_failed': 'login_failed',
+  'widget_updated': 'widget_updated',
+  'client_activated': 'client_activated',
+  'client_deactivated': 'client_deactivated'
+};
