@@ -74,7 +74,7 @@ export const uploadDocument = async (
 ): Promise<string> => {
   try {
     const { clientId, onUploadProgress } = options;
-    const bucketId = 'Document_Storage';
+    const bucketId = 'Document Storage';
     
     // Verify bucket exists
     let { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketId);

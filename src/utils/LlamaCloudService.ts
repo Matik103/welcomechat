@@ -190,7 +190,7 @@ Example Responses for Off-Limit Questions:
   }
 
   // Constants
-  private static readonly BUCKET_ID = 'Document_Storage';
+  private static readonly BUCKET_ID = 'Document Storage';
 
   /**
    * Creates embeddings and stores them in the vector database
