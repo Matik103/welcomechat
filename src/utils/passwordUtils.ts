@@ -1,87 +1,79 @@
 
 /**
- * Generate a secure random password
- * @param length Password length (default: 12)
- * @returns A secure random password
+ * Generate a temporary password with specific complexity
+ * @param length Length of the password (default: 12)
+ * @returns The generated password
  */
 export const generateTempPassword = (length = 12): string => {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+';
-  let password = '';
+  const uppercaseChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';  // removed I and O
+  const lowercaseChars = 'abcdefghijkmnopqrstuvwxyz'; // removed l
+  const numberChars = '23456789'; // removed 0 and 1
+  const specialChars = '!@#$%^&*-_=+';
   
-  // Generate random password
-  for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
+  
+  // Ensure at least one of each type
+  let password = 
+    getRandomChar(uppercaseChars) + 
+    getRandomChar(lowercaseChars) + 
+    getRandomChar(numberChars) + 
+    getRandomChar(specialChars);
+  
+  // Fill rest with random chars from all possible chars
+  for (let i = password.length; i < length; i++) {
+    password += getRandomChar(allChars);
   }
   
-  return password;
+  // Shuffle the password characters
+  return shuffleString(password);
 };
 
-// Alias for backward compatibility
-export const generateClientTempPassword = generateTempPassword;
-
 /**
- * Save a temporary password for a client
- * @param agentId The agent ID
- * @param email The client email
- * @param tempPassword The temporary password
- * @returns Promise resolving to the insert result
+ * Get a random character from a string
+ * @param characters String of characters to choose from
+ * @returns Random character
  */
-export const saveClientTempPassword = async (
-  agentId: string,
-  email: string,
-  tempPassword: string
-): Promise<any> => {
-  try {
-    const { supabase } = await import("@/integrations/supabase/client");
-    
-    // Save the temporary password in the client_temp_passwords table
-    const { data, error } = await supabase
-      .from('client_temp_passwords')
-      .insert({
-        agent_id: agentId,
-        email: email,
-        temp_password: tempPassword,
-        created_at: new Date().toISOString(),
-        used: false
-      });
-    
-    if (error) throw error;
-    
-    return data;
-  } catch (error) {
-    console.error("Error saving client temporary password:", error);
-    throw error;
-  }
+const getRandomChar = (characters: string): string => {
+  return characters.charAt(Math.floor(Math.random() * characters.length));
 };
 
 /**
- * Check if a password meets minimum security requirements
+ * Shuffle the characters in a string
+ * @param str String to shuffle
+ * @returns Shuffled string
+ */
+const shuffleString = (str: string): string => {
+  const array = str.split('');
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]]; // swap elements
+  }
+  return array.join('');
+};
+
+/**
+ * Generate a secure password
+ * @param length Password length (default: 12)
+ * @returns The generated password
+ */
+export const generatePassword = (length = 12): string => {
+  return generateTempPassword(length);
+};
+
+/**
+ * Check if a password meets complexity requirements
  * @param password The password to check
- * @returns Whether the password is secure
+ * @returns Whether the password is strong enough
  */
-export const isSecurePassword = (password: string): boolean => {
-  if (!password || password.length < 8) return false;
+export const isStrongPassword = (password: string): boolean => {
+  // Minimum length check
+  if (password.length < 8) return false;
   
-  // Check for at least one lowercase letter
-  if (!/[a-z]/.test(password)) return false;
+  // Check for uppercase, lowercase, number, and special char
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
   
-  // Check for at least one uppercase letter
-  if (!/[A-Z]/.test(password)) return false;
-  
-  // Check for at least one number
-  if (!/[0-9]/.test(password)) return false;
-  
-  // Check for at least one special character
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return false;
-  
-  return true;
-};
-
-/**
- * Generate a password reset token
- * @returns A secure random token
- */
-export const generateResetToken = (): string => {
-  return Math.random().toString(36).substring(2, 15) + 
-         Math.random().toString(36).substring(2, 15);
+  return hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
 };

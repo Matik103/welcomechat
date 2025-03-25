@@ -8,7 +8,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
-import { generateTempPassword, saveClientTempPassword, generateClientWelcomeEmailTemplate } from "@/utils/clientCreationUtils";
+import { 
+  generateClientTempPassword, 
+  saveClientTempPassword, 
+  generateClientWelcomeEmailTemplate 
+} from "@/utils/clientCreationUtils";
 
 export default function NewClient() {
   const navigate = useNavigate();
@@ -22,7 +26,7 @@ export default function NewClient() {
       const loadingToastId = toast.loading("Creating AI agent and sending welcome email...");
       
       // Generate a temporary password
-      const tempPassword = generateTempPassword();
+      const tempPassword = await generateClientTempPassword(12);
       
       console.log("Creating client with data:", data);
       console.log("Using temporary password:", tempPassword);

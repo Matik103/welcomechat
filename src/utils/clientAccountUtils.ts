@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { createActivityDirect } from "@/services/clientActivityService";
 import { generateTempPassword } from "./passwordUtils";
@@ -29,97 +30,6 @@ export const createClientAccount = async (
   } catch (error) {
     console.error("Error creating client account:", error);
     throw error;
-  }
-};
-
-/**
- * Set up a temporary password for a client
- * @param clientId The client ID
- * @param email The client email
- * @returns The generated password
- */
-export const setupClientPassword = async (
-  clientId: string,
-  email: string
-): Promise<string> => {
-  // Generate a temporary password
-  const tempPassword = generateTempPassword();
-  
-  // Save the temporary password
-  const { error } = await supabase
-    .from('client_temp_passwords')
-    .insert({
-      agent_id: clientId,
-      email: email,
-      temp_password: tempPassword,
-      created_at: new Date().toISOString(),
-      used: false
-    });
-  
-  if (error) throw error;
-  
-  return tempPassword;
-};
-
-/**
- * Create a user account for a client
- * @param email The client email
- * @param clientId The client ID
- * @param clientName The client name
- * @param agentName Optional agent name
- * @param agentDescription Optional agent description
- * @param tempPassword Temporary password
- * @returns Response data
- */
-export const createClientUserAccount = async (
-  email: string,
-  clientId: string,
-  clientName: string,
-  agentName?: string,
-  agentDescription?: string
-): Promise<any> => {
-  try {
-    // Call the create-client-user edge function
-    const { data, error } = await supabase.functions.invoke('create-client-user', {
-      body: { 
-        email,
-        client_id: clientId,
-        client_name: clientName,
-        agent_name: agentName,
-        agent_description: agentDescription
-      }
-    });
-    
-    if (error) throw error;
-    
-    return data;
-  } catch (error) {
-    console.error("Error creating client user account:", error);
-    throw error;
-  }
-};
-
-/**
- * Log client creation activity
- * @param clientId The client ID
- * @param clientName The client name
- * @param email The client email
- */
-export const logClientCreationActivity = async (
-  clientId: string,
-  clientName: string,
-  email: string
-): Promise<void> => {
-  try {
-    await createActivityDirect(
-      clientId,
-      'client_created',
-      `Client ${clientName} created with email ${email}`,
-      { client_name: clientName, email }
-    );
-  } catch (error) {
-    console.error("Error logging client creation activity:", error);
-    // Non-blocking - don't throw
   }
 };
 
@@ -176,5 +86,29 @@ export const checkClientExists = async (email: string): Promise<boolean> => {
   } catch (error) {
     console.error("Error checking if client exists:", error);
     return false;
+  }
+};
+
+/**
+ * Log client creation activity
+ * @param clientId The client ID
+ * @param clientName The client name
+ * @param email The client email
+ */
+export const logClientCreationActivity = async (
+  clientId: string,
+  clientName: string,
+  email: string
+): Promise<void> => {
+  try {
+    await createActivityDirect(
+      clientId,
+      'client_created',
+      `Client ${clientName} created with email ${email}`,
+      { client_name: clientName, email }
+    );
+  } catch (error) {
+    console.error("Error logging client creation activity:", error);
+    // Non-blocking - don't throw
   }
 };

@@ -15,7 +15,7 @@ export class DocumentProcessingService {
   static async getPendingDocuments(): Promise<any[]> {
     try {
       // Use the right approach with RPC function to safely check and query the table
-      const data = await callRpcFunction('get_pending_documents');
+      const data = await callRpcFunction('get_pending_documents', {});
       
       if (!data) {
         return [];

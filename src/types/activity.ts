@@ -1,75 +1,122 @@
 
 import { Json } from "@/integrations/supabase/types";
 
-// Define valid activity types
 export type ActivityType = 
-  | "client_created"
-  | "client_updated"
-  | "client_deleted"
-  | "document_uploaded"
-  | "document_processing_started"
-  | "document_processing_completed"
-  | "document_processing_failed"
-  | "document_processed"
-  | "openai_assistant_document_added"
-  | "openai_assistant_upload_failed"
-  | "chat_interaction"
-  | "schema_update"
-  | "website_url_added"
-  | "document_link_added"
-  | "agent_name_updated"
-  | "agent_description_updated"
-  | "document_link_deleted"
-  | "signed_out"
-  | "embed_code_copied"
-  | "stats_accessed"
-  | "widget_settings_updated"
-  | "logo_uploaded";
+  | 'client_created'
+  | 'client_updated' 
+  | 'client_deleted'
+  | 'client_recovered'
+  | 'widget_settings_updated'
+  | 'website_url_added'
+  | 'website_url_deleted'
+  | 'drive_link_added'
+  | 'drive_link_deleted'
+  | 'document_uploaded'
+  | 'document_processed'
+  | 'document_processing_failed'
+  | 'document_processing_started'
+  | 'document_processing_completed'
+  | 'chat_interaction'
+  | 'agent_name_updated'
+  | 'agent_logo_updated'
+  | 'agent_description_updated'
+  | 'ai_agent_created'
+  | 'ai_agent_updated'
+  | 'error_logged'
+  | 'webhook_sent'
+  | 'system_update'
+  | 'common_query_milestone'
+  | 'interaction_milestone'
+  | 'growth_milestone'
+  | 'invitation_sent'
+  | 'invitation_accepted'
+  | 'user_role_updated'
+  | 'login_success'
+  | 'login_failed'
+  | 'logo_uploaded'
+  | 'ai_agent_table_created'
+  | 'source_added'
+  | 'source_deleted'
+  | 'client_logo_removed'
+  | 'openai_assistant_document_added'
+  | 'openai_assistant_upload_failed'
+  | 'schema_update';
 
-// Extended activity types for compatibility
-export type ExtendedActivityType = ActivityType | 
-  "client_settings_updated" | 
-  "client_logo_updated" | 
-  "client_logo_removed";
+// For backward compatibility with any old code
+export type ExtendedActivityType = ActivityType;
 
-// Map for activity type descriptions
-export const ActivityTypeMap: Record<ActivityType, string> = {
-  client_created: "Client Created",
-  client_updated: "Client Updated",
-  client_deleted: "Client Deleted",
-  document_uploaded: "Document Uploaded",
-  document_processing_started: "Document Processing Started",
-  document_processing_completed: "Document Processing Completed",
-  document_processed: "Document Processed",
-  document_processing_failed: "Document Processing Failed",
-  openai_assistant_document_added: "OpenAI Assistant Document Added",
-  openai_assistant_upload_failed: "OpenAI Assistant Upload Failed",
-  chat_interaction: "Chat Interaction",
-  schema_update: "Schema Update",
-  website_url_added: "Website URL Added",
-  document_link_added: "Document Link Added",
-  agent_name_updated: "Agent Name Updated",
-  agent_description_updated: "Agent Description Updated",
-  document_link_deleted: "Document Link Deleted",
-  signed_out: "Signed Out",
-  embed_code_copied: "Embed Code Copied",
-  stats_accessed: "Stats Accessed",
-  widget_settings_updated: "Widget Settings Updated",
-  logo_uploaded: "Logo Uploaded"
-};
-
-// Define activity log entry structure
 export interface ActivityLogEntry {
   id: string;
+  client_id: string;
   activity_type: ActivityType;
-  created_at: string;
-  client_id?: string;
-  client_name?: string;
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: Json;
+  created_at: string;
+  ai_agents?: {
+    client_name?: string;
+  } | null;
+  client_name?: string;
 }
 
-// Activity with client information
 export interface ActivityWithClientInfo extends ActivityLogEntry {
   client_name: string;
 }
+
+export const getActivityIcon = (activityType: ActivityType): string => {
+  // Map activity types to icons (e.g., 'client_created' -> 'user-plus')
+  const iconMap: Record<ActivityType, string> = {
+    'client_created': 'user-plus',
+    'client_updated': 'edit',
+    'client_deleted': 'user-minus',
+    'client_recovered': 'refresh-cw',
+    'widget_settings_updated': 'settings',
+    'website_url_added': 'link',
+    'website_url_deleted': 'link-2',
+    'drive_link_added': 'file',
+    'drive_link_deleted': 'file-minus',
+    'document_uploaded': 'upload',
+    'document_processed': 'check-circle',
+    'document_processing_failed': 'alert-triangle',
+    'document_processing_started': 'loader',
+    'document_processing_completed': 'check-circle',
+    'chat_interaction': 'message-circle',
+    'agent_name_updated': 'edit-2',
+    'agent_logo_updated': 'image',
+    'agent_description_updated': 'align-left',
+    'ai_agent_created': 'plus-circle',
+    'ai_agent_updated': 'edit',
+    'error_logged': 'alert-triangle',
+    'webhook_sent': 'send',
+    'system_update': 'refresh-cw',
+    'common_query_milestone': 'award',
+    'interaction_milestone': 'bar-chart-2',
+    'growth_milestone': 'trending-up',
+    'invitation_sent': 'mail',
+    'invitation_accepted': 'user-check',
+    'user_role_updated': 'users',
+    'login_success': 'log-in',
+    'login_failed': 'x-circle',
+    'logo_uploaded': 'upload-cloud',
+    'ai_agent_table_created': 'database',
+    'source_added': 'plus',
+    'source_deleted': 'trash',
+    'client_logo_removed': 'image-off',
+    'openai_assistant_document_added': 'file-plus',
+    'openai_assistant_upload_failed': 'alert-octagon',
+    'schema_update': 'database'
+  };
+  
+  return iconMap[activityType] || 'activity';
+};
+
+export const getActivityColor = (activityType: ActivityType): string => {
+  if (activityType.includes('created') || activityType.includes('added') || activityType.includes('success')) {
+    return 'text-green-500';
+  } else if (activityType.includes('deleted') || activityType.includes('failed') || activityType.includes('error')) {
+    return 'text-red-500';
+  } else if (activityType.includes('updated') || activityType.includes('processed')) {
+    return 'text-blue-500';
+  } else {
+    return 'text-gray-500';
+  }
+};
