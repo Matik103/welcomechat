@@ -1,6 +1,6 @@
-const { createClient } = require('@supabase/supabase-js');
-const dotenv = require('dotenv');
-const { OpenAIAssistantService } = require('./src/utils/OpenAIAssistantService');
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import { OpenAIAssistantService } from './src/utils/OpenAIAssistantService.js';
 
 // Load environment variables
 dotenv.config();
@@ -20,11 +20,28 @@ async function testAssistantCreation() {
   try {
     console.log('Starting OpenAI Assistant test...');
     
-    // Sign in with test user
-    console.log('Signing in with test user...');
+    // First, create the test user with the exact credentials from the welcome email
+    console.log('Creating test user with welcome email credentials...');
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: 'testao@gmail.com',
+      password: 'Welcome2025#291',
+      options: {
+        data: {
+          assistant_name: 'testao' // Adding the AI assistant name as metadata
+        }
+      }
+    });
+
+    if (signUpError && !signUpError.message.includes('already registered')) {
+      console.error('Failed to create test user:', signUpError);
+      return;
+    }
+
+    // Sign in with the temporary credentials
+    console.log('Signing in with temporary credentials...');
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: process.env.TEST_USER_EMAIL || 'testao@gmail.com',
-      password: process.env.TEST_USER_PASSWORD || 'Welcome2025#291'
+      email: 'testao@gmail.com',
+      password: 'Welcome2025#291'
     });
 
     if (authError) {
@@ -34,49 +51,58 @@ async function testAssistantCreation() {
 
     console.log('Successfully authenticated as:', authData.user.email);
 
-    // Get the latest document processing job
-    console.log('Fetching latest document processing job...');
-    const { data: processingJobs, error: processingError } = await supabase
-      .from('document_processing_jobs')
-      .select('*')
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (processingError) {
-      console.error('Failed to fetch processing jobs:', processingError);
-      return;
-    }
-
-    if (!processingJobs || processingJobs.length === 0) {
-      console.error('No completed processing jobs found');
-      return;
-    }
-
-    const latestJob = processingJobs[0];
-    console.log('Found latest processing job:', latestJob.id);
-
-    // Get the associated AI agent
-    console.log('Fetching associated AI agent...');
+    // Create an AI agent for the user
+    console.log('Creating AI agent...');
     const { data: agent, error: agentError } = await supabase
       .from('ai_agents')
-      .select('*')
-      .eq('id', latestJob.client_id)
+      .insert([
+        {
+          name: 'testao',
+          description: 'AI Assistant for document processing',
+          user_id: authData.user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ])
+      .select()
       .single();
 
     if (agentError) {
-      console.error('Failed to fetch AI agent:', agentError);
+      console.error('Failed to create AI agent:', agentError);
       return;
     }
 
-    console.log('Found AI agent:', agent.name);
+    console.log('Created AI agent:', agent.name);
+
+    // Create a test document processing job
+    console.log('Creating test document processing job...');
+    const { data: jobData, error: jobError } = await supabase
+      .from('document_processing_jobs')
+      .insert([
+        {
+          client_id: agent.id,
+          status: 'completed',
+          content: 'This is a test document content for the AI assistant.',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single();
+
+    if (jobError) {
+      console.error('Failed to create document processing job:', jobError);
+      return;
+    }
+
+    console.log('Created document processing job:', jobData.id);
 
     // Create OpenAI Assistant
     console.log('Creating OpenAI Assistant...');
     const assistant = await openAIAssistant.createAssistant({
       name: agent.name,
-      description: agent.description || 'AI Assistant for document processing',
-      content: latestJob.content || 'No content available'
+      description: agent.description,
+      content: jobData.content
     });
 
     console.log('Assistant created successfully:', assistant.id);
@@ -101,15 +127,22 @@ async function testAssistantCreation() {
     // Test updating the assistant with new content
     console.log('Testing assistant update...');
     const updatedAssistant = await openAIAssistant.updateAssistant(assistant.id, {
-      content: latestJob.content || 'Updated content'
+      content: 'Updated test document content for the AI assistant.'
     });
 
     console.log('Assistant updated successfully:', updatedAssistant.id);
 
-    // Test deleting the assistant
-    console.log('Testing assistant deletion...');
+    // Clean up
+    console.log('Cleaning up test data...');
+    
+    // Delete the OpenAI Assistant
     await openAIAssistant.deleteAssistant(assistant.id);
     console.log('Assistant deleted successfully');
+
+    // Delete the test data from Supabase
+    await supabase.from('document_processing_jobs').delete().eq('id', jobData.id);
+    await supabase.from('ai_agents').delete().eq('id', agent.id);
+    console.log('Test data cleaned up successfully');
 
     console.log('Test completed successfully!');
 
