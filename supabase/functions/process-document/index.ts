@@ -197,41 +197,150 @@ async function recordJobStart(jobId: string, metadata: any) {
 }
 
 async function processDocumentWithLlamaParse(request: ProcessDocumentRequest, jobId: string) {
-  try {
-    const llamaEndpoint = 'https://api.llamaindex.ai/v1/process_file';
-    const response = await fetch(llamaEndpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LLAMA_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        file_url: request.documentUrl,
-        output_type: 'markdown',
-      }),
-    });
+  const { documentUrl, documentType, clientId, agentName } = request;
+  let retryCount = 0;
+  const maxRetries = 3;
+  const retryDelay = 5000; // 5 seconds
 
-    if (!response.ok) {
-      throw new Error(`LlamaParse API error: ${response.statusText}`);
+  try {
+    // Record processing start
+    await updateJobStatus(supabase, jobId, 'processing');
+    await createClientActivity(supabase, clientId, 'document_processing_started', 'Started processing document with LlamaParse');
+
+    // Create processing status record
+    const { data: statusData, error: statusError } = await supabase
+      .from('document_processing_status')
+      .insert({
+        document_id: request.documentId,
+        client_id: clientId,
+        status: 'processing',
+        metadata: {
+          document_url: documentUrl,
+          document_type: documentType,
+          agent_name: agentName,
+          processing_method: 'llamaparse'
+        }
+      })
+      .select()
+      .single();
+
+    if (statusError) {
+      console.error('Error creating processing status:', statusError);
+      throw new Error(`Failed to create processing status: ${statusError.message}`);
     }
 
-    const result = await response.json();
-    
-    await supabase.from('document_processing_jobs').update({
-      status: 'completed',
-      result: result,
-      error: null,
-      completed_at: new Date().toISOString(),
-    }).eq('id', jobId);
+    const startTime = Date.now();
+    let success = false;
+    let error = null;
 
-    return result;
+    while (retryCount < maxRetries && !success) {
+      try {
+        // Call LlamaParse API
+        const response = await fetch('https://api.cloud.llamaindex.ai/api/parsing', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${LLAMA_API_KEY}`
+          },
+          body: JSON.stringify({
+            url: documentUrl,
+            include_metadata: true,
+            include_html: true,
+            max_items: 1000,
+            chunk_size: 8000,
+            chunk_overlap: 200
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`LlamaParse API error: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        // Store the processed content
+        const content = result.content || '';
+        const metadata = {
+          ...result.metadata,
+          processing_method: 'llamaparse',
+          processing_time: Date.now() - startTime,
+          retries: retryCount
+        };
+
+        await storeInAiAgents(
+          supabase,
+          clientId,
+          agentName,
+          content,
+          documentType,
+          documentUrl,
+          metadata
+        );
+
+        // Update processing status
+        await supabase
+          .from('document_processing_status')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            processing_duration: Date.now() - startTime,
+            metadata: {
+              ...statusData.metadata,
+              word_count: metadata.word_count,
+              character_count: metadata.character_count,
+              processing_time: metadata.processing_time,
+              retries: retryCount
+            }
+          })
+          .eq('id', statusData.id);
+
+        success = true;
+        await updateJobStatus(supabase, jobId, 'completed');
+        await createClientActivity(
+          supabase,
+          clientId,
+          'document_processing_completed',
+          'Successfully processed document with LlamaParse',
+          metadata
+        );
+
+        return { content, metadata };
+      } catch (e) {
+        error = e;
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.log(`Retry ${retryCount} after error:`, e);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+      }
+    }
+
+    if (!success) {
+      throw error || new Error('Failed to process document after retries');
+    }
   } catch (error) {
-    console.error('Error processing document:', error);
-    await supabase.from('document_processing_jobs').update({
-      status: 'failed',
-      error: error.message,
-      completed_at: new Date().toISOString(),
-    }).eq('id', jobId);
+    console.error('Error in processDocumentWithLlamaParse:', error);
+    
+    // Update processing status
+    await supabase
+      .from('document_processing_status')
+      .update({
+        status: 'failed',
+        error: error.message,
+        completed_at: new Date().toISOString(),
+        retries: retryCount
+      })
+      .eq('document_id', request.documentId);
+
+    await updateJobStatus(supabase, jobId, 'failed', error.message);
+    await createClientActivity(
+      supabase,
+      clientId,
+      'document_processing_failed',
+      `Failed to process document: ${error.message}`,
+      { error: error.message, retries: retryCount }
+    );
+    
     throw error;
   }
 }
