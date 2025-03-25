@@ -54,7 +54,7 @@ export interface DocumentProcessingResult {
 export interface ParseResponse {
   success: boolean;
   content?: string;
-  data?: any; // Adding this to fix TypeScript errors
+  data?: any;
   metadata?: {
     title?: string;
     author?: string;
@@ -68,7 +68,8 @@ export interface ParseResponse {
     code: string;
     details?: any;
   };
-  documentId: string;
+  documentId?: string;
+  jobId?: string;
 }
 
 export interface DocumentLinkFormData {
@@ -90,7 +91,7 @@ export interface DocumentUploadFormProps {
 export interface ValidationResult {
   isValid: boolean;
   message?: string;
-  error?: string; // Adding this to fix TypeScript errors
+  error?: string;
   details?: {
     scrapability?: 'high' | 'medium' | 'low';
     contentType?: string;

@@ -2,6 +2,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ensurePublicUrl } from "@/utils/supabaseStorage";
 import { toast } from "sonner";
+import { LlamaParseError } from "@/utils/errors";
+import { ParseResponse } from "@/types/document-processing";
 
 // Define the bucket name constant
 const DOCUMENTS_BUCKET = 'documents';
@@ -10,6 +12,8 @@ interface ParseDocumentResult {
   success: boolean;
   error?: string;
   jobId?: string;
+  content?: string;
+  metadata?: Record<string, any>;
 }
 
 export class LlamaCloudService {
@@ -31,7 +35,7 @@ export class LlamaCloudService {
       console.log(`Parsing document: ${documentUrl} (type: ${documentType})`);
       
       // Ensure we're using the correct bucket name when dealing with Supabase storage URLs
-      if (documentUrl.includes(supabase.storageUrl)) {
+      if (documentUrl.includes(supabase.supabaseUrl + '/storage/v1/object/public/')) {
         try {
           // Extract the path and ensure it's a valid Supabase storage URL
           const bucketPath = documentUrl.split('/storage/v1/object/public/')[1];
@@ -79,6 +83,8 @@ export class LlamaCloudService {
       return {
         success: data.success || false,
         jobId: data.jobId,
+        content: data.content,
+        metadata: data.metadata,
         error: data.error
       };
     } catch (error: any) {
@@ -110,6 +116,44 @@ export class LlamaCloudService {
     } catch (error: any) {
       console.error("Error in checkDocumentStatus:", error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Verify the OpenAI Assistant integration
+   * @returns Object containing verification status
+   */
+  static async verifyAssistantIntegration(): Promise<{ 
+    success: boolean; 
+    error?: string; 
+    data?: Record<string, any> 
+  }> {
+    try {
+      // Call the Edge Function to verify integration
+      const { data, error } = await supabase.functions.invoke("verify-assistant-integration", {
+        body: { timestamp: new Date().toISOString() }
+      });
+
+      if (error) {
+        console.error("Error verifying assistant integration:", error);
+        return { success: false, error: error.message };
+      }
+
+      if (!data) {
+        return { success: false, error: "No data returned from verification" };
+      }
+
+      return {
+        success: data.success || false,
+        data: data.components || data.details || data,
+        error: data.error
+      };
+    } catch (error: any) {
+      console.error("Error in verifyAssistantIntegration:", error);
+      return { 
+        success: false, 
+        error: error.message || "Unknown error occurred during verification" 
+      };
     }
   }
 }

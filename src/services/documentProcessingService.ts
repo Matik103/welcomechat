@@ -9,10 +9,11 @@ import { DocumentProcessingOptions, DocumentProcessingResult, ParseResponse, Doc
 import { Json } from '@/integrations/supabase/types';
 import { callRpcFunction } from '@/utils/rpcUtils';
 import { execSql } from '@/utils/rpcUtils';
-import { LlamaCloudService, LlamaParseError } from '@/utils/LlamaCloudService';
+import { LlamaCloudService } from '@/utils/LlamaCloudService';
 import { uploadToOpenAIAssistant } from './openaiAssistantService';
 import { validateContent, chunkContent } from '@/utils/documentProcessing';
 import { tableExists } from '@/utils/supabaseUtils';
+import { LlamaParseError, DatabaseError } from '@/utils/errors';
 
 /**
  * Store content in ai_agents table
@@ -280,12 +281,18 @@ export class DocumentProcessingService {
           agentName
         );
 
-        processingRecord.content = parseResult.content;
-        processingRecord.metadata = {
-          ...processingRecord.metadata,
-          ...parseResult.metadata,
-          processedAt: new Date().toISOString()
-        };
+        if (parseResult.content) {
+          processingRecord.content = parseResult.content;
+        }
+        
+        if (parseResult.metadata) {
+          processingRecord.metadata = {
+            ...processingRecord.metadata,
+            ...parseResult.metadata,
+            processedAt: new Date().toISOString()
+          };
+        }
+        
         processingRecord.status = 'completed';
         
         await this.updateProcessingStatus(processingRecord);
