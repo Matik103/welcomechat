@@ -74,15 +74,23 @@ export const uploadDocument = async (
 ): Promise<string> => {
   try {
     const { clientId, onUploadProgress } = options;
+    const bucketId = 'Document_Storage';
+    
+    // Verify bucket exists
+    let { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketId);
+    
+    if (bucketError) {
+      console.error('Error accessing bucket:', bucketError);
+      throw new Error(`Failed to access document storage bucket: ${bucketError.message}`);
+    }
     
     // Create a unique filename to prevent collisions
     const timestamp = new Date().getTime();
-    const fileExt = file.name.split('.').pop();
     const fileName = `${clientId}/${timestamp}-${file.name}`;
     
     // Upload file to storage
     const { data, error } = await supabase.storage
-      .from('documents')
+      .from(bucketId)
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false,

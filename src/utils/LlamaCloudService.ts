@@ -189,6 +189,9 @@ Example Responses for Off-Limit Questions:
     );
   }
 
+  // Constants
+  private static readonly BUCKET_ID = 'Document_Storage';
+
   /**
    * Creates embeddings and stores them in the vector database
    * This would typically be done after document parsing
@@ -485,29 +488,40 @@ Example Responses for Off-Limit Questions:
       }
       
       // Check 3: Verify document storage bucket exists
-      const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('documents');
-      
+      const { data: bucketData, error: bucketError } = await supabase.storage
+        .getBucket(this.BUCKET_ID);
+
       if (bucketError) {
         return {
           success: false,
           error: 'Document storage bucket is missing or inaccessible',
           content: '',
           metadata: {
-            error: 'Document storage bucket is missing or inaccessible'
+            error: bucketError.message
           },
           documentId: `verify-${Date.now()}`
         };
       }
+
+      if (!bucketData) {
+        return {
+          success: false,
+          error: 'Document storage bucket is missing or inaccessible',
+          content: '',
+          metadata: {},
+          documentId: `verify-${Date.now()}`
+        };
+      }
       
-            return {
+      return {
         success: true,
         content: 'All required components for document processing are in place',
-              metadata: {
+        metadata: {
           processingMethod: 'verify-document-processing'
-              },
-              documentId: `verify-${Date.now()}`
-            };
-      } catch (error) {
+        },
+        documentId: `verify-${Date.now()}`
+      };
+    } catch (error) {
       console.error('Error in verifyAssistantIntegration:', error);
       return {
         success: false,

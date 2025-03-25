@@ -1,10 +1,10 @@
--- Create the Document Storage bucket if it doesn't exist
+-- Create the Document_Storage bucket if it doesn't exist
 DO $$
 BEGIN
     INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
     VALUES (
         'Document_Storage',
-        'Document Storage',
+        'Document_Storage',
         false,
         52428800, -- 50MB in bytes
         ARRAY[
