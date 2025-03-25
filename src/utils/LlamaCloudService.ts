@@ -96,7 +96,7 @@ export class LlamaCloudService {
       throw new LlamaParseError('Missing required parameters', 'INVALID_PARAMS')
     }
 
-    const supabase = this.getSupabaseClient()
+    const supabase = LlamaCloudService.getSupabaseClient()
 
     try {
       // Process the document using the process-document Edge Function
