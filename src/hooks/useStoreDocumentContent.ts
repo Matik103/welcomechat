@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { LlamaCloudService } from "@/utils/LlamaCloudService";
+import { DOCUMENTS_BUCKET } from "@/utils/supabaseStorage";
 
 interface StoreDocumentResult {
   success: boolean;
@@ -102,6 +103,7 @@ export function useStoreDocumentContent(clientId: string, agentName: string) {
               agent_name: agentName,
               document_type: type,
               size: size || 0,
+              bucket: DOCUMENTS_BUCKET, // Add the bucket name for reference
               // Safe access for agentData properties
               agent_id: docInfo?.id || null,
               agent_url: agentData?.url || null,
