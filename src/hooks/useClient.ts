@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
-import { execSql } from '@/utils/rpcUtils';
+import { execSql } from "@/utils/rpcUtils";
 
 export const useClient = (clientId: string) => {
   const { 
@@ -46,7 +46,7 @@ export const useClient = (clientId: string) => {
             try {
               const sqlQuery = `
                 SELECT * FROM ai_agents
-                WHERE client_id = $1
+                WHERE client_id = '${clientId}'
                 AND interaction_type = 'config'
                 ORDER BY created_at DESC
                 LIMIT 1

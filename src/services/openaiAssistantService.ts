@@ -1,15 +1,6 @@
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import OpenAI from 'openai';
-
-// Use import.meta.env instead of process.env for Vite applications
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey
-);
 
 interface AssistantResponse {
   message: string;
@@ -30,10 +21,10 @@ export class OpenAIAssistantService {
   private async getAssistantId(): Promise<string | null> {
     try {
       const { data, error } = await supabase
-      .from('ai_agents')
+        .from('ai_agents')
         .select('assistant_id')
         .eq('client_id', this.clientId)
-      .single();
+        .single();
 
       if (error) throw error;
       return data?.assistant_id || null;
@@ -125,7 +116,7 @@ export class OpenAIAssistantService {
 
       const response = await this.runAssistant(threadId, assistantId);
       if (!response) {
-    return {
+        return {
           message: "I apologize, but I'm having trouble generating a response. Please try again later.",
           error: 'Failed to get response from assistant'
         };
@@ -134,10 +125,31 @@ export class OpenAIAssistantService {
       return { message: response };
     } catch (error) {
       console.error('Error in sendMessage:', error);
-    return {
+      return {
         message: "I apologize, but I'm experiencing some technical difficulties. Please try again later.",
         error: 'Unexpected error'
-    };
+      };
     }
   }
 }
+
+export const uploadToOpenAIAssistant = async (
+  assistantId: string,
+  fileId: string
+): Promise<boolean> => {
+  try {
+    const openai = new OpenAI({
+      apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+    });
+    
+    // Attach the file to the assistant
+    await openai.beta.assistants.files.create(assistantId, {
+      file_id: fileId
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error uploading to OpenAI Assistant:', error);
+    return false;
+  }
+};
