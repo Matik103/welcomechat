@@ -2,9 +2,15 @@
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
+// Get environment variables in a way that works in browser environment
+const SUPABASE_URL = import.meta.env.REACT_APP_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.REACT_APP_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+const OPENAI_API_KEY = import.meta.env.REACT_APP_OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY;
+
+// Create Supabase client
 const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL!,
-  process.env.REACT_APP_SUPABASE_ANON_KEY!
+  SUPABASE_URL || '',
+  SUPABASE_ANON_KEY || ''
 );
 
 interface AssistantResponse {
@@ -20,7 +26,7 @@ export class OpenAIAssistantService {
   constructor(clientId: string) {
     this.clientId = clientId;
     this.openai = new OpenAI({
-      apiKey: process.env.REACT_APP_OPENAI_API_KEY,
+      apiKey: OPENAI_API_KEY,
     });
   }
 

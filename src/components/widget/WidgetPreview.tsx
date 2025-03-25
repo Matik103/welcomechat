@@ -17,6 +17,9 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const effectiveClientId = clientId || 'test-client-id';
+  if (!clientId) {
+    console.warn('No client ID provided to WidgetPreview, using test-client-id as fallback');
+  }
 
   const {
     messages: chatMessages,
@@ -28,10 +31,10 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
 
   const displayMessages = [
     { text: settings.welcome_text || "Hi 👋, how can I help?", isUser: false },
-    ...chatMessages.map(msg => ({
+    ...(Array.isArray(chatMessages) ? chatMessages.map(msg => ({
       text: msg.content,
       isUser: msg.role === 'user'
-    }))
+    })) : [])
   ];
 
   const scrollToBottom = () => {
@@ -51,7 +54,12 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
 
     const message = inputValue;
     setInputValue("");
-    await sendMessage(message);
+    try {
+      await sendMessage(message);
+    } catch (err) {
+      console.error('Error sending message:', err);
+      // The error will be handled by the useChatPreview hook
+    }
   };
 
   const renderError = () => {

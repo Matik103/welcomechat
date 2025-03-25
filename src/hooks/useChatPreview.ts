@@ -16,7 +16,12 @@ export const useChatPreview = (clientId: string) => {
   // Initialize the assistant service when clientId changes
   useEffect(() => {
     if (clientId) {
-      setAssistantService(new OpenAIAssistantService(clientId));
+      try {
+        setAssistantService(new OpenAIAssistantService(clientId));
+      } catch (err) {
+        console.error('Error initializing OpenAIAssistantService:', err);
+        setError('Failed to initialize chat service. Please try again later.');
+      }
     } else {
       console.warn('No client ID provided to useChatPreview');
       setError('No client ID available. Please provide a client ID to use the chat preview.');
