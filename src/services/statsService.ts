@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { fetchTopQueries } from "./topQueriesService";
+import { getTopQueries } from "./topQueriesService";
 import { getInteractionsByDay } from "./interactionCountService";
 import { getActiveDays, ActiveDay } from "./activeDaysService";
 import { getAverageResponseTime, getAverageResponseTimeByDay } from "./responseTimeService";
@@ -121,7 +121,7 @@ const getFallbackStats = async (clientId: string, agentName?: string): Promise<I
     }
     
     try {
-      topQueries = await fetchTopQueries(clientId, agentName);
+      topQueries = await getTopQueries(clientId, agentName || "AI Assistant");
     } catch (error) {
       console.error("Error getting top queries:", error);
     }

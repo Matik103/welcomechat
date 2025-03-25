@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { ActivityWithClientInfo } from "@/types/activity";
+import { ActivityWithClientInfo, ActivityLogEntry } from "@/types/activity";
 import { ActivityItem } from "./ActivityItem";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
 interface ActivityListProps {
-  activities?: ActivityWithClientInfo[] | null;
+  activities?: (ActivityWithClientInfo | ActivityLogEntry)[] | null;
   isLoading?: boolean;
   title?: string;
 }
@@ -31,7 +31,7 @@ export const ActivityList: React.FC<ActivityListProps> = ({
         {activities && activities.length > 0 ? (
           <div className="divide-y divide-gray-100">
             {activities.map((activity) => (
-              <ActivityItem key={activity.id} activity={activity} />
+              <ActivityItem key={activity.id} activity={activity as ActivityWithClientInfo} />
             ))}
           </div>
         ) : (

@@ -77,3 +77,27 @@ export const isStrongPassword = (password: string): boolean => {
   
   return hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
 };
+
+/**
+ * Save a temporary password for a client
+ * @param clientId The client ID
+ * @param email The client email
+ * @param tempPassword The temporary password
+ */
+export const saveClientTempPassword = async (
+  agentId: string, 
+  email: string,
+  tempPassword: string
+): Promise<void> => {
+  try {
+    // This function would typically make an API call to save the temporary password
+    // In a real implementation, this would interact with your database or auth service
+    console.log(`Saving temporary password for ${email} with agent ID ${agentId}`);
+    
+    // This is just a stub - actual implementation would depend on your backend
+    // Example: await supabase.from('client_temp_passwords').insert({...})
+  } catch (error) {
+    console.error('Error saving temporary password:', error);
+    throw error;
+  }
+};

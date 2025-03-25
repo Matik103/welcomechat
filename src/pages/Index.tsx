@@ -130,7 +130,7 @@ export default function Index() {
                 <>
                   {activities && activities.length > 0 ? (
                     <ScrollArea className="h-[300px] w-full">
-                      <ActivityList activities={activities as ActivityLogEntry[]} />
+                      <ActivityList activities={activities as any} />
                     </ScrollArea>
                   ) : (
                     <p>No recent activity.</p>
