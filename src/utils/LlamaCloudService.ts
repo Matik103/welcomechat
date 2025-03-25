@@ -445,6 +445,7 @@ Example Responses for Off-Limit Questions:
       
       // Check 2: Verify document storage bucket exists
       const bucketName = 'Document Storage';
+      const bucketId = 'Document_Storage'; // URL-safe bucket ID
       let { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketName);
       
       if (bucketError) {

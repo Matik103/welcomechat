@@ -1,50 +1,62 @@
--- Configure the Document Storage bucket
+-- Create the Document Storage bucket if it doesn't exist
 DO $$
 BEGIN
-    -- Update bucket configuration
-    BEGIN
-        EXECUTE format('
-            ALTER BUCKET "Document Storage"
-            SET public = false,
-            SET file_size_limit = 52428800, -- 50MB in bytes
-            SET allowed_mime_types = ARRAY[
-                ''application/pdf'',
-                ''application/vnd.openxmlformats-officedocument.wordprocessingml.document'',
-                ''text/plain''
-            ];
-        ');
-    EXCEPTION WHEN OTHERS THEN
-        NULL;
-    END;
+    INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    VALUES (
+        'Document_Storage',
+        'Document Storage',
+        false,
+        52428800, -- 50MB in bytes
+        ARRAY[
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain',
+            'text/csv'
+        ]
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET 
+        name = EXCLUDED.name,
+        public = EXCLUDED.public,
+        file_size_limit = EXCLUDED.file_size_limit,
+        allowed_mime_types = EXCLUDED.allowed_mime_types;
+END $$;
 
-    -- Grant permissions
-    BEGIN
-        EXECUTE format('
-            -- Allow authenticated users to perform all operations
-            GRANT ALL ON BUCKET "Document Storage" TO authenticated;
-            
-            -- Allow anonymous users to read public files
-            GRANT SELECT ON BUCKET "Document Storage" TO anon;
-            
-            -- Create RLS policy for uploads
-            CREATE POLICY "Users can upload their own documents"
-            ON storage.objects FOR INSERT
-            TO authenticated
-            WITH CHECK (
-                bucket_id = ''Document Storage'' AND
-                (storage.foldername(name))[1] = auth.uid()::text
-            );
+-- Enable RLS
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
-            -- Create RLS policy for access
-            CREATE POLICY "Users can view their own documents"
-            ON storage.objects FOR SELECT
-            TO authenticated
-            USING (
-                bucket_id = ''Document Storage'' AND
-                (storage.foldername(name))[1] = auth.uid()::text
-            );
-        ');
-    EXCEPTION WHEN OTHERS THEN
-        NULL;
-    END;
+-- Create policies for Document_Storage bucket
+DO $$
+BEGIN
+    -- Drop existing policies if they exist
+    DROP POLICY IF EXISTS "Allow authenticated users to upload their own documents" ON storage.objects;
+    DROP POLICY IF EXISTS "Allow users to view their own documents" ON storage.objects;
+    DROP POLICY IF EXISTS "Allow authenticated users to delete their own documents" ON storage.objects;
+
+    -- Create new policies
+    CREATE POLICY "Allow authenticated users to upload their own documents"
+    ON storage.objects FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        bucket_id = 'Document_Storage'
+        AND (storage.foldername(name))[1] = auth.uid()::text
+    );
+
+    CREATE POLICY "Allow users to view their own documents"
+    ON storage.objects FOR SELECT
+    TO authenticated
+    USING (
+        bucket_id = 'Document_Storage'
+        AND (storage.foldername(name))[1] = auth.uid()::text
+    );
+
+    CREATE POLICY "Allow authenticated users to delete their own documents"
+    ON storage.objects FOR DELETE
+    TO authenticated
+    USING (
+        bucket_id = 'Document_Storage'
+        AND (storage.foldername(name))[1] = auth.uid()::text
+    );
 END $$; 
