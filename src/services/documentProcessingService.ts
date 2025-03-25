@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { createActivityDirect } from "@/services/clientActivityService";
 import { ActivityType } from "@/types/activity";
+import { callRpcFunction } from "@/utils/rpcUtils";
 
 /**
  * Service for processing documents
@@ -14,14 +15,13 @@ export class DocumentProcessingService {
   static async getPendingDocuments(): Promise<any[]> {
     try {
       // Use the right approach with RPC function to safely check and query the table
-      const { data, error } = await supabase.rpc('get_pending_documents');
+      const data = await callRpcFunction('get_pending_documents');
       
-      if (error) {
-        console.error("Error fetching pending documents:", error);
+      if (!data) {
         return [];
       }
       
-      return data || [];
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error("Error fetching pending documents:", error);
       return [];
@@ -38,31 +38,26 @@ export class DocumentProcessingService {
       console.log(`Processing document ${documentId}`);
       
       // Get document details using RPC function for type safety
-      const { data: document, error: fetchError } = await supabase.rpc('get_document_by_id', {
+      const document = await callRpcFunction('get_document_by_id', {
         document_id_param: documentId
       });
       
-      if (fetchError || !document) {
-        console.error("Error fetching document:", fetchError || "Document not found");
+      if (!document) {
+        console.error("Document not found");
         return false;
       }
       
       // Safety check - only proceed if we have valid document data
-      if (!document || !document.client_id) {
+      if (!document.client_id) {
         console.error(`Invalid document data for ID ${documentId}`);
         return false;
       }
       
       // Update document status to 'processing' using RPC
-      const { error: updateError } = await supabase.rpc('update_document_status', {
+      await callRpcFunction('update_document_status', {
         document_id_param: documentId,
         status_param: 'processing'
       });
-      
-      if (updateError) {
-        console.error("Error updating document status:", updateError);
-        return false;
-      }
       
       // Log activity for document processing started
       await createActivityDirect(
@@ -87,7 +82,7 @@ export class DocumentProcessingService {
         console.error("Error processing document:", processError);
         
         // Update document status to 'failed' using RPC
-        await supabase.rpc('update_document_status', {
+        await callRpcFunction('update_document_status', {
           document_id_param: documentId,
           status_param: 'failed',
           error_message_param: processError.message
@@ -108,7 +103,7 @@ export class DocumentProcessingService {
       }
       
       // Update document status to 'processed' using RPC
-      await supabase.rpc('update_document_status', {
+      await callRpcFunction('update_document_status', {
         document_id_param: documentId,
         status_param: 'processed',
         processed_at_param: new Date().toISOString()
@@ -128,7 +123,7 @@ export class DocumentProcessingService {
       
       try {
         // Try to update document status to 'failed' using RPC
-        await supabase.rpc('update_document_status', {
+        await callRpcFunction('update_document_status', {
           document_id_param: documentId,
           status_param: 'failed',
           error_message_param: error instanceof Error ? error.message : "Unknown error"
@@ -148,14 +143,9 @@ export class DocumentProcessingService {
    */
   static async getDocumentById(id: string): Promise<any> {
     try {
-      const { data, error } = await supabase.rpc('get_document_by_id', {
+      const data = await callRpcFunction('get_document_by_id', {
         document_id_param: id
       });
-      
-      if (error) {
-        console.error(`Error getting document with ID ${id}:`, error);
-        return null;
-      }
       
       return data;
     } catch (error) {

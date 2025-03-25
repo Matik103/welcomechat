@@ -15,13 +15,13 @@ export const tableExists = async (tableName: string): Promise<boolean> => {
         SELECT EXISTS (
           SELECT 1 FROM information_schema.tables 
           WHERE table_schema = 'public' 
-          AND table_name = '${tableName}'
+          AND table_name = $1
         )
       )) as result
     `;
     
-    // Use the execSql function
-    const data = await execSql(query);
+    // Use the execSql function with parameters
+    const data = await execSql(query, [tableName]);
     
     // Handle the result properly
     if (data && Array.isArray(data) && data.length > 0) {
@@ -52,7 +52,7 @@ export const initializeRpcFunctions = async () => {
     // Check if the exec_sql function exists by running a simple query
     try {
       const testQuery = "SELECT json_build_object('test', 1) as result";
-      const testResult = await execSql(testQuery);
+      const testResult = await execSql(testQuery, []);
       
       console.log("exec_sql function is available:", testResult);
     } catch (error) {

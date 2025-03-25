@@ -6,17 +6,15 @@ import { Loader2, ArrowRight } from "lucide-react";
 import { DocumentProcessingService } from '@/services/documentProcessingService';
 import { toast } from 'sonner';
 
-interface Client {
-  id: string;
-  name: string;
-  agent_name: string;
+export interface ProcessExistingDocumentsProps {
+  clients?: { 
+    id: string;
+    name: string;
+    agent_name: string;
+  }[];
 }
 
-interface ProcessExistingDocumentsProps {
-  clients: Client[];
-}
-
-export function ProcessExistingDocuments({ clients }: ProcessExistingDocumentsProps) {
+export function ProcessExistingDocuments({ clients = [] }: ProcessExistingDocumentsProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string | null>(null);
   const [pendingDocuments, setPendingDocuments] = useState<any[]>([]);
@@ -137,7 +135,7 @@ export function ProcessExistingDocuments({ clients }: ProcessExistingDocumentsPr
                       <p>{doc.document_name || doc.name || 'Unnamed Document'}</p>
                       <p className="text-xs text-gray-500">
                         Status: {doc.status} | Client: {
-                          clients.find(c => c.id === doc.client_id)?.name || 'Unknown Client'
+                          clients?.find(c => c.id === doc.client_id)?.name || 'Unknown Client'
                         }
                       </p>
                     </div>

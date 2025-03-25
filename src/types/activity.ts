@@ -10,6 +10,7 @@ export type ActivityType =
   | "document_processing_started"
   | "document_processing_completed"
   | "document_processing_failed"
+  | "document_processed"
   | "openai_assistant_document_added"
   | "openai_assistant_upload_failed"
   | "chat_interaction"
@@ -39,6 +40,7 @@ export const ActivityTypeMap: Record<ActivityType, string> = {
   document_uploaded: "Document Uploaded",
   document_processing_started: "Document Processing Started",
   document_processing_completed: "Document Processing Completed",
+  document_processed: "Document Processed",
   document_processing_failed: "Document Processing Failed",
   openai_assistant_document_added: "OpenAI Assistant Document Added",
   openai_assistant_upload_failed: "OpenAI Assistant Upload Failed",

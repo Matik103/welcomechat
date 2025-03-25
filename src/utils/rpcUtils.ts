@@ -7,11 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
  * @param params Query parameters
  * @returns Query result
  */
-export const execSql = async (sql: string, params: any[]): Promise<any> => {
+export const execSql = async (sql: string, params: any[] = []): Promise<any> => {
   try {
     const { data, error } = await supabase.rpc('exec_sql', {
-      query: sql,
-      params: params
+      sql_query: sql,
+      query_params: params
     });
     
     if (error) throw error;
@@ -28,9 +28,11 @@ export const execSql = async (sql: string, params: any[]): Promise<any> => {
  * @param params Function parameters
  * @returns Function result
  */
-export const callRpcFunction = async (functionName: string, params: any): Promise<any> => {
+export const callRpcFunction = async (functionName: string, params: any = {}): Promise<any> => {
   try {
-    const { data, error } = await supabase.rpc(functionName, params);
+    // Type assertion used to bypass TypeScript limitation
+    // This is safe because we know the function exists in the database
+    const { data, error } = await supabase.rpc(functionName as any, params);
     
     if (error) throw error;
     return data;
@@ -47,6 +49,7 @@ export const callRpcFunction = async (functionName: string, params: any): Promis
  */
 export const tableExists = async (tableName: string): Promise<boolean> => {
   try {
+    // Use proper JSON formatting in the query
     const sql = `
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
@@ -55,8 +58,15 @@ export const tableExists = async (tableName: string): Promise<boolean> => {
       ) as exists
     `;
     
+    // Use the execSql function
     const result = await execSql(sql, [tableName]);
-    return result && result.length > 0 && result[0].exists === true;
+    
+    // Handle the result properly
+    if (result && Array.isArray(result) && result.length > 0) {
+      return result[0].exists === true;
+    }
+    
+    return false;
   } catch (error) {
     console.error(`Error checking if table ${tableName} exists:`, error);
     return false;

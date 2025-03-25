@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ActivityType, ActivityWithClientInfo } from "@/types/activity";
 import { Json } from "@/integrations/supabase/types";
+import { callRpcFunction } from "@/utils/rpcUtils";
 
 /**
  * Create a new activity record for a client
@@ -21,14 +22,13 @@ export const createActivityDirect = async (
     console.log(`Creating activity for client ${clientId}: ${activityType} - ${description}`);
     
     // Use the RPC function instead of direct table insert to handle type validation
-    const { data, error } = await supabase.rpc('log_client_activity', {
+    const data = await callRpcFunction('log_client_activity', {
       client_id_param: clientId,
       activity_type_param: activityType,
       description_param: description,
       metadata_param: metadata || {}
     });
     
-    if (error) throw error;
     return data;
   } catch (error) {
     console.error("Error creating activity:", error);
@@ -54,15 +54,17 @@ export const getRecentActivities = async (
     console.log(`Getting recent activities for client ${clientId}, limit: ${limit}`);
     
     // Query recent activities using RPC function to get properly typed data
-    const { data, error } = await supabase.rpc('get_client_activities', {
+    const data = await callRpcFunction('get_client_activities', {
       client_id_param: clientId,
       limit_param: limit
     });
     
-    if (error) throw error;
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
     
     // Convert the result to the expected format
-    const activities: ActivityWithClientInfo[] = (data || []).map((activity: any) => ({
+    const activities: ActivityWithClientInfo[] = data.map((activity: any) => ({
       id: activity.id.toString(),
       activity_type: activity.activity_type as ActivityType,
       description: activity.activity_description || '',
@@ -91,14 +93,16 @@ export const getAllActivities = async (
     console.log(`Getting all activities, limit: ${limit}`);
     
     // Query activities using RPC function to get properly typed data
-    const { data, error } = await supabase.rpc('get_all_activities', {
+    const data = await callRpcFunction('get_all_activities', {
       limit_param: limit
     });
     
-    if (error) throw error;
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
     
     // Convert the result to the expected format
-    const activities: ActivityWithClientInfo[] = (data || []).map((activity: any) => {
+    const activities: ActivityWithClientInfo[] = data.map((activity: any) => {
       return {
         id: activity.id.toString(),
         activity_type: activity.activity_type as ActivityType,
