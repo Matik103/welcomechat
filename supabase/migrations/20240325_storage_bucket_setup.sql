@@ -31,7 +31,7 @@ BEGIN
             ON storage.objects FOR INSERT
             TO authenticated
             WITH CHECK (
-                bucket_id = ''Document Storage'' AND
+                bucket_id = ''Document_Storage'' AND
                 (storage.foldername(name))[1] = auth.uid()::text
             );
 
@@ -40,7 +40,7 @@ BEGIN
             ON storage.objects FOR SELECT
             TO authenticated
             USING (
-                bucket_id = ''Document Storage'' AND
+                bucket_id = ''Document_Storage'' AND
                 (storage.foldername(name))[1] = auth.uid()::text
             );
         ');

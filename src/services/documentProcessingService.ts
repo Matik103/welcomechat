@@ -75,6 +75,7 @@ export const uploadDocument = async (
   try {
     const { clientId, onUploadProgress } = options;
     const bucketName = 'Document Storage';
+    const bucketId = 'Document_Storage'; // URL-safe bucket ID for storage.from()
     
     // Verify bucket exists
     let { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketName);
@@ -90,7 +91,7 @@ export const uploadDocument = async (
     
     // Upload file to storage
     const { data, error } = await supabase.storage
-      .from(bucketName)
+      .from(bucketId)
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false,
