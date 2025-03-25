@@ -1,104 +1,53 @@
-import React from "react";
-import { format } from "date-fns";
-import { 
-  Users, Settings, Link, UserPlus, Edit, Trash2, 
-  RotateCcw, Upload, Eye, Code, Image, Bot, 
-  Key, LogOut, FileText, Mail, ShieldAlert, Calendar
-} from "lucide-react";
-import type { Json } from "@/integrations/supabase/types";
 
-interface ActivityItemProps {
-  item: {
-    activity_type: string;
-    description: string;
-    created_at: string;
-    metadata: Json;
-    client_name?: string;
-    client_id?: string;
-    client_email?: string;
-    agent_name?: string;
-    agent_description?: string;
-  };
+import React from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { ActivityWithClientInfo } from '@/types/activity';
+import { Badge } from '@/components/ui/badge';
+
+export interface ActivityItemProps {
+  activity: ActivityWithClientInfo;
 }
 
-const getActivityIcon = (type: string, metadata: Json) => {
-  // Check if there's an original activity type in metadata
-  const originalType = metadata && 
-    typeof metadata === 'object' && 
-    metadata !== null && 
-    'original_activity_type' in metadata ? 
-    (metadata.original_activity_type as string) : 
-    undefined;
+export const ActivityItem: React.FC<ActivityItemProps> = ({ activity }) => {
+  // Format the activity timestamp
+  const timeAgo = formatDistanceToNow(new Date(activity.created_at), { addSuffix: true });
   
-  // Use the original type if it exists, otherwise use the provided type
-  const activityType = originalType || type;
-  
-  switch (activityType) {
-    case 'client_created':
-      return <UserPlus className="w-4 h-4 text-primary" />;
-    case 'client_updated':
-      return <Edit className="w-4 h-4 text-primary" />;
-    case 'client_deleted':
-      return <Trash2 className="w-4 h-4 text-destructive" />;
-    case 'client_recovered':
-      return <RotateCcw className="w-4 h-4 text-green-500" />;
-    case 'widget_settings_updated':
-      return <Settings className="w-4 h-4 text-primary" />;
-    case 'website_url_added':
-    case 'drive_link_added':
-    case 'document_link_added':
-      return <Link className="w-4 h-4 text-primary" />;
-    case 'website_url_removed':
-    case 'drive_link_removed':
-    case 'url_deleted':
-    case 'drive_link_deleted':
-    case 'document_link_deleted':
-      return <Trash2 className="w-4 h-4 text-primary" />;
-    case 'document_uploaded':
-      return <Upload className="w-4 h-4 text-primary" />;
-    case 'logo_uploaded':
-      return <Image className="w-4 h-4 text-primary" />;
-    case 'embed_code_copied':
-      return <Code className="w-4 h-4 text-primary" />;
-    case 'widget_previewed':
-      return <Eye className="w-4 h-4 text-primary" />;
-    case 'ai_agent_created':
-    case 'ai_agent_updated':
-      return <Bot className="w-4 h-4 text-primary" />;
-    case 'password_changed':
-    case 'password_reset':
-      return <Key className="w-4 h-4 text-primary" />;
-    case 'signed_out':
-      return <LogOut className="w-4 h-4 text-primary" />;
-    case 'document_viewed':
-      return <FileText className="w-4 h-4 text-primary" />;
-    case 'email_sent':
-      return <Mail className="w-4 h-4 text-primary" />;
-    case 'security_alert':
-      return <ShieldAlert className="w-4 h-4 text-destructive" />;
-    case 'scheduled_event':
-      return <Calendar className="w-4 h-4 text-primary" />;
-    case 'chat_interaction':
-      return <Bot className="w-4 h-4 text-primary" />;
-    default:
-      return <Users className="w-4 h-4 text-primary" />;
-  }
-};
+  // Determine activity color based on type
+  const getActivityColor = (type: string) => {
+    if (type.includes('error') || type.includes('failed')) return 'destructive';
+    if (type.includes('created') || type.includes('added')) return 'success';
+    if (type.includes('updated') || type.includes('completed')) return 'default';
+    if (type.includes('deleted')) return 'secondary';
+    return 'default';
+  };
 
-export const ActivityItem = ({ item }: ActivityItemProps) => {
-  // Use the properly resolved client name that comes from useRecentActivities hook
-  const clientName = item.client_name || "System";
-    
+  // Format activity type for display
+  const formatActivityType = (type: string) => {
+    return type
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
-    <div className="flex items-center gap-4 py-3 animate-slide-in">
-      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-        {getActivityIcon(item.activity_type, item.metadata)}
-      </div>
-      <div className="flex-1">
-        <p className="text-sm text-gray-900">
-          {clientName} {item.description}
-        </p>
-        <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>
+    <div className="py-4 px-4 border-b last:border-b-0">
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col space-y-1">
+          <div className="font-medium text-sm">
+            {activity.client_name && (
+              <span className="text-muted-foreground mr-1">
+                {activity.client_name}:
+              </span>
+            )}
+            <span>{activity.description || formatActivityType(activity.activity_type)}</span>
+          </div>
+          <div className="flex space-x-2 items-center">
+            <Badge variant={getActivityColor(activity.activity_type)}>
+              {formatActivityType(activity.activity_type)}
+            </Badge>
+            <span className="text-xs text-muted-foreground">{timeAgo}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

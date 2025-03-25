@@ -14,6 +14,7 @@ export const callRpcFunction = async <T = any>(
 ): Promise<T> => {
   try {
     // Call the RPC function dynamically
+    // @ts-ignore - We need to ignore type checking for dynamic function names
     const { data, error } = await supabase.rpc(functionName, params);
     
     if (error) {
@@ -41,6 +42,7 @@ export const execSql = async (
 ): Promise<any> => {
   try {
     // Call the exec_sql RPC function
+    // @ts-ignore - We need to ignore type checking for the RPC function
     const { data, error } = await supabase.rpc('exec_sql', {
       sql_query: sqlQuery,
       query_params: params.length > 0 ? JSON.stringify(params) : null
