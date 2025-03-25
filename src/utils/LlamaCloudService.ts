@@ -443,7 +443,45 @@ Example Responses for Off-Limit Questions:
         };
       }
       
-      // Check 2: Verify the document processing function is deployed
+      // Check 2: Verify document storage bucket exists
+      const bucketName = 'Document Storage';
+      let { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketName);
+      
+      if (bucketError) {
+        console.error('Document storage bucket is inaccessible:', bucketError);
+        return {
+          success: false,
+          error: 'Document storage bucket is inaccessible',
+          content: '',
+          metadata: {
+            error: 'Document storage bucket is inaccessible',
+            bucketError: bucketError?.message
+          },
+          documentId: `verify-${Date.now()}`
+        };
+      }
+      
+      // Update bucket configuration to ensure proper settings
+      const { error: updateError } = await supabase.storage.updateBucket(bucketName, {
+        public: false,
+        allowedMimeTypes: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'],
+        fileSizeLimit: 52428800 // 50MB in bytes
+      });
+      
+      if (updateError) {
+        console.error('Failed to update bucket configuration:', updateError);
+        return {
+          success: false,
+          error: `Failed to update bucket configuration: ${updateError.message}`,
+          content: '',
+          metadata: {
+            error: `Failed to update bucket configuration: ${updateError.message}`
+          },
+          documentId: `verify-${Date.now()}`
+        };
+      }
+
+      // Check 3: Verify the document processing function is deployed
       const requiredFunctions = ['process-document'];
       
       let missingFunctions = [];
@@ -484,30 +522,17 @@ Example Responses for Off-Limit Questions:
         };
       }
       
-      // Check 3: Verify document storage bucket exists
-      const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('documents');
-      
-      if (bucketError) {
-        return {
-          success: false,
-          error: 'Document storage bucket is missing or inaccessible',
-          content: '',
-          metadata: {
-            error: 'Document storage bucket is missing or inaccessible'
-          },
-          documentId: `verify-${Date.now()}`
-        };
-      }
-      
-            return {
+      return {
         success: true,
         content: 'All required components for document processing are in place',
-              metadata: {
-          processingMethod: 'verify-document-processing'
-              },
-              documentId: `verify-${Date.now()}`
-            };
-      } catch (error) {
+        metadata: {
+          processingMethod: 'verify-document-processing',
+          bucketName,
+          bucketId: bucketData.id
+        },
+        documentId: `verify-${Date.now()}`
+      };
+    } catch (error) {
       console.error('Error in verifyAssistantIntegration:', error);
       return {
         success: false,
