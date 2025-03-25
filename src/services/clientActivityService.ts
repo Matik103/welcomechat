@@ -61,30 +61,11 @@ export const createActivityDirect = async (
       .single();
 
     if (error) {
-      if (error.message.includes('does not exist')) {
-        // Fall back to activities table (older schema)
-        console.log('Falling back to activities table');
-        const { data: activitiesData, error: activitiesError } = await supabase
-          .from('activities')
-          .insert({
-            client_id: clientId,
-            activity_type: activityType,
-            activity_data: {
-              description: description,
-              ...metadata
-            } as Json
-          })
-          .select()
-          .single();
-
-        if (activitiesError) {
-          throw activitiesError;
-        }
-
-        return activitiesData;
-      } else {
-        throw error;
-      }
+      console.error('Error creating activity directly:', error);
+      
+      // For now, just throw the error instead of attempting fallback logic
+      // to avoid type issues until the database schema is stabilized
+      throw error;
     }
 
     return data;

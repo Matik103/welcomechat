@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { callRpcFunction } from "./rpcUtils";
+import { callRpcFunction, execSql } from "./rpcUtils";
 
 /**
  * Check if a table exists in the database
@@ -20,15 +20,8 @@ export const tableExists = async (tableName: string): Promise<boolean> => {
       )) as result
     `;
     
-    // Direct query with JSON formatted result
-    const { data, error } = await supabase.rpc('exec_sql', {
-      sql_query: query
-    });
-    
-    if (error) {
-      console.error(`Error checking if table ${tableName} exists:`, error);
-      return false;
-    }
+    // Use the execSql function
+    const data = await execSql(query);
     
     // Handle the result properly
     if (data && Array.isArray(data) && data.length > 0) {
@@ -59,15 +52,9 @@ export const initializeRpcFunctions = async () => {
     // Check if the exec_sql function exists by running a simple query
     try {
       const testQuery = "SELECT json_build_object('test', 1) as result";
-      const testResult = await supabase.rpc('exec_sql', {
-        sql_query: testQuery
-      });
+      const testResult = await execSql(testQuery);
       
-      if (testResult.error) {
-        console.error("Error checking exec_sql function:", testResult.error);
-      } else {
-        console.log("exec_sql function is available:", testResult.data);
-      }
+      console.log("exec_sql function is available:", testResult);
     } catch (error) {
       console.error("Error checking exec_sql function:", error);
     }

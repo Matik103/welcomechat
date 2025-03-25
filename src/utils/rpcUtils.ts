@@ -40,8 +40,7 @@ export const execSql = async (
 ): Promise<any> => {
   try {
     const { data, error } = await supabase.rpc('exec_sql', {
-      sql_query: sqlQuery,
-      params: params
+      sql_query: sqlQuery
     });
     
     if (error) {

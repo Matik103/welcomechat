@@ -43,21 +43,26 @@ export const useClient = (clientId: string) => {
             console.error("Error fetching from ai_agents by client_id:", clientError);
             
             // Try with SQL query as a last resort
-            const sqlQuery = `
-              SELECT * FROM ai_agents
-              WHERE client_id = $1
-              AND interaction_type = 'config'
-              ORDER BY created_at DESC
-              LIMIT 1
-            `;
-            
-            const sqlResult = await execSql(sqlQuery, [clientId]);
-            
-            if (!sqlResult || !Array.isArray(sqlResult) || sqlResult.length === 0) {
+            try {
+              const sqlQuery = `
+                SELECT * FROM ai_agents
+                WHERE client_id = $1
+                AND interaction_type = 'config'
+                ORDER BY created_at DESC
+                LIMIT 1
+              `;
+              
+              const sqlResult = await execSql(sqlQuery);
+              
+              if (!sqlResult || !Array.isArray(sqlResult) || sqlResult.length === 0) {
+                return null;
+              }
+              
+              return mapAgentToClient(sqlResult[0]);
+            } catch (sqlError) {
+              console.error("SQL query failed:", sqlError);
               return null;
             }
-            
-            return mapAgentToClient(sqlResult[0]);
           }
           
           if (!clientData) return null;
