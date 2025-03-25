@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import OpenAI from 'openai';
 
@@ -151,5 +150,64 @@ export const uploadToOpenAIAssistant = async (
   } catch (error) {
     console.error('Error uploading to OpenAI Assistant:', error);
     return false;
+  }
+};
+
+/**
+ * Updates an existing assistant
+ * @param assistantId The assistant ID to update
+ * @param updates The updates to apply
+ * @returns The updated assistant
+ */
+export const updateAssistant = async (
+  assistantId: string,
+  updates: {
+    name?: string;
+    description?: string;
+    instructions?: string;
+    fileIds?: string[];
+    tools?: any[];
+    model?: string;
+  }
+): Promise<any> => {
+  try {
+    const openaiApiKey = process.env.OPENAI_API_KEY || "";
+    if (!openaiApiKey) {
+      throw new Error("OpenAI API key is required");
+    }
+
+    // Create the API request options based on what's provided
+    const updateParams: any = {};
+    
+    if (updates.name) updateParams.name = updates.name;
+    if (updates.description) updateParams.description = updates.description;
+    if (updates.instructions) updateParams.instructions = updates.instructions;
+    if (updates.tools) updateParams.tools = updates.tools;
+    if (updates.model) updateParams.model = updates.model;
+    
+    // The fileIds property needs special handling (not directly supported in the current API)
+    if (updates.fileIds) {
+      updateParams.file_ids = updates.fileIds;
+    }
+
+    const response = await fetch(`https://api.openai.com/v1/assistants/${assistantId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openaiApiKey}`,
+        "OpenAI-Beta": "assistants=v1"
+      },
+      body: JSON.stringify(updateParams)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`OpenAI Assistant update failed: ${errorData.error?.message || response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error("Error updating assistant:", error);
+    throw new Error(error?.message || "Failed to update assistant");
   }
 };

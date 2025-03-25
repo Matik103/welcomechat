@@ -1,32 +1,30 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 import { generateClientTempPassword } from './passwordUtils';
 
 /**
- * Logs the client creation activity
+ * Logs client creation activity
  */
-export const logClientCreationActivity = async (
-  clientId: string, 
-  clientName: string, 
-  email: string, 
-  agentName: string
+export const logClientCreation = async (
+  clientId: string,
+  clientName: string,
+  email: string
 ): Promise<void> => {
   try {
-    await supabase.from("client_activities").insert({
-      client_id: clientId,
-      activity_type: "client_created",
-      description: "New client created with AI agent",
-      metadata: {
+    // Use callRpcFunction instead of direct insert
+    await callRpcFunction('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'client_created',
+      description_param: `Client ${clientName} created`,
+      metadata_param: {
         client_name: clientName,
-        email: email,
-        agent_name: agentName
+        email: email
       }
     });
-  } catch (activityError) {
-    console.error("Error logging client creation activity:", activityError);
-    // Continue even if activity logging fails
+  } catch (error: any) {
+    console.error("Error logging client creation:", error);
+    // Don't throw error here, just log it
   }
 };
 

@@ -1,6 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ActivityType } from "@/types/activity";
 
 export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
   return useQuery({
@@ -30,7 +31,7 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       const { data: currentPeriodInteractions, error: currentError } = await supabase
         .from("client_activities")
         .select("*")
-        .eq('activity_type', 'chat_interaction' as any)
+        .eq('activity_type', 'chat_interaction' as ActivityType)
         .gte("created_at", startDate.toISOString());
 
       if (currentError) throw currentError;
@@ -55,7 +56,7 @@ export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
       const { data: previousInteractions, error: prevError } = await supabase
         .from("client_activities")
         .select("*")
-        .eq('activity_type', 'chat_interaction' as any)
+        .eq('activity_type', 'chat_interaction' as ActivityType)
         .gte("created_at", previousStartDate.toISOString())
         .lt("created_at", startDate.toISOString());
 

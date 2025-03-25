@@ -37,7 +37,8 @@ export type ActivityType =
   | 'signed_out'
   | 'embed_code_copied'
   | 'widget_previewed'
-  | 'chat_interaction';
+  | 'chat_interaction'
+  | 'agent_updated';
 
 /**
  * Extended activity type includes custom types not enforced by the database
@@ -54,7 +55,7 @@ export interface Activity {
   activity_type: ActivityType;
   description: string;
   metadata?: Record<string, any>;
-  created_at?: string;
+  created_at: string;
   updated_at?: string;
 }
 

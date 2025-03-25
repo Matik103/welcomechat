@@ -23,22 +23,28 @@ export const createClientActivity = async (
       throw new Error('Client ID is required for activity logging');
     }
 
-    // Use callRpcFunction to avoid type checking issues
-    const result = await callRpcFunction('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: activity_type,
-      description_param: description,
-      metadata_param: metadata
-    });
-
-    return result;
+    // Try to log the activity via RPC function first
+    try {
+      const result = await callRpcFunction('log_client_activity', {
+        client_id_param: clientId,
+        activity_type_param: activity_type,
+        description_param: description,
+        metadata_param: metadata
+      });
+      return result;
+    } catch (rpcError) {
+      console.warn('RPC function failed, falling back to direct insert:', rpcError);
+      
+      // Fall back to direct insert if RPC doesn't work
+      return createActivityDirect(clientId, activity_type, description, metadata);
+    }
   } catch (error) {
     console.error('Error creating client activity:', error);
     throw error;
   }
 };
 
-// This is a temporary function to directly insert into the activities table
+// This is a fallback function to directly insert into the activities table
 // when the RPC function is not available or for testing purposes
 export const createActivityDirect = async (
   clientId: string,

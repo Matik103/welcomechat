@@ -1,4 +1,3 @@
-
 /**
  * Generates a temporary password for client accounts
  * Using the format "Welcome{YEAR}#{RANDOM}" that meets Supabase Auth requirements:
@@ -190,5 +189,30 @@ export const logClientCreationActivity = async (
   } catch (err) {
     console.error('Failed to log client creation activity:', err);
     // Don't throw here - activity logging is not critical
+  }
+};
+
+/**
+ * Logs the client creation event
+ */
+export const logClientActivity = async (
+  clientId: string,
+  name: string,
+  email: string
+): Promise<void> => {
+  try {
+    // Use callRpcFunction instead of direct insert
+    await callRpcFunction('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'client_created',
+      description_param: `Client ${name} created`,
+      metadata_param: {
+        client_name: name,
+        email: email
+      }
+    });
+  } catch (error: any) {
+    console.error("Error logging client activity:", error);
+    // Don't throw error here to avoid blocking onboarding flow
   }
 };

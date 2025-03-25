@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
+import { ActivityType } from "@/types/activity";
 
 type ActivityMetadata = {
   success?: boolean;
@@ -11,7 +12,7 @@ type ActivityMetadata = {
 type ClientActivity = {
   id: string;
   client_id: string;
-  activity_type: string;
+  activity_type: ActivityType;
   description: string;
   created_at: string;
   metadata: ActivityMetadata;
@@ -37,7 +38,7 @@ export const useClientStats = () => {
       const { data: activeClients } = await supabase
         .from("client_activities")
         .select("DISTINCT client_id")
-        .eq('activity_type', 'chat_interaction' as any)
+        .eq('activity_type', 'chat_interaction' as ActivityType)
         .gte("created_at", fortyEightHoursAgo.toISOString());
 
       const currentActiveCount = activeClients?.length ?? 0;
@@ -47,7 +48,7 @@ export const useClientStats = () => {
       const { data: previousActive } = await supabase
         .from("client_activities")
         .select("DISTINCT client_id")
-        .eq('activity_type', 'chat_interaction' as any)
+        .eq('activity_type', 'chat_interaction' as ActivityType)
         .gte("created_at", previousFortyEightHours.toISOString())
         .lt("created_at", fortyEightHoursAgo.toISOString());
 
@@ -60,7 +61,7 @@ export const useClientStats = () => {
       const { data: interactions } = await supabase
         .from("client_activities")
         .select("*")
-        .eq('activity_type', 'chat_interaction' as any)
+        .eq('activity_type', 'chat_interaction' as ActivityType)
         .gte("created_at", fortyEightHoursAgo.toISOString()) as { data: ClientActivity[] | null };
 
       const totalInteractions = interactions?.length ?? 0;

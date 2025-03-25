@@ -13,6 +13,7 @@ export const callRpcFunction = async (
   params: Record<string, any>
 ): Promise<any> => {
   try {
+    // Use 'any' type to bypass TypeScript limitations with dynamic function names
     const { data, error } = await supabase.rpc(functionName as any, params);
     
     if (error) {
@@ -39,6 +40,7 @@ export const execSql = async (
   params: any[] = []
 ): Promise<any> => {
   try {
+    // Use 'any' type to bypass TypeScript limitations with function name
     const { data, error } = await supabase.rpc('exec_sql' as any, {
       sql_query: sqlQuery,
       query_params: params.length > 0 ? JSON.stringify(params) : null

@@ -1,4 +1,3 @@
-
 import { callRpcFunction } from '@/utils/rpcUtils';
 
 /**
@@ -30,5 +29,32 @@ export const getAverageResponseTime = async (client_id: string, agent_name?: str
   } catch (error) {
     console.error("Error getting average response time:", error);
     return 0;
+  }
+};
+
+export const getAverageResponseTimeByDay = async (clientId: string, days: number = 30): Promise<ResponseTimeByDay[]> => {
+  try {
+    // Use execSql without type arguments
+    const result = await execSql(
+      `
+      SELECT 
+        date_trunc('day', created_at) AS day,
+        AVG(metadata->>'response_time_ms')::numeric AS avg_response_time
+      FROM client_activities
+      WHERE 
+        activity_type = 'chat_interaction'
+        AND created_at >= CURRENT_DATE - INTERVAL '${days} days'
+        AND client_id = $1
+        AND metadata->>'response_time_ms' IS NOT NULL
+      GROUP BY date_trunc('day', created_at)
+      ORDER BY day
+      `,
+      [clientId]
+    );
+    
+    return result;
+  } catch (error) {
+    console.error("Error getting average response time by day:", error);
+    return [];
   }
 };

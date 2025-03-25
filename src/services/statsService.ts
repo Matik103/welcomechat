@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { fetchTopQueries } from "./topQueriesService";
 import { getInteractionCount } from "./interactionCountService";
@@ -7,6 +6,7 @@ import { getAverageResponseTime } from "./responseTimeService";
 import { InteractionStats } from "@/types/client-dashboard";
 import { QueryItem } from "@/types/client-dashboard";
 import { callRpcFunction } from "@/utils/rpcUtils";
+import { execSql } from "@/utils/execSql";
 
 /**
  * Gets all interaction stats for a client
@@ -185,6 +185,67 @@ export const getRecentQueries = async (clientId: string, limit = 5): Promise<Que
     }));
   } catch (error) {
     console.error("Error fetching recent queries:", error);
+    return [];
+  }
+};
+
+export const getTopInteractingClients = async (limit: number = 5, days: number = 30): Promise<TopClient[]> => {
+  try {
+    // Use execSql without type arguments
+    const result = await execSql(
+      `
+      SELECT 
+        a.client_id,
+        c.name AS client_name,
+        COUNT(*) AS interaction_count
+      FROM client_activities a
+      LEFT JOIN ai_agents c ON a.client_id = c.client_id
+      WHERE 
+        a.activity_type = 'chat_interaction'
+        AND a.created_at >= CURRENT_DATE - INTERVAL '${days} days'
+        AND c.interaction_type = 'config'
+      GROUP BY a.client_id, c.name
+      ORDER BY interaction_count DESC
+      LIMIT ${limit}
+      `
+    );
+    
+    // Convert to fully-typed TopClient
+    return result.map(item => ({
+      client_id: item.client_id,
+      client_name: item.client_name,
+      interaction_count: item.interaction_count
+    }));
+  } catch (error) {
+    console.error("Error getting top interacting clients:", error);
+    return [];
+  }
+};
+
+export const getInteractionTrends = async (days: number = 30): Promise<InteractionTrend[]> => {
+  try {
+    // Use execSql without type arguments
+    const result = await execSql(
+      `
+      SELECT 
+        date_trunc('day', created_at) AS day,
+        COUNT(*) AS count
+      FROM client_activities
+      WHERE 
+        activity_type = 'chat_interaction'
+        AND created_at >= CURRENT_DATE - INTERVAL '${days} days'
+      GROUP BY date_trunc('day', created_at)
+      ORDER BY day
+      `
+    );
+    
+    // Convert to fully-typed InteractionTrend
+    return result.map(item => ({
+      day: item.day,
+      count: item.count
+    }));
+  } catch (error) {
+    console.error("Error getting interaction trends:", error);
     return [];
   }
 };

@@ -1,4 +1,3 @@
-
 import { ClientFormData } from "@/types/client-form";
 import { supabase } from "@/integrations/supabase/client";
 import { generateClientTempPassword, saveClientTempPassword } from "./passwordUtils";
@@ -166,5 +165,30 @@ export const logClientCreationActivity = async (
   } catch (err) {
     console.error('Failed to log agent creation activity:', err);
     // Don't throw here - activity logging is not critical
+  }
+};
+
+/**
+ * Logs account creation
+ */
+export const logAccountCreation = async (
+  clientId: string,
+  clientName: string,
+  email: string
+): Promise<void> => {
+  try {
+    // Use callRpcFunction instead of direct insert
+    await callRpcFunction('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'client_created',
+      description_param: `Client account ${clientName} created`,
+      metadata_param: {
+        client_name: clientName,
+        email: email
+      }
+    });
+  } catch (error: any) {
+    console.error("Error logging account creation:", error);
+    // Don't throw error here to avoid blocking account creation flow
   }
 };

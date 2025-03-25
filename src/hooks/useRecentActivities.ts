@@ -40,8 +40,11 @@ export const useRecentActivities = () => {
           return [];
         }
         
-        // Get all unique client IDs
-        const clientIds = [...new Set(activities.map(a => a.client_id))].filter(Boolean) as string[];
+        // Get all unique client IDs that are not null
+        const clientIds = activities
+          .filter(a => a && a.client_id)
+          .map(a => a.client_id)
+          .filter((id, index, self) => id && self.indexOf(id) === index) as string[];
         
         // If we have client IDs, fetch their names and details
         if (clientIds.length > 0) {
@@ -128,6 +131,8 @@ export const useRecentActivities = () => {
             
             // Map activities with client information
             return activities.map(activity => {
+              if (!activity) return null;
+              
               // Get client ID or use a placeholder
               const clientId = activity.client_id || '';
               
@@ -152,17 +157,29 @@ export const useRecentActivities = () => {
                 client_email: clientInfo.email || null,
                 agent_name: clientInfo.agentName || null
               } as ActivityWithClientInfo;
-            });
+            }).filter(Boolean) as ActivityWithClientInfo[];
           } catch (err) {
             console.error("Error processing client details:", err);
+            
+            // Return the activities without client details if we had an error
+            return activities.map(activity => {
+              if (!activity) return null;
+              return {
+                ...activity,
+                client_name: activity.client_id ? activity.client_id : "System"
+              } as ActivityWithClientInfo;
+            }).filter(Boolean) as ActivityWithClientInfo[];
           }
         }
 
         // If all else fails, return activities with a generic info
-        return activities.map(activity => ({
-          ...activity,
-          client_name: activity.client_id ? activity.client_id : "System"
-        })) as ActivityWithClientInfo[];
+        return activities.map(activity => {
+          if (!activity) return null;
+          return {
+            ...activity,
+            client_name: activity.client_id ? activity.client_id : "System"
+          } as ActivityWithClientInfo;
+        }).filter(Boolean) as ActivityWithClientInfo[];
       } catch (error) {
         console.error("Error in useRecentActivities:", error);
         return [];

@@ -1,4 +1,3 @@
-
 import { QueryItem } from "@/types/client-dashboard";
 import { callRpcFunction } from "@/utils/rpcUtils";
 
@@ -54,6 +53,67 @@ export const fetchTopQueries = async (clientId: string, agentName?: string): Pro
       : [];
   } catch (error) {
     console.error("Error fetching top queries:", error);
+    return [];
+  }
+};
+
+export const getTopQueriesByClient = async (clientId: string, limit: number = 5): Promise<TopQuery[]> => {
+  try {
+    // No need for the type parameter in execSql
+    const result = await execSql(
+      `
+      SELECT 
+        metadata->>'query_text' AS query,
+        COUNT(*) AS count
+      FROM client_activities
+      WHERE 
+        activity_type = 'chat_interaction'
+        AND client_id = $1
+        AND metadata->>'query_text' IS NOT NULL
+      GROUP BY metadata->>'query_text'
+      ORDER BY count DESC
+      LIMIT $2
+      `,
+      [clientId, limit]
+    );
+    
+    return result.map(item => ({
+      id: `query-${item.query_text.substring(0, 10)}`,
+      query_text: item.query_text,
+      frequency: item.count
+    }));
+  } catch (error) {
+    console.error("Error fetching top queries by client:", error);
+    return [];
+  }
+};
+
+export const getGlobalTopQueries = async (limit: number = 10): Promise<TopQuery[]> => {
+  try {
+    // No need for the type parameter in execSql
+    const result = await execSql(
+      `
+      SELECT 
+        metadata->>'query_text' AS query,
+        COUNT(*) AS count
+      FROM client_activities
+      WHERE 
+        activity_type = 'chat_interaction'
+        AND metadata->>'query_text' IS NOT NULL
+      GROUP BY metadata->>'query_text'
+      ORDER BY count DESC
+      LIMIT $1
+      `,
+      [limit]
+    );
+    
+    return result.map(item => ({
+      id: `query-${item.query_text.substring(0, 10)}`,
+      query_text: item.query_text,
+      frequency: item.count
+    }));
+  } catch (error) {
+    console.error("Error fetching global top queries:", error);
     return [];
   }
 };
