@@ -116,19 +116,19 @@ export function useStoreDocumentContent(clientId: string, agentName: string) {
         // This is an asynchronous operation that will update the content later
         if (type !== 'text') {
           // For non-text documents, use LlamaParse for better extraction
-          LlamaCloudService.parseDocument(url, type, clientId, agentName)
-            .then(result => {
-              if (result.success) {
-                console.log("Document processing initiated successfully");
-                // The edge function will update the content asynchronously
-              } else {
-                console.error("Failed to initiate document processing:", result.error);
-                toast.error("Document uploaded, but processing failed to start. Please try again later.");
-              }
-            })
-            .catch(err => {
-              console.error("Error initiating document processing:", err);
-            });
+          try {
+            const parseResponse = await LlamaCloudService.parseDocument(url, type, clientId, agentName);
+            if ('success' in parseResponse && parseResponse.success) {
+              console.log("Document processing initiated successfully");
+              // The edge function will update the content asynchronously
+            } else {
+              const errorMsg = 'error' in parseResponse ? parseResponse.error : 'Unknown error';
+              console.error("Failed to initiate document processing:", errorMsg);
+              toast.error("Document uploaded, but processing failed to start. Please try again later.");
+            }
+          } catch (err) {
+            console.error("Error initiating document processing:", err);
+          }
         }
         
         return {

@@ -79,13 +79,14 @@ export const processExistingDocuments = async (
           agentName
         );
         
-        if (!parseResult.success) {
-          console.error(`Failed to process document ${doc.id}:`, parseResult.error);
+        if ('success' in parseResult && !parseResult.success) {
+          const errorMsg = 'error' in parseResult ? parseResult.error : 'Unknown error';
+          console.error(`Failed to process document ${doc.id}:`, errorMsg);
           results.push({ 
             id: doc.id, 
             url: documentUrl, 
             status: "failed", 
-            error: parseResult.error 
+            error: errorMsg 
           });
           failed++;
           continue;
@@ -189,11 +190,12 @@ export const processDocument = async (
       agentName
     );
     
-    if (!parseResult.success) {
-      console.error(`Failed to process document ${doc.id}:`, parseResult.error);
+    if ('success' in parseResult && !parseResult.success) {
+      const errorMsg = 'error' in parseResult ? parseResult.error : 'Unknown error';
+      console.error(`Failed to process document ${doc.id}:`, errorMsg);
       return { 
         success: false, 
-        details: { error: parseResult.error } 
+        details: { error: errorMsg } 
       };
     }
     
