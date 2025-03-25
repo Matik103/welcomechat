@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
+import { DOCUMENTS_BUCKET, createUserDocumentPath } from '@/utils/supabaseStorage';
 
 export function useDocumentProcessing(clientId: string, agentName: string) {
   const [isUploading, setIsUploading] = useState(false);
@@ -26,7 +26,7 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
         }
         
         // Create folder path with user ID as the folder name to organize uploads
-        const folderPath = `${userData.user.id}/${fileName}`;
+        const folderPath = createUserDocumentPath(userData.user.id, fileName);
         
         // Upload the file to the storage bucket
         const { data, error } = await supabase.storage
@@ -141,7 +141,15 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
       return result;
     } catch (error: any) {
       console.error('Document upload failed:', error);
-      toast.error(`Failed to upload document: ${error.message}`);
+      
+      let errorMessage = 'Failed to upload document';
+      if (error.message) {
+        errorMessage += `: ${error.message}`;
+      } else if (error.error) {
+        errorMessage += `: ${error.error}`;
+      }
+      
+      toast.error(errorMessage);
       throw error;
     }
   };
