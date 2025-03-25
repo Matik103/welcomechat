@@ -1,6 +1,6 @@
-const OpenAI = require('openai');
+import OpenAI from 'openai';
 
-class OpenAIAssistantService {
+export class OpenAIAssistantService {
   constructor(config) {
     this.openai = new OpenAI({
       apiKey: config.apiKey
@@ -81,6 +81,4 @@ class OpenAIAssistantService {
       throw new Error(`Failed to delete OpenAI Assistant: ${error.message}`);
     }
   }
-}
-
-module.exports = { OpenAIAssistantService }; 
+} 
