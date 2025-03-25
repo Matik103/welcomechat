@@ -7,7 +7,7 @@ import { WidgetPreviewCard } from "@/components/widget/WidgetPreviewCard";
 import { EmbedCodeCard } from "@/components/widget/EmbedCodeCard";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { ExtendedActivityType } from "@/types/activity";
+import { ActivityType } from "@/types/client-form";
 import { toast } from "sonner";
 
 interface WidgetSettingsContainerProps {
@@ -21,7 +21,7 @@ interface WidgetSettingsContainerProps {
   };
   handleBack: () => void;
   handleLogoUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: any) => Promise<void>;
+  logClientActivity: (activity_type: ActivityType, description: string, metadata?: any) => Promise<void>;
 }
 
 export function WidgetSettingsContainer({

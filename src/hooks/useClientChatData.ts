@@ -31,10 +31,11 @@ export const useClientChatData = (clientId: string) => {
         const chatInteractions: ChatInteraction[] = data.map((item) => ({
           id: item.id,
           query_text: item.query_text || "",
-          response: item.content || "",
+          response_text: item.content || "", // Use content as response_text
           created_at: item.created_at || "",
           agent_name: item.name || "AI Assistant",
           client_id: clientId,
+          response_time_ms: item.response_time_ms
         }));
 
         return {

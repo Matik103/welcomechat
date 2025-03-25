@@ -1,25 +1,29 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { QueryItem } from '@/types/client-dashboard';
 
-/**
- * Fetches top queries for a client
- * @param clientId The client ID
- * @param limit Number of top queries to return
- * @returns Array of top queries with their frequency
- */
-export const fetchTopQueries = async (clientId: string, limit: number = 5) => {
+export const fetchTopQueries = async (clientId: string, limit: number = 5): Promise<QueryItem[]> => {
   try {
-    const { data, error } = await supabase.rpc('get_common_queries', {
-      client_id_param: clientId,
-      agent_name_param: null,
-      limit_param: limit
-    });
+    const { data, error } = await supabase
+      .from('common_queries')
+      .select('id, query_text, frequency, created_at')
+      .eq('client_id', clientId)
+      .order('frequency', { ascending: false })
+      .limit(limit);
 
-    if (error) throw error;
-    
+    if (error) {
+      console.error('Error fetching top queries:', error);
+      return [];
+    }
+
+    // Return the queries or an empty array if no data
     return data || [];
   } catch (error) {
-    console.error('Error fetching top queries:', error);
+    console.error('Error in fetchTopQueries:', error);
     return [];
   }
+};
+
+export default {
+  fetchTopQueries
 };

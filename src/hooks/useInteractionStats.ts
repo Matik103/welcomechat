@@ -1,87 +1,103 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
-  return useQuery({
-    queryKey: ["interaction-stats", timeRange],
-    queryFn: async () => {
-      const now = new Date();
-      let startDate = new Date();
+export function useInteractionStats(clientId: string | undefined) {
+  const fetchInteractionStats = async () => {
+    if (!clientId) {
+      return {
+        totalInteractions: 0,
+        activeDays: 0,
+        averageResponseTime: 0,
+        topQueries: []
+      };
+    }
 
-      // Calculate the start date based on the selected time range
-      switch (timeRange) {
-        case "1d":
-          startDate.setDate(now.getDate() - 1);
-          break;
-        case "1m":
-          startDate.setMonth(now.getMonth() - 1);
-          break;
-        case "1y":
-          startDate.setFullYear(now.getFullYear() - 1);
-          break;
-        default:
-          // For "all", set a very old date
-          startDate = new Date(0); // January 1, 1970
+    try {
+      // Get total chat interactions
+      const { count: totalInteractions, error: countError } = await supabase
+        .from("ai_agents")
+        .select("id", { count: "exact", head: false })
+        .eq("client_id", clientId)
+        .eq("interaction_type", "chat_interaction");
+
+      if (countError) {
+        throw countError;
       }
 
-      // Get interactions for the selected time period
-      // We've changed to use chat_interaction activities from client_activities table
-      const { data: currentPeriodInteractions, error: currentError } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", startDate.toISOString());
-
-      if (currentError) throw currentError;
-
-      const totalInteractions = currentPeriodInteractions?.length ?? 0;
-
-      // Get total clients for average calculation - using ai_agents with interaction_type=config
-      const { data: allClients, error: clientsError } = await supabase
+      // Get active days
+      const { data: interactionDates, error: datesError } = await supabase
         .from("ai_agents")
-        .select("DISTINCT client_id")
-        .eq("interaction_type", "config");
-      
-      if (clientsError) throw clientsError;
-      
-      const totalClientCount = allClients?.length ?? 0;
-      const avgInteractions = totalClientCount > 0 ? Math.round(totalInteractions / totalClientCount) : 0;
+        .select("created_at")
+        .eq("client_id", clientId)
+        .eq("interaction_type", "chat_interaction");
 
-      // Calculate previous period for comparison
-      // For example, if timeRange is 1 month, previous period is the month before that
-      const previousStartDate = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()));
-      
-      const { data: previousInteractions, error: prevError } = await supabase
-        .from("client_activities")
-        .select("*")
-        .eq('activity_type', 'chat_interaction')
-        .gte("created_at", previousStartDate.toISOString())
-        .lt("created_at", startDate.toISOString());
+      if (datesError) {
+        throw datesError;
+      }
 
-      if (prevError) throw prevError;
+      // Get unique days
+      const uniqueDays = new Set(
+        interactionDates.map((item) => new Date(item.created_at).toDateString())
+      );
+      const activeDays = uniqueDays.size;
 
-      const prevTotalInteractions = previousInteractions?.length ?? 0;
-      
-      // Calculate average interactions for previous period
-      const prevAvgInteractions = totalClientCount > 0 ? Math.round(prevTotalInteractions / totalClientCount) : 0;
+      // Get average response time
+      const { data: responseTimeData, error: timeError } = await supabase
+        .from("ai_agents")
+        .select("response_time_ms")
+        .eq("client_id", clientId)
+        .eq("interaction_type", "chat_interaction")
+        .not("response_time_ms", "is", null);
 
-      // Calculate percentage change, handling edge cases (like division by zero)
-      const avgInteractionsChange = prevAvgInteractions === 0
-        ? avgInteractions > 0 ? 100 : 0
-        : ((avgInteractions - prevAvgInteractions) / prevAvgInteractions * 100);
+      if (timeError) {
+        throw timeError;
+      }
+
+      const totalTimes = responseTimeData.reduce(
+        (acc, item) => acc + (item.response_time_ms || 0),
+        0
+      );
+      const averageResponseTime =
+        responseTimeData.length > 0
+          ? totalTimes / responseTimeData.length
+          : 0;
+
+      // Get top queries
+      const { data: topQueriesData, error: queriesError } = await supabase
+        .from("common_queries")
+        .select("id, query_text, frequency, created_at")
+        .eq("client_id", clientId)
+        .order("frequency", { ascending: false })
+        .limit(5);
+
+      if (queriesError) {
+        throw queriesError;
+      }
 
       return {
-        avgInteractions,
-        avgInteractionsChange: avgInteractionsChange.toFixed(1),
-        totalInteractions,
-        // Adding previous period data for potential future UI enhancements
-        prevTotalInteractions,
-        prevAvgInteractions,
+        totalInteractions: totalInteractions || 0,
+        activeDays,
+        averageResponseTime,
+        topQueries: topQueriesData || []
       };
-    },
-    staleTime: 30000, // Data stays fresh for 30 seconds
-    gcTime: 5 * 60 * 1000, // Cache data for 5 minutes (formerly cacheTime)
-    refetchOnWindowFocus: true, // Refetch when window regains focus
+    } catch (error) {
+      console.error("Error fetching interaction stats:", error);
+      return {
+        totalInteractions: 0,
+        activeDays: 0,
+        averageResponseTime: 0,
+        topQueries: []
+      };
+    }
+  };
+
+  return useQuery({
+    queryKey: ["interaction-stats", clientId],
+    queryFn: fetchInteractionStats,
+    enabled: !!clientId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false
   });
-};
+}

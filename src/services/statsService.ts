@@ -3,6 +3,7 @@ import { fetchTopQueries } from './topQueriesService';
 import { getInteractionCount } from './interactionCountService';
 import { getActiveDays } from './activeDaysService';
 import { getAverageResponseTime } from './responseTimeService';
+import { InteractionStats } from '@/types/client-dashboard';
 
 export const getClientStats = async (clientId: string, agentName?: string) => {
   try {
@@ -25,14 +26,36 @@ export const getClientStats = async (clientId: string, agentName?: string) => {
   }
 };
 
-// Add the missing function
-export const getInteractionStats = async (clientId: string, timeRange?: string) => {
+export const getInteractionStats = async (clientId: string, agentName?: string, timeRange?: string): Promise<InteractionStats> => {
   try {
     const daysToLookBack = timeRange === '1d' ? 1 : 
                           timeRange === '1m' ? 30 : 
                           timeRange === '1y' ? 365 : null;
     
-    // Implement a simple mock for now to fix the build error
+    // Implement a simple mock for now
+    const [interactions, activeDays, responseTime, topQueries] = await Promise.all([
+      getInteractionCount(clientId, agentName),
+      getActiveDays(clientId, agentName),
+      getAverageResponseTime(clientId, agentName),
+      fetchTopQueries(clientId, 5)
+    ]);
+    
+    return {
+      total_interactions: interactions,
+      active_days: activeDays,
+      average_response_time: responseTime,
+      top_queries: topQueries,
+      success_rate: 100,
+      totalInteractions: interactions,
+      activeDays: activeDays,
+      averageResponseTime: responseTime,
+      topQueries: topQueries,
+      successRate: 100
+    };
+  } catch (error) {
+    console.error('Error getting interaction stats:', error);
+    
+    // Return fallback values on error
     return {
       total_interactions: 0,
       active_days: 0,
@@ -45,8 +68,5 @@ export const getInteractionStats = async (clientId: string, timeRange?: string) 
       topQueries: [],
       successRate: 100
     };
-  } catch (error) {
-    console.error('Error getting interaction stats:', error);
-    throw error;
   }
 };

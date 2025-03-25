@@ -13,31 +13,22 @@ export const useWidgetSettings = (clientId: string) => {
   const updateAgentName = useCallback(async (agentName: string) => {
     if (!clientId) {
       console.error('Client ID is required');
-      return;
+      return false;
     }
 
     setIsUpdating(true);
     setError(null);
 
     try {
-      // First update the agent_name in the clients table
-      const { error: clientUpdateError } = await supabase
-        .from('clients')
-        .update({ agent_name: agentName })
-        .eq('id', clientId);
-
-      if (clientUpdateError) {
-        throw new Error(`Failed to update agent name: ${clientUpdateError.message}`);
-      }
-
-      // Then update the name in the ai_agents table
+      // Update the agent_name in the ai_agents table
       const { error: agentUpdateError } = await supabase
         .from('ai_agents')
         .update({ name: agentName })
-        .eq('client_id', clientId);
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config');
 
       if (agentUpdateError) {
-        console.warn(`Warning: Could not update AI agent name: ${agentUpdateError.message}`);
+        throw new Error(`Failed to update agent name: ${agentUpdateError.message}`);
       }
 
       // Log the activity
@@ -64,44 +55,41 @@ export const useWidgetSettings = (clientId: string) => {
   const updateAgentDescription = useCallback(async (description: string) => {
     if (!clientId) {
       console.error('Client ID is required');
-      return;
+      return false;
     }
 
     setIsUpdating(true);
     setError(null);
 
     try {
-      // Update the widget_settings in the clients table
-      const { data: clientData, error: clientGetError } = await supabase
-        .from('clients')
-        .select('widget_settings')
-        .eq('id', clientId)
+      // Get the current settings from the ai_agents table
+      const { data: agentData, error: getError } = await supabase
+        .from('ai_agents')
+        .select('settings')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
         .single();
 
-      if (clientGetError) {
-        throw new Error(`Failed to get client: ${clientGetError.message}`);
+      if (getError) {
+        throw new Error(`Failed to get agent data: ${getError.message}`);
       }
 
-      const widgetSettings = clientData?.widget_settings || {};
-      widgetSettings.agent_description = description;
+      // Update the settings with the new description
+      const settings = agentData?.settings || {};
+      settings.agent_description = description;
 
+      // Update the ai_agents table with the new settings
       const { error: updateError } = await supabase
-        .from('clients')
-        .update({ widget_settings })
-        .eq('id', clientId);
+        .from('ai_agents')
+        .update({ 
+          settings,
+          agent_description: description 
+        })
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config');
 
       if (updateError) {
         throw new Error(`Failed to update agent description: ${updateError.message}`);
-      }
-
-      // Also update in the ai_agents table
-      const { error: agentUpdateError } = await supabase
-        .from('ai_agents')
-        .update({ agent_description: description })
-        .eq('client_id', clientId);
-
-      if (agentUpdateError) {
-        console.warn(`Warning: Could not update AI agent description: ${agentUpdateError.message}`);
       }
 
       // Log the activity
@@ -128,51 +116,46 @@ export const useWidgetSettings = (clientId: string) => {
   const updateLogo = useCallback(async (logoUrl: string, storageFilePath?: string) => {
     if (!clientId) {
       console.error('Client ID is required');
-      return;
+      return false;
     }
 
     setIsUpdating(true);
     setError(null);
 
     try {
-      // Update the widget_settings in the clients table
-      const { data: clientData, error: clientGetError } = await supabase
-        .from('clients')
-        .select('widget_settings')
-        .eq('id', clientId)
+      // Get current settings from ai_agents
+      const { data: agentData, error: getError } = await supabase
+        .from('ai_agents')
+        .select('settings')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
         .single();
 
-      if (clientGetError) {
-        throw new Error(`Failed to get client: ${clientGetError.message}`);
+      if (getError) {
+        throw new Error(`Failed to get agent data: ${getError.message}`);
       }
 
-      const widgetSettings = clientData?.widget_settings || {};
-      widgetSettings.logo_url = logoUrl;
+      // Update settings with new logo info
+      const settings = agentData?.settings || {};
+      settings.logo_url = logoUrl;
       
       if (storageFilePath) {
-        widgetSettings.logo_storage_path = storageFilePath;
+        settings.logo_storage_path = storageFilePath;
       }
 
+      // Update ai_agents with new settings and logo info
       const { error: updateError } = await supabase
-        .from('clients')
-        .update({ widget_settings })
-        .eq('id', clientId);
+        .from('ai_agents')
+        .update({ 
+          settings,
+          logo_url: logoUrl,
+          logo_storage_path: storageFilePath
+        })
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config');
 
       if (updateError) {
         throw new Error(`Failed to update logo: ${updateError.message}`);
-      }
-
-      // Also update in the ai_agents table
-      const { error: agentUpdateError } = await supabase
-        .from('ai_agents')
-        .update({ 
-          logo_url: logoUrl, 
-          logo_storage_path: storageFilePath 
-        })
-        .eq('client_id', clientId);
-
-      if (agentUpdateError) {
-        console.warn(`Warning: Could not update AI agent logo: ${agentUpdateError.message}`);
       }
 
       // Log the activity

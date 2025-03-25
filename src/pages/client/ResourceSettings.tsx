@@ -1,8 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useClientProfile } from "@/hooks/useClientProfile";
 import { WebsiteUrlForm } from "@/components/client/website-urls/WebsiteUrlForm";
 import { WebsiteUrlsList } from "@/components/client/website-urls/WebsiteUrlsList";
 import { DocumentLinkForm } from "@/components/client/drive-links/DocumentLinkForm";
@@ -10,7 +10,6 @@ import { DocumentLinksList } from "@/components/client/drive-links/DocumentLinks
 import { Button } from "@/components/ui/button";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { useDocumentLinks } from "@/hooks/useDocumentLinks";
-import { useWebsiteProcessing } from "@/hooks/useWebsiteProcessing";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientActivity } from "@/hooks/useClientActivity";
@@ -27,7 +26,7 @@ export default function ResourceSettings() {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-5xl mx-auto pb-8">
-        <PageHeading>Resource Settings</PageHeading>
+        <h1 className="text-3xl font-bold tracking-tight mb-4">Resource Settings</h1>
         
         <Tabs defaultValue="websites" className="w-full">
           <TabsList className="mb-4">
@@ -44,7 +43,7 @@ export default function ResourceSettings() {
                 <CardContent>
                   <WebsiteUrlForm 
                     clientId={clientId} 
-                    onSuccess={() => logClientActivity("website_url_added", "Added new website URL")}
+                    onAddSuccess={() => logClientActivity("website_url_added", "Added new website URL")}
                   />
                 </CardContent>
               </Card>
@@ -55,7 +54,6 @@ export default function ResourceSettings() {
                 </CardHeader>
                 <CardContent>
                   <WebsiteUrlsList 
-                    clientId={clientId}
                     onDelete={() => logClientActivity("url_deleted", "Deleted website URL")}
                   />
                 </CardContent>
@@ -71,7 +69,6 @@ export default function ResourceSettings() {
                 </CardHeader>
                 <CardContent>
                   <DocumentLinkForm 
-                    clientId={clientId}
                     onSuccess={() => logClientActivity("document_link_added", "Added new document link")}
                   />
                 </CardContent>
@@ -83,7 +80,6 @@ export default function ResourceSettings() {
                 </CardHeader>
                 <CardContent>
                   <DocumentLinksList 
-                    clientId={clientId}
                     onDelete={() => logClientActivity("document_link_deleted", "Deleted document link")}
                   />
                 </CardContent>

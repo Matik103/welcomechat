@@ -83,8 +83,8 @@ export const useClientDashboard = (clientId: string, defaultAgentName: string = 
       topQueries: [],
       successRate: 100
     },
-    chatHistory: chatHistory as ChatInteraction[] || [],
-    recentInteractions: chatHistory as ChatInteraction[] || [],
+    chatHistory: (chatHistory || []) as unknown as ChatInteraction[],
+    recentInteractions: (chatHistory || []) as unknown as ChatInteraction[],
     isLoading,
     error,
     agentName: defaultAgentName

@@ -45,7 +45,8 @@ export type ExtendedActivityType =
   | "login_failed"
   | "openai_assistant_document_added"
   | "openai_assistant_upload_failed"
-  | "schema_update";
+  | "schema_update"
+  | "embed_code_copied";
 
 export interface ClientActivity {
   id: string;

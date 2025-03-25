@@ -34,8 +34,11 @@ export interface ErrorLog {
 
 // Query item type for top queries
 export interface QueryItem {
+  id?: string;
   query_text: string;
   frequency: number;
+  last_asked?: string;
+  created_at?: string;
 }
 
 // Chat interaction type

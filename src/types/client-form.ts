@@ -55,7 +55,8 @@ export type ActivityType =
   | "login_failed"
   | "openai_assistant_document_added"
   | "openai_assistant_upload_failed"
-  | "schema_update";
+  | "schema_update"
+  | "embed_code_copied";
 
 // Client form schema
 export const clientFormSchema = z.object({

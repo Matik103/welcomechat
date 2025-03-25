@@ -1,10 +1,10 @@
 
-import { ExtendedActivityType } from "@/types/extended-supabase";
+import { ActivityType } from "@/types/client-form";
 
 /**
  * Maps activity types to human-readable descriptions
  */
-export const activityTypeDescriptions: Record<ExtendedActivityType, string> = {
+export const activityTypeDescriptions: Record<ActivityType, string> = {
   chat_interaction: "Chat interaction",
   client_created: "Client created",
   client_updated: "Client updated",
@@ -36,6 +36,7 @@ export const activityTypeDescriptions: Record<ExtendedActivityType, string> = {
   agent_description_updated: "Agent description updated",
   agent_error: "Agent error",
   agent_logo_updated: "Agent logo updated",
+  agent_updated: "Agent updated",
   signed_out: "Signed out",
   embed_code_copied: "Embed code copied",
   logo_uploaded: "Logo uploaded",
@@ -49,13 +50,16 @@ export const activityTypeDescriptions: Record<ExtendedActivityType, string> = {
   widget_previewed: "Widget previewed",
   user_role_updated: "User role updated",
   login_success: "Login success",
-  login_failed: "Login failed"
+  login_failed: "Login failed",
+  openai_assistant_document_added: "OpenAI assistant document added",
+  openai_assistant_upload_failed: "OpenAI assistant upload failed",
+  schema_update: "Schema update"
 };
 
 /**
  * Gets a human-readable description for an activity type
  */
-export const getActivityTypeDescription = (type: ExtendedActivityType): string => {
+export const getActivityTypeDescription = (type: ActivityType): string => {
   return activityTypeDescriptions[type] || type;
 };
 
