@@ -46,4 +46,22 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Grant access to authenticated users
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT ALL ON TABLE public.function_metrics TO authenticated;
-GRANT EXECUTE ON FUNCTION public.record_function_metric TO authenticated; 
+GRANT EXECUTE ON FUNCTION public.record_function_metric TO authenticated;
+
+-- Grant storage bucket permissions
+DO $$
+BEGIN
+    -- Create documents bucket if it doesn't exist
+    BEGIN
+        EXECUTE format('CREATE BUCKET IF NOT EXISTS documents;');
+    EXCEPTION WHEN OTHERS THEN
+        -- Bucket might already exist or there might be other issues
+        NULL;
+    END;
+
+    -- Grant bucket access to authenticated users
+    EXECUTE format('
+        GRANT ALL ON BUCKET documents TO authenticated;
+        GRANT SELECT ON BUCKET documents TO anon;
+    ');
+END $$; 
