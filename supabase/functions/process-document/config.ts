@@ -1,59 +1,42 @@
-
-// Configuration for document processing edge function
-
 export const config = {
-  errors: {
-    missingParams: 'Missing required parameters. Please provide documentUrl, documentType, clientId, and agentName.',
-    invalidDocType: 'Invalid document type. Supported types include PDF, Word, Excel, PowerPoint, and text files.',
-    invalidToken: 'Invalid authorization token.',
-    processingFailed: 'Document processing failed. Please try again later.',
+  processing: {
+    maxRetries: 3,
+    retryDelay: 5000, // 5 seconds
+    processingTimeout: 300000, // 5 minutes
   },
-  successMessages: {
-    docProcessed: 'Document processed successfully.',
-    jobCreated: 'Document processing job created successfully.',
-  }
+  rateLimit: {
+    windowMs: 60000, // 1 minute
+    maxRequests: 10, // 10 requests per minute
+  },
+  document: {
+    maxFileSizeMB: 50,
+    supportedTypes: ['pdf', 'docx', 'xlsx', 'pptx'],
+  },
+  errors: {
+    invalidToken: 'Invalid or missing authorization token',
+    missingParams: 'Missing required parameters',
+    invalidDocType: 'Invalid document type',
+    fileSizeLimit: 'File size exceeds the maximum limit',
+    invalidUrl: 'Invalid document URL',
+    processingFailed: 'Document processing failed',
+    rateLimitExceeded: 'Rate limit exceeded',
+  },
 };
 
-// Validate if a URL is properly formatted
+export const isValidDocumentType = (type: string): boolean => {
+  return config.document.supportedTypes.includes(type.toLowerCase());
+};
+
+export const isValidFileSize = (sizeInBytes: number): boolean => {
+  const sizeInMB = sizeInBytes / (1024 * 1024);
+  return sizeInMB <= config.document.maxFileSizeMB;
+};
+
 export const isValidUrl = (url: string): boolean => {
-  if (!url) return false;
-  
   try {
     new URL(url);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
-};
-
-// Validate if a document type is supported
-export const isValidDocumentType = (type: string): boolean => {
-  const validTypes = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'text/plain',
-    'text/csv',
-    'image/jpeg',
-    'image/png',
-    'website_url',
-    'google_doc',
-    'google_sheet',
-    'google_drive',
-    'pdf',
-    'text',
-    'other'
-  ];
-  
-  // Check exact match
-  if (validTypes.includes(type)) {
-    return true;
-  }
-  
-  // Check if type contains any of the valid format strings
-  return validTypes.some(validType => 
-    type.includes(validType.replace('application/', '')) ||
-    type.includes(validType.replace('text/', ''))
-  );
 };

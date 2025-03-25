@@ -1,8 +1,10 @@
-
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
-import { supabase } from '@/integrations/supabase/client';
-import { SUPABASE_URL } from '@/integrations/supabase/client';
+
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL!,
+  process.env.REACT_APP_SUPABASE_ANON_KEY!
+);
 
 interface AssistantResponse {
   message: string;
@@ -16,17 +18,17 @@ export class OpenAIAssistantService {
   constructor(clientId: string) {
     this.clientId = clientId;
     this.openai = new OpenAI({
-      apiKey: import.meta.env.REACT_APP_OPENAI_API_KEY || '',
+      apiKey: process.env.REACT_APP_OPENAI_API_KEY,
     });
   }
 
   private async getAssistantId(): Promise<string | null> {
     try {
       const { data, error } = await supabase
-        .from('ai_agents')
+      .from('ai_agents')
         .select('assistant_id')
         .eq('client_id', this.clientId)
-        .single();
+      .single();
 
       if (error) throw error;
       return data?.assistant_id || null;
@@ -75,19 +77,15 @@ export class OpenAIAssistantService {
       if (runStatus.status === 'completed') {
         const messages = await this.openai.beta.threads.messages.list(threadId);
         const lastMessage = messages.data[0];
-        if (!lastMessage || !lastMessage.content || lastMessage.content.length === 0) {
-          return "I'm sorry, I wasn't able to generate a response. Please try again.";
-        }
-        
         const content = lastMessage.content[0];
         
         if (content.type === 'text') {
           return content.text.value;
         }
-        return "I'm sorry, I wasn't able to generate a text response.";
+        return null;
       }
 
-      return "I'm sorry, something went wrong with processing your request.";
+      return null;
     } catch (error) {
       console.error('Error running assistant:', error);
       return null;
@@ -122,7 +120,7 @@ export class OpenAIAssistantService {
 
       const response = await this.runAssistant(threadId, assistantId);
       if (!response) {
-        return {
+    return {
           message: "I apologize, but I'm having trouble generating a response. Please try again later.",
           error: 'Failed to get response from assistant'
         };
@@ -131,10 +129,10 @@ export class OpenAIAssistantService {
       return { message: response };
     } catch (error) {
       console.error('Error in sendMessage:', error);
-      return {
+    return {
         message: "I apologize, but I'm experiencing some technical difficulties. Please try again later.",
         error: 'Unexpected error'
-      };
+    };
     }
   }
 }

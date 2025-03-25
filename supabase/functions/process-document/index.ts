@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { config, isValidDocumentType, isValidUrl } from "./config.ts";
@@ -289,10 +288,7 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({
         success: false,
         error: config.errors.invalidDocType
-      }), { 
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      }), { status: 400 });
     }
 
     // Generate unique job ID
@@ -317,7 +313,7 @@ serve(async (req: Request) => {
       message: 'Document processing started',
       metadata
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       status: 202
     });
 

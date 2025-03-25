@@ -1,137 +1,87 @@
 
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { callRpcFunction } from '@/utils/rpcUtils';
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
-interface InteractionStats {
-  totalInteractions: number;
-  avgInteractions: number;
-  avgInteractionsChange?: number;
-}
-
-export const useInteractionStats = (timeRange: '1d' | '1m' | '1y' | 'all') => {
+export const useInteractionStats = (timeRange: "1d" | "1m" | "1y" | "all") => {
   return useQuery({
-    queryKey: ['interactionStats', timeRange],
-    queryFn: async (): Promise<InteractionStats> => {
-      try {
-        // Calculate time range
-        const now = new Date();
-        let startDate: Date;
-        let prevStartDate: Date;
-        let prevEndDate: Date;
+    queryKey: ["interaction-stats", timeRange],
+    queryFn: async () => {
+      const now = new Date();
+      let startDate = new Date();
 
-        switch (timeRange) {
-          case '1d':
-            startDate = new Date(now);
-            startDate.setDate(now.getDate() - 1);
-            prevStartDate = new Date(startDate);
-            prevStartDate.setDate(startDate.getDate() - 1);
-            prevEndDate = new Date(startDate);
-            break;
-          case '1m':
-            startDate = new Date(now);
-            startDate.setMonth(now.getMonth() - 1);
-            prevStartDate = new Date(startDate);
-            prevStartDate.setMonth(startDate.getMonth() - 1);
-            prevEndDate = new Date(startDate);
-            break;
-          case '1y':
-            startDate = new Date(now);
-            startDate.setFullYear(now.getFullYear() - 1);
-            prevStartDate = new Date(startDate);
-            prevStartDate.setFullYear(startDate.getFullYear() - 1);
-            prevEndDate = new Date(startDate);
-            break;
-          case 'all':
-          default:
-            // Set a very old date for "all" (e.g., 5 years ago)
-            startDate = new Date(now);
-            startDate.setFullYear(now.getFullYear() - 5);
-            // Previous period is another 5 years before that
-            prevStartDate = new Date(startDate);
-            prevStartDate.setFullYear(startDate.getFullYear() - 5);
-            prevEndDate = new Date(startDate);
-            break;
-        }
-
-        // Use SQL for better date handling
-        const interactionsSql = `
-          SELECT 
-            COUNT(*) as total_interactions,
-            COUNT(DISTINCT client_id) as unique_clients
-          FROM client_activities
-          WHERE 
-            created_at >= $1::timestamp
-        `;
-        
-        const result = await callRpcFunction('exec_sql', [interactionsSql, [startDate.toISOString()]]);
-        
-        // Extract results
-        const totalInteractions = Array.isArray(result) && result.length > 0 
-          ? Number(result[0].total_interactions) || 0
-          : 0;
-          
-        const uniqueClients = Array.isArray(result) && result.length > 0 
-          ? Number(result[0].unique_clients) || 0
-          : 0;
-          
-        // Calculate average interactions per client
-        const avgInteractions = uniqueClients > 0 
-          ? totalInteractions / uniqueClients 
-          : 0;
-
-        // Get previous period stats for comparison
-        const prevInteractionsSql = `
-          SELECT 
-            COUNT(*) as total_interactions,
-            COUNT(DISTINCT client_id) as unique_clients
-          FROM client_activities
-          WHERE 
-            created_at >= $1::timestamp AND
-            created_at < $2::timestamp
-        `;
-        
-        const prevResult = await callRpcFunction(
-          'exec_sql', 
-          [prevInteractionsSql, [prevStartDate.toISOString(), prevEndDate.toISOString()]]
-        );
-        
-        // Extract previous period results
-        const prevUniqueClients = Array.isArray(prevResult) && prevResult.length > 0 
-          ? Number(prevResult[0].unique_clients) || 0
-          : 0;
-          
-        const prevTotalInteractions = Array.isArray(prevResult) && prevResult.length > 0 
-          ? Number(prevResult[0].total_interactions) || 0
-          : 0;
-          
-        // Calculate previous period average
-        const prevAvgInteractions = prevUniqueClients > 0 
-          ? prevTotalInteractions / prevUniqueClients 
-          : 0;
-          
-        // Calculate change in average interactions
-        let avgInteractionsChange: number | undefined;
-        if (prevAvgInteractions > 0) {
-          avgInteractionsChange = ((avgInteractions - prevAvgInteractions) / prevAvgInteractions) * 100;
-        }
-
-        return {
-          totalInteractions,
-          avgInteractions: parseFloat(avgInteractions.toFixed(1)),
-          avgInteractionsChange: avgInteractionsChange 
-            ? parseFloat(avgInteractionsChange.toFixed(1)) 
-            : undefined
-        };
-      } catch (error) {
-        console.error('Error fetching interaction stats:', error);
-        // Return default values on error
-        return {
-          totalInteractions: 0,
-          avgInteractions: 0
-        };
+      // Calculate the start date based on the selected time range
+      switch (timeRange) {
+        case "1d":
+          startDate.setDate(now.getDate() - 1);
+          break;
+        case "1m":
+          startDate.setMonth(now.getMonth() - 1);
+          break;
+        case "1y":
+          startDate.setFullYear(now.getFullYear() - 1);
+          break;
+        default:
+          // For "all", set a very old date
+          startDate = new Date(0); // January 1, 1970
       }
+
+      // Get interactions for the selected time period
+      // We've changed to use chat_interaction activities from client_activities table
+      const { data: currentPeriodInteractions, error: currentError } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", startDate.toISOString());
+
+      if (currentError) throw currentError;
+
+      const totalInteractions = currentPeriodInteractions?.length ?? 0;
+
+      // Get total clients for average calculation - using ai_agents with interaction_type=config
+      const { data: allClients, error: clientsError } = await supabase
+        .from("ai_agents")
+        .select("DISTINCT client_id")
+        .eq("interaction_type", "config");
+      
+      if (clientsError) throw clientsError;
+      
+      const totalClientCount = allClients?.length ?? 0;
+      const avgInteractions = totalClientCount > 0 ? Math.round(totalInteractions / totalClientCount) : 0;
+
+      // Calculate previous period for comparison
+      // For example, if timeRange is 1 month, previous period is the month before that
+      const previousStartDate = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()));
+      
+      const { data: previousInteractions, error: prevError } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", previousStartDate.toISOString())
+        .lt("created_at", startDate.toISOString());
+
+      if (prevError) throw prevError;
+
+      const prevTotalInteractions = previousInteractions?.length ?? 0;
+      
+      // Calculate average interactions for previous period
+      const prevAvgInteractions = totalClientCount > 0 ? Math.round(prevTotalInteractions / totalClientCount) : 0;
+
+      // Calculate percentage change, handling edge cases (like division by zero)
+      const avgInteractionsChange = prevAvgInteractions === 0
+        ? avgInteractions > 0 ? 100 : 0
+        : ((avgInteractions - prevAvgInteractions) / prevAvgInteractions * 100);
+
+      return {
+        avgInteractions,
+        avgInteractionsChange: avgInteractionsChange.toFixed(1),
+        totalInteractions,
+        // Adding previous period data for potential future UI enhancements
+        prevTotalInteractions,
+        prevAvgInteractions,
+      };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30000, // Data stays fresh for 30 seconds
+    gcTime: 5 * 60 * 1000, // Cache data for 5 minutes (formerly cacheTime)
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 };
