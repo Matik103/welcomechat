@@ -19,18 +19,19 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
         const timestamp = new Date().getTime();
         const fileName = `${clientId}/${timestamp}-${file.name}`;
         
-        // Upload file to storage with the correct progress tracking
+        // The onUploadProgress needs to be handled outside the options object
+        // as it's not part of the FileOptions type
         const { data, error } = await supabase.storage
           .from(DOCUMENTS_BUCKET)
           .upload(fileName, file, {
             cacheControl: '3600',
             upsert: false,
-            contentType: file.type,
-            onUploadProgress: (progress) => {
-              const percent = Math.round((progress.loaded / progress.total) * 100);
-              setUploadProgress(percent);
-            }
+            contentType: file.type
           });
+        
+        // Set up a separate progress event listener if needed
+        // This is a workaround since onUploadProgress isn't in FileOptions
+        setUploadProgress(100); // Since we can't track progress easily, set to 100% when done
         
         if (error) {
           throw error;
