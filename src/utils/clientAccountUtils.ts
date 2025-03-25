@@ -224,3 +224,106 @@ export const getClientAccount = async (clientId: string): Promise<any | null> =>
     return null;
   }
 };
+
+/**
+ * Set up a temporary password for a client
+ * @param clientId The client ID
+ * @param email The client email
+ * @returns The temporary password
+ */
+export const setupClientPassword = async (clientId: string, email: string): Promise<string> => {
+  try {
+    // Generate a secure temporary password
+    const tempPassword = generateTempPassword();
+    
+    // Save the temporary password
+    await saveClientTempPassword(clientId, email, tempPassword);
+    
+    return tempPassword;
+  } catch (error) {
+    console.error("Error setting up client password:", error);
+    throw new Error(`Failed to set up client password: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+/**
+ * Creates a user account for a client
+ * @param email Client email
+ * @param clientId Client ID
+ * @param clientName Client name
+ * @param agentName Agent name
+ * @param agentDescription Agent description
+ * @param tempPassword Temporary password
+ * @returns The result of the operation
+ */
+export const createClientUserAccount = async (
+  email: string,
+  clientId: string,
+  clientName: string,
+  agentName: string,
+  agentDescription: string,
+  tempPassword: string
+): Promise<any> => {
+  try {
+    console.log(`Creating user account for client ${clientId} with email ${email}`);
+    
+    // Call the edge function to create a user account
+    const { data, error } = await supabase.functions.invoke(
+      'create-client-user',
+      {
+        body: {
+          email,
+          client_id: clientId,
+          client_name: clientName,
+          agent_name: agentName,
+          agent_description: agentDescription,
+          temp_password: tempPassword
+        }
+      }
+    );
+    
+    if (error) {
+      console.error("Error creating client user account:", error);
+      throw new Error(error.message);
+    }
+    
+    console.log("Client user account created successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error in createClientUserAccount:", error);
+    throw new Error(`Failed to create client user account: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+/**
+ * Logs a client creation activity
+ * @param clientId Client ID
+ * @param clientName Client name
+ * @param email Client email
+ * @param agentName Agent name
+ * @returns The result of the operation
+ */
+export const logClientCreationActivity = async (
+  clientId: string,
+  clientName: string,
+  email: string,
+  agentName: string
+): Promise<any> => {
+  try {
+    console.log(`Logging client creation activity for ${clientId}`);
+    
+    // Use the createActivityDirect function
+    return await createActivityDirect(
+      clientId,
+      'client_created' as ActivityType,
+      `Client ${clientName} created`,
+      {
+        email,
+        agent_name: agentName
+      }
+    );
+  } catch (error) {
+    console.error("Error logging client creation activity:", error);
+    return null;
+  }
+};

@@ -17,7 +17,14 @@ export type ActivityType =
   | 'login_failed'
   | 'widget_updated'
   | 'client_activated'
-  | 'client_deactivated';
+  | 'client_deactivated'
+  | 'document_link_added'
+  | 'document_link_deleted'
+  | 'signed_out'
+  | 'embed_code_copied'
+  | 'widget_settings_updated'
+  | 'logo_uploaded'
+  | 'document_processed';
 
 // Define extended activity types (legacy/deprecated)
 export type ExtendedActivityType = ActivityType;
@@ -62,5 +69,12 @@ export const ActivityTypeMap: Record<string, ActivityType> = {
   'login_failed': 'login_failed',
   'widget_updated': 'widget_updated',
   'client_activated': 'client_activated',
-  'client_deactivated': 'client_deactivated'
+  'client_deactivated': 'client_deactivated',
+  'document_link_added': 'document_link_added',
+  'document_link_deleted': 'document_link_deleted',
+  'signed_out': 'signed_out',
+  'embed_code_copied': 'embed_code_copied',
+  'widget_settings_updated': 'widget_settings_updated',
+  'logo_uploaded': 'logo_uploaded',
+  'document_processed': 'document_processed'
 };

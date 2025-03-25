@@ -32,9 +32,14 @@ export const useRecentActivities = (limit: number = 10) => {
           const clientInfo = item.ai_agents as any;
           const clientName = clientInfo?.client_name || 'Unknown Client';
           
-          // Get description from activity_data if available
-          const description = item.activity_data?.description || undefined;
-          const metadata = item.activity_data?.metadata || undefined;
+          // Get description and metadata from activity_data if available
+          let description;
+          let metadata;
+          
+          if (item.activity_data && typeof item.activity_data === 'object') {
+            description = item.activity_data.description;
+            metadata = item.activity_data.metadata;
+          }
 
           return {
             id: item.id,
@@ -59,5 +64,67 @@ export const useRecentActivities = (limit: number = 10) => {
     fetchActivities();
   }, [limit]);
 
-  return { activities, isLoading, error };
+  return { 
+    activities, 
+    isLoading, 
+    error,
+    // Add refetch method for compatibility
+    refetch: async () => {
+      const fetchActivities = async () => {
+        try {
+          setIsLoading(true);
+          setError(null);
+  
+          // Query joined data from client_activities and ai_agents
+          const { data, error } = await supabase
+            .from('client_activities')
+            .select(`
+              *,
+              ai_agents:client_id(id, client_name)
+            `)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+  
+          if (error) throw error;
+  
+          // Transform the data to match ActivityWithClientInfo
+          const transformedActivities: ActivityWithClientInfo[] = data.map(item => {
+            // Extract client info from joined data
+            const clientInfo = item.ai_agents as any;
+            const clientName = clientInfo?.client_name || 'Unknown Client';
+            
+            // Get description and metadata from activity_data if available
+            let description;
+            let metadata;
+            
+            if (item.activity_data && typeof item.activity_data === 'object') {
+              description = item.activity_data.description;
+              metadata = item.activity_data.metadata;
+            }
+  
+            return {
+              id: item.id,
+              activity_type: item.activity_type,
+              description: description,
+              created_at: item.created_at,
+              client_id: item.client_id,
+              client_name: clientName,
+              metadata: metadata
+            };
+          });
+  
+          setActivities(transformedActivities);
+        } catch (err) {
+          console.error('Error fetching recent activities:', err);
+          setError(err instanceof Error ? err : new Error('Failed to fetch activities'));
+        } finally {
+          setIsLoading(false);
+        }
+      };
+  
+      await fetchActivities();
+    },
+    // Add data property for compatibility
+    data: activities
+  };
 };

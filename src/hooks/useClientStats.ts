@@ -61,5 +61,12 @@ export const useClientStats = () => {
     fetchStats();
   }, []);
   
-  return { totalClients, activeClients, isLoading, error };
+  return { 
+    totalClients, 
+    activeClients, 
+    isLoading, 
+    error,
+    // Add data property for compatibility
+    data: { totalClients, activeClients }
+  };
 };

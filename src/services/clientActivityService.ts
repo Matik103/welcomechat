@@ -51,7 +51,7 @@ export const createActivityDirect = async (
   metadata?: Record<string, any>
 ): Promise<any> => {
   try {
-    // Use callRpcFunction to execute the SQL safely
+    // Use createClientActivity to execute the activity logging
     return await createClientActivity(clientId, activityType, description, metadata);
   } catch (error) {
     console.error('Error in createActivityDirect:', error);
