@@ -2,13 +2,13 @@
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM storage.buckets WHERE id = 'Document_Storage'
+        SELECT 1 FROM storage.buckets WHERE id = 'document-storage'
     ) THEN
         -- Create the bucket if it doesn't exist
         INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
         VALUES (
-            'Document_Storage',
-            'Document_Storage', -- Use the same name as id to avoid conflicts
+            'document-storage',
+            'document-storage', -- Use the same name as id to avoid conflicts
             false,
             52428800, -- 50MB in bytes
             ARRAY['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
@@ -20,7 +20,7 @@ BEGIN
             public = false,
             file_size_limit = 52428800,
             allowed_mime_types = ARRAY['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-        WHERE id = 'Document_Storage';
+        WHERE id = 'document-storage';
     END IF;
 END $$;
 
@@ -35,7 +35,7 @@ CREATE POLICY "Users can upload their own documents"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
-    bucket_id = 'Document_Storage' AND
+    bucket_id = 'document-storage' AND
     auth.uid()::text = (storage.foldername(name))[1]
 );
 
@@ -43,6 +43,6 @@ CREATE POLICY "Users can view their own documents"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (
-    bucket_id = 'Document_Storage' AND
+    bucket_id = 'document-storage' AND
     auth.uid()::text = (storage.foldername(name))[1]
 ); 
