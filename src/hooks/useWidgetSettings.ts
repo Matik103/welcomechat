@@ -1,168 +1,185 @@
 
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { logActivity } from '@/services/clientActivityService';
+import { generateBubbleEmbedCode, generateInlineEmbedCode } from '@/utils/widgetSettingsUtils';
 import { toast } from 'sonner';
-import { getWidgetSettings, updateWidgetSettings } from '@/utils/widgetSettingsUtils';
-import { useClientActivity } from './useClientActivity';
-import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
+import { WidgetSettings } from '@/types/widget-settings';
 
-export const useWidgetSettings = (clientId?: string, isClientView = false) => {
+export const useWidgetSettings = (clientId: string) => {
   const queryClient = useQueryClient();
-  const [isUploading, setIsUploading] = useState(false);
-  const { logClientActivity } = useClientActivity(clientId);
-
-  // Get widget settings for the client
+  const [embedCopied, setEmbedCopied] = useState(false);
+  
+  // Get initial settings
   const { 
     data: settings, 
     isLoading, 
-    error, 
-    refetch
+    error 
   } = useQuery({
-    queryKey: ['widgetSettings', clientId],
+    queryKey: ['widget-settings', clientId],
     queryFn: async () => {
-      if (!clientId) return defaultSettings;
-      try {
-        const result = await getWidgetSettings(clientId);
-        
-        // Ensure we have a valid object with all expected properties
-        if (!result) return defaultSettings;
-        
-        // If settings from the DB are a string, parse them
-        let parsedSettings = {}; 
-        if (typeof result === 'string') {
-          try {
-            parsedSettings = JSON.parse(result);
-          } catch (e) {
-            console.error('Failed to parse widget settings:', e);
-            parsedSettings = {};
-          }
-        } else if (typeof result === 'object') {
-          parsedSettings = result;
-        }
-        
-        // Merge with defaults to ensure all properties exist
-        return {
-          ...defaultSettings,
-          ...parsedSettings
-        };
-      } catch (error) {
-        console.error('Error fetching widget settings:', error);
-        return defaultSettings;
+      const { data, error } = await supabase
+        .from('ai_agents')
+        .select('settings, logo_url, name')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .single();
+      
+      if (error) throw error;
+      
+      // Ensure settings object exists
+      const widgetSettings = data?.settings || {};
+      
+      // Add logo URL if it exists
+      if (data?.logo_url) {
+        widgetSettings.logoUrl = data.logo_url;
       }
+      
+      // Add agent name if it exists
+      if (data?.name) {
+        widgetSettings.agentName = data.name;
+      }
+      
+      return widgetSettings as WidgetSettings;
     },
-    enabled: !!clientId,
+    staleTime: 60000, // 1 minute
   });
 
-  // Mutation to update widget settings
-  const updateSettingsMutation = useMutation({
+  // Update settings mutation
+  const updateMutation = useMutation({
     mutationFn: async (newSettings: WidgetSettings) => {
-      if (!clientId) throw new Error('Client ID is required');
-      
-      // Merge with existing settings
-      const updatedSettings = {
-        ...settings,
-        ...newSettings
+      const payload = {
+        settings: { ...newSettings }
       };
+
+      // Remove logo URL from settings if present (it's stored separately)
+      if (payload.settings.logoUrl) {
+        delete payload.settings.logoUrl;
+      }
       
-      // Update widget settings in database
-      const result = await updateWidgetSettings(clientId, updatedSettings);
+      const { data, error } = await supabase
+        .from('ai_agents')
+        .update(payload)
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config');
       
-      // Log the activity
-      await logClientActivity(
-        'widget_settings_updated',
-        'Widget settings updated',
-        { settings: updatedSettings }
-      );
+      if (error) throw error;
       
-      return result;
+      // Log this activity
+      try {
+        await logActivity('widget_settings_updated', 'Widget settings were updated');
+      } catch (logErr) {
+        console.error('Error logging activity:', logErr);
+      }
+      
+      return data;
     },
     onSuccess: () => {
-      toast.success('Widget settings updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['widgetSettings', clientId] });
-      
-      // Also invalidate client data since widget settings are part of it
-      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      toast.success('Widget settings saved successfully');
+      queryClient.invalidateQueries({queryKey: ['widget-settings', clientId]});
     },
     onError: (error) => {
-      console.error('Error updating widget settings:', error);
-      toast.error('Failed to update widget settings');
+      toast.error(`Failed to save settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
 
-  // Function to handle logo upload
-  const handleLogoUpload = async (file: File) => {
-    if (!clientId) {
-      toast.error('Client ID is required to upload a logo');
-      return;
-    }
-    
-    setIsUploading(true);
-    
+  // Generate embed codes
+  const getBubbleEmbedCode = (settings?: WidgetSettings) => {
+    return generateBubbleEmbedCode(clientId, settings || {});
+  };
+  
+  const getInlineEmbedCode = (settings?: WidgetSettings) => {
+    return generateInlineEmbedCode(clientId, settings || {});
+  };
+
+  // Copy embed code to clipboard
+  const copyEmbedCode = async (code: string) => {
     try {
-      // Create a storage path
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${clientId}-logo-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const storagePath = `clients/${clientId}/logos/${fileName}`;
+      await navigator.clipboard.writeText(code);
+      setEmbedCopied(true);
       
-      // Upload the file to storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client-assets')
-        .upload(storagePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-      
-      if (uploadError) {
-        throw uploadError;
+      // Log this activity
+      try {
+        await logActivity('embed_code_copied', 'Widget embed code was copied');
+      } catch (logErr) {
+        console.error('Error logging activity:', logErr);
       }
       
-      // Get public URL for the uploaded file
-      const { data: publicUrlData } = supabase.storage
-        .from('client-assets')
-        .getPublicUrl(storagePath);
+      toast.success('Embed code copied to clipboard');
       
-      const publicUrl = publicUrlData?.publicUrl;
+      setTimeout(() => {
+        setEmbedCopied(false);
+      }, 3000);
       
-      if (!publicUrl) {
-        throw new Error('Failed to get public URL for uploaded logo');
-      }
-      
-      // Update widget settings with new logo URL
-      await updateSettingsMutation.mutateAsync({
-        ...defaultSettings,
-        logo_url: publicUrl,
-        logo_storage_path: storagePath
-      });
-      
-      // Log the activity
-      await logClientActivity(
-        'logo_uploaded',
-        'Logo uploaded',
-        { 
-          logo_url: publicUrl,
-          logo_storage_path: storagePath
-        }
-      );
-      
-      toast.success('Logo uploaded successfully');
-      return { publicUrl, storagePath };
-    } catch (error) {
-      console.error('Error uploading logo:', error);
-      toast.error('Failed to upload logo');
-      throw error;
-    } finally {
-      setIsUploading(false);
+      return true;
+    } catch (err) {
+      console.error('Failed to copy embed code:', err);
+      toast.error('Failed to copy embed code. Please try again.');
+      return false;
     }
   };
 
+  // Upload logo
+  const uploadLogo = useMutation({
+    mutationFn: async (file: File) => {
+      // First, upload the file to storage
+      const fileName = `client-logos/${clientId}/${Date.now()}-${file.name}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+      
+      if (uploadError) throw uploadError;
+      
+      // Get the public URL
+      const { data: urlData } = await supabase.storage
+        .from('client-assets')
+        .getPublicUrl(fileName);
+      
+      const publicUrl = urlData.publicUrl;
+      
+      // Update the ai_agents record with the new logo URL
+      const { data, error } = await supabase
+        .from('ai_agents')
+        .update({ logo_url: publicUrl, logo_storage_path: fileName })
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config');
+      
+      if (error) throw error;
+      
+      // Log this activity
+      try {
+        await logActivity('logo_uploaded', 'Client logo was uploaded');
+      } catch (logErr) {
+        console.error('Error logging activity:', logErr);
+      }
+      
+      return publicUrl;
+    },
+    onSuccess: () => {
+      toast.success('Logo uploaded successfully');
+      queryClient.invalidateQueries({queryKey: ['widget-settings', clientId]});
+    },
+    onError: (error) => {
+      toast.error(`Failed to upload logo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
+
   return {
-    settings: settings || defaultSettings,
+    settings,
     isLoading,
     error,
-    updateSettingsMutation,
-    handleLogoUpload,
-    isUploading,
-    refetch
+    updateSettings: updateMutation.mutate,
+    isUpdating: updateMutation.isPending,
+    getBubbleEmbedCode,
+    getInlineEmbedCode,
+    copyEmbedCode,
+    embedCopied,
+    uploadLogo: uploadLogo.mutate,
+    isUploading: uploadLogo.isPending
   };
 };

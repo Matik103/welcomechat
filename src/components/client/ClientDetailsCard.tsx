@@ -1,63 +1,89 @@
 
-import { Client } from "@/types/client";
-import { ClientForm } from "@/components/client/ClientForm";
-import { ExtendedActivityType } from "@/types/activity";
-import { Json } from "@/integrations/supabase/types";
-import { useClientFormSubmission } from "@/hooks/useClientFormSubmission";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { useEffect } from "react";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, Edit2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useClientForm } from '@/hooks/useClientForm';
+import { useClientFormSubmission } from '@/hooks/useClientFormSubmission';
+import { ClientFormData } from '@/types/client-form';
 
 interface ClientDetailsCardProps {
-  client: Client | null;
-  clientId: string | undefined;
-  isClientView: boolean;
-  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
+  clientId: string;
+  isEditMode?: boolean;
+  onEdit?: () => void;
 }
 
-export const ClientDetailsCard = ({ 
-  client, 
-  clientId, 
-  isClientView,
-  logClientActivity 
-}: ClientDetailsCardProps) => {
-  const { handleSubmit, isLoading } = useClientFormSubmission(clientId, isClientView, logClientActivity);
+export const ClientDetailsCard = ({ clientId, isEditMode = false, onEdit }: ClientDetailsCardProps) => {
+  const {
+    formData,
+    isLoading: formLoading,
+    error: formError
+  } = useClientForm(clientId, !isEditMode);
+  
+  const {
+    handleSubmit: submitForm,
+    isSubmitting: isSubmitting,
+    error: submitError
+  } = useClientFormSubmission(true, undefined, clientId);
 
-  // Log client data for debugging
-  useEffect(() => {
-    console.log("ClientDetailsCard received client data:", client);
-  }, [client]);
+  const handleSubmit = async (data: ClientFormData) => {
+    await submitForm(data);
+  };
 
-  if (!client) {
+  if (formLoading) {
     return (
-      <Card className="border border-gray-100 shadow-sm">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg">
-            {isClientView ? 'Your Information' : 'Client Information'}
-          </CardTitle>
+          <CardTitle>Client Information</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (formError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Client Information</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="p-4 text-center">
-            <p className="text-muted-foreground">Loading client information...</p>
-          </div>
+          <p className="text-red-500">Error loading client: {formError}</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="border border-gray-100 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-lg">
-          {isClientView ? 'Your Information' : 'Client Information'}
-        </CardTitle>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Client Information</CardTitle>
+        {!isEditMode && onEdit && (
+          <Button variant="ghost" size="sm" onClick={onEdit} className="text-gray-500 hover:text-primary">
+            <Edit2 className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+        )}
       </CardHeader>
-      <CardContent>
-        <ClientForm
-          initialData={client}
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-          isClientView={isClientView}
-        />
+      <CardContent className="space-y-4">
+        <div>
+          <h3 className="font-medium text-gray-700">Client Name</h3>
+          <p className="text-gray-900">{formData?.client_name || 'N/A'}</p>
+        </div>
+        <div>
+          <h3 className="font-medium text-gray-700">Email</h3>
+          <p className="text-gray-900">{formData?.email || 'N/A'}</p>
+        </div>
+        <div>
+          <h3 className="font-medium text-gray-700">Agent Name</h3>
+          <p className="text-gray-900">{formData?.agent_name || 'N/A'}</p>
+        </div>
+        <div>
+          <h3 className="font-medium text-gray-700">Agent Description</h3>
+          <p className="text-gray-900">{formData?.agent_description || 'No description provided'}</p>
+        </div>
       </CardContent>
     </Card>
   );

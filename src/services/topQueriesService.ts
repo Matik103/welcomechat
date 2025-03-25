@@ -5,6 +5,9 @@ import { callRpcFunction } from '@/utils/rpcUtils';
 interface QueryFrequency {
   query_text: string;
   frequency: number;
+  id?: string;
+  last_asked?: string;
+  created_at?: string;
 }
 
 /**
@@ -28,6 +31,11 @@ export async function getTopQueries(
     return [];
   }
 }
+
+/**
+ * Alias for getTopQueries - to support existing code
+ */
+export const fetchTopQueries = getTopQueries;
 
 /**
  * Get the most common queries across all clients (admin view)

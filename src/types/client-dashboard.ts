@@ -1,24 +1,14 @@
 
-import { Json } from "@/integrations/supabase/types";
-
-export interface QueryItem {
-  id: string;
-  query_text: string;
-  frequency: number;
-  created_at?: string;
-  client_id?: string;
-  last_asked?: string; // Added missing property
-}
-
+// Define the structure for interaction statistics
 export interface InteractionStats {
-  // Snake case properties (from API)
+  // Snake_case versions (for API compatibility)
   total_interactions: number;
   active_days: number;
   average_response_time: number;
   top_queries: QueryItem[];
   success_rate: number;
   
-  // Camel case properties (for frontend)
+  // CamelCase versions (for frontend)
   totalInteractions: number;
   activeDays: number;
   averageResponseTime: number;
@@ -26,50 +16,30 @@ export interface InteractionStats {
   successRate: number;
 }
 
+// Define query item structure
+export interface QueryItem {
+  id: string;
+  query_text: string;
+  frequency: number;
+  last_asked?: string;
+  created_at?: string;
+  client_id?: string;
+}
+
+// Define chat interaction structure
 export interface ChatInteraction {
   id: string;
-  client_id?: string;
-  agent_name?: string;
   query_text: string;
-  response: string;
-  response_time_ms?: number;
+  response_text?: string;
   created_at: string;
-  topic?: string;
-  sentiment?: string;
-  is_error?: boolean;
-  error_type?: string;
-  error_message?: string;
+  client_id?: string;
 }
 
+// Define error log structure
 export interface ErrorLog {
   id: string;
-  client_id: string;
   error_type: string;
   message: string;
-  status: 'pending' | 'resolved' | 'ignored';
   created_at: string;
-  updated_at?: string;
-  handled_by?: string;
-  resolution_note?: string;
-  query_text?: string;
-  source?: string;
+  status?: string;
 }
-
-export interface ClientActivity {
-  id: string;
-  client_id: string;
-  client_name?: string;
-  activity_type: string;
-  description: string;
-  created_at: string;
-  metadata: Json;
-}
-
-export interface ClientActivityProps {
-  activities: ClientActivity[];
-  isLoading: boolean;
-  className?: string;
-}
-
-// Add ClientStatus type for DeleteClientDialog.tsx
-export type ClientStatus = 'active' | 'inactive' | 'deleted';

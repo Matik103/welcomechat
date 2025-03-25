@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { getTopQueries } from "./topQueriesService";
+import { fetchTopQueries, getTopQueries } from "./topQueriesService";
 import { getInteractionsByDay } from "./interactionCountService";
 import { getActiveDays, ActiveDay } from "./activeDaysService";
 import { getAverageResponseTime, getAverageResponseTimeByDay } from "./responseTimeService";
@@ -58,7 +58,9 @@ export const getInteractionStats = async (clientId: string, agentName?: string):
         ? result.top_queries.map(q => ({
             id: `query-${q.query_text?.substring(0, 10) || Math.random().toString(36).substring(2, 12)}`,
             query_text: q.query_text || "Unknown query",
-            frequency: q.frequency || 1
+            frequency: q.frequency || 1,
+            last_asked: q.last_asked || undefined,
+            created_at: q.created_at || new Date().toISOString()
           }))
         : [];
 
@@ -121,7 +123,14 @@ const getFallbackStats = async (clientId: string, agentName?: string): Promise<I
     }
     
     try {
-      topQueries = await getTopQueries(clientId, agentName || "AI Assistant");
+      const fetchedQueries = await getTopQueries(clientId, agentName || "AI Assistant");
+      topQueries = fetchedQueries.map(q => ({
+        id: `query-${q.query_text?.substring(0, 10) || Math.random().toString(36).substring(2, 12)}`,
+        query_text: q.query_text || "Unknown query",
+        frequency: q.frequency || 1,
+        last_asked: q.last_asked || undefined,
+        created_at: q.created_at || new Date().toISOString()
+      }));
     } catch (error) {
       console.error("Error getting top queries:", error);
     }

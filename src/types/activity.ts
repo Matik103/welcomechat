@@ -13,7 +13,11 @@ export type ActivityType =
   | 'document_link_added'
   | 'document_link_deleted'
   | 'signed_out'
-  | 'embed_code_copied';
+  | 'embed_code_copied'
+  | 'document_uploaded'
+  | 'widget_settings_updated'
+  | 'logo_uploaded'
+  | 'system_update';
 
 // For backward compatibility
 export type ExtendedActivityType = ActivityType;

@@ -23,7 +23,7 @@ export const useClientFormSubmission = (
     try {
       if (isEdit && clientId) {
         // Update existing client
-        const updatedClient = await updateClient(clientId, data);
+        const updatedClient = await updateClient(clientId, data as ClientFormData);
         
         toast.success('Client updated successfully');
         if (onSuccess) {
@@ -35,10 +35,10 @@ export const useClientFormSubmission = (
         return updatedClient;
       } else {
         // Create new client
-        const newClient = await createClient(data);
-        const clientId = newClient?.id;
+        const newClient = await createClient(data as ClientFormData);
+        const newClientId = typeof newClient === 'object' ? newClient.id : newClient;
         
-        if (clientId) {
+        if (newClientId) {
           const tempPassword = generateTempPassword();
           
           // Only create client user if there's an email
@@ -48,7 +48,7 @@ export const useClientFormSubmission = (
               const { error: tempPasswordError } = await supabase
                 .from('client_temp_passwords')
                 .insert({
-                  agent_id: clientId,
+                  agent_id: newClientId,
                   email: data.email,
                   temp_password: tempPassword,
                 });
@@ -61,7 +61,7 @@ export const useClientFormSubmission = (
               await supabase.functions.invoke('create-client-user', {
                 body: { 
                   email: data.email,
-                  client_id: clientId,
+                  client_id: newClientId,
                   client_name: data.client_name,
                   password: tempPassword
                 }
@@ -76,9 +76,9 @@ export const useClientFormSubmission = (
           toast.success('Client created successfully');
           
           if (onSuccess) {
-            onSuccess(clientId);
+            onSuccess(newClientId);
           } else {
-            navigate(`/admin/clients/view/${clientId}`);
+            navigate(`/admin/clients/view/${newClientId}`);
           }
         }
         
