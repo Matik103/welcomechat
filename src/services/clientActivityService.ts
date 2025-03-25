@@ -53,24 +53,23 @@ export const getRecentActivities = async (
   try {
     console.log(`Getting recent activities for client ${clientId}, limit: ${limit}`);
     
-    // Query recent activities
-    const { data, error } = await supabase
-      .from('client_activities')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    // Query recent activities using RPC function to get properly typed data
+    const { data, error } = await supabase.rpc('get_client_activities', {
+      client_id_param: clientId,
+      limit_param: limit
+    });
     
     if (error) throw error;
     
-    // Convert to the expected format
-    const activities = (data || []).map(activity => ({
+    // Convert the result to the expected format
+    const activities: ActivityWithClientInfo[] = (data || []).map((activity: any) => ({
       id: activity.id.toString(),
       activity_type: activity.activity_type as ActivityType,
-      description: activity.description || '',
+      description: activity.activity_description || '',
       created_at: activity.created_at,
       client_id: activity.client_id,
-      metadata: activity.metadata || {}
+      client_name: activity.client_name || '',
+      metadata: activity.activity_metadata || {}
     }));
     
     return activities;
@@ -91,37 +90,23 @@ export const getAllActivities = async (
   try {
     console.log(`Getting all activities, limit: ${limit}`);
     
-    // Query activities with client info
-    const { data, error } = await supabase
-      .from('client_activities')
-      .select(`
-        *,
-        ai_agents!client_activities_client_id_fkey (
-          client_name
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    // Query activities using RPC function to get properly typed data
+    const { data, error } = await supabase.rpc('get_all_activities', {
+      limit_param: limit
+    });
     
     if (error) throw error;
     
-    // Convert to the expected format with proper null checks
-    const activities = (data || []).map(activity => {
-      // Extract client name safely
-      const clientName = activity.ai_agents && 
-                       typeof activity.ai_agents === 'object' && 
-                       'client_name' in activity.ai_agents ? 
-                       activity.ai_agents.client_name || '' : 
-                       '';
-      
+    // Convert the result to the expected format
+    const activities: ActivityWithClientInfo[] = (data || []).map((activity: any) => {
       return {
         id: activity.id.toString(),
         activity_type: activity.activity_type as ActivityType,
-        description: activity.description || '',
+        description: activity.activity_description || '',
         created_at: activity.created_at,
         client_id: activity.client_id,
-        client_name: clientName,
-        metadata: activity.metadata || {}
+        client_name: activity.client_name || '',
+        metadata: activity.activity_metadata || {}
       };
     });
     

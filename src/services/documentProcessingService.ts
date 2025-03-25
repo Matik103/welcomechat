@@ -13,25 +13,8 @@ export class DocumentProcessingService {
    */
   static async getPendingDocuments(): Promise<any[]> {
     try {
-      // Check if client_documents table exists
-      const { data: tableExists } = await supabase
-        .from('client_documents')
-        .select('*')
-        .limit(1)
-        .catch(() => ({ data: null }));
-      
-      // If table doesn't exist, return empty array
-      if (!tableExists) {
-        console.warn("The client_documents table does not exist");
-        return [];
-      }
-      
-      // Query documents with status 'pending' or 'needs_processing'
-      const { data, error } = await supabase
-        .from('client_documents')
-        .select('*')
-        .in('status', ['pending', 'needs_processing'])
-        .order('created_at', { ascending: false });
+      // Use the right approach with RPC function to safely check and query the table
+      const { data, error } = await supabase.rpc('get_pending_documents');
       
       if (error) {
         console.error("Error fetching pending documents:", error);
@@ -54,16 +37,10 @@ export class DocumentProcessingService {
     try {
       console.log(`Processing document ${documentId}`);
       
-      // Get document details - handle the case where the table might not exist
-      const { data: document, error: fetchError } = await supabase
-        .from('client_documents')
-        .select('*')
-        .eq('id', documentId)
-        .single()
-        .catch(err => {
-          console.error("Error in document fetch:", err);
-          return { data: null, error: err };
-        });
+      // Get document details using RPC function for type safety
+      const { data: document, error: fetchError } = await supabase.rpc('get_document_by_id', {
+        document_id_param: documentId
+      });
       
       if (fetchError || !document) {
         console.error("Error fetching document:", fetchError || "Document not found");
@@ -76,15 +53,11 @@ export class DocumentProcessingService {
         return false;
       }
       
-      // Update document status to 'processing'
-      const { error: updateError } = await supabase
-        .from('client_documents')
-        .update({ status: 'processing' })
-        .eq('id', documentId)
-        .catch(err => {
-          console.error("Error in document update:", err);
-          return { error: err };
-        });
+      // Update document status to 'processing' using RPC
+      const { error: updateError } = await supabase.rpc('update_document_status', {
+        document_id_param: documentId,
+        status_param: 'processing'
+      });
       
       if (updateError) {
         console.error("Error updating document status:", updateError);
@@ -113,15 +86,12 @@ export class DocumentProcessingService {
       if (processError) {
         console.error("Error processing document:", processError);
         
-        // Update document status to 'failed'
-        await supabase
-          .from('client_documents')
-          .update({ 
-            status: 'failed',
-            error_message: processError.message
-          })
-          .eq('id', documentId)
-          .catch(err => console.error("Error updating document status after failure:", err));
+        // Update document status to 'failed' using RPC
+        await supabase.rpc('update_document_status', {
+          document_id_param: documentId,
+          status_param: 'failed',
+          error_message_param: processError.message
+        });
         
         // Log activity for document processing failed
         await createActivityDirect(
@@ -137,15 +107,12 @@ export class DocumentProcessingService {
         return false;
       }
       
-      // Update document status to 'processed'
-      await supabase
-        .from('client_documents')
-        .update({ 
-          status: 'processed',
-          processed_at: new Date().toISOString()
-        })
-        .eq('id', documentId)
-        .catch(err => console.error("Error updating document status after processing:", err));
+      // Update document status to 'processed' using RPC
+      await supabase.rpc('update_document_status', {
+        document_id_param: documentId,
+        status_param: 'processed',
+        processed_at_param: new Date().toISOString()
+      });
       
       // Log activity for document processing completed
       await createActivityDirect(
@@ -160,15 +127,12 @@ export class DocumentProcessingService {
       console.error(`Error processing document ${documentId}:`, error);
       
       try {
-        // Try to update document status to 'failed'
-        await supabase
-          .from('client_documents')
-          .update({ 
-            status: 'failed',
-            error_message: error instanceof Error ? error.message : "Unknown error"
-          })
-          .eq('id', documentId)
-          .catch(() => console.error("Failed to update document status after error"));
+        // Try to update document status to 'failed' using RPC
+        await supabase.rpc('update_document_status', {
+          document_id_param: documentId,
+          status_param: 'failed',
+          error_message_param: error instanceof Error ? error.message : "Unknown error"
+        });
       } catch (updateError) {
         console.error("Failed to update document status after error:", updateError);
       }
@@ -178,11 +142,26 @@ export class DocumentProcessingService {
   }
 
   /**
-   * Mock function for document retrieval when table doesn't exist
+   * Get a document by ID
+   * @param id The document ID
+   * @returns The document data
    */
   static async getDocumentById(id: string): Promise<any> {
-    console.log(`Attempting to get document ${id} (mock function)`);
-    return null;
+    try {
+      const { data, error } = await supabase.rpc('get_document_by_id', {
+        document_id_param: id
+      });
+      
+      if (error) {
+        console.error(`Error getting document with ID ${id}:`, error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error(`Error getting document with ID ${id}:`, error);
+      return null;
+    }
   }
 }
 
