@@ -261,10 +261,10 @@ export default function ClientList() {
       )}
 
       <DeleteClientDialog
-        open={isDeleteDialogOpen}
+        isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
-        clientId={selectedClient?.id || ''}
-        clientName={selectedClient?.client_name || ''}
+        client={selectedClient}
+        onClientsUpdated={handleClientsUpdated}
       />
     </div>
   );

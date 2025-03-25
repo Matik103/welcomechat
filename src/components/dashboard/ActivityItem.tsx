@@ -1,56 +1,104 @@
+import React from "react";
+import { format } from "date-fns";
+import { 
+  Users, Settings, Link, UserPlus, Edit, Trash2, 
+  RotateCcw, Upload, Eye, Code, Image, Bot, 
+  Key, LogOut, FileText, Mail, ShieldAlert, Calendar
+} from "lucide-react";
+import type { Json } from "@/integrations/supabase/types";
 
-import React from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import { ActivityWithClientInfo, ActivityType, ActivityLogEntry } from '@/types/activity';
-import { User, Clock } from 'lucide-react';
+interface ActivityItemProps {
+  item: {
+    activity_type: string;
+    description: string;
+    created_at: string;
+    metadata: Json;
+    client_name?: string;
+    client_id?: string;
+    client_email?: string;
+    agent_name?: string;
+    agent_description?: string;
+  };
+}
 
-const activityTypeToLabel = {
-  client_created: 'Client Created',
-  client_updated: 'Client Updated',
-  client_deleted: 'Client Deleted',
-  document_added: 'Document Added',
-  document_processed: 'Document Processed',
-  document_processing_failed: 'Document Processing Failed',
-  document_link_added: 'Document Link Added',
-  document_link_deleted: 'Document Link Deleted',
-  signed_out: 'Signed Out',
-  embed_code_copied: 'Embed Code Copied',
-  chat_interaction: 'Chat Interaction',
-  chat_message_received: 'Message Received',
-};
-
-// Add types to support both activity types
-type ActivityItemProps = {
-  activity: ActivityWithClientInfo | ActivityLogEntry;
-};
-
-export const ActivityItem: React.FC<ActivityItemProps> = ({ activity }) => {
-  const clientName = 'client_name' in activity ? activity.client_name : (activity.ai_agents?.client_name || 'Unknown Client');
+const getActivityIcon = (type: string, metadata: Json) => {
+  // Check if there's an original activity type in metadata
+  const originalType = metadata && 
+    typeof metadata === 'object' && 
+    metadata !== null && 
+    'original_activity_type' in metadata ? 
+    (metadata.original_activity_type as string) : 
+    undefined;
   
-  // Format the date for display
-  const formattedDate = activity.created_at 
-    ? formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })
-    : 'recently';
+  // Use the original type if it exists, otherwise use the provided type
+  const activityType = originalType || type;
+  
+  switch (activityType) {
+    case 'client_created':
+      return <UserPlus className="w-4 h-4 text-primary" />;
+    case 'client_updated':
+      return <Edit className="w-4 h-4 text-primary" />;
+    case 'client_deleted':
+      return <Trash2 className="w-4 h-4 text-destructive" />;
+    case 'client_recovered':
+      return <RotateCcw className="w-4 h-4 text-green-500" />;
+    case 'widget_settings_updated':
+      return <Settings className="w-4 h-4 text-primary" />;
+    case 'website_url_added':
+    case 'drive_link_added':
+    case 'document_link_added':
+      return <Link className="w-4 h-4 text-primary" />;
+    case 'website_url_removed':
+    case 'drive_link_removed':
+    case 'url_deleted':
+    case 'drive_link_deleted':
+    case 'document_link_deleted':
+      return <Trash2 className="w-4 h-4 text-primary" />;
+    case 'document_uploaded':
+      return <Upload className="w-4 h-4 text-primary" />;
+    case 'logo_uploaded':
+      return <Image className="w-4 h-4 text-primary" />;
+    case 'embed_code_copied':
+      return <Code className="w-4 h-4 text-primary" />;
+    case 'widget_previewed':
+      return <Eye className="w-4 h-4 text-primary" />;
+    case 'ai_agent_created':
+    case 'ai_agent_updated':
+      return <Bot className="w-4 h-4 text-primary" />;
+    case 'password_changed':
+    case 'password_reset':
+      return <Key className="w-4 h-4 text-primary" />;
+    case 'signed_out':
+      return <LogOut className="w-4 h-4 text-primary" />;
+    case 'document_viewed':
+      return <FileText className="w-4 h-4 text-primary" />;
+    case 'email_sent':
+      return <Mail className="w-4 h-4 text-primary" />;
+    case 'security_alert':
+      return <ShieldAlert className="w-4 h-4 text-destructive" />;
+    case 'scheduled_event':
+      return <Calendar className="w-4 h-4 text-primary" />;
+    case 'chat_interaction':
+      return <Bot className="w-4 h-4 text-primary" />;
+    default:
+      return <Users className="w-4 h-4 text-primary" />;
+  }
+};
 
-  // Get activity type label
-  const activityTypeLabel = activityTypeToLabel[activity.activity_type as keyof typeof activityTypeToLabel] || activity.activity_type;
-
+export const ActivityItem = ({ item }: ActivityItemProps) => {
+  // Use the properly resolved client name that comes from useRecentActivities hook
+  const clientName = item.client_name || "System";
+    
   return (
-    <div className="p-4 hover:bg-gray-50 transition-colors group">
-      <div className="flex justify-between items-start">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {activity.description || activityTypeLabel}
-          </p>
-          
-          <div className="flex items-center mt-1">
-            <User className="h-3.5 w-3.5 text-gray-400 mr-1" />
-            <p className="text-xs text-gray-500 truncate">{clientName}</p>
-            <span className="mx-1.5 text-gray-300">•</span>
-            <Clock className="h-3.5 w-3.5 text-gray-400 mr-1" />
-            <p className="text-xs text-gray-500">{formattedDate}</p>
-          </div>
-        </div>
+    <div className="flex items-center gap-4 py-3 animate-slide-in">
+      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+        {getActivityIcon(item.activity_type, item.metadata)}
+      </div>
+      <div className="flex-1">
+        <p className="text-sm text-gray-900">
+          {clientName} {item.description}
+        </p>
+        <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>
       </div>
     </div>
   );

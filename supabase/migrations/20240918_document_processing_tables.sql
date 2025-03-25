@@ -1,168 +1,136 @@
 
--- Add custom document processing functions
-CREATE OR REPLACE FUNCTION get_pending_documents()
-RETURNS SETOF JSONB AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    jsonb_build_object(
-      'id', doc.id,
-      'client_id', doc.client_id,
-      'document_name', COALESCE(doc.document_name, doc.name, 'Unnamed Document'),
-      'document_url', COALESCE(doc.document_url, doc.url),
-      'status', doc.status,
-      'created_at', doc.created_at
-    )
-  FROM document_processing_jobs doc
-  WHERE doc.status = 'pending'
-  ORDER BY doc.created_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Create document_processing table if it doesn't exist
+CREATE TABLE IF NOT EXISTS public.document_processing (
+  id BIGSERIAL PRIMARY KEY,
+  document_url TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  agent_name TEXT NOT NULL,
+  document_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  started_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  error TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}',
+  chunks JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL
+);
 
--- Function to get a document by ID
-CREATE OR REPLACE FUNCTION get_document_by_id(document_id_param TEXT)
-RETURNS JSONB AS $$
+-- Add indexes
+CREATE INDEX IF NOT EXISTS idx_document_processing_client_id ON document_processing(client_id);
+CREATE INDEX IF NOT EXISTS idx_document_processing_status ON document_processing(status);
+CREATE INDEX IF NOT EXISTS idx_document_processing_document_url ON document_processing(document_url);
+
+-- Add RLS policies
+ALTER TABLE document_processing ENABLE ROW LEVEL SECURITY;
+
+DO $add_doc_processing_policies$
+BEGIN
+  -- Enable read access for authenticated users
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'document_processing' 
+    AND schemaname = 'public'
+    AND policyname = 'Enable read access for authenticated users'
+  ) THEN
+    CREATE POLICY "Enable read access for authenticated users" 
+    ON document_processing
+    FOR SELECT
+    TO authenticated
+    USING (true);
+  END IF;
+
+  -- Enable insert for authenticated users
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'document_processing' 
+    AND schemaname = 'public'
+    AND policyname = 'Enable insert for authenticated users'
+  ) THEN
+    CREATE POLICY "Enable insert for authenticated users" 
+    ON document_processing
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+  END IF;
+
+  -- Enable update for authenticated users
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'document_processing' 
+    AND schemaname = 'public'
+    AND policyname = 'Enable update for authenticated users'
+  ) THEN
+    CREATE POLICY "Enable update for authenticated users" 
+    ON document_processing
+    FOR UPDATE
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+  END IF;
+END $add_doc_processing_policies$;
+
+-- Add updated_at trigger
+CREATE OR REPLACE FUNCTION update_document_processing_timestamp()
+RETURNS TRIGGER AS $update_timestamp$
+BEGIN
+  NEW.updated_at = TIMEZONE('utc', NOW());
+  RETURN NEW;
+END;
+$update_timestamp$ language 'plpgsql';
+
+DO $add_trigger$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger 
+    WHERE tgname = 'update_document_processing_updated_at'
+  ) THEN
+    CREATE TRIGGER update_document_processing_updated_at
+      BEFORE UPDATE ON document_processing
+      FOR EACH ROW
+      EXECUTE FUNCTION update_document_processing_timestamp();
+  END IF;
+END $add_trigger$;
+
+-- Add activity_type enum values for document processing if they don't exist
+DO $add_enums$
 DECLARE
-  doc_record JSONB;
+  enum_exists BOOLEAN;
 BEGIN
-  SELECT 
-    jsonb_build_object(
-      'id', doc.id,
-      'client_id', doc.client_id,
-      'document_name', COALESCE(doc.document_name, doc.name, 'Unnamed Document'),
-      'document_url', COALESCE(doc.document_url, doc.url),
-      'document_type', doc.document_type,
-      'status', doc.status,
-      'created_at', doc.created_at,
-      'error', doc.error,
-      'name', doc.document_name,
-      'url', doc.document_url
-    )
-  INTO doc_record
-  FROM document_processing_jobs doc
-  WHERE doc.id::TEXT = document_id_param;
+  -- Check if the enum type exists
+  SELECT EXISTS(
+    SELECT 1 FROM pg_type 
+    WHERE typname = 'activity_type_enum'
+  ) INTO enum_exists;
   
-  RETURN doc_record;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Function to update document status
-CREATE OR REPLACE FUNCTION update_document_status(
-  document_id_param TEXT,
-  status_param TEXT,
-  error_message_param TEXT DEFAULT NULL,
-  processed_at_param TIMESTAMP WITH TIME ZONE DEFAULT NULL
-)
-RETURNS BOOLEAN AS $$
-BEGIN
-  UPDATE document_processing_jobs
-  SET 
-    status = status_param,
-    error = error_message_param,
-    updated_at = CURRENT_TIMESTAMP
-  WHERE id::TEXT = document_id_param;
-  
-  RETURN FOUND;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Function to log client activity
-CREATE OR REPLACE FUNCTION log_client_activity(
-  client_id_param UUID,
-  activity_type_param TEXT,
-  description_param TEXT,
-  metadata_param JSONB DEFAULT '{}'::jsonb
-)
-RETURNS JSONB AS $$
-DECLARE
-  inserted_record JSONB;
-BEGIN
-  -- Insert the activity record
-  INSERT INTO client_activities (
-    client_id,
-    activity_type,
-    description,
-    metadata,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    client_id_param,
-    activity_type_param::activity_type_enum,
-    description_param,
-    metadata_param,
-    NOW(),
-    NOW()
-  )
-  RETURNING jsonb_build_object(
-    'id', id,
-    'client_id', client_id,
-    'activity_type', activity_type,
-    'description', description,
-    'metadata', metadata,
-    'created_at', created_at
-  ) INTO inserted_record;
-  
-  RETURN inserted_record;
-EXCEPTION
-  WHEN others THEN
-    RAISE NOTICE 'Error in log_client_activity: %', SQLERRM;
-    RETURN jsonb_build_object(
-      'error', SQLERRM,
-      'success', false
-    );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Function to get client activities
-CREATE OR REPLACE FUNCTION get_client_activities(
-  client_id_param UUID,
-  limit_param INTEGER DEFAULT 10
-)
-RETURNS SETOF JSONB AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    jsonb_build_object(
-      'id', act.id,
-      'client_id', act.client_id,
-      'activity_type', act.activity_type,
-      'activity_description', act.description,
-      'created_at', act.created_at,
-      'client_name', COALESCE(agents.client_name, 'Unknown Client'),
-      'activity_metadata', act.metadata
-    )
-  FROM client_activities act
-  LEFT JOIN ai_agents agents ON act.client_id = agents.client_id
-  WHERE 
-    act.client_id = client_id_param
-    AND agents.interaction_type = 'config'
-  ORDER BY act.created_at DESC
-  LIMIT limit_param;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Function to get all activities
-CREATE OR REPLACE FUNCTION get_all_activities(
-  limit_param INTEGER DEFAULT 50
-)
-RETURNS SETOF JSONB AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    jsonb_build_object(
-      'id', act.id,
-      'client_id', act.client_id,
-      'activity_type', act.activity_type,
-      'activity_description', act.description,
-      'created_at', act.created_at,
-      'client_name', COALESCE(agents.client_name, 'Unknown Client'),
-      'activity_metadata', act.metadata
-    )
-  FROM client_activities act
-  LEFT JOIN ai_agents agents ON act.client_id = agents.client_id
-  WHERE agents.interaction_type = 'config'
-  ORDER BY act.created_at DESC
-  LIMIT limit_param;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+  IF enum_exists THEN
+    -- Function to safely add values to enum
+    CREATE OR REPLACE FUNCTION add_value_to_enum(enum_type text, new_value text)
+    RETURNS void AS $add_value_func$
+    DECLARE
+      exists_check integer;
+    BEGIN
+      -- Check if the value already exists in the enum
+      SELECT 1 INTO exists_check
+      FROM pg_enum
+      WHERE enumtypid = enum_type::regtype::oid
+      AND enumlabel = new_value;
+      
+      -- If it doesn't exist, add it
+      IF exists_check IS NULL THEN
+        EXECUTE format('ALTER TYPE %I ADD VALUE %L', enum_type, new_value);
+      END IF;
+    END;
+    $add_value_func$ LANGUAGE plpgsql;
+    
+    -- Add the new enum values
+    PERFORM add_value_to_enum('activity_type_enum', 'document_processing_started');
+    PERFORM add_value_to_enum('activity_type_enum', 'document_processing_completed');
+    PERFORM add_value_to_enum('activity_type_enum', 'document_processing_failed');
+    PERFORM add_value_to_enum('activity_type_enum', 'document_stored');
+    PERFORM add_value_to_enum('activity_type_enum', 'document_extracted');
+    
+    -- Drop the helper function
+    DROP FUNCTION add_value_to_enum(text, text);
+  END IF;
+END $add_enums$;

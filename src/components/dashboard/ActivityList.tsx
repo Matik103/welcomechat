@@ -1,52 +1,47 @@
 
-import React from 'react';
-import { ActivityWithClientInfo, ActivityLogEntry } from "@/types/activity";
+import React from "react";
 import { ActivityItem } from "./ActivityItem";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import type { Json } from "@/integrations/supabase/types";
 
-interface ActivityListProps {
-  activities?: (ActivityWithClientInfo | ActivityLogEntry)[] | null;
-  isLoading?: boolean;
-  title?: string;
+interface Activity {
+  id?: string;
+  activity_type: string;
+  description: string;
+  created_at: string;
+  metadata: Json;
+  client_name?: string;
+  client_id?: string;
+  client_email?: string;
+  agent_name?: string;
+  agent_description?: string;
 }
 
-export const ActivityList: React.FC<ActivityListProps> = ({ 
-  activities = [], 
-  isLoading = false,
-  title = "Recent Activities"
-}) => {
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader className="bg-gray-50 border-b border-gray-100">
-        <CardTitle className="text-gray-800 flex items-center space-x-2">
-          <span>{title}</span>
-          {isLoading && (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-2" />
-          )}
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="p-0">
-        {activities && activities.length > 0 ? (
-          <div className="divide-y divide-gray-100">
-            {activities.map((activity) => (
-              <ActivityItem key={activity.id} activity={activity as ActivityWithClientInfo} />
-            ))}
-          </div>
+interface ActivityListProps {
+  activities?: Activity[];
+  isLoading?: boolean;
+}
+
+export const ActivityList = ({ activities, isLoading = false }: ActivityListProps) => (
+  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+    <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+    {isLoading ? (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    ) : (
+      <div className="divide-y divide-gray-100">
+        {!activities || activities.length === 0 ? (
+          <p className="text-gray-500 py-4">No recent activities</p>
         ) : (
-          <div className="py-12 text-center text-gray-500">
-            {isLoading ? (
-              <div className="flex justify-center items-center space-x-2">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span>Loading activities...</span>
-              </div>
-            ) : (
-              <p>No recent activities found</p>
-            )}
-          </div>
+          activities.map((activity, index) => (
+            <ActivityItem 
+              key={activity.id || `${activity.created_at}-${index}`} 
+              item={activity} 
+            />
+          ))
         )}
-      </CardContent>
-    </Card>
-  );
-};
+      </div>
+    )}
+  </div>
+);

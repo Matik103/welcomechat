@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client-form";
-import { generateAndSaveClientPassword, createClientAccount, logClientCreationActivity } from "@/utils/clientAccountUtils";
+import { setupClientPassword, createClientUserAccount, logClientCreationActivity } from "@/utils/clientAccountUtils";
 import { v4 as uuidv4 } from 'uuid';
 
 export const useNewClientMutation = () => {
@@ -14,7 +14,7 @@ export const useNewClientMutation = () => {
         console.log("Creating new agent with data:", data);
         
         // Generate a separate client_id first
-        const uniqueClientId = data.client_id || uuidv4();
+        const uniqueClientId = uuidv4();
         console.log("Generated unique client_id:", uniqueClientId);
         
         // Step 1: Create the agent record in the database with the generated client_id
@@ -37,17 +37,30 @@ export const useNewClientMutation = () => {
         }
         
         // Step 2: Generate and save a temporary password using client_id as the reference
-        const tempPassword = await generateAndSaveClientPassword(uniqueClientId, data.email);
+        const tempPassword = await setupClientPassword(uniqueClientId, data.email);
         console.log("Temporary password generated and saved:", tempPassword);
         
-        // Step 3: Log the client creation activity
+        // Step 3: Create the Supabase Auth user account with client_id
+        const authResult = await createClientUserAccount(
+          data.email,
+          uniqueClientId, // Use the generated client_id
+          data.client_name,
+          data.widget_settings?.agent_name || "AI Assistant",
+          data.widget_settings?.agent_description || "",
+          tempPassword
+        );
+        
+        console.log("Auth user account created:", authResult);
+        
+        // Step 4: Log the client creation activity
         await logClientCreationActivity(
           uniqueClientId, 
           data.client_name, 
-          data.email
+          data.email, 
+          data.widget_settings?.agent_name || "AI Assistant"
         );
         
-        // Step 4: Send welcome email with login credentials
+        // Step 5: Send welcome email with login credentials
         let emailSent = false;
         let emailError = null;
         
@@ -75,7 +88,7 @@ export const useNewClientMutation = () => {
             emailSent = true;
             console.log("Welcome email sent successfully");
           }
-        } catch (emailErr: any) {
+        } catch (emailErr) {
           console.error("Exception sending email:", emailErr);
           emailError = emailErr.message || "Exception occurred sending email";
         }
@@ -89,6 +102,7 @@ export const useNewClientMutation = () => {
             ...newAgent,
             client_id: uniqueClientId // Ensure client_id is in the response
           },
+          authResult,
           emailSent,
           emailError
         };

@@ -1,120 +1,153 @@
 
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ClientForm } from '@/components/client/ClientForm';
-import { useClientForm } from '@/hooks/useClientForm';
-import { useClientFormSubmission } from '@/hooks/useClientFormSubmission';
-import { Loader2, ArrowLeft } from 'lucide-react';
-import { logActivity } from '@/services/clientActivityService';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from "@/contexts/AuthContext";
+import { useClientData } from "@/hooks/useClientData";
+import { ClientResourceSections } from "@/components/client/ClientResourceSections";
+import { useClientActivity } from "@/hooks/useClientActivity";
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { PageHeading } from '@/components/dashboard/PageHeading';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientForm } from "@/components/client/ClientForm";
 
-export default function EditClientInfoPage() {
-  const { clientId } = useParams<{ clientId: string }>();
+const EditClientInfo = () => {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { id } = useParams();
+  const { user, userRole } = useAuth();
   
-  // Get client data
-  const clientFormHook = useClientForm(clientId || '');
-  const formData = clientFormHook.form.getValues();
-  const isLoadingForm = false; // This needs to be tracked in useClientForm
-  const formError = ''; // This needs to be tracked in useClientForm
+  // Determine if we're in client view or admin view
+  const isClientView = userRole === 'client';
   
-  // Form submission handler
-  const {
-    handleSubmit: submitClientForm,
-    isSubmitting: isSubmittingForm,
-    error: submitError
-  } = useClientFormSubmission(true, (savedClientId) => {
-    toast.success('Client updated successfully');
-    navigate(`/admin/clients/view/${savedClientId}`);
-  }, clientId);
+  // For client view, we'll use the client ID from user metadata
+  // For admin view, we'll use the ID from URL params
+  const clientId = isClientView 
+    ? user?.user_metadata?.client_id 
+    : id;
   
-  // Combined loading state
-  const isLoading = isLoadingForm || isSubmittingForm || isSubmitting;
+  const { 
+    client, 
+    isLoadingClient, 
+    error, 
+    refetchClient, 
+    clientMutation 
+  } = useClientData(clientId);
   
-  // Handle form submission
-  const handleSubmit = async (data: any) => {
-    if (!clientId) return;
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Log activity
-      await logActivity(clientId, 'client_updated', `Client ${data.client_name} was updated`);
-      
-      // Submit form
-      await submitClientForm(data);
-    } catch (error) {
-      console.error('Error updating client:', error);
-      toast.error('Failed to update client');
-    } finally {
-      setIsSubmitting(false);
+  const { logClientActivity } = useClientActivity(clientId);
+
+  // Show error toast if client data fails to load
+  useEffect(() => {
+    if (error) {
+      toast.error("Failed to load client information");
+    }
+  }, [error]);
+
+  const handleGoBack = () => {
+    if (isClientView) {
+      navigate('/client/dashboard');
+    } else {
+      navigate('/admin/clients');
     }
   };
-  
-  // Handle cancel
-  const handleCancel = () => {
-    navigate(`/admin/clients/view/${clientId}`);
+
+  const handleSubmit = async (data: any) => {
+    try {
+      await clientMutation.mutateAsync(data);
+      
+      await logClientActivity(
+        'client_updated',
+        `Updated client information`,
+        { fields_updated: Object.keys(data) }
+      );
+      
+      toast.success("Client information updated successfully");
+      refetchClient();
+    } catch (error) {
+      console.error("Error updating client:", error);
+      toast.error("Failed to update client information");
+    }
   };
-  
-  const goBack = () => {
-    navigate(-1);
-  };
-  
-  // Error state
-  if (formError) {
+
+  if (isLoadingClient) {
     return (
-      <div className="container py-8">
-        <Button variant="ghost" onClick={goBack} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        
-        <Card className="max-w-4xl mx-auto">
-          <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <p className="text-red-500 mb-4">Error loading client: {formError}</p>
-              <Button onClick={goBack}>Go Back</Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
   }
-  
-  return (
-    <div className="container py-8">
-      <Button variant="ghost" onClick={goBack} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
-      </Button>
-      
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Edit Client Information</h1>
+
+  if (!client && !isLoadingClient) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-3xl mx-auto text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Client Information Not Found</h1>
+          <p className="text-gray-600 mb-6">
+            {isClientView 
+              ? "Your account may not be properly configured. Please contact support."
+              : "We couldn't find the client information. Please check the client ID and try again."}
+          </p>
+          <Button onClick={handleGoBack} variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Go Back
+          </Button>
+        </div>
       </div>
-      
-      <Card className="max-w-4xl mx-auto">
-        <CardHeader>
-          <CardTitle>Client Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <ClientForm 
-              form={clientFormHook.form}
-              onSubmit={handleSubmit}
-              onCancel={handleCancel}
-              isSubmitting={isSubmitting}
-              error={submitError || ''}
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleGoBack}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <PageHeading>
+              {isClientView ? 'Edit Information' : `Edit Client: ${client?.client_name}`}
+            </PageHeading>
+            <p className="text-muted-foreground">
+              {isClientView 
+                ? 'Update your information and settings'
+                : 'Update client information and settings'}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <Card className="border border-gray-100 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {isClientView ? 'Your Information' : 'Client Information'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ClientForm
+                initialData={client}
+                onSubmit={handleSubmit}
+                isLoading={clientMutation.isPending}
+                isClientView={isClientView}
+              />
+            </CardContent>
+          </Card>
+
+          {clientId && (
+            <ClientResourceSections 
+              clientId={clientId}
+              agentName={client?.agent_name || client?.name || ''}
+              className="mt-6"
+              isClientView={isClientView}
+              logClientActivity={logClientActivity}
             />
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default EditClientInfo;

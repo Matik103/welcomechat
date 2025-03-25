@@ -1,88 +1,81 @@
 
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { callRpcFunction } from '@/utils/rpcUtils';
-import { logActivity } from '@/services/clientActivityService';
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 
-interface ClientStats {
-  totalClients: number;
-  activeClients: number;
-  recentClients: any[];
-  data: any[];
-}
+type ActivityMetadata = {
+  success?: boolean;
+  [key: string]: any;
+};
+
+type ClientActivity = {
+  id: string;
+  client_id: string;
+  activity_type: string;
+  description: string;
+  created_at: string;
+  metadata: ActivityMetadata;
+};
 
 export const useClientStats = () => {
-  const { 
-    data = { totalClients: 0, activeClients: 0, recentClients: [], data: [] },
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
-    queryKey: ['client-stats'],
-    queryFn: async (): Promise<ClientStats> => {
-      try {
-        // Log activity for analytics
-        try {
-          await logActivity('system_update', 'Admin dashboard client stats accessed');
-        } catch (err) {
-          console.error('Error logging activity:', err);
-          // Continue execution even if logging fails
-        }
+  return useQuery({
+    queryKey: ["client-stats"],
+    queryFn: async () => {
+      const now = new Date();
+      
+      // Get total clients from ai_agents table with interaction_type = config
+      const { count: totalClientCount, error: countError } = await supabase
+        .from("ai_agents")
+        .select("*", { count: "exact", head: true })
+        .eq("interaction_type", "config")
+        .is("deletion_scheduled_at", null);
+      
+      if (countError) throw countError;
 
-        // Get count of all clients
-        const { count: totalClients, error: countError } = await supabase
-          .from('ai_agents')
-          .select('*', { count: 'exact', head: true })
-          .eq('interaction_type', 'config');
+      // Get active clients (always last 48 hours)
+      const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
+      const { data: activeClients } = await supabase
+        .from("client_activities")
+        .select("DISTINCT client_id")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", fortyEightHoursAgo.toISOString());
 
-        if (countError) throw countError;
+      const currentActiveCount = activeClients?.length ?? 0;
 
-        // Get count of active clients (had interactions in past 30 days)
-        const activeClientsQuery = `
-          SELECT COUNT(DISTINCT client_id) as count
-          FROM client_activities
-          WHERE created_at > NOW() - INTERVAL '30 days'
-          AND activity_type = 'chat_interaction'
-        `;
+      // Previous 48-hour window for active clients change calculation
+      const previousFortyEightHours = new Date(fortyEightHoursAgo.getTime() - (48 * 60 * 60 * 1000));
+      const { data: previousActive } = await supabase
+        .from("client_activities")
+        .select("DISTINCT client_id")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", previousFortyEightHours.toISOString())
+        .lt("created_at", fortyEightHoursAgo.toISOString());
 
-        const { data: activeData, error: activeError } = await callRpcFunction('exec_sql', { 
-          sql_query: activeClientsQuery 
-        });
+      const previousActiveCount = previousActive?.length ?? 0;
+      const activeChangePercentage = previousActiveCount === 0 
+        ? currentActiveCount > 0 ? 100 : 0
+        : ((currentActiveCount - previousActiveCount) / previousActiveCount * 100);
 
-        if (activeError) throw activeError;
+      // Calculate response rate (last 24 hours)
+      const { data: interactions } = await supabase
+        .from("client_activities")
+        .select("*")
+        .eq('activity_type', 'chat_interaction')
+        .gte("created_at", fortyEightHoursAgo.toISOString()) as { data: ClientActivity[] | null };
 
-        const activeClients = activeData && activeData[0] ? activeData[0].count : 0;
+      const totalInteractions = interactions?.length ?? 0;
+      const successfulInteractions = interactions?.filter(i => i.metadata?.success)?.length ?? 0;
+      const responseRate = totalInteractions === 0 ? 0 : Math.round((successfulInteractions / totalInteractions) * 100);
 
-        // Get most recent clients
-        const { data: recentClients, error: recentError } = await supabase
-          .from('ai_agents')
-          .select('id, client_name, created_at')
-          .eq('interaction_type', 'config')
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        if (recentError) throw recentError;
-
-        // Return the combined data
-        return {
-          totalClients: totalClients || 0,
-          activeClients: activeClients || 0,
-          recentClients: recentClients || [],
-          data: [] // Placeholder for future data
-        };
-      } catch (error) {
-        console.error('Error fetching client stats:', error);
-        throw error;
-      }
+      return {
+        totalClients: totalClientCount ?? 0,
+        activeClients: currentActiveCount,
+        activeClientsChange: activeChangePercentage.toFixed(1),
+        responseRate,
+      };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    refetchInterval: 1 * 60 * 1000, // Refetch every minute
+    refetchOnWindowFocus: true,
+    staleTime: 1 * 60 * 1000, // Data stays fresh for 1 minute
   });
-
-  return {
-    ...data,
-    isLoading,
-    error,
-    refetch
-  };
 };

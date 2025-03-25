@@ -1,53 +1,31 @@
 
-import { execSql } from "@/utils/rpcUtils";
+import { callRpcFunction } from '@/utils/rpcUtils';
 
-export interface DailyInteractions {
-  day: string;
-  count: number;
-}
-
-export const getInteractionsByDay = async (clientId: string, days: number = 30): Promise<DailyInteractions[]> => {
+/**
+ * Get the number of interactions for a client
+ * @param client_id The client ID
+ * @param agent_name Optional agent name parameter
+ * @returns The number of interactions
+ */
+export const getInteractionCount = async (client_id: string, agent_name?: string): Promise<number> => {
   try {
-    // Use execSql without type arguments
-    const result = await execSql(
-      `
-      SELECT 
-        date_trunc('day', created_at) AS day,
-        COUNT(*) AS count
-      FROM client_activities
-      WHERE 
-        activity_type = 'chat_interaction'
-        AND created_at >= CURRENT_DATE - INTERVAL '${days} days'
-        AND client_id = $1
-      GROUP BY date_trunc('day', created_at)
-      ORDER BY day
-      `,
-      [clientId]
-    );
+    // Try to get direct count from ai_agents table using SQL
+    const query = `
+      SELECT COUNT(*) as count
+      FROM ai_agents
+      WHERE client_id = '${client_id}'
+      ${agent_name ? `AND name = '${agent_name}'` : ''}
+      AND interaction_type = 'chat_interaction'
+    `;
     
-    if (!result || !Array.isArray(result)) {
-      console.error("Unexpected result from execSql:", result);
-      return [];
+    const result = await callRpcFunction<any[]>('exec_sql', { sql_query: query });
+    
+    if (result && Array.isArray(result) && result.length > 0) {
+      const count = parseInt(result[0].count, 10);
+      return isNaN(count) ? 0 : count;
     }
-
-    // Map the data to the DailyInteractions interface
-    const dailyInteractions: DailyInteractions[] = result.map((row: any) => ({
-      day: row.day,
-      count: Number(row.count), // Ensure count is a number
-    }));
-
-    return dailyInteractions;
-  } catch (error) {
-    console.error("Error fetching interactions by day:", error);
-    return [];
-  }
-};
-
-// Alias function to support old references
-export const getInteractionCount = async (clientId: string): Promise<number> => {
-  try {
-    const interactions = await getInteractionsByDay(clientId);
-    return interactions.reduce((sum, item) => sum + item.count, 0);
+    
+    return 0;
   } catch (error) {
     console.error("Error getting interaction count:", error);
     return 0;

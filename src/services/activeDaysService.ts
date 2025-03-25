@@ -1,40 +1,33 @@
-import { execSql } from "@/utils/rpcUtils";
 
-export interface ActiveDay {
-  day: string;
-  active_clients: number;
-}
+import { callRpcFunction } from '@/utils/rpcUtils';
 
-export const getActiveDays = async (clientId: string, days: number = 30): Promise<ActiveDay[]> => {
+/**
+ * Get the number of active days for a client
+ * @param client_id The client ID
+ * @param agent_name Optional agent name parameter
+ * @returns The number of active days
+ */
+export const getActiveDays = async (client_id: string, agent_name?: string): Promise<number> => {
   try {
-    const result = await execSql(
-      `
-      SELECT 
-        date_trunc('day', created_at) AS day,
-        COUNT(DISTINCT client_id) AS active_clients
-      FROM client_activities
-      WHERE 
-        created_at >= CURRENT_DATE - INTERVAL '${days} days'
-        AND client_id = $1
-      GROUP BY date_trunc('day', created_at)
-      ORDER BY day
-      `,
-      [clientId]
-    );
+    // Get active days using direct SQL query
+    const query = `
+      SELECT COUNT(DISTINCT DATE(created_at)) as count
+      FROM ai_agents
+      WHERE client_id = '${client_id}'
+      ${agent_name ? `AND name = '${agent_name}'` : ''}
+      AND interaction_type = 'chat_interaction'
+    `;
     
-    if (!result || !Array.isArray(result)) {
-      console.error("Unexpected result from execSql:", result);
-      return [];
+    const result = await callRpcFunction<any[]>('exec_sql', { sql_query: query });
+    
+    if (result && Array.isArray(result) && result.length > 0) {
+      const count = parseInt(result[0].count, 10);
+      return isNaN(count) ? 0 : count;
     }
-
-    const activeDays: ActiveDay[] = result.map((row: any) => ({
-      day: row.day,
-      active_clients: row.active_clients,
-    }));
-
-    return activeDays;
+    
+    return 0;
   } catch (error) {
-    console.error("Error fetching active days:", error);
-    return [];
+    console.error("Error getting active days:", error);
+    return 0;
   }
 };

@@ -1,11 +1,10 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { ClientFormData } from "@/types/client";
-import { ActivityType } from "@/types/activity";
-import { JsonObject } from "@/types/supabase-extensions";
+import { ExtendedActivityType } from "@/types/activity";
+import { JsonObject, toJson } from "@/types/supabase-extensions";
 import { WidgetSettings } from "@/types/widget-settings";
 import { execSql } from "@/utils/rpcUtils";
-import { callRpcFunction } from "@/utils/rpcUtils";
 
 /**
  * Creates a new client in the database.
@@ -50,13 +49,13 @@ export const createClient = async (data: ClientFormData): Promise<string> => {
       throw new Error("Failed to create new client");
     }
 
-    // Add client activity - use createClientActivity via RPC instead of direct insert
+    // Add client activity
     try {
-      await callRpcFunction('log_client_activity', {
-        client_id_param: newClient.id,
-        activity_type_param: 'client_created',
-        description_param: "New client created with AI agent: " + sanitizedAgentName,
-        metadata_param: {
+      await supabase.from("client_activities").insert({
+        client_id: newClient.id,
+        activity_type: "client_created",
+        description: "New client created with AI agent: " + sanitizedAgentName,
+        metadata: {
           client_name: data.client_name,
           email: data.email,
           agent_name: sanitizedAgentName

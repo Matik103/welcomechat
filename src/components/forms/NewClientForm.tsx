@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,10 +12,10 @@ import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  generateTempPassword, 
+  generateClientTempPassword, 
   saveClientTempPassword
 } from '@/utils/passwordUtils';
-import { createClientAccount, logClientCreationActivity } from '@/utils/clientAccountUtils';
+import { createClientUserAccount, logClientCreationActivity } from '@/utils/clientAccountUtils';
 import { setupOpenAIAssistant } from '@/utils/clientOpenAIUtils';
 
 // Form validation schema
@@ -82,16 +83,27 @@ export function NewClientForm() {
       }
       
       // Generate temporary password for the new client
-      const tempPassword = generateTempPassword();
+      const tempPassword = generateClientTempPassword();
       
       // Save the temporary password
       await saveClientTempPassword(clientData.id, data.email, tempPassword);
+      
+      // Create the user account in Supabase Auth
+      await createClientUserAccount(
+        data.email,
+        data.client_id,
+        data.client_name,
+        data.agent_name,
+        data.agent_description || "",
+        tempPassword
+      );
       
       // Log activity for client creation
       await logClientCreationActivity(
         data.client_id,
         data.client_name,
-        data.email
+        data.email,
+        data.agent_name
       );
       
       // Setup OpenAI assistant for this client

@@ -1,23 +1,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { fetchTopQueries, getTopQueries } from "./topQueriesService";
-import { getInteractionsByDay } from "./interactionCountService";
-import { getActiveDays, ActiveDay } from "./activeDaysService";
-import { getAverageResponseTime, getAverageResponseTimeByDay } from "./responseTimeService";
-import { InteractionStats, QueryItem } from "@/types/client-dashboard";
-import { callRpcFunction, execSql } from "@/utils/rpcUtils";
-
-// Define missing interfaces
-interface TopClient {
-  client_id: string;
-  client_name: string;
-  interaction_count: number;
-}
-
-interface InteractionTrend {
-  day: string;
-  count: number;
-}
+import { fetchTopQueries } from "./topQueriesService";
+import { getInteractionCount } from "./interactionCountService";
+import { getActiveDays } from "./activeDaysService";
+import { getAverageResponseTime } from "./responseTimeService";
+import { InteractionStats } from "@/types/client-dashboard";
+import { QueryItem } from "@/types/client-dashboard";
+import { callRpcFunction } from "@/utils/rpcUtils";
 
 /**
  * Gets all interaction stats for a client
@@ -30,7 +19,7 @@ export const getInteractionStats = async (clientId: string, agentName?: string):
     // Get agent name if not provided
     if (!agentName) {
       try {
-        const { data: agentData } = await callRpcFunction('exec_sql', { 
+        const { data: agentData } = await callRpcFunction<any>('exec_sql', { 
           sql_query: `SELECT name FROM ai_agents WHERE client_id = '${clientId}' LIMIT 1` 
         });
         
@@ -46,7 +35,13 @@ export const getInteractionStats = async (clientId: string, agentName?: string):
     }
 
     // Use RPC function to get all stats at once - use get_agent_dashboard_stats (not get_client_dashboard_stats)
-    const result = await callRpcFunction('get_agent_dashboard_stats', { 
+    const result = await callRpcFunction<{
+      total_interactions: number;
+      active_days: number;
+      average_response_time: number;
+      top_queries?: Array<{query_text: string, frequency: number}>;
+      success_rate?: number;
+    }>('get_agent_dashboard_stats', { 
       client_id_param: clientId,
       agent_name_param: agentName 
     });
@@ -58,9 +53,7 @@ export const getInteractionStats = async (clientId: string, agentName?: string):
         ? result.top_queries.map(q => ({
             id: `query-${q.query_text?.substring(0, 10) || Math.random().toString(36).substring(2, 12)}`,
             query_text: q.query_text || "Unknown query",
-            frequency: q.frequency || 1,
-            last_asked: q.last_asked || undefined,
-            created_at: q.created_at || new Date().toISOString()
+            frequency: q.frequency || 1
           }))
         : [];
 
@@ -98,20 +91,18 @@ const getFallbackStats = async (clientId: string, agentName?: string): Promise<I
   try {
     // Make individual calls to get the stats
     let totalInteractions = 0;
-    let activeDays: number = 0;
+    let activeDays = 0;
     let averageResponseTime = 0;
     let topQueries: QueryItem[] = [];
     
     try {
-      const interactionsData = await getInteractionsByDay(clientId);
-      totalInteractions = interactionsData.reduce((sum, item) => sum + item.count, 0);
+      totalInteractions = await getInteractionCount(clientId, agentName);
     } catch (error) {
       console.error("Error getting total interactions:", error);
     }
     
     try {
-      const activeDaysData = await getActiveDays(clientId);
-      activeDays = activeDaysData.length;
+      activeDays = await getActiveDays(clientId, agentName);
     } catch (error) {
       console.error("Error getting active days:", error);
     }
@@ -123,14 +114,7 @@ const getFallbackStats = async (clientId: string, agentName?: string): Promise<I
     }
     
     try {
-      const fetchedQueries = await getTopQueries(clientId, agentName || "AI Assistant");
-      topQueries = fetchedQueries.map(q => ({
-        id: `query-${q.query_text?.substring(0, 10) || Math.random().toString(36).substring(2, 12)}`,
-        query_text: q.query_text || "Unknown query",
-        frequency: q.frequency || 1,
-        last_asked: q.last_asked || undefined,
-        created_at: q.created_at || new Date().toISOString()
-      }));
+      topQueries = await fetchTopQueries(clientId, agentName);
     } catch (error) {
       console.error("Error getting top queries:", error);
     }
@@ -201,67 +185,6 @@ export const getRecentQueries = async (clientId: string, limit = 5): Promise<Que
     }));
   } catch (error) {
     console.error("Error fetching recent queries:", error);
-    return [];
-  }
-};
-
-export const getTopInteractingClients = async (limit: number = 5, days: number = 30): Promise<TopClient[]> => {
-  try {
-    // Use execSql without type arguments
-    const result = await execSql(
-      `
-      SELECT 
-        a.client_id,
-        c.name AS client_name,
-        COUNT(*) AS interaction_count
-      FROM client_activities a
-      LEFT JOIN ai_agents c ON a.client_id = c.client_id
-      WHERE 
-        a.activity_type = 'chat_interaction'
-        AND a.created_at >= CURRENT_DATE - INTERVAL '${days} days'
-        AND c.interaction_type = 'config'
-      GROUP BY a.client_id, c.name
-      ORDER BY interaction_count DESC
-      LIMIT ${limit}
-      `
-    );
-    
-    // Convert to fully-typed TopClient
-    return result.map(item => ({
-      client_id: item.client_id,
-      client_name: item.client_name,
-      interaction_count: item.interaction_count
-    }));
-  } catch (error) {
-    console.error("Error getting top interacting clients:", error);
-    return [];
-  }
-};
-
-export const getInteractionTrends = async (days: number = 30): Promise<InteractionTrend[]> => {
-  try {
-    // Use execSql without type arguments
-    const result = await execSql(
-      `
-      SELECT 
-        date_trunc('day', created_at) AS day,
-        COUNT(*) AS count
-      FROM client_activities
-      WHERE 
-        activity_type = 'chat_interaction'
-        AND created_at >= CURRENT_DATE - INTERVAL '${days} days'
-      GROUP BY date_trunc('day', created_at)
-      ORDER BY day
-      `
-    );
-    
-    // Convert to fully-typed InteractionTrend
-    return result.map(item => ({
-      day: item.day,
-      count: item.count
-    }));
-  } catch (error) {
-    console.error("Error getting interaction trends:", error);
     return [];
   }
 };

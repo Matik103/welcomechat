@@ -1,169 +1,157 @@
 
-import React, { useState, useEffect } from 'react';
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
-import { ActivityList } from '@/components/dashboard/ActivityList';
-import { useActivities } from '@/hooks/useActivities';
-import { useInteractions } from '@/hooks/useInteractions';
-import { useClients } from '@/hooks/useClients';
-import { useClientStats } from '@/hooks/useClientStats';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent 
-} from "@/components/ui/chart";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-} from 'chart.js';
-import { Line } from 'react-chartjs-2';
-import { ActivityLogEntry } from '@/types/activity';
+import { useState, useEffect } from "react";
+import { MetricCard } from "@/components/dashboard/MetricCard";
+import { ActivityList } from "@/components/dashboard/ActivityList";
+import { ActionButtons } from "@/components/dashboard/ActionButtons";
+import { useClientStats } from "@/hooks/useClientStats";
+import { useInteractionStats } from "@/hooks/useInteractionStats";
+import { useRecentActivities } from "@/hooks/useRecentActivities";
+import { setupRealtimeActivities } from "@/utils/setupRealtimeActivities";
+import { subscribeToAllActivities } from "@/services/activitySubscriptionService";
+import { supabase } from "@/integrations/supabase/client";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
-
-const getMonthlyChange = (current: number, previous: number): number => {
-  if (previous === 0) return 100; // 100% increase from 0 to 1
-  const changePercentage = ((current - previous) / previous) * 100;
-  return parseFloat(changePercentage.toFixed(2));
-};
-
-export default function Index() {
-  const { activities, isLoading: isLoadingActivities, error: activitiesError, refresh } = useActivities();
-  const { totalInteractions, dailyInteractions, topClients, isLoading: isLoadingInteractions, error: interactionsError } = useInteractions();
-  const { isLoading: isLoadingClients, error: clientsError } = useClients();
-  const { totalClients, activeClients, data } = useClientStats();
-
-  const [metrics, setMetrics] = useState([
-    { title: 'Total Interactions', currentValue: totalInteractions, previousValue: 0 },
-    { title: 'Total Clients', currentValue: totalClients, previousValue: 0 },
-    { title: 'Active Clients', currentValue: activeClients, previousValue: 0 },
-  ]);
-
+const Index = () => {
+  const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
+  
+  // Set up real-time functionality on component mount
   useEffect(() => {
-    setMetrics([
-      { title: 'Total Interactions', currentValue: totalInteractions, previousValue: 0 },
-      { title: 'Total Clients', currentValue: totalClients, previousValue: 0 },
-      { title: 'Active Clients', currentValue: activeClients, previousValue: 0 },
-    ]);
-  }, [totalInteractions, totalClients, activeClients]);
+    const setup = async () => {
+      try {
+        await setupRealtimeActivities();
+        console.log("Realtime activities set up successfully");
+      } catch (error) {
+        console.error("Failed to set up realtime activities:", error);
+      }
+    };
+    
+    setup();
+  }, []);
 
-  const chartData = {
-    labels: dailyInteractions.map(item => item.date),
-    datasets: [
-      {
-        label: 'Daily Interactions',
-        data: dailyInteractions.map(item => item.count),
-        fill: true,
-        backgroundColor: 'rgba(79, 70, 229, 0.2)',
-        borderColor: 'rgb(79, 70, 229)',
-        tension: 0.3,
-      },
-    ],
-  };
+  // Set up global activity tracking for the admin dashboard
+  const { 
+    data: recentActivities,
+    isLoading: isActivitiesLoading,
+    refetch: refetchActivities 
+  } = useRecentActivities();
+  
+  useEffect(() => {
+    // Subscribe to all client activities for real-time updates in the activity list
+    const channel = subscribeToAllActivities(() => {
+      console.log("Refreshing activity list due to new activity");
+      refetchActivities();
+    });
+    
+    // Also subscribe to changes in the ai_agents table to update client names
+    const agentsChannel = supabase
+      .channel('dashboard-ai-agents-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ai_agents',
+      }, (payload) => {
+        console.log("AI agent data changed, refreshing activities to update client names:", payload);
+        refetchActivities();
+      })
+      .subscribe();
+    
+    return () => {
+      if (channel) {
+        console.log("Removing activity subscription channel");
+        supabase.removeChannel(channel);
+      }
+      
+      if (agentsChannel) {
+        console.log("Removing ai_agents subscription channel");
+        supabase.removeChannel(agentsChannel);
+      }
+    };
+  }, [refetchActivities]);
+  
+  // Static stats that don't depend on time range
+  const { 
+    data: clientStats,
+    isLoading: isClientStatsLoading 
+  } = useClientStats();
+  
+  // Dynamic stats that depend on time range
+  const { 
+    data: interactionStats,
+    isLoading: isInteractionStatsLoading 
+  } = useInteractionStats(timeRange);
 
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      title: {
-        display: false,
-        text: 'Daily Interactions',
-      },
-    },
-  };
+  // Log for debugging
+  useEffect(() => {
+    console.log("Dashboard data:", {
+      clientStats,
+      interactionStats,
+      recentActivities: recentActivities?.length
+    });
+  }, [clientStats, interactionStats, recentActivities]);
 
   return (
-    <DashboardLayout>
-      <div className="container py-8">
-        <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {metrics.map((metric) => {
-            const monthlyChange = getMonthlyChange(+metric.currentValue, +metric.previousValue);
-            return (
-              <Card key={metric.title} className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>{metric.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metric.currentValue}</div>
-                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                    Monthly Change:
-                    <span className="ml-1 font-medium text-green-500">{monthlyChange}%</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+    <div className="min-h-screen bg-[#F8F9FA] p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-gray-900">AI Chatbot Admin System</h1>
+          <p className="text-gray-500">Monitor and manage your AI chatbot clients</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoadingActivities ? (
-                <p>Loading activity...</p>
-              ) : activitiesError ? (
-                <p>Error: {activitiesError.message}</p>
-              ) : (
-                <>
-                  {activities && activities.length > 0 ? (
-                    <ScrollArea className="h-[300px] w-full">
-                      <ActivityList activities={activities as any} />
-                    </ScrollArea>
-                  ) : (
-                    <p>No recent activity.</p>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Daily Interactions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoadingInteractions ? (
-                <p>Loading interactions...</p>
-              ) : interactionsError ? (
-                <p>Error: {interactionsError.message}</p>
-              ) : (
-                <ChartContainer
-                  config={{
-                    interactions: {
-                      color: '#4F46E5',
-                    },
-                  }}
-                >
-                  <Line data={chartData} options={chartOptions} />
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
+        <div className="flex justify-end mb-4">
+          <div className="flex gap-2">
+            {(["1d", "1m", "1y", "all"] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1 text-sm rounded-md ${
+                  timeRange === range
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                } transition-colors duration-200`}
+                disabled={isInteractionStatsLoading}
+              >
+                {range === "1d" ? "1 DAY" :
+                 range === "1m" ? "1 MONTH" :
+                 range === "1y" ? "1 YEAR" : "ALL TIME"}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Static metrics that don't depend on time range */}
+          <MetricCard 
+            title="Total Clients" 
+            value={clientStats?.totalClients || 0}
+            isLoading={isClientStatsLoading}
+          />
+          <MetricCard 
+            title="Active Clients" 
+            value={clientStats?.activeClients || 0}
+            change={clientStats?.activeClientsChange}
+            isLoading={isClientStatsLoading}
+          />
+          {/* Dynamic metrics that update with time range */}
+          <MetricCard 
+            title="Avg. Interactions" 
+            value={interactionStats?.avgInteractions || 0}
+            change={interactionStats?.avgInteractionsChange}
+            isLoading={isInteractionStatsLoading}
+          />
+          <MetricCard 
+            title="Total Interactions" 
+            value={interactionStats?.totalInteractions || 0}
+            isLoading={isInteractionStatsLoading}
+          />
+        </div>
+
+        <ActivityList 
+          activities={recentActivities} 
+          isLoading={isActivitiesLoading}
+        />
+        <ActionButtons />
       </div>
-    </DashboardLayout>
+    </div>
   );
-}
+};
+
+export default Index;

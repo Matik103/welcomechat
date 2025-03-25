@@ -2,73 +2,89 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Execute SQL query with parameters
- * @param sql SQL query string
- * @param params Query parameters
- * @returns Query result
+ * Executes a SQL query against the database using RPC
+ * @param sqlQuery The SQL query to execute
+ * @param params Optional parameters for the query
+ * @returns The result of the query
  */
-export const execSql = async (sql: string, params: any[] = []): Promise<any> => {
+export const execSql = async (sqlQuery: string, params?: any) => {
   try {
-    const { data, error } = await supabase.rpc('exec_sql', {
-      sql_query: sql,
-      query_params: params
-    });
+    // Make sure the query returns JSON format when needed
+    let formattedQuery = sqlQuery;
     
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error("SQL execution error:", error);
-    throw error;
-  }
-};
-
-/**
- * Call an RPC function
- * @param functionName The RPC function name
- * @param params Function parameters
- * @returns Function result
- */
-export const callRpcFunction = async (functionName: string, params: any = {}): Promise<any> => {
-  try {
-    // Type assertion used to bypass TypeScript limitation
-    // This is safe because we know the function exists in the database
-    const { data, error } = await supabase.rpc(functionName as any, params);
-    
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error(`Error calling RPC function ${functionName}:`, error);
-    throw error;
-  }
-};
-
-/**
- * Check if a table exists in the database
- * @param tableName The table name to check
- * @returns Whether the table exists
- */
-export const tableExists = async (tableName: string): Promise<boolean> => {
-  try {
-    // Use proper JSON formatting in the query
-    const sql = `
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public'
-        AND table_name = $1
-      ) as exists
-    `;
-    
-    // Use the execSql function
-    const result = await execSql(sql, [tableName]);
-    
-    // Handle the result properly
-    if (result && Array.isArray(result) && result.length > 0) {
-      return result[0].exists === true;
+    // If the query is a SELECT that doesn't explicitly return JSON, convert it
+    if (
+      sqlQuery.trim().toLowerCase().startsWith('select') && 
+      !sqlQuery.toLowerCase().includes('json_agg') &&
+      !sqlQuery.toLowerCase().includes('to_json')
+    ) {
+      // For simple EXISTS checks, wrap them in JSON format
+      if (sqlQuery.toLowerCase().includes('exists')) {
+        formattedQuery = `SELECT json_build_object('exists', (${sqlQuery}))`;
+      } else {
+        formattedQuery = `SELECT COALESCE(json_agg(t), '[]'::json) FROM (${sqlQuery}) t`;
+      }
     }
     
-    return false;
+    console.log('Executing SQL query:', formattedQuery);
+
+    // Use the generic callRpcFunction instead of direct RPC call
+    const { data, error } = await supabase.rpc('exec_sql', {
+      sql_query: formattedQuery,
+      // Only include query_params if they exist to prevent errors
+      ...(params ? { query_params: params } : {})
+    });
+
+    if (error) {
+      console.error('Error in execSql:', error);
+      throw error;
+    }
+
+    return data;
   } catch (error) {
-    console.error(`Error checking if table ${tableName} exists:`, error);
-    return false;
+    console.error('Error in execSql:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generic function to call any RPC with proper typing
+ * @param functionName The name of the RPC function to call
+ * @param params Parameters to pass to the function
+ * @returns The result of the RPC call
+ */
+export const callRpcFunction = async <T = any>(functionName: string, params?: any): Promise<T> => {
+  try {
+    // Using any to bypass TypeScript's strict checking for RPC function names
+    // This is necessary because we need to call functions dynamically
+    const { data, error } = await (supabase.rpc as any)(functionName, params);
+    
+    if (error) {
+      console.error(`Error calling RPC function ${functionName}:`, error);
+      throw error;
+    }
+
+    return data as T;
+  } catch (error) {
+    console.error(`Error in callRpcFunction for ${functionName}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Call RPC function with void return type
+ * Don't check result for truthiness
+ */
+export const callRpcFunctionVoid = async (functionName: string, params?: any): Promise<void> => {
+  try {
+    const { error } = await (supabase.rpc as any)(functionName, params);
+    
+    if (error) {
+      console.error(`Error calling RPC function ${functionName}:`, error);
+      throw error;
+    }
+  } catch (error) {
+    console.error(`Error in callRpcFunctionVoid for ${functionName}:`, error);
+    throw error;
   }
 };

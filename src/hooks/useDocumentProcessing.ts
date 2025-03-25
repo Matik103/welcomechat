@@ -1,120 +1,109 @@
 
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
+import { uploadDocument } from '@/services/documentProcessingService';
+import { DocumentProcessingService } from '@/services/documentProcessingService';
 import { toast } from 'sonner';
-import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
-export function useDocumentProcessing(clientId: string, agentName: string) {
+// Document processing hook
+export const useDocumentProcessing = (clientId: string, agentName?: string) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
 
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      try {
-        setIsUploading(true);
-        setUploadProgress(0);
-        
-        // Create a unique filename to prevent collisions
-        const timestamp = new Date().getTime();
-        const fileName = `${clientId}/${timestamp}-${file.name}`;
-        
-        // Get authenticated user
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData?.user) {
-          throw new Error('Authentication required for uploads');
-        }
-        
-        // Upload the file to the storage bucket
-        const { data, error } = await supabase.storage
-          .from(DOCUMENTS_BUCKET)
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: file.type
-          });
-        
-        // Set up a separate progress event listener if needed
-        // This is a workaround since onUploadProgress isn't in FileOptions
-        setUploadProgress(100); // Since we can't track progress easily, set to 100% when done
-        
-        if (error) {
-          throw error;
-        }
-        
-        // Get the public URL for the uploaded file
-        const { data: urlData } = supabase.storage
-          .from(DOCUMENTS_BUCKET)
-          .getPublicUrl(data.path);
-        
-        if (!urlData || !urlData.publicUrl) {
-          throw new Error('Failed to get public URL for uploaded file');
-        }
-        
-        // Log the upload activity
-        await supabase.from('client_activities').insert({
-          client_id: clientId,
-          activity_type: 'document_uploaded',
-          description: `Document uploaded: ${file.name}`,
-          metadata: {
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type,
-            path: data.path,
-            bucket: DOCUMENTS_BUCKET,
-            user_id: userData.user.id
-          }
-        });
-        
-        // Process the document through LlamaParse
-        const { data: processData, error: processError } = await supabase.functions.invoke(
-          'process-document',
-          {
-            body: {
-              documentUrl: urlData.publicUrl,
-              documentType: file.type,
-              clientId: clientId,
-              agentName: agentName
-            }
-          }
-        );
-        
-        if (processError) {
-          console.error('Error processing document:', processError);
-          toast.error('Document uploaded but processing failed. Please try again later.');
-        }
-        
-        return {
-          path: data.path,
-          url: urlData.publicUrl,
-          jobId: processData?.jobId
-        };
-      } catch (error) {
-        console.error('Error in handleDocumentUpload:', error);
-        throw error;
-      } finally {
-        setIsUploading(false);
-      }
-    }
-  });
+  const handleDocumentUpload = async (file: File, options?: Partial<DocumentProcessingOptions>) => {
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadResult(null);
 
-  const handleDocumentUpload = async (file: File) => {
     try {
-      const result = await uploadMutation.mutateAsync(file);
+      // Show a single toast that will be updated as the process progresses
+      const toastId = toast.loading(`Processing document: ${file.name}`);
       
-      toast.success('Document uploaded successfully! Processing started.');
+      // Create complete options by merging with defaults
+      const processingOptions: DocumentProcessingOptions = {
+        clientId,
+        agentName: agentName || 'AI Assistant',
+        onUploadProgress: (progress) => setUploadProgress(progress),
+        processingMethod: 'llamaparse', // Default to LlamaParse processing
+        ...options
+      };
+
+      // Step 1: Upload the document to storage
+      const documentPath = await uploadDocument(file, processingOptions);
       
+      // Update toast to indicate document is now processing in the background
+      toast.success(`Document uploaded successfully`, { id: toastId });
+      
+      // Step 2: Process the document with LlamaParse (happens in the background)
+      const result = await DocumentProcessingService.processDocument(
+        documentPath,
+        file.type || 'application/pdf',
+        clientId,
+        processingOptions.agentName
+      );
+      
+      setUploadResult(result);
       return result;
-    } catch (error: any) {
-      console.error('Document upload failed:', error);
-      toast.error(`Failed to upload document: ${error.message}`);
-      throw error;
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      
+      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      const errorResult: DocumentProcessingResult = {
+        success: false,
+        status: 'failed',
+        documentId: 'error-' + Date.now(),
+        documentUrl: '',
+        documentType: '',
+        clientId,
+        agentName: agentName || 'AI Assistant',
+        startedAt: new Date().toISOString(),
+        chunks: [],
+        metadata: {
+          path: '',
+          processedAt: new Date().toISOString(),
+          method: 'llamaparse',
+          publicUrl: '',
+          totalChunks: 0,
+          characterCount: 0,
+          wordCount: 0,
+          averageChunkSize: 0,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      };
+      
+      setUploadResult(errorResult);
+      return errorResult;
+    } finally {
+      setIsUploading(false);
     }
   };
 
   return {
     handleDocumentUpload,
     isUploading,
-    uploadProgress
+    uploadProgress,
+    uploadResult: uploadResult || {
+      success: false,
+      status: 'none',
+      documentId: '',
+      documentUrl: '',
+      documentType: '',
+      clientId,
+      agentName: agentName || 'AI Assistant',
+      startedAt: new Date().toISOString(),
+      chunks: [],
+      metadata: {
+        path: '',
+        processedAt: new Date().toISOString(),
+        method: '',
+        publicUrl: '',
+        totalChunks: 0,
+        characterCount: 0,
+        wordCount: 0,
+        averageChunkSize: 0
+      }
+    }
   };
-}
+};

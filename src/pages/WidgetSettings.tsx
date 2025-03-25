@@ -37,19 +37,31 @@ const WidgetSettings = () => {
   const effectiveClientId = activeClientId || (firstClient?.id || undefined);
   const { logClientActivity } = useClientActivity(effectiveClientId);
 
-  const widgetSettingsHook = useWidgetSettings(effectiveClientId || '');
-  
-  // For compatibility with the component
-  const adaptedUpdateMutation = {
-    isPending: widgetSettingsHook.isUpdating,
-    mutateAsync: async (newSettings: any) => {
-      widgetSettingsHook.updateSettings(newSettings);
-      return null;
+  const { 
+    settings, 
+    isLoading: isLoadingSettings, 
+    isUploading, 
+    updateSettingsMutation,
+    handleLogoUpload: originalHandleLogoUpload 
+  } = useWidgetSettings(effectiveClientId, isClientView);
+
+  // Check if we are still loading required data
+  const isLoading = (isLoadingSettings || (!activeClientId && isLoadingClient));
+
+  // Adapter for the logo upload handler to match the expected type
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      await originalHandleLogoUpload(event.target.files[0]);
     }
   };
 
-  // Check if we are still loading required data
-  const isLoading = (widgetSettingsHook.isLoading || (!activeClientId && isLoadingClient));
+  // Adapter for the update settings mutation to match the expected type
+  const adaptedUpdateMutation = {
+    isPending: updateSettingsMutation.isPending,
+    mutateAsync: async (newSettings: typeof settings) => {
+      await updateSettingsMutation.mutateAsync(newSettings);
+    }
+  };
 
   const handleBack = () => {
     if (isClientView) {
@@ -89,24 +101,20 @@ const WidgetSettings = () => {
 
   // Ensure settings has all required properties and correct types
   const completeSettings = {
-    ...widgetSettingsHook.settings,
+    ...settings,
     // Ensure position is a valid WidgetPosition
-    position: (widgetSettingsHook.settings.position as WidgetPosition) || 'bottom-right'
+    position: (settings.position as WidgetPosition) || 'bottom-right'
   };
 
   return (
     <WidgetSettingsContainer
-      clientId={effectiveClientId || ''}
+      clientId={effectiveClientId}
       settings={completeSettings}
       isClientView={isClientView}
-      isUploading={widgetSettingsHook.isUploading}
+      isUploading={isUploading}
       updateSettingsMutation={adaptedUpdateMutation}
       handleBack={handleBack}
-      handleLogoUpload={(e) => {
-        if (e.target.files && e.target.files[0]) {
-          widgetSettingsHook.uploadLogo(e.target.files[0]);
-        }
-      }}
+      handleLogoUpload={handleLogoUpload}
       logClientActivity={logClientActivity}
     />
   );
