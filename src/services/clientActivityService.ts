@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ExtendedActivityType } from '@/types/activity';
 import type { Json } from '@/integrations/supabase/types';
+import { callRpcFunction } from '@/utils/rpcUtils';
 
 /**
  * Creates a client activity record
@@ -41,11 +42,13 @@ export const createClientActivity = async (
 // when the RPC function is not available or for testing purposes
 export const createActivityDirect = async (
   clientId: string,
-  activityType: string,
+  activityType: ExtendedActivityType,
   description: string,
   metadata: Record<string, any> = {}
 ) => {
   try {
+    // We need to handle this based on table schema
+    // First try client_activities table (newer schema)
     const { data, error } = await supabase
       .from('client_activities')
       .insert({
@@ -58,7 +61,30 @@ export const createActivityDirect = async (
       .single();
 
     if (error) {
-      throw error;
+      if (error.message.includes('does not exist')) {
+        // Fall back to activities table (older schema)
+        console.log('Falling back to activities table');
+        const { data: activitiesData, error: activitiesError } = await supabase
+          .from('activities')
+          .insert({
+            client_id: clientId,
+            activity_type: activityType,
+            activity_data: {
+              description: description,
+              ...metadata
+            } as Json
+          })
+          .select()
+          .single();
+
+        if (activitiesError) {
+          throw activitiesError;
+        }
+
+        return activitiesData;
+      } else {
+        throw error;
+      }
     }
 
     return data;
@@ -67,20 +93,3 @@ export const createActivityDirect = async (
     throw error;
   }
 };
-
-// Helper function to call RPC functions
-async function callRpcFunction(functionName: string, params: Record<string, any>) {
-  try {
-    const { data, error } = await supabase.rpc(functionName, params);
-    
-    if (error) {
-      console.error(`Error calling ${functionName}:`, error);
-      throw error;
-    }
-    
-    return data;
-  } catch (error) {
-    console.error(`Error in callRpcFunction (${functionName}):`, error);
-    throw error;
-  }
-}

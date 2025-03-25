@@ -26,3 +26,32 @@ export const callRpcFunction = async (
     throw error;
   }
 };
+
+/**
+ * Executes a SQL query via Supabase's exec_sql RPC function
+ * 
+ * @param sqlQuery The SQL query to execute
+ * @param params Optional parameters to pass to the query
+ * @returns The result of the SQL query
+ */
+export const execSql = async (
+  sqlQuery: string,
+  params: any[] = []
+): Promise<any> => {
+  try {
+    const { data, error } = await supabase.rpc('exec_sql', {
+      sql_query: sqlQuery,
+      params: params
+    });
+    
+    if (error) {
+      console.error('Error executing SQL query:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in execSql:', error);
+    throw error;
+  }
+};

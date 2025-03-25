@@ -42,7 +42,7 @@ export function DeleteClientDialog({ open, onOpenChange, clientId, clientName }:
       
       // Delete the client
       const { error } = await supabase
-        .from('clients')
+        .from('ai_agents')
         .delete()
         .eq('id', clientId);
       

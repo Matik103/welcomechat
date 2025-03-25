@@ -17,6 +17,7 @@ export type ActivityType =
   | 'client_login'
   | 'client_password_reset'
   | 'client_chat_interaction'
+  | 'chat_interaction'
   | 'agent_created'
   | 'agent_updated'
   | 'agent_deleted'
