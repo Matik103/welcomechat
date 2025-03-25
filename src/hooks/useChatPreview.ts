@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { OpenAIAssistantService } from '@/services/openaiAssistantService';
 
@@ -55,4 +56,4 @@ export const useChatPreview = (clientId: string) => {
     sendMessage,
     clearChat
   };
-}; 
+};

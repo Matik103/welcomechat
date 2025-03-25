@@ -1,3 +1,4 @@
+
 const OpenAI = require('openai');
 
 class OpenAIAssistantService {
@@ -83,4 +84,4 @@ class OpenAIAssistantService {
   }
 }
 
-module.exports = { OpenAIAssistantService }; 
+module.exports = { OpenAIAssistantService };

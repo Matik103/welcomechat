@@ -1,9 +1,14 @@
+
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
+// Use import.meta.env instead of process.env for Vite applications
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
 const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL!,
-  process.env.REACT_APP_SUPABASE_ANON_KEY!
+  supabaseUrl,
+  supabaseAnonKey
 );
 
 interface AssistantResponse {
@@ -18,7 +23,7 @@ export class OpenAIAssistantService {
   constructor(clientId: string) {
     this.clientId = clientId;
     this.openai = new OpenAI({
-      apiKey: process.env.REACT_APP_OPENAI_API_KEY,
+      apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     });
   }
 

@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ExtendedActivityType } from '@/types/activity';
 import { callRpcFunction } from '@/utils/rpcUtils';
+import type { Json } from '@/integrations/supabase/types';
 
 /**
  * Creates a client activity record
@@ -33,6 +34,37 @@ export const createClientActivity = async (
     return result;
   } catch (error) {
     console.error('Error creating client activity:', error);
+    throw error;
+  }
+};
+
+// This is a temporary function to directly insert into the activities table
+// when the RPC function is not available or for testing purposes
+export const createActivityDirect = async (
+  clientId: string,
+  activityType: string,
+  description: string,
+  metadata: Record<string, any> = {}
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('client_activities')
+      .insert({
+        client_id: clientId,
+        activity_type: activityType,
+        description: description,
+        metadata: metadata as Json
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error creating activity directly:', error);
     throw error;
   }
 };
