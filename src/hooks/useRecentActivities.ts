@@ -34,7 +34,7 @@ export function useRecentActivities(limit: number = 5, clientId?: string) {
       if (apiError) throw apiError;
 
       // Transform the data to the expected format with client names
-      const transformedActivities: ActivityLogEntry[] = data.map(activity => {
+      const transformedActivities: ActivityLogEntry[] = data?.map((activity: any) => {
         let clientName: string | undefined;
         
         // Try to get client name from the join
@@ -52,7 +52,7 @@ export function useRecentActivities(limit: number = 5, clientId?: string) {
           client_name: clientName,
           ai_agents: activity.ai_agents
         };
-      });
+      }) || [];
 
       setActivities(transformedActivities);
     } catch (err) {

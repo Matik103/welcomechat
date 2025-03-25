@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { ActivityList } from '@/components/dashboard/ActivityList';
@@ -5,9 +6,13 @@ import { useActivities } from '@/hooks/useActivities';
 import { useInteractions } from '@/hooks/useInteractions';
 import { useClients } from '@/hooks/useClients';
 import { useClientStats } from '@/hooks/useClientStats';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent 
+} from "@/components/ui/chart";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -20,7 +25,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { ActivityWithClientInfo } from '@/types/activity';
+import { ActivityLogEntry } from '@/types/activity';
 
 ChartJS.register(
   CategoryScale,
@@ -43,7 +48,7 @@ export default function Index() {
   const { activities, isLoading: isLoadingActivities, error: activitiesError, refresh } = useActivities();
   const { totalInteractions, dailyInteractions, topClients, isLoading: isLoadingInteractions, error: interactionsError } = useInteractions();
   const { isLoading: isLoadingClients, error: clientsError } = useClients();
-  const { totalClients, activeClients, refetch: refetchClientStats } = useClientStats();
+  const { totalClients, activeClients, data } = useClientStats();
 
   const [metrics, setMetrics] = useState([
     { title: 'Total Interactions', currentValue: totalInteractions, previousValue: 0 },
@@ -125,7 +130,7 @@ export default function Index() {
                 <>
                   {activities && activities.length > 0 ? (
                     <ScrollArea className="h-[300px] w-full">
-                      <ActivityList activities={activities ? activities : []} />
+                      <ActivityList activities={activities as ActivityLogEntry[]} />
                     </ScrollArea>
                   ) : (
                     <p>No recent activity.</p>
@@ -145,7 +150,15 @@ export default function Index() {
               ) : interactionsError ? (
                 <p>Error: {interactionsError.message}</p>
               ) : (
-                <Line data={chartData} options={chartOptions} />
+                <ChartContainer
+                  config={{
+                    interactions: {
+                      color: '#4F46E5',
+                    },
+                  }}
+                >
+                  <Line data={chartData} options={chartOptions} />
+                </ChartContainer>
               )}
             </CardContent>
           </Card>
