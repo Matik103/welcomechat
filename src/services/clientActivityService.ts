@@ -1,7 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { ExtendedActivityType } from '@/types/activity';
-import { callRpcFunction } from '@/utils/rpcUtils';
 import type { Json } from '@/integrations/supabase/types';
 
 /**
@@ -68,3 +67,20 @@ export const createActivityDirect = async (
     throw error;
   }
 };
+
+// Helper function to call RPC functions
+async function callRpcFunction(functionName: string, params: Record<string, any>) {
+  try {
+    const { data, error } = await supabase.rpc(functionName, params);
+    
+    if (error) {
+      console.error(`Error calling ${functionName}:`, error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error(`Error in callRpcFunction (${functionName}):`, error);
+    throw error;
+  }
+}
