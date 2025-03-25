@@ -50,7 +50,9 @@ export const getInteractionStats = async (clientId: string, agentName?: string, 
       activeDays: activeDays,
       averageResponseTime: responseTime,
       topQueries: topQueries,
-      successRate: 100
+      successRate: 100,
+      avgInteractions: interactions / Math.max(1, activeDays),
+      avgInteractionsChange: "12"  // Mocked change percentage
     };
   } catch (error) {
     console.error('Error getting interaction stats:', error);
@@ -66,7 +68,9 @@ export const getInteractionStats = async (clientId: string, agentName?: string, 
       activeDays: 0,
       averageResponseTime: 0,
       topQueries: [],
-      successRate: 100
+      successRate: 100,
+      avgInteractions: 0,
+      avgInteractionsChange: "0"
     };
   }
 };

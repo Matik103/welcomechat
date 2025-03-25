@@ -50,10 +50,14 @@ export const useRecentActivities = () => {
             id: activity.id,
             client_id: activity.client_id || '',
             activity_type: activity.activity_type,
-            description: typeof activityData === 'object' && activityData !== null ? (activityData.description || '') : '',
+            description: typeof activityData === 'object' && activityData !== null 
+              ? ((activityData as Record<string, any>).description || '') 
+              : '',
             created_at: activity.created_at,
             metadata: activityData,
-            client_name: typeof activityData === 'object' && activityData !== null ? (activityData.client_name || '') : ''
+            client_name: typeof activityData === 'object' && activityData !== null 
+              ? ((activityData as Record<string, any>).client_name || '') 
+              : ''
           };
         });
         

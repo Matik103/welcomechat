@@ -14,6 +14,9 @@ interface ClientStats {
 export const useClientStats = (clientId?: string, agentName?: string) => {
   const [totalClients, setTotalClients] = useState(0);
   const [activeClients, setActiveClients] = useState(0);
+  const [activeClientsChange, setActiveClientsChange] = useState<string | undefined>(undefined);
+  const [avgInteractions, setAvgInteractions] = useState(0);
+  const [avgInteractionsChange, setAvgInteractionsChange] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [stats, setStats] = useState<ClientStats>({
@@ -48,6 +51,13 @@ export const useClientStats = (clientId?: string, agentName?: string) => {
         activeDays: days,
         averageResponseTime: avgTime
       });
+
+      // Mock data for now - would connect to actual stats in real implementation
+      setTotalClients(30);
+      setActiveClients(18);
+      setActiveClientsChange("5");
+      setAvgInteractions(120);
+      setAvgInteractionsChange("12");
     } catch (err) {
       console.error('Error fetching client stats:', err);
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -68,6 +78,9 @@ export const useClientStats = (clientId?: string, agentName?: string) => {
     ...stats,
     totalClients,
     activeClients,
+    activeClientsChange,
+    avgInteractions,
+    avgInteractionsChange,
     isLoading,
     error,
     refetch

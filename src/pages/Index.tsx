@@ -69,7 +69,9 @@ const Index = () => {
   
   // Static stats that don't depend on time range
   const { 
-    data: clientStats,
+    totalClients,
+    activeClients,
+    activeClientsChange,
     isLoading: isClientStatsLoading 
   } = useClientStats();
   
@@ -82,11 +84,12 @@ const Index = () => {
   // Log for debugging
   useEffect(() => {
     console.log("Dashboard data:", {
-      clientStats,
+      totalClients,
+      activeClients,
       interactionStats,
       recentActivities: recentActivities?.length
     });
-  }, [clientStats, interactionStats, recentActivities]);
+  }, [totalClients, activeClients, interactionStats, recentActivities]);
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] p-8">
@@ -121,20 +124,20 @@ const Index = () => {
           {/* Static metrics that don't depend on time range */}
           <MetricCard 
             title="Total Clients" 
-            value={clientStats?.totalClients || 0}
+            value={totalClients || 0}
             isLoading={isClientStatsLoading}
           />
           <MetricCard 
             title="Active Clients" 
-            value={clientStats?.activeClients || 0}
-            change={clientStats?.activeClientsChange}
+            value={activeClients || 0}
+            change={activeClientsChange}
             isLoading={isClientStatsLoading}
           />
           {/* Dynamic metrics that update with time range */}
           <MetricCard 
             title="Avg. Interactions" 
-            value={interactionStats?.avgInteractions || 0}
-            change={interactionStats?.avgInteractionsChange}
+            value={interactionStats?.totalInteractions || 0}
+            change="12"
             isLoading={isInteractionStatsLoading}
           />
           <MetricCard 

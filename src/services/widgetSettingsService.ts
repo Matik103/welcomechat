@@ -18,7 +18,7 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
       throw error;
     }
 
-    return data?.settings || {};
+    return data?.settings as WidgetSettings || {};
   } catch (error) {
     console.error('Error in getWidgetSettings:', error);
     return {};
@@ -52,7 +52,7 @@ export async function updateWidgetSettings(
     );
 
     toast.success('Widget settings updated successfully');
-    return data?.settings || settings;
+    return data?.settings as WidgetSettings || settings;
   } catch (error) {
     console.error('Error in updateWidgetSettings:', error);
     toast.error(`Failed to update widget settings: ${error instanceof Error ? error.message : String(error)}`);

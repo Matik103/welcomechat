@@ -60,9 +60,11 @@ export interface InteractionStats {
   average_response_time: number;
   top_queries: QueryItem[];
   success_rate?: number;
-  totalInteractions: number;
-  activeDays: number;
-  averageResponseTime: number;
-  topQueries: QueryItem[];
-  successRate?: number;
+  totalInteractions: number; // camelCase version for consistency
+  activeDays: number; // camelCase version for consistency
+  averageResponseTime: number; // camelCase version for consistency
+  topQueries: QueryItem[]; // camelCase version for consistency
+  successRate?: number; // camelCase version for consistency
+  avgInteractionsChange?: string; // For metrics card
+  avgInteractions?: number; // For metrics card
 }
