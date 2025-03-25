@@ -19,8 +19,13 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
         const timestamp = new Date().getTime();
         const fileName = `${clientId}/${timestamp}-${file.name}`;
         
-        // The onUploadProgress needs to be handled outside the options object
-        // as it's not part of the FileOptions type
+        // Get authenticated user
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData?.user) {
+          throw new Error('Authentication required for uploads');
+        }
+        
+        // Upload the file to the storage bucket
         const { data, error } = await supabase.storage
           .from(DOCUMENTS_BUCKET)
           .upload(fileName, file, {
@@ -56,7 +61,8 @@ export function useDocumentProcessing(clientId: string, agentName: string) {
             file_size: file.size,
             file_type: file.type,
             path: data.path,
-            bucket: DOCUMENTS_BUCKET
+            bucket: DOCUMENTS_BUCKET,
+            user_id: userData.user.id
           }
         });
         

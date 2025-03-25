@@ -36,14 +36,14 @@ BEGIN
     DROP POLICY IF EXISTS "Allow users to view their own documents" ON storage.objects;
     DROP POLICY IF EXISTS "Allow authenticated users to delete their own documents" ON storage.objects;
     DROP POLICY IF EXISTS "Allow public read access to documents" ON storage.objects;
+    DROP POLICY IF EXISTS "Allow authenticated users to upload documents" ON storage.objects;
 
     -- Create new policies
-    CREATE POLICY "Allow authenticated users to upload their own documents"
+    CREATE POLICY "Allow authenticated users to upload documents"
     ON storage.objects FOR INSERT
     TO authenticated
     WITH CHECK (
         bucket_id = 'document-storage'
-        AND (storage.foldername(name))[1] = auth.uid()::text
     );
 
     CREATE POLICY "Allow users to view their own documents"
@@ -51,7 +51,6 @@ BEGIN
     TO authenticated
     USING (
         bucket_id = 'document-storage'
-        AND (storage.foldername(name))[1] = auth.uid()::text
     );
 
     CREATE POLICY "Allow authenticated users to delete their own documents"
@@ -59,7 +58,6 @@ BEGIN
     TO authenticated
     USING (
         bucket_id = 'document-storage'
-        AND (storage.foldername(name))[1] = auth.uid()::text
     );
         
     -- Add policy to allow public read access if needed
