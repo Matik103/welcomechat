@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClientRegistrationForm } from "@/components/forms/ClientRegistrationForm";
@@ -55,7 +54,7 @@ export default function NewClient() {
       console.log("Client created successfully:", clientData);
       
       // Save the temporary password
-      await saveClientTempPassword(clientData.id, data.email, tempPassword);
+      await saveClientTempPassword(clientData.id, data.email, tempPassword, "4h");
 
       // Generate a well-formatted email template
       const emailHtml = generateClientWelcomeEmailTemplate(

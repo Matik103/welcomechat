@@ -18,6 +18,22 @@ import { ActivityType } from "@/types/client-form";
 export default function ResourceSettings() {
   const { clientId } = useParams<{ clientId: string }>();
   const { logClientActivity } = useClientActivity(clientId);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const {
+    websiteUrls,
+    isLoading: isLoadingUrls,
+    addWebsiteUrlMutation,
+    deleteWebsiteUrlMutation
+  } = useWebsiteUrls(clientId);
+
+  const {
+    documentLinks,
+    isLoading: isLoadingDocs,
+    addDocumentLink,
+    deleteDocumentLink
+  } = useDocumentLinks(clientId);
 
   if (!clientId) {
     return <div>Client ID is required</div>;
@@ -44,6 +60,7 @@ export default function ResourceSettings() {
                   <WebsiteUrlForm 
                     clientId={clientId} 
                     onAddSuccess={() => logClientActivity("website_url_added", "Added new website URL")}
+                    webstoreHook={{ isAdding: false }}
                   />
                 </CardContent>
               </Card>
@@ -54,7 +71,11 @@ export default function ResourceSettings() {
                 </CardHeader>
                 <CardContent>
                   <WebsiteUrlsList 
-                    onDelete={() => logClientActivity("url_deleted", "Deleted website URL")}
+                    urls={websiteUrls || []}
+                    onDelete={() => logClientActivity("website_url_deleted", "Deleted website URL")}
+                    onProcess={() => {}}
+                    isDeleteLoading={isDeleting}
+                    isProcessing={isProcessing}
                   />
                 </CardContent>
               </Card>
@@ -69,7 +90,8 @@ export default function ResourceSettings() {
                 </CardHeader>
                 <CardContent>
                   <DocumentLinkForm 
-                    onSuccess={() => logClientActivity("document_link_added", "Added new document link")}
+                    clientId={clientId}
+                    onAddSuccess={() => logClientActivity("document_link_added", "Added new document link")}
                   />
                 </CardContent>
               </Card>
@@ -80,6 +102,8 @@ export default function ResourceSettings() {
                 </CardHeader>
                 <CardContent>
                   <DocumentLinksList 
+                    links={documentLinks || []}
+                    isLoading={isLoadingDocs}
                     onDelete={() => logClientActivity("document_link_deleted", "Deleted document link")}
                   />
                 </CardContent>

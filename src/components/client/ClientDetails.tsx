@@ -1,6 +1,6 @@
 
 import { Client } from "@/types/client";
-import { ExtendedActivityType } from "@/types/activity";
+import { ActivityType } from "@/types/client-form";
 import { Json } from "@/integrations/supabase/types";
 import { ClientDetailsCard } from "./ClientDetailsCard";
 
@@ -8,7 +8,7 @@ interface ClientDetailsProps {
   client: Client | null;
   clientId: string | undefined;
   isClientView: boolean;
-  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
+  logClientActivity: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
 }
 
 export const ClientDetails = ({ 

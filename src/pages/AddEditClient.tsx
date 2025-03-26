@@ -49,7 +49,10 @@ const AddEditClient = () => {
           client_id: clientId,
           client_name: data.client_name,
           email: data.email,
-          agent_name: data.widget_settings?.agent_name
+          agent_name: data.widget_settings?.agent_name,
+          // Add missing properties
+          logo_url: data.widget_settings?.logo_url,
+          logo_storage_path: data.widget_settings?.logo_storage_path
         });
         
         // Log client update activity
@@ -67,8 +70,8 @@ const AddEditClient = () => {
           client_name: data.client_name,
           email: data.email,
           agent_name: data.widget_settings?.agent_name || 'AI Assistant',
-          logo_url: data.logo_url,
-          logo_storage_path: data.logo_storage_path,
+          logo_url: data.widget_settings?.logo_url || '',
+          logo_storage_path: data.widget_settings?.logo_storage_path || '',
           widget_settings: data.widget_settings
         };
         

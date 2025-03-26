@@ -39,6 +39,11 @@ export interface WidgetSettings {
   button_text: string;
   position: "left" | "right";
   greeting_message: string;
+  text_color: string;
+  secondary_color: string;
+  welcome_text: string;
+  response_time_text: string;
+  display_mode: string;
 }
 
 // ActivityType enum (matching the database enum)
@@ -50,6 +55,7 @@ export type ActivityType =
   | 'widget_settings_updated'
   | 'website_url_added'
   | 'website_url_deleted'
+  | 'url_deleted'  // Added for backward compatibility
   | 'drive_link_added'
   | 'drive_link_deleted'
   | 'document_uploaded'
@@ -57,6 +63,8 @@ export type ActivityType =
   | 'document_processing_failed'
   | 'document_processing_started'
   | 'document_processing_completed'
+  | 'document_link_added'  // Added
+  | 'document_link_deleted'  // Added
   | 'chat_interaction'
   | 'agent_name_updated'
   | 'agent_logo_updated'
@@ -78,4 +86,7 @@ export type ActivityType =
   | 'embed_code_copied'
   | 'source_added'
   | 'source_deleted'
-  | 'ai_agent_table_created';
+  | 'ai_agent_table_created'
+  | 'signed_out'  // Added
+  | 'email_sent'  // Added
+  | 'openai_assistant_document_added'; // Added

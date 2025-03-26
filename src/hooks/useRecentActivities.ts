@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ClientActivity } from '@/types/activity';
+import { ClientActivity, ActivityType } from '@/types/client';
 
 export const useRecentActivities = (clientId?: string) => {
   const [activities, setActivities] = useState<ClientActivity[]>([]);
@@ -40,7 +40,7 @@ export const useRecentActivities = (clientId?: string) => {
       const processedActivities: ClientActivity[] = data.map((activity) => ({
         id: activity.id,
         client_id: activity.client_id,
-        activity_type: activity.activity_type,
+        activity_type: activity.activity_type as ActivityType,
         description: activity.description || '',
         created_at: activity.created_at,
         metadata: activity.activity_data || {},

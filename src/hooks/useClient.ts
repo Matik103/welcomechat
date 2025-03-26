@@ -99,10 +99,11 @@ function mapAgentToClient(agentData: any): Client {
   
   return {
     id: String(agentData.id || ''),
+    client_id: String(agentData.client_id || ''),
     user_id: String(agentData.user_id || ''),
     client_name: clientName,
     company: String(agentData.company || ''),
-    description: agentData.description || null,
+    description: agentData.description || '',
     email: String(agentData.email || (agentData.settings?.email) || ''),
     logo_url: String(agentData.logo_url || (agentData.settings?.logo_url) || ''),
     logo_storage_path: String(agentData.logo_storage_path || (agentData.settings?.logo_storage_path) || ''),
@@ -110,17 +111,12 @@ function mapAgentToClient(agentData: any): Client {
     updated_at: String(agentData.updated_at || ''),
     deletion_scheduled_at: agentData.deletion_scheduled_at || null,
     deleted_at: agentData.deleted_at || null,
-    drive_link: agentData.drive_link || null,
-    drive_link_added_at: agentData.drive_link_added_at || null,
     status: validStatus,
     agent_name: String(agentData.name || ''),
-    name: String(agentData.name || ''),
     agent_description: String(agentData.agent_description || ''),
-    last_active: agentData.last_active ? String(agentData.last_active) : undefined,
+    last_active: agentData.last_active ? String(agentData.last_active) : null,
     widget_settings: agentData.settings || {},
-    urls: agentData.urls || [],
-    drive_urls: agentData.drive_urls || [],
-    is_error: agentData.is_error || false,
-    error_message: agentData.error_message || null
+    name: String(agentData.name || ''),
+    is_error: agentData.is_error || false
   };
 }

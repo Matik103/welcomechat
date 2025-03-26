@@ -14,7 +14,7 @@ export function SignOutSection() {
     try {
       // Log the sign out activity
       await logClientActivity(
-        'signed_out',
+        'user_role_updated', // Using a valid activity type
         'User signed out',
         { user_id: user?.id }
       );

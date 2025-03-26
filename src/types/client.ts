@@ -1,5 +1,6 @@
 
 import { Json } from '@/integrations/supabase/types';
+import { ActivityType } from './client-form';
 
 export interface Client {
   id: string;
@@ -22,6 +23,7 @@ export interface Client {
   // Adding name field for backward compatibility
   name?: string;
   is_error?: boolean;
+  user_id?: string; // Added for compatibility
 }
 
 // Export these types from client-dashboard.ts to avoid circular dependencies
@@ -81,7 +83,7 @@ export interface WebsiteUrl {
   url: string;
   client_id: string;
   created_at: string;
-  status?: string;
+  status?: "pending" | "processing" | "failed" | "completed";
   refresh_rate: number;
   notified_at?: string;
   last_crawled?: string;

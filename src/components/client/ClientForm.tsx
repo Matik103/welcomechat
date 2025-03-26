@@ -8,17 +8,11 @@ import { AgentDescriptionField } from "./form-fields/AgentDescriptionField";
 import { LogoField } from "./form-fields/LogoField";
 import { FormActions } from "./form-fields/FormActions";
 import { useEffect } from "react";
+import { ClientFormData } from "@/types/client-form";
 
 interface ClientFormProps {
   initialData?: Client | null;
-  onSubmit: (data: { 
-    client_name: string; 
-    email: string; 
-    agent_name?: string;
-    logo_url?: string;
-    logo_storage_path?: string;
-    _tempLogoFile?: File | null;
-  }) => Promise<void>;
+  onSubmit: (data: ClientFormData) => Promise<any>;
   isLoading?: boolean;
   isClientView?: boolean;
 }
@@ -49,7 +43,7 @@ export const ClientForm = ({
 
   const handleFormSubmit = async (data: any) => {
     console.log("ClientForm submitting data:", data);
-    await onSubmit(prepareFormData(data));
+    return await onSubmit(prepareFormData(data));
   };
 
   return (

@@ -22,23 +22,24 @@ export const getAllClients = async (): Promise<Client[]> => {
 
     // Map the ai_agents data to Client interface
     const clients: Client[] = (data || []).map(item => ({
-      id: item.client_id || '',
-      client_id: item.client_id || '',
-      client_name: item.client_name || '',
-      email: item.email || '',
-      company: item.company || '',
-      status: item.status || 'active',
-      created_at: item.created_at || new Date().toISOString(),
-      updated_at: item.updated_at || new Date().toISOString(),
+      id: String(item.id || ''),
+      client_id: String(item.client_id || ''),
+      client_name: String(item.client_name || ''),
+      email: String(item.email || ''),
+      company: String(item.company || ''),
+      status: String(item.status || 'active'),
+      created_at: String(item.created_at || new Date().toISOString()),
+      updated_at: String(item.updated_at || new Date().toISOString()),
       deleted_at: item.deleted_at || null,
       deletion_scheduled_at: item.deletion_scheduled_at || null,
       last_active: item.last_active || null,
-      logo_url: item.logo_url || '',
-      logo_storage_path: item.logo_storage_path || '',
-      agent_name: item.name || 'AI Assistant',
-      agent_description: item.agent_description || '',
-      widget_settings: item.settings as Record<string, any> || {},
-      description: ''
+      logo_url: String(item.logo_url || ''),
+      logo_storage_path: String(item.logo_storage_path || ''),
+      agent_name: String(item.name || 'AI Assistant'),
+      agent_description: String(item.agent_description || ''),
+      widget_settings: typeof item.settings === 'object' ? item.settings : {},
+      description: String(item.description || ''),
+      user_id: String(item.user_id || '')
     }));
 
     return clients;
@@ -67,23 +68,24 @@ export const getClient = async (clientId: string): Promise<Client | null> => {
 
     // Convert ai_agents record to Client interface
     const client: Client = {
-      id: data.client_id || '',
-      client_id: data.client_id || '',
-      client_name: data.client_name || '',
-      email: data.email || '',
-      company: data.company || '',
-      status: data.status || 'active',
-      created_at: data.created_at || new Date().toISOString(),
-      updated_at: data.updated_at || new Date().toISOString(),
+      id: String(data.id || ''),
+      client_id: String(data.client_id || ''),
+      client_name: String(data.client_name || ''),
+      email: String(data.email || ''),
+      company: String(data.company || ''),
+      status: String(data.status || 'active'),
+      created_at: String(data.created_at || new Date().toISOString()),
+      updated_at: String(data.updated_at || new Date().toISOString()),
       deleted_at: data.deleted_at || null,
       deletion_scheduled_at: data.deletion_scheduled_at || null,
       last_active: data.last_active || null,
-      logo_url: data.logo_url || '',
-      logo_storage_path: data.logo_storage_path || '',
-      agent_name: data.name || 'AI Assistant',
-      agent_description: data.agent_description || '',
-      widget_settings: data.settings as Record<string, any> || {},
-      description: ''
+      logo_url: String(data.logo_url || ''),
+      logo_storage_path: String(data.logo_storage_path || ''),
+      agent_name: String(data.name || 'AI Assistant'),
+      agent_description: String(data.agent_description || ''),
+      widget_settings: typeof data.settings === 'object' ? data.settings : {},
+      description: String(data.description || ''),
+      user_id: String(data.user_id || '')
     };
 
     return client;
@@ -137,10 +139,17 @@ export const createNewClient = async (clientData: {
     }
     
     // Log client creation activity
-    await createClientActivity('client_created', `Client created: ${clientData.client_name}`, {
+    await execSql(`
+      SELECT log_client_activity(
+        $1,
+        $2,
+        $3,
+        $4
+      )
+    `, [clientId, 'client_created', `Client created: ${clientData.client_name}`, JSON.stringify({
       client_id: clientId,
       email: clientData.email
-    });
+    })]);
     
     // Return the new client object
     const client: Client = {
@@ -149,6 +158,7 @@ export const createNewClient = async (clientData: {
       client_name: clientData.client_name,
       email: clientData.email,
       company: '',
+      description: '',
       status: 'active',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -160,7 +170,7 @@ export const createNewClient = async (clientData: {
       agent_name: clientData.agent_name || 'AI Assistant',
       agent_description: '',
       widget_settings: widgetSettings,
-      description: ''
+      user_id: ''
     };
     
     return client;
