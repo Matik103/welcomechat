@@ -1,6 +1,20 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
+import { Database } from "@/types/supabase";
+
+// Define payload type for better type safety
+type PostgresChangesPayload<T> = {
+  new: T;
+  old: T | null;
+  errors: any;
+  commit_timestamp: string;
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+};
+
+// Short type alias for client activity payload
+type ClientActivityPayload = PostgresChangesPayload<Database['public']['Tables']['client_activities']['Row']>;
+type AIAgentsPayload = PostgresChangesPayload<Database['public']['Tables']['ai_agents']['Row']>;
 
 export const setupRealtimeActivities = async () => {
   try {
@@ -10,14 +24,16 @@ export const setupRealtimeActivities = async () => {
         event: '*',
         schema: 'public',
         table: 'client_activities',
-      }, (payload) => {
+      }, (payload: ClientActivityPayload) => {
         console.log('Client activity changed:', payload);
         // Optional: Show toast notification for important activities
         if (payload.new && shouldNotifyActivity(payload.new.activity_type)) {
-          toast({
-            title: "New Activity",
-            description: payload.new.description || `${payload.new.activity_type} occurred`,
-          });
+          toast.info(
+            "New Activity", 
+            { 
+              description: payload.new.description || `${payload.new.activity_type} occurred` 
+            }
+          );
         }
       })
       .subscribe((status) => {
@@ -30,7 +46,7 @@ export const setupRealtimeActivities = async () => {
         event: '*',
         schema: 'public',
         table: 'ai_agents',
-      }, (payload) => {
+      }, (payload: AIAgentsPayload) => {
         console.log('AI agent change detected:', payload);
         
         // Log specific AI agent events based on the interaction_type
