@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { WidgetSettings } from '@/types/widget-settings';
+import { safeParseSettings, getSettingsProp } from '@/utils/clientSettingsUtils';
 
 // Get widget settings for a client
 export async function getWidgetSettings(clientId: string): Promise<WidgetSettings> {
@@ -17,28 +18,28 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
     }
     
     // Get the settings object or create a default one
-    const settings = data.settings || {};
+    const settingsObj = safeParseSettings(data.settings);
     
     // Create a consistent widget settings object
     const widgetSettings: WidgetSettings = {
-      agent_name: settings.agent_name || data.name || 'AI Assistant',
-      agent_description: settings.agent_description || data.agent_description || 'Your helpful AI assistant',
-      logo_url: settings.logo_url || '',
-      logo_storage_path: settings.logo_storage_path || '',
-      chat_color: settings.chat_color || '#4F46E5',
-      background_color: settings.background_color || '#FFFFFF',
-      button_color: settings.button_color || '#4F46E5',
-      font_color: settings.font_color || '#1F2937',
-      chat_font_color: settings.chat_font_color || '#FFFFFF',
-      background_opacity: settings.background_opacity || 1,
-      button_text: settings.button_text || 'Chat with us',
-      position: settings.position || 'right',
-      greeting_message: settings.greeting_message || 'Hello! How can I help you today?',
-      text_color: settings.text_color || '#1F2937',
-      secondary_color: settings.secondary_color || '#6B7280',
-      welcome_text: settings.welcome_text || 'Welcome to our chat!',
-      response_time_text: settings.response_time_text || 'Typically responds in a few minutes',
-      display_mode: settings.display_mode || 'standard'
+      agent_name: getSettingsProp(data.settings, 'agent_name', data.name || 'AI Assistant'),
+      agent_description: getSettingsProp(data.settings, 'agent_description', data.agent_description || 'Your helpful AI assistant'),
+      logo_url: getSettingsProp(data.settings, 'logo_url', ''),
+      logo_storage_path: getSettingsProp(data.settings, 'logo_storage_path', ''),
+      chat_color: getSettingsProp(data.settings, 'chat_color', '#4F46E5'),
+      background_color: getSettingsProp(data.settings, 'background_color', '#FFFFFF'),
+      button_color: getSettingsProp(data.settings, 'button_color', '#4F46E5'),
+      font_color: getSettingsProp(data.settings, 'font_color', '#1F2937'),
+      chat_font_color: getSettingsProp(data.settings, 'chat_font_color', '#FFFFFF'),
+      background_opacity: getSettingsProp(data.settings, 'background_opacity', 1),
+      button_text: getSettingsProp(data.settings, 'button_text', 'Chat with us'),
+      position: getSettingsProp(data.settings, 'position', 'right'),
+      greeting_message: getSettingsProp(data.settings, 'greeting_message', 'Hello! How can I help you today?'),
+      text_color: getSettingsProp(data.settings, 'text_color', '#1F2937'),
+      secondary_color: getSettingsProp(data.settings, 'secondary_color', '#6B7280'),
+      welcome_text: getSettingsProp(data.settings, 'welcome_text', 'Welcome to our chat!'),
+      response_time_text: getSettingsProp(data.settings, 'response_time_text', 'Typically responds in a few minutes'),
+      display_mode: getSettingsProp(data.settings, 'display_mode', 'standard')
     };
     
     return widgetSettings;
@@ -65,7 +66,7 @@ export async function updateWidgetSettings(clientId: string, settings: Partial<W
     }
     
     // Merge the new settings with existing ones
-    const currentSettings = data.settings || {};
+    const currentSettings = safeParseSettings(data.settings);
     const updatedSettings = {
       ...currentSettings,
       ...settings

@@ -49,9 +49,8 @@ const AddEditClient = () => {
           client_id: clientId,
           client_name: data.client_name,
           email: data.email,
-          // Pass along widget_settings properties instead of trying to directly set agent_name
-          company: data.company,
-          description: data.description
+          company: data.company || '',
+          description: data.description || ''
         });
         
         // Log client update activity

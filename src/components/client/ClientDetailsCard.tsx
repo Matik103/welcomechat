@@ -4,13 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { Client } from '@/types/client';
+import { ActivityType } from '@/types/client-form';
 
 interface ClientDetailsCardProps {
   client: Client | null;
   isLoading?: boolean;
+  isClientView?: boolean;
+  logClientActivity?: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
 }
 
-export function ClientDetailsCard({ client, isLoading = false }: ClientDetailsCardProps) {
+export function ClientDetailsCard({ client, isLoading = false, isClientView = false, logClientActivity }: ClientDetailsCardProps) {
   if (isLoading) {
     return (
       <Card className="shadow-sm">
@@ -43,7 +46,7 @@ export function ClientDetailsCard({ client, isLoading = false }: ClientDetailsCa
   }
 
   const getStatusBadgeVariant = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'active':
         return 'secondary';
       case 'inactive':
@@ -75,7 +78,7 @@ export function ClientDetailsCard({ client, isLoading = false }: ClientDetailsCa
           <div>
             <h3 className="text-sm font-medium text-gray-500">Status</h3>
             <Badge variant={getStatusBadgeVariant(client.status || 'unknown')}>
-              {client.status ? client.status.toString() : 'Unknown'}
+              {client.status || 'Unknown'}
             </Badge>
           </div>
 

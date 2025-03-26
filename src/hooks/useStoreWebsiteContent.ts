@@ -8,16 +8,16 @@ export const useStoreWebsiteContent = (clientId: string) => {
   return useMutation({
     mutationFn: async (website: WebsiteUrl) => {
       try {
-        // Instead of using the protected supabaseUrl property,
-        // we'll use the environment variable or a default URL
-        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+        // Get the Supabase URL from environment variables or use a fallback
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
         
         // Make a fetch call to the Supabase function
         const response = await fetch(`${supabaseUrl}/functions/v1/crawl-website`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY || ''}`,
+            'Authorization': `Bearer ${supabaseKey}`,
           },
           body: JSON.stringify({
             websiteId: website.id,

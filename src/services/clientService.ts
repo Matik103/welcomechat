@@ -1,212 +1,137 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
+import { ClientFormData } from '@/types/client-form';
+import { safeParseSettings } from '@/utils/clientSettingsUtils';
 
-interface ClientUpdateData {
-  client_id: string;
+export interface CreateClientData {
   client_name: string;
   email: string;
   company?: string;
   description?: string;
-  status?: string;
-  logo_url?: string;
 }
 
-// Get a client by ID
-export async function getClient(clientId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('ai_agents')
-      .select('*')
-      .eq('id', clientId)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching client:', error);
-      throw error;
-    }
-    
-    // Adapt the data to match the Client interface
-    const settings = data.settings || {};
-    
-    const client: Client = {
-      id: data.id,
-      client_id: data.client_id || data.id,
-      client_name: data.client_name || data.name,
-      email: data.email || '',
-      company: data.company || '',
-      description: data.description || '',
-      status: data.status || 'active',
-      created_at: data.created_at || '',
-      updated_at: data.updated_at || '',
-      deleted_at: data.deleted_at || null,
-      deletion_scheduled_at: data.deletion_scheduled_at || null,
-      last_active: data.last_active || null,
-      logo_url: settings.logo_url || '',
-      logo_storage_path: settings.logo_storage_path || '',
-      agent_name: data.name || settings.agent_name || '',
-      agent_description: data.agent_description || settings.agent_description || '',
-      widget_settings: settings || {},
-      name: data.client_name || data.name || '',
-      is_error: data.is_error || false
-    };
-    
-    return client;
-  } catch (error) {
-    console.error('Error in getClient:', error);
-    throw error;
-  }
+export interface UpdateClientData {
+  client_id: string;
+  client_name?: string;
+  email?: string;
+  company?: string;
+  description?: string;
+  status?: 'active' | 'inactive' | 'deleted';
 }
 
-// Update a client
-export async function updateClient(data: ClientUpdateData) {
+export async function createClient(data: CreateClientData): Promise<Client> {
   try {
-    // First get the current settings
-    const { data: currentClient, error: fetchError } = await supabase
-      .from('ai_agents')
-      .select('settings')
-      .eq('id', data.client_id)
-      .single();
-    
-    if (fetchError) {
-      console.error('Error fetching current client settings:', fetchError);
-      throw fetchError;
-    }
-    
-    // Prepare settings object
-    const currentSettings = currentClient.settings || {};
-    
-    // Update basic client info
-    const updateData: any = {
-      client_name: data.client_name,
-      name: data.client_name, // Keep name in sync with client_name
-      email: data.email,
-      company: data.company,
-      description: data.description,
-      status: data.status,
-      updated_at: new Date().toISOString()
-    };
-    
-    // If logo_url is provided, update it in settings
-    if (data.logo_url) {
-      updateData.settings = {
-        ...currentSettings,
-        logo_url: data.logo_url
-      };
-    }
-    
-    const { error } = await supabase
-      .from('ai_agents')
-      .update(updateData)
-      .eq('id', data.client_id);
-    
-    if (error) {
-      console.error('Error updating client:', error);
-      throw error;
-    }
-    
-    return { success: true, message: 'Client updated successfully' };
-  } catch (error) {
-    console.error('Error in updateClient:', error);
-    throw error;
-  }
-}
-
-// Create a new client
-export async function createClient(data: Omit<ClientUpdateData, 'client_id'>) {
-  try {
-    // Generate a unique client ID
-    const clientId = crypto.randomUUID();
-    
-    // Create default settings object
-    const settings = {
-      agent_name: data.client_name,
-      agent_description: "Your helpful AI assistant",
-      logo_url: data.logo_url || null,
-    };
-    
+    // Insert into ai_agents table
     const { data: newClient, error } = await supabase
       .from('ai_agents')
       .insert({
-        id: clientId,
-        client_id: clientId,
         client_name: data.client_name,
-        name: data.client_name, // Set name to be same as client_name
+        email: data.email,
+        company: data.company || '',
+        description: data.description || '',
+        interaction_type: 'config',
+        status: 'active',
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    // Map to Client type
+    const settings = safeParseSettings(newClient.settings);
+
+    return {
+      id: newClient.id,
+      client_id: newClient.client_id || newClient.id,
+      user_id: newClient.user_id || '',
+      client_name: newClient.client_name,
+      email: newClient.email,
+      company: newClient.company || '',
+      description: newClient.description || '',
+      logo_url: settings.logo_url || '',
+      logo_storage_path: settings.logo_storage_path || '',
+      created_at: newClient.created_at,
+      updated_at: newClient.updated_at,
+      deleted_at: newClient.deleted_at,
+      deletion_scheduled_at: newClient.deletion_scheduled_at,
+      last_active: newClient.last_active,
+      agent_name: settings.agent_name || newClient.name || '',
+      agent_description: settings.agent_description || '',
+      widget_settings: settings,
+      name: newClient.name || '',
+      status: newClient.status || 'active',
+      is_error: false
+    };
+  } catch (error) {
+    console.error('Error creating client:', error);
+    throw error;
+  }
+}
+
+export async function updateClient(data: UpdateClientData): Promise<Client> {
+  try {
+    const { data: updatedClient, error } = await supabase
+      .from('ai_agents')
+      .update({
+        client_name: data.client_name,
         email: data.email,
         company: data.company,
         description: data.description,
-        status: data.status || 'active',
-        settings: settings,
-        created_at: new Date().toISOString(),
+        status: data.status,
         updated_at: new Date().toISOString(),
-        interaction_type: 'config'
       })
-      .select()
+      .eq('id', data.client_id)
+      .select('*')
       .single();
+
+    if (error) throw error;
     
-    if (error) {
-      console.error('Error creating client:', error);
-      throw error;
-    }
+    // Map to Client type
+    const settings = safeParseSettings(updatedClient.settings);
     
-    return { 
-      success: true, 
-      message: 'Client created successfully',
-      clientId: newClient.id
+    return {
+      id: updatedClient.id,
+      client_id: updatedClient.client_id || updatedClient.id,
+      user_id: updatedClient.user_id || '',
+      client_name: updatedClient.client_name,
+      email: updatedClient.email,
+      company: updatedClient.company || '',
+      description: updatedClient.description || '',
+      logo_url: settings.logo_url || '',
+      logo_storage_path: settings.logo_storage_path || '',
+      created_at: updatedClient.created_at,
+      updated_at: updatedClient.updated_at,
+      deleted_at: updatedClient.deleted_at,
+      deletion_scheduled_at: updatedClient.deletion_scheduled_at,
+      last_active: updatedClient.last_active,
+      agent_name: settings.agent_name || updatedClient.name || '',
+      agent_description: settings.agent_description || '',
+      widget_settings: settings,
+      name: updatedClient.name || '',
+      status: updatedClient.status || 'active',
+      is_error: false
     };
   } catch (error) {
-    console.error('Error in createClient:', error);
+    console.error('Error updating client:', error);
     throw error;
   }
 }
 
-// Mark a client as deleted
-export async function deleteClient(clientId: string) {
+export async function deleteClient(clientId: string): Promise<boolean> {
   try {
-    const now = new Date().toISOString();
-    
     const { error } = await supabase
       .from('ai_agents')
       .update({
-        deleted_at: now,
-        updated_at: now,
-        status: 'inactive'
+        status: 'deleted',
+        deleted_at: new Date().toISOString(),
       })
       .eq('id', clientId);
-    
-    if (error) {
-      console.error('Error deleting client:', error);
-      throw error;
-    }
-    
-    return { success: true, message: 'Client deleted successfully' };
-  } catch (error) {
-    console.error('Error in deleteClient:', error);
-    throw error;
-  }
-}
 
-// Recover a deleted client
-export async function recoverClient(clientId: string) {
-  try {
-    const { error } = await supabase
-      .from('ai_agents')
-      .update({
-        deleted_at: null,
-        deletion_scheduled_at: null,
-        updated_at: new Date().toISOString(),
-        status: 'active'
-      })
-      .eq('id', clientId);
-    
-    if (error) {
-      console.error('Error recovering client:', error);
-      throw error;
-    }
-    
-    return { success: true, message: 'Client recovered successfully' };
+    if (error) throw error;
+    return true;
   } catch (error) {
-    console.error('Error in recoverClient:', error);
+    console.error('Error deleting client:', error);
     throw error;
   }
 }

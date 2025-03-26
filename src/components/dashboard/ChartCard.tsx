@@ -1,101 +1,70 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Line, Bar, BarChart, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface ChartCardProps {
   title: string;
-  description?: string;
-  data: any[];
+  data: { name: string; value: number }[];
   className?: string;
-  type?: 'line' | 'bar';
-  xKey?: string;
-  yKey?: string;
-  height?: number;
 }
 
-export function ChartCard({
-  title,
-  description,
-  data = [],
-  className = "",
-  type = 'bar',
-  xKey = 'query',
-  yKey = 'count',
-  height = 350,
-}: ChartCardProps) {
-  // Convert data format if query/count structure
-  const formattedData = data.map(item => {
-    // If it has query and count properties, convert to name/value
-    if (typeof item.query === 'string' && typeof item.count === 'number') {
-      return {
-        name: item.query,
-        value: item.count
-      };
-    }
-    // If already has name/value, keep as is
-    if (typeof item.name === 'string' && typeof item.value !== 'undefined') {
-      return item;
-    }
-    // Otherwise try to use the provided keys
-    return {
-      name: item[xKey] || 'Unknown',
-      value: item[yKey] || 0
-    };
-  });
+export function ChartCard({ title, data, className }: ChartCardProps) {
+  const colors = ['#4F46E5', '#7C3AED', '#2563EB', '#8B5CF6', '#3B82F6'];
 
-  // Custom tooltip component that safely handles payload
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length > 0) {
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-2 border border-gray-300 rounded-md shadow">
-          <p className="text-sm font-medium">{label}</p>
-          <p className="text-xs text-blue-600">{`Value: ${payload[0].value}`}</p>
+        <div className="bg-white p-2 border rounded shadow text-sm">
+          <p className="font-medium">{payload[0].payload.name}</p>
+          <p>{payload[0].value} queries</p>
         </div>
       );
     }
-  
     return null;
   };
 
   return (
     <Card className={className}>
-      <CardHeader>
+      <CardHeader className="pb-0">
         <CardTitle>{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent>
-        <div className="h-[350px]">
-          <ResponsiveContainer width="100%" height="100%">
-            {type === 'line' ? (
-              <LineChart data={formattedData}>
-                <CartesianGrid strokeDasharray="3 3" />
+      <CardContent className="pt-4">
+        {data.length > 0 ? (
+          <div className="w-full h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data}
+                margin={{
+                  top: 10,
+                  right: 10,
+                  left: 10,
+                  bottom: 30,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis 
                   dataKey="name" 
-                  height={60}
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={70}
                   tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
                 />
-                <YAxis />
+                <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Line type="monotone" dataKey="value" stroke="#4f46e5" activeDot={{ r: 8 }} />
-              </LineChart>
-            ) : (
-              <BarChart data={formattedData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="name" 
-                  height={60}
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
-                />
-                <YAxis />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Bar dataKey="value" fill="#4f46e5" />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  ))}
+                </Bar>
               </BarChart>
-            )}
-          </ResponsiveContainer>
-        </div>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+            No data available
+          </div>
+        )}
       </CardContent>
     </Card>
   );
