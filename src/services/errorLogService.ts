@@ -1,68 +1,90 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { ErrorLog } from "@/types/client-dashboard";
-import { RealtimeChannel } from "@supabase/supabase-js";
+import { supabase } from '@/integrations/supabase/client';
+import { ErrorLog } from '@/types/client-dashboard';
 
 /**
- * Fetches error logs for a specific client directly from the ai_agents table
+ * Fetch error logs for a client
  */
-export const fetchErrorLogs = async (clientId: string): Promise<ErrorLog[]> => {
+export const fetchErrorLogs = async (clientId?: string, limit: number = 10): Promise<ErrorLog[]> => {
   try {
-    // First, verify that the client exists in the ai_agents table
-    console.log(`Fetching error logs for client ID: ${clientId}`);
+    let query = supabase
+      .from('error_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
     
-    const { data, error } = await supabase
-      .from("ai_agents")
-      .select("id, error_type, error_message, error_status, created_at, query_text")
-      .eq("client_id", clientId)
-      .eq("is_error", true)
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (error) throw error;
+    if (clientId) {
+      query = query.eq('client_id', clientId);
+    }
     
-    // Transform the data to match the ErrorLog interface
-    return (data || []).map(item => ({
-      id: item.id.toString(),
-      error_type: item.error_type || "unknown",
-      message: item.error_message || "Unknown error",
-      status: item.error_status || "pending",
-      
-      // Ensure created_at is a valid ISO string
-      created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
-      
-      client_id: clientId,
-      query_text: item.query_text
-    })) as ErrorLog[];
-  } catch (err) {
-    console.error("Error fetching error logs:", err);
-    throw err;
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching error logs:', error);
+      return [];
+    }
+    
+    return data as ErrorLog[];
+  } catch (error) {
+    console.error('Error in fetchErrorLogs:', error);
+    return [];
   }
 };
 
 /**
- * Sets up a realtime subscription for error logs
+ * Create a new error log
  */
-export const subscribeToErrorLogs = (
-  clientId: string,
-  onUpdate: () => void
-): RealtimeChannel => {
-  const channel = supabase
-    .channel(`error-logs-${clientId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "ai_agents",
-        filter: `client_id=eq.${clientId} AND is_error=eq.true`
-      },
-      (payload) => {
-        console.log("New error log detected:", payload);
-        onUpdate();
-      }
-    )
-    .subscribe();
+export const createErrorLog = async (
+  error_type: string,
+  message: string,
+  clientId?: string
+): Promise<ErrorLog | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('error_logs')
+      .insert({
+        client_id: clientId,
+        error_type,
+        message,
+        status: 'new',
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating error log:', error);
+      return null;
+    }
+    
+    return data as ErrorLog;
+  } catch (error) {
+    console.error('Error in createErrorLog:', error);
+    return null;
+  }
+};
 
-  return channel;
+/**
+ * Update error log status
+ */
+export const updateErrorLogStatus = async (
+  errorLogId: string,
+  status: 'pending' | 'resolved' | 'in_progress'
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('error_logs')
+      .update({ status })
+      .eq('id', errorLogId);
+    
+    if (error) {
+      console.error('Error updating error log status:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in updateErrorLogStatus:', error);
+    return false;
+  }
 };

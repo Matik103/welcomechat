@@ -11,13 +11,19 @@ export interface WidgetSettings {
   background_color: string;
   text_color: string;
   secondary_color: string;
-  position: WidgetPosition;
+  position: "left" | "right";  // Simplified to match client-form type
   welcome_text: string;
   response_time_text: string;
   agent_name: string; // Agent name for the widget
   agent_description: string; // Agent description stored in widget_settings
   openai_assistant_id?: string; // OpenAI assistant ID
   display_mode: WidgetDisplayMode; // Widget display mode - new field
+  font_color?: string;
+  chat_font_color?: string;
+  background_opacity?: number;
+  button_text?: string;
+  button_color?: string;
+  greeting_message?: string;
 }
 
 export const isWidgetSettings = (settings: unknown): settings is WidgetSettings => {
@@ -40,7 +46,7 @@ export const defaultSettings: WidgetSettings = {
   background_color: "#ffffff",
   text_color: "#333333",
   secondary_color: "#f0f0f0",
-  position: "bottom-right",
+  position: "right",
   welcome_text: "Hi there! How can I help you today?",
   response_time_text: "Usually responds within a few minutes",
   agent_name: "Chat", // Default agent name

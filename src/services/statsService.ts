@@ -1,67 +1,62 @@
 
-import { getActiveDays } from './activeDaysService';
-import { getInteractionCount } from './interactionCountService';
-import { getAverageResponseTime } from './responseTimeService';
-import { getTopQueries } from './topQueriesService';
+import { getInteractionCount } from "./interactionCountService";
+import { getActiveDays } from "./activeDaysService";
+import { getAverageResponseTime } from "./responseTimeService";
+import { fetchTopQueries } from "./topQueriesService";
 
-export interface StatsData {
-  activeDays: number;
-  interactionCount: number;
-  avgResponseTime: number;
-  commonQueries: { query: string; count: number }[];
-}
-
-/**
- * Get client stats for a specific client
- */
-export const getClientStats = async (
-  clientId?: string,
-  timeRange: "1d" | "1m" | "1y" | "all" = "1m"
-): Promise<StatsData> => {
+// Export the getInteractionStats function that was missing
+export const getInteractionStats = async (clientId?: string, agentName: string = 'AI Assistant') => {
   try {
-    // Fetch all stats in parallel for efficiency
-    const [activeDays, interactionCount, avgResponseTime, commonQueries] = await Promise.all([
-      getActiveDays(timeRange, clientId),
-      getInteractionCount(timeRange, clientId),
-      getAverageResponseTime(timeRange, clientId),
-      getTopQueries(clientId, 5)
+    // Fetch all stats in parallel
+    const [totalInteractions, activeDays, averageResponseTime, topQueries] = await Promise.all([
+      getInteractionCount('all', clientId),
+      getActiveDays('all', clientId),
+      getAverageResponseTime('all', clientId),
+      fetchTopQueries(clientId, 5)
     ]);
-    
+
     return {
+      total_interactions: totalInteractions,
+      active_days: activeDays,
+      average_response_time: averageResponseTime,
+      top_queries: topQueries || [],
+      success_rate: 100, // Default if not calculated
+      
+      // CamelCase variants for frontend compatibility
+      totalInteractions,
       activeDays,
-      interactionCount,
-      avgResponseTime,
-      commonQueries
+      averageResponseTime,
+      topQueries: topQueries || [],
+      successRate: 100
     };
   } catch (error) {
-    console.error('Error fetching client stats:', error);
+    console.error("Error in getClientStats:", error);
     throw error;
   }
 };
 
-/**
- * Get dashboard stats for all clients
- */
-export const getDashboardStats = async (
-  timeRange: "1d" | "1m" | "1y" | "all" = "1m"
-): Promise<StatsData> => {
+// Function to get client stats
+export const getClientStats = async (clientId?: string, timeRange: string = '1m') => {
   try {
-    // Fetch all stats in parallel for efficiency
+    // Fetch all stats in parallel
     const [activeDays, interactionCount, avgResponseTime, commonQueries] = await Promise.all([
-      getActiveDays(timeRange),
-      getInteractionCount(timeRange),
-      getAverageResponseTime(timeRange),
-      getTopQueries(undefined, 5)
+      getActiveDays(timeRange as any, clientId),
+      getInteractionCount(timeRange as any, clientId),
+      getAverageResponseTime(timeRange as any, clientId),
+      fetchTopQueries(clientId, 5)
     ]);
-    
+
     return {
       activeDays,
       interactionCount,
       avgResponseTime,
-      commonQueries
+      commonQueries: commonQueries.map(q => ({
+        query: q.query_text,
+        count: q.frequency
+      }))
     };
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
+    console.error("Error in getClientStats:", error);
     throw error;
   }
 };

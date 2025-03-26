@@ -1,8 +1,7 @@
 
 import { Client } from "@/types/client";
 import { ClientForm } from "@/components/client/ClientForm";
-import { ExtendedActivityType } from "@/types/activity";
-import { Json } from "@/integrations/supabase/types";
+import { ClientFormData } from "@/types/client-form";
 import { useClientFormSubmission } from "@/hooks/useClientFormSubmission";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useEffect } from "react";
@@ -11,16 +10,14 @@ interface ClientDetailsCardProps {
   client: Client | null;
   clientId: string | undefined;
   isClientView: boolean;
-  logClientActivity: (activity_type: ExtendedActivityType, description: string, metadata?: Json) => Promise<void>;
 }
 
 export const ClientDetailsCard = ({ 
   client, 
   clientId, 
-  isClientView,
-  logClientActivity 
+  isClientView
 }: ClientDetailsCardProps) => {
-  const { handleSubmit, isLoading } = useClientFormSubmission(clientId, isClientView, logClientActivity);
+  const { handleSubmit, isSubmitting, error } = useClientFormSubmission(clientId || "");
 
   // Log client data for debugging
   useEffect(() => {
@@ -55,7 +52,7 @@ export const ClientDetailsCard = ({
         <ClientForm
           initialData={client}
           onSubmit={handleSubmit}
-          isLoading={isLoading}
+          isLoading={isSubmitting}
           isClientView={isClientView}
         />
       </CardContent>

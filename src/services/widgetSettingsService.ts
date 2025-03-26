@@ -1,7 +1,9 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { WidgetSettings } from '@/types/client-form';
+import { WidgetSettings } from '@/types/widget-settings';
 import { createClientActivity } from './clientActivityService';
+import { Json } from '@/integrations/supabase/types';
+import { execSql } from '@/utils/rpcUtils';
 
 /**
  * Get widget settings for a client
@@ -20,23 +22,23 @@ export const getWidgetSettings = async (clientId: string): Promise<WidgetSetting
       throw error;
     }
     
-    // Extract widget settings from the response
-    const settings = data.settings || {};
+    // Extract widget settings from the response, safely handle JSON types
+    const settings = data.settings as Record<string, any> || {};
     
     return {
       agent_name: data.name || 'AI Assistant',
-      agent_description: typeof settings === 'object' ? (settings.agent_description as string) || '' : '',
-      logo_url: typeof settings === 'object' ? (settings.logo_url as string) || '' : '',
-      logo_storage_path: typeof settings === 'object' ? (settings.logo_storage_path as string) || '' : '',
-      chat_color: typeof settings === 'object' ? (settings.chat_color as string) || '#3b82f6' : '#3b82f6',
-      background_color: typeof settings === 'object' ? (settings.background_color as string) || '#ffffff' : '#ffffff',
-      button_color: typeof settings === 'object' ? (settings.button_color as string) || '#3b82f6' : '#3b82f6',
-      font_color: typeof settings === 'object' ? (settings.font_color as string) || '#000000' : '#000000',
-      chat_font_color: typeof settings === 'object' ? (settings.chat_font_color as string) || '#ffffff' : '#ffffff',
-      background_opacity: typeof settings === 'object' ? (settings.background_opacity as number) || 1 : 1,
-      button_text: typeof settings === 'object' ? (settings.button_text as string) || 'Chat with Us' : 'Chat with Us',
-      position: typeof settings === 'object' ? (settings.position as 'left' | 'right') || 'right' : 'right',
-      greeting_message: typeof settings === 'object' ? (settings.greeting_message as string) || 'Hello! How can I help you today?' : 'Hello! How can I help you today?'
+      agent_description: settings.agent_description || '',
+      logo_url: settings.logo_url || '',
+      logo_storage_path: settings.logo_storage_path || '',
+      chat_color: settings.chat_color || '#3b82f6',
+      background_color: settings.background_color || '#ffffff',
+      button_color: settings.button_color || '#3b82f6',
+      font_color: settings.font_color || '#000000',
+      chat_font_color: settings.chat_font_color || '#ffffff',
+      background_opacity: settings.background_opacity || 1,
+      button_text: settings.button_text || 'Chat with Us',
+      position: (settings.position as "left" | "right") || 'right',
+      greeting_message: settings.greeting_message || 'Hello! How can I help you today?'
     };
   } catch (error) {
     console.error(`Error in getWidgetSettings for client ${clientId}:`, error);
@@ -63,10 +65,10 @@ export const updateWidgetSettings = async (clientId: string, settings: Partial<W
     }
     
     // Merge existing settings with updates
-    const existingSettings = existingData.settings || {};
+    const existingSettings = existingData?.settings as Record<string, any> || {};
     const updatedSettings = {
       ...existingSettings,
-      ...settings,
+      ...(settings as Record<string, any>),
       updated_at: new Date().toISOString()
     };
     
@@ -99,10 +101,16 @@ export const updateWidgetSettings = async (clientId: string, settings: Partial<W
     }
     
     // Log the widget settings update activity
-    await createClientActivity('widget_settings_updated', 'Widget settings updated', {
-      client_id: clientId,
+    await execSql(`
+      SELECT log_client_activity(
+        $1,
+        $2,
+        $3,
+        $4
+      )
+    `, [clientId, 'widget_settings_updated', 'Widget settings updated', JSON.stringify({
       settings_updated: Object.keys(settings)
-    });
+    })]);
   } catch (error) {
     console.error(`Error in updateWidgetSettings for client ${clientId}:`, error);
     throw error;

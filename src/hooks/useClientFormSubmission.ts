@@ -6,6 +6,7 @@ import { uploadLogo } from '@/services/uploadService';
 import { updateWidgetSettings } from '@/services/widgetSettingsService';
 import { createClientActivity } from '@/services/clientActivityService';
 import { toast } from 'sonner';
+import { execSql } from '@/utils/rpcUtils';
 
 export const useClientFormSubmission = (clientId: string) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,11 +36,18 @@ export const useClientFormSubmission = (clientId: string) => {
             data.widget_settings.logo_url = uploadResult.url;
             data.widget_settings.logo_storage_path = uploadResult.path;
             
-            // Log logo upload activity
-            await createClientActivity('logo_uploaded', `Logo uploaded for client: ${data.client_name}`, {
+            // Log logo upload activity using execSql for safely formatted values
+            await execSql(`
+              SELECT log_client_activity(
+                $1,
+                $2,
+                $3,
+                $4
+              )
+            `, [clientId, 'logo_uploaded', `Logo uploaded for client: ${data.client_name}`, JSON.stringify({
               logo_url: uploadResult.url,
               client_id: clientId
-            });
+            })]);
           }
         } catch (uploadError) {
           console.error('Error uploading logo:', uploadError);
@@ -60,17 +68,31 @@ export const useClientFormSubmission = (clientId: string) => {
         await updateWidgetSettings(clientId, data.widget_settings);
         
         // Log widget settings update activity
-        await createClientActivity('widget_settings_updated', 'Widget settings updated', {
+        await execSql(`
+          SELECT log_client_activity(
+            $1,
+            $2,
+            $3,
+            $4
+          )
+        `, [clientId, 'widget_settings_updated', 'Widget settings updated', JSON.stringify({
           client_id: clientId,
           settings_updated: Object.keys(data.widget_settings)
-        });
+        })]);
       }
 
       // Log client update activity
-      await createClientActivity('client_updated', `Client updated: ${data.client_name}`, {
+      await execSql(`
+        SELECT log_client_activity(
+          $1,
+          $2,
+          $3,
+          $4
+        )
+      `, [clientId, 'client_updated', `Client updated: ${data.client_name}`, JSON.stringify({
         client_id: clientId,
         email: data.email
-      });
+      })]);
 
       toast.success('Client information updated successfully!');
       return clientResult;

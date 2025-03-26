@@ -479,9 +479,9 @@ export class DocumentProcessingService {
               String(settings.processing_method) : 'llamaparse',
             publicUrl: documentUrl,
             totalChunks: 1,
-            characterCount: agent.content?.length || 0,
-            wordCount: agent.content?.split(/\s+/).length || 0,
-            averageChunkSize: agent.content?.length || 0,
+            characterCount: 0,
+            wordCount: 0,
+            averageChunkSize: 0,
             title: typeof settings === 'object' && 'title' in settings ? String(settings.title) : undefined,
             author: typeof settings === 'object' && 'author' in settings ? String(settings.author) : undefined,
             createdAt: typeof settings === 'object' && 'createdAt' in settings ? String(settings.createdAt) : undefined,
@@ -614,7 +614,7 @@ export class DocumentProcessingService {
    */
   static async checkDocumentAccess(documentId: number): Promise<string> {
     try {
-      const result = await callRpcFunction('get_document_access_status', {
+      const result = await callRpcFunction<string>('get_document_access_status', {
         document_id: documentId
       });
       return result || 'unknown';
