@@ -161,10 +161,14 @@ export const getDocumentProcessingStats = async (clientId: string) => {
     // Get last processed document
     const sortedData = [...data]
       .filter(d => d.status === 'completed')
-      .sort((a, b) => new Date(b.completed_at || b.updated_at).getTime() - new Date(a.completed_at || a.updated_at).getTime());
+      .sort((a, b) => {
+        const dateA = new Date(a.updated_at).getTime();
+        const dateB = new Date(b.updated_at).getTime();
+        return dateB - dateA;
+      });
     
     if (sortedData.length > 0) {
-      stats.last_processed = sortedData[0].completed_at || sortedData[0].updated_at;
+      stats.last_processed = sortedData[0].updated_at;
       
       // Convert processed_count and failed_count from metadata to numbers if they exist
       if (sortedData[0].metadata && typeof sortedData[0].metadata === 'object') {
@@ -177,7 +181,7 @@ export const getDocumentProcessingStats = async (clientId: string) => {
         }
       }
       
-      stats.error_message = sortedData[0].error_message || sortedData[0].error || null;
+      stats.error_message = sortedData[0].error || null;
     }
     
     return stats;
