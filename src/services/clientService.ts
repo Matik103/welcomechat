@@ -1,7 +1,33 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
-import { getSettingsProp } from '@/utils/clientSettingsUtils';
+
+/**
+ * Helper function to safely get a property from settings
+ */
+function getSettingsProp(settings: any, propName: string, defaultValue: any) {
+  if (!settings) return defaultValue;
+  
+  try {
+    if (typeof settings === 'object') {
+      return settings[propName] || defaultValue;
+    }
+    
+    // Try to parse JSON string
+    if (typeof settings === 'string') {
+      try {
+        const parsed = JSON.parse(settings);
+        return parsed[propName] || defaultValue;
+      } catch (e) {
+        return defaultValue;
+      }
+    }
+  } catch (e) {
+    return defaultValue;
+  }
+  
+  return defaultValue;
+}
 
 /**
  * Create a new client
@@ -60,10 +86,19 @@ export async function getClientById(clientId: string): Promise<Client | null> {
     if (!data) return null;
 
     // Convert Supabase Json type to standard Record<string, any>
-    const widgetSettingsRecord: Record<string, any> = 
-      typeof data.settings === 'object' && data.settings !== null
-        ? { ...data.settings }
-        : {};
+    let widgetSettingsRecord: Record<string, any> = {};
+    
+    if (data.settings) {
+      if (typeof data.settings === 'object') {
+        widgetSettingsRecord = { ...data.settings };
+      } else if (typeof data.settings === 'string') {
+        try {
+          widgetSettingsRecord = JSON.parse(data.settings);
+        } catch (e) {
+          widgetSettingsRecord = {};
+        }
+      }
+    }
 
     return {
       id: data.id,
@@ -108,11 +143,20 @@ export async function getClientsByEmail(email: string): Promise<Client[]> {
     
     return (data || []).map(client => {
       // Convert Supabase Json type to standard Record<string, any>
-      const widgetSettingsRecord: Record<string, any> = 
-        typeof client.settings === 'object' && client.settings !== null
-          ? { ...client.settings }
-          : {};
-          
+      let widgetSettingsRecord: Record<string, any> = {};
+      
+      if (client.settings) {
+        if (typeof client.settings === 'object') {
+          widgetSettingsRecord = { ...client.settings };
+        } else if (typeof client.settings === 'string') {
+          try {
+            widgetSettingsRecord = JSON.parse(client.settings);
+          } catch (e) {
+            widgetSettingsRecord = {};
+          }
+        }
+      }
+      
       return {
         id: client.id,
         client_id: client.client_id || client.id,

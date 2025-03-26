@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentProcessingResult, DocumentType } from '@/types/document-processing';
 import { createClientActivity } from './clientActivityService';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Process a document URL for a client
@@ -13,6 +14,9 @@ export async function processDocumentUrl(
   agentName: string
 ): Promise<DocumentProcessingResult> {
   try {
+    // Create a document ID
+    const documentId = uuidv4();
+    
     // Create a new document processing job
     const { data: job, error: jobError } = await supabase
       .from('document_processing_jobs')
@@ -20,6 +24,7 @@ export async function processDocumentUrl(
         client_id: clientId,
         document_url: documentUrl,
         document_type: documentType,
+        document_id: documentId,
         agent_name: agentName,
         status: 'pending'
       })
@@ -29,7 +34,7 @@ export async function processDocumentUrl(
     if (jobError) throw jobError;
 
     // Log the activity
-    const { data: activityData } = await createClientActivity(
+    await createClientActivity(
       clientId,
       'document_processed',
       `Started processing ${documentType}: ${documentUrl}`,
@@ -77,9 +82,16 @@ export async function checkDocumentProcessingStatus(
       };
     }
 
+    // Extract metadata safely
     const metadata = data.metadata || {};
-    const processed = metadata.processed_count || 0;
-    const failed = metadata.failed_count || 0;
+    let processed = 0;
+    let failed = 0;
+    
+    // Handle different types of metadata
+    if (typeof metadata === 'object') {
+      processed = metadata.processed_count || 0;
+      failed = metadata.failed_count || 0;
+    }
 
     return {
       success: data.status === 'completed',
@@ -112,6 +124,7 @@ export async function uploadDocument(
     const timestamp = Date.now();
     const fileName = `${timestamp}-${file.name.replace(/\s+/g, '_')}`;
     const filePath = `documents/${clientId}/${fileName}`;
+    const documentId = uuidv4();
 
     // Upload the file to storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -134,6 +147,7 @@ export async function uploadDocument(
       .from('document_processing_jobs')
       .insert({
         client_id: clientId,
+        document_id: documentId,
         document_url: urlData.publicUrl,
         document_type: 'document',
         agent_name: agentName,
@@ -152,7 +166,7 @@ export async function uploadDocument(
     // Log the activity
     await createClientActivity(
       clientId,
-      'document_added',
+      'document_uploaded' as any,
       `Uploaded document: ${file.name}`,
       { 
         filename: file.name, 

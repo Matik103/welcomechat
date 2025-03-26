@@ -1,80 +1,80 @@
-
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Client } from '@/types/client';
-import { getSettingsProp } from '@/utils/clientSettingsUtils';
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Client, ClientListResponse } from "@/types/client";
 
 export const useClientList = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['clients'],
-    queryFn: async (): Promise<Client[]> => {
-      const { data, error } = await supabase
-        .from('ai_agents')
-        .select('*')
+  const { data, error, isLoading, refetch } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async (): Promise<ClientListResponse> => {
+      const { data, error, count } = await supabase
+        .from("ai_agents")
+        .select("*", { count: "exact" })
         .eq('interaction_type', 'config')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Error fetching clients:', error);
+        console.error("Error fetching clients:", error);
         throw error;
       }
 
-      return (data || []).map(client => {
-        // Convert Supabase Json type to standard Record<string, any>
-        const widgetSettingsRecord: Record<string, any> = 
-          typeof client.settings === 'object' && client.settings !== null
-            ? { ...client.settings }
-            : {};
-            
-        return {
-          id: client.id || '',
-          client_id: client.client_id || client.id || '',
-          client_name: client.client_name || getSettingsProp(client.settings || {}, 'client_name', ''),
-          email: client.email || '',
-          company: client.company || '',
-          description: client.description || '',
-          logo_url: client.logo_url || getSettingsProp(client.settings || {}, 'logo_url', ''),
-          logo_storage_path: client.logo_storage_path || '',
-          created_at: client.created_at || '',
-          updated_at: client.updated_at || '',
-          deleted_at: client.deleted_at,
-          deletion_scheduled_at: client.deletion_scheduled_at,
-          last_active: client.last_active,
-          status: client.status || 'active',
-          agent_name: client.name || '',
-          agent_description: client.agent_description || '',
-          widget_settings: widgetSettingsRecord,
-          name: client.name || '',
-          is_error: !!client.is_error,
-          user_id: client.user_id || ''
-        };
-      });
+      // Ensure data is not null before mapping
+      const clients = data ? data.map(mapToClient) : [];
+
+      return {
+        data: clients,
+        count: count || 0,
+      };
     },
   });
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
+  // Helper function to map database data to Client type
+  const mapToClient = (client: any): Client => {
+    // Convert Supabase Json type to standard Record<string, any>
+    let widgetSettingsRecord: Record<string, any> = {};
+    
+    if (client.settings) {
+      if (typeof client.settings === 'object') {
+        widgetSettingsRecord = { ...client.settings };
+      } else if (typeof client.settings === 'string') {
+        try {
+          widgetSettingsRecord = JSON.parse(client.settings);
+        } catch (e) {
+          widgetSettingsRecord = {};
+        }
+      }
+    }
+    
+    const userId = client.user_id !== undefined ? client.user_id : null;
+    
+    return {
+      id: client.id,
+      client_id: client.client_id || client.id,
+      client_name: client.client_name || '',
+      email: client.email || '',
+      company: client.company || '',
+      description: client.description || '',
+      logo_url: client.logo_url || '',
+      logo_storage_path: client.logo_storage_path || '',
+      created_at: client.created_at || '',
+      updated_at: client.updated_at || '',
+      deleted_at: client.deleted_at,
+      deletion_scheduled_at: client.deletion_scheduled_at,
+      last_active: client.last_active,
+      status: client.status || 'active',
+      agent_name: client.name || '',
+      agent_description: client.agent_description || '',
+      widget_settings: widgetSettingsRecord,
+      name: client.name || '',
+      is_error: !!client.is_error,
+      user_id: userId
+    };
   };
 
-  const filteredClients = data?.filter(client => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      client.client_name?.toLowerCase().includes(searchLower) ||
-      client.email?.toLowerCase().includes(searchLower) ||
-      client.company?.toLowerCase().includes(searchLower)
-    );
-  }) || [];
-
   return {
-    clients: filteredClients,
+    clients: data?.data || [],
+    count: data?.count || 0,
     isLoading,
     error,
     refetch,
-    searchQuery,
-    handleSearch
   };
 };

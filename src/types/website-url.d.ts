@@ -16,18 +16,23 @@ export interface WebsiteUrlFormData {
 }
 
 export interface WebsiteUrlFormProps {
-  onSubmit: (data: WebsiteUrlFormData) => Promise<void>;
+  onSubmit?: (data: WebsiteUrlFormData) => Promise<void>;
   onAdd?: (data: WebsiteUrlFormData) => Promise<void>;
   isSubmitting?: boolean;
   isAdding?: boolean;
   agentName: string;
+  clientId?: string;
+  onAddSuccess?: () => Promise<void>;
+  webstoreHook?: any;
 }
 
 export interface WebsiteUrlsListProps {
   urls: WebsiteUrl[];
   onDelete: (id: number) => Promise<void>;
   isDeleting?: boolean;
-  deletingId?: number;
+  deletingId?: number | null;
   onProcess?: (website: WebsiteUrl) => Promise<void>;
   isProcessing?: boolean;
+  isDeleteLoading?: boolean;
+  deletingUrlId?: number;
 }

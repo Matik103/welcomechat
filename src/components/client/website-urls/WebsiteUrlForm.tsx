@@ -54,7 +54,7 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
           url, 
           refresh_rate: refreshRate
         });
-      } else {
+      } else if (onSubmit) {
         await onSubmit({ 
           url, 
           refresh_rate: refreshRate

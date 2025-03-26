@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
@@ -70,13 +69,25 @@ export default function ResourceSettings() {
   };
 
   const handleAddDocumentLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
-    await addDocumentLink(data);
-    await createClientActivity(
-      effectiveClientId,
-      'document_link_added' as ActivityType,
-      `Added document link: ${data.link}`,
-      { link: data.link, refresh_rate: data.refresh_rate }
-    );
+    // Convert the string document_type to DocumentType
+    const documentLinkData: DocumentLinkFormData = {
+      link: data.link,
+      refresh_rate: data.refresh_rate,
+      document_type: data.document_type as DocumentType
+    };
+    
+    try {
+      await addDocumentLink(documentLinkData);
+      await createClientActivity(
+        effectiveClientId,
+        'document_link_added' as ActivityType,
+        `Added document link: ${data.link}`,
+        { link: data.link, refresh_rate: data.refresh_rate }
+      );
+    } catch (error) {
+      console.error('Error adding document link:', error);
+      toast.error('Failed to add document link');
+    }
   };
 
   const handleDeleteDocumentLink = async (linkId: number) => {

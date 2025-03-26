@@ -57,6 +57,7 @@ export type ActivityType =
   | 'widget_settings_updated'
   | 'website_url_added'
   | 'website_url_deleted'
+  | 'website_url_processed'
   | 'url_added'  // Added for backward compatibility
   | 'url_removed'  // Added for backward compatibility
   | 'url_processed'  // Added for backward compatibility
@@ -68,8 +69,10 @@ export type ActivityType =
   | 'document_processing_failed'
   | 'document_processing_started'
   | 'document_processing_completed'
-  | 'document_link_added'  // Added
-  | 'document_link_deleted'  // Added
+  | 'document_link_added'
+  | 'document_link_deleted'
+  | 'document_link_removed'
+  | 'document_added'
   | 'chat_interaction'
   | 'agent_name_updated'
   | 'agent_logo_updated'
@@ -92,6 +95,7 @@ export type ActivityType =
   | 'source_added'
   | 'source_deleted'
   | 'ai_agent_table_created'
-  | 'signed_out'  // Added
-  | 'email_sent'  // Added
-  | 'openai_assistant_document_added'; // Added
+  | 'signed_out'
+  | 'email_sent'
+  | 'openai_assistant_document_added'
+  | 'config_updated';
