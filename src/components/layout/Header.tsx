@@ -63,6 +63,14 @@ export const Header = () => {
               >
                 Customers
               </Link>
+              <Link 
+                to="/admin/agents" 
+                className={`text-gray-600 hover:text-gray-900 font-medium ${
+                  location.pathname.includes('/admin/agents') ? 'text-gray-900' : ''
+                }`}
+              >
+                Agents
+              </Link>
             </nav>
             
             <DropdownMenu>
