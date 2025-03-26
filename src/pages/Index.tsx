@@ -158,7 +158,6 @@ export default function Index() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4 text-slate-900">12</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.database} color="#22C55E" />
                 </div>
@@ -176,7 +175,6 @@ export default function Index() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4 text-slate-900">18</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.auth} color="#6B7280" />
                 </div>
@@ -194,7 +192,6 @@ export default function Index() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4 text-slate-900">1,234</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.storage} color="#EAB308" />
                 </div>
@@ -212,7 +209,6 @@ export default function Index() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4 text-slate-900">484</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.realtime} color="#3B82F6" />
                 </div>
@@ -230,7 +226,6 @@ export default function Index() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4 text-slate-900">123</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.realtime} color="#EF4444" />
                 </div>
