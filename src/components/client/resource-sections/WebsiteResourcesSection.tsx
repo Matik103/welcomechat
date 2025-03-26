@@ -49,7 +49,7 @@ export function WebsiteResourcesSection({
       
       // Log activity
       await logClientActivity(
-        'website_url_added',
+        'website_url_added' as ActivityType,
         `Added website URL: ${data.url}`,
         { url: data.url, refresh_rate: data.refresh_rate }
       );
@@ -81,7 +81,7 @@ export function WebsiteResourcesSection({
       // Log activity
       if (urlToDelete) {
         await logClientActivity(
-          'website_url_deleted',
+          'website_url_deleted' as ActivityType,
           `Removed website URL: ${urlToDelete.url}`,
           { url: urlToDelete.url, url_id: urlId }
         );
@@ -109,7 +109,7 @@ export function WebsiteResourcesSection({
       // Log activity based on the result
       if (result.success) {
         await logClientActivity(
-          'document_processed',
+          'document_processed' as ActivityType,
           `Processed website: ${website.url}`,
           { 
             url: website.url, 
@@ -120,7 +120,7 @@ export function WebsiteResourcesSection({
         toast.success(`Website processed successfully`);
       } else {
         await logClientActivity(
-          'document_processing_failed',
+          'document_processing_failed' as ActivityType,
           `Failed to process website: ${website.url}`,
           { 
             url: website.url, 
@@ -145,7 +145,7 @@ export function WebsiteResourcesSection({
       
       // Log the error
       await logClientActivity(
-        'document_processing_failed',
+        'document_processing_failed' as ActivityType,
         `Failed to process website: ${website.url}`,
         { 
           url: website.url, 
@@ -176,7 +176,9 @@ export function WebsiteResourcesSection({
         {showForm && (
           <div className="mb-6">
             <WebsiteUrlForm 
+              onSubmit={handleSubmit}
               onAdd={handleSubmit}
+              isSubmitting={addWebsiteUrlMutation.isPending}
               isAdding={addWebsiteUrlMutation.isPending}
               agentName="AI Assistant"
             />
@@ -187,8 +189,9 @@ export function WebsiteResourcesSection({
           urls={websiteUrls}
           onDelete={handleDelete}
           onProcess={handleProcessWebsite}
-          isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+          isDeleting={false}
           isProcessing={isStoring}
+          isDeleteLoading={deleteWebsiteUrlMutation.isPending}
           deletingId={isWebsiteToProcess?.id}
         />
       </CardContent>

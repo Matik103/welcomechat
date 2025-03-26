@@ -5,7 +5,7 @@ export interface DocumentLink {
   id: number;
   client_id: string;
   link: string;
-  document_type: DocumentType;
+  document_type: DocumentType | string;
   refresh_rate: number;
   created_at: string;
   updated_at: string | null;
@@ -17,7 +17,7 @@ export interface DocumentLink {
 export interface DocumentLinkFormData {
   link: string;
   refresh_rate: number;
-  document_type?: DocumentType;
+  document_type?: DocumentType | string;
 }
 
 export interface DocumentProcessingResult {

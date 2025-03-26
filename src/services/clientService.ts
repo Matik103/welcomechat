@@ -78,7 +78,8 @@ export async function getClientById(clientId: string): Promise<Client | null> {
       agent_description: data.agent_description || '',
       widget_settings: data.settings || {},
       name: data.name || '',
-      is_error: !!data.is_error
+      is_error: !!data.is_error,
+      user_id: data.user_id || ''
     };
   } catch (error) {
     console.error('Error getting client by ID:', error);
@@ -116,9 +117,10 @@ export async function getClientsByEmail(email: string): Promise<Client[]> {
       status: client.status || 'active',
       agent_name: client.name || '',
       agent_description: client.agent_description || '',
-      widget_settings: client.settings || {},
+      widget_settings: client.settings ? client.settings : {},
       name: client.name || '',
-      is_error: !!client.is_error
+      is_error: !!client.is_error,
+      user_id: client.user_id || ''
     }));
   } catch (error) {
     console.error('Error getting clients by email:', error);

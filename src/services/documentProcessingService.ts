@@ -1,169 +1,217 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { DocumentProcessingResult } from '@/types/document-processing';
-import { callRpcFunctionSafe } from '@/utils/rpcUtils';
+import { supabase } from "@/integrations/supabase/client";
+import { DocumentProcessingResult, DocumentType } from "@/types/document-processing";
+import { ActivityType } from "@/types/client-form";
+import { Json } from "@/integrations/supabase/types";
+import { callRpcFunctionSafe } from "@/utils/rpcUtils";
 
-/**
- * Register a document for processing
- */
-export async function registerDocumentProcessing(request: {
-  client_id: string;
-  document_url: string;
-  document_type: string;
-}): Promise<string> {
+// Process document via edge function
+export async function processDocument(
+  clientId: string,
+  documentUrl: string,
+  documentType: DocumentType,
+  agentName: string
+): Promise<DocumentProcessingResult> {
   try {
-    const result = await callRpcFunctionSafe('log_client_activity', {
-      client_id_param: request.client_id,
-      activity_type_param: 'document_added',
-      description_param: `Document added for processing: ${request.document_url}`,
-      metadata_param: {
-        document_url: request.document_url,
-        document_type: request.document_type
+    const { data, error } = await supabase.functions.invoke(
+      "process-document",
+      {
+        body: {
+          clientId,
+          documentUrl,
+          documentType,
+          agentName,
+        },
       }
-    });
+    );
 
-    if (!result) {
-      throw new Error('Failed to register document for processing');
+    if (error) {
+      console.error("Error processing document:", error);
+      return {
+        success: false,
+        error: error.message,
+        processed: 0,
+        failed: 1,
+      };
     }
 
-    // Cast the result to an object with the expected properties
-    const typedResult = result as { success?: boolean; error?: string; activity_id?: string };
+    if (data && typeof data === 'object' && 'success' in data) {
+      const result = data as any;
+      
+      // Log activity for the document processing
+      await callRpcFunctionSafe("log_client_activity", {
+        client_id_param: clientId,
+        activity_type_param: result.success ? "document_processed" : "document_processing_failed",
+        description_param: result.success
+          ? `Successfully processed document: ${documentUrl}`
+          : `Failed to process document: ${documentUrl}`,
+        metadata_param: {
+          document_url: documentUrl,
+          document_type: documentType,
+          agent_name: agentName,
+          error: result.error || null,
+          activity_id: result.activity_id || null,
+        },
+      });
 
-    if (!typedResult.success) {
-      throw new Error(typedResult.error || 'Failed to register document for processing');
+      return {
+        success: result.success,
+        error: result.error || null,
+        processed: result.processed || 0,
+        failed: result.failed || 0,
+        jobId: result.jobId || undefined,
+      };
     }
 
-    // Return a job ID (in this case, we're just returning the activity ID)
-    return typedResult.activity_id || '';
+    return {
+      success: false,
+      error: "Invalid response from document processing service",
+      processed: 0,
+      failed: 1,
+    };
   } catch (error) {
-    console.error('Error registering document for processing:', error);
-    throw error;
+    console.error("Error calling process-document function:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      processed: 0,
+      failed: 1,
+    };
   }
 }
 
-/**
- * Get the status of a document processing job
- */
-export async function getDocumentProcessingStatus(jobId: string): Promise<DocumentProcessingResult> {
+// Upload document to storage for processing
+export async function uploadAndProcessDocument(
+  clientId: string,
+  file: File,
+  agentName: string
+): Promise<DocumentProcessingResult> {
   try {
-    // Check document processing status
+    // Upload the file first
+    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+    const filePath = `${clientId}/${fileName}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error("Error uploading document:", uploadError);
+      return {
+        success: false,
+        error: uploadError.message,
+        processed: 0,
+        failed: 1,
+      };
+    }
+
+    // Get the public URL
+    const { data: urlData } = await supabase.storage
+      .from("documents")
+      .getPublicUrl(filePath);
+
+    if (!urlData || !urlData.publicUrl) {
+      return {
+        success: false,
+        error: "Failed to get public URL for uploaded document",
+        processed: 0,
+        failed: 1,
+      };
+    }
+
+    // Create a processing job
+    const { data: jobData, error: jobError } = await supabase
+      .from("document_processing_jobs")
+      .insert({
+        client_id: clientId,
+        document_url: urlData.publicUrl,
+        document_type: "document",
+        document_id: filePath,
+        agent_name: agentName,
+        status: "pending",
+        processing_method: "direct_upload",
+      })
+      .select()
+      .single();
+
+    if (jobError) {
+      console.error("Error creating processing job:", jobError);
+      return {
+        success: false,
+        error: jobError.message,
+        processed: 0,
+        failed: 1,
+      };
+    }
+
+    // Process the document
+    return await processDocument(
+      clientId,
+      urlData.publicUrl,
+      "document" as DocumentType,
+      agentName
+    );
+  } catch (error) {
+    console.error("Error in uploadAndProcessDocument:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      processed: 0,
+      failed: 1,
+    };
+  }
+}
+
+// Check the status of a document processing job
+export async function checkDocumentProcessingStatus(
+  jobId: string
+): Promise<{ status: string; error?: string }> {
+  try {
     const { data, error } = await supabase
-      .from('document_processing_jobs')
-      .select('*')
-      .eq('id', jobId)
+      .from("document_processing_jobs")
+      .select("*")
+      .eq("id", jobId)
       .single();
 
     if (error) {
-      return {
-        success: false,
-        error: `Failed to get document processing status: ${error.message}`,
-        processed: 0,
-        failed: 0
-      };
+      console.error("Error checking document processing status:", error);
+      return { status: "error", error: error.message };
     }
-
-    if (!data) {
-      return {
-        success: false,
-        error: 'Document processing job not found',
-        processed: 0,
-        failed: 0
-      };
-    }
-
-    // Extract the processed_count and failed_count with defaults
-    const processedCount = typeof data.processed_count === 'number' ? data.processed_count : 0;
-    const failedCount = typeof data.failed_count === 'number' ? data.failed_count : 0;
 
     return {
-      success: data.status === 'completed',
-      error: data.error_message || null,
-      processed: processedCount,
-      failed: failedCount,
-      jobId: String(data.id)
+      status: data.status,
+      error: data.error || undefined,
     };
   } catch (error) {
-    console.error('Error getting document processing status:', error);
+    console.error("Error in checkDocumentProcessingStatus:", error);
     return {
-      success: false,
-      error: `An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      processed: 0,
-      failed: 0
+      status: "error",
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
 
-/**
- * Get documents for a client
- */
-export async function getDocumentsByClientId(clientId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching documents:', error);
-    return [];
-  }
-}
-
-/**
- * Delete a document
- */
-export async function deleteDocument(documentId: number) {
+// Delete a document
+export async function deleteDocument(
+  documentId: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
-      .from('documents')
+      .from("document_processing_jobs")
       .delete()
-      .eq('id', documentId);
-
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    console.error('Error deleting document:', error);
-    throw error;
-  }
-}
-
-/**
- * Process a document
- */
-export async function processDocument(documentId: string) {
-  try {
-    // Call the Supabase function to process the document
-    const { data, error } = await supabase.functions.invoke('process-document', {
-      body: { document_id: documentId }
-    });
+      .eq("id", documentId);
 
     if (error) {
-      throw new Error(`Failed to process document: ${error.message}`);
+      console.error("Error deleting document:", error);
+      return { success: false, error: error.message };
     }
 
-    return {
-      success: true,
-      jobId: data?.job_id,
-      processed: 0,
-      failed: 0
-    };
+    return { success: true };
   } catch (error) {
-    console.error('Error processing document:', error);
+    console.error("Error in deleteDocument:", error);
     return {
       success: false,
-      error: `Failed to process document: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      processed: 0,
-      failed: 0
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
-}
-
-/**
- * Reprocess a document
- */
-export async function reprocessDocument(documentId: number) {
-  return processDocument(documentId.toString());
 }

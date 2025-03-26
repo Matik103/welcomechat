@@ -6,7 +6,7 @@ import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinks
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { ActivityType } from '@/types/client-form';
 import { toast } from 'sonner';
-import { DocumentLinkFormData } from '@/types/document-processing';
+import { DocumentLinkFormData, DocumentType } from '@/types/document-processing';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
@@ -34,7 +34,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       // Ensure document_type is provided
       const completeData = {
         ...data,
-        document_type: data.document_type || 'document'
+        document_type: data.document_type as DocumentType || 'document' as DocumentType
       };
       
       await addDocumentLinkMutation.mutateAsync(completeData);
@@ -73,7 +73,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       // Log the activity
       if (linkToDelete) {
         await logClientActivity(
-          'document_link_removed',
+          'document_link_deleted' as ActivityType,
           `Deleted document link: ${linkToDelete.link}`,
           { link: linkToDelete.link }
         );

@@ -9,16 +9,21 @@ import { WebsiteUrlFormData } from '@/types/website-url';
 
 interface WebsiteUrlFormProps {
   onSubmit: (data: WebsiteUrlFormData) => Promise<void>;
-  isSubmitting: boolean;
+  isSubmitting?: boolean;
   agentName: string;
   clientId?: string;
   onAddSuccess?: () => Promise<any>;
   webstoreHook?: { isAdding: boolean };
+  // Add both for compatibility
+  onAdd?: (data: WebsiteUrlFormData) => Promise<void>;
+  isAdding?: boolean;
 }
 
 export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
   onSubmit,
+  onAdd,
   isSubmitting,
+  isAdding,
   agentName,
   clientId,
   onAddSuccess,
@@ -55,10 +60,18 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
         return;
       }
 
-      await onSubmit({ 
-        url, 
-        refresh_rate: refreshRate
-      });
+      // Support both callback patterns
+      if (onAdd) {
+        await onAdd({ 
+          url, 
+          refresh_rate: refreshRate
+        });
+      } else {
+        await onSubmit({ 
+          url, 
+          refresh_rate: refreshRate
+        });
+      }
       
       setNewUrl('');
       
@@ -73,7 +86,7 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
     }
   };
 
-  const isAddingUrl = isSubmitting || (webstoreHook && webstoreHook.isAdding) || false;
+  const isAddingUrl = isSubmitting || isAdding || (webstoreHook && webstoreHook.isAdding) || false;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

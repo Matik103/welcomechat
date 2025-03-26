@@ -42,7 +42,8 @@ export const useClientList = () => {
         agent_description: client.agent_description || '',
         widget_settings: client.settings || {},
         name: client.name || '',
-        is_error: !!client.is_error
+        is_error: !!client.is_error,
+        user_id: client.user_id || ''
       }));
     },
   });

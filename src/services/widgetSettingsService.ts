@@ -1,75 +1,67 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { WidgetSettings, defaultSettings } from '@/types/widget-settings';
-import { safeParseSettings } from '@/utils/clientSettingsUtils';
-import { execSql } from '@/utils/rpcUtils';
+import { supabase } from "@/integrations/supabase/client";
+import { WidgetSettings } from "@/types/widget-settings";
+import { defaultSettings } from "@/types/widget-settings";
 
 /**
- * Gets widget settings for a client
+ * Get widget settings for a client
  */
 export async function getWidgetSettings(clientId: string): Promise<WidgetSettings> {
   try {
+    // Get the client record first
     const { data, error } = await supabase
       .from('ai_agents')
-      .select('settings, name, logo_url, logo_storage_path, agent_description')
-      .eq('client_id', clientId)
+      .select('settings')
+      .eq('id', clientId)
       .eq('interaction_type', 'config')
       .single();
     
-    if (error) {
-      console.error('Error fetching widget settings:', error);
-      return defaultSettings;
+    if (error) throw error;
+    
+    if (!data || !data.settings) {
+      return { ...defaultSettings };
     }
     
-    // Create a settings object from the data
-    const settingsObj = {
-      agent_name: data.name || defaultSettings.agent_name,
-      agent_description: data.agent_description || defaultSettings.agent_description,
-      logo_url: data.logo_url || defaultSettings.logo_url,
-      logo_storage_path: data.logo_storage_path || defaultSettings.logo_storage_path,
-      ...safeParseSettings(data.settings)
-    };
-    
-    // Ensure all default values are present
+    // Ensure we have a complete settings object by merging with defaults
     return {
       ...defaultSettings,
-      ...settingsObj
+      ...data.settings
     };
   } catch (error) {
-    console.error('Error in getWidgetSettings:', error);
-    return defaultSettings;
+    console.error('Error getting widget settings:', error);
+    return { ...defaultSettings };
   }
 }
 
 /**
- * Updates widget settings for a client
+ * Update widget settings for a client
  */
-export async function updateWidgetSettings(clientId: string, settings: Partial<WidgetSettings>): Promise<boolean> {
+export async function updateWidgetSettings(
+  clientId: string,
+  settings: Partial<WidgetSettings>
+): Promise<void> {
   try {
-    // Prepare the settings to update
-    const settingsToUpdate = { ...settings };
+    // First get the current settings
+    const currentSettings = await getWidgetSettings(clientId);
     
-    // Update the settings in the AI agent
+    // Merge with the new settings
+    const updatedSettings = {
+      ...currentSettings,
+      ...settings
+    };
+    
+    // Update the settings in the database
     const { error } = await supabase
       .from('ai_agents')
       .update({
-        name: settings.agent_name,
-        agent_description: settings.agent_description,
-        logo_url: settings.logo_url,
-        logo_storage_path: settings.logo_storage_path,
-        settings: settingsToUpdate
+        settings: updatedSettings as Record<string, any>
       })
-      .eq('client_id', clientId)
+      .eq('id', clientId)
       .eq('interaction_type', 'config');
     
-    if (error) {
-      console.error('Error updating widget settings:', error);
-      return false;
-    }
-    
-    return true;
+    if (error) throw error;
   } catch (error) {
-    console.error('Error in updateWidgetSettings:', error);
-    return false;
+    console.error('Error updating widget settings:', error);
+    throw error;
   }
 }

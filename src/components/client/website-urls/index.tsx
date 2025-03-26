@@ -2,17 +2,18 @@
 import React from 'react';
 import { WebsiteUrlForm } from './WebsiteUrlForm';
 import { WebsiteUrlsList } from './WebsiteUrlsList';
-import { WebsiteUrl } from '@/types/website-url';
+import { WebsiteUrl, WebsiteUrlFormData } from '@/types/website-url';
 
 export interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
-  onAdd: (data: { url: string; refresh_rate: number }) => Promise<void>;
+  onAdd: (data: WebsiteUrlFormData) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   isLoading: boolean;
   isAdding: boolean;
   isDeleting: boolean;
-  deletingUrlId: number;
+  deletingId?: number;
   agentName: string;
+  deletingUrlId?: number;
 }
 
 export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
@@ -22,8 +23,9 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
   isLoading,
   isAdding,
   isDeleting,
-  deletingUrlId,
-  agentName
+  deletingId,
+  agentName,
+  deletingUrlId
 }) => {
   return (
     <div className="space-y-6">
@@ -35,7 +37,9 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
         
         <WebsiteUrlForm 
           onSubmit={onAdd} 
+          onAdd={onAdd}
           isSubmitting={isAdding}
+          isAdding={isAdding}
           agentName={agentName} 
         />
       </div>
@@ -44,7 +48,7 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
         urls={urls}
         onDelete={onDelete}
         isDeleting={isDeleting}
-        deletingId={deletingUrlId}
+        deletingId={deletingId || deletingUrlId}
       />
     </div>
   );

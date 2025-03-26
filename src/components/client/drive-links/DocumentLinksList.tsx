@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Loader2, Trash2, ExternalLink } from 'lucide-react';
 import { DocumentLink } from '@/types/document-processing';
-import { formatDistanceToNow } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Loader2, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface DocumentLinksListProps {
   links: DocumentLink[];
@@ -16,62 +16,81 @@ interface DocumentLinksListProps {
 export const DocumentLinksList: React.FC<DocumentLinksListProps> = ({
   links,
   onDelete,
-  isLoading,
-  isDeleting,
-  deletingId
+  isLoading = false,
+  isDeleting = false,
+  deletingId = null,
 }) => {
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="flex justify-center py-4">
+        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
       </div>
     );
   }
 
   if (links.length === 0) {
-    return (
-      <div className="text-center p-8 border rounded-md bg-muted/50">
-        <h3 className="font-medium mb-2">No Drive Links Added</h3>
-        <p className="text-muted-foreground">
-          Add Google Drive links to provide your AI agent with content.
-        </p>
-      </div>
-    );
+    return <div className="text-sm text-gray-500 italic">No document links added yet.</div>;
   }
 
+  const getStatusBadgeColor = (status?: string | null) => {
+    if (!status) return "bg-gray-100 text-gray-800";
+    
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'success':
+        return "bg-green-100 text-green-800";
+      case 'pending':
+      case 'processing':
+        return "bg-blue-100 text-blue-800";
+      case 'failed':
+      case 'error':
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
   return (
-    <div className="border rounded-md divide-y">
+    <div className="space-y-2">
       {links.map((link) => (
-        <div key={link.id} className="p-4 flex justify-between items-center">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center">
-              <h4 className="font-medium truncate">{link.link}</h4>
-              <a
-                href={link.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-2 text-primary"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
-              <span>Added {formatDistanceToNow(new Date(link.created_at), { addSuffix: true })}</span>
-              <span>Refreshes every {link.refresh_rate} hours</span>
-              <span>Status: {link.status || 'Pending'}</span>
+        <div key={link.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+          <div className="flex-1 overflow-hidden">
+            <div className="truncate text-sm">{link.link}</div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-gray-500">{link.document_type || 'document'}</span>
+              <span className="text-xs text-gray-500">({link.refresh_rate} days)</span>
+              
+              {link.access_status && (
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs ${getStatusBadgeColor(link.access_status)}`}
+                >
+                  {link.access_status}
+                </Badge>
+              )}
+              
+              {link.status && (
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs ${getStatusBadgeColor(link.status)}`}
+                >
+                  {link.status}
+                </Badge>
+              )}
             </div>
           </div>
+          
           <Button
             variant="ghost"
-            size="icon"
-            className="text-destructive"
+            size="sm"
             onClick={() => onDelete(link.id)}
             disabled={isDeleting && deletingId === link.id}
+            className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
           >
-            {isDeleting && deletingId === link.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+            {(isDeleting && deletingId === link.id) ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="w-4 h-4" />
             )}
           </Button>
         </div>
