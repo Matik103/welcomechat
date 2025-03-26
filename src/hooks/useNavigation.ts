@@ -4,18 +4,49 @@ import { useNavigate } from 'react-router-dom';
 export const useNavigation = () => {
   const navigate = useNavigate();
 
-  const goToClients = () => navigate('/admin/clients');
-  const goToDashboard = () => navigate('/admin/dashboard');
-  const goToSettings = () => navigate('/admin/settings');
-  const goToClientDashboard = () => navigate('/client/dashboard');
-  const goToClientSettings = () => navigate('/client/settings');
-  const goToClientResourceSettings = () => navigate('/client/resource-settings');
-  const goToClientAccountSettings = () => navigate('/client/account-settings');
-  const goToClientView = (clientId: string) => navigate(`/admin/clients/view/${clientId}`);
-  const goToClientEdit = (clientId: string) => navigate(`/admin/clients/${clientId}/edit`);
-  const goToWidgetSettings = (clientId: string) => navigate(`/admin/clients/${clientId}/widget-settings`);
-  const goToClientWidgetSettings = () => navigate('/client/widget-settings');
-  const goBack = () => navigate(-1);
+  const goToClients = () => {
+    navigate('/admin/clients');
+  };
+
+  const goToClientDetails = (clientId: string) => {
+    navigate(`/admin/clients/${clientId}`);
+  };
+
+  const goToDashboard = () => {
+    navigate('/admin/dashboard');
+  };
+
+  const goToSettings = () => {
+    navigate('/admin/settings');
+  };
+
+  const goToClientResourceSettings = (clientId: string) => {
+    navigate(`/client/resources/${clientId}`);
+  };
+
+  const goToClientDashboard = () => {
+    navigate('/client/dashboard');
+  };
+
+  const goToClientSettings = () => {
+    navigate('/client/settings');
+  };
+  
+  const goToWidget = (clientId: string) => {
+    navigate(`/widget/${clientId}`);
+  };
+
+  const goToClientAccountSettings = () => {
+    navigate('/client/account');
+  };
+
+  const goToEditClient = (clientId: string) => {
+    navigate(`/admin/clients/edit/${clientId}`);
+  };
+
+  const goToCreateClient = () => {
+    navigate('/admin/clients/new');
+  };
 
   return {
     goToClients,
@@ -25,11 +56,10 @@ export const useNavigation = () => {
     goToClientSettings,
     goToClientResourceSettings,
     goToClientAccountSettings,
-    goToClientView,
-    goToClientEdit,
-    goToWidgetSettings,
-    goToClientWidgetSettings,
-    goBack,
+    goToEditClient,
+    goToCreateClient,
+    goToClientDetails,
+    goToWidget,
     navigate
   };
 };

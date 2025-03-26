@@ -45,7 +45,7 @@ export function useDriveLinks(clientId: string) {
       try {
         // Use the Edge Function to check drive access
         // Since we can't directly access the protected properties, get the URL from the environment
-        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
         
         // Function to make a safe API call to the edge function
         const checkDriveAccess = async (url: string) => {
@@ -54,7 +54,7 @@ export function useDriveLinks(clientId: string) {
             headers: {
               'Content-Type': 'application/json',
               // Add your Supabase anon key here if needed for the function
-              'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY || ''}`
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
             },
             body: JSON.stringify({ url })
           });
@@ -81,7 +81,7 @@ export function useDriveLinks(clientId: string) {
             link: data.link,
             document_type: data.document_type,
             refresh_rate: data.refresh_rate || 7,
-            status: 'pending',
+            access_status: 'pending'
           })
           .select()
           .single();
@@ -126,7 +126,7 @@ export function useDriveLinks(clientId: string) {
     mutationFn: async (linkId: number) => {
       const { data, error } = await supabase
         .from('document_links')
-        .update({ status: 'processing' })
+        .update({ access_status: 'pending' })
         .eq('id', linkId)
         .select()
         .single();

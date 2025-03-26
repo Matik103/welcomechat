@@ -14,6 +14,8 @@ export interface DocumentProcessingStatus {
 
 export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
 
+export type DocumentType = 'document' | 'google_drive' | 'pdf' | 'docx' | 'text' | 'html' | 'other';
+
 export interface DocumentLink {
   id: number;
   client_id: string;
@@ -32,12 +34,12 @@ export interface DocumentLinkFormData {
 }
 
 export interface DriveLinksProps {
-  documents: DocumentLink[];
-  isLoading: boolean;
-  isUploading: boolean;
-  addDocumentLink: (data: DocumentLinkFormData) => Promise<void>;
-  deleteDocumentLink: (linkId: number) => Promise<void>;
-  uploadDocument: (file: File) => Promise<void>;
+  documents?: DocumentLink[];
+  isLoading?: boolean;
+  isUploading?: boolean;
+  addDocumentLink?: (data: DocumentLinkFormData) => Promise<void>;
+  deleteDocumentLink?: (linkId: number) => Promise<void>;
+  uploadDocument?: (file: File) => Promise<void>;
   isClientView?: boolean;
   isValidating?: boolean;
   deletingId?: number | null;
@@ -48,12 +50,20 @@ export interface DocumentProcessingResult {
   success: boolean;
   error?: string;
   documentId?: string;
+  jobId?: string;
+  status?: string;
+  documentUrl?: string;
   processed: number;
   failed: number;
   urlsScraped?: number;
   contentStored?: number;
-  status?: string;
   message?: string;
+}
+
+export interface DocumentProcessingRequest {
+  client_id: string;
+  document_url: string;
+  document_type: string;
 }
 
 export interface DocumentProcessingOptions {

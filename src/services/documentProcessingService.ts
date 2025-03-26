@@ -7,22 +7,27 @@ import { DocumentProcessingRequest, DocumentProcessingResult } from '@/types/doc
  */
 export async function registerDocumentProcessing(request: DocumentProcessingRequest): Promise<string> {
   try {
-    // Use the RPC function to register the document
-    const { data, error } = await supabase.rpc(
-      'register_document_processing',
-      {
-        client_id_param: request.client_id,
-        document_url_param: request.document_url,
-        document_type_param: request.document_type
-      }
-    );
+    // Since the RPC function might not exist, we'll instead insert directly into document_processing_jobs
+    const { data, error } = await supabase
+      .from('document_processing_jobs')
+      .insert({
+        client_id: request.client_id,
+        document_url: request.document_url,
+        document_type: request.document_type,
+        status: 'pending',
+        agent_name: 'document_processor', // Default agent name for processing
+        document_id: crypto.randomUUID(),
+        started_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error('Error registering document for processing:', error);
-      throw new Error(error.message);
+      throw error;
     }
 
-    return data || '';
+    return data?.id || '';
   } catch (error) {
     console.error('Error in registerDocumentProcessing:', error);
     throw error;
@@ -32,7 +37,7 @@ export async function registerDocumentProcessing(request: DocumentProcessingRequ
 /**
  * Get the status of a document processing job
  */
-export async function getDocumentProcessingStatus(jobId: number): Promise<DocumentProcessingResult> {
+export async function getDocumentProcessingStatus(jobId: string): Promise<DocumentProcessingResult> {
   try {
     const { data, error } = await supabase
       .from('document_processing_jobs')
@@ -44,7 +49,9 @@ export async function getDocumentProcessingStatus(jobId: number): Promise<Docume
       console.error('Error getting document processing status:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message,
+        processed: 0,
+        failed: 0
       };
     }
 
@@ -53,13 +60,17 @@ export async function getDocumentProcessingStatus(jobId: number): Promise<Docume
       jobId: data.id,
       status: data.status,
       documentUrl: data.document_url,
-      error: data.error
+      error: data.error,
+      processed: 0,
+      failed: 0
     };
   } catch (error) {
     console.error('Error in getDocumentProcessingStatus:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      processed: 0,
+      failed: 0
     };
   }
 }
@@ -119,15 +130,19 @@ export async function processDocument(
     // Return initial success status
     return {
       success: true,
-      jobId: Number(jobId),
+      jobId: jobId,
       status: 'pending',
-      documentUrl
+      documentUrl,
+      processed: 0,
+      failed: 0
     };
   } catch (error) {
     console.error('Error processing document:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      processed: 0,
+      failed: 0
     };
   }
 }

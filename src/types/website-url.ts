@@ -21,12 +21,12 @@ export interface Website {
   client_id: string;
   url: string;
   refresh_rate: number;
-  scrapable: boolean;
   created_at?: string;
   updated_at?: string;
   last_crawled?: string;
   error?: string;
   status?: string;
+  scrapable?: boolean;
 }
 
 export interface WebsiteUrlFormData {

@@ -39,7 +39,7 @@ export const WebsiteUrlsList: React.FC<WebsiteUrlsListProps> = ({
             className="h-8 px-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
             title="Process this URL"
           >
-            {isProcessing ? (
+            {isProcessing && deletingId === url.id ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <RefreshCw className="w-4 h-4" />

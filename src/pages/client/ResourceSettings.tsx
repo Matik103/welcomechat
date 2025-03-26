@@ -13,7 +13,6 @@ import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { logClientActivity } from '@/services/activityService';
-import { ActivityType } from '@/types/client-form';
 import { toast } from 'sonner';
 
 export default function ResourceSettings() {
@@ -180,6 +179,7 @@ export default function ResourceSettings() {
         ) : (
           <div className="space-y-6">
             <DriveLinks
+              documents={documentLinks}
               isLoading={isLoadingDocuments}
               isUploading={isUploading}
               addDocumentLink={handleAddDocumentLink}

@@ -6,6 +6,8 @@ import { Json } from '@/integrations/supabase/types';
 export const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Valid email is required"),
+  company: z.string().optional(),
+  description: z.string().optional(), 
   client_id: z.string().optional(),
   _tempLogoFile: z.any().optional().nullable(),
   widget_settings: z.object({
@@ -55,7 +57,10 @@ export type ActivityType =
   | 'widget_settings_updated'
   | 'website_url_added'
   | 'website_url_deleted'
-  | 'url_deleted'  // Added for backward compatibility
+  | 'url_added'  // Added for backward compatibility
+  | 'url_removed'  // Added for backward compatibility
+  | 'url_processed'  // Added for backward compatibility
+  | 'url_processing_failed'  // Added for backward compatibility
   | 'drive_link_added'
   | 'drive_link_deleted'
   | 'document_uploaded'

@@ -6,9 +6,8 @@ import { WebsiteUrlForm } from '../website-urls/WebsiteUrlForm';
 import { WebsiteUrlsList } from '../website-urls/WebsiteUrlsList'; 
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
-import { ActivityType, WebsiteUrlFormData } from '@/types/client-form';
-import { WebsiteUrl } from '@/types/website-url';
-import { Website } from '@/types/website-url';
+import { ActivityType } from '@/types/client-form';
+import { WebsiteUrl, WebsiteUrlFormData } from '@/types/website-url';
 import { PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -44,14 +43,13 @@ export function WebsiteResourcesSection({
   const handleSubmit = async (data: WebsiteUrlFormData): Promise<void> => {
     try {
       await addWebsiteUrlMutation.mutateAsync({
-        clientId,
         url: data.url,
         refresh_rate: data.refresh_rate
       });
       
       // Log activity
       await logClientActivity(
-        'url_added',
+        'website_url_added',
         `Added website URL: ${data.url}`,
         { url: data.url, refresh_rate: data.refresh_rate }
       );
@@ -83,7 +81,7 @@ export function WebsiteResourcesSection({
       // Log activity
       if (urlToDelete) {
         await logClientActivity(
-          'url_removed',
+          'website_url_deleted',
           `Removed website URL: ${urlToDelete.url}`,
           { url: urlToDelete.url, url_id: urlId }
         );
@@ -105,23 +103,13 @@ export function WebsiteResourcesSection({
       setIsStoring(true);
       setIsWebsiteToProcess(website);
       
-      // Create a Website object compatible with storeWebsiteContent
-      const websiteToProcess: Website = {
-        id: website.id,
-        url: website.url,
-        refresh_rate: website.refresh_rate,
-        client_id: website.client_id,
-        created_at: website.created_at,
-        status: website.status
-      };
-      
       // Store the website content
-      const result = await storeContentMutation.mutateAsync(websiteToProcess);
+      const result = await storeContentMutation.mutateAsync(website);
       
       // Log activity based on the result
       if (result.success) {
         await logClientActivity(
-          'url_processed',
+          'document_processed',
           `Processed website: ${website.url}`,
           { 
             url: website.url, 
@@ -132,7 +120,7 @@ export function WebsiteResourcesSection({
         toast.success(`Website processed successfully`);
       } else {
         await logClientActivity(
-          'url_processing_failed',
+          'document_processing_failed',
           `Failed to process website: ${website.url}`,
           { 
             url: website.url, 
@@ -157,7 +145,7 @@ export function WebsiteResourcesSection({
       
       // Log the error
       await logClientActivity(
-        'url_processing_failed',
+        'document_processing_failed',
         `Failed to process website: ${website.url}`,
         { 
           url: website.url, 
@@ -188,8 +176,9 @@ export function WebsiteResourcesSection({
         {showForm && (
           <div className="mb-6">
             <WebsiteUrlForm 
-              onSubmit={handleSubmit}
-              isSubmitting={addWebsiteUrlMutation.isPending}
+              onAdd={handleSubmit}
+              isAdding={addWebsiteUrlMutation.isPending}
+              agentName="AI Assistant"
             />
           </div>
         )}
@@ -198,10 +187,9 @@ export function WebsiteResourcesSection({
           urls={websiteUrls}
           onDelete={handleDelete}
           onProcess={handleProcessWebsite}
-          isLoading={isLoading}
+          isDeleteLoading={deleteWebsiteUrlMutation.isPending}
           isProcessing={isStoring}
-          processingId={isWebsiteToProcess?.id}
-          isDeleting={deleteWebsiteUrlMutation.isPending}
+          deletingId={isWebsiteToProcess?.id}
         />
       </CardContent>
     </Card>

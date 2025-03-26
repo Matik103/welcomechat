@@ -1,46 +1,43 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { NewClientForm } from '@/components/client/NewClientForm';
-import { createClient } from '@/services/clientService';
 import { ClientLayout } from '@/components/layout/ClientLayout';
-import { logClientActivity } from '@/services/activityService';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ClientForm } from '@/components/client/ClientForm';
+import { useNewClientForm } from '@/hooks/useNewClientForm';
+import { useNewClientMutation } from '@/hooks/useNewClientMutation';
+import { useNavigation } from '@/hooks/useNavigation';
+import { ClientFormData } from '@/types/client-form';
 import { toast } from 'sonner';
 
 export default function NewClient() {
-  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigation = useNavigation();
+  const { formValues, errors, handleInputChange, handleLogoChange, validateForm } = useNewClientForm(true);
+  const { createClient } = useNewClientMutation();
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     try {
       setIsSubmitting(true);
       
-      // Create the client
-      const result = await createClient({
-        client_name: formData.client_name,
-        email: formData.email,
-        company: formData.company,
-        description: formData.description
-      });
+      const newClient = await createClient(formValues as ClientFormData);
       
-      if (result.success && result.clientId) {
-        // Log the activity
-        await logClientActivity(
-          result.clientId, 
-          'client_created',
-          `New client created: ${formData.client_name}`
-        );
-        
+      // Check if client was created successfully
+      if (newClient && newClient.client_id) {
         toast.success('Client created successfully!');
-        
-        // Navigate to the client's page
-        navigate(`/client/dashboard/${result.clientId}`);
+        // Redirect to client dashboard or client list
+        navigation.goToClientDashboard();
       } else {
         toast.error('Failed to create client. Please try again.');
       }
     } catch (error) {
       console.error('Error creating client:', error);
-      toast.error('An error occurred while creating the client.');
+      toast.error(`Error creating client: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -49,8 +46,25 @@ export default function NewClient() {
   return (
     <ClientLayout>
       <div className="container mx-auto py-8">
-        <h1 className="text-2xl font-bold mb-6">Create New Client</h1>
-        <NewClientForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+        <Card className="max-w-3xl mx-auto">
+          <CardHeader>
+            <CardTitle>Create a New Client</CardTitle>
+            <CardDescription>
+              Fill in the details to create a new client and AI assistant.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ClientForm
+              formValues={formValues}
+              errors={errors}
+              isSubmitting={isSubmitting}
+              onSubmit={handleSubmit}
+              onChange={handleInputChange}
+              onLogoChange={handleLogoChange}
+              isClientView={true}
+            />
+          </CardContent>
+        </Card>
       </div>
     </ClientLayout>
   );
