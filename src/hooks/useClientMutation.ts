@@ -26,7 +26,7 @@ export const useClientMutation = () => {
         await updateClient(client_id, clientData);
         return client_id;
       } else {
-        // Create new client - use Partial<Client> to allow partial properties
+        // Create new client - we know we're passing a partial client
         const result = await createClient({
           client_name: clientData.client_name || '',
           email: clientData.email || '',

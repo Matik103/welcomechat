@@ -58,10 +58,10 @@ export type ActivityType =
   | 'website_url_added'
   | 'website_url_deleted'
   | 'website_url_processed'
-  | 'url_added'  // Added for backward compatibility
-  | 'url_removed'  // Added for backward compatibility
-  | 'url_processed'  // Added for backward compatibility
-  | 'url_processing_failed'  // Added for backward compatibility
+  | 'url_added'  // Legacy type
+  | 'url_removed'  // Legacy type
+  | 'url_processed'  // Legacy type
+  | 'url_processing_failed'  // Legacy type
   | 'drive_link_added'
   | 'drive_link_deleted'
   | 'document_uploaded'
@@ -73,6 +73,9 @@ export type ActivityType =
   | 'document_link_deleted'
   | 'document_link_removed'
   | 'document_added'
+  | 'document_removed'
+  | 'password_changed'
+  | 'password_reset'
   | 'chat_interaction'
   | 'agent_name_updated'
   | 'agent_logo_updated'
@@ -99,4 +102,6 @@ export type ActivityType =
   | 'email_sent'
   | 'openai_assistant_document_added'
   | 'config_updated'
-  | 'agent_error'; // Add agent_error to the ActivityType
+  | 'agent_updated'
+  | 'widget_updated'
+  | 'agent_error';

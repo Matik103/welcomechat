@@ -17,7 +17,7 @@ export const useNewClientMutation = () => {
         logo_storage_path?: string;
       };
     }) => {
-      // Create new client - use Partial<Client> to allow partial properties
+      // Create new client with partial data
       const result = await createClient({
         client_name: data.client_name || '',
         email: data.email || '',

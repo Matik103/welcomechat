@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ClientForm } from '@/components/client/ClientForm';
 import { useClientMutation } from '@/hooks/useClientMutation';
 import { useQuery } from '@tanstack/react-query';
-import { getClient } from '@/services/clientService'; // Changed from getClientById to getClient
+import { getClient } from '@/services/clientService'; // Using getClient instead of getClientById
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { ClientFormData } from '@/types/client-form';
