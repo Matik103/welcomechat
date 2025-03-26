@@ -1,99 +1,74 @@
 
-import { useState } from "react";
-import { ClientAccountForm } from "@/components/client/ClientAccountForm";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
-import { useNavigate } from "react-router-dom";
-import { createNewClient } from "@/services/clientService";
-import { ArrowLeft } from "lucide-react";
-import { useClientActivity } from "@/hooks/useClientActivity";
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
+import { ClientForm } from '@/components/client/ClientForm';
+import { useNewClientMutation } from '@/hooks/useNewClientMutation';
+import { ClientFormData } from '@/types/client-form';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export default function NewClient() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { createClient, isLoading, error } = useNewClientMutation();
   
-  const handleSubmit = async (data: { 
-    client_name: string; 
-    email: string; 
-    agent_name: string; 
-    agent_description: string;
-    client_id: string;
-  }) => {
+  const handleSubmit = async (data: ClientFormData) => {
+    if (isSubmitting) return;
+    
     try {
       setIsSubmitting(true);
       
-      // Extract the data we need to create the client
-      const { client_name, email, agent_name, agent_description, client_id } = data;
+      // Show loading toast
+      toast.loading('Creating client account...');
       
-      // Create default widget settings
-      const widget_settings = {
-        agent_name,
-        agent_description,
-        logo_url: '',
-        logo_storage_path: ''
-      };
-      
-      // Create the client
-      const client = await createNewClient({
-        client_name,
-        email,
-        agent_name,
-        widget_settings
+      const result = await createClient({
+        ...data,
+        adminId: user?.id
       });
       
-      toast({
-        title: "Success",
-        description: "Client created successfully",
-      });
+      // Dismiss all toasts
+      toast.dismiss();
       
-      // Log the client creation activity
-      // This is now done in the createNewClient function
-
-      // Navigate to the client page
-      navigate(`/admin/clients/${client.client_id}`);
+      if (result.success) {
+        // Success toast
+        toast.success('Client account created successfully!');
+        
+        // Navigate to the client view
+        setTimeout(() => {
+          navigate(`/admin/clients/view/${result.clientId}`);
+        }, 1500);
+      } else {
+        // Error toast
+        toast.error(result.message || 'Failed to create client account');
+      }
     } catch (error) {
-      console.error("Error creating client:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create client. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Error creating client:', error);
+      
+      // Dismiss loading toast
+      toast.dismiss();
+      
+      // Show error toast
+      toast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  const handleBack = () => {
-    navigate('/admin/clients');
-  };
-
   return (
-    <div className="container max-w-3xl mx-auto py-10">
-      <div className="mb-6">
-        <Button variant="ghost" onClick={handleBack} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Clients
-        </Button>
-        
-        <h1 className="text-3xl font-bold">Create New Client</h1>
-        <p className="text-muted-foreground mt-1">
-          Create a new client account and AI assistant
-        </p>
-      </div>
+    <div className="container max-w-4xl mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Create New Client</h1>
       
       <Card>
         <CardHeader>
           <CardTitle>Client Information</CardTitle>
-          <CardDescription>
-            Enter the client's details and configure their AI assistant
-          </CardDescription>
         </CardHeader>
         <CardContent>
-          <ClientAccountForm 
-            onSubmit={handleSubmit} 
-            isLoading={isSubmitting} 
+          <ClientForm
+            onSubmit={handleSubmit}
+            isLoading={isLoading || isSubmitting}
+            error={error?.message}
           />
         </CardContent>
       </Card>

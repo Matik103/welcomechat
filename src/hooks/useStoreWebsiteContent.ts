@@ -31,19 +31,20 @@ export function useStoreWebsiteContent() {
     try {
       // Create a processing record
       const processingId = uuidv4();
+      const now = new Date().toISOString();
       
       // Store the URL in the document_processing_jobs table
       const { data, error } = await supabase
         .from('document_processing_jobs')
         .insert({
-          document_url: website.url,
+          document_id: processingId,
           client_id: clientId,
           agent_name: 'AI Assistant',
           document_type: 'website',
+          document_url: website.url,
           status: 'pending',
-          document_id: processingId, // Use the UUID as document_id
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          created_at: now,
+          updated_at: now,
           metadata: {
             websiteId: website.id,
             refresh_rate: website.refresh_rate || 30
