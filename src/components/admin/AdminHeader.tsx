@@ -16,7 +16,7 @@ export const AdminHeader = () => {
           <div className="flex-shrink-0">
             <Link to="/admin/dashboard">
               <img 
-                src="/lovable-uploads/06860347-e947-4d90-8977-b794f49c756a.png" 
+                src="/lovable-uploads/e262d378-49c1-4219-ae37-ce0264b3500c.png" 
                 alt="Welcome.Chat Logo" 
                 className="h-10"
               />
