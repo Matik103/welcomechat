@@ -23,14 +23,18 @@ export const AdminHeader = () => {
             </Link>
           </div>
           
-          <div className="flex-1 flex justify-end">
-            {/* Navigation links moved to the right */}
-            <div className="flex items-center gap-6">
+          <div className="flex-1 flex justify-center">
+            {/* Search bar would go here if needed */}
+          </div>
+
+          {/* Navigation links and user info */}
+          <div className="flex items-center gap-4">
+            <nav className="flex items-center space-x-6">
               <Link 
                 to="/admin/dashboard" 
                 className={cn(
-                  "text-gray-600 hover:text-primary font-medium px-3 py-2 rounded-md transition-colors",
-                  location.pathname === '/admin/dashboard' && "text-primary bg-primary/5"
+                  "text-gray-600 hover:text-primary font-medium transition-colors",
+                  location.pathname === '/admin/dashboard' && "text-primary font-semibold"
                 )}
               >
                 Dashboard
@@ -38,8 +42,8 @@ export const AdminHeader = () => {
               <Link 
                 to="/admin/clients" 
                 className={cn(
-                  "text-gray-600 hover:text-primary font-medium px-3 py-2 rounded-md transition-colors",
-                  location.pathname.includes('/admin/clients') && "text-primary bg-primary/5"
+                  "text-gray-600 hover:text-primary font-medium transition-colors",
+                  location.pathname.includes('/admin/clients') && "text-primary font-semibold"
                 )}
               >
                 Clients
@@ -47,18 +51,18 @@ export const AdminHeader = () => {
               <Link 
                 to="/admin/agents" 
                 className={cn(
-                  "text-gray-600 hover:text-primary font-medium px-3 py-2 rounded-md transition-colors",
-                  location.pathname.includes('/admin/agents') && "text-primary bg-primary/5"
+                  "text-gray-600 hover:text-primary font-medium transition-colors",
+                  location.pathname.includes('/admin/agents') && "text-primary font-semibold"
                 )}
               >
                 Agents
               </Link>
-              
-              {/* User name on the right (removing gear icon) */}
-              <div className="flex items-center ml-6 pl-6 border-l border-gray-200">
-                <span className="text-sm font-medium text-gray-700">
-                  {user?.user_metadata?.full_name || user?.email}
-                </span>
+            </nav>
+            
+            {/* User name instead of settings icon */}
+            <div className="flex items-center ml-6 pl-6 border-l border-gray-200">
+              <div className="text-sm font-medium text-gray-700 px-3 py-2 rounded-lg bg-gray-100">
+                {user?.user_metadata?.full_name || user?.email}
               </div>
             </div>
           </div>
