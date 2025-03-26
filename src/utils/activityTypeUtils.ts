@@ -1,74 +1,68 @@
 
 import { ActivityType } from '@/types/client-form';
 
-// Map activity types to human-readable labels
-export const activityLabels: Partial<Record<ActivityType, string>> = {
+/**
+ * Maps activity types to user-friendly display names for the admin dashboard
+ */
+export const activityTypeNames: Partial<Record<ActivityType, string>> = {
   'client_created': 'Client Created',
   'client_updated': 'Client Updated',
   'client_deleted': 'Client Deleted',
-  'client_recovered': 'Client Recovered',
-  'widget_settings_updated': 'Widget Settings Updated',
-  'website_url_added': 'Website URL Added',
-  'website_url_deleted': 'Website URL Deleted',
-  'drive_link_added': 'Google Drive Link Added',
-  'drive_link_deleted': 'Google Drive Link Deleted',
-  'chat_interaction': 'Chat Interaction',
-  'agent_error': 'Agent Error',
-  'document_added': 'Document Added',
+  'config_updated': 'Configuration Updated',
+  'website_added': 'Website Added',
+  'website_removed': 'Website Removed',
+  'website_processed': 'Website Processed',
+  'document_link_added': 'Document Link Added',
+  'document_link_removed': 'Document Link Removed',
   'document_processed': 'Document Processed',
-  'document_processing_failed': 'Document Processing Failed',
-  'document_removed': 'Document Removed',
-  'url_added': 'URL Added',
-  'url_deleted': 'URL Deleted',
-  'url_processed': 'URL Processed',
-  'url_processing_failed': 'URL Processing Failed',
-  'embed_code_copied': 'Embed Code Copied'
+  'agent_error': 'Agent Error',
+  'login_success': 'Login Success',
+  'login_failed': 'Login Failed',
+  'password_reset': 'Password Reset',
+  'user_invited': 'User Invited',
+  'invitation_accepted': 'Invitation Accepted'
 };
 
-// Map activity types to icon names
-export const activityIcons: Partial<Record<ActivityType, string>> = {
-  'client_created': 'user-plus',
-  'client_updated': 'edit',
-  'client_deleted': 'user-minus',
-  'client_recovered': 'user-check',
-  'widget_settings_updated': 'settings',
-  'website_url_added': 'globe',
-  'website_url_deleted': 'trash',
-  'drive_link_added': 'file-plus',
-  'drive_link_deleted': 'file-minus',
-  'chat_interaction': 'message-circle',
-  'agent_error': 'alert-triangle',
-  'document_added': 'file-text',
-  'document_processed': 'check-circle',
-  'document_processing_failed': 'x-circle',
-  'document_removed': 'trash-2',
-  'url_added': 'link',
-  'url_deleted': 'unlink',
-  'url_processed': 'check',
-  'url_processing_failed': 'x',
-  'embed_code_copied': 'copy'
+/**
+ * Maps activity types to icons (Lucide icon names) for display in the dashboard
+ */
+export const activityTypeIcons: Partial<Record<ActivityType, string>> = {
+  'client_created': 'UserPlus',
+  'client_updated': 'UserCog',
+  'client_deleted': 'UserMinus',
+  'config_updated': 'Settings',
+  'website_added': 'Globe',
+  'website_removed': 'Trash2',
+  'website_processed': 'Check',
+  'document_link_added': 'FileText',
+  'document_link_removed': 'Trash2',
+  'document_processed': 'Check',
+  'agent_error': 'AlertCircle',
+  'login_success': 'LogIn',
+  'login_failed': 'AlertTriangle',
+  'password_reset': 'Key',
+  'user_invited': 'Mail',
+  'invitation_accepted': 'UserCheck'
 };
 
-// Map activity types to color classes
-export const activityColors: Partial<Record<ActivityType, string>> = {
+/**
+ * Maps activity types to colors for visual distinction in the dashboard
+ */
+export const activityTypeColors: Partial<Record<ActivityType, string>> = {
   'client_created': 'bg-green-100 text-green-800',
   'client_updated': 'bg-blue-100 text-blue-800',
   'client_deleted': 'bg-red-100 text-red-800',
-  'client_recovered': 'bg-yellow-100 text-yellow-800',
-  'widget_settings_updated': 'bg-purple-100 text-purple-800',
-  'website_url_added': 'bg-indigo-100 text-indigo-800',
-  'website_url_deleted': 'bg-red-100 text-red-800',
-  'drive_link_added': 'bg-blue-100 text-blue-800',
-  'drive_link_deleted': 'bg-red-100 text-red-800',
-  'chat_interaction': 'bg-green-100 text-green-800',
+  'config_updated': 'bg-purple-100 text-purple-800',
+  'website_added': 'bg-indigo-100 text-indigo-800',
+  'website_removed': 'bg-orange-100 text-orange-800',
+  'website_processed': 'bg-teal-100 text-teal-800',
+  'document_link_added': 'bg-cyan-100 text-cyan-800',
+  'document_link_removed': 'bg-amber-100 text-amber-800',
+  'document_processed': 'bg-lime-100 text-lime-800',
   'agent_error': 'bg-red-100 text-red-800',
-  'document_added': 'bg-blue-100 text-blue-800',
-  'document_processed': 'bg-green-100 text-green-800',
-  'document_processing_failed': 'bg-red-100 text-red-800',
-  'document_removed': 'bg-red-100 text-red-800',
-  'url_added': 'bg-blue-100 text-blue-800',
-  'url_deleted': 'bg-red-100 text-red-800',
-  'url_processed': 'bg-green-100 text-green-800',
-  'url_processing_failed': 'bg-red-100 text-red-800',
-  'embed_code_copied': 'bg-purple-100 text-purple-800'
+  'login_success': 'bg-green-100 text-green-800',
+  'login_failed': 'bg-red-100 text-red-800',
+  'password_reset': 'bg-blue-100 text-blue-800',
+  'user_invited': 'bg-indigo-100 text-indigo-800',
+  'invitation_accepted': 'bg-emerald-100 text-emerald-800'
 };

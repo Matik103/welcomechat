@@ -44,7 +44,8 @@ export default function ResourceSettings() {
     addDocumentLink,
     deleteDocumentLink,
     isAddingLink,
-    isDeletingLink
+    isDeletingLink,
+    deletingLinkId
   } = useDriveLinks(effectiveClientId);
 
   // Document Upload
@@ -81,7 +82,7 @@ export default function ResourceSettings() {
       if (result) {
         await createClientActivity(
           effectiveClientId,
-          "document_added", // Fixed ActivityType
+          "website_added", // Changed to a valid ActivityType
           `Uploaded document: ${file.name}`,
           { file_name: file.name, file_type: file.type, file_size: file.size }
         );
@@ -126,6 +127,7 @@ export default function ResourceSettings() {
               isLoading={isUrlsLoading}
               isAdding={isValidatingUrl}
               isDeleting={isDeletingUrl}
+              deletingUrlId={deletingUrlId}
               agentName="AI Assistant"
             />
           </TabsContent>
@@ -138,6 +140,8 @@ export default function ResourceSettings() {
               deleteDocumentLink={handleDeleteDocumentLink}
               isAddingLink={isAddingLink}
               isDeletingLink={isDeletingLink}
+              deletingLinkId={deletingLinkId}
+              agentName="AI Assistant"
             />
           </TabsContent>
           
