@@ -1,3 +1,4 @@
+
 export type ActivityType = 
   | 'client_created'
   | 'client_updated'

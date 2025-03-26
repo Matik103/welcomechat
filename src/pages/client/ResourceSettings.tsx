@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button';
 import { WebsiteUrls } from '@/components/client/website-urls';
 import DriveLinks from '@/components/client/drive-links';
 import { DocumentUpload } from '@/components/client/DocumentUpload';
-import { createClientActivity } from '@/services/activityService';
+import { createClientActivity } from '@/services/clientActivityService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
+import { WebsiteUrlFormData } from '@/types/website-url';
 
 export default function ResourceSettings() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -41,11 +42,8 @@ export default function ResourceSettings() {
     isLoading: isLinksLoading,
     addDocumentLink,
     deleteDocumentLink,
-    validateDocumentLink,
-    validateLinkError,
-    isValidatingLink,
-    isDeletingLink,
-    deletingLinkId
+    isAddingLink,
+    isDeletingLink
   } = useDriveLinks(effectiveClientId);
 
   // Document Upload
@@ -55,6 +53,14 @@ export default function ResourceSettings() {
     uploadProgress
   } = useDocumentUpload(effectiveClientId);
 
+  const handleAddWebsiteUrl = async (data: WebsiteUrlFormData) => {
+    await addWebsiteUrl(data);
+  };
+
+  const handleDeleteWebsiteUrl = async (urlId: number) => {
+    await deleteWebsiteUrl(urlId);
+  };
+
   const handleUploadDocument = async (file: File) => {
     try {
       const result = await uploadDocument(file);
@@ -62,7 +68,7 @@ export default function ResourceSettings() {
       if (result) {
         await createClientActivity(
           effectiveClientId,
-          'document_added',
+          "document_added",
           `Uploaded document: ${file.name}`,
           { file_name: file.name, file_type: file.type, file_size: file.size }
         );
@@ -102,17 +108,12 @@ export default function ResourceSettings() {
           <TabsContent value="websites" className="space-y-6">
             <WebsiteUrls
               urls={websiteUrls}
+              onAdd={handleAddWebsiteUrl}
+              onDelete={handleDeleteWebsiteUrl}
               isLoading={isUrlsLoading}
-              addWebsiteUrl={addWebsiteUrl}
-              deleteWebsiteUrl={deleteWebsiteUrl}
-              processUrl={processWebsiteUrl}
-              validateUrl={validateUrl}
-              validateError={validateUrlError}
-              isValidating={isValidatingUrl}
-              isProcessing={isProcessingUrl}
-              processingId={processingUrlId}
+              isAdding={isValidatingUrl}
               isDeleting={isDeletingUrl}
-              deletingId={deletingUrlId}
+              agentName="AI Assistant"
             />
           </TabsContent>
           
@@ -122,16 +123,14 @@ export default function ResourceSettings() {
               isLoading={isLinksLoading}
               addDocumentLink={addDocumentLink}
               deleteDocumentLink={deleteDocumentLink}
-              validateLink={validateDocumentLink}
-              validateError={validateLinkError}
-              isValidating={isValidatingLink}
-              isDeleteLoading={isDeletingLink}
+              isAddingLink={isAddingLink}
+              isDeletingLink={isDeletingLink}
             />
           </TabsContent>
           
           <TabsContent value="upload" className="space-y-6">
             <DocumentUpload
-              onUpload={handleUploadDocument}
+              uploadDocument={handleUploadDocument}
               isUploading={isUploading}
               uploadProgress={uploadProgress}
             />

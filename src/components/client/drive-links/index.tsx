@@ -1,61 +1,52 @@
 
-import React, { useState } from 'react';
-import DocumentLinkForm from './DocumentLinkForm';
-import DocumentLinksList from './DocumentLinksList';
-import { DocumentLink } from '@/types/client';
+import React from 'react';
+import { DocumentLinkForm } from './DocumentLinkForm';
+import { DocumentLinksList } from './DocumentLinksList';
+import { DocumentLink } from '@/types/document-processing';
 
-export interface DriveLinksProps {
+interface DriveLinksProps {
   links: DocumentLink[];
-  isLoading?: boolean;
-  isUploading?: boolean;
+  isLoading: boolean;
   addDocumentLink: (data: { link: string; refresh_rate: number; }) => Promise<void>;
   deleteDocumentLink: (linkId: number) => Promise<void>;
-  validateLink?: (url: string) => Promise<boolean>;
-  validateError?: string | null;
-  isValidating?: boolean;
-  isDeleteLoading?: boolean;
+  isAddingLink: boolean;
+  isDeletingLink: boolean;
 }
 
 const DriveLinks: React.FC<DriveLinksProps> = ({
-  links = [],
-  isLoading = false,
-  isUploading = false,
+  links,
+  isLoading,
   addDocumentLink,
   deleteDocumentLink,
-  validateLink,
-  validateError,
-  isValidating = false,
-  isDeleteLoading = false
+  isAddingLink,
+  isDeletingLink
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const handleAddLink = async (data: { link: string; refresh_rate: number; }) => {
+    await addDocumentLink(data);
+  };
 
-  const handleSubmit = async (data: { link: string; refresh_rate: number }) => {
-    setIsSubmitting(true);
-    try {
-      await addDocumentLink(data);
-    } finally {
-      setIsSubmitting(false);
+  const handleDeleteLink = async (linkId: number) => {
+    if (confirm('Are you sure you want to delete this link?')) {
+      await deleteDocumentLink(linkId);
     }
   };
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-medium">Google Drive Documents</h3>
-      
       <DocumentLinkForm 
-        onSubmit={handleSubmit} 
-        isSubmitting={isSubmitting || isUploading}
-        validateLink={validateLink}
-        validateError={validateError}
-        isValidating={isValidating}
+        onSubmit={handleAddLink} 
+        isSubmitting={isAddingLink} 
       />
-      
-      <DocumentLinksList 
-        links={links} 
-        onDelete={deleteDocumentLink}
-        isLoading={isLoading}
-        isDeleteLoading={isDeleteLoading}
-      />
+
+      <div>
+        <h3 className="font-medium mb-2">Google Drive Links</h3>
+        <DocumentLinksList 
+          links={links} 
+          onDelete={handleDeleteLink} 
+          isLoading={isLoading}
+          isDeleting={isDeletingLink}
+        />
+      </div>
     </div>
   );
 };
