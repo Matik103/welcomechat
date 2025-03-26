@@ -5,7 +5,6 @@ import { User, Session } from '@supabase/supabase-js';
 import { useLocation } from 'react-router-dom';
 import { useAuthCallback } from '@/hooks/useAuthCallback';
 import { useAuthInitialize } from '@/hooks/useAuthInitialize';
-import { useAuthState } from '@/hooks/useAuthState';
 import { useAuthStateChange } from '@/hooks/useAuthStateChange';
 
 export type UserRole = 'admin' | 'client' | 'user' | null;
@@ -38,19 +37,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isCallbackUrl = location.pathname.includes('/auth/callback');
   
-  // Use the combined auth state
-  const {
-    session,
-    setSession,
-    user,
-    setUser,
-    userRole,
-    setUserRole,
-    isLoading,
-    setIsLoading,
-    authInitialized,
-    setAuthInitialized
-  } = useAuthState();
+  // Create all the state variables directly in the component
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [authInitialized, setAuthInitialized] = useState(false);
   
   // Use the auth callback handler for OAuth flows
   useAuthCallback({
