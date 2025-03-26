@@ -5,6 +5,7 @@ import { ClientFormData } from "@/types/client-form";
 import { useClientFormSubmission } from "@/hooks/useClientFormSubmission";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useEffect } from "react";
+import { Json } from "@/integrations/supabase/types";
 import { ActivityType } from "@/types/client-form";
 
 interface ClientDetailsCardProps {
@@ -73,7 +74,7 @@ export const ClientDetailsCard = ({
           initialData={client}
           onSubmit={handleFormSubmit}
           isLoading={isSubmitting}
-          error={error ? error.message : undefined}
+          error={error instanceof Error ? error.message : error?.toString()}
         />
       </CardContent>
     </Card>

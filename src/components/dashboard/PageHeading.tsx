@@ -1,14 +1,18 @@
 
-import React, { ReactNode } from 'react';
+import React from 'react';
 
 interface PageHeadingProps {
-  children: ReactNode;
+  children: React.ReactNode;
+  description?: string;
 }
 
-export const PageHeading: React.FC<PageHeadingProps> = ({ children }) => {
+export function PageHeading({ children, description }: PageHeadingProps) {
   return (
-    <h1 className="text-3xl font-bold tracking-tight">
-      {children}
-    </h1>
+    <div className="mb-6">
+      <h1 className="text-2xl font-bold tracking-tight">{children}</h1>
+      {description && (
+        <p className="text-muted-foreground mt-2">{description}</p>
+      )}
+    </div>
   );
-};
+}

@@ -1,87 +1,79 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Loader2, Upload } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 import { DocumentUploadFormProps } from '@/types/document-processing';
 
-export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = ({
+export const DocumentUploadForm = ({
   onSubmitDocument,
   isUploading
-}) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+}: DocumentUploadFormProps) => {
+  const [file, setFile] = useState<File | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      setFile(files[0]);
     }
   };
 
-  const handleUpload = async () => {
-    if (selectedFile) {
-      await onSubmitDocument(selectedFile);
-      setSelectedFile(null);
-      // Reset the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (file) {
+      try {
+        await onSubmitDocument(file);
+        setFile(null);
+        
+        // Reset the file input
+        const fileInput = document.getElementById('document-file') as HTMLInputElement;
+        if (fileInput) {
+          fileInput.value = '';
+        }
+      } catch (error) {
+        console.error('Error uploading document:', error);
       }
     }
   };
 
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-        <Upload className="h-10 w-10 text-gray-400 mb-2" />
-        <p className="text-sm text-center text-gray-500 mb-4">
-          Drag and drop your document here, or click to select a file
-        </p>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
-        />
-        <Button 
-          type="button" 
-          onClick={handleButtonClick}
-          variant="outline"
-        >
-          Select Document
-        </Button>
-      </div>
-
-      {selectedFile && (
-        <div className="p-4 bg-gray-100 rounded-lg">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium text-sm">{selectedFile.name}</p>
-              <p className="text-xs text-gray-500">
-                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-              </p>
-            </div>
-            <Button
-              onClick={handleUpload}
-              disabled={isUploading}
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                'Upload'
-              )}
-            </Button>
-          </div>
+    <Card className="p-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="document-file">Select Document</Label>
+          <Input
+            id="document-file"
+            type="file"
+            onChange={handleFileChange}
+            disabled={isUploading}
+            accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx"
+            className="mt-1"
+          />
+          <p className="text-sm text-muted-foreground mt-1">
+            Supported formats: PDF, Word, Excel, PowerPoint, and text files
+          </p>
         </div>
-      )}
-    </div>
+        
+        <Button
+          type="submit"
+          disabled={!file || isUploading}
+          className="w-full"
+        >
+          {isUploading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Document
+            </>
+          )}
+        </Button>
+      </form>
+    </Card>
   );
 };
-
-export default DocumentUploadForm;

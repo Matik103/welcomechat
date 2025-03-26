@@ -1,10 +1,11 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { createClientActivity } from './clientActivityService';
 import { Client } from '@/types/client';
 import { ActivityType } from '@/types/client-form';
 import { updateWidgetSettings } from './widgetSettingsService';
 import { Json } from '@/integrations/supabase/types';
-import { callRpcFunctionSafe } from '@/utils/rpcUtils';
+import { execSql } from '@/utils/rpcUtils';
 
 // Get all clients
 export const getAllClients = async (): Promise<Client[]> => {
@@ -38,7 +39,7 @@ export const getAllClients = async (): Promise<Client[]> => {
       agent_description: String(item.agent_description || ''),
       widget_settings: typeof item.settings === 'object' ? item.settings : {},
       description: String(item.description || ''),
-      user_id: String(item.client_id || '') // Use client_id as user_id
+      user_id: String(item.user_id || '')
     }));
 
     return clients;
@@ -138,15 +139,17 @@ export const createNewClient = async (clientData: {
     }
     
     // Log client creation activity
-    await callRpcFunctionSafe('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: 'client_created',
-      description_param: `Client created: ${clientData.client_name}`,
-      metadata_param: {
-        client_id: clientId,
-        email: clientData.email
-      }
-    });
+    await execSql(`
+      SELECT log_client_activity(
+        $1,
+        $2,
+        $3,
+        $4
+      )
+    `, [clientId, 'client_created', `Client created: ${clientData.client_name}`, JSON.stringify({
+      client_id: clientId,
+      email: clientData.email
+    })]);
     
     // Return the new client object
     const client: Client = {
@@ -167,7 +170,7 @@ export const createNewClient = async (clientData: {
       agent_name: clientData.agent_name || 'AI Assistant',
       agent_description: '',
       widget_settings: widgetSettings,
-      user_id: clientId // Use clientId as user_id
+      user_id: ''
     };
     
     return client;
@@ -230,12 +233,14 @@ export const logClientUpdateActivity = async (
 ): Promise<void> => {
   try {
     // Use safe SQL execution
-    await callRpcFunctionSafe('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: 'client_updated',
-      description_param: description,
-      metadata_param: metadata || {}
-    });
+    await execSql(`
+      SELECT log_client_activity(
+        $1,
+        $2,
+        $3,
+        $4
+      )
+    `, [clientId, 'client_updated', description, JSON.stringify(metadata || {})]);
   } catch (error) {
     console.error(`Error logging client update activity for ${clientId}:`, error);
   }

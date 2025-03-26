@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { WebsiteUrlForm } from '@/components/client/website-urls/WebsiteUrlForm';
 import { WebsiteUrlsList } from '@/components/client/website-urls/WebsiteUrlsList';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
-import { WebsiteUrl } from '@/types/client';
+import { WebsiteUrl } from '@/types/website-url';
 import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
 import { ActivityType } from '@/types/client-form';
 import { toast } from 'sonner';
@@ -13,33 +13,29 @@ interface WebsiteResourcesSectionProps {
   clientId: string;
   onResourceChange?: () => void;
   logClientActivity: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
-  websiteUrls?: WebsiteUrl[];
 }
 
 export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = ({
   clientId,
   onResourceChange,
-  logClientActivity,
-  websiteUrls: externalUrls
+  logClientActivity
 }) => {
   const [processingUrl, setProcessingUrl] = useState<number | null>(null);
   
   const {
     websiteUrls,
     isLoading,
-    isError,
-    addWebsiteUrlMutation,
-    deleteWebsiteUrlMutation,
-    refetchWebsiteUrls
+    error,
+    addWebsiteUrl,
+    deleteWebsiteUrl,
+    refetch
   } = useWebsiteUrls(clientId);
   
-  const { storeWebsiteContent, isStoring } = useStoreWebsiteContent();
-
-  const urls = externalUrls || websiteUrls;
+  const { storeWebsiteContent, isProcessing } = useStoreWebsiteContent();
 
   const handleAddWebsiteUrl = async (url: string, refreshRate: number) => {
     try {
-      await addWebsiteUrlMutation.mutateAsync({ url, refresh_rate: refreshRate });
+      await addWebsiteUrl.mutateAsync({ url, refreshRate });
       
       // Log the activity
       await logClientActivity(
@@ -50,8 +46,8 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       
       toast.success('Website URL added successfully');
       
-      if (refetchWebsiteUrls) {
-        refetchWebsiteUrls();
+      if (refetch) {
+        refetch();
       }
       
       if (onResourceChange) {
@@ -68,9 +64,9 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
   
   const handleDeleteWebsiteUrl = async (id: number) => {
     try {
-      const urlToDelete = urls.find(url => url.id === id);
+      const urlToDelete = websiteUrls.find(url => url.id === id);
       
-      await deleteWebsiteUrlMutation.mutateAsync(id);
+      await deleteWebsiteUrl.mutateAsync(id);
       
       // Log the activity
       if (urlToDelete) {
@@ -83,8 +79,8 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       
       toast.success('Website URL deleted successfully');
       
-      if (refetchWebsiteUrls) {
-        refetchWebsiteUrls();
+      if (refetch) {
+        refetch();
       }
       
       if (onResourceChange) {
@@ -105,19 +101,18 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
         return;
       }
       
-      // Create a compatible website object with scrapable property
+      // Create a compatible website object
       const websiteToProcess = {
         id: url.id,
         url: url.url,
-        client_id: clientId,
-        refresh_rate: url.refresh_rate || 30,
-        scrapable: true // Add the required property
+        scrapable: true,
+        client_id: clientId
       };
       
-      const result = await storeWebsiteContent(websiteToProcess, clientId);
+      const result = await storeWebsiteContent(websiteToProcess);
       
       if (result.success) {
-        toast.success(`Processed website content from ${url.url}`);
+        toast.success(`Processed ${result.urlsScraped} pages from ${url.url}`);
         
         // Log the activity
         await logClientActivity(
@@ -125,16 +120,16 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
           `Processed website URL: ${url.url}`,
           { 
             url: url.url, 
-            urls_scraped: result.urlsScraped || 0,
-            content_stored: result.contentStored || false
+            urls_scraped: result.urlsScraped,
+            content_stored: result.contentStored
           }
         );
       } else {
         toast.error(`Failed to process ${url.url}: ${result.error}`);
       }
       
-      if (refetchWebsiteUrls) {
-        await refetchWebsiteUrls();
+      if (refetch) {
+        await refetch();
       }
     } catch (error) {
       console.error('Error processing website:', error);
@@ -154,20 +149,17 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       </CardHeader>
       <CardContent className="space-y-6">
         <WebsiteUrlForm
-          onAdd={async (data) => {
-            return handleAddWebsiteUrl(data.url, data.refresh_rate);
-          }}
-          isAdding={addWebsiteUrlMutation.isPending}
-          agentName="AI Assistant"
+          onSubmit={handleAddWebsiteUrl}
+          isSubmitting={addWebsiteUrl.isPending}
         />
         
         <WebsiteUrlsList
-          urls={urls}
+          urls={websiteUrls}
           onDelete={handleDeleteWebsiteUrl}
           onProcess={handleProcessWebsite}
-          isDeleteLoading={deleteWebsiteUrlMutation.isPending}
-          isProcessing={isStoring}
-          deletingId={deleteWebsiteUrlMutation.variables as number | undefined}
+          isDeleteLoading={deleteWebsiteUrl.isPending}
+          isProcessing={isProcessing}
+          deletingId={deleteWebsiteUrl.variables as number | undefined}
         />
       </CardContent>
     </Card>

@@ -1,147 +1,130 @@
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, LinkIcon, CheckCircle, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
 import { DocumentLinksList } from './drive-links/DocumentLinksList';
 import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
-import { useDocumentUpload } from '@/hooks/useDocumentUpload';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { ValidationResult } from '@/utils/documentProcessing';
+import { useDocumentUpload } from '@/hooks/useDocumentUpload';
+import { DocumentLinkFormData, DocumentLink } from '@/types/document-processing';
 import { toast } from 'sonner';
-import { DocumentLink, DocumentLinkFormData } from '@/types/document-processing';
 
 interface DriveLinksProps {
   clientId: string;
-  logClientActivity: (type: string, description: string, metadata?: any) => Promise<void>;
+  onResourceChange?: () => void;
 }
 
-export const DriveLinks: React.FC<DriveLinksProps> = ({
-  clientId,
-  logClientActivity
-}) => {
-  const [activeTab, setActiveTab] = useState<string>('links');
-  const { uploadFile, isUploading, progress } = useDocumentUpload();
-  const { 
-    documentLinks, 
-    isLoading: isLinksLoading,
-    error: linksError,
+export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChange }) => {
+  const [activeTab, setActiveTab] = useState('links');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const {
+    documentLinks,
+    isLoading,
+    error,
     addDocumentLink,
     deleteDocumentLink,
-    validateDocumentLink,
     isValidating,
-    refetchDocumentLinks
+    refetch
   } = useDocumentLinks(clientId);
 
-  const handleFileUpload = async (file: File, documentType: string) => {
-    if (!file) return;
-    
-    const result = await uploadFile(file, clientId, documentType);
-    
-    if (result.success) {
-      toast.success('File uploaded successfully');
-      logClientActivity(
-        'document_added',
-        `Document uploaded: ${file.name}`,
-        {
-          file_name: file.name,
-          file_type: file.type,
-          file_size: file.size,
-          document_type: documentType,
-          storage_path: result.filePath,
-          public_url: result.fileUrl
-        }
-      );
-    } else {
-      toast.error(`Upload failed: ${result.error}`);
-    }
-  };
+  const { uploadDocument, isUploading } = useDocumentUpload(clientId);
 
-  const handleAddLink = async (data: DocumentLinkFormData): Promise<ValidationResult> => {
-    // First validate the link
-    const validationResult = await validateDocumentLink(data.link);
-
-    if (!validationResult.isValid) {
-      return validationResult;
-    }
-
-    // Add the document link if validation passes
-    const addResult = await addDocumentLink({
-      ...data,
-      document_type: data.document_type || 'file'
-    });
-
-    if (addResult.success) {
+  const handleAddLink = async (data: DocumentLinkFormData) => {
+    try {
+      // Ensure document_type is set
+      const enhancedData: DocumentLinkFormData = {
+        ...data,
+        document_type: data.document_type || 'document'
+      };
+      
+      await addDocumentLink.mutateAsync(enhancedData);
       toast.success('Document link added successfully');
-      logClientActivity(
-        'document_added',
-        `Document link added: ${data.link}`,
-        {
-          link: data.link,
-          document_type: data.document_type || 'file'
-        }
-      );
-    } else {
-      toast.error(`Failed to add document link: ${addResult.error}`);
+      
+      if (refetch) {
+        await refetch();
+      }
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
+    } catch (error) {
+      console.error('Error adding link:', error);
+      toast.error('Failed to add document link');
     }
-
-    return validationResult;
   };
 
-  const handleDeleteLink = async (id: number) => {
-    const link = documentLinks.find(l => l.id === id);
-    
-    if (!link) return;
-    
-    const result = await deleteDocumentLink(id);
-    
-    if (result.success) {
-      toast.success('Document link removed');
-      logClientActivity(
-        'document_removed',
-        `Document link removed: ${link.link}`,
-        { id, link: link.link }
-      );
-    } else {
-      toast.error(`Failed to remove document link: ${result.error}`);
+  const handleDeleteLink = async (linkId: number) => {
+    try {
+      setDeletingId(linkId);
+      await deleteDocumentLink.mutateAsync(linkId);
+      toast.success('Document link deleted successfully');
+      
+      if (refetch) {
+        await refetch();
+      }
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
+    } catch (error) {
+      console.error('Error deleting link:', error);
+      toast.error('Failed to delete document link');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleUploadDocument = async (file: File) => {
+    try {
+      await uploadDocument(file);
+      toast.success('Document uploaded successfully');
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      toast.error('Failed to upload document');
     }
   };
 
   return (
-    <div className="space-y-4">
-      <Tabs defaultValue="links" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="links" className="flex items-center gap-2">
-            <LinkIcon className="h-4 w-4" />
-            Links
-          </TabsTrigger>
-          <TabsTrigger value="upload" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Upload
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="links" className="space-y-4">
-          <DocumentLinkForm 
-            onSubmit={handleAddLink}
-            isSubmitting={isValidating}
-          />
-          <DocumentLinksList 
-            links={documentLinks}
-            isLoading={isLinksLoading}
-            onDelete={handleDeleteLink}
-          />
-        </TabsContent>
-        
-        <TabsContent value="upload" className="space-y-4">
-          <DocumentUploadForm 
-            onUpload={handleFileUpload}
-            isUploading={isUploading}
-            progress={progress}
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>External Documents</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="links">Document Links</TabsTrigger>
+            <TabsTrigger value="upload">Upload Document</TabsTrigger>
+          </TabsList>
+          <TabsContent value="links" className="space-y-4">
+            <DocumentLinkForm
+              onSubmit={handleAddLink}
+              isSubmitting={addDocumentLink.isPending}
+              agentName="AI Assistant"
+            />
+            <DocumentLinksList
+              links={documentLinks}
+              isLoading={isLoading}
+              onDelete={handleDeleteLink}
+              isDeleting={deleteDocumentLink.isPending}
+              deletingId={deletingId}
+            />
+          </TabsContent>
+          <TabsContent value="upload">
+            <DocumentUploadForm
+              onSubmitDocument={handleUploadDocument}
+              isUploading={isUploading}
+            />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
+
+export default DriveLinks;
