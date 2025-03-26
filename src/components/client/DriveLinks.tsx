@@ -7,7 +7,7 @@ import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
-import { DocumentLinkFormData, DocumentLink } from '@/types/document-processing';
+import { DocumentLinkFormData } from '@/types/document-processing';
 import { toast } from 'sonner';
 
 interface DriveLinksProps {
@@ -34,8 +34,9 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
   const handleAddLink = async (data: DocumentLinkFormData) => {
     try {
       // Ensure document_type is set
-      const enhancedData: DocumentLinkFormData = {
-        ...data,
+      const enhancedData = {
+        link: data.link,
+        refresh_rate: data.refresh_rate,
         document_type: data.document_type || 'document'
       };
       
@@ -106,6 +107,7 @@ export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChan
               onSubmit={handleAddLink}
               isSubmitting={addDocumentLink.isPending}
               agentName="AI Assistant"
+              clientId={clientId}
             />
             <DocumentLinksList
               links={documentLinks}

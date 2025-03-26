@@ -5,12 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { WebsiteUrlFormData } from '@/types/website-url';
+
+export interface WebsiteUrlFormData {
+  url: string;
+  refresh_rate: number;
+}
 
 interface WebsiteUrlFormProps {
-  onAdd: (data: WebsiteUrlFormData) => Promise<void>;
+  onAdd: (data: WebsiteUrlFormData) => Promise<boolean>;
   isAdding: boolean;
-  agentName: string;
+  agentName?: string;
   clientId?: string;
   onAddSuccess?: () => Promise<any>;
   webstoreHook?: { isAdding: boolean };
@@ -19,7 +23,7 @@ interface WebsiteUrlFormProps {
 export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
   onAdd,
   isAdding,
-  agentName,
+  agentName = "AI Assistant",
   clientId,
   onAddSuccess,
   webstoreHook
@@ -55,15 +59,17 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
         return;
       }
 
-      await onAdd({ 
+      const success = await onAdd({ 
         url, 
         refresh_rate: refreshRate
       });
       
-      setNewUrl('');
-      
-      if (onAddSuccess) {
-        await onAddSuccess();
+      if (success) {
+        setNewUrl('');
+        
+        if (onAddSuccess) {
+          await onAddSuccess();
+        }
       }
     } catch (error) {
       console.error('Error adding URL:', error);
@@ -119,3 +125,5 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
     </form>
   );
 };
+
+export default WebsiteUrlForm;

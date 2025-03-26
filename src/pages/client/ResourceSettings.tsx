@@ -66,7 +66,11 @@ export default function ResourceSettings() {
 
   const handleAddDocumentLink = async (data: { link: string; refresh_rate: number }) => {
     try {
-      await addDocumentLink.mutateAsync(data);
+      await addDocumentLink.mutateAsync({
+        link: data.link,
+        refresh_rate: data.refresh_rate,
+        document_type: 'document' // Default document type
+      });
       await logClientActivity("document_link_added", "Added new document link");
       return Promise.resolve();
     } catch (error) {

@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { WebsiteUrl } from '@/types/website-url';
 import { WebsiteResourcesSection } from './resource-sections/WebsiteResourcesSection';
 import { DocumentResourcesSection } from './resource-sections/DocumentResourcesSection';
+import { WebsiteUrl } from '@/types/client';
 import { ActivityType } from '@/types/client-form';
 
 interface ClientResourceSectionsProps {
@@ -11,41 +11,35 @@ interface ClientResourceSectionsProps {
   isProcessing?: boolean;
   isDeleting?: boolean;
   refetchWebsiteUrls?: () => void;
-  onResourceChange?: () => void;
   logClientActivity: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
 }
 
-export const ClientResourceSections = ({
+export const ClientResourceSections: React.FC<ClientResourceSectionsProps> = ({
   clientId,
-  websiteUrls = [],
-  isProcessing = false,
-  isDeleting = false,
+  websiteUrls,
+  isProcessing,
+  isDeleting,
   refetchWebsiteUrls,
-  onResourceChange,
   logClientActivity
-}: ClientResourceSectionsProps) => {
-  // Map website URLs to the expected format
-  const mappedUrls = websiteUrls.map(url => ({
-    ...url,
-    refresh_rate: url.refresh_rate || 30,
-    status: (url.status as "pending" | "processing" | "failed" | "completed") || "pending"
-  }));
+}) => {
+  const handleResourceChange = () => {
+    if (refetchWebsiteUrls) {
+      refetchWebsiteUrls();
+    }
+  };
 
   return (
-    <div className="space-y-8">
-      <WebsiteResourcesSection 
+    <div className="space-y-6">
+      <WebsiteResourcesSection
         clientId={clientId}
-        urls={mappedUrls}
-        isProcessing={isProcessing}
-        isDeleting={isDeleting}
-        refetchUrls={refetchWebsiteUrls}
-        onResourceChange={onResourceChange}
+        websiteUrls={websiteUrls}
+        onResourceChange={handleResourceChange}
         logClientActivity={logClientActivity}
       />
       
-      <DocumentResourcesSection 
+      <DocumentResourcesSection
         clientId={clientId}
-        onResourceChange={onResourceChange}
+        onResourceChange={handleResourceChange}
         logClientActivity={logClientActivity}
       />
     </div>

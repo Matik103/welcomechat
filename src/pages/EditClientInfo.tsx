@@ -54,7 +54,7 @@ export function EditClientInfo() {
           initialData={client}
           onSubmit={handleSubmit}
           isLoading={isLoadingClient || clientMutation.isPending}
-          error={error ? (error instanceof Error ? error.message : String(error)) : null}
+          error={error ? String(error) : null}
           submitButtonText="Update Client"
         />
       </div>

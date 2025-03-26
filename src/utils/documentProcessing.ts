@@ -1,171 +1,120 @@
 
-import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/integrations/supabase/client';
 import { DocumentChunk, ValidationResult } from '@/types/document-processing';
 
-/**
- * Validates content for processing
- * @param content Content to validate
- * @returns Validation result with status and message
- */
-export const validateContent = (content: string): ValidationResult => {
-  // Check if content is empty
-  if (!content || content.trim().length === 0) {
+export const validateDocumentLink = (url: string): ValidationResult => {
+  // Check if the URL is empty
+  if (!url.trim()) {
     return {
       isValid: false,
-      message: 'Content is empty',
-      error: 'Empty content cannot be processed',
-      status: 'error'
+      errors: ['URL cannot be empty'],
+      message: 'URL cannot be empty'
     };
   }
 
-  // Check if content is too short (less than 50 characters)
-  if (content.length < 50) {
+  // Try to parse the URL
+  try {
+    new URL(url);
+  } catch (error) {
     return {
       isValid: false,
-      message: 'Content is too short',
-      error: 'Content must be at least 50 characters',
-      status: 'warning'
+      errors: ['Invalid URL format'],
+      message: 'Invalid URL format'
     };
   }
 
-  // Calculate token estimate (rough approximation: 4 chars = 1 token)
-  const estimatedTokens = Math.ceil(content.length / 4);
-  
-  // Warn if content might be too large (OpenAI has limits)
-  if (estimatedTokens > 100000) {
+  // Check if URL is from supported domains
+  const supportedDomains = [
+    'drive.google.com',
+    'docs.google.com',
+    'sheets.google.com',
+    'dropbox.com',
+    'office.com',
+    'onedrive.live.com',
+    'sharepoint.com'
+  ];
+
+  const domainMatch = supportedDomains.some(domain => url.includes(domain));
+  if (!domainMatch) {
     return {
-      isValid: true,
-      message: 'Content is very large, processing may take longer',
-      details: {
-        estimatedTokens,
-        pageSize: `${(content.length / 1024).toFixed(2)} KB`
-      },
-      status: 'warning'
+      isValid: false,
+      errors: ['Unsupported document service'],
+      message: 'Unsupported document service'
     };
   }
 
-  // Content looks good
   return {
     isValid: true,
-    message: 'Content validated successfully',
-    details: {
-      estimatedTokens,
-      pageSize: `${(content.length / 1024).toFixed(2)} KB`
-    },
-    status: 'success'
+    errors: []
   };
 };
 
-/**
- * Chunks document content into manageable pieces
- * @param content Full document content
- * @param chunkSize Size of each chunk (default: 8000 characters)
- * @param overlap Overlap between chunks (default: 200 characters)
- * @returns Array of document chunks with metadata
- */
-export const chunkContent = async (
-  content: string,
-  chunkSize = 8000,
-  overlap = 200
-): Promise<DocumentChunk[]> => {
+export const validateDocumentFile = (file: File): ValidationResult => {
+  // Check file size (limit to 10MB)
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  if (file.size > MAX_FILE_SIZE) {
+    return {
+      isValid: false,
+      errors: ['File size exceeds 10MB limit'],
+      message: 'File size exceeds 10MB limit'
+    };
+  }
+
+  // Check file type
+  const supportedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ];
+
+  if (!supportedTypes.includes(file.type)) {
+    return {
+      isValid: false,
+      errors: ['Unsupported file type'],
+      message: 'Unsupported file type'
+    };
+  }
+
+  return {
+    isValid: true,
+    errors: []
+  };
+};
+
+export const extractTextChunks = (text: string, maxChunkSize: number = 1000): DocumentChunk[] => {
   const chunks: DocumentChunk[] = [];
   
-  let position = 0;
-  let chunkIndex = 0;
-  const totalChunks = Math.ceil(content.length / (chunkSize - overlap));
+  // Split text into paragraphs
+  const paragraphs = text.split(/\n\s*\n/);
   
-  while (position < content.length) {
-    const end = Math.min(position + chunkSize, content.length);
-    const chunkContent = content.slice(position, end);
+  let currentChunk = '';
+  
+  for (const paragraph of paragraphs) {
+    // If adding this paragraph would exceed the chunk size,
+    // save the current chunk and start a new one
+    if (currentChunk.length + paragraph.length > maxChunkSize && currentChunk.length > 0) {
+      chunks.push({
+        id: `chunk-${chunks.length}`,
+        content: currentChunk.trim()
+      });
+      currentChunk = '';
+    }
     
+    // Add the paragraph to the current chunk
+    currentChunk += paragraph + '\n\n';
+  }
+  
+  // Don't forget to add the last chunk if there's anything left
+  if (currentChunk.trim().length > 0) {
     chunks.push({
-      id: uuidv4(),
-      content: chunkContent,
-      length: chunkContent.length,
-      metadata: {
-        chunk_index: chunkIndex,
-        total_chunks: totalChunks,
-        start_position: position,
-        end_position: end
-      }
+      id: `chunk-${chunks.length}`,
+      content: currentChunk.trim()
     });
-    
-    // Move position for next chunk, accounting for overlap
-    position = end - overlap > position ? end - overlap : end;
-    chunkIndex++;
   }
   
   return chunks;
-};
-
-/**
- * Extracts key information from document content
- * This is a simplified implementation - in a real application,
- * you might use more sophisticated NLP techniques
- * @param content Document content
- * @returns Extracted metadata
- */
-export const extractDocumentMetadata = (content: string): Record<string, any> => {
-  const metadata: Record<string, any> = {};
-  
-  // Try to extract title (first non-empty line or first heading)
-  const lines = content.split('\n').filter(line => line.trim().length > 0);
-  if (lines.length > 0) {
-    // Look for headings (markdown or plain text)
-    const headingMatch = content.match(/#+\s+(.+?)(?:\n|$)/);
-    if (headingMatch && headingMatch[1]) {
-      metadata.title = headingMatch[1].trim();
-    } else {
-      metadata.title = lines[0].trim();
-    }
-  }
-  
-  // Estimate reading time (average reading speed: 200 words per minute)
-  const wordCount = content.split(/\s+/).length;
-  metadata.wordCount = wordCount;
-  metadata.readingTime = Math.ceil(wordCount / 200);
-  
-  // Try to detect language (simple heuristic)
-  metadata.language = detectLanguage(content);
-  
-  return metadata;
-};
-
-/**
- * Simple language detection based on common words
- * This is a basic implementation - in a real application,
- * you would use a proper language detection library
- * @param content Text content
- * @returns Detected language code
- */
-const detectLanguage = (content: string): string => {
-  const sample = content.slice(0, 1000).toLowerCase();
-  
-  // Count occurrences of common words in different languages
-  const englishWords = ['the', 'and', 'or', 'is', 'are', 'in', 'to', 'with', 'for'];
-  const spanishWords = ['el', 'la', 'los', 'las', 'y', 'o', 'es', 'en', 'con', 'por'];
-  const frenchWords = ['le', 'la', 'les', 'et', 'ou', 'est', 'sont', 'dans', 'avec', 'pour'];
-  
-  const countWords = (words: string[]): number => {
-    return words.reduce((count, word) => {
-      const regex = new RegExp(`\\b${word}\\b`, 'g');
-      const matches = sample.match(regex);
-      return count + (matches ? matches.length : 0);
-    }, 0);
-  };
-  
-  const englishCount = countWords(englishWords);
-  const spanishCount = countWords(spanishWords);
-  const frenchCount = countWords(frenchWords);
-  
-  // Find the language with the highest count
-  if (englishCount > spanishCount && englishCount > frenchCount) {
-    return 'en';
-  } else if (spanishCount > englishCount && spanishCount > frenchCount) {
-    return 'es';
-  } else if (frenchCount > englishCount && frenchCount > spanishCount) {
-    return 'fr';
-  } else {
-    return 'en'; // Default to English
-  }
 };

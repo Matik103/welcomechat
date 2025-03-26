@@ -1,7 +1,9 @@
 
 import { Json } from '@/integrations/supabase/types';
 import { ActivityType } from './client-form';
-import { AccessStatus } from './document-processing';
+
+// Re-export AccessStatus for consistency
+export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending' | 'granted' | 'denied';
 
 export interface Client {
   id: string;
@@ -64,6 +66,16 @@ export interface ClientActivity {
   metadata?: Record<string, any>;
 }
 
+export interface Activity {
+  id: string;
+  activity_type: string;
+  description: string;
+  created_at: string;
+  metadata: Record<string, any>;
+  client_name?: string;
+  client_id?: string;
+}
+
 export interface InteractionStats {
   total_interactions: number;
   active_days: number;
@@ -89,6 +101,9 @@ export interface WebsiteUrl {
   notified_at?: string;
   last_crawled?: string;
   scrapable?: boolean;
+  updated_at?: string;
+  error?: string;
+  scrapability?: "unknown" | "low" | "medium" | "high";
 }
 
 export interface DocumentLink {
