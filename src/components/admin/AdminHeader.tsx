@@ -1,19 +1,19 @@
 
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 export const AdminHeader = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const location = useLocation();
   
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <Link to="/admin/dashboard" className="flex-shrink-0">
+          <div className="flex-shrink-0">
+            <Link to="/admin/dashboard">
               <img 
                 src="/lovable-uploads/e3fad998-3f46-485d-85dc-0d6a7012c7a4.png" 
                 alt="Welcome.Chat Logo" 
