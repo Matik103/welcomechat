@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,8 +110,8 @@ export default function Index() {
                 <CardTitle className="text-lg font-bold text-green-900">CLIENTS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1 text-green-800">12</div>
-                <div className="text-sm text-green-700">10 Active +18%</div>
+                <div className="text-4xl font-bold mb-1 text-green-800">{totalClients}</div>
+                <div className="text-sm text-green-700">{activeClients} Active {activeClientsChange > 0 ? `+${Math.round(activeClientsChange)}%` : ''}</div>
               </CardContent>
             </Card>
 

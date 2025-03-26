@@ -41,9 +41,19 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
           </TableRow>
         ) : (
           clients.map((client) => {
+            // Check if client is active (has been active in the last 48 hours)
+            const isRecentlyActive = client.last_active && 
+              (new Date().getTime() - new Date(client.last_active).getTime()) < (48 * 60 * 60 * 1000);
+            
             return (
               <TableRow key={client.id} className="hover:bg-gray-50">
-                <TableCell className="font-medium">{client.client_name}</TableCell>
+                <TableCell className="font-medium">
+                  {client.client_name}
+                  {isRecentlyActive && (
+                    <span className="ml-2 inline-block w-2 h-2 rounded-full bg-green-500" 
+                      title="Active in the last 48 hours"></span>
+                  )}
+                </TableCell>
                 <TableCell>{client.agent_name}</TableCell>
                 <TableCell className="max-w-xs truncate" title={client.description || ""}>
                   {client.description ? (
