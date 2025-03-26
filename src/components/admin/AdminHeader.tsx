@@ -18,7 +18,7 @@ export const AdminHeader = () => {
               <img 
                 src="/lovable-uploads/e262d378-49c1-4219-ae37-ce0264b3500c.png" 
                 alt="Welcome.Chat Logo" 
-                className="h-10"
+                className="h-12" // Increased from h-10 to h-12
               />
             </Link>
           </div>
