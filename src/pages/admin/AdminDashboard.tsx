@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Users, ArrowUpRight, BarChart4 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -112,6 +113,27 @@ export default function AdminDashboardPage() {
             </Card>
           </div>
         </div>
+
+        <Card className="mt-8">
+          <CardContent className="p-6">
+            <h3 className="subheading-text text-lg font-medium mb-2">Recent Activity</h3>
+            <p className="text-sm text-gray-500 mb-3">Latest actions across all clients</p>
+            {/* Activity content would go here */}
+          </CardContent>
+          <CardFooter className="flex justify-between border-t p-4">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/admin/clients')}
+            >
+              View All Clients
+            </Button>
+            <Button 
+              onClick={() => navigate('/admin/clients/new')}
+            >
+              Add Client
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     </AdminLayout>
   );

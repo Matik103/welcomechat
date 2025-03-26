@@ -153,12 +153,17 @@ export default function Index() {
                 onActivityClick={handleActivityClick}
               />
             </CardContent>
-            <CardFooter className="flex justify-center border-t p-4">
+            <CardFooter className="flex justify-between border-t p-4">
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/admin/clients')}
               >
                 View All Clients
+              </Button>
+              <Button 
+                onClick={handleAddClientClick}
+              >
+                Add Client
               </Button>
             </CardFooter>
           </Card>
