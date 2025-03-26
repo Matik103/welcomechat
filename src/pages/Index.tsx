@@ -82,56 +82,33 @@ export default function Index() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <SmallStat
-              title="Active Users"
+              title="AGENTS"
               value={activeUsers}
               icon={<Users className="h-6 w-6" />}
-              description="Users active today"
+              description="Total AI Agents"
               colorClass="text-blue-500 bg-blue-50"
             />
             <SmallStat
-              title="Clients"
-              value={totalClients}
-              icon={<Users className="h-6 w-6" />}
-              description={`${activeClients} active clients`}
-              colorClass="text-green-500 bg-green-50"
-            />
-            <SmallStat
-              title="Daily Interactions"
+              title="INTERACTIONS"
               value={interactionCount}
               icon={<Activity className="h-6 w-6" />}
-              description="User queries today"
+              description="Total Interactions"
               colorClass="text-purple-500 bg-purple-50"
             />
             <SmallStat
-              title="Response Time"
-              value={`${avgResponseTime.toFixed(2)}s`}
-              icon={<Clock className="h-6 w-6" />}
-              description="Average response time"
+              title="TRAININGS"
+              value={totalClients}
+              icon={<Users className="h-6 w-6" />}
+              description="Training Sessions"
+              colorClass="text-green-500 bg-green-50"
+            />
+            <SmallStat
+              title="ADMINISTRATION"
+              value={activeClients}
+              icon={<Users className="h-6 w-6" />}
+              description="Admin Tasks"
               colorClass="text-amber-500 bg-amber-50"
             />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2">
-              <ChartCard title="User Activity" data={commonQueries} className="h-full" />
-            </div>
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle className="subheading-text">Client Growth</CardTitle>
-                <CardDescription>New clients and activity over time</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center p-4 text-center">
-                  <div>
-                    <div className="text-5xl font-bold mb-2 stat-value">{activeClients}</div>
-                    <div className="text-sm text-muted-foreground stat-label">Active Clients</div>
-                    <div className="mt-2 text-sm text-green-500">
-                      +{activeClientsChange.toFixed(0)}% from last month
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           <Card>
