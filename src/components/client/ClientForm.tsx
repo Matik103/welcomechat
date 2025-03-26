@@ -12,7 +12,7 @@ import { AgentDescriptionField } from './form-fields/AgentDescriptionField';
 import { LogoUploadField } from './form-fields/LogoUploadField';
 
 export interface ClientFormProps {
-  form: UseFormReturn<any>;
+  form?: UseFormReturn<any>;
   onSubmit: (data: any) => Promise<void>;
   isSubmitting?: boolean;
   initialData?: any;
@@ -30,22 +30,25 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   error,
   submitButtonText = 'Save'
 }) => {
-  const handleSubmit = form.handleSubmit(onSubmit);
+  const handleSubmit = form ? form.handleSubmit(onSubmit) : (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(initialData);
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-6">
-          <ClientNameField form={form} />
-          <EmailField form={form} />
-          <CompanyField form={form} />
-          <DescriptionField form={form} />
+          {form && <ClientNameField form={form} />}
+          {form && <EmailField form={form} />}
+          {form && <CompanyField form={form} />}
+          {form && <DescriptionField form={form} />}
         </div>
         
         <div className="space-y-6">
-          <AgentNameField form={form} />
-          <AgentDescriptionField form={form} />
-          <LogoUploadField form={form} />
+          {form && <AgentNameField form={form} />}
+          {form && <AgentDescriptionField form={form} />}
+          {form && <LogoUploadField form={form} />}
         </div>
       </div>
       

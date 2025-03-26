@@ -1,6 +1,6 @@
 
-export type DocumentType = 'document' | 'google_drive' | 'google_sheet' | 'web_page';
-export type AccessStatus = 'granted' | 'pending' | 'denied' | 'unknown';
+export type DocumentType = 'document' | 'google_drive' | 'google_sheet' | 'web_page' | 'pdf' | 'docx' | 'text' | 'html' | 'other';
+export type AccessStatus = 'granted' | 'pending' | 'denied' | 'unknown' | 'accessible' | 'inaccessible';
 
 export interface DocumentLink {
   id: number;
@@ -19,7 +19,7 @@ export interface DocumentLink {
 export interface DocumentLinkFormData {
   link: string;
   refresh_rate: number;
-  document_type?: DocumentType | string;
+  document_type: DocumentType | string;
 }
 
 export interface DocumentProcessingResult {
@@ -28,6 +28,12 @@ export interface DocumentProcessingResult {
   processed: number;
   failed: number;
   jobId?: string;
+  message?: string;
+  status?: string;
+  documentId?: string;
+  documentUrl?: string;
+  urlsScraped?: number;
+  contentStored?: number;
 }
 
 export interface DocumentUploadFormData {
@@ -40,4 +46,21 @@ export interface DocumentProcessingStatus {
   processed_count: number;
   failed_count: number;
   error?: string;
+}
+
+export interface DocumentProcessingRequest {
+  client_id: string;
+  document_url: string;
+  document_type: string;
+}
+
+export interface DocumentProcessingOptions {
+  clientId: string;
+  documentType?: string;
+  agentName?: string;
+}
+
+export interface DocumentUploadFormProps {
+  onSubmitDocument: (file: File) => Promise<void>;
+  isUploading: boolean;
 }

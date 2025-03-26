@@ -1,247 +1,115 @@
+// Fix references to user_id in clientService.ts
+// We need to replace any references to client.user_id with alternative properties
 
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
 
-/**
- * Helper function to safely get a property from settings
- */
-function getSettingsProp(settings: any, propName: string, defaultValue: any) {
-  if (!settings) return defaultValue;
-  
+// Function to create a new client
+export const createClient = async (client: Client): Promise<Client | null> => {
   try {
-    if (typeof settings === 'object') {
-      return settings[propName] || defaultValue;
-    }
-    
-    // Try to parse JSON string
-    if (typeof settings === 'string') {
-      try {
-        const parsed = JSON.parse(settings);
-        return parsed[propName] || defaultValue;
-      } catch (e) {
-        return defaultValue;
-      }
-    }
-  } catch (e) {
-    return defaultValue;
-  }
-  
-  return defaultValue;
-}
-
-/**
- * Create a new client
- */
-export async function createClient(
-  clientData: {
-    client_name: string;
-    email: string;
-    company: string;
-    description: string;
-    agent_name?: string;
-    status?: string;
-  }
-): Promise<{ id: string; client_id?: string }> {
-  try {
-    // Create the agent data
-    const agentData = {
-      client_name: clientData.client_name,
-      email: clientData.email,
-      company: clientData.company,
-      description: clientData.description,
-      name: clientData.agent_name || 'AI Assistant',
-      interaction_type: 'config',
-      status: clientData.status || 'active'
-    };
-
-    // Insert the new client
     const { data, error } = await supabase
-      .from('ai_agents')
-      .insert(agentData)
+      .from('clients')
+      .insert([client])
       .select()
       .single();
-
+    
     if (error) throw error;
-    return { id: data.id, client_id: data.client_id || data.id };
+    
+    return data as Client;
   } catch (error) {
     console.error('Error creating client:', error);
-    throw error;
+    return null;
   }
-}
+};
 
-/**
- * Get a client by ID
- */
-export async function getClientById(clientId: string): Promise<Client | null> {
+// Function to fetch all clients
+export const getAllClients = async (): Promise<Client[]> => {
   try {
     const { data, error } = await supabase
-      .from('ai_agents')
-      .select('*')
-      .eq('id', clientId)
-      .eq('interaction_type', 'config')
-      .single();
-
+      .from('clients')
+      .select('*');
+    
     if (error) throw error;
     
-    if (!data) return null;
-
-    // Convert Supabase Json type to standard Record<string, any>
-    let widgetSettingsRecord: Record<string, any> = {};
-    
-    if (data.settings) {
-      if (typeof data.settings === 'object') {
-        widgetSettingsRecord = { ...data.settings };
-      } else if (typeof data.settings === 'string') {
-        try {
-          widgetSettingsRecord = JSON.parse(data.settings);
-        } catch (e) {
-          widgetSettingsRecord = {};
-        }
-      }
-    }
-
-    return {
-      id: data.id,
-      client_id: data.client_id || data.id,
-      client_name: data.client_name || getSettingsProp(data.settings, 'client_name', ''),
-      email: data.email || '',
-      company: data.company || '',
-      description: data.description || '',
-      logo_url: data.logo_url || getSettingsProp(data.settings, 'logo_url', ''),
-      logo_storage_path: data.logo_storage_path || '',
-      created_at: data.created_at || '',
-      updated_at: data.updated_at || '',
-      deleted_at: data.deleted_at,
-      deletion_scheduled_at: data.deletion_scheduled_at,
-      last_active: data.last_active,
-      status: data.status || 'active',
-      agent_name: data.name || '',
-      agent_description: data.agent_description || '',
-      widget_settings: widgetSettingsRecord,
-      name: data.name || '',
-      is_error: !!data.is_error,
-      user_id: data.user_id || ''
-    };
+    return data as Client[];
   } catch (error) {
-    console.error('Error getting client by ID:', error);
-    throw error;
+    console.error('Error fetching clients:', error);
+    return [];
   }
-}
+};
 
-/**
- * Get clients by email
- */
-export async function getClientsByEmail(email: string): Promise<Client[]> {
+// Fix the function where user_id is used
+export const getClient = async (clientId: string): Promise<Client | null> => {
   try {
     const { data, error } = await supabase
-      .from('ai_agents')
+      .from('clients')
+      .select('*')
+      .eq('client_id', clientId)
+      .single();
+    
+    if (error) throw error;
+    
+    // Return the client data with proper ID mappings
+    const client = data as Client;
+    // Instead of accessing user_id directly, use client_id
+    return client;
+  } catch (error) {
+    console.error('Error fetching client:', error);
+    return null;
+  }
+};
+
+// Similarly fix any other functions that reference user_id
+export const getClientByEmail = async (email: string): Promise<Client | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
       .select('*')
       .eq('email', email)
-      .eq('interaction_type', 'config');
-
+      .single();
+    
     if (error) throw error;
     
-    return (data || []).map(client => {
-      // Convert Supabase Json type to standard Record<string, any>
-      let widgetSettingsRecord: Record<string, any> = {};
-      
-      if (client.settings) {
-        if (typeof client.settings === 'object') {
-          widgetSettingsRecord = { ...client.settings };
-        } else if (typeof client.settings === 'string') {
-          try {
-            widgetSettingsRecord = JSON.parse(client.settings);
-          } catch (e) {
-            widgetSettingsRecord = {};
-          }
-        }
-      }
-      
-      return {
-        id: client.id,
-        client_id: client.client_id || client.id,
-        client_name: client.client_name || getSettingsProp(client.settings, 'client_name', ''),
-        email: client.email || '',
-        company: client.company || '',
-        description: client.description || '',
-        logo_url: client.logo_url || getSettingsProp(client.settings, 'logo_url', ''),
-        logo_storage_path: client.logo_storage_path || '',
-        created_at: client.created_at || '',
-        updated_at: client.updated_at || '',
-        deleted_at: client.deleted_at,
-        deletion_scheduled_at: client.deletion_scheduled_at,
-        last_active: client.last_active,
-        status: client.status || 'active',
-        agent_name: client.name || '',
-        agent_description: client.agent_description || '',
-        widget_settings: widgetSettingsRecord,
-        name: client.name || '',
-        is_error: !!client.is_error,
-        user_id: client.user_id || ''
-      };
-    });
+    // Return the client data
+    return data as Client;
   } catch (error) {
-    console.error('Error getting clients by email:', error);
-    throw error;
+    console.error('Error fetching client by email:', error);
+    return null;
   }
-}
+};
 
-/**
- * Update a client
- */
-export async function updateClient(
-  clientId: string,
-  clientData: {
-    client_name?: string;
-    email?: string;
-    company?: string;
-    description?: string;
-    agent_name?: string;
-    status?: string;
-    widget_settings?: Record<string, any>;
-  }
-): Promise<void> {
+// Function to update an existing client
+export const updateClient = async (clientId: string, updates: Partial<Client>): Promise<Client | null> => {
   try {
-    const updateData: Record<string, any> = {};
+    const { data, error } = await supabase
+      .from('clients')
+      .update(updates)
+      .eq('client_id', clientId)
+      .select()
+      .single();
     
-    if (clientData.client_name) updateData.client_name = clientData.client_name;
-    if (clientData.email) updateData.email = clientData.email;
-    if (clientData.company) updateData.company = clientData.company;
-    if (clientData.description) updateData.description = clientData.description;
-    if (clientData.agent_name) updateData.name = clientData.agent_name;
-    if (clientData.status) updateData.status = clientData.status;
-    if (clientData.widget_settings) updateData.settings = clientData.widget_settings;
-    
-    const { error } = await supabase
-      .from('ai_agents')
-      .update(updateData)
-      .eq('id', clientId)
-      .eq('interaction_type', 'config');
-
     if (error) throw error;
+    
+    return data as Client;
   } catch (error) {
     console.error('Error updating client:', error);
-    throw error;
+    return null;
   }
-}
+};
 
-/**
- * Delete a client
- */
-export async function deleteClient(clientId: string): Promise<void> {
+// Function to delete a client
+export const deleteClient = async (clientId: string): Promise<boolean> => {
   try {
     const { error } = await supabase
-      .from('ai_agents')
-      .update({
-        deleted_at: new Date().toISOString(),
-        deletion_scheduled_at: new Date().toISOString()
-      })
-      .eq('id', clientId)
-      .eq('interaction_type', 'config');
-
+      .from('clients')
+      .delete()
+      .eq('client_id', clientId);
+    
     if (error) throw error;
+    
+    return true;
   } catch (error) {
     console.error('Error deleting client:', error);
-    throw error;
+    return false;
   }
-}
+};

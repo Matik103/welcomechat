@@ -1,69 +1,47 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityType } from '@/types/client-form';
-import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
-/**
- * Creates a client activity record
- * @param clientId The client ID
- * @param activity_type The type of activity
- * @param description Description of the activity
- * @param metadata Additional metadata for the activity
- * @returns The created activity
- */
 export const createClientActivity = async (
   clientId: string,
   activity_type: ActivityType,
   description: string,
-  metadata: Record<string, any> = {}
-) => {
+  metadata?: Record<string, any>
+): Promise<void> => {
   try {
-    if (!clientId) {
-      throw new Error('Client ID is required for activity logging');
-    }
-
-    // Use callRpcFunctionSafe to avoid type checking issues
-    const result = await callRpcFunctionSafe('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: activity_type,
-      description_param: description,
-      metadata_param: metadata
-    });
-
-    return result;
-  } catch (error) {
-    console.error('Error creating client activity:', error);
-    throw error;
-  }
-};
-
-// Alternative direct database insert method
-export const logActivity = async (
-  clientId: string,
-  activity_type: ActivityType,
-  description: string,
-  metadata: Record<string, any> = {}
-) => {
-  try {
-    // Convert the ActivityType to a string to satisfy TypeScript
-    // This is a workaround for the type mismatch between our app's ActivityType and the database enum
-    const { data, error } = await supabase
-      .from('client_activities')
+    const { error } = await supabase
+      .from('client_activity')
       .insert({
         client_id: clientId,
-        activity_type: activity_type as any,
+        activity_type,
         description,
         metadata
       });
 
     if (error) {
-      console.error("Error logging activity:", error);
-      throw error;
+      console.error('Error creating client activity:', error);
     }
+  } catch (error) {
+    console.error('Error creating client activity:', error);
+  }
+};
 
+export const getClientActivities = async (
+  clientId: string,
+  limit: number = 10
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('client_activity')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
     return data;
-  } catch (err) {
-    console.error('Error in logActivity:', err);
-    throw err;
+  } catch (error) {
+    console.error('Error fetching client activities:', error);
+    return [];
   }
 };

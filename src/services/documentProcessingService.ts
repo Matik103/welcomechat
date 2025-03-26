@@ -1,85 +1,212 @@
 
-// Add document_id to the record creation:
-export async function registerDocumentProcessing(
+import { supabase } from '@/integrations/supabase/client';
+import { DocumentProcessingResult, DocumentProcessingStatus, DocumentType } from '@/types/document-processing';
+import { v4 as uuidv4 } from 'uuid';
+import { ActivityType } from '@/types/client-form';
+import { createClientActivity } from './clientActivityService';
+
+// Process a document URL
+export const processDocumentUrl = async (
   clientId: string,
   documentUrl: string,
-  documentType: string,
+  documentType: DocumentType | string,
   agentName: string
-): Promise<{ id: string }> {
+): Promise<DocumentProcessingResult> => {
   try {
+    // Generate a unique document ID
+    const documentId = uuidv4();
+    
+    // Create a record in the document_processing table
     const { data, error } = await supabase
       .from('document_processing')
       .insert({
         client_id: clientId,
         document_url: documentUrl,
         document_type: documentType,
+        document_id: documentId,
         agent_name: agentName,
-        status: 'pending',
-        document_id: crypto.randomUUID() // Generate a unique document_id
+        status: 'pending'
       })
-      .select('id')
-      .single();
-
-    if (error) {
-      console.error('Error registering document processing:', error);
-      throw error;
-    }
-
-    return { id: data?.id || '' };
-  } catch (error) {
-    console.error('Error in registerDocumentProcessing:', error);
-    throw error;
-  }
-}
-
-// Fix the getProcessingStats function to handle type safety:
-export async function getProcessingStats(clientId: string) {
-  try {
-    const { data, error } = await supabase
-      .rpc('get_document_processing_stats', { client_id_param: clientId });
+      .select();
 
     if (error) throw error;
 
-    if (!data) return { processed: 0, failed: 0 };
-
-    // Type guard to check if data is an object with the right properties
-    if (typeof data === 'object' && data !== null) {
-      const jsonObject = data as Record<string, any>;
-      return {
-        processed: jsonObject.processed_count || 0,
-        failed: jsonObject.failed_count || 0
-      };
-    }
-
-    return { processed: 0, failed: 0 };
-  } catch (error) {
-    console.error('Error getting processing stats:', error);
-    return { processed: 0, failed: 0 };
-  }
-}
-
-// Fix the logDocumentActivity function:
-export async function logDocumentActivity(
-  clientId: string,
-  documentUrl: string,
-  status: 'added' | 'processed' | 'failed',
-  metadata: any = {}
-) {
-  try {
-    // Use a proper ActivityType here
-    const activityType: ActivityType = status === 'added' 
-      ? 'document_added' 
-      : status === 'processed' 
-        ? 'document_processed' 
-        : 'document_processing_failed';
-
+    // Log the activity
     await createClientActivity(
       clientId,
-      activityType,
-      `Document ${status}: ${new URL(documentUrl).pathname.split('/').pop()}`,
-      metadata
+      'document_added' as ActivityType,
+      `Document processing started for: ${documentUrl}`,
+      { document_url: documentUrl, document_type: documentType }
     );
+
+    return {
+      success: true,
+      processed: 0,
+      failed: 0,
+      jobId: documentId,
+      status: 'pending',
+      documentUrl: documentUrl,
+      message: 'Document processing started'
+    };
   } catch (error) {
-    console.error(`Error logging document ${status} activity:`, error);
+    console.error('Error processing document URL:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      processed: 0,
+      failed: 0
+    };
+  }
+};
+
+// Check the status of a document processing job
+export const checkDocumentProcessingStatus = async (
+  jobId: string
+): Promise<DocumentProcessingResult> => {
+  try {
+    const { data, error } = await supabase
+      .from('document_processing')
+      .select('*')
+      .eq('document_id', jobId)
+      .single();
+
+    if (error) throw error;
+
+    const status = data.status;
+    const processed_count = data.metadata?.processed_count || 0;
+    const failed_count = data.metadata?.failed_count || 0;
+    const error_message = data.error_message;
+
+    return {
+      success: status === 'completed',
+      status: status,
+      processed: processed_count,
+      failed: failed_count,
+      error: error_message,
+      jobId: jobId
+    };
+  } catch (error) {
+    console.error('Error checking document processing status:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      processed: 0,
+      failed: 0
+    };
+  }
+};
+
+// Upload a document
+export const uploadDocument = async (
+  clientId: string,
+  file: File,
+  agentName: string
+): Promise<DocumentProcessingResult> => {
+  try {
+    // Generate a unique document ID and file path
+    const documentId = uuidv4();
+    const filePath = `documents/${clientId}/${documentId}/${file.name}`;
+    
+    // Upload the file to storage
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('documents')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get the public URL for the uploaded file
+    const { data: urlData } = await supabase
+      .storage
+      .from('documents')
+      .getPublicUrl(filePath);
+
+    const documentUrl = urlData.publicUrl;
+
+    // Create a record in the document_processing table
+    const { data, error } = await supabase
+      .from('document_processing')
+      .insert({
+        client_id: clientId,
+        document_url: documentUrl,
+        document_type: detectDocumentType(file.name),
+        document_id: documentId,
+        agent_name: agentName,
+        status: 'pending',
+        metadata: {
+          original_filename: file.name,
+          file_size: file.size,
+          content_type: file.type
+        }
+      })
+      .select();
+
+    if (error) throw error;
+
+    // Log the activity
+    await createClientActivity(
+      clientId,
+      'document_added' as ActivityType,
+      `Document uploaded: ${file.name}`,
+      { document_name: file.name, document_type: file.type }
+    );
+
+    return {
+      success: true,
+      processed: 0,
+      failed: 0,
+      jobId: documentId,
+      status: 'pending',
+      documentUrl: documentUrl,
+      message: 'Document upload successful'
+    };
+  } catch (error) {
+    console.error('Error uploading document:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      processed: 0,
+      failed: 0
+    };
+  }
+};
+
+// Get all documents for a client
+export const getDocumentsForClient = async (clientId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('document_processing')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    return [];
+  }
+};
+
+// Detect document type based on filename
+function detectDocumentType(filename: string): DocumentType {
+  const extension = filename.split('.').pop()?.toLowerCase();
+  
+  switch (extension) {
+    case 'pdf':
+      return 'pdf';
+    case 'doc':
+    case 'docx':
+      return 'docx';
+    case 'txt':
+      return 'text';
+    case 'html':
+    case 'htm':
+      return 'html';
+    default:
+      return 'document';
   }
 }
