@@ -1,116 +1,172 @@
 
 import React from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { Card, CardContent } from '@/components/ui/card';
-import { Users, ArrowUpRight, BarChart4 } from 'lucide-react';
+import { DashboardStatCard } from '@/components/admin/DashboardStatCard';
+import { ActivityChartCard } from '@/components/admin/ActivityChartCard';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { 
+  Database, 
+  KeyRound, 
+  HardDrive, 
+  Zap 
+} from 'lucide-react';
+
+// Mock data for the activity charts
+const generateMockData = () => {
+  return Array.from({ length: 24 }, (_, i) => ({
+    name: `Hour ${i}`,
+    value: Math.floor(Math.random() * 50) + 10
+  }));
+};
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
   
+  // Mock data for the dashboard
+  const dashboardData = {
+    clients: {
+      total: 12,
+      active: 10,
+      changePercentage: 18
+    },
+    agents: {
+      total: 18,
+      active: 10,
+      changePercentage: 15
+    },
+    interactions: {
+      total: 1234,
+      changePercentage: 18
+    },
+    trainings: {
+      total: 484,
+      changePercentage: 18
+    },
+    administration: {
+      total: 123,
+      changePercentage: 18
+    },
+    activityCharts: {
+      database: {
+        value: "13,393",
+        title: "Database",
+        subtitle: "REST Requests",
+        data: generateMockData()
+      },
+      auth: {
+        value: "382",
+        title: "Auth",
+        subtitle: "Auth Requests",
+        data: generateMockData()
+      },
+      storage: {
+        value: "99",
+        title: "Storage",
+        subtitle: "Storage Requests",
+        data: generateMockData()
+      },
+      realtime: {
+        value: "327",
+        title: "Realtime",
+        subtitle: "Realtime Requests",
+        data: generateMockData()
+      }
+    }
+  };
+  
   return (
     <AdminLayout>
-      <div className="container py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="stat-label">Total Clients</p>
-                  <p className="stat-value mt-2">523</p>
-                  <p className="text-sm text-green-600 mt-1 flex items-center">
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                    <span>12% from last month</span>
-                  </p>
-                </div>
-                <div className="bg-primary/10 p-2 rounded-md">
-                  <Users className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="container py-8 max-w-7xl mx-auto">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+          <DashboardStatCard
+            title="Clients"
+            value={dashboardData.clients.total}
+            active={dashboardData.clients.active}
+            changePercentage={dashboardData.clients.changePercentage}
+            bgColor="bg-green-50"
+            onClick={() => navigate('/admin/clients')}
+          />
           
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="stat-label">Active Agents</p>
-                  <p className="stat-value mt-2">328</p>
-                  <p className="text-sm text-green-600 mt-1 flex items-center">
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                    <span>8% from last month</span>
-                  </p>
-                </div>
-                <div className="bg-indigo-100 p-2 rounded-md">
-                  <BarChart4 className="h-6 w-6 text-indigo-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <DashboardStatCard
+            title="Agents"
+            value={dashboardData.agents.total}
+            active={dashboardData.agents.active}
+            changePercentage={dashboardData.agents.changePercentage}
+            bgColor="bg-gray-50"
+            onClick={() => navigate('/admin/agents')}
+          />
           
-          <Card>
-            <CardContent className="p-6 flex flex-col justify-between h-full">
-              <div>
-                <h3 className="subheading-text text-lg font-medium mb-1">
-                  Quick Actions
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Access frequently used tools
-                </p>
-              </div>
-              <div className="mt-4 space-y-2">
-                <Button 
-                  className="w-full justify-start"
-                  onClick={() => navigate('/admin/clients/new')}
-                >
-                  Add New Client
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => navigate('/admin/analytics')}
-                >
-                  View Analytics
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <DashboardStatCard
+            title="Interactions"
+            value={dashboardData.interactions.total}
+            changePercentage={dashboardData.interactions.changePercentage}
+            bgColor="bg-yellow-50"
+          />
+          
+          <DashboardStatCard
+            title="Trainings"
+            value={dashboardData.trainings.total}
+            changePercentage={dashboardData.trainings.changePercentage}
+            bgColor="bg-blue-50"
+          />
+          
+          <DashboardStatCard
+            title="Administration"
+            value={dashboardData.administration.total}
+            changePercentage={dashboardData.administration.changePercentage}
+            bgColor="bg-red-50"
+          />
         </div>
         
-        <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
-          <h2 className="text-xl font-semibold mb-4">Admin Resources</h2>
-          <p className="body-text mb-4">
-            Welcome to the Welcome.Chat administration portal. From here you can manage
-            clients, monitor usage, and configure system settings.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="subheading-text text-lg font-medium mb-2">Client Management</h3>
-                <p className="text-sm text-gray-500 mb-3">Add, edit, and manage client accounts</p>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate('/admin/clients')}
-                >
-                  Manage Clients
-                </Button>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="subheading-text text-lg font-medium mb-2">System Settings</h3>
-                <p className="text-sm text-gray-500 mb-3">Configure global platform settings</p>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate('/admin/settings')}
-                >
-                  Settings
-                </Button>
-              </CardContent>
-            </Card>
+        {/* Activity Charts */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <ActivityChartCard
+            title={dashboardData.activityCharts.database.title}
+            subtitle={dashboardData.activityCharts.database.subtitle}
+            value={dashboardData.activityCharts.database.value}
+            data={dashboardData.activityCharts.database.data}
+            icon={<Database size={18} />}
+          />
+          
+          <ActivityChartCard
+            title={dashboardData.activityCharts.auth.title}
+            subtitle={dashboardData.activityCharts.auth.subtitle}
+            value={dashboardData.activityCharts.auth.value}
+            data={dashboardData.activityCharts.auth.data}
+            icon={<KeyRound size={18} />}
+          />
+          
+          <ActivityChartCard
+            title={dashboardData.activityCharts.storage.title}
+            subtitle={dashboardData.activityCharts.storage.subtitle}
+            value={dashboardData.activityCharts.storage.value}
+            data={dashboardData.activityCharts.storage.data}
+            icon={<HardDrive size={18} />}
+          />
+          
+          <ActivityChartCard
+            title={dashboardData.activityCharts.realtime.title}
+            subtitle={dashboardData.activityCharts.realtime.subtitle}
+            value={dashboardData.activityCharts.realtime.value}
+            data={dashboardData.activityCharts.realtime.data}
+            icon={<Zap size={18} />}
+          />
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex justify-start mt-6">
+          <div className="flex space-x-4">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/admin/clients')}
+            >
+              View All Clients
+            </Button>
+            <Button onClick={() => navigate('/admin/clients/new')}>
+              Add Client
+            </Button>
           </div>
         </div>
       </div>
