@@ -90,3 +90,4 @@ export type ActivityType =
   | 'signed_out'  // Added
   | 'email_sent'  // Added
   | 'openai_assistant_document_added'; // Added
+

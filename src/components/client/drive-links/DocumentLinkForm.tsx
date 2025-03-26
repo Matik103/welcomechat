@@ -1,156 +1,109 @@
 
-import React, { useState, useEffect } from 'react';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import React from 'react';
+import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { ValidationResult } from './ValidationResult';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { DocumentLinkFormProps } from '@/types/document-processing';
 
 const formSchema = z.object({
-  link: z.string().trim().min(1, { message: 'Link is required' }),
-  document_type: z.string().min(1, { message: 'Document type is required' }),
-  refresh_rate: z.number().int().positive().default(30),
+  link: z.string().url('Please enter a valid URL'),
+  refresh_rate: z.number().min(1).max(365).default(30),
 });
 
+export type DocumentLinkFormData = z.infer<typeof formSchema>;
+
+export interface DocumentLinkFormProps {
+  clientId: string;
+  onSubmit: (data: DocumentLinkFormData) => Promise<void>;
+  isSubmitting?: boolean;
+}
+
 export const DocumentLinkForm: React.FC<DocumentLinkFormProps> = ({
+  clientId,
   onSubmit,
-  onCancel,
-  isSubmitting,
-  agentName
+  isSubmitting = false,
 }) => {
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<DocumentLinkFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       link: '',
-      document_type: 'google_drive',
       refresh_rate: 30,
     },
   });
 
-  const { watch, setValue } = form;
-  const watchedLink = watch('link');
-  const watchedDocumentType = watch('document_type');
-
-  // Auto-detect document type based on URL
-  useEffect(() => {
-    if (!watchedLink) return;
+  const handleSubmit = async (data: DocumentLinkFormData) => {
     try {
-      const url = new URL(watchedLink);
-      
-      if (url.hostname.includes('docs.google.com')) {
-        if (url.pathname.includes('/document/')) {
-          setValue('document_type', 'google_doc');
-        } else if (url.pathname.includes('/spreadsheets/')) {
-          setValue('document_type', 'google_sheet');
-        }
-      } else if (url.hostname.includes('drive.google.com')) {
-        setValue('document_type', 'google_drive');
-      } else if (watchedLink.toLowerCase().endsWith('.pdf')) {
-        setValue('document_type', 'pdf');
-      } else if (
-        watchedLink.toLowerCase().endsWith('.txt') || 
-        watchedLink.toLowerCase().endsWith('.md')
-      ) {
-        setValue('document_type', 'text');
-      }
+      await onSubmit(data);
+      form.reset();
     } catch (error) {
-      // Not a valid URL, don't change anything
+      console.error('Error submitting document link:', error);
     }
-  }, [watchedLink, setValue]);
+  };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="document_type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Document Type</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-                value={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select document type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="google_drive">Google Drive</SelectItem>
-                  <SelectItem value="google_doc">Google Doc</SelectItem>
-                  <SelectItem value="google_sheet">Google Sheet</SelectItem>
-                  <SelectItem value="pdf">PDF</SelectItem>
-                  <SelectItem value="text">Text Document</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="link"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Document Link</FormLabel>
+              <FormLabel>Google Drive Link</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="https://drive.google.com/drive/folders/..."
+                  placeholder="https://drive.google.com/..."
                   {...field}
                   disabled={isSubmitting}
                 />
               </FormControl>
-              <ValidationResult link={field.value} type={watchedDocumentType} />
+              <FormDescription>
+                Enter a Google Drive document, spreadsheet, or folder link
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="flex justify-end space-x-2 pt-2">
-          {onCancel && (
-            <Button 
-              variant="outline" 
-              onClick={onCancel} 
-              type="button"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
+        <FormField
+          control={form.control}
+          name="refresh_rate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Refresh Rate (days)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  {...field}
+                  onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                  disabled={isSubmitting}
+                />
+              </FormControl>
+              <FormDescription>
+                How often should we check for changes? (1-365 days)
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
           )}
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Adding...
-              </>
-            ) : (
-              <>Add Link</>
-            )}
-          </Button>
-        </div>
+        />
+
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Adding...
+            </>
+          ) : (
+            'Add Document Link'
+          )}
+        </Button>
       </form>
     </Form>
   );
 };
+
+export default DocumentLinkForm;

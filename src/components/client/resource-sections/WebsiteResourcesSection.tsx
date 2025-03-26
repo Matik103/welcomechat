@@ -1,139 +1,125 @@
 
-import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { WebsiteUrlsList } from '@/components/client/website-urls/WebsiteUrlsList';
+import { WebsiteUrlForm } from '@/components/client/website-urls/WebsiteUrlForm';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
-import { WebsiteUrlFormData } from '@/types/website-url';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { ValidationResult } from '@/types/website-url';
-import { supabase } from '@/integrations/supabase/client';
+import { WebsiteUrl } from '@/types/website-url';
+import { ActivityType } from '@/types/client-form';
+import { toast } from 'sonner';
 
-interface WebsiteResourcesSectionProps {
+export interface WebsiteResourcesSectionProps {
   clientId: string;
-  agentName: string;
-  isClientView?: boolean;
+  urls: WebsiteUrl[];
+  isProcessing?: boolean;
+  isDeleting?: boolean;
+  refetchUrls?: () => void;
+  onResourceChange?: () => void;
+  logClientActivity: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
 }
 
-export const WebsiteResourcesSection = ({
+export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = ({
   clientId,
-  agentName,
-  isClientView = false,
-}: WebsiteResourcesSectionProps) => {
+  urls,
+  isProcessing = false,
+  isDeleting = false,
+  refetchUrls,
+  onResourceChange,
+  logClientActivity
+}) => {
   const [addingUrl, setAddingUrl] = useState(false);
-  const [deletingUrl, setDeletingUrl] = useState(false);
-  const [newUrl, setNewUrl] = useState('');
-  const [refreshRate, setRefreshRate] = useState<number>(30);
-  const [validatingUrl, setValidatingUrl] = useState(false);
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
-
+  
   const {
-    websiteUrls,
-    isLoading: isLoadingUrls,
-    addWebsiteUrlMutation,
-    deleteWebsiteUrlMutation,
+    addWebsiteUrl,
+    deleteWebsiteUrl,
+    processWebsiteUrl,
+    isAddLoading,
+    isDeleteLoading,
+    isProcessLoading
   } = useWebsiteUrls(clientId);
 
-  // Set up real-time subscription for website URLs
-  useEffect(() => {
-    if (!clientId) return;
-    
-    console.log(`Setting up real-time subscription for website_urls table for client ${clientId}...`);
-    
-    const channel = supabase
-      .channel(`website_urls_${clientId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'website_urls',
-          filter: `client_id=eq.${clientId}`
-        },
-        (payload) => {
-          console.log("Real-time website URL update received:", payload);
-        }
-      )
-      .subscribe();
+  const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
+    try {
+      setAddingUrl(true);
+      await addWebsiteUrl(data);
       
-    return () => {
-      console.log("Removing real-time website URLs subscription");
-      supabase.removeChannel(channel);
-    };
-  }, [clientId]);
-
-  const validateUrl = async (url: string): Promise<ValidationResult> => {
-    setValidatingUrl(true);
-    try {
-      // Simulate a validation process (replace with actual validation logic)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const result: ValidationResult = {
-        isValid: true,
-        message: "URL validated successfully",
-        status: 'success'
-      };
-      setValidationResult(result);
-      return result;
-    } catch (error) {
-      console.error('Error validating URL:', error);
-      const errorResult: ValidationResult = {
-        isValid: false,
-        message: 'Failed to validate URL',
-        status: 'error'
-      };
-      setValidationResult(errorResult);
-      return errorResult;
-    } finally {
-      setValidatingUrl(false);
-    }
-  };
-
-  const handleAddWebsiteUrl = async () => {
-    if (!newUrl) {
-      toast.error("URL cannot be empty.");
-      return;
-    }
-
-    setAddingUrl(true);
-    try {
-      const validation = await validateUrl(newUrl);
-      if (!validation.isValid) {
-        toast.error(validation.message);
-        return;
+      // Log activity
+      await logClientActivity(
+        'website_url_added',
+        `Added website URL: ${data.url}`,
+        { url: data.url, refresh_rate: data.refresh_rate }
+      );
+      
+      toast.success('Website URL added successfully');
+      
+      if (refetchUrls) {
+        refetchUrls();
       }
-
-      const data: WebsiteUrlFormData = {
-        url: newUrl,
-        refresh_rate: refreshRate,
-      };
-      await addWebsiteUrlMutation.mutateAsync(data);
-      setNewUrl('');
-      toast.success("URL added successfully.");
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
     } catch (error) {
       console.error('Error adding website URL:', error);
-      toast.error("Failed to add website URL.");
+      toast.error('Failed to add website URL');
     } finally {
       setAddingUrl(false);
     }
   };
 
   const handleDeleteWebsiteUrl = async (urlId: number) => {
-    setDeletingUrl(true);
     try {
-      await deleteWebsiteUrlMutation.mutateAsync(urlId);
-      toast.success("URL deleted successfully.");
+      const urlToDelete = urls.find(u => u.id === urlId);
+      
+      await deleteWebsiteUrl(urlId);
+      
+      // Log activity
+      if (urlToDelete) {
+        await logClientActivity(
+          'website_url_deleted',
+          `Deleted website URL: ${urlToDelete.url}`,
+          { url: urlToDelete.url }
+        );
+      }
+      
+      toast.success('Website URL deleted successfully');
+      
+      if (refetchUrls) {
+        refetchUrls();
+      }
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
     } catch (error) {
       console.error('Error deleting website URL:', error);
-      toast.error("Failed to delete website URL.");
-    } finally {
-      setDeletingUrl(false);
+      toast.error('Failed to delete website URL');
+    }
+  };
+
+  const handleProcessWebsiteUrl = async (urlId: number) => {
+    try {
+      const urlToProcess = urls.find(u => u.id === urlId);
+      
+      await processWebsiteUrl(urlId);
+      
+      // Log activity
+      if (urlToProcess) {
+        await logClientActivity(
+          'document_processing_started',
+          `Started processing website: ${urlToProcess.url}`,
+          { url: urlToProcess.url }
+        );
+      }
+      
+      toast.success('Website processing started');
+      
+      if (refetchUrls) {
+        refetchUrls();
+      }
+    } catch (error) {
+      console.error('Error processing website URL:', error);
+      toast.error('Failed to process website');
     }
   };
 
@@ -142,72 +128,25 @@ export const WebsiteResourcesSection = ({
       <CardHeader>
         <CardTitle>Website URLs</CardTitle>
         <CardDescription>
-          Manage the website URLs associated with this client.
+          Add website URLs to be processed for your AI agent
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 grid-cols-2">
-          <Input
-            type="url"
-            placeholder="Add a new website URL"
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-            disabled={addingUrl}
-          />
-          <Input
-            type="number"
-            placeholder="Refresh Rate (minutes)"
-            value={refreshRate.toString()}
-            onChange={(e) => setRefreshRate(Number(e.target.value))}
-            disabled={addingUrl}
-          />
-          <Button onClick={handleAddWebsiteUrl} disabled={addingUrl}>
-            {addingUrl ? (
-              <>
-                Adding <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-              </>
-            ) : (
-              <>
-                Add URL <Plus className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
-        </div>
-
-        {websiteUrls && websiteUrls.length > 0 ? (
-          <div className="mt-4">
-            <h3 className="text-sm font-medium mb-2">Current URLs</h3>
-            <ul className="space-y-2">
-              {websiteUrls.map((url) => (
-                <li key={url.id} className="flex items-center justify-between p-3 border rounded-md">
-                  <div className="overflow-hidden">
-                    <p className="text-sm font-medium truncate">{url.url}</p>
-                    <p className="text-xs text-gray-500">
-                      Refresh: {url.refresh_rate || 30} minutes
-                      {url.last_crawled && ` • Last updated: ${new Date(url.last_crawled).toLocaleString()}`}
-                    </p>
-                    {url.status && (
-                      <p className={`text-xs ${url.status === 'completed' ? 'text-green-500' : url.status === 'failed' ? 'text-red-500' : 'text-amber-500'}`}>
-                        Status: {url.status.charAt(0).toUpperCase() + url.status.slice(1)}
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteWebsiteUrl(url.id)}
-                    disabled={deletingUrl}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <p>No website URLs added yet.</p>
-        )}
+      <CardContent className="space-y-6">
+        <WebsiteUrlForm 
+          onAdd={handleAddWebsiteUrl}
+          isAddLoading={isAddLoading || addingUrl}
+        />
+        
+        <WebsiteUrlsList 
+          urls={urls}
+          onDelete={handleDeleteWebsiteUrl}
+          onProcess={handleProcessWebsiteUrl}
+          isDeleteLoading={isDeleteLoading || isDeleting}
+          isProcessing={isProcessLoading || isProcessing}
+        />
       </CardContent>
     </Card>
   );
 };
+
+export default WebsiteResourcesSection;

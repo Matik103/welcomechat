@@ -24,15 +24,18 @@ export const ClientResourceSections = ({
   onResourceChange,
   logClientActivity
 }: ClientResourceSectionsProps) => {
+  // Map website URLs to the expected format
+  const mappedUrls = websiteUrls.map(url => ({
+    ...url,
+    refresh_rate: url.refresh_rate || 30,
+    status: (url.status as "pending" | "processing" | "failed" | "completed") || "pending"
+  }));
+
   return (
     <div className="space-y-8">
       <WebsiteResourcesSection 
         clientId={clientId}
-        urls={websiteUrls.map(url => ({
-          ...url,
-          refresh_rate: url.refresh_rate || 30,
-          status: (url.status as "pending" | "processing" | "failed" | "completed") || "pending"
-        }))}
+        urls={mappedUrls}
         isProcessing={isProcessing}
         isDeleting={isDeleting}
         refetchUrls={refetchWebsiteUrls}
@@ -48,3 +51,5 @@ export const ClientResourceSections = ({
     </div>
   );
 };
+
+export default ClientResourceSections;

@@ -187,3 +187,5 @@ export const DeleteClientDialog = ({
     </Dialog>
   );
 };
+
+export default DeleteClientDialog;
