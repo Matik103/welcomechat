@@ -1,105 +1,66 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { v4 as uuidv4 } from "uuid";
-import { callRpcFunctionSafe } from "@/utils/rpcUtils";
+import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
-export async function checkDocumentStatus(documentId: string) {
-  try {
-    const { data, error } = await supabase
-      .from("document_processing_jobs")
-      .select("status, error, metadata")
-      .eq("document_id", documentId)
-      .single();
-
-    if (error) {
-      console.error("Error checking document status:", error);
-      return { status: "error", error: error.message };
-    }
-
-    return {
-      status: data.status,
-      error: data.error,
-      metadata: data.metadata
-    };
-  } catch (error) {
-    console.error("Error in checkDocumentStatus:", error);
-    return { status: "error", error: "Failed to check document status" };
-  }
+export interface DocumentProcessingResult {
+  success: boolean;
+  documentId?: string;
+  error?: string;
+  status?: string;
 }
 
-export async function createDocumentProcessingJob(
-  clientId: string,
-  documentUrl: string,
+export const processDocument = async (
+  clientId: string, 
+  documentUrl: string, 
   documentType: string,
-  agentName: string = "AI Assistant"
-) {
+  documentId: string = uuidv4()
+): Promise<DocumentProcessingResult> => {
   try {
-    // Generate a unique document ID
-    const documentId = uuidv4();
-    
-    // Create a processing job
-    const { data, error } = await supabase
-      .from("document_processing_jobs")
+    // Create a document processing record
+    const { error: recordError } = await supabase
+      .from('document_processing')
       .insert({
+        id: documentId,
         client_id: clientId,
         document_url: documentUrl,
         document_type: documentType,
-        document_id: documentId,
-        agent_name: agentName,
-        status: "pending",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select();
+        status: 'pending',
+        agent_name: 'AI Assistant', // Default agent name
+        started_at: new Date().toISOString()
+      });
 
-    if (error) {
-      console.error("Error creating document processing job:", error);
-      throw error;
+    if (recordError) {
+      console.error('Error creating document processing record:', recordError);
+      return {
+        success: false,
+        error: recordError.message,
+        status: 'failed'
+      };
     }
 
-    // Log the document processing activity
-    await callRpcFunctionSafe('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: 'document_processing_started',
-      description_param: `Started processing ${documentType} document`,
-      metadata_param: { documentUrl, documentType }
+    // Log the activity
+    await supabase.from('client_activities').insert({
+      client_id: clientId,
+      activity_type: 'document_uploaded',
+      description: `Document uploaded: ${documentType}`,
+      metadata: {
+        document_id: documentId,
+        document_url: documentUrl,
+        document_type: documentType
+      }
     });
 
-    return { 
-      success: true, 
-      jobId: documentId,
-      data: data[0]
+    return {
+      success: true,
+      documentId,
+      status: 'pending'
     };
   } catch (error) {
-    console.error("Error in createDocumentProcessingJob:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error"
+    console.error('Error processing document:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      status: 'failed'
     };
   }
-}
-
-export async function cancelDocumentProcessing(documentId: string) {
-  try {
-    const { error } = await supabase
-      .from("document_processing_jobs")
-      .update({
-        status: "cancelled",
-        updated_at: new Date().toISOString()
-      })
-      .eq("document_id", documentId);
-
-    if (error) {
-      console.error("Error cancelling document processing:", error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error in cancelDocumentProcessing:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error"
-    };
-  }
-}
+};

@@ -1,63 +1,86 @@
 
-import { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ClientActivity, ActivityType } from '@/types/client';
+
+export type ClientActivity = {
+  id: string;
+  type: string;
+  ai_agent_id: string;
+  created_at: string;
+  metadata?: Record<string, any>;
+  client_name?: string;
+};
 
 export function useRecentActivities(limit: number = 10) {
-  const queryClient = useQueryClient();
+  const [activities, setActivities] = useState<ClientActivity[]>([]);
 
   const fetchRecentActivities = async (): Promise<ClientActivity[]> => {
+    console.log(`Fetching recent activities, limit: ${limit}`);
+    
     try {
-      console.log('Fetching recent activities, limit:', limit);
-      
-      const { data, error } = await supabase
+      // Get activities from client_activities or activities table
+      const { data: activityData, error: activityError } = await supabase
         .from('client_activities')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
       
-      if (error) {
-        console.error('Error fetching activities:', error);
-        throw error;
+      if (activityError) {
+        console.error('Error fetching activities:', activityError);
+        throw new Error(activityError.message);
       }
       
-      // Map the data to ensure metadata is correctly typed
-      const activities: ClientActivity[] = data.map(activity => ({
-        id: activity.id,
-        client_id: activity.client_id || undefined,
-        activity_type: activity.activity_type as ActivityType,
-        description: activity.description || '',
-        created_at: activity.created_at,
-        // Convert metadata to Record<string, any>
-        metadata: activity.metadata ? 
-          (typeof activity.metadata === 'object' ? activity.metadata as Record<string, any> : {}) 
-          : undefined
-      }));
+      // Fetch client names for each activity
+      if (activityData && activityData.length > 0) {
+        const clientIds = [...new Set(activityData.map(a => a.client_id))];
+        
+        // Get client names
+        const { data: clientData, error: clientError } = await supabase
+          .from('ai_agents')
+          .select('id, client_name')
+          .in('id', clientIds)
+          .eq('interaction_type', 'config');
+          
+        if (clientError) {
+          console.error('Error fetching client names:', clientError);
+        }
+        
+        // Map client names to activities
+        const activitiesWithClientNames = activityData.map(activity => {
+          const client = clientData?.find(c => c.id === activity.client_id);
+          return {
+            ...activity,
+            client_name: client?.client_name || `Client ${activity.client_id.substring(0, 8)}`
+          };
+        });
+        
+        console.log('Recent activities fetched:', activitiesWithClientNames.length);
+        return activitiesWithClientNames;
+      }
       
-      console.log('Recent activities fetched:', activities.length);
-      
-      return activities;
+      console.log('Recent activities fetched:', activityData?.length || 0);
+      return activityData || [];
     } catch (error) {
-      console.error('Failed to fetch recent activities:', error);
+      console.error('Error in fetchRecentActivities:', error);
       throw error;
     }
   };
 
-  const {
-    data: activities,
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
+  const { isLoading, error, refetch } = useQuery({
     queryKey: ['recentActivities', limit],
-    queryFn: fetchRecentActivities
+    queryFn: fetchRecentActivities,
+    onSuccess: (data) => {
+      setActivities(data);
+    },
+    staleTime: 60000, // 1 minute
+    refetchOnWindowFocus: false
   });
 
   return {
-    activities: activities || [],
+    activities,
     isLoading,
     error,
-    refetch
+    refetch: refetch
   };
 }

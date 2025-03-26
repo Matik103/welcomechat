@@ -14,7 +14,7 @@ import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 
 export default function Index() {
   const navigate = useNavigate();
-  const [highlightedActivity, setHighlightedActivity] = useState<number | null>(null);
+  const [highlightedActivity, setHighlightedActivity] = useState<number | string | null>(null);
   
   const {
     activeUsers,
@@ -40,7 +40,7 @@ export default function Index() {
     activeClientsChange: 18
   };
 
-  const handleActivityClick = (id: number) => {
+  const handleActivityClick = (id: number | string) => {
     setHighlightedActivity(id === highlightedActivity ? null : id);
   };
   
@@ -156,7 +156,7 @@ export default function Index() {
             </CardHeader>
             <CardContent>
               <RecentActivityList 
-                activities={activities as any[]} 
+                activities={activities} 
                 isLoading={isActivitiesLoading} 
                 highlightedId={highlightedActivity}
                 onActivityClick={handleActivityClick}
