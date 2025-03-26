@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { getAllAgents, Agent } from '@/services/agentService';
 import { Card } from '@/components/ui/card';
@@ -71,7 +70,7 @@ const Agents: React.FC = () => {
               <BarChart
                 data={[
                   { name: 'Interactions', value: agent.total_interactions },
-                  { name: 'Response Time', value: agent.average_response_time * 10 }
+                  { name: 'Response Time', value: agent.average_response_time * 1000 }
                 ]}
                 color="#4F46E5"
               />
@@ -83,4 +82,4 @@ const Agents: React.FC = () => {
   );
 };
 
-export default Agents;
+export default Agents; 
