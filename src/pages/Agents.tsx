@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { getAllAgents, Agent } from '@/services/agentService';
 import { Card } from '@/components/ui/card';
@@ -82,4 +83,4 @@ const Agents: React.FC = () => {
   );
 };
 
-export default Agents; 
+export default Agents;
