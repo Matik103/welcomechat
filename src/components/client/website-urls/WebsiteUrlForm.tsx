@@ -13,7 +13,7 @@ const formSchema = z.object({
   refresh_rate: z.number().min(1, "Refresh rate is required").max(365, "Refresh rate cannot exceed 365 days")
 });
 
-export function WebsiteUrlForm({ onAdd, isAdding = false, agentName }: WebsiteUrlFormProps) {
+export function WebsiteUrlForm({ onAdd, onSubmit, isAdding = false, isSubmitting = false, agentName }: WebsiteUrlFormProps) {
   const form = useForm<WebsiteUrlFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -23,8 +23,8 @@ export function WebsiteUrlForm({ onAdd, isAdding = false, agentName }: WebsiteUr
   });
 
   const handleSubmit = async (data: WebsiteUrlFormData) => {
-    if (onAdd) {
-      await onAdd(data);
+    if (onSubmit) {
+      await onSubmit(data);
       form.reset();
     }
   };
@@ -66,8 +66,8 @@ export function WebsiteUrlForm({ onAdd, isAdding = false, agentName }: WebsiteUr
       />
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={isAdding}>
-          {isAdding ? (
+        <Button type="submit" disabled={isAdding || isSubmitting}>
+          {(isAdding || isSubmitting) ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Adding...

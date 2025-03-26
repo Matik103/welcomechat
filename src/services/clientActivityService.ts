@@ -10,15 +10,15 @@ export const createClientActivity = async (
   metadata?: Record<string, any>
 ): Promise<void> => {
   try {
-    // Use client_activities table name instead of client_activity
+    // Use client_activities table name
     const { error } = await supabase
       .from('client_activities')
       .insert({
         client_id: clientId,
-        activity_type,
+        activity_type: activity_type as string,
         description,
         metadata
-      });
+      } as any);
 
     if (error) {
       console.error('Error creating client activity:', error);
@@ -33,7 +33,7 @@ export const getClientActivities = async (
   limit: number = 10
 ) => {
   try {
-    // Use client_activities table name instead of client_activity
+    // Use client_activities table name
     const { data, error } = await supabase
       .from('client_activities')
       .select('*')

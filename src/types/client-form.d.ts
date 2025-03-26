@@ -16,5 +16,12 @@ export type ActivityType =
   | 'password_reset'
   | 'document_link_added'
   | 'document_link_deleted'
-  | 'website_url_added'    // Added website_url specific activities
-  | 'website_url_deleted'; // to match what's used in WebsiteResourcesSection
+  | 'website_url_added'
+  | 'website_url_deleted'
+  | 'website_url_processed'
+  | 'url_added'
+  | 'url_removed'
+  | 'url_processed'
+  | 'url_processing_failed'
+  | 'document_processed'
+  | 'document_processing_failed';

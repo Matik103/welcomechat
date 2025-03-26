@@ -22,7 +22,9 @@ export const activityTypeToDisplayText: Partial<Record<ActivityType, string>> = 
   'url_added': 'Added URL',           // Legacy type
   'url_removed': 'Removed URL',       // Legacy type
   'url_processed': 'Processed URL',   // Legacy type
-  'url_processing_failed': 'URL processing failed' // Legacy type
+  'url_processing_failed': 'URL processing failed', // Legacy type
+  'document_processed': 'Document processed',
+  'document_processing_failed': 'Document processing failed'
 };
 
 // Activity type to icon mapping
@@ -46,7 +48,9 @@ export const activityTypeToIcon: Partial<Record<ActivityType, string>> = {
   'url_added': 'globe',           // Legacy type
   'url_removed': 'trash',         // Legacy type
   'url_processed': 'check-circle',   // Legacy type
-  'url_processing_failed': 'alert-circle' // Legacy type
+  'url_processing_failed': 'alert-circle', // Legacy type
+  'document_processed': 'file-check',
+  'document_processing_failed': 'file-alert'
 };
 
 // Activity type to color mapping
@@ -70,5 +74,7 @@ export const activityTypeToColor: Partial<Record<ActivityType, string>> = {
   'url_added': 'green',           // Legacy type
   'url_removed': 'red',           // Legacy type
   'url_processed': 'blue',        // Legacy type
-  'url_processing_failed': 'orange' // Legacy type
+  'url_processing_failed': 'orange', // Legacy type
+  'document_processed': 'green',
+  'document_processing_failed': 'orange'
 };

@@ -13,13 +13,16 @@ export const useDocumentProcessor = (onProcessingComplete?: () => void) => {
   const checkStatus = useMutation({
     mutationFn: (jobId: string) => checkDocumentProcessingStatus(jobId),
     onSuccess: (result, jobId) => {
+      // Properly type the result as DocumentProcessingResult
+      const typedResult = result as DocumentProcessingResult;
+      
       setProcessingStatus(prev => ({
         ...prev,
-        [jobId]: result
+        [jobId]: typedResult
       }));
 
       // If job completed or failed, remove from active jobs
-      if (result.success || (result.error && result.error.length > 0)) {
+      if (typedResult.success || (typedResult.error && typedResult.error.length > 0)) {
         setActiveJobs(prev => prev.filter(id => id !== jobId));
         
         // Notify caller that processing is complete
@@ -27,10 +30,10 @@ export const useDocumentProcessor = (onProcessingComplete?: () => void) => {
           onProcessingComplete();
         }
 
-        if (result.success) {
-          toast.success(`Document processed successfully: ${result.processed} items processed`);
-        } else if (result.error) {
-          toast.error(`Document processing failed: ${result.error}`);
+        if (typedResult.success) {
+          toast.success(`Document processed successfully: ${typedResult.processed} items processed`);
+        } else if (typedResult.error) {
+          toast.error(`Document processing failed: ${typedResult.error}`);
         }
       }
     }

@@ -7,7 +7,7 @@ import {
   checkDocumentProcessingStatus, 
   getDocumentsForClient 
 } from '@/services/documentProcessingService';
-import { DocumentType } from '@/types/document-processing';
+import { DocumentType, DocumentProcessingResult } from '@/types/document-processing';
 import { toast } from 'sonner';
 
 export function useDocumentProcessing(clientId: string) {
@@ -56,10 +56,13 @@ export function useDocumentProcessing(clientId: string) {
   const checkStatus = useMutation({
     mutationFn: (jobId: string) => checkDocumentProcessingStatus(jobId),
     onSuccess: (data) => {
-      if (data.success) {
-        toast.success(`Document processed successfully: ${data.processed} items`);
-      } else if (data.error) {
-        toast.error(`Document processing failed: ${data.error}`);
+      // Properly type the data as DocumentProcessingResult
+      const result = data as DocumentProcessingResult;
+      
+      if (result.success) {
+        toast.success(`Document processed successfully: ${result.processed} items`);
+      } else if (result.error) {
+        toast.error(`Document processing failed: ${result.error}`);
       }
       refetch();
     }
