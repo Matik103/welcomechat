@@ -45,7 +45,7 @@ export const AdminHeader = () => {
                   location.pathname.includes('/admin/clients') && "text-primary font-semibold"
                 )}
               >
-                Clients
+                Customers
               </Link>
               <Link 
                 to="/admin/agents" 
