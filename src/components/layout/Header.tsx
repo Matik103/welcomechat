@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -62,7 +61,7 @@ export const Header = () => {
                   location.pathname.includes('/admin/clients') ? 'text-gray-900' : ''
                 }`}
               >
-                Clients
+                Customers
               </Link>
             </nav>
             
