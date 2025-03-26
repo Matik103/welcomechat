@@ -2,7 +2,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { createClientActivity } from '@/services/clientActivityService';
-import { WidgetSettings } from '@/types/client-form';
 import { toast } from 'sonner';
 
 export const useWidgetSettings = (clientId: string) => {
