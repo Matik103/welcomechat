@@ -217,7 +217,7 @@ const ClientAuth = () => {
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-6">
             <img 
-              src="/lovable-uploads/49c3d031-200e-4995-8d87-ebff9b6b3e4e.png" 
+              src="/lovable-uploads/11ee6e05-bbc8-4fc8-a8a6-8706e1bfa985.png" 
               alt="Welcome.Chat" 
               className="h-14 object-contain mix-blend-multiply"
             />
