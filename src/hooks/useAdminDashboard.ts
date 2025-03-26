@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientActivity } from '@/types/activity';
+import { getAverageResponseTime } from '@/services/responseTimeService';
 
 type TimeframeOption = '24h' | '7d' | '30d' | 'all';
 
@@ -30,7 +31,17 @@ export const useAdminDashboard = () => {
       // In a real app, you would fetch this from your API
       const mockActiveUsers = Math.floor(Math.random() * 100) + 50;
       const mockInteractions = Math.floor(Math.random() * 500) + 200;
-      const mockResponseTime = (Math.random() * 2) + 0.5;
+      
+      // Get actual response time from the service
+      let timeRangeParam: '1d' | '1m' | '1y' | 'all' = '1d';
+      
+      // Map timeframe to the format expected by the responseTimeService
+      if (timeframe === '24h') timeRangeParam = '1d';
+      else if (timeframe === '7d') timeRangeParam = '1d'; // Since we don't have a 7d option, use 1d
+      else if (timeframe === '30d') timeRangeParam = '1m';
+      else timeRangeParam = 'all';
+      
+      const avgResponseTime = await getAverageResponseTime(timeRangeParam);
       
       const mockQueries = [
         { name: 'Product information', value: Math.floor(Math.random() * 100) + 10 },
@@ -53,22 +64,29 @@ export const useAdminDashboard = () => {
       // Get active clients (those with recent activity)
       const { data: activeClientsData, error: activeError } = await supabase
         .from('ai_agents')
-        .select('id')
-        .eq('interaction_type', 'config')
-        .eq('status', 'active');
+        .select('client_id')
+        .eq('interaction_type', 'chat_interaction')
+        .filter('created_at', 'gte', getTimeframeDate(timeframe))
+        .limit(1000);
         
       if (activeError) {
         throw activeError;
       }
       
-      const activeClientCount = activeClientsData?.length || 0;
+      // Count unique client IDs
+      const uniqueClientIds = new Set();
+      activeClientsData?.forEach(item => {
+        if (item.client_id) uniqueClientIds.add(item.client_id);
+      });
+      
+      const activeClientCount = uniqueClientIds.size;
       const previousActiveCount = activeClientCount * 0.9; // For demo, assume 10% growth
       const growthRate = ((activeClientCount - previousActiveCount) / previousActiveCount) * 100;
       
       setStatsData({
         activeUsers: mockActiveUsers,
         interactionCount: mockInteractions,
-        avgResponseTime: mockResponseTime,
+        avgResponseTime: avgResponseTime,
         commonQueries: mockQueries,
         totalClients: totalCount || 0,
         activeClients: activeClientCount,
@@ -80,6 +98,28 @@ export const useAdminDashboard = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Helper function to get date based on timeframe
+  const getTimeframeDate = (timeframe: TimeframeOption): string => {
+    const now = new Date();
+    
+    switch(timeframe) {
+      case '24h':
+        now.setDate(now.getDate() - 1);
+        break;
+      case '7d':
+        now.setDate(now.getDate() - 7);
+        break;
+      case '30d':
+        now.setDate(now.getDate() - 30);
+        break;
+      case 'all':
+        now.setFullYear(now.getFullYear() - 100); // Just a very old date
+        break;
+    }
+    
+    return now.toISOString();
   };
   
   useEffect(() => {
