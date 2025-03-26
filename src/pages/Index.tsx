@@ -147,90 +147,90 @@ export default function Index() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
-            <Card className="bg-zinc-900 text-white">
+            <Card className="border border-green-100 bg-gradient-to-br from-green-50 to-white">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
-                  <Database className="h-5 w-5" />
+                  <Database className="h-5 w-5 text-green-600" />
                   <div>
-                    <CardTitle className="text-sm font-medium">Clients</CardTitle>
-                    <CardDescription className="text-zinc-400">Activity</CardDescription>
+                    <CardTitle className="text-sm font-medium text-green-900">Clients</CardTitle>
+                    <CardDescription className="text-green-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4">12</div>
+                <div className="text-2xl font-bold mb-4 text-green-900">12</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.database} color="#22C55E" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900 text-white">
+            <Card className="border border-gray-200 bg-gradient-to-br from-gray-50 to-white">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
+                  <Users className="h-5 w-5 text-gray-600" />
                   <div>
-                    <CardTitle className="text-sm font-medium">Agents</CardTitle>
-                    <CardDescription className="text-zinc-400">Activity</CardDescription>
+                    <CardTitle className="text-sm font-medium text-gray-900">Agents</CardTitle>
+                    <CardDescription className="text-gray-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4">18</div>
+                <div className="text-2xl font-bold mb-4 text-gray-900">18</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.auth} color="#6B7280" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900 text-white">
+            <Card className="border border-yellow-100 bg-gradient-to-br from-yellow-50 to-white">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
-                  <Activity className="h-5 w-5" />
+                  <Activity className="h-5 w-5 text-yellow-600" />
                   <div>
-                    <CardTitle className="text-sm font-medium">Interactions</CardTitle>
-                    <CardDescription className="text-zinc-400">Activity</CardDescription>
+                    <CardTitle className="text-sm font-medium text-yellow-900">Interactions</CardTitle>
+                    <CardDescription className="text-yellow-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4">1,234</div>
+                <div className="text-2xl font-bold mb-4 text-yellow-900">1,234</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.storage} color="#EAB308" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900 text-white">
+            <Card className="border border-blue-100 bg-gradient-to-br from-blue-50 to-white">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
-                  <HardDrive className="h-5 w-5" />
+                  <HardDrive className="h-5 w-5 text-blue-600" />
                   <div>
-                    <CardTitle className="text-sm font-medium">Trainings</CardTitle>
-                    <CardDescription className="text-zinc-400">Activity</CardDescription>
+                    <CardTitle className="text-sm font-medium text-blue-900">Trainings</CardTitle>
+                    <CardDescription className="text-blue-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4">484</div>
+                <div className="text-2xl font-bold mb-4 text-blue-900">484</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.realtime} color="#3B82F6" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900 text-white">
+            <Card className="border border-red-100 bg-gradient-to-br from-red-50 to-white">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
-                  <Zap className="h-5 w-5" />
+                  <Zap className="h-5 w-5 text-red-600" />
                   <div>
-                    <CardTitle className="text-sm font-medium">Administration</CardTitle>
-                    <CardDescription className="text-zinc-400">Activity</CardDescription>
+                    <CardTitle className="text-sm font-medium text-red-900">Administration</CardTitle>
+                    <CardDescription className="text-red-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4">123</div>
+                <div className="text-2xl font-bold mb-4 text-red-900">123</div>
                 <div className="h-[80px] w-full">
                   <BarChart data={chartData.realtime} color="#EF4444" />
                 </div>
