@@ -53,12 +53,9 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       if (onResourceChange) {
         onResourceChange();
       }
-      
-      return true;
     } catch (error) {
       console.error('Error adding website URL:', error);
       toast.error('Failed to add website URL');
-      return false;
     }
   };
   

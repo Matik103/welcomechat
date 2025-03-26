@@ -1,155 +1,139 @@
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { DocumentLink, DocumentLinkFormData, AccessStatus } from '@/types/document-processing';
+import { toast } from 'sonner';
+import { DocumentLink as DriveLink } from '@/types/document-processing'; 
 
-export function useDriveLinks(clientId: string) {
-  const queryClient = useQueryClient();
-  
-  // Fetch all document links for a client
-  const fetchDocumentLinks = async (): Promise<DocumentLink[]> => {
-    if (!clientId) return [];
-    
-    const { data, error } = await supabase
-      .from('document_links')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching document links:', error);
-      throw error;
-    }
-    
-    return data as DocumentLink[];
-  };
-  
-  // Add a new document link
-  const addDocumentLink = async (linkData: DocumentLinkFormData): Promise<DocumentLink> => {
-    if (!clientId) {
-      throw new Error('Client ID is required');
-    }
-    
-    const { data, error } = await supabase
-      .from('document_links')
-      .insert({
-        client_id: clientId,
-        link: linkData.link,
-        refresh_rate: linkData.refresh_rate,
-        document_type: linkData.document_type || 'document',
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error adding document link:', error);
-      throw error;
-    }
-    
-    return data as DocumentLink;
-  };
-  
-  // Delete a document link
-  const deleteDocumentLink = async (linkId: number): Promise<void> => {
-    const { error } = await supabase
-      .from('document_links')
-      .delete()
-      .eq('id', linkId)
-      .eq('client_id', clientId);
-    
-    if (error) {
-      console.error('Error deleting document link:', error);
-      throw error;
-    }
-  };
-  
-  // Check the access status of a document link
-  const checkLinkAccess = async (link: string): Promise<AccessStatus> => {
+export interface DocumentLinkFormData {
+  link: string;
+  refresh_rate: number;
+  document_type: string;
+}
+
+export function useDocumentLinks(clientId: string) {
+  const [isValidating, setIsValidating] = useState(false);
+
+  // Query to fetch document links
+  const { data: documentLinks = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['documentLinks', clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from('document_links')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw new Error(error.message);
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
+  // Add document link mutation
+  const addDocumentLink = useMutation({
+    mutationFn: async (formData: DocumentLinkFormData) => {
+      if (!clientId) throw new Error('Client ID is required');
+      
+      // Validate link before adding
+      setIsValidating(true);
+      let linkToAdd = formData.link;
+      
+      // Ensure link has https:// prefix
+      if (!linkToAdd.startsWith('http://') && !linkToAdd.startsWith('https://')) {
+        linkToAdd = `https://${linkToAdd}`;
+      }
+      
+      try {
+        // Check if the link is accessible
+        const functionsUrl = `${process.env.VITE_SUPABASE_URL}/functions/v1/check-url-access`;
+        const accessResponse = await fetch(functionsUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.VITE_SUPABASE_KEY}`
+          },
+          body: JSON.stringify({ url: linkToAdd })
+        });
+        
+        const accessData = await accessResponse.json();
+        
+        if (!accessData.accessible) {
+          throw new Error(`The URL ${linkToAdd} is not accessible. Please check the URL and try again.`);
+        }
+        
+        // Insert the document link
+        const { error } = await supabase
+          .from('document_links')
+          .insert({
+            client_id: clientId,
+            link: linkToAdd,
+            refresh_rate: formData.refresh_rate,
+            document_type: formData.document_type,
+            access_status: 'accessible'
+          });
+        
+        if (error) throw new Error(error.message);
+        return linkToAdd;
+      } catch (error) {
+        console.error('Error adding document link:', error);
+        throw error;
+      } finally {
+        setIsValidating(false);
+      }
+    },
+  });
+
+  // Delete document link mutation
+  const deleteDocumentLink = useMutation({
+    mutationFn: async (linkId: number) => {
+      const { error } = await supabase
+        .from('document_links')
+        .delete()
+        .eq('id', linkId);
+      
+      if (error) throw new Error(error.message);
+      return linkId;
+    },
+  });
+
+  // Function to validate URL access
+  const validateUrlAccess = async (url: string): Promise<boolean> => {
+    setIsValidating(true);
     try {
-      // Call Edge Function to check access
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/check-drive-access`, {
+      // Use the built-in URL constructor to validate URL format
+      const _ = new URL(url);
+      
+      // Make a request to check if the URL is accessible
+      const accessCheckUrl = `${process.env.VITE_SUPABASE_URL}/functions/v1/check-url-access`;
+      const response = await fetch(accessCheckUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.supabaseKey}`
+          'Authorization': `Bearer ${process.env.VITE_SUPABASE_KEY}`
         },
-        body: JSON.stringify({ url: link })
+        body: JSON.stringify({ url })
       });
       
       const result = await response.json();
-      
-      if (!response.ok) {
-        console.error('Error checking link access:', result);
-        return 'unknown';
-      }
-      
-      return result.isAccessible ? 'granted' : 'denied';
+      return result.accessible === true;
     } catch (error) {
-      console.error('Error in checkLinkAccess:', error);
-      return 'unknown';
-    }
-  };
-  
-  // Use useQuery to fetch document links
-  const { 
-    data: documentLinks = [], 
-    isLoading,
-    error,
-    refetch 
-  } = useQuery({
-    queryKey: ['documentLinks', clientId],
-    queryFn: fetchDocumentLinks,
-    enabled: !!clientId
-  });
-  
-  // Use mutations for add and delete operations
-  const addLinkMutation = useMutation({
-    mutationFn: addDocumentLink,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
-    }
-  });
-  
-  const deleteLinkMutation = useMutation({
-    mutationFn: deleteDocumentLink,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
-    }
-  });
-  
-  // State for link validation
-  const [isValidating, setIsValidating] = useState(false);
-  
-  // Function to validate a link before adding
-  const validateLink = async (link: string): Promise<{ isValid: boolean; message: string }> => {
-    setIsValidating(true);
-    try {
-      const accessStatus = await checkLinkAccess(link);
-      
-      if (accessStatus === 'granted') {
-        return { isValid: true, message: 'Link is accessible' };
-      } else if (accessStatus === 'denied') {
-        return { isValid: false, message: 'This link is not publicly accessible' };
-      } else {
-        return { isValid: true, message: 'Could not verify access status, but will attempt to process' };
-      }
-    } catch (error) {
-      console.error('Error validating link:', error);
-      return { isValid: false, message: 'Error validating link' };
+      console.error('Error validating URL access:', error);
+      return false;
     } finally {
       setIsValidating(false);
     }
   };
-  
+
   return {
     documentLinks,
     isLoading,
     error,
     isValidating,
-    addDocumentLink: addLinkMutation,
-    deleteDocumentLink: deleteLinkMutation,
-    validateLink,
+    addDocumentLink,
+    deleteDocumentLink,
+    validateUrlAccess,
     refetch
   };
 }

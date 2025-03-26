@@ -30,8 +30,11 @@ export default function WidgetSettings() {
 
   // Update widget settings mutation
   const updateSettingsMutation = useMutation({
-    mutationFn: (newSettings: IWidgetSettings) => 
-      clientId ? updateWidgetSettings(clientId, newSettings) : Promise.resolve(defaultSettings),
+    mutationFn: async (newSettings: IWidgetSettings): Promise<void> => {
+      if (clientId) {
+        await updateWidgetSettings(clientId, newSettings);
+      }
+    },
     onSuccess: () => {
       refetch();
       if (isAdmin) {
@@ -83,9 +86,16 @@ export default function WidgetSettings() {
   // Create a wrapper for updateSettingsMutation to match expected props
   const updateSettingsWrapper = {
     isPending: updateSettingsMutation.isPending,
-    mutateAsync: async (newSettings: IWidgetSettings) => {
-      await updateSettingsMutation.mutateAsync(newSettings);
-    }
+    mutateAsync: updateSettingsMutation.mutateAsync
+  };
+
+  // Type-safe logClientActivity
+  const logActivityWrapper = async (
+    activity_type: any,
+    description: string,
+    metadata?: any
+  ): Promise<void> => {
+    await logClientActivity(activity_type, description, metadata);
   };
 
   return (
@@ -98,7 +108,7 @@ export default function WidgetSettings() {
         updateSettingsMutation={updateSettingsWrapper}
         handleBack={handleNavigateBack}
         handleLogoUpload={handleLogoUploadChange}
-        logClientActivity={logClientActivity}
+        logClientActivity={logActivityWrapper}
       />
     </div>
   );

@@ -91,17 +91,13 @@ export function useAdminDashboard() {
         : [];
       
       // Fetch total clients from ai_agents table
-      const { data: totalClientsResult, error: totalClientsError } = await supabase
+      const { count: totalClientsCount, error: totalClientsError } = await supabase
         .from('ai_agents')
         .select('client_id', { count: 'exact', head: true })
-        .eq('interaction_type', 'config')
-        .throwOnError();
+        .eq('interaction_type', 'config');
 
-      // Handle the count safely
-      let totalClients = 0;
-      if (totalClientsResult && typeof totalClientsResult.count === 'number') {
-        totalClients = totalClientsResult.count;
-      }
+      // Safe handling of count
+      const totalClients = totalClientsCount || 0;
       
       // Fetch active clients - past 7 days
       const activeClientsData = await callRpcFunctionSafe<any>(

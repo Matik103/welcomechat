@@ -17,28 +17,13 @@ interface ClientResourceSectionsProps {
 
 export const ClientResourceSections = ({
   clientId,
-  websiteUrls = [],
-  isProcessing = false,
-  isDeleting = false,
-  refetchWebsiteUrls,
   onResourceChange,
   logClientActivity
 }: ClientResourceSectionsProps) => {
-  // Map website URLs to the expected format
-  const mappedUrls = websiteUrls.map(url => ({
-    ...url,
-    refresh_rate: url.refresh_rate || 30,
-    status: (url.status as "pending" | "processing" | "failed" | "completed") || "pending"
-  }));
-
   return (
     <div className="space-y-8">
       <WebsiteResourcesSection 
         clientId={clientId}
-        urls={mappedUrls}
-        isProcessing={isProcessing}
-        isDeleting={isDeleting}
-        refetchUrls={refetchWebsiteUrls}
         onResourceChange={onResourceChange}
         logClientActivity={logClientActivity}
       />

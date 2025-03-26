@@ -24,21 +24,36 @@ export function useDocumentUpload(clientId: string) {
       const fileExt = file.name.split('.').pop();
       const filePath = `documents/${clientId}/${timestamp}-${file.name}`;
       
+      // Mock upload progress since onUploadProgress is not available
+      const startProgress = () => {
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += 10;
+          if (progress >= 95) {
+            clearInterval(interval);
+            progress = 95;
+          }
+          setUploadProgress(progress);
+        }, 300);
+        
+        return () => clearInterval(interval);
+      };
+      
+      const stopProgress = startProgress();
+      
       // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client-documents')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false,
-          onUploadProgress: (progress) => {
-            const percent = Math.round((progress.loaded / progress.total) * 100);
-            setUploadProgress(percent);
-          },
+          upsert: false
         });
       
       if (uploadError) {
         throw uploadError;
       }
+      
+      setUploadProgress(95);
       
       // Get public URL for the uploaded file
       const { data: publicUrlData } = supabase.storage
@@ -71,6 +86,9 @@ export function useDocumentUpload(clientId: string) {
       if (documentError) {
         throw documentError;
       }
+      
+      stopProgress();
+      setUploadProgress(100);
       
       toast.success('Document uploaded successfully');
       

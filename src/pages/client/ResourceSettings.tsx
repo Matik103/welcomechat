@@ -1,18 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { ClientLayout } from '@/components/layout/ClientLayout';
 import { WebsiteUrls } from '@/components/client/WebsiteUrls';
 import { DriveLinks } from '@/components/client/DriveLinks';
 import { useClient } from '@/hooks/useClient';
-import { ClientData } from '@/types/client-data';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { useNavigation } from '@/hooks/useNavigation';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { DocumentUpload } from '@/components/client/DocumentUpload';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { logClientActivity } from '@/services/activityService';
 import { ActivityType } from '@/types/client-form';
@@ -177,16 +175,20 @@ export default function ResourceSettings() {
             onDelete={handleDeleteWebsiteUrl}
             isAdding={addWebsiteUrlMutation.isPending}
             isDeleting={deleteWebsiteUrlMutation.isPending}
+            agentName="AI Assistant"
           />
         ) : (
           <div className="space-y-6">
             <DriveLinks
-              documents={documentLinks}
               isLoading={isLoadingDocuments}
               isUploading={isUploading}
               addDocumentLink={handleAddDocumentLink}
               deleteDocumentLink={handleDeleteDocumentLink}
               uploadDocument={handleDocumentUpload}
+              isClientView={false}
+              isValidating={false}
+              deletingId={null}
+              isDeleteLoading={false}
             />
           </div>
         )}

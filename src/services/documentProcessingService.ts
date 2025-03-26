@@ -1,107 +1,133 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { callRpcFunctionSafe } from '@/utils/rpcUtils';
-import { createClientActivity } from '@/services/clientActivityService';
-import { v4 as uuidv4 } from 'uuid';
+import { DocumentProcessingOptions, DocumentProcessingResult } from '@/types/document-processing';
 
 // Register a document for processing
-export const registerDocumentForProcessing = async (
+export async function registerDocumentForProcessing(
   clientId: string,
   documentUrl: string,
   documentType: string
-): Promise<string> => {
+): Promise<string> {
   try {
-    // First check if we have a document processing table
-    // If not, we'll skip the registration
-    const checkTable = await callRpcFunctionSafe<any>(
-      'check_table_exists',
-      { table_name: 'document_processing' }
-    );
+    // Call a custom function to register the document
+    const { data, error } = await supabase.rpc('register_document_processing', {
+      p_client_id: clientId,
+      p_document_url: documentUrl,
+      p_document_type: documentType
+    });
     
-    if (!checkTable || !checkTable.exists) {
-      console.log('Document processing table does not exist');
-      
-      // Log this for debugging
-      await createClientActivity(
-        clientId,
-        'error_logged',
-        'Document processing attempted but table does not exist',
-        { url: documentUrl }
-      );
-      
-      // Generate a placeholder ID for the document
-      return `manual-${uuidv4()}`;
-    }
-    
-    // Generate a unique documentId
-    const documentId = uuidv4();
-    
-    // Get the agent name for this client
-    const { data: agentData, error: agentError } = await supabase
-      .from('ai_agents')
-      .select('name')
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config')
-      .single();
-    
-    if (agentError) {
-      console.error('Error getting agent name:', agentError);
-      throw agentError;
-    }
-    
-    const agentName = agentData?.name || 'AI Assistant';
-    
-    // Insert a record in the document_processing table
-    const { data, error } = await supabase
-      .from('document_processing')
-      .insert({
-        document_id: documentId,
-        document_url: documentUrl,
-        document_type: documentType,
-        client_id: clientId,
-        agent_name: agentName,
-        status: 'pending'
-      });
-    
-    if (error) {
-      console.error('Error registering document for processing:', error);
-      throw error;
-    }
-    
-    // Log the activity
-    await createClientActivity(
-      clientId,
-      'document_processing_started',
-      `Document processing started: ${documentUrl}`,
-      { document_id: documentId, document_type: documentType }
-    );
-    
-    return documentId;
+    if (error) throw error;
+    return data || 'unknown';
   } catch (error) {
-    console.error('Error in registerDocumentForProcessing:', error);
+    console.error('Error registering document for processing:', error);
     throw error;
   }
-};
+}
 
-// Check document processing status
-export const checkDocumentProcessingStatus = async (
-  documentId: string
-): Promise<'pending' | 'processing' | 'completed' | 'failed'> => {
+// Check the status of a document processing job
+export async function checkDocumentProcessingStatus(documentId: string): Promise<'pending' | 'processing' | 'completed' | 'failed'> {
   try {
     const { data, error } = await supabase
       .from('document_processing')
       .select('status')
-      .eq('document_id', documentId)
+      .eq('id', documentId)
       .single();
     
-    if (error) {
-      console.error('Error checking document processing status:', error);
-      return 'failed';
-    }
-    
+    if (error) throw error;
     return data.status as 'pending' | 'processing' | 'completed' | 'failed';
   } catch (error) {
-    console.error('Error in checkDocumentProcessingStatus:', error);
+    console.error('Error checking document processing status:', error);
     return 'failed';
   }
+}
+
+// Upload a document
+export async function uploadDocument(file: File, clientId: string): Promise<string> {
+  // Generate a unique file path
+  const timestamp = Date.now();
+  const fileExt = file.name.split('.').pop();
+  const filePath = `documents/${clientId}/${timestamp}-${file.name}`;
+  
+  // Upload file to Supabase Storage
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('client-documents')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+  
+  if (uploadError) throw uploadError;
+  
+  // Get public URL for the uploaded file
+  const { data: publicUrlData } = supabase.storage
+    .from('client-documents')
+    .getPublicUrl(filePath);
+  
+  const fileUrl = publicUrlData.publicUrl;
+  
+  // Insert record in document_processing table
+  const { data: processingData, error: processingError } = await supabase
+    .from('document_processing')
+    .insert({
+      client_id: clientId,
+      document_url: fileUrl,
+      document_type: fileExt || 'unknown',
+      status: 'pending',
+      started_at: new Date().toISOString(),
+      agent_name: 'AI Assistant',
+      metadata: {
+        original_filename: file.name,
+        file_size: file.size,
+        content_type: file.type
+      }
+    })
+    .select('id')
+    .single();
+  
+  if (processingError) throw processingError;
+  
+  return processingData.id.toString();
+}
+
+// Process a document
+export async function processDocument(
+  documentUrl: string,
+  options: DocumentProcessingOptions
+): Promise<DocumentProcessingResult> {
+  try {
+    // Call edge function to process document
+    const { data, error } = await supabase.functions.invoke('process-document', {
+      body: {
+        documentUrl,
+        clientId: options.clientId,
+        documentType: options.documentType || 'unknown',
+        agentName: options.agentName || 'AI Assistant'
+      }
+    });
+    
+    if (error) throw error;
+    
+    return {
+      success: true,
+      documentId: data.documentId,
+      processed: data.processed || 0,
+      failed: data.failed || 0
+    };
+  } catch (error) {
+    console.error('Error processing document:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      processed: 0,
+      failed: 1
+    };
+  }
+}
+
+// Export the services
+export const DocumentProcessingService = {
+  register: registerDocumentForProcessing,
+  checkStatus: checkDocumentProcessingStatus,
+  uploadDocument,
+  processDocument
 };

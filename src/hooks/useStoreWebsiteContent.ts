@@ -13,12 +13,15 @@ export function useStoreWebsiteContent() {
     setError(null);
     
     try {
+      // Manually construct the URL to the edge function
+      const functionsUrl = `${process.env.VITE_SUPABASE_URL}/functions/v1/crawl-website`;
+      
       // Call the Supabase edge function to store website content
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/crawl-website`, {
+      const response = await fetch(functionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.supabaseKey}`
+          'Authorization': `Bearer ${process.env.VITE_SUPABASE_KEY}`
         },
         body: JSON.stringify({
           url: website.url,

@@ -2,8 +2,73 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { DocumentProcessingService, uploadDocument } from '@/services/documentProcessingService';
 import { toast } from 'sonner';
+
+// Upload document function
+export async function uploadDocumentFunction(file: File, clientId: string): Promise<string> {
+  // Upload implementation...
+  const timestamp = Date.now();
+  const fileExt = file.name.split('.').pop();
+  const filePath = `documents/${clientId}/${timestamp}-${file.name}`;
+  
+  const { data, error } = await supabase.storage
+    .from('client-documents')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+  
+  if (error) {
+    throw error;
+  }
+  
+  const { data: urlData } = supabase.storage
+    .from('client-documents')
+    .getPublicUrl(filePath);
+  
+  // Create document processing record
+  const { data: jobData, error: jobError } = await supabase
+    .from('document_processing')
+    .insert({
+      document_url: urlData.publicUrl,
+      client_id: clientId,
+      agent_name: 'AI Assistant',
+      document_type: fileExt || 'unknown',
+      status: 'pending',
+      started_at: new Date().toISOString(),
+      metadata: {
+        original_filename: file.name,
+        file_size: file.size,
+        content_type: file.type
+      }
+    })
+    .select('id')
+    .single();
+  
+  if (jobError) {
+    throw jobError;
+  }
+  
+  return jobData.id.toString();
+}
+
+// Check document processing status
+export async function checkDocumentStatus(documentId: string): Promise<'pending' | 'processing' | 'completed' | 'failed'> {
+  try {
+    const { data, error } = await supabase
+      .from('document_processing')
+      .select('status')
+      .eq('id', documentId)
+      .single();
+    
+    if (error) throw error;
+    
+    return data.status as 'pending' | 'processing' | 'completed' | 'failed';
+  } catch (error) {
+    console.error('Error checking document status:', error);
+    return 'failed';
+  }
+}
 
 export function useDocumentProcessing(clientId?: string) {
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -16,7 +81,7 @@ export function useDocumentProcessing(clientId?: string) {
       if (!clientId) return [];
       
       const { data, error } = await supabase
-        .from('document_processing_jobs')
+        .from('document_processing')
         .select('*')
         .eq('client_id', clientId)
         .order('created_at', { ascending: false });
@@ -57,7 +122,7 @@ export function useDocumentProcessing(clientId?: string) {
         const clearProgressSimulation = simulateProgress();
         
         // Upload the document
-        const jobId = await uploadDocument(file, clientId);
+        const jobId = await uploadDocumentFunction(file, clientId);
         setProcessingId(jobId);
         
         // Clear progress simulation
@@ -81,16 +146,6 @@ export function useDocumentProcessing(clientId?: string) {
     }
   });
 
-  // Function to check the status of a document processing job
-  const checkStatus = async (jobId: string) => {
-    try {
-      return await DocumentProcessingService.checkStatus(jobId);
-    } catch (error) {
-      console.error('Error checking document status:', error);
-      throw error;
-    }
-  };
-
   return {
     processingJobs: processingJobs || [],
     isLoading,
@@ -98,7 +153,7 @@ export function useDocumentProcessing(clientId?: string) {
     isUploading: uploadMutation.isPending,
     uploadProgress,
     processingId,
-    checkStatus,
+    checkStatus: checkDocumentStatus,
     refetch
   };
 }

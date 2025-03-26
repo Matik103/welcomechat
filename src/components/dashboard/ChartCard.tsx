@@ -1,81 +1,102 @@
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Line, Bar, BarChart, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 
 interface ChartCardProps {
   title: string;
-  data: { query: string; count: number }[];
+  description?: string;
+  data: any[];
   className?: string;
+  type?: 'line' | 'bar';
+  xKey?: string;
+  yKey?: string;
+  height?: number;
 }
 
-export const ChartCard: React.FC<ChartCardProps> = ({ title, data, className }) => {
-  // Format the data for the chart
-  const chartData = data.map(item => ({
-    name: truncateText(item.query, 20),
-    value: item.count,
-    fullText: item.query
-  }));
+export function ChartCard({
+  title,
+  description,
+  data = [],
+  className = "",
+  type = 'bar',
+  xKey = 'query',
+  yKey = 'count',
+  height = 350,
+}: ChartCardProps) {
+  // Convert data format if query/count structure
+  const formattedData = data.map(item => {
+    // If it has query and count properties, convert to name/value
+    if (typeof item.query === 'string' && typeof item.count === 'number') {
+      return {
+        name: item.query,
+        value: item.count
+      };
+    }
+    // If already has name/value, keep as is
+    if (typeof item.name === 'string' && typeof item.value !== 'undefined') {
+      return item;
+    }
+    // Otherwise try to use the provided keys
+    return {
+      name: item[xKey] || 'Unknown',
+      value: item[yKey] || 0
+    };
+  });
 
-  // Generate colors based on the count value
-  const getBarColor = (count: number) => {
-    // Higher values get more intense colors
-    const baseHue = 210; // blue
-    const saturation = Math.min(100, 50 + (count * 5));
-    const lightness = Math.max(40, 70 - (count * 2));
-    
-    return `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
+  // Custom tooltip component that safely handles payload
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length > 0) {
+      return (
+        <div className="bg-white p-2 border border-gray-300 rounded-md shadow">
+          <p className="text-sm font-medium">{label}</p>
+          <p className="text-xs text-blue-600">{`Value: ${payload[0].value}`}</p>
+        </div>
+      );
+    }
+  
+    return null;
   };
 
   return (
     <Card className={className}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent>
-        {data.length === 0 ? (
-          <div className="flex items-center justify-center h-64 text-gray-500">
-            No data available
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={chartData}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 60,
-              }}
-            >
-              <XAxis 
-                dataKey="name" 
-                angle={-45} 
-                textAnchor="end" 
-                height={60} 
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis />
-              <Tooltip 
-                formatter={(value, name, props) => [value, 'Count']}
-                labelFormatter={(label, props) => props.payload[0]?.payload.fullText || label}
-              />
-              <Bar dataKey="value" fill="#8884d8">
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getBarColor(entry.value)} />
-                ))}
-              </Bar>
-            </BarChart>
+        <div className="h-[350px]">
+          <ResponsiveContainer width="100%" height="100%">
+            {type === 'line' ? (
+              <LineChart data={formattedData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  height={60}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                />
+                <YAxis />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Line type="monotone" dataKey="value" stroke="#4f46e5" activeDot={{ r: 8 }} />
+              </LineChart>
+            ) : (
+              <BarChart data={formattedData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  height={60}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                />
+                <YAxis />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Bar dataKey="value" fill="#4f46e5" />
+              </BarChart>
+            )}
           </ResponsiveContainer>
-        )}
+        </div>
       </CardContent>
     </Card>
   );
-};
-
-// Utility function to truncate text
-function truncateText(text: string, maxLength: number): string {
-  if (!text) return '';
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
 }
