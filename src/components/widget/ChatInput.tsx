@@ -37,7 +37,7 @@ export function ChatInput({
         className="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2"
         style={{ 
           color: textColor,
-          outlineColor: primaryColor
+          outlineColor: primaryColor || "#4F46E5" // Default to indigo if not provided
         }}
         disabled={disabled}
       />
@@ -46,7 +46,7 @@ export function ChatInput({
         disabled={!value.trim() || disabled}
         className="p-2 rounded-full disabled:opacity-50 transition-colors"
         style={{ 
-          backgroundColor: value.trim() && !disabled ? primaryColor : '#ccc',
+          backgroundColor: value.trim() && !disabled ? (primaryColor || "#4F46E5") : '#ccc',
           color: 'white'
         }}
       >

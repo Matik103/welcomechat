@@ -13,9 +13,9 @@ interface AppearanceSettingsProps {
 // Color presets for quick selection
 const COLOR_PRESETS = [
   { 
-    name: "Modern Purple", 
-    primary: "#7c3aed", 
-    secondary: "#6d28d9",
+    name: "Modern Indigo", 
+    primary: "#4F46E5", 
+    secondary: "#6366F1",
     background: "#ffffff",
     text: "#1f2937" 
   },

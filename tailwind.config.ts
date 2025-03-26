@@ -26,11 +26,11 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#0EA5E9",
+          DEFAULT: "#4F46E5", // Indigo color from the logo
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: "#10B981",
+          DEFAULT: "#6366F1", // Lighter indigo for secondary
           foreground: "hsl(var(--secondary-foreground))",
         },
         muted: {
