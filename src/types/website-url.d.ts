@@ -8,19 +8,30 @@ export interface WebsiteUrl {
   refresh_rate: number;
   status?: string;
   notified_at?: string;
+  scrapability?: 'high' | 'medium' | 'low' | 'unknown';
+  updated_at?: string;
+  error?: string;
+  scrapable?: boolean;
+  is_sitemap?: boolean;
 }
 
 export interface WebsiteUrlFormData {
   url: string;
   refresh_rate: number;
+  client_id?: string;
+  id?: number;
+  status?: 'pending' | 'processing' | 'completed' | 'failed';
+  created_at?: string;
+  scrapable?: boolean;
+  is_sitemap?: boolean;
 }
 
 export interface WebsiteUrlFormProps {
-  onAdd: (data: WebsiteUrlFormData) => Promise<void>;
+  onAdd?: (data: WebsiteUrlFormData) => Promise<void>;
   onSubmit?: (data: WebsiteUrlFormData) => Promise<void>;
-  isAdding: boolean;
+  isAdding?: boolean;
   isSubmitting?: boolean;
-  agentName: string;
+  agentName?: string;
   clientId?: string;
   onAddSuccess?: () => Promise<void>;
   webstoreHook?: any;
