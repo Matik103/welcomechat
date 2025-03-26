@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +27,6 @@ const ClientAuth = () => {
     return () => clearTimeout(timeout);
   }, []);
 
-  // For debugging only
   useEffect(() => {
     console.log("Current user state:", { user, userRole, isLoading });
   }, [user, userRole, isLoading]);
@@ -69,7 +67,6 @@ const ClientAuth = () => {
     try {
       console.log("Starting email login for:", email);
       
-      // First, try to find client_id associated with this email
       const { data: clientData, error: clientLookupError } = await supabase
         .from('ai_agents')
         .select('id, client_id')
@@ -84,7 +81,6 @@ const ClientAuth = () => {
         console.log("Found client_id for email:", clientData.client_id || clientData.id);
       }
         
-      // Proceed with normal login
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -100,7 +96,6 @@ const ClientAuth = () => {
       console.error("Auth error:", error);
       
       if (error.message?.includes("Invalid login credentials")) {
-        // Check if there's a client associated with this email
         try {
           const { data: clientData, error: clientLookupError } = await supabase
             .from('ai_agents')
@@ -116,7 +111,6 @@ const ClientAuth = () => {
             const clientId = clientData.client_id || clientData.id;
             console.log("Found client_id for password check:", clientId);
             
-            // Check if there's a temporary password for this client
             const { data: tempPasswords, error: tempPasswordError } = await supabase
               .from('client_temp_passwords')
               .select('temp_password, id')
@@ -132,22 +126,18 @@ const ClientAuth = () => {
               const tempPassword = tempPasswords[0];
               console.log("Found temp password record:", tempPassword.id);
               
-              // Check if passwords match
               if (password !== tempPassword.temp_password) {
                 console.log("Password mismatch. Expected:", tempPassword.temp_password, "Got:", password);
-                // Provide a detailed error message
                 const currentYear = new Date().getFullYear();
                 setErrorMessage(
                   `The password you entered doesn't match. Please use the exact password from the welcome email (format: Welcome${currentYear}#XXX).`
                 );
               } else {
                 console.log("Password matches stored temp password but login still failed");
-                // Passwords match but login still failed
                 setErrorMessage(
                   "Your password appears correct but login failed. The account may not be properly set up."
                 );
                 
-                // Try to recreate the user account
                 try {
                   console.log("Attempting to recreate user account with matching password");
                   const { data, error } = await supabase.functions.invoke(
@@ -166,7 +156,6 @@ const ClientAuth = () => {
                   } else {
                     console.log("User account recreated:", data);
                     
-                    // Try signing in again
                     const { error: retryError } = await supabase.auth.signInWithPassword({
                       email,
                       password: tempPassword.temp_password,
@@ -196,11 +185,9 @@ const ClientAuth = () => {
           setErrorMessage("An error occurred while verifying your credentials. Please try again.");
         }
       } else {
-        // For other types of errors (not "Invalid login credentials")
         setErrorMessage(error.message || "Failed to sign in");
       }
       
-      // Display toast with the error message
       if (errorMessage) {
         toast.error(errorMessage);
       } else {
@@ -215,13 +202,6 @@ const ClientAuth = () => {
     <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-6">
-            <img 
-              src="/lovable-uploads/11ee6e05-bbc8-4fc8-a8a6-8706e1bfa985.png" 
-              alt="Welcome.Chat" 
-              className="h-14 object-contain mix-blend-multiply"
-            />
-          </div>
           <CardTitle className="text-2xl font-bold">
             Sign in to your account
           </CardTitle>
