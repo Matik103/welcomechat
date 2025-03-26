@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DashboardStatCard } from '@/components/admin/DashboardStatCard';
 import { ActivityChartCard } from '@/components/admin/ActivityChartCard';
@@ -10,69 +10,105 @@ import {
   HardDrive,
   Zap
 } from 'lucide-react';
-
-// Mock data for the activity charts
-const generateChartData = () => {
-  return Array.from({ length: 24 }, (_, i) => ({
-    name: `Hour ${i}`,
-    value: Math.floor(Math.random() * 50) + 10
-  }));
-};
+import { supabase } from '@/integrations/supabase/client';
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
-  
-  // Mock data for the dashboard
-  const dashboardData = {
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState({
     clients: {
-      total: 12,
-      active: 10,
-      changePercentage: 18
+      total: 0,
+      active: 0,
+      changePercentage: 0
     },
     agents: {
-      total: 18,
-      active: 10,
-      changePercentage: 19
+      total: 0,
+      active: 0,
+      changePercentage: 0
     },
     interactions: {
-      total: 1234,
-      changePercentage: 18
+      total: 0,
+      changePercentage: 0
     },
     trainings: {
-      total: 484,
-      changePercentage: 18
+      total: 0,
+      changePercentage: 0
     },
     administration: {
-      total: 123,
-      changePercentage: 18
+      total: 0,
+      changePercentage: 0
     },
     activityCharts: {
       database: {
-        value: "13,393",
+        value: "0",
         title: "Database",
         subtitle: "REST Requests",
-        data: generateChartData()
+        data: []
       },
       auth: {
-        value: "382",
+        value: "0",
         title: "Auth",
         subtitle: "Auth Requests",
-        data: generateChartData()
+        data: []
       },
       storage: {
-        value: "99",
+        value: "0",
         title: "Storage",
         subtitle: "Storage Requests",
-        data: generateChartData()
+        data: []
       },
       realtime: {
-        value: "327",
+        value: "0",
         title: "Realtime",
         subtitle: "Realtime Requests",
-        data: generateChartData()
+        data: []
       }
     }
-  };
+  });
+  
+  useEffect(() => {
+    async function fetchDashboardData() {
+      setIsLoading(true);
+      try {
+        // Fetch stats using our new RPC function
+        const { data: statsData, error: statsError } = await supabase.rpc('get_admin_dashboard_stats');
+        
+        if (statsError) {
+          console.error('Error fetching dashboard stats:', statsError);
+          throw statsError;
+        }
+        
+        // Fetch activity chart data
+        const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
+        
+        if (chartError) {
+          console.error('Error fetching chart data:', chartError);
+          throw chartError;
+        }
+        
+        // Combine the data
+        setDashboardData({
+          clients: statsData.clients,
+          agents: statsData.agents,
+          interactions: statsData.interactions,
+          trainings: statsData.trainings,
+          administration: statsData.administration,
+          activityCharts: chartData
+        });
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchDashboardData();
+    
+    // Refresh data every 5 minutes
+    const intervalId = setInterval(fetchDashboardData, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
   
   return (
     <AdminLayout>

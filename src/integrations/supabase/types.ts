@@ -3729,6 +3729,10 @@ export type Database = {
         }
         Returns: number
       }
+      get_admin_dashboard_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_agent_dashboard_stats: {
         Args: {
           client_id_param: string
@@ -3784,6 +3788,10 @@ export type Database = {
           query_text: string
           frequency: number
         }[]
+      }
+      get_dashboard_activity_charts: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       get_document_access_status: {
         Args: {
