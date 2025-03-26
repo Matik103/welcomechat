@@ -1,87 +1,68 @@
 
-import { ActivityType } from "@/types/client-form";
+import { ActivityType } from '@/types/client-form';
 
-/**
- * Maps activity types to human-readable descriptions
- */
-export const activityTypeDescriptions: Record<ActivityType, string> = {
-  chat_interaction: "Chat interaction",
-  client_created: "Client created",
-  client_updated: "Client updated",
-  client_deleted: "Client deleted",
-  client_recovered: "Client recovered",
-  widget_settings_updated: "Widget settings updated",
-  website_url_added: "Website URL added",
-  website_url_deleted: "Website URL deleted",
-  website_url_processed: "Website URL processed",
-  drive_link_added: "Google Drive link added",
-  drive_link_deleted: "Google Drive link deleted",
-  document_link_added: "Document link added",
-  document_link_deleted: "Document link deleted",
-  document_uploaded: "Document uploaded",
-  document_processed: "Document processed",
-  document_stored: "Document stored",
-  document_processing_started: "Document processing started",
-  document_processing_completed: "Document processing completed",
-  document_processing_failed: "Document processing failed",
-  error_logged: "Error logged",
-  common_query_milestone: "Common query milestone",
-  interaction_milestone: "Interaction milestone",
-  growth_milestone: "Growth milestone",
-  webhook_sent: "Webhook sent",
-  ai_agent_created: "AI agent created",
-  ai_agent_updated: "AI agent updated",
-  ai_agent_table_created: "AI agent table created",
-  agent_name_updated: "Agent name updated",
-  agent_description_updated: "Agent description updated",
-  agent_error: "Agent error",
-  agent_logo_updated: "Agent logo updated",
-  agent_updated: "Agent updated",
-  signed_out: "Signed out",
-  embed_code_copied: "Embed code copied",
-  logo_uploaded: "Logo uploaded",
-  system_update: "System update",
-  source_deleted: "Source deleted",
-  source_added: "Source added",
-  url_deleted: "URL deleted",
-  email_sent: "Email sent",
-  invitation_sent: "Invitation sent",
-  invitation_accepted: "Invitation accepted",
-  widget_previewed: "Widget previewed",
-  user_role_updated: "User role updated",
-  login_success: "Login success",
-  login_failed: "Login failed",
-  openai_assistant_document_added: "OpenAI assistant document added",
-  openai_assistant_upload_failed: "OpenAI assistant upload failed",
-  schema_update: "Schema update"
+// Activity type display names for UI
+export const activityTypeNames: Record<ActivityType, string> = {
+  client_created: 'Client Created',
+  client_updated: 'Client Updated',
+  client_deleted: 'Client Deleted',
+  client_recovered: 'Client Recovered',
+  widget_settings_updated: 'Widget Settings Updated',
+  website_url_added: 'Website URL Added',
+  website_url_deleted: 'Website URL Deleted',
+  website_url_processed: 'Website URL Processed',
+  drive_link_added: 'Drive Link Added',
+  drive_link_deleted: 'Drive Link Deleted',
+  document_link_added: 'Document Link Added',
+  document_link_deleted: 'Document Link Deleted',
+  document_uploaded: 'Document Uploaded',
+  document_processing_started: 'Document Processing Started',
+  document_processing_completed: 'Document Processing Completed',
+  document_processing_failed: 'Document Processing Failed',
+  document_stored: 'Document Stored',
+  document_processed: 'Document Processed',
+  agent_name_updated: 'Agent Name Updated',
+  agent_description_updated: 'Agent Description Updated',
+  agent_updated: 'Agent Updated',
+  agent_logo_updated: 'Agent Logo Updated',
+  ai_agent_updated: 'AI Agent Updated',
+  ai_agent_created: 'AI Agent Created',
+  ai_agent_table_created: 'AI Agent Table Created',
+  error_logged: 'Error Logged',
+  system_update: 'System Update',
+  common_query_milestone: 'Common Query Milestone',
+  interaction_milestone: 'Interaction Milestone',
+  growth_milestone: 'Growth Milestone',
+  webhook_sent: 'Webhook Sent',
+  signed_out: 'Signed Out',
+  email_sent: 'Email Sent',
+  invitation_sent: 'Invitation Sent',
+  invitation_accepted: 'Invitation Accepted',
+  logo_uploaded: 'Logo Uploaded',
+  url_deleted: 'URL Deleted',
+  source_deleted: 'Source Deleted',
+  source_added: 'Source Added',
+  widget_previewed: 'Widget Previewed',
+  user_role_updated: 'User Role Updated',
+  login_success: 'Login Success',
+  login_failed: 'Login Failed',
+  openai_assistant_document_added: 'OpenAI Assistant Document Added',
+  openai_assistant_upload_failed: 'OpenAI Assistant Upload Failed',
+  schema_update: 'Schema Update',
+  embed_code_copied: 'Embed Code Copied',
+  agent_error: 'Agent Error',
+  chat_interaction: 'Chat Interaction'
 };
 
-/**
- * Gets a human-readable description for an activity type
- */
-export const getActivityTypeDescription = (type: ActivityType): string => {
-  return activityTypeDescriptions[type] || type;
+// Get a human-readable name for an activity type
+export const getActivityTypeName = (type: ActivityType): string => {
+  return activityTypeNames[type] || type.replace(/_/g, ' ');
 };
 
-/**
- * Generates an AI prompt from client data
- */
-export const generateAiPrompt = (
-  agentName: string, 
-  agentDescription?: string,
-  clientName?: string
-): string => {
-  let prompt = `You are ${agentName}`;
-  
-  if (clientName) {
-    prompt += `, an AI assistant for ${clientName}`;
-  }
-  
-  if (agentDescription) {
-    prompt += `. ${agentDescription}`;
-  }
-  
-  prompt += ". Answer customer questions helpfully and professionally.";
-  
-  return prompt;
+// Check if an activity type is related to documents
+export const isDocumentActivity = (type: ActivityType): boolean => {
+  return type.includes('document') || 
+         type.includes('drive_link') || 
+         type === 'openai_assistant_document_added' || 
+         type === 'openai_assistant_upload_failed';
 };

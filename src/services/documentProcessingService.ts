@@ -612,9 +612,9 @@ export class DocumentProcessingService {
   /**
    * Check the access status of a document link
    */
-  export const checkDocumentAccess = async (documentId: number): Promise<string> => {
+  static async checkDocumentAccess(documentId: number): Promise<string> {
     try {
-      const result = await callRpcFunction<string>('get_document_access_status', {
+      const result = await callRpcFunction('get_document_access_status', {
         document_id: documentId
       });
       return result || 'unknown';
@@ -622,7 +622,7 @@ export class DocumentProcessingService {
       console.error('Error checking document access:', error);
       return 'unknown';
     }
-  };
+  }
 
   /**
    * Check the processing status of a document processing job

@@ -1,88 +1,66 @@
 
 import { useState, useEffect } from 'react';
-import { getActiveDays } from '@/services/activeDaysService';
-import { getInteractionCount } from '@/services/interactionCountService'; 
-import { getAverageResponseTime } from '@/services/responseTimeService';
-import { createClientActivity } from '@/services/clientActivityService';
+import { getClientStats } from '@/services/statsService';
+import { TimeRange } from '@/types/client-dashboard';
 
-interface ClientStats {
-  totalInteractions: number;
-  activeDays: number;
-  averageResponseTime: number;
+export interface ClientStats {
+  activeUsers: number;
+  interactionCount: number;
+  avgResponseTime: number;
+  commonQueries: { query: string; count: number }[];
+  isLoading: boolean;
+  error: Error | null;
 }
 
-export const useClientStats = (clientId?: string, agentName?: string) => {
-  const [totalClients, setTotalClients] = useState(0);
-  const [activeClients, setActiveClients] = useState(0);
-  const [activeClientsChange, setActiveClientsChange] = useState<string | undefined>(undefined);
-  const [avgInteractions, setAvgInteractions] = useState(0);
-  const [avgInteractionsChange, setAvgInteractionsChange] = useState<string | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+export const useClientStats = (clientId?: string, timeRange: TimeRange = '1m') => {
   const [stats, setStats] = useState<ClientStats>({
-    totalInteractions: 0,
-    activeDays: 0,
-    averageResponseTime: 0
+    activeUsers: 0,
+    interactionCount: 0,
+    avgResponseTime: 0,
+    commonQueries: [],
+    isLoading: true,
+    error: null
   });
 
   const fetchStats = async () => {
-    if (!clientId) return;
-    
     try {
-      setIsLoading(true);
+      setStats(prev => ({ ...prev, isLoading: true, error: null }));
       
-      // Log the stat fetching activity
-      await createClientActivity(
-        clientId,
-        "client_updated",
-        "Fetched client statistics",
-        { agent_name: agentName || '' }
-      );
-      
-      // Fetch all stats in parallel
-      const [interactions, days, avgTime] = await Promise.all([
-        getInteractionCount(clientId, agentName),
-        getActiveDays(clientId, agentName),
-        getAverageResponseTime(clientId, agentName)
-      ]);
+      // Convert timeRange to the correct type
+      const range = timeRange as "1d" | "1m" | "1y" | "all";
+      const data = await getClientStats(clientId, range);
       
       setStats({
-        totalInteractions: interactions,
-        activeDays: days,
-        averageResponseTime: avgTime
+        activeUsers: data.activeDays,
+        interactionCount: data.interactionCount,
+        avgResponseTime: data.avgResponseTime,
+        commonQueries: data.commonQueries.map(q => ({
+          query: q.query,
+          count: q.count
+        })),
+        isLoading: false,
+        error: null
       });
-
-      // Mock data for now - would connect to actual stats in real implementation
-      setTotalClients(30);
-      setActiveClients(18);
-      setActiveClientsChange("5");
-      setAvgInteractions(120);
-      setAvgInteractionsChange("12");
-    } catch (err) {
-      console.error('Error fetching client stats:', err);
-      setError(err instanceof Error ? err : new Error(String(err)));
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching client stats:', error);
+      setStats(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error : new Error('Failed to fetch stats')
+      }));
     }
   };
 
   useEffect(() => {
     fetchStats();
-  }, [clientId, agentName]);
+  }, [clientId, timeRange]);
 
-  const refetch = () => {
-    fetchStats();
+  const refetch = async () => {
+    await fetchStats();
   };
 
   return {
     ...stats,
-    totalClients,
-    activeClients,
-    activeClientsChange,
-    avgInteractions,
-    avgInteractionsChange,
-    isLoading,
-    error,
     refetch
   };
 };

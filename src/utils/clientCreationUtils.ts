@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { callRpcFunction } from "./rpcUtils";
 
@@ -68,4 +69,27 @@ export const logClientCreation = async (
   } catch (error) {
     console.error("Error logging client creation:", error);
   }
+};
+
+/**
+ * Generates a welcome email template for a new client
+ */
+export const generateClientWelcomeEmailTemplate = (
+  clientName: string, 
+  loginUrl: string,
+  email: string,
+  tempPassword: string
+): string => {
+  return `
+    <h2>Welcome to Our Platform, ${clientName}!</h2>
+    <p>Your account has been created successfully.</p>
+    <p><strong>Login Details:</strong></p>
+    <ul>
+      <li>Email: ${email}</li>
+      <li>Temporary Password: ${tempPassword}</li>
+    </ul>
+    <p>Please login at <a href="${loginUrl}">${loginUrl}</a> to get started.</p>
+    <p>You will be prompted to change your password on first login.</p>
+    <p>If you have any questions, please contact our support team.</p>
+  `;
 };

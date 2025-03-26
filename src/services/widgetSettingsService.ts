@@ -1,112 +1,110 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { WidgetSettings } from '@/types/widget-settings';
-import { toast } from 'sonner';
+import { WidgetSettings } from '@/types/client-form';
 import { createClientActivity } from './clientActivityService';
-import { defaultSettings } from '@/types/widget-settings';
 
-export async function getWidgetSettings(clientId: string): Promise<WidgetSettings> {
+/**
+ * Get widget settings for a client
+ */
+export const getWidgetSettings = async (clientId: string): Promise<WidgetSettings> => {
   try {
     const { data, error } = await supabase
       .from('ai_agents')
-      .select('settings')
+      .select('name, settings')
       .eq('client_id', clientId)
       .eq('interaction_type', 'config')
       .single();
-
+    
     if (error) {
-      console.error('Error fetching widget settings:', error);
+      console.error(`Error fetching widget settings for client ${clientId}:`, error);
       throw error;
     }
-
-    // Ensure we return a proper WidgetSettings object by extracting needed fields
-    const settings = data?.settings as Record<string, any> || {};
     
-    // Return widget settings with defaults for missing values
-    return {
-      agent_name: settings.agent_name || '',
-      agent_description: settings.agent_description || '',
-      logo_url: settings.logo_url || '',
-      logo_storage_path: settings.logo_storage_path || '',
-      chat_color: settings.chat_color || defaultSettings.chat_color,
-      background_color: settings.background_color || defaultSettings.background_color,
-      text_color: settings.text_color || defaultSettings.text_color,
-      secondary_color: settings.secondary_color || defaultSettings.secondary_color,
-      position: settings.position || defaultSettings.position,
-      welcome_text: settings.welcome_text || defaultSettings.welcome_text,
-      response_time_text: settings.response_time_text || defaultSettings.response_time_text,
-      display_mode: settings.display_mode || defaultSettings.display_mode,
-    };
-  } catch (error) {
-    console.error('Error in getWidgetSettings:', error);
-    return defaultSettings;
-  }
-}
-
-export async function updateWidgetSettings(
-  clientId: string,
-  settings: WidgetSettings
-): Promise<WidgetSettings> {
-  try {
-    // Convert WidgetSettings to Record<string, any> to match jsonb type
-    const settingsObject: Record<string, any> = {
-      agent_name: settings.agent_name,
-      agent_description: settings.agent_description,
-      logo_url: settings.logo_url,
-      logo_storage_path: settings.logo_storage_path,
-      chat_color: settings.chat_color,
-      background_color: settings.background_color,
-      text_color: settings.text_color,
-      secondary_color: settings.secondary_color,
-      position: settings.position,
-      welcome_text: settings.welcome_text,
-      response_time_text: settings.response_time_text,
-      display_mode: settings.display_mode
-    };
-
-    const { data, error } = await supabase
-      .from('ai_agents')
-      .update({ settings: settingsObject })
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config')
-      .select('settings')
-      .single();
-
-    if (error) {
-      console.error('Error updating widget settings:', error);
-      throw error;
-    }
-
-    // Log the activity
-    await createClientActivity(
-      clientId,
-      'widget_settings_updated',
-      'Updated widget settings',
-      { settings: settingsObject }
-    );
-
-    toast.success('Widget settings updated successfully');
-    
-    // Ensure we return a proper WidgetSettings object
-    const updatedSettings = data?.settings as Record<string, any> || settings;
+    // Extract widget settings from the response
+    const settings = data.settings || {};
     
     return {
-      agent_name: updatedSettings.agent_name || '',
-      agent_description: updatedSettings.agent_description || '',
-      logo_url: updatedSettings.logo_url || '',
-      logo_storage_path: updatedSettings.logo_storage_path || '',
-      chat_color: updatedSettings.chat_color || defaultSettings.chat_color,
-      background_color: updatedSettings.background_color || defaultSettings.background_color,
-      text_color: updatedSettings.text_color || defaultSettings.text_color,
-      secondary_color: updatedSettings.secondary_color || defaultSettings.secondary_color,
-      position: updatedSettings.position || defaultSettings.position,
-      welcome_text: updatedSettings.welcome_text || defaultSettings.welcome_text,
-      response_time_text: updatedSettings.response_time_text || defaultSettings.response_time_text,
-      display_mode: updatedSettings.display_mode || defaultSettings.display_mode,
+      agent_name: data.name || 'AI Assistant',
+      agent_description: typeof settings === 'object' ? (settings.agent_description as string) || '' : '',
+      logo_url: typeof settings === 'object' ? (settings.logo_url as string) || '' : '',
+      logo_storage_path: typeof settings === 'object' ? (settings.logo_storage_path as string) || '' : '',
+      chat_color: typeof settings === 'object' ? (settings.chat_color as string) || '#3b82f6' : '#3b82f6',
+      background_color: typeof settings === 'object' ? (settings.background_color as string) || '#ffffff' : '#ffffff',
+      button_color: typeof settings === 'object' ? (settings.button_color as string) || '#3b82f6' : '#3b82f6',
+      font_color: typeof settings === 'object' ? (settings.font_color as string) || '#000000' : '#000000',
+      chat_font_color: typeof settings === 'object' ? (settings.chat_font_color as string) || '#ffffff' : '#ffffff',
+      background_opacity: typeof settings === 'object' ? (settings.background_opacity as number) || 1 : 1,
+      button_text: typeof settings === 'object' ? (settings.button_text as string) || 'Chat with Us' : 'Chat with Us',
+      position: typeof settings === 'object' ? (settings.position as 'left' | 'right') || 'right' : 'right',
+      greeting_message: typeof settings === 'object' ? (settings.greeting_message as string) || 'Hello! How can I help you today?' : 'Hello! How can I help you today?'
     };
   } catch (error) {
-    console.error('Error in updateWidgetSettings:', error);
-    toast.error(`Failed to update widget settings: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Error in getWidgetSettings for client ${clientId}:`, error);
     throw error;
   }
-}
+};
+
+/**
+ * Update widget settings for a client
+ */
+export const updateWidgetSettings = async (clientId: string, settings: Partial<WidgetSettings>): Promise<void> => {
+  try {
+    // First, get existing settings to merge with updates
+    const { data: existingData, error: fetchError } = await supabase
+      .from('ai_agents')
+      .select('settings')
+      .eq('client_id', clientId)
+      .eq('interaction_type', 'config')
+      .single();
+    
+    if (fetchError) {
+      console.error(`Error fetching existing settings for client ${clientId}:`, fetchError);
+      throw fetchError;
+    }
+    
+    // Merge existing settings with updates
+    const existingSettings = existingData.settings || {};
+    const updatedSettings = {
+      ...existingSettings,
+      ...settings,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Update the agent name if provided
+    let updateQuery = supabase
+      .from('ai_agents')
+      .update({
+        settings: updatedSettings,
+        updated_at: new Date().toISOString()
+      });
+    
+    // Update the agent name if provided
+    if (settings.agent_name) {
+      updateQuery = supabase
+        .from('ai_agents')
+        .update({
+          name: settings.agent_name,
+          settings: updatedSettings,
+          updated_at: new Date().toISOString()
+        });
+    }
+    
+    const { error: updateError } = await updateQuery
+      .eq('client_id', clientId)
+      .eq('interaction_type', 'config');
+    
+    if (updateError) {
+      console.error(`Error updating widget settings for client ${clientId}:`, updateError);
+      throw updateError;
+    }
+    
+    // Log the widget settings update activity
+    await createClientActivity('widget_settings_updated', 'Widget settings updated', {
+      client_id: clientId,
+      settings_updated: Object.keys(settings)
+    });
+  } catch (error) {
+    console.error(`Error in updateWidgetSettings for client ${clientId}:`, error);
+    throw error;
+  }
+};

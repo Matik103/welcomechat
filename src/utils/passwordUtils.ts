@@ -1,261 +1,214 @@
-/**
- * Generates a temporary password for client accounts
- * Using the format "Welcome{YEAR}#{RANDOM}" that meets Supabase Auth requirements:
- * - At least 8 characters
- * - Contains at least one uppercase letter (Welcome)
- * - Contains at least one lowercase letter (elcome)
- * - Contains at least one number (2024, 123)
- * - Contains at least one special character (#)
- * 
- * @returns A randomly generated temporary password
- */
-export const generateClientTempPassword = (): string => {
-  const currentYear = new Date().getFullYear();
-  // Generate random digits between 100-999 to ensure 3 digits
-  const randomDigits = Math.floor(Math.random() * 900) + 100; 
-  
-  return `Welcome${currentYear}#${randomDigits}`;
-};
+import { supabase } from "@/integrations/supabase/client";
+import { callRpcFunction } from "@/utils/rpcUtils";
 
 /**
- * This function is maintained for backward compatibility
- * but internally uses the standardized Welcome format
- * @returns A randomly generated secure password
+ * Generates a temporary password for a new client
  */
-export const generateSecurePassword = (): string => {
-  return generateClientTempPassword();
-};
-
-/**
- * Save a client's temporary password in the database.
- * 
- * @param agentId - The agent ID associated with the client
- * @param email - The client's email address
- * @param tempPassword - The temporary password to save
- * @returns A promise that resolves when the operation is complete
- */
-export const saveClientTempPassword = async (
-  agentId: string, 
-  email: string, 
-  tempPassword: string
-): Promise<void> => {
-  try {
-    // Import here to avoid circular dependencies
-    const { supabase } = await import('@/integrations/supabase/client');
-    
-    const { error } = await supabase
-      .from('client_temp_passwords')
-      .insert({
-        agent_id: agentId,
-        email: email,
-        temp_password: tempPassword
-      });
-      
-    if (error) {
-      console.error('Error saving client temp password:', error);
-      throw new Error(error.message);
-    }
-    
-    console.log(`Temporary password saved for agent ${agentId}, email ${email}`);
-  } catch (err) {
-    console.error('Failed to save client temp password:', err);
-    throw err;
+export const generateTempPassword = (): string => {
+  const length = 12;
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+  let password = "";
+  for (let i = 0, n = charset.length; i < length; ++i) {
+    password += charset.charAt(Math.floor(Math.random() * n));
   }
+  return password;
 };
 
 /**
- * Create a Supabase Auth user account for a client.
- * 
- * @param email - The client's email address
- * @param clientId - The client ID to store in user metadata
- * @param clientName - The client's name
- * @param agentName - The agent's name
- * @param agentDescription - The agent's description
- * @param tempPassword - The temporary password to set
- * @returns A promise that resolves to the result of the operation
+ * Create a new client account with the given details
  */
-export const createClientUserAccount = async (
-  email: string,
-  clientId: string,
+export const createClientAccount = async (
   clientName: string,
-  agentName: string,
-  agentDescription: string,
-  tempPassword: string
-): Promise<any> => {
+  email: string,
+  password?: string,
+  additionalData?: Record<string, any>
+): Promise<{ success: boolean; message: string; data?: any }> => {
   try {
-    // Import here to avoid circular dependencies
-    const { supabase } = await import('@/integrations/supabase/client');
+    const tempPassword = password || generateTempPassword();
     
-    // Call the edge function to create the user
-    const { data, error } = await supabase.functions.invoke(
-      'create-client-user',
-      {
-        body: {
-          email,
-          client_id: clientId,
+    // Step 1: Create the auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password: tempPassword,
+      options: {
+        data: {
           client_name: clientName,
-          agent_name: agentName,
-          agent_description: agentDescription,
-          temp_password: tempPassword
+          is_client: true,
+          ...additionalData
         }
-      }
-    );
-    
-    if (error) {
-      console.error('Error creating client user account:', error);
-      throw new Error(error.message);
-    }
-    
-    console.log('Client user account created successfully:', data);
-    return data;
-  } catch (err) {
-    console.error('Failed to create client user account:', err);
-    throw err;
-  }
-};
-
-/**
- * Generate a client welcome email template.
- * 
- * @param clientName - The client's name
- * @param email - The client's email address
- * @param tempPassword - The temporary password for login
- * @returns The HTML template for the welcome email
- */
-export const generateClientWelcomeEmailTemplate = (
-  clientName: string,
-  email: string,
-  tempPassword: string
-): string => {
-  const currentYear = new Date().getFullYear();
-  
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Welcome to Welcome.Chat, ${clientName}!</h2>
-      <p>Your AI assistant account has been created successfully.</p>
-      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p><strong>Login Information:</strong></p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Temporary Password:</strong> ${tempPassword}</p>
-        <p style="font-size: 12px; color: #777;">Please keep this password secure and change it after your first login.</p>
-      </div>
-      <p>To access your account, please visit:</p>
-      <p><a href="${window.location.origin}/auth" style="color: #0066cc;">${window.location.origin}/auth</a></p>
-      <p>If you have any questions, please don't hesitate to contact our support team.</p>
-      <p>Best regards,<br>The Welcome.Chat Team</p>
-      <div style="font-size: 12px; color: #999; margin-top: 30px; padding-top: 10px; border-top: 1px solid #eee;">
-        <p>&copy; ${currentYear} Welcome.Chat. All rights reserved.</p>
-      </div>
-    </div>
-  `;
-};
-
-/**
- * Log client creation activity in the database.
- * 
- * @param clientId - The client ID 
- * @param clientName - The client's name
- * @param email - The client's email address
- * @param agentName - The agent's name
- * @returns A promise that resolves when the operation is complete
- */
-export const logClientCreationActivity = async (
-  clientId: string,
-  clientName: string,
-  email: string,
-  agentName: string
-): Promise<void> => {
-  try {
-    // Import here to avoid circular dependencies
-    const { supabase } = await import('@/integrations/supabase/client');
-    
-    const { error } = await supabase.from("client_activities").insert({
-      client_id: clientId,
-      activity_type: "client_created",
-      description: "New client created with AI agent: " + agentName,
-      metadata: {
-        client_name: clientName,
-        email: email,
-        agent_name: agentName
       }
     });
     
-    if (error) {
-      console.error('Error logging client creation activity:', error);
-      throw new Error(error.message);
+    if (authError) {
+      console.error("Error creating client auth account:", authError);
+      return {
+        success: false,
+        message: `Failed to create client account: ${authError.message}`
+      };
     }
     
-    console.log(`Client creation activity logged for ${clientId}`);
-  } catch (err) {
-    console.error('Failed to log client creation activity:', err);
-    // Don't throw here - activity logging is not critical
+    if (!authData?.user) {
+      return {
+        success: false,
+        message: "Failed to create client account: No user returned"
+      };
+    }
+    
+    const userId = authData.user.id;
+    
+    // Step 2: Create the client record in ai_agents
+    const clientId = crypto.randomUUID();
+    
+    const { data: clientData, error: clientError } = await supabase
+      .from("ai_agents")
+      .insert({
+        id: clientId,
+        client_id: clientId,
+        user_id: userId,
+        name: "AI Assistant",
+        interaction_type: "config",
+        status: "active",
+        settings: {
+          client_name: clientName,
+          email: email,
+          created_at: new Date().toISOString(),
+          temp_password: tempPassword,
+          temp_password_set_at: new Date().toISOString(),
+          ...additionalData
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (clientError) {
+      console.error("Error creating client record:", clientError);
+      
+      // If client record creation fails, we should delete the auth user to keep things consistent
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+      } catch (deleteError) {
+        console.error("Failed to clean up auth user after client creation failure:", deleteError);
+      }
+      
+      return {
+        success: false,
+        message: `Failed to create client record: ${clientError.message}`
+      };
+    }
+    
+    // Step 3: Log the client creation activity
+    try {
+      await callRpcFunction('log_client_activity', {
+        client_id_param: clientId,
+        activity_type_param: 'client_created',
+        description_param: `New client created: ${clientName}`,
+        metadata_param: {
+          email,
+          created_at: new Date().toISOString()
+        }
+      });
+    } catch (activityError) {
+      console.error("Error logging client creation activity:", activityError);
+      // Don't fail the whole operation just because activity logging failed
+    }
+    
+    return {
+      success: true,
+      message: "Client account created successfully",
+      data: {
+        client_id: clientId,
+        user_id: userId,
+        email,
+        client_name: clientName,
+        temp_password: tempPassword
+      }
+    };
+  } catch (error) {
+    console.error("Error in createClientAccount:", error);
+    return {
+      success: false,
+      message: `An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`
+    };
   }
 };
 
 /**
- * Creates a new client in the database
+ * Saves the temporary password to the ai_agents table
  */
-export const createNewClientInDatabase = async (
-  clientName: string,
+export const saveClientTempPassword = async (
+  agentId: string,
   email: string,
-  agent_name: string,
-  agent_description?: string
-) => {
+  tempPassword?: string
+): Promise<any> => {
   try {
-    // Check if client already exists
-    const { data: existingClients } = await supabase
+    const { data, error } = await supabase
       .from('ai_agents')
-      .select('*')
-      .eq('email', email)
-      .eq('interaction_type', 'config');
-
-    if (existingClients && existingClients.length > 0) {
-      throw new Error(`A client with the email ${email} already exists.`);
-    }
-
-    // Generate UUID for new client
-    const clientId = crypto.randomUUID();
-
-    // Create the client in DB
-    const { data: newClient, error } = await supabase
-      .from('ai_agents')
-      .insert({
-        id: crypto.randomUUID(),
-        client_id: clientId,
-        interaction_type: 'config',
-        client_name: clientName,
-        email: email,
-        name: agent_name,
-        agent_description: agent_description,
-        content: '',
+      .update({
         settings: {
-          agent_name,
-          agent_description,
-          client_name: clientName,
-          email: email
+          tempPassword: tempPassword,
+          tempPasswordSetAt: new Date().toISOString()
         }
       })
-      .select('*')
-      .single();
+      .eq('id', agentId)
+      .eq('email', email);
 
     if (error) {
+      console.error("Error saving temporary password:", error);
       throw error;
     }
 
-    // Log client creation activity using callRpcFunction
+    return data;
+  } catch (error) {
+    console.error("Error in saveClientTempPassword:", error);
+    throw error;
+  }
+};
+
+/**
+ * Log client creation activity
+ */
+export const logClientCreation = async (
+  clientId: string, 
+  clientName: string, 
+  email: string
+) => {
+  try {
+    // Use callRpcFunction for activity logging to avoid type checking issues
     await callRpcFunction('log_client_activity', {
       client_id_param: clientId,
       activity_type_param: 'client_created',
       description_param: `New client created: ${clientName}`,
       metadata_param: {
         email,
-        agent_name: agent_name
+        created_at: new Date().toISOString()
       }
     });
-
-    return newClient;
   } catch (error) {
-    console.error("Error creating client in database:", error);
-    throw error;
+    console.error("Error logging client creation:", error);
   }
+};
+
+/**
+ * Generates a welcome email template for a new client
+ */
+export const generateClientWelcomeEmailTemplate = (
+  clientName: string, 
+  loginUrl: string,
+  email: string,
+  tempPassword: string
+): string => {
+  return `
+    <h2>Welcome to Our Platform, ${clientName}!</h2>
+    <p>Your account has been created successfully.</p>
+    <p><strong>Login Details:</strong></p>
+    <ul>
+      <li>Email: ${email}</li>
+      <li>Temporary Password: ${tempPassword}</li>
+    </ul>
+    <p>Please login at <a href="${loginUrl}">${loginUrl}</a> to get started.</p>
+    <p>You will be prompted to change your password on first login.</p>
+    <p>If you have any questions, please contact our support team.</p>
+  `;
 };

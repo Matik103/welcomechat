@@ -1,5 +1,5 @@
 
-import { createClient } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { getDateRange } from "@/utils/dateUtils";
 
 /**
@@ -13,7 +13,6 @@ export const getInteractionCount = async (
   clientId?: string
 ): Promise<number> => {
   try {
-    const supabase = createClient();
     const { startDate } = getDateRange(timeRange);
     
     // Create query for chat interactions
