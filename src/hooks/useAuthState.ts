@@ -4,7 +4,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 
 export function useAuthState() {
-  // Define useState outside of any conditional to avoid "dispatcher is null" error
+  // Define state inside the function body
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);

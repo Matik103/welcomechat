@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Activity, ClientActivity } from '@/types/activity';
+import { ClientActivity } from '@/types/activity';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface RecentActivityListProps {
@@ -65,20 +65,20 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
     const { activity_type, client_name } = activity;
     
     if (activity_type.includes('client_created')) {
-      return `New client "${client_name}" was created`;
+      return `New client "${client_name || 'Unknown'}" was created`;
     }
     if (activity_type.includes('client_updated')) {
-      return `Client "${client_name}" was updated`;
+      return `Client "${client_name || 'Unknown'}" was updated`;
     }
     if (activity_type.includes('website_url_added')) {
-      return `Website URL was added to client "${client_name}"`;
+      return `Website URL was added to client "${client_name || 'Unknown'}"`;
     }
     if (activity_type.includes('document_added') || activity_type.includes('document_uploaded')) {
-      return `Document was added to client "${client_name}"`;
+      return `Document was added to client "${client_name || 'Unknown'}"`;
     }
     
     // Fallback to a readable version of the activity type
-    return `${activity_type.replace(/_/g, ' ')} for ${client_name}`;
+    return `${activity_type.replace(/_/g, ' ')} for ${client_name || 'Unknown'}`;
   };
 
   return (
