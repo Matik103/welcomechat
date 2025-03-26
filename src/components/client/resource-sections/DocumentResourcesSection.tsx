@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DocumentLinkForm } from '@/components/client/drive-links/DocumentLinkForm';
 import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
@@ -32,7 +32,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
   const handleAddDocumentLink = async (data: DocumentLinkFormData) => {
     try {
       // Ensure document_type is provided
-      const completeData: DocumentLinkFormData = {
+      const completeData = {
         ...data,
         document_type: data.document_type || 'document'
       };

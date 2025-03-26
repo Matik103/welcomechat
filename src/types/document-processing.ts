@@ -28,7 +28,7 @@ export interface DocumentLink {
 export interface DocumentLinkFormData {
   link: string;
   refresh_rate: number;
-  document_type?: string;
+  document_type: string;
 }
 
 export interface DriveLinksProps {
@@ -50,6 +50,10 @@ export interface DocumentProcessingResult {
   documentId?: string;
   processed: number;
   failed: number;
+  urlsScraped?: number;
+  contentStored?: number;
+  status?: string;
+  message?: string;
 }
 
 export interface DocumentProcessingOptions {
@@ -61,11 +65,14 @@ export interface DocumentProcessingOptions {
 export interface DocumentChunk {
   content: string;
   metadata?: Record<string, any>;
+  id?: string;
 }
 
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];
+  message?: string;
+  status?: 'success' | 'error' | 'warning' | 'info';
 }
 
 export interface DocumentUploadFormProps {

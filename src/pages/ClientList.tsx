@@ -13,7 +13,6 @@ export default function ClientList() {
   
   const {
     clients,
-    filteredClients,
     isLoading,
     error,
     searchQuery,
@@ -46,10 +45,10 @@ export default function ClientList() {
       </div>
 
       <ClientListContainer
-        clients={clients || []}
-        filteredClients={filteredClients}
+        clients={clients}
+        filteredClients={clients}
         isLoading={isLoading}
-        searchQuery={searchQuery}
+        searchQuery={searchQuery || ''}
         onSearch={handleSearch}
         onDeleteClick={handleDeleteClient}
       />

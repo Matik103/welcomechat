@@ -90,20 +90,18 @@ export function useAdminDashboard() {
           }))
         : [];
       
-      // Fetch total clients
-      // Use ai_agents table with interaction_type = 'config' to get unique clients
-      const { data: totalClientsData, error: totalClientsError } = await supabase
+      // Fetch total clients from ai_agents table
+      const { data: totalClientsResult, error: totalClientsError } = await supabase
         .from('ai_agents')
         .select('client_id', { count: 'exact', head: true })
         .eq('interaction_type', 'config')
         .throwOnError();
 
-      if (totalClientsError) {
-        console.error('Error fetching total clients:', totalClientsError);
-        throw totalClientsError;
+      // Handle the count safely
+      let totalClients = 0;
+      if (totalClientsResult && typeof totalClientsResult.count === 'number') {
+        totalClients = totalClientsResult.count;
       }
-
-      const totalClients = totalClientsData?.count || 0;
       
       // Fetch active clients - past 7 days
       const activeClientsData = await callRpcFunctionSafe<any>(

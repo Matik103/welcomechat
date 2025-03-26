@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
 import { createClientActivity } from '@/services/clientActivityService';
+import { useState } from 'react';
 
 export function useClientList() {
   const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState<string>('');
   
   // Fetch all clients with the specified filters
   const getClients = async (args?: { 
@@ -17,8 +19,9 @@ export function useClientList() {
       const { status, searchQuery, includeDeleted = false } = args || {};
       
       let query = supabase
-        .from('clients')
-        .select('*');
+        .from('ai_agents')
+        .select('*')
+        .eq('interaction_type', 'config');
       
       // Apply status filter if provided
       if (status) {
@@ -44,8 +47,8 @@ export function useClientList() {
       
       // Transform data to match Client type
       return data.map(client => ({
-        id: client.id,
-        client_id: client.id, // Set client_id to id for compatibility
+        id: String(client.id || ''),
+        client_id: String(client.client_id || ''),
         client_name: client.client_name || '',
         email: client.email || '',
         company: client.company || '',
@@ -58,11 +61,12 @@ export function useClientList() {
         last_active: client.last_active,
         logo_url: client.logo_url || '',
         logo_storage_path: client.logo_storage_path || '',
-        agent_name: client.agent_name || 'AI Assistant',
-        agent_description: '',
-        widget_settings: client.widget_settings || {},
+        agent_name: client.name || 'AI Assistant',
+        agent_description: client.agent_description || '',
+        widget_settings: client.settings || {},
         name: client.client_name || '', // For backward compatibility
-        is_error: false
+        is_error: false,
+        user_id: ''
       }));
     } catch (error) {
       console.error('Failed to fetch clients:', error);
@@ -74,7 +78,7 @@ export function useClientList() {
   const recoverClient = async (clientId: string): Promise<Client> => {
     try {
       const { data, error } = await supabase
-        .from('clients')
+        .from('ai_agents')
         .update({ 
           deleted_at: null, 
           deletion_scheduled_at: null,
@@ -95,7 +99,30 @@ export function useClientList() {
         `Client was recovered from deletion`
       );
       
-      return data[0] as Client;
+      const client = data[0];
+      
+      return {
+        id: String(client.id || ''),
+        client_id: String(client.client_id || ''),
+        client_name: client.client_name || '',
+        email: client.email || '',
+        company: client.company || '',
+        description: '', // Default value
+        status: client.status || 'active',
+        created_at: client.created_at || new Date().toISOString(),
+        updated_at: client.updated_at || new Date().toISOString(),
+        deleted_at: client.deleted_at,
+        deletion_scheduled_at: client.deletion_scheduled_at,
+        last_active: client.last_active,
+        logo_url: client.logo_url || '',
+        logo_storage_path: client.logo_storage_path || '',
+        agent_name: client.name || 'AI Assistant',
+        agent_description: client.agent_description || '',
+        widget_settings: client.settings || {},
+        name: client.client_name || '', // For backward compatibility
+        is_error: false,
+        user_id: ''
+      };
     } catch (error) {
       console.error('Failed to recover client:', error);
       throw error;
@@ -103,10 +130,18 @@ export function useClientList() {
   };
   
   // Use react-query for data fetching
-  const query = useQuery({
-    queryKey: ['clients'],
-    queryFn: () => getClients(),
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['clients', searchQuery],
+    queryFn: () => getClients({ searchQuery }),
   });
+  
+  // Create a filtered clients list based on the search query
+  const filteredClients = data || [];
+  
+  // Handle search input changes
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
   
   // Use react-query for the recovery mutation
   const recoverMutation = useMutation({
@@ -118,13 +153,16 @@ export function useClientList() {
   });
 
   return {
-    clients: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    clients: data || [],
+    filteredClients,
+    isLoading,
+    error,
+    refetch,
     recover: recoverMutation.mutate,
     isRecovering: recoverMutation.isPending,
     recoverError: recoverMutation.error,
-    getFilteredClients: getClients
+    getFilteredClients: getClients,
+    searchQuery,
+    handleSearch
   };
 }

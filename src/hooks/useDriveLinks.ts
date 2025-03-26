@@ -1,99 +1,155 @@
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { DocumentLink, AccessStatus } from "@/types/client";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { DocumentLink, DocumentLinkFormData, AccessStatus } from '@/types/document-processing';
 
-export const useDriveLinks = (clientId: string) => {
+export function useDriveLinks(clientId: string) {
   const queryClient = useQueryClient();
-
-  // Query to fetch drive links
-  const { data: driveLinks = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["driveLinks", clientId],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from("google_drive_links")
-          .select("*")
-          .eq("client_id", clientId)
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
-        // Convert to DocumentLink type with document_type property added
-        return (data || []).map(link => ({
-          ...link,
-          document_type: "google_drive" // Add missing document_type property
-        })) as DocumentLink[];
-      } catch (error) {
-        console.error("Error fetching drive links:", error);
-        return [];
-      }
-    },
-    enabled: !!clientId,
-  });
-
-  // Mutation to add a new drive link
-  const addDriveLinkMutation = useMutation({
-    mutationFn: async (data: { link: string; refresh_rate: number }) => {
-      const { data: result, error } = await supabase
-        .from("google_drive_links")
-        .insert({
-          client_id: clientId,
-          link: data.link,
-          refresh_rate: data.refresh_rate,
-          access_status: "unknown",
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+  
+  // Fetch all document links for a client
+  const fetchDocumentLinks = async (): Promise<DocumentLink[]> => {
+    if (!clientId) return [];
+    
+    const { data, error } = await supabase
+      .from('document_links')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching document links:', error);
+      throw error;
+    }
+    
+    return data as DocumentLink[];
+  };
+  
+  // Add a new document link
+  const addDocumentLink = async (linkData: DocumentLinkFormData): Promise<DocumentLink> => {
+    if (!clientId) {
+      throw new Error('Client ID is required');
+    }
+    
+    const { data, error } = await supabase
+      .from('document_links')
+      .insert({
+        client_id: clientId,
+        link: linkData.link,
+        refresh_rate: linkData.refresh_rate,
+        document_type: linkData.document_type || 'document',
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error adding document link:', error);
+      throw error;
+    }
+    
+    return data as DocumentLink;
+  };
+  
+  // Delete a document link
+  const deleteDocumentLink = async (linkId: number): Promise<void> => {
+    const { error } = await supabase
+      .from('document_links')
+      .delete()
+      .eq('id', linkId)
+      .eq('client_id', clientId);
+    
+    if (error) {
+      console.error('Error deleting document link:', error);
+      throw error;
+    }
+  };
+  
+  // Check the access status of a document link
+  const checkLinkAccess = async (link: string): Promise<AccessStatus> => {
+    try {
+      // Call Edge Function to check access
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/check-drive-access`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.supabaseKey}`
+        },
+        body: JSON.stringify({ url: link })
+      });
       
-      // Return with document_type for consistent typing
-      return {
-        ...result,
-        document_type: "google_drive"
-      } as DocumentLink;
-    },
-    onSuccess: () => {
-      toast.success("Drive link added successfully");
-      queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
-    },
-    onError: (error) => {
-      console.error("Error adding drive link:", error);
-      toast.error("Failed to add drive link");
-    },
-  });
-
-  // Mutation to delete a drive link
-  const deleteDriveLinkMutation = useMutation({
-    mutationFn: async (linkId: number) => {
-      const { error } = await supabase
-        .from("google_drive_links")
-        .delete()
-        .eq("id", linkId);
-
-      if (error) throw error;
-      return linkId;
-    },
-    onSuccess: () => {
-      toast.success("Drive link deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ["driveLinks", clientId] });
-    },
-    onError: (error) => {
-      console.error("Error deleting drive link:", error);
-      toast.error("Failed to delete drive link");
-    },
-  });
-
-  return {
-    driveLinks,
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error('Error checking link access:', result);
+        return 'unknown';
+      }
+      
+      return result.isAccessible ? 'granted' : 'denied';
+    } catch (error) {
+      console.error('Error in checkLinkAccess:', error);
+      return 'unknown';
+    }
+  };
+  
+  // Use useQuery to fetch document links
+  const { 
+    data: documentLinks = [], 
     isLoading,
     error,
-    refetch,
-    addDriveLink: addDriveLinkMutation.mutate,
-    deleteDriveLink: deleteDriveLinkMutation.mutate,
-    isAdding: addDriveLinkMutation.isPending,
-    isDeleting: deleteDriveLinkMutation.isPending,
+    refetch 
+  } = useQuery({
+    queryKey: ['documentLinks', clientId],
+    queryFn: fetchDocumentLinks,
+    enabled: !!clientId
+  });
+  
+  // Use mutations for add and delete operations
+  const addLinkMutation = useMutation({
+    mutationFn: addDocumentLink,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
+    }
+  });
+  
+  const deleteLinkMutation = useMutation({
+    mutationFn: deleteDocumentLink,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
+    }
+  });
+  
+  // State for link validation
+  const [isValidating, setIsValidating] = useState(false);
+  
+  // Function to validate a link before adding
+  const validateLink = async (link: string): Promise<{ isValid: boolean; message: string }> => {
+    setIsValidating(true);
+    try {
+      const accessStatus = await checkLinkAccess(link);
+      
+      if (accessStatus === 'granted') {
+        return { isValid: true, message: 'Link is accessible' };
+      } else if (accessStatus === 'denied') {
+        return { isValid: false, message: 'This link is not publicly accessible' };
+      } else {
+        return { isValid: true, message: 'Could not verify access status, but will attempt to process' };
+      }
+    } catch (error) {
+      console.error('Error validating link:', error);
+      return { isValid: false, message: 'Error validating link' };
+    } finally {
+      setIsValidating(false);
+    }
   };
-};
+  
+  return {
+    documentLinks,
+    isLoading,
+    error,
+    isValidating,
+    addDocumentLink: addLinkMutation,
+    deleteDocumentLink: deleteLinkMutation,
+    validateLink,
+    refetch
+  };
+}

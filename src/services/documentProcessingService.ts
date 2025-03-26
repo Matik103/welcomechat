@@ -1,134 +1,107 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { DocumentProcessingStatus } from '@/types/document-processing';
 import { callRpcFunctionSafe } from '@/utils/rpcUtils';
+import { createClientActivity } from '@/services/clientActivityService';
+import { v4 as uuidv4 } from 'uuid';
 
-// Function to call RPC function safely with error handling
-const callRpcFunction = async (
-  functionName: string, 
-  params: Record<string, any>
-): Promise<any> => {
-  try {
-    const { data, error } = await supabase.rpc(functionName, params);
-    
-    if (error) {
-      console.error(`Error calling RPC function ${functionName}:`, error);
-      throw error;
-    }
-    
-    return data;
-  } catch (error) {
-    console.error(`Error in callRpcFunction for ${functionName}:`, error);
-    throw error;
-  }
-};
-
-// Service for document processing functions
-export const DocumentProcessingService = {
-  // Check the status of a document processing job
-  checkStatus: async (documentId: string): Promise<DocumentProcessingStatus> => {
-    try {
-      const { data, error } = await supabase
-        .from('document_processing_status')
-        .select('*')
-        .eq('job_id', documentId)
-        .single();
-      
-      if (error) {
-        console.error('Error checking document processing status:', error);
-        throw error;
-      }
-      
-      return data as DocumentProcessingStatus;
-    } catch (error) {
-      console.error('Error in checkStatus:', error);
-      throw error;
-    }
-  },
-  
-  // Process a document URL
-  processDocument: async (
-    clientId: string, 
-    documentUrl: string, 
-    documentType: string
-  ): Promise<string> => {
-    try {
-      const { data, error } = await supabase
-        .from('document_processing_jobs')
-        .insert({
-          client_id: clientId,
-          document_url: documentUrl,
-          document_type: documentType,
-          status: 'pending'
-        })
-        .select('id')
-        .single();
-      
-      if (error) {
-        console.error('Error creating document processing job:', error);
-        throw error;
-      }
-      
-      return data.id;
-    } catch (error) {
-      console.error('Error in processDocument:', error);
-      throw error;
-    }
-  }
-};
-
-// Function to upload a document and process it
-export const uploadDocument = async (
-  file: File, 
-  clientId: string
+// Register a document for processing
+export const registerDocumentForProcessing = async (
+  clientId: string,
+  documentUrl: string,
+  documentType: string
 ): Promise<string> => {
   try {
-    // Generate a unique file name
-    const timestamp = new Date().getTime();
-    const fileName = `${timestamp}_${file.name.replace(/\s+/g, '_')}`;
-    const filePath = `clients/${clientId}/documents/${fileName}`;
-    
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage
-      .from('client-documents')
-      .upload(filePath, file);
-    
-    if (uploadError) {
-      console.error('Error uploading document:', uploadError);
-      throw uploadError;
-    }
-    
-    // Get public URL
-    const { data: urlData } = await supabase
-      .storage
-      .from('client-documents')
-      .getPublicUrl(filePath);
-    
-    const documentUrl = urlData.publicUrl;
-    
-    // Determine document type from file extension
-    const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
-    let documentType = 'text';
-    
-    if (['pdf'].includes(fileExt)) {
-      documentType = 'pdf';
-    } else if (['doc', 'docx'].includes(fileExt)) {
-      documentType = 'word';
-    } else if (['xls', 'xlsx'].includes(fileExt)) {
-      documentType = 'excel';
-    } else if (['ppt', 'pptx'].includes(fileExt)) {
-      documentType = 'powerpoint';
-    }
-    
-    // Create the processing job
-    return await DocumentProcessingService.processDocument(
-      clientId,
-      documentUrl,
-      documentType
+    // First check if we have a document processing table
+    // If not, we'll skip the registration
+    const checkTable = await callRpcFunctionSafe<any>(
+      'check_table_exists',
+      { table_name: 'document_processing' }
     );
+    
+    if (!checkTable || !checkTable.exists) {
+      console.log('Document processing table does not exist');
+      
+      // Log this for debugging
+      await createClientActivity(
+        clientId,
+        'error_logged',
+        'Document processing attempted but table does not exist',
+        { url: documentUrl }
+      );
+      
+      // Generate a placeholder ID for the document
+      return `manual-${uuidv4()}`;
+    }
+    
+    // Generate a unique documentId
+    const documentId = uuidv4();
+    
+    // Get the agent name for this client
+    const { data: agentData, error: agentError } = await supabase
+      .from('ai_agents')
+      .select('name')
+      .eq('client_id', clientId)
+      .eq('interaction_type', 'config')
+      .single();
+    
+    if (agentError) {
+      console.error('Error getting agent name:', agentError);
+      throw agentError;
+    }
+    
+    const agentName = agentData?.name || 'AI Assistant';
+    
+    // Insert a record in the document_processing table
+    const { data, error } = await supabase
+      .from('document_processing')
+      .insert({
+        document_id: documentId,
+        document_url: documentUrl,
+        document_type: documentType,
+        client_id: clientId,
+        agent_name: agentName,
+        status: 'pending'
+      });
+    
+    if (error) {
+      console.error('Error registering document for processing:', error);
+      throw error;
+    }
+    
+    // Log the activity
+    await createClientActivity(
+      clientId,
+      'document_processing_started',
+      `Document processing started: ${documentUrl}`,
+      { document_id: documentId, document_type: documentType }
+    );
+    
+    return documentId;
   } catch (error) {
-    console.error('Error in uploadDocument:', error);
+    console.error('Error in registerDocumentForProcessing:', error);
     throw error;
+  }
+};
+
+// Check document processing status
+export const checkDocumentProcessingStatus = async (
+  documentId: string
+): Promise<'pending' | 'processing' | 'completed' | 'failed'> => {
+  try {
+    const { data, error } = await supabase
+      .from('document_processing')
+      .select('status')
+      .eq('document_id', documentId)
+      .single();
+    
+    if (error) {
+      console.error('Error checking document processing status:', error);
+      return 'failed';
+    }
+    
+    return data.status as 'pending' | 'processing' | 'completed' | 'failed';
+  } catch (error) {
+    console.error('Error in checkDocumentProcessingStatus:', error);
+    return 'failed';
   }
 };

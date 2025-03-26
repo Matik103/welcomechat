@@ -16,6 +16,19 @@ export interface WebsiteUrl {
   scrapability?: 'high' | 'medium' | 'low' | 'unknown';
 }
 
+export interface Website {
+  id: number;
+  client_id: string;
+  url: string;
+  refresh_rate: number;
+  scrapable: boolean;
+  created_at?: string;
+  updated_at?: string;
+  last_crawled?: string;
+  error?: string;
+  status?: string;
+}
+
 export interface WebsiteUrlFormData {
   url: string;
   refresh_rate: number;
@@ -39,4 +52,13 @@ export interface WebsiteUrlsProps {
   agentName?: string;
   addWebsiteUrl?: (data: { url: string; refresh_rate: number; }) => Promise<void>;
   deleteWebsiteUrl?: (urlId: number) => Promise<void>;
+}
+
+export interface WebsiteUrlFormProps {
+  onAdd: (data: WebsiteUrlFormData) => Promise<void>;
+  isAdding: boolean;
+  agentName: string;
+  clientId?: string;
+  onAddSuccess?: () => Promise<any>;
+  webstoreHook?: { isAdding: boolean };
 }
