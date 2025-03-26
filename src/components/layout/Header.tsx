@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,13 +34,14 @@ export const Header = () => {
     <header className="border-b bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+          {/* Logo with preload */}
           <Link to="/admin/dashboard" className="flex items-center">
             <div className="h-10">
               <img 
                 src="/lovable-uploads/e262d378-49c1-4219-ae37-ce0264b3500c.png" 
                 alt="WelcomeChat Logo" 
                 className="h-full w-auto"
+                loading="eager"
               />
             </div>
           </Link>
