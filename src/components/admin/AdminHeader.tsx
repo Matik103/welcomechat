@@ -12,6 +12,7 @@ export const AdminHeader = () => {
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Logo on the left */}
           <div className="flex-shrink-0">
             <Link to="/admin/dashboard">
               <img 
@@ -22,6 +23,7 @@ export const AdminHeader = () => {
             </Link>
           </div>
           
+          {/* Navigation links moved to the right */}
           <div className="flex items-center gap-6">
             <Link 
               to="/admin/dashboard" 
@@ -52,6 +54,7 @@ export const AdminHeader = () => {
             </Link>
           </div>
           
+          {/* User name on the right (removing gear icon) */}
           <div className="flex items-center">
             <span className="text-sm font-medium text-gray-700">
               {user?.user_metadata?.full_name || user?.email}

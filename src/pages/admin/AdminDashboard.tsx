@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DashboardStatCard } from '@/components/admin/DashboardStatCard';
@@ -155,7 +154,7 @@ export default function AdminDashboardPage() {
           />
         </div>
         
-        {/* Action Buttons */}
+        {/* Action Buttons at the bottom left */}
         <div className="flex justify-start mt-6">
           <div className="flex space-x-4">
             <Button 
