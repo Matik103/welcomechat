@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/card';
 import { Loader2, Upload } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { DocumentUploadFormProps } from '@/types/document-processing';
-import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 
 export const DocumentUploadForm = ({
   onSubmitDocument,

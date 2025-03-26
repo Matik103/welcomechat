@@ -31,7 +31,13 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
 
   const handleAddDocumentLink = async (data: DocumentLinkFormData) => {
     try {
-      await addDocumentLinkMutation.mutateAsync(data);
+      // Ensure document_type is provided
+      const completeData: DocumentLinkFormData = {
+        ...data,
+        document_type: data.document_type || 'document'
+      };
+      
+      await addDocumentLinkMutation.mutateAsync(completeData);
       
       // Log the activity
       await logClientActivity(
@@ -112,6 +118,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
           isLoading={isLoading}
           onDelete={handleDeleteDocumentLink}
           isDeleting={deleteDocumentLinkMutation.isPending}
+          deletingId={deleteDocumentLinkMutation.variables}
         />
       </CardContent>
     </Card>

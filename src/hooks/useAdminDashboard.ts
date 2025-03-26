@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
 // Dashboard stats interface
 interface DashboardStats {
@@ -49,30 +50,38 @@ export function useAdminDashboard() {
 
     try {
       // Fetch active users - past 7 days
-      const { data: activeUsersData } = await supabase.rpc('get_active_users_count', {
-        days_ago: 7
-      });
+      const activeUsersData = await callRpcFunctionSafe<any>(
+        'get_active_users_count',
+        { days_ago: 7 }
+      );
       
       const activeUsers = safeGetJsonValue<number>(activeUsersData, 'active_users', 0);
       
       // Fetch interaction count - past 30 days
-      const { data: interactionCountData } = await supabase.rpc('get_interaction_count', {
-        days_ago: 30
-      });
+      const interactionCountData = await callRpcFunctionSafe<any>(
+        'get_interaction_count',
+        { days_ago: 30 }
+      );
       
       const interactionCount = safeGetJsonValue<number>(interactionCountData, 'count', 0);
       
       // Fetch average response time
-      const { data: avgResponseTimeData } = await supabase.rpc('get_avg_response_time', {
-        days_ago: 30
-      });
+      const avgResponseTimeData = await callRpcFunctionSafe<any>(
+        'get_avg_response_time',
+        { days_ago: 30 }
+      );
       
       const avgResponseTime = safeGetJsonValue<number>(avgResponseTimeData, 'avg_time', 0);
       
       // Fetch common queries
-      const { data: commonQueriesData } = await supabase.rpc('get_common_queries', {
-        limit_count: 5
-      });
+      const commonQueriesData = await callRpcFunctionSafe<any[]>(
+        'get_common_queries',
+        { 
+          limit_param: 5,
+          client_id_param: '',
+          agent_name_param: ''
+        }
+      );
       
       const commonQueries = Array.isArray(commonQueriesData) 
         ? commonQueriesData.map(item => ({
@@ -82,21 +91,25 @@ export function useAdminDashboard() {
         : [];
       
       // Fetch total clients
-      const { data: totalClientsData } = await supabase.rpc('get_total_clients_count');
+      const totalClientsData = await callRpcFunctionSafe<any>(
+        'get_total_clients_count'
+      );
       
       const totalClients = safeGetJsonValue<number>(totalClientsData, 'total_clients', 0);
       
       // Fetch active clients - past 7 days
-      const { data: activeClientsData } = await supabase.rpc('get_active_clients_count', {
-        days_ago: 7
-      });
+      const activeClientsData = await callRpcFunctionSafe<any>(
+        'get_active_clients_count',
+        { days_ago: 7 }
+      );
       
       const activeClients = safeGetJsonValue<number>(activeClientsData, 'active_clients', 0);
       
       // Fetch active clients - previous 7 days for comparison
-      const { data: prevActiveClientsData } = await supabase.rpc('get_active_clients_count_previous_period', {
-        days_ago: 7
-      });
+      const prevActiveClientsData = await callRpcFunctionSafe<any>(
+        'get_active_clients_count_previous_period',
+        { days_ago: 7 }
+      );
       
       const prevActiveClients = safeGetJsonValue<number>(prevActiveClientsData, 'prev_active_clients', 0);
       

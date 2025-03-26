@@ -1,98 +1,74 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { WebsiteUrlsList } from '@/components/client/website-urls/WebsiteUrlsList';
 import { WebsiteUrlForm } from '@/components/client/website-urls/WebsiteUrlForm';
+import { WebsiteUrlsList } from '@/components/client/website-urls/WebsiteUrlsList';
+import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { WebsiteUrl } from '@/types/website-url';
+import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
 import { ActivityType } from '@/types/client-form';
 import { toast } from 'sonner';
-import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
 
-export interface WebsiteResourcesSectionProps {
+interface WebsiteResourcesSectionProps {
   clientId: string;
-  urls: WebsiteUrl[];
-  isProcessing?: boolean;
-  isDeleting?: boolean;
-  refetchUrls?: () => void;
   onResourceChange?: () => void;
   logClientActivity: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
 }
 
 export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = ({
   clientId,
-  urls,
-  isProcessing = false,
-  isDeleting = false,
-  refetchUrls,
   onResourceChange,
   logClientActivity
 }) => {
-  const [addingUrl, setAddingUrl] = useState(false);
-  const [processingUrlId, setProcessingUrlId] = useState<number | null>(null);
-  const [deletingUrlId, setDeletingUrlId] = useState<number | null>(null);
+  const [processingUrl, setProcessingUrl] = useState<number | null>(null);
   
   const {
-    addWebsite,
-    deleteWebsite,
-    storeWebsiteContent,
-    isStoring
-  } = useStoreWebsiteContent(clientId);
+    websiteUrls,
+    isLoading,
+    error,
+    addWebsiteUrl,
+    deleteWebsiteUrl,
+    refetch
+  } = useWebsiteUrls(clientId);
+  
+  const { storeWebsiteContent, isProcessing } = useStoreWebsiteContent();
 
-  const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
+  const handleAddWebsiteUrl = async (url: string, refreshRate: number) => {
     try {
-      setAddingUrl(true);
+      await addWebsiteUrl.mutateAsync({ url, refreshRate });
       
-      // Add the website to the database
-      const result = await addWebsite({
-        client_id: clientId,
-        url: data.url,
-        refresh_rate: data.refresh_rate,
-        scrapable: true
-      });
+      // Log the activity
+      await logClientActivity(
+        'website_url_added',
+        `Added website URL: ${url}`,
+        { url, refresh_rate: refreshRate }
+      );
       
-      if (result && result.length > 0) {
-        const website = {
-          ...result[0],
-          scrapable: true, // Add scrapable property since it's required
-          name: `Website ${result[0].id}` // Add name property for compatibility
-        };
-        
-        // Store the website content
-        await storeWebsiteContent(website, clientId);
-        
-        // Log activity
-        await logClientActivity(
-          'website_url_added',
-          `Added website URL: ${data.url}`,
-          { url: data.url, refresh_rate: data.refresh_rate }
-        );
-        
-        toast.success('Website URL added successfully');
-        
-        if (refetchUrls) {
-          refetchUrls();
-        }
-        
-        if (onResourceChange) {
-          onResourceChange();
-        }
+      toast.success('Website URL added successfully');
+      
+      if (refetch) {
+        refetch();
       }
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
+      
+      return true;
     } catch (error) {
       console.error('Error adding website URL:', error);
       toast.error('Failed to add website URL');
-    } finally {
-      setAddingUrl(false);
+      return false;
     }
   };
-
-  const handleDeleteWebsiteUrl = async (urlId: number) => {
+  
+  const handleDeleteWebsiteUrl = async (id: number) => {
     try {
-      setDeletingUrlId(urlId);
-      const urlToDelete = urls.find(u => u.id === urlId);
+      const urlToDelete = websiteUrls.find(url => url.id === id);
       
-      await deleteWebsite(urlId);
+      await deleteWebsiteUrl.mutateAsync(id);
       
-      // Log activity
+      // Log the activity
       if (urlToDelete) {
         await logClientActivity(
           'website_url_deleted',
@@ -103,8 +79,8 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       
       toast.success('Website URL deleted successfully');
       
-      if (refetchUrls) {
-        refetchUrls();
+      if (refetch) {
+        refetch();
       }
       
       if (onResourceChange) {
@@ -113,42 +89,53 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
     } catch (error) {
       console.error('Error deleting website URL:', error);
       toast.error('Failed to delete website URL');
-    } finally {
-      setDeletingUrlId(null);
     }
   };
-
-  const handleProcessWebsiteUrl = async (url: WebsiteUrl) => {
+  
+  const handleProcessWebsite = async (url: WebsiteUrl) => {
     try {
-      setProcessingUrlId(url.id);
+      setProcessingUrl(url.id);
       
-      // Process the website content
-      const urlWithScrapable = {
-        ...url,
-        scrapable: true, // Add scrapable property
-        name: `Website ${url.id}` // Add name property for compatibility
+      if (!clientId) {
+        toast.error('Client ID is missing');
+        return;
+      }
+      
+      // Create a compatible website object
+      const websiteToProcess = {
+        id: url.id,
+        url: url.url,
+        scrapable: true,
+        client_id: clientId
       };
       
-      // Store the website content
-      await storeWebsiteContent(urlWithScrapable, clientId);
+      const result = await storeWebsiteContent(websiteToProcess);
       
-      // Log activity
-      await logClientActivity(
-        'document_processing_started',
-        `Started processing website: ${url.url}`,
-        { url: url.url }
-      );
+      if (result.success) {
+        toast.success(`Processed ${result.urlsScraped} pages from ${url.url}`);
+        
+        // Log the activity
+        await logClientActivity(
+          'website_url_added',
+          `Processed website URL: ${url.url}`,
+          { 
+            url: url.url, 
+            urls_scraped: result.urlsScraped,
+            content_stored: result.contentStored
+          }
+        );
+      } else {
+        toast.error(`Failed to process ${url.url}: ${result.error}`);
+      }
       
-      toast.success('Website processing started');
-      
-      if (refetchUrls) {
-        refetchUrls();
+      if (refetch) {
+        await refetch();
       }
     } catch (error) {
-      console.error('Error processing website URL:', error);
-      toast.error('Failed to process website');
+      console.error('Error processing website:', error);
+      toast.error(`Error processing website: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setProcessingUrlId(null);
+      setProcessingUrl(null);
     }
   };
 
@@ -157,23 +144,22 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       <CardHeader>
         <CardTitle>Website URLs</CardTitle>
         <CardDescription>
-          Add website URLs to be processed for your AI agent
+          Add website URLs to extract content for your AI assistant
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <WebsiteUrlForm 
-          onAdd={handleAddWebsiteUrl}
-          isAdding={addingUrl || isStoring}
-          agentName="AI Agent"
+        <WebsiteUrlForm
+          onSubmit={handleAddWebsiteUrl}
+          isSubmitting={addWebsiteUrl.isPending}
         />
         
-        <WebsiteUrlsList 
-          urls={urls}
+        <WebsiteUrlsList
+          urls={websiteUrls}
           onDelete={handleDeleteWebsiteUrl}
-          onProcess={handleProcessWebsiteUrl}
-          isDeleteLoading={isDeleting}
-          isProcessing={isProcessing || isStoring || !!processingUrlId}
-          deletingId={deletingUrlId}
+          onProcess={handleProcessWebsite}
+          isDeleteLoading={deleteWebsiteUrl.isPending}
+          isProcessing={isProcessing}
+          deletingId={deleteWebsiteUrl.variables as number | undefined}
         />
       </CardContent>
     </Card>

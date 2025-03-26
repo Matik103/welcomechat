@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
-import { execSql } from '@/utils/rpcUtils';
+import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
 export const useClient = (clientId: string) => {
   const { 
@@ -43,15 +43,16 @@ export const useClient = (clientId: string) => {
             console.error("Error fetching from ai_agents by client_id:", clientError);
             
             // Try with SQL query as a last resort
-            const sqlQuery = `
-              SELECT * FROM ai_agents
-              WHERE client_id = $1
-              AND interaction_type = 'config'
-              ORDER BY created_at DESC
-              LIMIT 1
-            `;
-            
-            const sqlResult = await execSql(sqlQuery, [clientId]);
+            const sqlResult = await callRpcFunctionSafe<any[]>('exec_sql', {
+              query_text: `
+                SELECT * FROM ai_agents
+                WHERE client_id = $1
+                AND interaction_type = 'config'
+                ORDER BY created_at DESC
+                LIMIT 1
+              `,
+              query_params: [clientId]
+            });
             
             if (!sqlResult || !Array.isArray(sqlResult) || sqlResult.length === 0) {
               return null;

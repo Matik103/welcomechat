@@ -1,92 +1,130 @@
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DocumentLinkForm } from '@/components/client/drive-links/DocumentLinkForm';
-import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
-import { DocumentUploadForm } from '@/components/client/drive-links/DocumentUploadForm';
+import { DocumentLinkForm } from './drive-links/DocumentLinkForm';
+import { DocumentLinksList } from './drive-links/DocumentLinksList';
+import { DocumentUploadForm } from './drive-links/DocumentUploadForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AgentNameWarning } from '@/components/client/drive-links/AgentNameWarning';
-import { DocumentLink, DocumentLinkFormData, DriveLinksProps } from '@/types/document-processing';
+import { useDocumentLinks } from '@/hooks/useDocumentLinks';
+import { useDocumentUpload } from '@/hooks/useDocumentUpload';
+import { DocumentLinkFormData, DocumentLink } from '@/types/document-processing';
+import { toast } from 'sonner';
 
-export const DriveLinks = ({
-  documents,
-  isLoading,
-  isUploading,
-  addDocumentLink,
-  deleteDocumentLink,
-  uploadDocument,
-  isClientView = false,
-  isValidating = false,
-  deletingId = null,
-  isDeleteLoading = false
-}: DriveLinksProps) => {
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [activeTab, setActiveTab] = useState('list');
+interface DriveLinksProps {
+  clientId: string;
+  onResourceChange?: () => void;
+}
 
-  const handleSubmitLink = async (data: DocumentLinkFormData) => {
-    await addDocumentLink(data);
-    setShowAddForm(false);
+export const DriveLinks: React.FC<DriveLinksProps> = ({ clientId, onResourceChange }) => {
+  const [activeTab, setActiveTab] = useState('links');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const {
+    documentLinks,
+    isLoading,
+    error,
+    addDocumentLink,
+    deleteDocumentLink,
+    isValidating,
+    refetch
+  } = useDocumentLinks(clientId);
+
+  const { uploadDocument, isUploading } = useDocumentUpload(clientId);
+
+  const handleAddLink = async (data: DocumentLinkFormData) => {
+    try {
+      // Ensure document_type is set
+      const enhancedData: DocumentLinkFormData = {
+        ...data,
+        document_type: data.document_type || 'document'
+      };
+      
+      await addDocumentLink.mutateAsync(enhancedData);
+      toast.success('Document link added successfully');
+      
+      if (refetch) {
+        await refetch();
+      }
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
+    } catch (error) {
+      console.error('Error adding link:', error);
+      toast.error('Failed to add document link');
+    }
   };
 
   const handleDeleteLink = async (linkId: number) => {
-    await deleteDocumentLink(linkId);
+    try {
+      setDeletingId(linkId);
+      await deleteDocumentLink.mutateAsync(linkId);
+      toast.success('Document link deleted successfully');
+      
+      if (refetch) {
+        await refetch();
+      }
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
+    } catch (error) {
+      console.error('Error deleting link:', error);
+      toast.error('Failed to delete document link');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleUploadDocument = async (file: File) => {
-    await uploadDocument(file);
-    setActiveTab('list');
+    try {
+      await uploadDocument(file);
+      toast.success('Document uploaded successfully');
+      
+      if (onResourceChange) {
+        onResourceChange();
+      }
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      toast.error('Failed to upload document');
+    }
   };
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-medium">Documents & Google Drive Links</CardTitle>
-        {!showAddForm && (
-          <div className="flex space-x-2">
-            <Button size="sm" variant="outline" onClick={() => setShowAddForm(true)}>
-              Add Link
-            </Button>
-          </div>
-        )}
+      <CardHeader>
+        <CardTitle>External Documents</CardTitle>
       </CardHeader>
       <CardContent>
-        {!isClientView && <AgentNameWarning show={true} />}
-
-        {showAddForm ? (
-          <div className="mb-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="links">Document Links</TabsTrigger>
+            <TabsTrigger value="upload">Upload Document</TabsTrigger>
+          </TabsList>
+          <TabsContent value="links" className="space-y-4">
             <DocumentLinkForm
-              onSubmit={handleSubmitLink}
-              isSubmitting={isValidating}
+              onSubmit={handleAddLink}
+              isSubmitting={addDocumentLink.isPending}
               agentName="AI Assistant"
             />
-          </div>
-        ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="list">Document Links</TabsTrigger>
-              <TabsTrigger value="upload">Upload Document</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="list" className="space-y-4">
-              <DocumentLinksList
-                links={documents}
-                isLoading={isLoading}
-                onDelete={handleDeleteLink}
-                isDeleteLoading={isDeleteLoading}
-                deletingId={deletingId}
-              />
-            </TabsContent>
-
-            <TabsContent value="upload">
-              <DocumentUploadForm
-                onSubmitDocument={handleUploadDocument}
-                isUploading={isUploading}
-              />
-            </TabsContent>
-          </Tabs>
-        )}
+            <DocumentLinksList
+              links={documentLinks}
+              isLoading={isLoading}
+              onDelete={handleDeleteLink}
+              isDeleting={deleteDocumentLink.isPending}
+              deletingId={deletingId}
+            />
+          </TabsContent>
+          <TabsContent value="upload">
+            <DocumentUploadForm
+              onSubmitDocument={handleUploadDocument}
+              isUploading={isUploading}
+            />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
 };
+
+export default DriveLinks;

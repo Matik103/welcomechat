@@ -3,13 +3,14 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { DocumentLink } from '@/types/client';
+import { DocumentLink } from '@/types/document-processing';
 
 export interface DocumentLinksListProps {
   links: DocumentLink[];
   isLoading: boolean;
   onDelete: (id: number) => Promise<void>;
   isDeleting?: boolean;
+  deletingId?: number | null;
 }
 
 export const DocumentLinksList: React.FC<DocumentLinksListProps> = ({
@@ -17,6 +18,7 @@ export const DocumentLinksList: React.FC<DocumentLinksListProps> = ({
   isLoading,
   onDelete,
   isDeleting = false,
+  deletingId = null,
 }) => {
   if (isLoading) {
     return (
@@ -60,10 +62,10 @@ export const DocumentLinksList: React.FC<DocumentLinksListProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => onDelete(link.id)}
-              disabled={isDeleting}
+              disabled={isDeleting || (deletingId !== null && deletingId === link.id)}
               className="text-red-500 hover:text-red-700 hover:bg-red-50"
             >
-              {isDeleting ? (
+              {isDeleting && deletingId === link.id ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Trash2 className="h-4 w-4" />
@@ -75,6 +77,6 @@ export const DocumentLinksList: React.FC<DocumentLinksListProps> = ({
       </div>
     </div>
   );
-};
+}
 
 export default DocumentLinksList;

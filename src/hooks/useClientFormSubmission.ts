@@ -6,7 +6,7 @@ import { uploadLogo } from '@/services/uploadService';
 import { updateWidgetSettings } from '@/services/widgetSettingsService';
 import { createClientActivity } from '@/services/clientActivityService';
 import { toast } from 'sonner';
-import { execSql } from '@/utils/rpcUtils';
+import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
 export const useClientFormSubmission = (clientId: string) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,17 +37,15 @@ export const useClientFormSubmission = (clientId: string) => {
             data.widget_settings.logo_storage_path = uploadResult.path;
             
             // Log logo upload activity using execSql for safely formatted values
-            await execSql(`
-              SELECT log_client_activity(
-                $1,
-                $2,
-                $3,
-                $4
-              )
-            `, [clientId, 'logo_uploaded', `Logo uploaded for client: ${data.client_name}`, JSON.stringify({
-              logo_url: uploadResult.url,
-              client_id: clientId
-            })]);
+            await callRpcFunctionSafe('log_client_activity', {
+              client_id_param: clientId,
+              activity_type_param: 'logo_uploaded',
+              description_param: `Logo uploaded for client: ${data.client_name}`,
+              metadata_param: {
+                logo_url: uploadResult.url,
+                client_id: clientId
+              }
+            });
           }
         } catch (uploadError) {
           console.error('Error uploading logo:', uploadError);
@@ -68,37 +66,33 @@ export const useClientFormSubmission = (clientId: string) => {
         await updateWidgetSettings(clientId, data.widget_settings);
         
         // Log widget settings update activity
-        await execSql(`
-          SELECT log_client_activity(
-            $1,
-            $2,
-            $3,
-            $4
-          )
-        `, [clientId, 'widget_settings_updated', 'Widget settings updated', JSON.stringify({
-          client_id: clientId,
-          settings_updated: Object.keys(data.widget_settings)
-        })]);
+        await callRpcFunctionSafe('log_client_activity', {
+          client_id_param: clientId,
+          activity_type_param: 'widget_settings_updated',
+          description_param: 'Widget settings updated',
+          metadata_param: {
+            client_id: clientId,
+            settings_updated: Object.keys(data.widget_settings)
+          }
+        });
       }
 
       // Log client update activity
-      await execSql(`
-        SELECT log_client_activity(
-          $1,
-          $2,
-          $3,
-          $4
-        )
-      `, [clientId, 'client_updated', `Client updated: ${data.client_name}`, JSON.stringify({
-        client_id: clientId,
-        email: data.email
-      })]);
+      await callRpcFunctionSafe('log_client_activity', {
+        client_id_param: clientId,
+        activity_type_param: 'client_updated',
+        description_param: `Client updated: ${data.client_name}`,
+        metadata_param: {
+          client_id: clientId,
+          email: data.email
+        }
+      });
 
       toast.success('Client information updated successfully!');
       return clientResult;
     } catch (err) {
       console.error('Error submitting client form:', err);
-      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+      setError(err instanceof Error ? err : new Error(String(err)));
       toast.error('Failed to update client information');
       throw err;
     } finally {

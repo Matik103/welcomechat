@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { processExistingDocuments } from '@/utils/documentReprocessing';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -13,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import { processExistingDocuments } from '@/utils/documentReprocessing';
 
 interface ProcessExistingDocumentsProps {
   clients: { id: string; name: string; agent_name: string }[];

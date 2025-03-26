@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityType } from '@/types/client-form';
 import { Json } from '@/integrations/supabase/types';
-import { callRpcFunction } from '@/utils/rpcUtils';
+import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 import { createClientActivity } from '@/services/clientActivityService';
 
 export const useClientActivity = (clientId: string | undefined) => {

@@ -16,7 +16,8 @@ interface ClientFormProps {
   onSubmit: (data: ClientFormData) => Promise<void>;
   isLoading?: boolean;
   submitButtonText?: string;
-  error?: string | Error;
+  error?: string | null;
+  isClientView?: boolean;
 }
 
 export const ClientForm: React.FC<ClientFormProps> = ({
@@ -24,7 +25,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   onSubmit,
   isLoading = false,
   submitButtonText = 'Save',
-  error
+  error,
+  isClientView = false
 }) => {
   const [logoPreview, setLogoPreview] = useState<string | null>(
     initialData.widget_settings?.logo_url || null
@@ -85,7 +87,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error</AlertTitle>
               <AlertDescription>
-                {error instanceof Error ? error.message : error}
+                {error}
               </AlertDescription>
             </Alert>
           )}

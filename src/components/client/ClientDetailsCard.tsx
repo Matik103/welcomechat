@@ -56,7 +56,6 @@ export const ClientDetailsCard = ({
           { fields_updated: Object.keys(data) }
         );
       }
-      return client; // Return client for backward compatibility
     } catch (error) {
       console.error("Error in ClientDetailsCard.handleFormSubmit:", error);
       throw error;
@@ -75,7 +74,7 @@ export const ClientDetailsCard = ({
           initialData={client}
           onSubmit={handleFormSubmit}
           isLoading={isSubmitting}
-          isClientView={isClientView}
+          error={error instanceof Error ? error.message : error?.toString()}
         />
       </CardContent>
     </Card>

@@ -43,3 +43,39 @@ export interface DriveLinksProps {
   deletingId?: number | null;
   isDeleteLoading?: boolean;
 }
+
+export interface DocumentProcessingResult {
+  success: boolean;
+  error?: string;
+  documentId?: string;
+  processed: number;
+  failed: number;
+}
+
+export interface DocumentProcessingOptions {
+  clientId: string;
+  documentType?: string;
+  agentName?: string;
+}
+
+export interface DocumentChunk {
+  content: string;
+  metadata?: Record<string, any>;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface DocumentUploadFormProps {
+  onSubmitDocument: (file: File) => Promise<void>;
+  isUploading: boolean;
+}
+
+export interface ParseResponse {
+  success: boolean;
+  text?: string;
+  chunks?: DocumentChunk[];
+  error?: string;
+}

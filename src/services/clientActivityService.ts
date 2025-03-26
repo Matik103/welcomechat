@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityType } from '@/types/client-form';
-import { callRpcFunction } from '@/utils/rpcUtils';
+import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
 /**
  * Creates a client activity record
@@ -22,8 +22,8 @@ export const createClientActivity = async (
       throw new Error('Client ID is required for activity logging');
     }
 
-    // Use callRpcFunction to avoid type checking issues
-    const result = await callRpcFunction('log_client_activity', {
+    // Use callRpcFunctionSafe to avoid type checking issues
+    const result = await callRpcFunctionSafe('log_client_activity', {
       client_id_param: clientId,
       activity_type_param: activity_type,
       description_param: description,
