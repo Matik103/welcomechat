@@ -95,65 +95,64 @@ export default function Index() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
-            <Card className="bg-green-50 hover:bg-green-100 transition-colors">
+            <Card className="bg-green-50 hover:bg-green-100 transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold">CLIENTS</CardTitle>
+                <CardTitle className="text-lg font-bold text-green-900">CLIENTS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1">12</div>
-                <div className="text-sm text-muted-foreground">10 Active +18%</div>
+                <div className="text-4xl font-bold mb-1 text-green-800">12</div>
+                <div className="text-sm text-green-700">10 Active +18%</div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gray-100 hover:bg-gray-200 transition-colors">
+            <Card className="bg-gray-100 hover:bg-gray-200 transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold">AGENTS</CardTitle>
+                <CardTitle className="text-lg font-bold text-gray-900">AGENTS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1">18</div>
-                <div className="text-sm text-muted-foreground">10 Active +18%</div>
+                <div className="text-4xl font-bold mb-1 text-gray-800">18</div>
+                <div className="text-sm text-gray-700">10 Active +18%</div>
               </CardContent>
             </Card>
 
-            <Card className="bg-yellow-50 hover:bg-yellow-100 transition-colors">
+            <Card className="bg-yellow-50 hover:bg-yellow-100 transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold">INTERACTIONS</CardTitle>
+                <CardTitle className="text-lg font-bold text-yellow-900">INTERACTIONS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1">1,234</div>
-                <div className="text-sm text-muted-foreground">+18%</div>
+                <div className="text-4xl font-bold mb-1 text-yellow-800">1,234</div>
+                <div className="text-sm text-yellow-700">+18%</div>
               </CardContent>
             </Card>
 
-            <Card className="bg-blue-50 hover:bg-blue-100 transition-colors">
+            <Card className="bg-blue-50 hover:bg-blue-100 transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold">TRAININGS</CardTitle>
+                <CardTitle className="text-lg font-bold text-blue-900">TRAININGS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1">484</div>
-                <div className="text-sm text-muted-foreground">+18%</div>
+                <div className="text-4xl font-bold mb-1 text-blue-800">484</div>
+                <div className="text-sm text-blue-700">+18%</div>
               </CardContent>
             </Card>
 
-            <Card className="bg-red-50 hover:bg-red-100 transition-colors">
+            <Card className="bg-pink-50 hover:bg-pink-100 transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold">ADMINISTRATION</CardTitle>
+                <CardTitle className="text-lg font-bold text-pink-900">ADMINISTRATION</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1">123</div>
-                <div className="text-sm text-muted-foreground">+18%</div>
+                <div className="text-4xl font-bold mb-1 text-pink-800">123</div>
+                <div className="text-sm text-pink-700">+18%</div>
               </CardContent>
             </Card>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
-            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all">
+            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
                   <Database className="h-5 w-5 text-green-600" />
                   <div>
                     <CardTitle className="text-sm font-medium text-slate-900">Clients</CardTitle>
-                    <CardDescription className="text-green-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -164,13 +163,12 @@ export default function Index() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all">
+            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
                   <Users className="h-5 w-5 text-gray-600" />
                   <div>
                     <CardTitle className="text-sm font-medium text-slate-900">Agents</CardTitle>
-                    <CardDescription className="text-gray-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -181,13 +179,12 @@ export default function Index() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all">
+            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
                   <Activity className="h-5 w-5 text-yellow-600" />
                   <div>
                     <CardTitle className="text-sm font-medium text-slate-900">Interactions</CardTitle>
-                    <CardDescription className="text-yellow-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -198,13 +195,12 @@ export default function Index() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all">
+            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
                   <HardDrive className="h-5 w-5 text-blue-600" />
                   <div>
                     <CardTitle className="text-sm font-medium text-slate-900">Trainings</CardTitle>
-                    <CardDescription className="text-blue-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -215,19 +211,18 @@ export default function Index() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all">
+            <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
-                  <Zap className="h-5 w-5 text-red-600" />
+                  <Zap className="h-5 w-5 text-pink-600" />
                   <div>
                     <CardTitle className="text-sm font-medium text-slate-900">Administration</CardTitle>
-                    <CardDescription className="text-red-600">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="h-[80px] w-full">
-                  <BarChart data={chartData.realtime} color="#EF4444" />
+                  <BarChart data={chartData.realtime} color="#EC4899" />
                 </div>
               </CardContent>
             </Card>
