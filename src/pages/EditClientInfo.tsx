@@ -8,7 +8,7 @@ import { ClientFormData, ActivityType } from '@/types/client-form';
 import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 
-export default function EditClientInfo() {
+export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
   const { 
     client, 
@@ -51,7 +51,7 @@ export default function EditClientInfo() {
 
       <div className="mt-6">
         <ClientForm 
-          initialValues={client}
+          initialData={client}
           onSubmit={handleSubmit}
           isLoading={isLoadingClient || clientMutation.isPending}
           error={error || clientMutation.error?.message}
@@ -61,3 +61,6 @@ export default function EditClientInfo() {
     </div>
   );
 }
+
+// Add default export
+export default EditClientInfo;
