@@ -13,6 +13,7 @@ import { createClientActivity } from '@/services/clientActivityService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
 import { WebsiteUrlFormData } from '@/types/website-url';
+import { DocumentLinkFormData } from '@/types/document-processing';
 
 export default function ResourceSettings() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -61,6 +62,18 @@ export default function ResourceSettings() {
     await deleteWebsiteUrl(urlId);
   };
 
+  const handleAddDocumentLink = async (data: { link: string; refresh_rate: number }) => {
+    await addDocumentLink({
+      link: data.link,
+      refresh_rate: data.refresh_rate,
+      document_type: 'google_drive' // Add default document_type
+    });
+  };
+
+  const handleDeleteDocumentLink = async (linkId: number) => {
+    await deleteDocumentLink(linkId);
+  };
+
   const handleUploadDocument = async (file: File) => {
     try {
       const result = await uploadDocument(file);
@@ -68,7 +81,7 @@ export default function ResourceSettings() {
       if (result) {
         await createClientActivity(
           effectiveClientId,
-          "document_added",
+          "document_added", // Fixed ActivityType
           `Uploaded document: ${file.name}`,
           { file_name: file.name, file_type: file.type, file_size: file.size }
         );
@@ -121,8 +134,8 @@ export default function ResourceSettings() {
             <DriveLinks
               links={documentLinks}
               isLoading={isLinksLoading}
-              addDocumentLink={addDocumentLink}
-              deleteDocumentLink={deleteDocumentLink}
+              addDocumentLink={handleAddDocumentLink}
+              deleteDocumentLink={handleDeleteDocumentLink}
               isAddingLink={isAddingLink}
               isDeletingLink={isDeletingLink}
             />

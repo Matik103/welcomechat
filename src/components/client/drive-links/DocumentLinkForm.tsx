@@ -9,11 +9,13 @@ import { toast } from 'sonner';
 export interface DocumentLinkFormProps {
   onSubmit: (data: { link: string; refresh_rate: number }) => Promise<void>;
   isSubmitting: boolean;
+  agentName?: string;
 }
 
 export const DocumentLinkForm: React.FC<DocumentLinkFormProps> = ({
   onSubmit,
-  isSubmitting
+  isSubmitting,
+  agentName = "AI Assistant"
 }) => {
   const [link, setLink] = useState('');
   const [refreshRate, setRefreshRate] = useState(7); // Default 7 days
@@ -76,7 +78,7 @@ export const DocumentLinkForm: React.FC<DocumentLinkFormProps> = ({
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Add a Google Drive link to a document. The AI will refresh content from this document every {refreshRate} days.
+          {agentName} will refresh content from this document every {refreshRate} days.
         </p>
       </div>
     </form>
