@@ -23,10 +23,10 @@ export function WebsiteUrlForm({ onAdd, onSubmit, isAdding = false, isSubmitting
   });
 
   const handleSubmit = async (data: WebsiteUrlFormData) => {
-    if (onSubmit) {
-      await onSubmit(data);
-      form.reset();
-    }
+    // Use onSubmit if provided, otherwise fall back to onAdd
+    const submitFunction = onSubmit || onAdd;
+    await submitFunction(data);
+    form.reset();
   };
 
   return (
