@@ -58,8 +58,8 @@ export default function Index() {
   if (dashboardError || activitiesError) {
     return (
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-4">Dashboard Error</h1>
-        <p className="text-red-500">
+        <h1 className="text-2xl font-bold mb-4 dashboard-heading">Dashboard Error</h1>
+        <p className="text-red-500 body-text">
           {dashboardError ? `Dashboard error: ${dashboardError.message}` : ''}
           {activitiesError ? `Activities error: ${activitiesError.message}` : ''}
         </p>
@@ -80,8 +80,8 @@ export default function Index() {
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <PageHeading>
-          Dashboard
-          <p className="text-sm font-normal text-muted-foreground">
+          Welcome.Chat Dashboard
+          <p className="text-sm font-normal text-muted-foreground dashboard-subheading">
             Overview of your client activity
           </p>
         </PageHeading>
@@ -131,14 +131,14 @@ export default function Index() {
             </div>
             <Card className="h-full">
               <CardHeader>
-                <CardTitle>Client Growth</CardTitle>
+                <CardTitle className="subheading-text">Client Growth</CardTitle>
                 <CardDescription>New clients and activity over time</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-center p-4 text-center">
                   <div>
-                    <div className="text-5xl font-bold mb-2">{activeClients}</div>
-                    <div className="text-sm text-muted-foreground">Active Clients</div>
+                    <div className="text-5xl font-bold mb-2 stat-value">{activeClients}</div>
+                    <div className="text-sm text-muted-foreground stat-label">Active Clients</div>
                     <div className="mt-2 text-sm text-green-500">
                       +{activeClientsChange.toFixed(0)}% from last month
                     </div>
@@ -150,7 +150,7 @@ export default function Index() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
+              <CardTitle className="subheading-text">Recent Activity</CardTitle>
               <CardDescription>Latest actions across all clients</CardDescription>
             </CardHeader>
             <CardContent>

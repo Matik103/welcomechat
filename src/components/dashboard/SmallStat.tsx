@@ -1,36 +1,35 @@
 
-import React, { ReactNode } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface SmallStatProps {
   title: string;
   value: string | number;
-  description: string;
-  icon: ReactNode;
+  icon: React.ReactNode;
+  description?: string;
   colorClass?: string;
 }
 
-export const SmallStat: React.FC<SmallStatProps> = ({
+export const SmallStat = ({
   title,
   value,
-  description,
   icon,
-  colorClass = 'text-primary bg-primary/10'
-}) => {
+  description,
+  colorClass = 'text-primary bg-primary/10',
+}: SmallStatProps) => {
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
-            <h3 className="text-2xl font-bold">{value}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{description}</p>
-          </div>
-          <div className={`p-2 rounded-full ${colorClass}`}>
-            {icon}
-          </div>
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-500 stat-label">{title}</p>
+          <p className="mt-2 text-3xl font-bold stat-value">{value}</p>
+          {description && (
+            <p className="mt-1 text-sm text-gray-500">{description}</p>
+          )}
         </div>
-      </CardContent>
-    </Card>
+        <div className={cn('p-2 rounded-md', colorClass)}>
+          {icon}
+        </div>
+      </div>
+    </div>
   );
 };

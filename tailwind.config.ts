@@ -46,6 +46,29 @@ export default {
           foreground: "#0F172A",
         },
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            h1: {
+              fontWeight: '700',
+              letterSpacing: '-0.025em',
+              lineHeight: '1.2',
+            },
+            h2: {
+              fontWeight: '600',
+              letterSpacing: '-0.025em',
+              lineHeight: '1.3',
+            },
+            h3: {
+              fontWeight: '600',
+              lineHeight: '1.4',
+            },
+            p: {
+              lineHeight: '1.6',
+            },
+          },
+        },
+      },
       borderRadius: {
         lg: "12px",
         md: "8px",
