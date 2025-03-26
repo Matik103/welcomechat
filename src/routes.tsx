@@ -38,11 +38,19 @@ export const routes: RouteObject[] = [
     element: <AuthPage />,
   },
   {
+    path: '/auth/*',
+    element: <AuthPage />,
+  },
+  {
     path: '/client/dashboard',
     element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><ClientDashboardPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/admin',
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AdminDashboardPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/admin/dashboard',
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AdminDashboardPage /></React.Suspense></ProtectedRoute>,
   },
   {

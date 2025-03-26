@@ -4,6 +4,7 @@ import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
+import Home from "@/pages/Home";
 import ClientList from "@/pages/ClientList";
 import Settings from "@/pages/Settings";
 import ClientView from "@/pages/ClientView";
@@ -19,13 +20,17 @@ import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
 import CreateClientAccount from "@/pages/CreateClientAccount";
 import { useEffect } from "react";
+import About from "@/pages/About";
+import Contact from "@/pages/Contact";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
   
   const isAuthCallback = location.pathname.includes('/auth/callback');
-  const isPublicRoute = location.pathname === '/auth' || isAuthCallback;
+  const isAuthPage = location.pathname === '/auth';
+  const isPublicRoute = isAuthPage || isAuthCallback || location.pathname === '/' || 
+                        location.pathname === '/about' || location.pathname === '/contact';
   
   useEffect(() => {
     if (!isAuthCallback) {
@@ -46,6 +51,23 @@ function App() {
     );
   }
 
+  // Handle public routes for landing page, about, contact
+  if (!user && isPublicRoute) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/auth/*" element={<Auth />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <Toaster />
+      </div>
+    );
+  }
+
+  // Handle unauthenticated users
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
