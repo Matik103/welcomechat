@@ -100,6 +100,7 @@ export interface DocumentLink {
   access_status?: AccessStatus;
   refresh_rate: number;
   notified_at?: string;
+  status?: string;
 }
 
 // Define the types that should be imported from client-form.ts

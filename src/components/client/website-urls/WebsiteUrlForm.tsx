@@ -5,19 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { WebsiteUrlFormData } from '@/types/website-url';
-
-interface WebsiteUrlFormProps {
-  onSubmit: (data: WebsiteUrlFormData) => Promise<void>;
-  isSubmitting?: boolean;
-  agentName: string;
-  clientId?: string;
-  onAddSuccess?: () => Promise<any>;
-  webstoreHook?: { isAdding: boolean };
-  // Add both for compatibility
-  onAdd?: (data: WebsiteUrlFormData) => Promise<void>;
-  isAdding?: boolean;
-}
+import { WebsiteUrlFormData, WebsiteUrlFormProps } from '@/types/website-url';
 
 export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
   onSubmit,

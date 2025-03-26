@@ -1,18 +1,17 @@
 
 import { ActivityType } from '@/types/client-form';
 
-/**
- * Maps activity types to user-friendly display names for the admin dashboard
- */
-export const activityTypeNames: Partial<Record<ActivityType, string>> = {
+// Define activity type labels for display purposes
+export const ACTIVITY_TYPE_LABELS: Partial<Record<ActivityType, string>> = {
   'client_created': 'Client Created',
   'client_updated': 'Client Updated',
   'client_deleted': 'Client Deleted',
-  'website_url_added': 'Website Added',
-  'website_url_deleted': 'Website Removed',
-  'website_url_processed': 'Website Processed',
+  'config_updated': 'Configuration Updated',
+  'website_url_added': 'Website URL Added',
+  'website_url_deleted': 'Website URL Deleted',
+  'website_url_processed': 'Website URL Processed',
   'document_link_added': 'Document Link Added',
-  'document_link_deleted': 'Document Link Removed',
+  'document_link_deleted': 'Document Link Deleted',
   'document_processed': 'Document Processed',
   'document_added': 'Document Added',
   'agent_error': 'Agent Error',
@@ -23,46 +22,44 @@ export const activityTypeNames: Partial<Record<ActivityType, string>> = {
   'invitation_accepted': 'Invitation Accepted'
 };
 
-/**
- * Maps activity types to icons (Lucide icon names) for display in the dashboard
- */
-export const activityTypeIcons: Partial<Record<ActivityType, string>> = {
+// Define icon names for each activity type
+export const ACTIVITY_TYPE_ICONS: Partial<Record<ActivityType, string>> = {
   'client_created': 'UserPlus',
   'client_updated': 'UserCog',
   'client_deleted': 'UserMinus',
+  'config_updated': 'Settings',
   'website_url_added': 'Globe',
-  'website_url_deleted': 'Trash2',
-  'website_url_processed': 'Check',
+  'website_url_deleted': 'Trash',
+  'website_url_processed': 'CheckCircle',
   'document_link_added': 'FileText',
-  'document_link_deleted': 'Trash2',
-  'document_processed': 'Check',
-  'document_added': 'FileUpload',
-  'agent_error': 'AlertCircle',
+  'document_link_deleted': 'Trash',
+  'document_processed': 'CheckCircle',
+  'document_added': 'FileText',
+  'agent_error': 'AlertTriangle',
   'login_success': 'LogIn',
-  'login_failed': 'AlertTriangle',
+  'login_failed': 'AlertCircle',
   'password_reset': 'Key',
   'user_invited': 'Mail',
   'invitation_accepted': 'UserCheck'
 };
 
-/**
- * Maps activity types to colors for visual distinction in the dashboard
- */
-export const activityTypeColors: Partial<Record<ActivityType, string>> = {
-  'client_created': 'bg-green-100 text-green-800',
-  'client_updated': 'bg-blue-100 text-blue-800',
-  'client_deleted': 'bg-red-100 text-red-800',
-  'website_url_added': 'bg-indigo-100 text-indigo-800',
-  'website_url_deleted': 'bg-orange-100 text-orange-800',
-  'website_url_processed': 'bg-teal-100 text-teal-800',
-  'document_link_added': 'bg-cyan-100 text-cyan-800',
-  'document_link_deleted': 'bg-amber-100 text-amber-800',
-  'document_processed': 'bg-lime-100 text-lime-800',
-  'document_added': 'bg-violet-100 text-violet-800',
-  'agent_error': 'bg-red-100 text-red-800',
-  'login_success': 'bg-green-100 text-green-800',
-  'login_failed': 'bg-red-100 text-red-800',
-  'password_reset': 'bg-blue-100 text-blue-800',
-  'user_invited': 'bg-indigo-100 text-indigo-800',
-  'invitation_accepted': 'bg-emerald-100 text-emerald-800'
+// Define color classes for each activity type
+export const ACTIVITY_TYPE_COLORS: Partial<Record<ActivityType, string>> = {
+  'client_created': 'text-green-500',
+  'client_updated': 'text-blue-500',
+  'client_deleted': 'text-red-500',
+  'config_updated': 'text-violet-500',
+  'website_url_added': 'text-green-500',
+  'website_url_deleted': 'text-red-500',
+  'website_url_processed': 'text-green-500',
+  'document_link_added': 'text-green-500',
+  'document_link_deleted': 'text-red-500',
+  'document_processed': 'text-green-500',
+  'document_added': 'text-green-500',
+  'agent_error': 'text-red-500',
+  'login_success': 'text-green-500',
+  'login_failed': 'text-red-500',
+  'password_reset': 'text-amber-500',
+  'user_invited': 'text-blue-500',
+  'invitation_accepted': 'text-green-500'
 };

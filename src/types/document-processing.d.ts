@@ -1,5 +1,6 @@
 
 export type DocumentType = 'document' | 'google_drive' | 'google_sheet' | 'web_page';
+export type AccessStatus = 'granted' | 'pending' | 'denied' | 'unknown';
 
 export interface DocumentLink {
   id: number;
@@ -8,10 +9,11 @@ export interface DocumentLink {
   document_type: DocumentType | string;
   refresh_rate: number;
   created_at: string;
-  updated_at: string | null;
-  access_status?: string | null;
+  updated_at?: string | null;
+  access_status?: AccessStatus | null;
   last_processed?: string | null;
   status?: string | null;
+  notified_at?: string | null;
 }
 
 export interface DocumentLinkFormData {
@@ -30,4 +32,12 @@ export interface DocumentProcessingResult {
 
 export interface DocumentUploadFormData {
   file: File;
+}
+
+export interface DocumentProcessingStatus {
+  id: string;
+  status: string;
+  processed_count: number;
+  failed_count: number;
+  error?: string;
 }

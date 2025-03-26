@@ -1,15 +1,15 @@
 
 import React, { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { clientFormSchema, ClientFormData } from '@/types/client-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
-import { AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
 interface ClientFormProps {
   initialData?: Partial<ClientFormData>;
@@ -31,21 +31,35 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const [logoPreview, setLogoPreview] = useState<string | null>(
     initialData.widget_settings?.logo_url || null
   );
+  
+  const formSchema = z.object({
+    client_id: z.string().optional(),
+    client_name: z.string().min(1, "Client name is required"),
+    email: z.string().email("Invalid email address"),
+    company: z.string().optional(),
+    description: z.string().optional(),
+    widget_settings: z.object({
+      agent_name: z.string().optional(),
+      agent_description: z.string().optional(),
+      logo_url: z.string().optional(),
+      logo_storage_path: z.string().optional()
+    }).optional(),
+    _tempLogoFile: z.any().optional()
+  });
 
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors },
-    reset,
-    setValue,
-    watch
+    setValue
   } = useForm<ClientFormData>({
-    resolver: zodResolver(clientFormSchema),
+    resolver: zodResolver(formSchema),
     defaultValues: {
+      client_id: initialData.client_id,
       client_name: initialData.client_name || '',
       email: initialData.email || '',
-      client_id: initialData.client_id,
+      company: initialData.company || '',
+      description: initialData.description || '',
       widget_settings: {
         agent_name: initialData.widget_settings?.agent_name || '',
         agent_description: initialData.widget_settings?.agent_description || '',
@@ -118,6 +132,26 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email.message}</p>
               )}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="company">Company</Label>
+              <Input
+                id="company"
+                placeholder="Enter company name"
+                {...register('company')}
+                disabled={isLoading}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                placeholder="Enter description"
+                {...register('description')}
+                disabled={isLoading}
+              />
             </div>
             
             <div className="space-y-2">

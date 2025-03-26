@@ -1,75 +1,77 @@
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDocumentsByClientId, deleteDocument, processDocument } from '@/services/documentProcessingService';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  processDocumentUrl, 
+  uploadDocument, 
+  checkDocumentProcessingStatus, 
+  getDocumentsForClient 
+} from '@/services/documentProcessingService';
+import { DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
 
-export const useDocumentProcessing = (clientId: string) => {
-  const queryClient = useQueryClient();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingDocumentId, setProcessingDocumentId] = useState<number | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(null);
-
-  // Fetch documents for client
-  const { data: documents = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['documents', clientId],
-    queryFn: () => getDocumentsByClientId(clientId),
+export function useDocumentProcessing(clientId: string) {
+  // Query to fetch document processing jobs
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['document-processing', clientId],
+    queryFn: () => getDocumentsForClient(clientId),
     enabled: !!clientId,
   });
 
-  // Process document mutation
-  const processDocumentMutation = useMutation({
-    mutationFn: async (documentId: number) => {
-      setIsProcessing(true);
-      setProcessingDocumentId(documentId);
-      try {
-        return await processDocument(documentId.toString());
-      } finally {
-        setIsProcessing(false);
-        setProcessingDocumentId(null);
-      }
-    },
+  // Mutation to process a document URL
+  const processDocument = useMutation({
+    mutationFn: (params: { 
+      documentUrl: string; 
+      documentType: DocumentType | string; 
+      agentName: string; 
+    }) => processDocumentUrl(
+      clientId, 
+      params.documentUrl, 
+      params.documentType, 
+      params.agentName
+    ),
     onSuccess: () => {
-      toast.success('Document processing initiated successfully');
-      queryClient.invalidateQueries({ queryKey: ['documents', clientId] });
+      toast.success('Document processing started');
+      refetch();
     },
     onError: (error) => {
-      toast.error(`Failed to process document: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    },
+      toast.error(`Error processing document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   });
 
-  // Delete document mutation
-  const deleteDocumentMutation = useMutation({
-    mutationFn: async (documentId: number) => {
-      setIsDeleting(true);
-      setDeletingDocumentId(documentId);
-      try {
-        return await deleteDocument(documentId);
-      } finally {
-        setIsDeleting(false);
-        setDeletingDocumentId(null);
-      }
-    },
+  // Mutation to upload a document
+  const uploadDocumentMutation = useMutation({
+    mutationFn: (params: { file: File; agentName: string }) => 
+      uploadDocument(clientId, params.file, params.agentName),
     onSuccess: () => {
-      toast.success('Document deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['documents', clientId] });
+      toast.success('Document uploaded successfully');
+      refetch();
     },
     onError: (error) => {
-      toast.error(`Failed to delete document: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    },
+      toast.error(`Error uploading document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
+
+  // Mutation to check document processing status
+  const checkStatus = useMutation({
+    mutationFn: (jobId: string) => checkDocumentProcessingStatus(jobId),
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(`Document processed successfully: ${data.processed} items`);
+      } else if (data.error) {
+        toast.error(`Document processing failed: ${data.error}`);
+      }
+      refetch();
+    }
   });
 
   return {
-    documents,
+    documents: data || [],
     isLoading,
     error,
-    refetch,
-    processDocument: processDocumentMutation.mutateAsync,
-    deleteDocument: deleteDocumentMutation.mutateAsync,
-    isProcessing,
-    processingDocumentId,
-    isDeleting,
-    deletingDocumentId,
+    processDocument,
+    uploadDocument: uploadDocumentMutation,
+    checkStatus,
+    refetch
   };
-};
+}

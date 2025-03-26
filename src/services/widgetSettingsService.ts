@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { WidgetSettings } from "@/types/widget-settings";
+import { WidgetSettings } from "@/types/client-form";
 import { defaultSettings } from "@/types/widget-settings";
 
 /**
@@ -22,10 +22,13 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
       return { ...defaultSettings };
     }
     
+    // Convert to regular object if it's not already
+    const settingsObj = typeof data.settings === 'object' ? data.settings : {};
+    
     // Ensure we have a complete settings object by merging with defaults
     return {
       ...defaultSettings,
-      ...data.settings
+      ...settingsObj
     };
   } catch (error) {
     console.error('Error getting widget settings:', error);
@@ -54,7 +57,7 @@ export async function updateWidgetSettings(
     const { error } = await supabase
       .from('ai_agents')
       .update({
-        settings: updatedSettings as Record<string, any>
+        settings: updatedSettings
       })
       .eq('id', clientId)
       .eq('interaction_type', 'config');

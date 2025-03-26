@@ -23,28 +23,36 @@ export const useClientList = () => {
         throw error;
       }
 
-      return (data || []).map(client => ({
-        id: client.id || '',
-        client_id: client.client_id || client.id || '',
-        client_name: client.client_name || getSettingsProp(client.settings || {}, 'client_name', ''),
-        email: client.email || '',
-        company: client.company || '',
-        description: client.description || '',
-        logo_url: client.logo_url || getSettingsProp(client.settings || {}, 'logo_url', ''),
-        logo_storage_path: client.logo_storage_path || '',
-        created_at: client.created_at || '',
-        updated_at: client.updated_at || '',
-        deleted_at: client.deleted_at,
-        deletion_scheduled_at: client.deletion_scheduled_at,
-        last_active: client.last_active,
-        status: client.status || 'active',
-        agent_name: client.name || '',
-        agent_description: client.agent_description || '',
-        widget_settings: client.settings || {},
-        name: client.name || '',
-        is_error: !!client.is_error,
-        user_id: client.user_id || ''
-      }));
+      return (data || []).map(client => {
+        // Convert Supabase Json type to standard Record<string, any>
+        const widgetSettingsRecord: Record<string, any> = 
+          typeof client.settings === 'object' && client.settings !== null
+            ? { ...client.settings }
+            : {};
+            
+        return {
+          id: client.id || '',
+          client_id: client.client_id || client.id || '',
+          client_name: client.client_name || getSettingsProp(client.settings || {}, 'client_name', ''),
+          email: client.email || '',
+          company: client.company || '',
+          description: client.description || '',
+          logo_url: client.logo_url || getSettingsProp(client.settings || {}, 'logo_url', ''),
+          logo_storage_path: client.logo_storage_path || '',
+          created_at: client.created_at || '',
+          updated_at: client.updated_at || '',
+          deleted_at: client.deleted_at,
+          deletion_scheduled_at: client.deletion_scheduled_at,
+          last_active: client.last_active,
+          status: client.status || 'active',
+          agent_name: client.name || '',
+          agent_description: client.agent_description || '',
+          widget_settings: widgetSettingsRecord,
+          name: client.name || '',
+          is_error: !!client.is_error,
+          user_id: client.user_id || ''
+        };
+      });
     },
   });
 

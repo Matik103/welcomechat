@@ -1,33 +1,13 @@
 
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { ClientForm } from '@/components/client/ClientForm';
 import { useClientMutation } from '@/hooks/useClientMutation';
 import { useQuery } from '@tanstack/react-query';
 import { getClientById } from '@/services/clientService';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-
-// Define client form schema
-const clientFormSchema = z.object({
-  client_name: z.string().min(1, "Client name is required"),
-  email: z.string().email("Invalid email address"),
-  company: z.string().optional(),
-  description: z.string().optional(),
-  client_id: z.string().optional(),
-  widget_settings: z.object({
-    agent_name: z.string().optional(),
-    agent_description: z.string().optional(),
-    logo_url: z.string().optional(),
-    logo_storage_path: z.string().optional()
-  }).optional(),
-  _tempLogoFile: z.any().optional()
-});
-
-export type ClientFormData = z.infer<typeof clientFormSchema>;
+import { ClientFormData } from '@/types/client-form';
 
 export default function AddEditClient() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -35,45 +15,12 @@ export default function AddEditClient() {
   const isEditing = !!clientId;
   const mutation = useClientMutation();
   
-  const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientFormSchema),
-    defaultValues: {
-      client_name: '',
-      email: '',
-      company: '',
-      description: '',
-      widget_settings: {
-        agent_name: 'AI Assistant',
-        agent_description: ''
-      }
-    }
-  });
-
   // Fetch client data if editing
   const { data: client, isLoading: isLoadingClient } = useQuery({
     queryKey: ['client', clientId],
     queryFn: () => clientId ? getClientById(clientId) : null,
     enabled: isEditing,
   });
-
-  // Populate form when client data is loaded
-  useEffect(() => {
-    if (client) {
-      form.reset({
-        client_name: client.client_name,
-        email: client.email,
-        company: client.company || '',
-        description: client.description || '',
-        client_id: client.id,
-        widget_settings: {
-          agent_name: client.agent_name || 'AI Assistant',
-          agent_description: client.agent_description || '',
-          logo_url: client.logo_url || '',
-          logo_storage_path: client.logo_storage_path || ''
-        }
-      });
-    }
-  }, [client, form]);
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
@@ -112,9 +59,9 @@ export default function AddEditClient() {
           </div>
         ) : (
           <ClientForm 
-            form={form}
+            initialData={client || {}}
             onSubmit={handleSubmit}
-            isSubmitting={mutation.isPending}
+            isLoading={mutation.isPending}
           />
         )}
       </div>

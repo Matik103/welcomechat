@@ -26,7 +26,7 @@ export function NewClientForm({ onSubmit, isSubmitting = false, initialData }: N
         // Use the mutation directly to create the client with proper client_id generation
         const result = await clientMutation.mutateAsync(data);
         
-        console.log("Client created with client_id:", result.client.client_id);
+        console.log("Client created with client data:", result.client);
         
         // Call the provided onSubmit handler with the processed data
         await onSubmit(data);

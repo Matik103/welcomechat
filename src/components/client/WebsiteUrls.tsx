@@ -3,7 +3,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { WebsiteUrl, WebsiteUrlFormData } from '@/types/website-url';
 import { WebsiteUrlForm } from './website-urls/WebsiteUrlForm';
-import { WebsiteUrlsTable } from './website-urls/WebsiteUrlsTable';
+import { WebsiteUrlsList } from './website-urls/WebsiteUrlsList';
 import WebsiteUrlsLoading from './website-urls/WebsiteUrlsLoading';
 import WebsiteUrlsListEmpty from './website-urls/WebsiteUrlsListEmpty';
 
@@ -14,8 +14,10 @@ interface WebsiteUrlsProps {
   isLoading: boolean;
   isAdding: boolean;
   isDeleting: boolean;
+  deletingId?: number;
   agentName: string;
   isClientView?: boolean;
+  deletingUrlId?: number;
 }
 
 export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
@@ -25,8 +27,10 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
   isLoading,
   isAdding,
   isDeleting,
+  deletingId,
   agentName,
-  isClientView = false
+  isClientView = false,
+  deletingUrlId
 }) => {
   const handleDelete = async (urlId: number) => {
     if (confirm('Are you sure you want to delete this URL?')) {
@@ -37,11 +41,13 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
   return (
     <div className="space-y-6">
       <WebsiteUrlForm 
-        onAdd={onAdd} 
+        onSubmit={onAdd} 
+        onAdd={onAdd}
+        isSubmitting={isAdding}
         isAdding={isAdding}
-        agentName={agentName}
+        agentName={agentName} 
       />
-
+      
       <div>
         <h3 className="font-medium mb-2">Website URLs</h3>
         {isLoading ? (
@@ -49,13 +55,16 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
         ) : urls.length === 0 ? (
           <WebsiteUrlsListEmpty />
         ) : (
-          <WebsiteUrlsTable 
+          <WebsiteUrlsList 
             urls={urls} 
             onDelete={handleDelete} 
             isDeleting={isDeleting}
+            deletingId={deletingId || deletingUrlId}
           />
         )}
       </div>
     </div>
   );
 };
+
+export default WebsiteUrls;

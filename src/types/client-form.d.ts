@@ -39,6 +39,8 @@ export interface ClientFormData {
   client_id?: string;
   client_name: string;
   email: string;
+  company?: string;
+  description?: string;
   widget_settings?: {
     agent_name?: string;
     agent_description?: string;
@@ -46,4 +48,35 @@ export interface ClientFormData {
     logo_storage_path?: string;
   };
   _tempLogoFile?: File | null;
+}
+
+export interface ClientFormErrors {
+  [key: string]: string;
+}
+
+// Define the client form schema for validation
+export const clientFormSchema = {
+  client_id: String,
+  client_name: String,
+  email: String,
+  company: String,
+  description: String,
+  widget_settings: {
+    agent_name: String,
+    agent_description: String,
+    logo_url: String,
+    logo_storage_path: String
+  },
+  _tempLogoFile: File
+};
+
+export interface WidgetSettings {
+  agent_name?: string;
+  agent_description?: string;
+  logo_url?: string;
+  logo_storage_path?: string;
+  client_name?: string;
+  email?: string;
+  client_id?: string;
+  [key: string]: any;
 }
