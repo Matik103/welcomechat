@@ -42,6 +42,7 @@ export const Header = () => {
                 alt="WelcomeChat Logo" 
                 className="h-full w-auto"
                 loading="eager"
+                decoding="async"
               />
             </div>
           </Link>

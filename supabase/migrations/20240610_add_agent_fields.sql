@@ -12,7 +12,7 @@ CREATE INDEX IF NOT EXISTS idx_ai_agents_status ON ai_agents(status);
 CREATE INDEX IF NOT EXISTS idx_ai_agents_name ON ai_agents(name);
 CREATE INDEX IF NOT EXISTS idx_ai_agents_client_id ON ai_agents(client_id);
 
--- Update the function to get agent information
+-- Update the function to get agent dashboard stats
 CREATE OR REPLACE FUNCTION get_agent_dashboard_stats(
     client_id_param UUID,
     agent_name_param TEXT

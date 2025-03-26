@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DashboardStatCard } from '@/components/admin/DashboardStatCard';
@@ -12,8 +11,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { setupRealtimeActivities } from '@/utils/setupRealtimeActivities';
 
-// Define interfaces for the dashboard data structure
 interface ActivityChartData {
   name: string;
   value: number;
@@ -111,60 +110,86 @@ export default function AdminDashboardPage() {
     }
   });
   
-  useEffect(() => {
-    async function fetchDashboardData() {
-      setIsLoading(true);
-      try {
-        // Fetch stats using our new RPC function
-        const { data: statsData, error: statsError } = await supabase.rpc('get_admin_dashboard_stats');
-        
-        if (statsError) {
-          console.error('Error fetching dashboard stats:', statsError);
-          toast.error('Failed to load dashboard statistics');
-          throw statsError;
-        }
-        
-        // Fetch activity chart data
-        const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
-        
-        if (chartError) {
-          console.error('Error fetching chart data:', chartError);
-          toast.error('Failed to load activity charts');
-          throw chartError;
-        }
-        
-        // Handle the data with proper type safety
-        const parsedStatsData = typeof statsData === 'string' ? JSON.parse(statsData) : statsData;
-        const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
-        
-        // Combine the data with proper type casting
-        setDashboardData({
-          clients: parsedStatsData?.clients as DashboardData['clients'],
-          agents: parsedStatsData?.agents as DashboardData['agents'],
-          interactions: parsedStatsData?.interactions as DashboardData['interactions'],
-          trainings: parsedStatsData?.trainings as DashboardData['trainings'],
-          administration: parsedStatsData?.administration as DashboardData['administration'],
-          activityCharts: parsedChartData as DashboardData['activityCharts']
-        });
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
-      } finally {
-        setIsLoading(false);
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const { data: statsData, error: statsError } = await supabase.rpc('get_admin_dashboard_stats');
+      
+      if (statsError) {
+        console.error('Error fetching dashboard stats:', statsError);
+        toast.error('Failed to load dashboard statistics');
+        throw statsError;
       }
+      
+      const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
+      
+      if (chartError) {
+        console.error('Error fetching chart data:', chartError);
+        toast.error('Failed to load activity charts');
+        throw chartError;
+      }
+      
+      const parsedStatsData = typeof statsData === 'string' ? JSON.parse(statsData) : statsData;
+      const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
+      
+      setDashboardData({
+        clients: parsedStatsData?.clients as DashboardData['clients'],
+        agents: parsedStatsData?.agents as DashboardData['agents'],
+        interactions: parsedStatsData?.interactions as DashboardData['interactions'],
+        trainings: parsedStatsData?.trainings as DashboardData['trainings'],
+        administration: parsedStatsData?.administration as DashboardData['administration'],
+        activityCharts: parsedChartData as DashboardData['activityCharts']
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setIsLoading(false);
     }
+  };
+  
+  useEffect(() => {
+    setupRealtimeActivities().then(success => {
+      if (success) {
+        console.log('Realtime subscriptions set up successfully');
+      } else {
+        console.error('Failed to set up realtime subscriptions');
+      }
+    });
     
     fetchDashboardData();
     
-    // Refresh data every 5 minutes
+    const agentsChannel = supabase.channel('public:ai_agents_dashboard')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ai_agents',
+      }, () => {
+        fetchDashboardData();
+      })
+      .subscribe();
+      
+    const activitiesChannel = supabase.channel('public:client_activities_dashboard')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'client_activities',
+      }, () => {
+        fetchDashboardData();
+      })
+      .subscribe();
+    
     const intervalId = setInterval(fetchDashboardData, 5 * 60 * 1000);
     
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      supabase.removeChannel(agentsChannel);
+      supabase.removeChannel(activitiesChannel);
+    };
   }, []);
   
   return (
     <AdminLayout>
       <div className="container py-8 max-w-7xl mx-auto">
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <DashboardStatCard
             title="CLIENTS"
@@ -206,7 +231,6 @@ export default function AdminDashboardPage() {
           />
         </div>
         
-        {/* Activity Charts */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <ActivityChartCard
             title="Database"
