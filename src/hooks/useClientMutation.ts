@@ -26,7 +26,7 @@ export const useClientMutation = () => {
         await updateClient(client_id, clientData);
         return client_id;
       } else {
-        // Create new client
+        // Create new client - use Partial<Client> to allow partial properties
         const result = await createClient({
           client_name: clientData.client_name || '',
           email: clientData.email || '',
@@ -34,7 +34,7 @@ export const useClientMutation = () => {
           description: clientData.description || '',
           agent_name: clientData.widget_settings?.agent_name
         });
-        return { agentId: result.id };
+        return { agentId: result?.id };
       }
     },
     onSuccess: (data) => {

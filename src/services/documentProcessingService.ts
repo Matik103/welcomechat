@@ -23,9 +23,12 @@ export const processDocumentUrl = async (
         client_id: clientId,
         document_url: documentUrl,
         document_type: documentType,
-        document_id: documentId,
         agent_name: agentName,
-        status: 'pending'
+        status: 'pending',
+        started_at: new Date().toISOString(),
+        metadata: {
+          document_id: documentId
+        }
       })
       .select();
 
@@ -67,15 +70,17 @@ export const checkDocumentProcessingStatus = async (
     const { data, error } = await supabase
       .from('document_processing')
       .select('*')
-      .eq('document_id', jobId)
+      .eq('id', jobId)
       .single();
 
     if (error) throw error;
 
     const status = data.status;
-    const processed_count = data.metadata?.processed_count || 0;
-    const failed_count = data.metadata?.failed_count || 0;
-    const error_message = data.error_message;
+    // Safely access metadata properties
+    const metadata = data.metadata as Record<string, any> || {};
+    const processed_count = metadata.processed_count || 0;
+    const failed_count = metadata.failed_count || 0;
+    const error_message = data.error;
 
     return {
       success: status === 'completed',
@@ -133,10 +138,11 @@ export const uploadDocument = async (
         client_id: clientId,
         document_url: documentUrl,
         document_type: detectDocumentType(file.name),
-        document_id: documentId,
         agent_name: agentName,
         status: 'pending',
+        started_at: new Date().toISOString(),
         metadata: {
+          document_id: documentId,
           original_filename: file.name,
           file_size: file.size,
           content_type: file.type

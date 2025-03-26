@@ -1,15 +1,13 @@
-// Fix references to user_id in clientService.ts
-// We need to replace any references to client.user_id with alternative properties
 
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
 
 // Function to create a new client
-export const createClient = async (client: Client): Promise<Client | null> => {
+export const createClient = async (clientData: Partial<Client>): Promise<Client | null> => {
   try {
     const { data, error } = await supabase
       .from('clients')
-      .insert([client])
+      .insert([clientData])
       .select()
       .single();
     
@@ -38,28 +36,26 @@ export const getAllClients = async (): Promise<Client[]> => {
   }
 };
 
-// Fix the function where user_id is used
+// Function to get a client by ID
 export const getClient = async (clientId: string): Promise<Client | null> => {
   try {
     const { data, error } = await supabase
       .from('clients')
       .select('*')
-      .eq('client_id', clientId)
+      .eq('id', clientId)
       .single();
     
     if (error) throw error;
     
     // Return the client data with proper ID mappings
-    const client = data as Client;
-    // Instead of accessing user_id directly, use client_id
-    return client;
+    return data as Client;
   } catch (error) {
     console.error('Error fetching client:', error);
     return null;
   }
 };
 
-// Similarly fix any other functions that reference user_id
+// Function to get a client by email
 export const getClientByEmail = async (email: string): Promise<Client | null> => {
   try {
     const { data, error } = await supabase
@@ -84,7 +80,7 @@ export const updateClient = async (clientId: string, updates: Partial<Client>): 
     const { data, error } = await supabase
       .from('clients')
       .update(updates)
-      .eq('client_id', clientId)
+      .eq('id', clientId)
       .select()
       .single();
     
@@ -103,7 +99,7 @@ export const deleteClient = async (clientId: string): Promise<boolean> => {
     const { error } = await supabase
       .from('clients')
       .delete()
-      .eq('client_id', clientId);
+      .eq('id', clientId);
     
     if (error) throw error;
     
@@ -113,3 +109,6 @@ export const deleteClient = async (clientId: string): Promise<boolean> => {
     return false;
   }
 };
+
+// Alias for getClient to maintain compatibility with AddEditClient.tsx
+export const getClientById = getClient;

@@ -3,8 +3,7 @@ import { ActivityType } from '@/types/client-form';
 
 // Activity type to display text mapping
 export const activityTypeToDisplayText: Partial<Record<ActivityType, string>> = {
-  'login': 'Logged in',
-  'logout': 'Logged out',
+  // Remove 'login' and 'logout' which are not defined in ActivityType
   'settings_updated': 'Updated settings',
   'password_changed': 'Changed password',
   'website_added': 'Added website',
@@ -18,13 +17,14 @@ export const activityTypeToDisplayText: Partial<Record<ActivityType, string>> = 
   'widget_updated': 'Updated widget',
   'password_reset': 'Password reset',
   'document_link_added': 'Added document link',
-  'document_link_deleted': 'Deleted document link'
+  'document_link_deleted': 'Deleted document link',
+  'website_url_added': 'Added website URL',
+  'website_url_deleted': 'Deleted website URL'
 };
 
 // Activity type to icon mapping
 export const activityTypeToIcon: Partial<Record<ActivityType, string>> = {
-  'login': 'log-in',
-  'logout': 'log-out',
+  // Remove 'login' and 'logout' which are not defined in ActivityType
   'settings_updated': 'settings',
   'password_changed': 'lock',
   'website_added': 'globe',
@@ -38,13 +38,14 @@ export const activityTypeToIcon: Partial<Record<ActivityType, string>> = {
   'widget_updated': 'layout',
   'password_reset': 'key',
   'document_link_added': 'link',
-  'document_link_deleted': 'unlink'
+  'document_link_deleted': 'unlink',
+  'website_url_added': 'globe',
+  'website_url_deleted': 'trash'
 };
 
 // Activity type to color mapping
 export const activityTypeToColor: Partial<Record<ActivityType, string>> = {
-  'login': 'green',
-  'logout': 'blue',
+  // Remove 'login' and 'logout' which are not defined in ActivityType
   'settings_updated': 'purple',
   'password_changed': 'yellow',
   'website_added': 'green',
@@ -58,5 +59,7 @@ export const activityTypeToColor: Partial<Record<ActivityType, string>> = {
   'widget_updated': 'blue',
   'password_reset': 'yellow',
   'document_link_added': 'green',
-  'document_link_deleted': 'red'
+  'document_link_deleted': 'red',
+  'website_url_added': 'green',
+  'website_url_deleted': 'red'
 };

@@ -9,8 +9,9 @@ export const createClientActivity = async (
   metadata?: Record<string, any>
 ): Promise<void> => {
   try {
+    // Use client_activities table name instead of client_activity
     const { error } = await supabase
-      .from('client_activity')
+      .from('client_activities')
       .insert({
         client_id: clientId,
         activity_type,
@@ -31,8 +32,9 @@ export const getClientActivities = async (
   limit: number = 10
 ) => {
   try {
+    // Use client_activities table name instead of client_activity
     const { data, error } = await supabase
-      .from('client_activity')
+      .from('client_activities')
       .select('*')
       .eq('client_id', clientId)
       .order('created_at', { ascending: false })

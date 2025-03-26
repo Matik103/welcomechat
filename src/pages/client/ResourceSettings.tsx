@@ -57,4 +57,5 @@ const ResourceSettings = () => {
   );
 };
 
+// Ensure there's a default export to fix routing issues
 export default ResourceSettings;

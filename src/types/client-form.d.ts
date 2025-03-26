@@ -1,3 +1,4 @@
+
 export type ActivityType = 
   | 'login' 
   | 'logout' 
@@ -14,4 +15,6 @@ export type ActivityType =
   | 'widget_updated'
   | 'password_reset'
   | 'document_link_added'
-  | 'document_link_deleted';
+  | 'document_link_deleted'
+  | 'website_url_added'    // Added website_url specific activities
+  | 'website_url_deleted'; // to match what's used in WebsiteResourcesSection
