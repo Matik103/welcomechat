@@ -67,16 +67,12 @@ export const Header = () => {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="hover:bg-gray-100">
-                  <Settings className="h-5 w-5" />
+                <Button variant="ghost" className="hover:bg-gray-100 flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  <span className="font-medium">{user.user_metadata.full_name || user.email}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  {user.user_metadata.full_name || user.email}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/admin/settings" className="w-full cursor-pointer">
                     <Settings className="h-4 w-4 mr-2" />

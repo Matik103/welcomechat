@@ -3,18 +3,19 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DashboardStatCard } from '@/components/admin/DashboardStatCard';
 import { ActivityChartCard } from '@/components/admin/ActivityChartCard';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { 
-  Database, 
-  KeyRound, 
-  HardDrive, 
-  Zap 
+  Users, 
+  Bot, 
+  MessageSquare, 
+  BookOpen,
+  Settings,
+  Activity
 } from 'lucide-react';
 
 // Mock data for the activity charts
-const generateMockData = () => {
-  return Array.from({ length: 24 }, (_, i) => ({
-    name: `Hour ${i}`,
+const generateChartData = () => {
+  return Array.from({ length: 7 }, (_, i) => ({
+    name: `Day ${i + 1}`,
     value: Math.floor(Math.random() * 50) + 10
   }));
 };
@@ -27,50 +28,29 @@ export default function AdminDashboardPage() {
     clients: {
       total: 12,
       active: 10,
-      changePercentage: 18
+      changePercentage: 18,
+      chartData: generateChartData()
     },
     agents: {
       total: 18,
-      active: 10,
-      changePercentage: 15
+      active: 15,
+      changePercentage: 15,
+      chartData: generateChartData()
     },
     interactions: {
       total: 1234,
-      changePercentage: 18
+      changePercentage: 18,
+      chartData: generateChartData()
     },
     trainings: {
       total: 484,
-      changePercentage: 18
+      changePercentage: 12,
+      chartData: generateChartData()
     },
     administration: {
       total: 123,
-      changePercentage: 18
-    },
-    activityCharts: {
-      database: {
-        value: "13,393",
-        title: "Database",
-        subtitle: "REST Requests",
-        data: generateMockData()
-      },
-      auth: {
-        value: "382",
-        title: "Auth",
-        subtitle: "Auth Requests",
-        data: generateMockData()
-      },
-      storage: {
-        value: "99",
-        title: "Storage",
-        subtitle: "Storage Requests",
-        data: generateMockData()
-      },
-      realtime: {
-        value: "327",
-        title: "Realtime",
-        subtitle: "Realtime Requests",
-        data: generateMockData()
-      }
+      changePercentage: 8,
+      chartData: generateChartData()
     }
   };
   
@@ -78,13 +58,14 @@ export default function AdminDashboardPage() {
     <AdminLayout>
       <div className="container py-8 max-w-7xl mx-auto">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
           <DashboardStatCard
             title="Clients"
             value={dashboardData.clients.total}
             active={dashboardData.clients.active}
             changePercentage={dashboardData.clients.changePercentage}
-            bgColor="bg-green-50"
+            bgColor="bg-blue-50"
+            chartColor="#3B82F6"
             onClick={() => navigate('/admin/clients')}
           />
           
@@ -93,7 +74,8 @@ export default function AdminDashboardPage() {
             value={dashboardData.agents.total}
             active={dashboardData.agents.active}
             changePercentage={dashboardData.agents.changePercentage}
-            bgColor="bg-gray-50"
+            bgColor="bg-purple-50"
+            chartColor="#8B5CF6"
             onClick={() => navigate('/admin/agents')}
           />
           
@@ -101,14 +83,16 @@ export default function AdminDashboardPage() {
             title="Interactions"
             value={dashboardData.interactions.total}
             changePercentage={dashboardData.interactions.changePercentage}
-            bgColor="bg-yellow-50"
+            bgColor="bg-green-50"
+            chartColor="#10B981"
           />
           
           <DashboardStatCard
             title="Trainings"
             value={dashboardData.trainings.total}
             changePercentage={dashboardData.trainings.changePercentage}
-            bgColor="bg-blue-50"
+            bgColor="bg-yellow-50"
+            chartColor="#F59E0B"
           />
           
           <DashboardStatCard
@@ -116,57 +100,38 @@ export default function AdminDashboardPage() {
             value={dashboardData.administration.total}
             changePercentage={dashboardData.administration.changePercentage}
             bgColor="bg-red-50"
+            chartColor="#EF4444"
           />
         </div>
         
         {/* Activity Charts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <ActivityChartCard
-            title={dashboardData.activityCharts.database.title}
-            subtitle={dashboardData.activityCharts.database.subtitle}
-            value={dashboardData.activityCharts.database.value}
-            data={dashboardData.activityCharts.database.data}
-            icon={<Database size={18} />}
+            title="Client Activity"
+            subtitle="Active clients over time"
+            value={dashboardData.clients.active}
+            data={dashboardData.clients.chartData}
+            icon={<Users size={20} />}
+            chartColor="#3B82F6"
           />
           
           <ActivityChartCard
-            title={dashboardData.activityCharts.auth.title}
-            subtitle={dashboardData.activityCharts.auth.subtitle}
-            value={dashboardData.activityCharts.auth.value}
-            data={dashboardData.activityCharts.auth.data}
-            icon={<KeyRound size={18} />}
+            title="Agent Performance"
+            subtitle="Agent interactions per day"
+            value={dashboardData.agents.active}
+            data={dashboardData.agents.chartData}
+            icon={<Bot size={20} />}
+            chartColor="#8B5CF6"
           />
           
           <ActivityChartCard
-            title={dashboardData.activityCharts.storage.title}
-            subtitle={dashboardData.activityCharts.storage.subtitle}
-            value={dashboardData.activityCharts.storage.value}
-            data={dashboardData.activityCharts.storage.data}
-            icon={<HardDrive size={18} />}
+            title="Training Progress"
+            subtitle="Documents processed"
+            value={dashboardData.trainings.total}
+            data={dashboardData.trainings.chartData}
+            icon={<BookOpen size={20} />}
+            chartColor="#F59E0B"
           />
-          
-          <ActivityChartCard
-            title={dashboardData.activityCharts.realtime.title}
-            subtitle={dashboardData.activityCharts.realtime.subtitle}
-            value={dashboardData.activityCharts.realtime.value}
-            data={dashboardData.activityCharts.realtime.data}
-            icon={<Zap size={18} />}
-          />
-        </div>
-        
-        {/* Action Buttons at the bottom left */}
-        <div className="flex justify-start mt-6">
-          <div className="flex space-x-4">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/admin/clients')}
-            >
-              View All Clients
-            </Button>
-            <Button onClick={() => navigate('/admin/clients/new')}>
-              Add Client
-            </Button>
-          </div>
         </div>
       </div>
     </AdminLayout>
