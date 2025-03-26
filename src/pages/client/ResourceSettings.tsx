@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
 import { WebsiteUrlFormData } from '@/types/website-url';
 import { DocumentLinkFormData } from '@/types/document-processing';
+import { ActivityType } from '@/types/client-form';
 
 export default function ResourceSettings() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -82,7 +83,7 @@ export default function ResourceSettings() {
       if (result) {
         await createClientActivity(
           effectiveClientId,
-          "website_added", // Changed to a valid ActivityType
+          "document_processed" as ActivityType,
           `Uploaded document: ${file.name}`,
           { file_name: file.name, file_type: file.type, file_size: file.size }
         );
@@ -127,7 +128,7 @@ export default function ResourceSettings() {
               isLoading={isUrlsLoading}
               isAdding={isValidatingUrl}
               isDeleting={isDeletingUrl}
-              deletingUrlId={deletingUrlId}
+              deletingUrlId={deletingUrlId || 0}
               agentName="AI Assistant"
             />
           </TabsContent>

@@ -1,86 +1,101 @@
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2, Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DocumentLinkFormData } from '@/types/document-processing';
+
+const documentLinkFormSchema = z.object({
+  link: z.string().url('Please enter a valid Google Drive URL'),
+  refresh_rate: z.coerce.number().int().positive('Please select a refresh rate'),
+});
 
 export interface DocumentLinkFormProps {
-  onSubmit: (data: { link: string; refresh_rate: number }) => Promise<void>;
+  onSubmit: (data: DocumentLinkFormData) => Promise<void>;
   isSubmitting: boolean;
   agentName?: string;
 }
 
-export const DocumentLinkForm: React.FC<DocumentLinkFormProps> = ({
-  onSubmit,
+export const DocumentLinkForm: React.FC<DocumentLinkFormProps> = ({ 
+  onSubmit, 
   isSubmitting,
   agentName = "AI Assistant"
 }) => {
-  const [link, setLink] = useState('');
-  const [refreshRate, setRefreshRate] = useState(7); // Default 7 days
+  const form = useForm<DocumentLinkFormData>({
+    resolver: zodResolver(documentLinkFormSchema),
+    defaultValues: {
+      link: '',
+      refresh_rate: 24,
+    },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!link) {
-      toast.error('Please enter a Google Drive link');
-      return;
-    }
-    
+  const handleSubmit = async (data: DocumentLinkFormData) => {
     try {
-      await onSubmit({ 
-        link, 
-        refresh_rate: refreshRate
-      });
-      
-      setLink('');
+      await onSubmit(data);
+      form.reset();
     } catch (error) {
-      console.error('Error adding document link:', error);
+      console.error('Error submitting form:', error);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="link">Add Google Drive Link</Label>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            id="link"
-            placeholder="https://drive.google.com/file/d/..."
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            disabled={isSubmitting}
-            className="flex-1"
-          />
-          <Input
-            id="refresh_rate"
-            type="number"
-            min="1"
-            placeholder="Refresh days"
-            value={refreshRate}
-            onChange={(e) => setRefreshRate(Number(e.target.value))}
-            disabled={isSubmitting}
-            className="w-full sm:w-32"
-          />
-          <Button type="submit" disabled={isSubmitting || !link}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Adding...
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Add
-              </>
-            )}
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {agentName} will refresh content from this document every {refreshRate} days.
-        </p>
-      </div>
-    </form>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="link"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Google Drive Link</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="https://drive.google.com/file/d/..." 
+                  {...field} 
+                  disabled={isSubmitting}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="refresh_rate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Refresh Rate</FormLabel>
+              <Select 
+                onValueChange={(value) => field.onChange(parseInt(value))}
+                defaultValue={field.value.toString()}
+                disabled={isSubmitting}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select refresh rate" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="6">Every 6 hours</SelectItem>
+                  <SelectItem value="12">Every 12 hours</SelectItem>
+                  <SelectItem value="24">Every 24 hours</SelectItem>
+                  <SelectItem value="72">Every 3 days</SelectItem>
+                  <SelectItem value="168">Every week</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <Button type="submit" disabled={isSubmitting} className="w-full">
+          {isSubmitting ? 'Adding...' : `Add Document to ${agentName}`}
+        </Button>
+      </form>
+    </Form>
   );
 };

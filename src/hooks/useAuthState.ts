@@ -4,7 +4,6 @@ import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 
 export function useAuthState() {
-  // Define initialized state for React hooks inside the function body
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
