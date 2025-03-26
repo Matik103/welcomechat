@@ -58,7 +58,7 @@ export async function checkDocumentStatus(documentId: string): Promise<'pending'
     const { data, error } = await supabase
       .from('document_processing')
       .select('status')
-      .eq('id', documentId)
+      .eq('id', parseInt(documentId, 10))
       .single();
     
     if (error) throw error;

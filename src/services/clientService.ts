@@ -26,6 +26,7 @@ export async function createClient(data: CreateClientData): Promise<Client> {
     const { data: newClient, error } = await supabase
       .from('ai_agents')
       .insert({
+        name: data.client_name, // Add name field required by the database
         client_name: data.client_name,
         email: data.email,
         company: data.company || '',
@@ -44,7 +45,7 @@ export async function createClient(data: CreateClientData): Promise<Client> {
     return {
       id: newClient.id,
       client_id: newClient.client_id || newClient.id,
-      user_id: newClient.user_id || '',
+      user_id: '', // Default value since it's missing in the response
       client_name: newClient.client_name,
       email: newClient.email,
       company: newClient.company || '',
@@ -74,6 +75,7 @@ export async function updateClient(data: UpdateClientData): Promise<Client> {
     const { data: updatedClient, error } = await supabase
       .from('ai_agents')
       .update({
+        name: data.client_name, // Add name field required by DB
         client_name: data.client_name,
         email: data.email,
         company: data.company,
@@ -93,7 +95,7 @@ export async function updateClient(data: UpdateClientData): Promise<Client> {
     return {
       id: updatedClient.id,
       client_id: updatedClient.client_id || updatedClient.id,
-      user_id: updatedClient.user_id || '',
+      user_id: '', // Default value since it's missing in the response
       client_name: updatedClient.client_name,
       email: updatedClient.email,
       company: updatedClient.company || '',

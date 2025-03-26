@@ -41,9 +41,6 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
           </TableRow>
         ) : (
           clients.map((client) => {
-            // Debug client ID for each row
-            console.log(`Rendering row for client ${client.client_name} with ID: ${client.id}`);
-            
             return (
               <TableRow key={client.id} className="hover:bg-gray-50">
                 <TableCell className="font-medium">{client.client_name}</TableCell>

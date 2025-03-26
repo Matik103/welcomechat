@@ -37,8 +37,8 @@ export const useDocumentProcessor = () => {
         }));
         
         return {
-          ...result,
-          jobId: jobId,
+          success: result.success,
+          error: result.error,
           processed: 0,
           failed: 0
         };

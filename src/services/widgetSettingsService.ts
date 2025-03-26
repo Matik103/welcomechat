@@ -1,128 +1,72 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { WidgetSettings } from '@/types/widget-settings';
-import { safeParseSettings, getSettingsProp } from '@/utils/clientSettingsUtils';
+import { JsonObject, toJson } from "@/types/supabase-extensions";
+import { WidgetSettings, defaultSettings } from "@/types/widget-settings";
+import { execSql } from "@/utils/rpcUtils";
 
-// Get widget settings for a client
-export async function getWidgetSettings(clientId: string): Promise<WidgetSettings> {
+/**
+ * Updates widget settings for a client in the database
+ */
+export const updateWidgetSettings = async (clientId: string, settings: WidgetSettings): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
-      .from('ai_agents')
-      .select('settings, name, agent_description')
-      .eq('id', clientId)
-      .single();
+    // Convert settings to a proper JSON string for safe handling
+    const settingsJson = JSON.stringify(settings);
     
-    if (error) {
-      console.error('Error fetching widget settings:', error);
-      throw error;
-    }
+    // Update settings in ai_agents table
+    const agentQuery = `
+      UPDATE ai_agents
+      SET 
+        settings = $1::jsonb,
+        name = $2,
+        agent_description = $3,
+        logo_url = $4,
+        logo_storage_path = $5
+      WHERE client_id = $6 AND interaction_type = 'config'
+    `;
     
-    // Get the settings object or create a default one
-    const settingsObj = safeParseSettings(data.settings);
+    await execSql(agentQuery, [
+      settingsJson,
+      settings.agent_name || '',
+      settings.agent_description || '',
+      settings.logo_url || '',
+      settings.logo_storage_path || '',
+      clientId
+    ]);
     
-    // Create a consistent widget settings object
-    const widgetSettings: WidgetSettings = {
-      agent_name: getSettingsProp(data.settings, 'agent_name', data.name || 'AI Assistant'),
-      agent_description: getSettingsProp(data.settings, 'agent_description', data.agent_description || 'Your helpful AI assistant'),
-      logo_url: getSettingsProp(data.settings, 'logo_url', ''),
-      logo_storage_path: getSettingsProp(data.settings, 'logo_storage_path', ''),
-      chat_color: getSettingsProp(data.settings, 'chat_color', '#4F46E5'),
-      background_color: getSettingsProp(data.settings, 'background_color', '#FFFFFF'),
-      button_color: getSettingsProp(data.settings, 'button_color', '#4F46E5'),
-      font_color: getSettingsProp(data.settings, 'font_color', '#1F2937'),
-      chat_font_color: getSettingsProp(data.settings, 'chat_font_color', '#FFFFFF'),
-      background_opacity: getSettingsProp(data.settings, 'background_opacity', 1),
-      button_text: getSettingsProp(data.settings, 'button_text', 'Chat with us'),
-      position: getSettingsProp(data.settings, 'position', 'right'),
-      greeting_message: getSettingsProp(data.settings, 'greeting_message', 'Hello! How can I help you today?'),
-      text_color: getSettingsProp(data.settings, 'text_color', '#1F2937'),
-      secondary_color: getSettingsProp(data.settings, 'secondary_color', '#6B7280'),
-      welcome_text: getSettingsProp(data.settings, 'welcome_text', 'Welcome to our chat!'),
-      response_time_text: getSettingsProp(data.settings, 'response_time_text', 'Typically responds in a few minutes'),
-      display_mode: getSettingsProp(data.settings, 'display_mode', 'standard')
-    };
-    
-    return widgetSettings;
+    return true;
   } catch (error) {
-    console.error('Error in getWidgetSettings:', error);
-    // Return default settings on error
-    return getDefaultWidgetSettings();
+    console.error("Error in updateWidgetSettings:", error);
+    return false;
   }
-}
+};
 
-// Update widget settings for a client
-export async function updateWidgetSettings(clientId: string, settings: Partial<WidgetSettings>): Promise<void> {
-  try {
-    // First get the current settings
-    const { data, error: fetchError } = await supabase
-      .from('ai_agents')
-      .select('settings')
-      .eq('id', clientId)
-      .single();
-    
-    if (fetchError) {
-      console.error('Error fetching current settings:', fetchError);
-      throw fetchError;
-    }
-    
-    // Merge the new settings with existing ones
-    const currentSettings = safeParseSettings(data.settings);
-    const updatedSettings = {
-      ...currentSettings,
-      ...settings
-    };
-    
-    // Update the agent name and description in their dedicated columns as well
-    const updateData: any = {
-      settings: updatedSettings,
-      updated_at: new Date().toISOString()
-    };
-    
-    // If agent_name is being updated, also update the name column
-    if (settings.agent_name) {
-      updateData.name = settings.agent_name;
-    }
-    
-    // If agent_description is being updated, also update the agent_description column
-    if (settings.agent_description) {
-      updateData.agent_description = settings.agent_description;
-    }
-    
-    const { error } = await supabase
-      .from('ai_agents')
-      .update(updateData)
-      .eq('id', clientId);
-    
-    if (error) {
-      console.error('Error updating widget settings:', error);
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error in updateWidgetSettings:', error);
-    throw error;
-  }
-}
+/**
+ * Converts widget settings to a JSON object for database storage
+ */
+export const widgetSettingsToJson = (settings: Partial<WidgetSettings>): JsonObject => {
+  const jsonObj: Record<string, any> = {};
+  
+  // Explicitly handle each key to avoid type issues
+  if (settings.theme_color) jsonObj.theme_color = settings.theme_color;
+  if (settings.text_color) jsonObj.text_color = settings.text_color;
+  if (settings.agent_name) jsonObj.agent_name = settings.agent_name;
+  if (settings.font) jsonObj.font = settings.font;
+  if (settings.agent_description) jsonObj.agent_description = settings.agent_description;
+  if (settings.logo_url) jsonObj.logo_url = settings.logo_url;
+  if (settings.button_position) jsonObj.button_position = settings.button_position;
+  if (settings.button_text) jsonObj.button_text = settings.button_text;
+  if (settings.logo_storage_path) jsonObj.logo_storage_path = settings.logo_storage_path;
+  if (settings.welcome_message) jsonObj.welcome_message = settings.welcome_message;
+  if (settings.initial_messages) jsonObj.initial_messages = settings.initial_messages;
+  if (settings.placeholder_text) jsonObj.placeholder_text = settings.placeholder_text;
+  if (settings.button_icon) jsonObj.button_icon = settings.button_icon;
+  if (settings.chat_icon) jsonObj.chat_icon = settings.chat_icon;
+  if (settings.show_sources) jsonObj.show_sources = settings.show_sources;
+  if (settings.powered_by_text) jsonObj.powered_by_text = settings.powered_by_text;
+  if (settings.reset_conversation) jsonObj.reset_conversation = settings.reset_conversation;
+  if (settings.custom_css) jsonObj.custom_css = settings.custom_css;
+  
+  return jsonObj as JsonObject;
+};
 
-// Get default widget settings
-export function getDefaultWidgetSettings(): WidgetSettings {
-  return {
-    agent_name: 'AI Assistant',
-    agent_description: 'Your helpful AI assistant',
-    logo_url: '',
-    logo_storage_path: '',
-    chat_color: '#4F46E5',
-    background_color: '#FFFFFF',
-    button_color: '#4F46E5',
-    font_color: '#1F2937',
-    chat_font_color: '#FFFFFF',
-    background_opacity: 1,
-    button_text: 'Chat with us',
-    position: 'right',
-    greeting_message: 'Hello! How can I help you today?',
-    text_color: '#1F2937',
-    secondary_color: '#6B7280',
-    welcome_text: 'Welcome to our chat!',
-    response_time_text: 'Typically responds in a few minutes',
-    display_mode: 'standard'
-  };
-}
+// Import supabase at the end to avoid circular dependencies
+import { supabase } from "@/integrations/supabase/client";

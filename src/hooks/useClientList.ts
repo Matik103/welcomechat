@@ -24,15 +24,25 @@ export const useClientList = () => {
       }
 
       return (data || []).map(client => ({
-        id: client.client_id || client.id,
-        client_name: client.client_name || getSettingsProp(client.settings, 'client_name', ''),
+        id: client.id || '',
+        client_id: client.client_id || client.id || '',
+        client_name: client.client_name || getSettingsProp(client.settings || {}, 'client_name', ''),
         email: client.email || '',
         company: client.company || '',
-        logo_url: client.logo_url || getSettingsProp(client.settings, 'logo_url', ''),
-        created_at: client.created_at,
+        description: client.description || '',
+        logo_url: client.logo_url || getSettingsProp(client.settings || {}, 'logo_url', ''),
+        logo_storage_path: client.logo_storage_path || '',
+        created_at: client.created_at || '',
+        updated_at: client.updated_at || '',
+        deleted_at: client.deleted_at,
+        deletion_scheduled_at: client.deletion_scheduled_at,
         last_active: client.last_active,
-        widget_settings: client.widget_settings,
-        agent_name: client.name
+        status: client.status || 'active',
+        agent_name: client.name || '',
+        agent_description: client.agent_description || '',
+        widget_settings: client.settings || {},
+        name: client.name || '',
+        is_error: !!client.is_error
       }));
     },
   });

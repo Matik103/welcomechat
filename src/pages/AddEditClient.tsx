@@ -15,13 +15,11 @@ export default function AddEditClient() {
   const navigate = useNavigate();
   
   const { client, isLoading: isClientLoading } = useClient(id || '');
-  const { updateClient, createClient } = useClientMutation(id);
+  const clientMutation = useClientMutation(id);
   
   const [formValues, setFormValues] = useState<ClientFormData>({
     client_name: '',
     email: '',
-    company: '',
-    description: '',
     widget_settings: {
       agent_name: '',
       agent_description: '',
@@ -39,8 +37,6 @@ export default function AddEditClient() {
         client_id: client.id,
         client_name: client.client_name || '',
         email: client.email || '',
-        company: client.company || '',
-        description: client.description || '',
         widget_settings: {
           agent_name: client.agent_name || '',
           agent_description: client.agent_description || '',
@@ -59,7 +55,7 @@ export default function AddEditClient() {
       setFormValues(prev => ({
         ...prev,
         [group]: {
-          ...prev[group],
+          ...prev[group as keyof ClientFormData] as Record<string, any>,
           [field]: value
         }
       }));
@@ -105,9 +101,7 @@ export default function AddEditClient() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (data: ClientFormData) => {
     if (!validateForm()) {
       return;
     }
@@ -115,14 +109,9 @@ export default function AddEditClient() {
     try {
       setIsSubmitting(true);
       
-      if (isEditMode) {
-        await updateClient(formValues);
-        toast.success('Client updated successfully');
-      } else {
-        await createClient(formValues);
-        toast.success('Client created successfully');
-      }
+      await clientMutation.mutateAsync(formValues);
       
+      toast.success(isEditMode ? 'Client updated successfully' : 'Client created successfully');
       navigate('/admin/clients');
     } catch (error) {
       console.error('Error saving client:', error);
@@ -135,7 +124,7 @@ export default function AddEditClient() {
   if (isClientLoading && isEditMode) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Spinner size={40} />
+        <Spinner size="md" />
       </div>
     );
   }
@@ -147,14 +136,12 @@ export default function AddEditClient() {
           <CardTitle>{isEditMode ? 'Edit Client' : 'Add New Client'}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ClientForm
-            formValues={formValues}
-            errors={errors}
-            isSubmitting={isSubmitting}
-            onChange={handleInputChange}
-            onLogoChange={handleLogoChange}
+          <ClientForm 
+            initialData={formValues}
             onSubmit={handleSubmit}
-            isClientView={false}
+            isLoading={isSubmitting}
+            error={null}
+            submitButtonText={isEditMode ? "Update Client" : "Create Client"}
           />
         </CardContent>
       </Card>

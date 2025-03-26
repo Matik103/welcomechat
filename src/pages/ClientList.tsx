@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ClientListContainer } from '@/components/client/ClientListContainer';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
@@ -7,10 +7,16 @@ import { useClientList } from '@/hooks/useClientList';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { useNavigation } from '@/hooks/useNavigation';
+import { Client } from '@/types/client';
 
 export default function ClientList() {
   const { clients, isLoading, error, refetch, searchQuery, handleSearch } = useClientList();
   const { goToCreateClient } = useNavigation();
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+
+  const handleDeleteClick = (client: Client) => {
+    setClientToDelete(client);
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -24,18 +30,16 @@ export default function ClientList() {
         </div>
         
         <ClientSearchBar 
-          searchQuery={searchQuery} 
-          onSearchChange={handleSearch} 
+          value={searchQuery} 
+          onChange={handleSearch} 
         />
         
-        <ClientListContainer>
+        <div className="bg-white rounded-md shadow">
           <ClientListTable
             clients={clients}
-            isLoading={isLoading}
-            error={error}
-            onRefresh={refetch}
+            onDeleteClick={handleDeleteClick}
           />
-        </ClientListContainer>
+        </div>
       </div>
     </div>
   );

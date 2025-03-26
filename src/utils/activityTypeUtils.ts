@@ -1,104 +1,102 @@
 
 import { ActivityType } from '@/types/client-form';
 
-// Map of activity types to human-readable descriptions
-export const activityTypeLabels: Partial<Record<ActivityType, string>> = {
-  'client_created': 'Client Created',
-  'client_updated': 'Client Updated',
-  'client_deleted': 'Client Deleted',
-  'client_recovered': 'Client Recovered',
-  'widget_settings_updated': 'Widget Settings Updated',
-  'website_url_added': 'Website URL Added',
-  'website_url_deleted': 'Website URL Deleted',
-  'url_deleted': 'URL Deleted', // Backward compatibility
-  'drive_link_added': 'Drive Link Added',
-  'drive_link_deleted': 'Drive Link Deleted',
-  'document_uploaded': 'Document Uploaded',
-  'document_processed': 'Document Processed',
-  'document_processing_failed': 'Document Processing Failed',
-  'document_processing_started': 'Document Processing Started',
-  'document_processing_completed': 'Document Processing Completed',
-  'document_link_added': 'Document Link Added',
-  'document_link_deleted': 'Document Link Deleted',
-  'chat_interaction': 'Chat Interaction',
-  'agent_name_updated': 'Agent Name Updated',
-  'agent_logo_updated': 'Agent Logo Updated',
-  'agent_description_updated': 'Agent Description Updated',
-  'ai_agent_created': 'AI Agent Created',
-  'ai_agent_updated': 'AI Agent Updated',
-  'error_logged': 'Error Logged',
-  'webhook_sent': 'Webhook Sent',
-  'system_update': 'System Update',
-  'common_query_milestone': 'Common Query Milestone',
-  'interaction_milestone': 'Interaction Milestone',
-  'growth_milestone': 'Growth Milestone',
-  'invitation_sent': 'Invitation Sent',
-  'invitation_accepted': 'Invitation Accepted',
-  'user_role_updated': 'User Role Updated',
-  'login_success': 'Login Success',
-  'login_failed': 'Login Failed',
-  'logo_uploaded': 'Logo Uploaded',
-  'embed_code_copied': 'Embed Code Copied',
-  'source_added': 'Source Added',
-  'source_deleted': 'Source Deleted',
-  'ai_agent_table_created': 'AI Agent Table Created',
-  'signed_out': 'Signed Out',
-  'email_sent': 'Email Sent',
-  'openai_assistant_document_added': 'OpenAI Assistant Document Added'
+/**
+ * Maps activity types to user-friendly descriptions
+ */
+export const activityDescriptions: Partial<Record<ActivityType, string>> = {
+  'client_created': 'Client created',
+  'client_updated': 'Client information updated',
+  'client_deleted': 'Client deleted',
+  'client_recovered': 'Client recovered',
+  'widget_settings_updated': 'Widget settings updated',
+  'website_url_added': 'Website URL added',
+  'website_url_deleted': 'Website URL deleted',
+  'drive_link_added': 'Google Drive link added',
+  'drive_link_deleted': 'Google Drive link deleted',
+  'document_uploaded': 'Document uploaded',
+  'document_processed': 'Document processed',
+  'document_processing_failed': 'Document processing failed',
+  'chat_interaction': 'Chat interaction',
+  'agent_name_updated': 'Agent name updated',
+  'agent_logo_updated': 'Agent logo updated',
+  'agent_description_updated': 'Agent description updated',
+  'ai_agent_created': 'AI agent created',
+  'ai_agent_updated': 'AI agent updated',
+  'error_logged': 'Error logged',
+  'webhook_sent': 'Webhook sent',
+  'system_update': 'System update',
+  'common_query_milestone': 'Common query milestone reached',
+  'interaction_milestone': 'Interaction milestone reached',
+  'growth_milestone': 'Growth milestone reached',
+  'invitation_sent': 'Invitation sent',
+  'invitation_accepted': 'Invitation accepted',
+  'user_role_updated': 'User role updated',
+  'login_success': 'Successful login',
+  'login_failed': 'Failed login attempt',
+  'logo_uploaded': 'Logo uploaded',
+  'embed_code_copied': 'Embed code copied',
+  'source_added': 'Source added',
+  'source_deleted': 'Source deleted',
+  'ai_agent_table_created': 'AI Agent table created',
+  'signed_out': 'Signed out',
+  'email_sent': 'Email sent',
+  'openai_assistant_document_added': 'OpenAI assistant document added',
 };
 
-// Function to get a human-readable label for an activity type
-export const getActivityTypeLabel = (type: ActivityType): string => {
-  return activityTypeLabels[type] || 'Unknown Activity';
+/**
+ * Gets a user-friendly description for an activity type
+ */
+export const getActivityDescription = (activityType: ActivityType): string => {
+  return activityDescriptions[activityType] || activityType.replace(/_/g, ' ');
 };
 
-// Map of activity types to icon names
-export const activityTypeIcons: Partial<Record<ActivityType, string>> = {
-  'client_created': 'user-plus',
-  'client_updated': 'user-cog',
-  'client_deleted': 'user-minus',
-  'client_recovered': 'user-check',
-  'widget_settings_updated': 'settings',
-  'website_url_added': 'link-plus',
-  'website_url_deleted': 'link-minus',
-  'url_deleted': 'link-minus', // Backward compatibility
-  'drive_link_added': 'file-plus',
-  'drive_link_deleted': 'file-minus',
-  'document_uploaded': 'file-upload',
-  'document_processed': 'file-check',
-  'document_processing_failed': 'file-warning',
-  'document_processing_started': 'file-clock',
-  'document_processing_completed': 'file-done',
-  'document_link_added': 'file-plus',
-  'document_link_deleted': 'file-minus',
-  'chat_interaction': 'message-circle',
-  'agent_name_updated': 'edit',
-  'agent_logo_updated': 'image',
-  'agent_description_updated': 'edit-3',
-  'ai_agent_created': 'cpu',
-  'ai_agent_updated': 'cpu-cog',
-  'error_logged': 'alert-triangle',
-  'webhook_sent': 'webhook',
-  'system_update': 'refresh-cw',
-  'common_query_milestone': 'award',
-  'interaction_milestone': 'milestone',
-  'growth_milestone': 'trending-up',
-  'invitation_sent': 'mail',
-  'invitation_accepted': 'mail-check',
-  'user_role_updated': 'user-cog',
-  'login_success': 'log-in',
-  'login_failed': 'shield-alert',
-  'logo_uploaded': 'upload',
-  'embed_code_copied': 'copy',
-  'source_added': 'folder-plus',
-  'source_deleted': 'folder-minus',
-  'ai_agent_table_created': 'database',
-  'signed_out': 'log-out',
-  'email_sent': 'mail-send',
-  'openai_assistant_document_added': 'file-plus'
+/**
+ * Maps activity types to icon names
+ */
+export const activityIcons: Partial<Record<ActivityType, string>> = {
+  'client_created': 'UserPlus',
+  'client_updated': 'Edit',
+  'client_deleted': 'UserMinus',
+  'client_recovered': 'RefreshCw',
+  'widget_settings_updated': 'Settings',
+  'website_url_added': 'Globe',
+  'website_url_deleted': 'Trash',
+  'drive_link_added': 'FileText',
+  'drive_link_deleted': 'Trash',
+  'document_uploaded': 'Upload',
+  'document_processed': 'CheckCircle',
+  'document_processing_failed': 'AlertCircle',
+  'chat_interaction': 'MessageSquare',
+  'agent_name_updated': 'Edit',
+  'agent_logo_updated': 'Image',
+  'agent_description_updated': 'Edit',
+  'ai_agent_created': 'Bot',
+  'ai_agent_updated': 'Bot',
+  'error_logged': 'AlertTriangle',
+  'webhook_sent': 'Send',
+  'system_update': 'RefreshCw',
+  'common_query_milestone': 'Award',
+  'interaction_milestone': 'Award',
+  'growth_milestone': 'TrendingUp',
+  'invitation_sent': 'Send',
+  'invitation_accepted': 'UserCheck',
+  'user_role_updated': 'Users',
+  'login_success': 'LogIn',
+  'login_failed': 'AlertCircle',
+  'logo_uploaded': 'Image',
+  'embed_code_copied': 'Clipboard',
+  'source_added': 'Plus',
+  'source_deleted': 'Trash',
+  'ai_agent_table_created': 'Database',
+  'signed_out': 'LogOut',
+  'email_sent': 'Mail',
+  'openai_assistant_document_added': 'FileText',
 };
 
-// Function to get an icon name for an activity type
-export const getActivityTypeIcon = (type: ActivityType): string => {
-  return activityTypeIcons[type] || 'activity';
+/**
+ * Gets an icon name for an activity type
+ */
+export const getActivityIcon = (activityType: ActivityType): string => {
+  return activityIcons[activityType] || 'Activity';
 };
