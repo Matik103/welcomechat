@@ -104,4 +104,9 @@ export type ActivityType =
   | 'config_updated'
   | 'agent_updated'
   | 'widget_updated'
-  | 'agent_error';
+  | 'agent_error'
+  | 'settings_updated'
+  | 'login'
+  | 'logout'
+  | 'website_added'
+  | 'website_removed';
