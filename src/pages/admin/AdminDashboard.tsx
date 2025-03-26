@@ -12,10 +12,54 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Define interfaces for the dashboard data structure
+interface ActivityChartData {
+  name: string;
+  value: number;
+}
+
+interface ChartCardData {
+  value: string;
+  title: string;
+  subtitle: string;
+  data: ActivityChartData[];
+}
+
+interface DashboardData {
+  clients: {
+    total: number;
+    active: number;
+    changePercentage: number;
+  };
+  agents: {
+    total: number;
+    active: number;
+    changePercentage: number;
+  };
+  interactions: {
+    total: number;
+    changePercentage: number;
+  };
+  trainings: {
+    total: number;
+    changePercentage: number;
+  };
+  administration: {
+    total: number;
+    changePercentage: number;
+  };
+  activityCharts: {
+    database: ChartCardData;
+    auth: ChartCardData;
+    storage: ChartCardData;
+    realtime: ChartCardData;
+  };
+}
+
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState({
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
     clients: {
       total: 0,
       active: 0,
@@ -86,14 +130,14 @@ export default function AdminDashboardPage() {
           throw chartError;
         }
         
-        // Combine the data
+        // Combine the data with proper type casting
         setDashboardData({
-          clients: statsData.clients,
-          agents: statsData.agents,
-          interactions: statsData.interactions,
-          trainings: statsData.trainings,
-          administration: statsData.administration,
-          activityCharts: chartData
+          clients: statsData?.clients as DashboardData['clients'],
+          agents: statsData?.agents as DashboardData['agents'],
+          interactions: statsData?.interactions as DashboardData['interactions'],
+          trainings: statsData?.trainings as DashboardData['trainings'],
+          administration: statsData?.administration as DashboardData['administration'],
+          activityCharts: chartData as DashboardData['activityCharts']
         });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
