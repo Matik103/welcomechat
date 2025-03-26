@@ -82,7 +82,7 @@ export const Header = () => {
                   <span className="font-medium">{user.user_metadata.full_name || user.email}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 bg-white shadow-lg border border-gray-200">
                 <DropdownMenuItem asChild>
                   <Link to="/admin/settings" className="w-full cursor-pointer">
                     <Settings className="h-4 w-4 mr-2" />
