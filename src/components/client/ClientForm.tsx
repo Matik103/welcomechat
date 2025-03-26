@@ -15,9 +15,21 @@ export interface ClientFormProps {
   form: UseFormReturn<any>;
   onSubmit: (data: any) => Promise<void>;
   isSubmitting?: boolean;
+  initialData?: any;
+  isLoading?: boolean;
+  error?: string | null;
+  submitButtonText?: string;
 }
 
-const ClientForm: React.FC<ClientFormProps> = ({ form, onSubmit, isSubmitting = false }) => {
+export const ClientForm: React.FC<ClientFormProps> = ({ 
+  form, 
+  onSubmit, 
+  isSubmitting = false,
+  initialData,
+  isLoading,
+  error,
+  submitButtonText = 'Save'
+}) => {
   const handleSubmit = form.handleSubmit(onSubmit);
 
   return (
@@ -45,7 +57,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ form, onSubmit, isSubmitting = 
               Saving...
             </>
           ) : (
-            'Save'
+            submitButtonText
           )}
         </Button>
       </div>

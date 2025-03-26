@@ -16,9 +16,7 @@ export interface WebsiteUrlFormData {
 }
 
 export interface WebsiteUrlFormProps {
-  onSubmit?: (data: WebsiteUrlFormData) => Promise<void>;
   onAdd?: (data: WebsiteUrlFormData) => Promise<void>;
-  isSubmitting?: boolean;
   isAdding?: boolean;
   agentName: string;
   clientId?: string;

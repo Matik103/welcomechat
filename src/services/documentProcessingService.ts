@@ -1,213 +1,85 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { DocumentProcessingResult, DocumentType } from '@/types/document-processing';
-import { createClientActivity } from './clientActivityService';
-import { v4 as uuidv4 } from 'uuid';
-
-/**
- * Process a document URL for a client
- */
-export async function processDocumentUrl(
+// Add document_id to the record creation:
+export async function registerDocumentProcessing(
   clientId: string,
   documentUrl: string,
-  documentType: DocumentType | string,
+  documentType: string,
   agentName: string
-): Promise<DocumentProcessingResult> {
+): Promise<{ id: string }> {
   try {
-    // Create a document ID
-    const documentId = uuidv4();
-    
-    // Create a new document processing job
-    const { data: job, error: jobError } = await supabase
-      .from('document_processing_jobs')
+    const { data, error } = await supabase
+      .from('document_processing')
       .insert({
         client_id: clientId,
         document_url: documentUrl,
         document_type: documentType,
-        document_id: documentId,
         agent_name: agentName,
-        status: 'pending'
+        status: 'pending',
+        document_id: crypto.randomUUID() // Generate a unique document_id
       })
-      .select()
+      .select('id')
       .single();
 
-    if (jobError) throw jobError;
+    if (error) {
+      console.error('Error registering document processing:', error);
+      throw error;
+    }
 
-    // Log the activity
-    await createClientActivity(
-      clientId,
-      'document_processed',
-      `Started processing ${documentType}: ${documentUrl}`,
-      { document_type: documentType, document_url: documentUrl }
-    );
-
-    return {
-      success: true,
-      processed: 0,
-      failed: 0,
-      jobId: job.id
-    };
+    return { id: data?.id || '' };
   } catch (error) {
-    console.error('Error processing document URL:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      processed: 0,
-      failed: 0
-    };
+    console.error('Error in registerDocumentProcessing:', error);
+    throw error;
   }
 }
 
-/**
- * Check the processing status of a document
- */
-export async function checkDocumentProcessingStatus(
-  jobId: string
-): Promise<DocumentProcessingResult> {
+// Fix the getProcessingStats function to handle type safety:
+export async function getProcessingStats(clientId: string) {
   try {
     const { data, error } = await supabase
-      .from('document_processing_jobs')
-      .select('*')
-      .eq('id', jobId)
-      .single();
+      .rpc('get_document_processing_stats', { client_id_param: clientId });
 
     if (error) throw error;
 
-    if (!data) {
+    if (!data) return { processed: 0, failed: 0 };
+
+    // Type guard to check if data is an object with the right properties
+    if (typeof data === 'object' && data !== null) {
+      const jsonObject = data as Record<string, any>;
       return {
-        success: false,
-        error: 'Job not found',
-        processed: 0,
-        failed: 0
+        processed: jsonObject.processed_count || 0,
+        failed: jsonObject.failed_count || 0
       };
     }
 
-    // Extract metadata safely
-    const metadata = data.metadata || {};
-    let processed = 0;
-    let failed = 0;
-    
-    // Handle different types of metadata
-    if (typeof metadata === 'object') {
-      processed = metadata.processed_count || 0;
-      failed = metadata.failed_count || 0;
-    }
-
-    return {
-      success: data.status === 'completed',
-      error: data.error || null,
-      processed: processed,
-      failed: failed,
-      jobId: data.id
-    };
+    return { processed: 0, failed: 0 };
   } catch (error) {
-    console.error('Error checking document processing status:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      processed: 0,
-      failed: 0
-    };
+    console.error('Error getting processing stats:', error);
+    return { processed: 0, failed: 0 };
   }
 }
 
-/**
- * Upload a document for processing
- */
-export async function uploadDocument(
+// Fix the logDocumentActivity function:
+export async function logDocumentActivity(
   clientId: string,
-  file: File,
-  agentName: string
-): Promise<DocumentProcessingResult> {
+  documentUrl: string,
+  status: 'added' | 'processed' | 'failed',
+  metadata: any = {}
+) {
   try {
-    // Create a unique file path
-    const timestamp = Date.now();
-    const fileName = `${timestamp}-${file.name.replace(/\s+/g, '_')}`;
-    const filePath = `documents/${clientId}/${fileName}`;
-    const documentId = uuidv4();
+    // Use a proper ActivityType here
+    const activityType: ActivityType = status === 'added' 
+      ? 'document_added' 
+      : status === 'processed' 
+        ? 'document_processed' 
+        : 'document_processing_failed';
 
-    // Upload the file to storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(filePath, file);
-
-    if (uploadError) throw uploadError;
-
-    // Get the public URL
-    const { data: urlData } = await supabase.storage
-      .from('documents')
-      .getPublicUrl(filePath);
-
-    if (!urlData || !urlData.publicUrl) {
-      throw new Error('Failed to get public URL for uploaded document');
-    }
-
-    // Create a document processing job
-    const { data: job, error: jobError } = await supabase
-      .from('document_processing_jobs')
-      .insert({
-        client_id: clientId,
-        document_id: documentId,
-        document_url: urlData.publicUrl,
-        document_type: 'document',
-        agent_name: agentName,
-        status: 'pending',
-        metadata: {
-          original_filename: file.name,
-          file_size: file.size,
-          content_type: file.type
-        }
-      })
-      .select()
-      .single();
-
-    if (jobError) throw jobError;
-
-    // Log the activity
     await createClientActivity(
       clientId,
-      'document_uploaded' as any,
-      `Uploaded document: ${file.name}`,
-      { 
-        filename: file.name, 
-        file_size: file.size,
-        document_type: 'document'
-      }
+      activityType,
+      `Document ${status}: ${new URL(documentUrl).pathname.split('/').pop()}`,
+      metadata
     );
-
-    return {
-      success: true,
-      processed: 0,
-      failed: 0,
-      jobId: job.id
-    };
   } catch (error) {
-    console.error('Error uploading document:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      processed: 0,
-      failed: 0
-    };
-  }
-}
-
-/**
- * Get documents for a client
- */
-export async function getDocumentsForClient(clientId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('document_processing_jobs')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    
-    return data || [];
-  } catch (error) {
-    console.error('Error getting documents for client:', error);
-    throw error;
+    console.error(`Error logging document ${status} activity:`, error);
   }
 }

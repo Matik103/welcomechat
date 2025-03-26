@@ -1,122 +1,82 @@
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2, Plus } from 'lucide-react';
-import { toast } from 'sonner';
-import { WebsiteUrlFormData, WebsiteUrlFormProps } from '@/types/website-url';
+import { useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { WebsiteUrlFormProps, WebsiteUrlFormData } from "@/types/website-url";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
 
-export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
-  onSubmit,
-  onAdd,
-  isSubmitting,
-  isAdding,
-  agentName,
-  clientId,
-  onAddSuccess,
-  webstoreHook
-}) => {
-  const [newUrl, setNewUrl] = useState('');
-  const [refreshRate, setRefreshRate] = useState(30); // Default 30 days
-  const [isValidating, setIsValidating] = useState(false);
+const formSchema = z.object({
+  url: z.string().url("Please enter a valid URL").min(1, "URL is required"),
+  refresh_rate: z.number().min(1, "Refresh rate is required").max(365, "Refresh rate cannot exceed 365 days")
+});
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newUrl) {
-      toast.error('Please enter a valid URL');
-      return;
+export function WebsiteUrlForm({ onAdd, isAdding = false, agentName }: WebsiteUrlFormProps) {
+  const form = useForm<WebsiteUrlFormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      url: "",
+      refresh_rate: 30 // 30 days default refresh rate
     }
-    
-    try {
-      setIsValidating(true);
-      // Attempt to validate URL
-      let url = newUrl;
-      
-      // Add https:// if not present
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = `https://${url}`;
-      }
-      
-      try {
-        // Validate URL format
-        new URL(url);
-      } catch (error) {
-        toast.error('Please enter a valid URL');
-        setIsValidating(false);
-        return;
-      }
+  });
 
-      // Support both callback patterns
-      if (onAdd) {
-        await onAdd({ 
-          url, 
-          refresh_rate: refreshRate
-        });
-      } else if (onSubmit) {
-        await onSubmit({ 
-          url, 
-          refresh_rate: refreshRate
-        });
-      }
-      
-      setNewUrl('');
-      
-      if (onAddSuccess) {
-        await onAddSuccess();
-      }
-    } catch (error) {
-      console.error('Error adding URL:', error);
-      toast.error('Failed to add website URL');
-    } finally {
-      setIsValidating(false);
+  const handleSubmit = async (data: WebsiteUrlFormData) => {
+    if (onAdd) {
+      await onAdd(data);
+      form.reset();
     }
   };
 
-  const isAddingUrl = isSubmitting || isAdding || (webstoreHook && webstoreHook.isAdding) || false;
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="url">Add Website URL</Label>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            id="url"
-            placeholder="https://example.com"
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-            disabled={isAddingUrl || isValidating}
-            className="flex-1"
-          />
-          <Input
-            id="refresh_rate"
-            type="number"
-            min="1"
-            placeholder="Refresh days"
-            value={refreshRate}
-            onChange={(e) => setRefreshRate(Number(e.target.value))}
-            disabled={isAddingUrl || isValidating}
-            className="w-full sm:w-32"
-          />
-          <Button type="submit" disabled={isAddingUrl || !newUrl || isValidating}>
-            {isAddingUrl || isValidating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isValidating ? "Validating..." : "Adding..."}
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Add
-              </>
-            )}
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {agentName} will refresh content from this website every {refreshRate} days.
-        </p>
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+      <FormField
+        control={form.control}
+        name="url"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Website URL</FormLabel>
+            <FormControl>
+              <Input placeholder="https://example.com" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="refresh_rate"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Refresh Rate (days)</FormLabel>
+            <FormControl>
+              <Input 
+                type="number" 
+                min="1" 
+                max="365" 
+                {...field}
+                onChange={e => field.onChange(parseInt(e.target.value))}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <div className="flex justify-end">
+        <Button type="submit" disabled={isAdding}>
+          {isAdding ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Adding...
+            </>
+          ) : (
+            'Add Website'
+          )}
+        </Button>
       </div>
     </form>
   );
-};
+}

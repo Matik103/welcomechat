@@ -1,16 +1,32 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Client, ClientListResponse } from "@/types/client";
+import { Client } from "@/types/client";
+import { useState } from "react";
+
+export interface ClientListResponse {
+  data: Client[];
+  count: number;
+}
 
 export const useClientList = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+
   const { data, error, isLoading, refetch } = useQuery({
-    queryKey: ["clients"],
+    queryKey: ["clients", searchQuery],
     queryFn: async (): Promise<ClientListResponse> => {
-      const { data, error, count } = await supabase
+      let query = supabase
         .from("ai_agents")
         .select("*", { count: "exact" })
         .eq('interaction_type', 'config')
         .order("created_at", { ascending: false });
+      
+      // Apply search filter if provided
+      if (searchQuery) {
+        query = query.or(`client_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,company.ilike.%${searchQuery}%`);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) {
         console.error("Error fetching clients:", error);
@@ -44,7 +60,8 @@ export const useClientList = () => {
       }
     }
     
-    const userId = client.user_id !== undefined ? client.user_id : null;
+    // Safe user_id extraction
+    const userId = (client as any).user_id !== undefined ? (client as any).user_id : null;
     
     return {
       id: client.id,
@@ -70,11 +87,17 @@ export const useClientList = () => {
     };
   };
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
   return {
     clients: data?.data || [],
     count: data?.count || 0,
     isLoading,
     error,
     refetch,
+    searchQuery,
+    handleSearch,
   };
 };

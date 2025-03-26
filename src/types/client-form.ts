@@ -34,7 +34,7 @@ export interface WidgetSettings {
   logo_storage_path: string;
   chat_color: string;
   background_color: string;
-  button_color: string;
+  button_color?: string; // Make this optional to match actual usage
   font_color: string;
   chat_font_color: string;
   background_opacity: number;
@@ -98,4 +98,5 @@ export type ActivityType =
   | 'signed_out'
   | 'email_sent'
   | 'openai_assistant_document_added'
-  | 'config_updated';
+  | 'config_updated'
+  | 'agent_error'; // Add agent_error to the ActivityType
