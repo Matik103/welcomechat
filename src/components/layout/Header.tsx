@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -35,9 +36,9 @@ export const Header = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/admin/dashboard" className="flex items-center">
-            <div className="h-8">
+            <div className="h-10"> {/* Increased from h-8 to h-10 */}
               <img 
-                src="/logo.svg" 
+                src="/lovable-uploads/e262d378-49c1-4219-ae37-ce0264b3500c.png" 
                 alt="WelcomeChat Logo" 
                 className="h-full w-auto"
               />
