@@ -24,11 +24,11 @@ export const setupRealtimeActivities = async () => {
     clientActivitiesChannel
       .on(
         'postgres_changes', 
-        {
-          event: '*',
-          schema: 'public',
-          table: 'client_activities',
-        } as any, 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'client_activities' 
+        }, 
         (payload: ClientActivityPayload) => {
           console.log('Client activity changed:', payload);
           // Optional: Show toast notification for important activities
@@ -52,11 +52,11 @@ export const setupRealtimeActivities = async () => {
     aiAgentsChannel
       .on(
         'postgres_changes', 
-        {
-          event: '*',
-          schema: 'public',
-          table: 'ai_agents',
-        } as any, 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'ai_agents' 
+        }, 
         (payload: AIAgentsPayload) => {
           console.log('AI agent change detected:', payload);
           
@@ -76,7 +76,7 @@ export const setupRealtimeActivities = async () => {
         event: '*',
         schema: 'public',
         table: 'document_links',
-      } as any, (payload) => {
+      }, (payload) => {
         console.log('Document link changed:', payload);
       })
       .subscribe();
@@ -87,7 +87,7 @@ export const setupRealtimeActivities = async () => {
         event: '*',
         schema: 'public',
         table: 'website_urls',
-      } as any, (payload) => {
+      }, (payload) => {
         console.log('Website URL changed:', payload);
       })
       .subscribe();
@@ -98,7 +98,7 @@ export const setupRealtimeActivities = async () => {
         event: '*',
         schema: 'public',
         table: 'clients',
-      } as any, (payload) => {
+      }, (payload) => {
         console.log('Client changed:', payload);
       })
       .subscribe();
@@ -109,7 +109,7 @@ export const setupRealtimeActivities = async () => {
         event: '*',
         schema: 'public',
         table: 'document_processing',
-      } as any, (payload) => {
+      }, (payload) => {
         console.log('Document processing changed:', payload);
       })
       .subscribe();
@@ -120,7 +120,7 @@ export const setupRealtimeActivities = async () => {
         event: '*',
         schema: 'public',
         table: 'user_roles',
-      } as any, (payload) => {
+      }, (payload) => {
         console.log('User role changed:', payload);
       })
       .subscribe();
