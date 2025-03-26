@@ -11,6 +11,7 @@ import {
   Zap
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
 // Define interfaces for the dashboard data structure
 interface ActivityChartData {
@@ -119,6 +120,7 @@ export default function AdminDashboardPage() {
         
         if (statsError) {
           console.error('Error fetching dashboard stats:', statsError);
+          toast.error('Failed to load dashboard statistics');
           throw statsError;
         }
         
@@ -127,17 +129,22 @@ export default function AdminDashboardPage() {
         
         if (chartError) {
           console.error('Error fetching chart data:', chartError);
+          toast.error('Failed to load activity charts');
           throw chartError;
         }
         
+        // Handle the data with proper type safety
+        const parsedStatsData = typeof statsData === 'string' ? JSON.parse(statsData) : statsData;
+        const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
+        
         // Combine the data with proper type casting
         setDashboardData({
-          clients: statsData?.clients as DashboardData['clients'],
-          agents: statsData?.agents as DashboardData['agents'],
-          interactions: statsData?.interactions as DashboardData['interactions'],
-          trainings: statsData?.trainings as DashboardData['trainings'],
-          administration: statsData?.administration as DashboardData['administration'],
-          activityCharts: chartData as DashboardData['activityCharts']
+          clients: parsedStatsData?.clients as DashboardData['clients'],
+          agents: parsedStatsData?.agents as DashboardData['agents'],
+          interactions: parsedStatsData?.interactions as DashboardData['interactions'],
+          trainings: parsedStatsData?.trainings as DashboardData['trainings'],
+          administration: parsedStatsData?.administration as DashboardData['administration'],
+          activityCharts: parsedChartData as DashboardData['activityCharts']
         });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
