@@ -1,7 +1,8 @@
 
-import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, RefreshCw } from "lucide-react";
-import { WebsiteUrl } from "@/types/client";
+import React from 'react';
+import { WebsiteUrl } from '@/types/website-url';
+import { Button } from '@/components/ui/button';
+import { Loader2, Trash2, RefreshCw } from 'lucide-react';
 
 interface WebsiteUrlsListProps {
   urls: WebsiteUrl[];
@@ -12,14 +13,14 @@ interface WebsiteUrlsListProps {
   deletingId?: number | null;
 }
 
-export const WebsiteUrlsList = ({
+export const WebsiteUrlsList: React.FC<WebsiteUrlsListProps> = ({
   urls,
   onDelete,
   onProcess,
   isDeleteLoading,
   isProcessing,
   deletingId,
-}: WebsiteUrlsListProps) => {
+}) => {
   if (urls.length === 0) {
     return <div className="text-sm text-gray-500 italic">No website URLs added yet.</div>;
   }
