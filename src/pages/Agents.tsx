@@ -3,11 +3,13 @@ import React, { useEffect, useState } from 'react';
 import { getAllAgents, Agent } from '@/services/agentService';
 import { Card } from '@/components/ui/card';
 import { BarChart } from '@/components/ui/BarChart';
+import { useNavigate } from 'react-router-dom';
 
 const Agents: React.FC = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -24,6 +26,10 @@ const Agents: React.FC = () => {
 
     fetchAgents();
   }, []);
+
+  const handleCardClick = (agentId: string) => {
+    navigate(`/admin/agents/${agentId}`);
+  };
 
   if (loading) {
     return (
@@ -47,9 +53,13 @@ const Agents: React.FC = () => {
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {agents.map((agent) => (
-          <Card key={agent.id} className="p-6 hover:shadow-lg transition-shadow duration-200">
+          <Card 
+            key={agent.id} 
+            className="p-6 hover:shadow-lg transition-shadow duration-200 cursor-pointer transform hover:scale-102 transition-transform"
+            onClick={() => handleCardClick(agent.id)}
+          >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">{agent.name}</h2>
+              <h2 className="text-xl font-semibold group-hover:text-primary transition-colors">{agent.name}</h2>
               <span className={`px-2 py-1 rounded-full text-sm ${
                 agent.status === 'active' ? 'bg-green-100 text-green-800' :
                 agent.status === 'inactive' ? 'bg-red-100 text-red-800' :
@@ -60,7 +70,7 @@ const Agents: React.FC = () => {
             </div>
             
             <div className="space-y-2 mb-4">
-              <p className="text-gray-600">Client: {agent.client_name}</p>
+              <p className="text-gray-600">Client: <span className="hover:text-blue-600">{agent.client_name}</span></p>
               <p className="text-gray-600">Total Interactions: {agent.total_interactions}</p>
               <p className="text-gray-600">Avg Response Time: {agent.average_response_time.toFixed(2)}s</p>
               <p className="text-gray-600">Last Active: {new Date(agent.last_active).toLocaleString()}</p>

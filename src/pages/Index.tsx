@@ -13,7 +13,6 @@ import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ClientActivity } from "@/types/activity";
 import { BarChart } from "@/components/dashboard/BarChart";
 
-// Sample data for charts
 const generateRandomData = (length: number) => {
   return Array.from({ length }, () => Math.floor(Math.random() * 100));
 };
@@ -42,7 +41,6 @@ export default function Index() {
     refetch: refetchActivities
   } = useRecentActivities();
 
-  // Sample chart data
   const chartData = {
     database: generateRandomData(24),
     auth: generateRandomData(24),
@@ -56,6 +54,14 @@ export default function Index() {
 
   const handleAddClientClick = () => {
     navigate('/admin/clients/new');
+  };
+
+  const handleClientsClick = () => {
+    navigate('/admin/clients');
+  };
+
+  const handleAgentsClick = () => {
+    navigate('/admin/agents');
   };
 
   useEffect(() => {
@@ -95,7 +101,10 @@ export default function Index() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
-            <Card className="bg-green-50 hover:bg-green-100 transition-all duration-300 transform hover:-translate-y-1">
+            <Card 
+              className="bg-green-50 hover:bg-green-100 transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+              onClick={handleClientsClick}
+            >
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-bold text-green-900">CLIENTS</CardTitle>
               </CardHeader>
@@ -105,7 +114,10 @@ export default function Index() {
               </CardContent>
             </Card>
 
-            <Card className="bg-gray-100 hover:bg-gray-200 transition-all duration-300 transform hover:-translate-y-1">
+            <Card 
+              className="bg-gray-100 hover:bg-gray-200 transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+              onClick={handleAgentsClick}
+            >
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-bold text-gray-900">AGENTS</CardTitle>
               </CardHeader>
