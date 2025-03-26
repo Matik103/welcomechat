@@ -1,72 +1,63 @@
 
 import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientActivity, ActivityType } from '@/types/client';
 
-export const useRecentActivities = (clientId?: string) => {
-  const [activities, setActivities] = useState<ClientActivity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+export function useRecentActivities(limit: number = 10) {
+  const queryClient = useQueryClient();
 
-  const fetchActivities = async () => {
+  const fetchRecentActivities = async (): Promise<ClientActivity[]> => {
     try {
-      setIsLoading(true);
-
-      let query = supabase
+      console.log('Fetching recent activities, limit:', limit);
+      
+      const { data, error } = await supabase
         .from('client_activities')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(20);
-
-      // Add client filter if specified
-      if (clientId) {
-        query = query.eq('client_id', clientId);
-      }
-
-      const { data, error } = await query;
-
+        .limit(limit);
+      
       if (error) {
         console.error('Error fetching activities:', error);
-        setError(new Error(`Failed to fetch activities: ${error.message}`));
-        return;
+        throw error;
       }
-
-      if (!data) {
-        setActivities([]);
-        return;
-      }
-
-      // Process the activities and convert to ClientActivity objects
-      const processedActivities: ClientActivity[] = data.map((activity) => ({
+      
+      // Map the data to ensure metadata is correctly typed
+      const activities: ClientActivity[] = data.map(activity => ({
         id: activity.id,
-        client_id: activity.client_id,
+        client_id: activity.client_id || undefined,
         activity_type: activity.activity_type as ActivityType,
         description: activity.description || '',
         created_at: activity.created_at,
-        metadata: activity.activity_data || {},
+        // Convert metadata to Record<string, any>
+        metadata: activity.metadata ? 
+          (typeof activity.metadata === 'object' ? activity.metadata as Record<string, any> : {}) 
+          : undefined
       }));
-
-      setActivities(processedActivities);
-    } catch (err) {
-      console.error('Error in fetchActivities:', err);
-      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-    } finally {
-      setIsLoading(false);
+      
+      console.log('Recent activities fetched:', activities.length);
+      
+      return activities;
+    } catch (error) {
+      console.error('Failed to fetch recent activities:', error);
+      throw error;
     }
   };
 
-  useEffect(() => {
-    fetchActivities();
-  }, [clientId]);
-
-  const refetch = async () => {
-    await fetchActivities();
-  };
+  const {
+    data: activities,
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['recentActivities', limit],
+    queryFn: fetchRecentActivities
+  });
 
   return {
-    activities,
+    activities: activities || [],
     isLoading,
     error,
     refetch
   };
-};
+}

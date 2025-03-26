@@ -1,6 +1,7 @@
 
 import { Json } from '@/integrations/supabase/types';
 import { ActivityType } from './client-form';
+import { AccessStatus } from './document-processing';
 
 export interface Client {
   id: string;
@@ -87,6 +88,7 @@ export interface WebsiteUrl {
   refresh_rate: number;
   notified_at?: string;
   last_crawled?: string;
+  scrapable?: boolean;
 }
 
 export interface DocumentLink {
@@ -99,8 +101,6 @@ export interface DocumentLink {
   refresh_rate: number;
   notified_at?: string;
 }
-
-export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'pending';
 
 // Define the types that should be imported from client-form.ts
 export type { ClientFormData, ActivityType, WidgetSettings } from './client-form';

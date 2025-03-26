@@ -51,10 +51,14 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       });
       
       if (result && result.length > 0) {
-        const website = result[0];
+        const website = {
+          ...result[0],
+          scrapable: true, // Add scrapable property since it's required
+          name: `Website ${result[0].id}` // Add name property for compatibility
+        };
         
         // Store the website content
-        await storeWebsiteContent(website);
+        await storeWebsiteContent(website, clientId);
         
         // Log activity
         await logClientActivity(
@@ -119,7 +123,14 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
       setProcessingUrlId(url.id);
       
       // Process the website content
-      await storeWebsiteContent(url);
+      const urlWithScrapable = {
+        ...url,
+        scrapable: true, // Add scrapable property
+        name: `Website ${url.id}` // Add name property for compatibility
+      };
+      
+      // Store the website content
+      await storeWebsiteContent(urlWithScrapable, clientId);
       
       // Log activity
       await logClientActivity(

@@ -11,12 +11,18 @@ interface WebsiteUrlFormProps {
   onAdd: (data: WebsiteUrlFormData) => Promise<void>;
   isAdding: boolean;
   agentName: string;
+  clientId?: string;
+  onAddSuccess?: () => Promise<any>;
+  webstoreHook?: { isAdding: boolean };
 }
 
 export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
   onAdd,
   isAdding,
-  agentName
+  agentName,
+  clientId,
+  onAddSuccess,
+  webstoreHook
 }) => {
   const [newUrl, setNewUrl] = useState('');
   const [refreshRate, setRefreshRate] = useState(30); // Default 30 days
@@ -55,6 +61,10 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
       });
       
       setNewUrl('');
+      
+      if (onAddSuccess) {
+        await onAddSuccess();
+      }
     } catch (error) {
       console.error('Error adding URL:', error);
       toast.error('Failed to add website URL');
@@ -62,6 +72,8 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
       setIsValidating(false);
     }
   };
+
+  const isAddingUrl = isAdding || (webstoreHook && webstoreHook.isAdding) || false;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -73,7 +85,7 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
             placeholder="https://example.com"
             value={newUrl}
             onChange={(e) => setNewUrl(e.target.value)}
-            disabled={isAdding || isValidating}
+            disabled={isAddingUrl || isValidating}
             className="flex-1"
           />
           <Input
@@ -83,11 +95,11 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
             placeholder="Refresh days"
             value={refreshRate}
             onChange={(e) => setRefreshRate(Number(e.target.value))}
-            disabled={isAdding || isValidating}
+            disabled={isAddingUrl || isValidating}
             className="w-full sm:w-32"
           />
-          <Button type="submit" disabled={isAdding || !newUrl || isValidating}>
-            {isAdding || isValidating ? (
+          <Button type="submit" disabled={isAddingUrl || !newUrl || isValidating}>
+            {isAddingUrl || isValidating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {isValidating ? "Validating..." : "Adding..."}

@@ -1,109 +1,104 @@
 
 import { useState } from 'react';
-import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
-import { uploadDocument } from '@/services/documentProcessingService';
-import { DocumentProcessingService } from '@/services/documentProcessingService';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { DocumentProcessingService, uploadDocument } from '@/services/documentProcessingService';
 import { toast } from 'sonner';
 
-// Document processing hook
-export const useDocumentProcessing = (clientId: string, agentName?: string) => {
-  const [isUploading, setIsUploading] = useState(false);
+export function useDocumentProcessing(clientId?: string) {
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadResult, setUploadResult] = useState<DocumentProcessingResult | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const handleDocumentUpload = async (file: File, options?: Partial<DocumentProcessingOptions>) => {
-    setIsUploading(true);
-    setUploadProgress(0);
-    setUploadResult(null);
+  // Query for fetching document processing jobs
+  const { data: processingJobs, isLoading, refetch } = useQuery({
+    queryKey: ['documentProcessingJobs', clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      
+      const { data, error } = await supabase
+        .from('document_processing_jobs')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching document processing jobs:', error);
+        throw error;
+      }
+      
+      return data;
+    },
+    enabled: !!clientId
+  });
 
+  // Mutation for uploading and processing a document
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!clientId) {
+        throw new Error('Client ID is required');
+      }
+      
+      try {
+        // Simulate upload progress
+        const simulateProgress = () => {
+          let progress = 0;
+          const interval = setInterval(() => {
+            progress += Math.random() * 10;
+            if (progress > 95) {
+              progress = 95; // Don't reach 100% until actually done
+              clearInterval(interval);
+            }
+            setUploadProgress(Math.round(progress));
+          }, 300);
+          
+          return () => clearInterval(interval);
+        };
+        
+        const clearProgressSimulation = simulateProgress();
+        
+        // Upload the document
+        const jobId = await uploadDocument(file, clientId);
+        setProcessingId(jobId);
+        
+        // Clear progress simulation
+        clearProgressSimulation();
+        setUploadProgress(100);
+        
+        return jobId;
+      } catch (error) {
+        console.error('Error uploading document:', error);
+        toast.error('Failed to upload document');
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      refetch();
+      toast.success('Document uploaded successfully and queued for processing');
+    },
+    onError: (error) => {
+      console.error('Document upload mutation error:', error);
+      toast.error('Failed to upload and process document');
+    }
+  });
+
+  // Function to check the status of a document processing job
+  const checkStatus = async (jobId: string) => {
     try {
-      // Show a single toast that will be updated as the process progresses
-      const toastId = toast.loading(`Processing document: ${file.name}`);
-      
-      // Create complete options by merging with defaults
-      const processingOptions: DocumentProcessingOptions = {
-        clientId,
-        agentName: agentName || 'AI Assistant',
-        onUploadProgress: (progress) => setUploadProgress(progress),
-        processingMethod: 'llamaparse', // Default to LlamaParse processing
-        ...options
-      };
-
-      // Step 1: Upload the document to storage
-      const documentPath = await uploadDocument(file, processingOptions);
-      
-      // Update toast to indicate document is now processing in the background
-      toast.success(`Document uploaded successfully`, { id: toastId });
-      
-      // Step 2: Process the document with LlamaParse (happens in the background)
-      const result = await DocumentProcessingService.processDocument(
-        documentPath,
-        file.type || 'application/pdf',
-        clientId,
-        processingOptions.agentName
-      );
-      
-      setUploadResult(result);
-      return result;
+      return await DocumentProcessingService.checkStatus(jobId);
     } catch (error) {
-      console.error('Error uploading document:', error);
-      
-      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
-      const errorResult: DocumentProcessingResult = {
-        success: false,
-        status: 'failed',
-        documentId: 'error-' + Date.now(),
-        documentUrl: '',
-        documentType: '',
-        clientId,
-        agentName: agentName || 'AI Assistant',
-        startedAt: new Date().toISOString(),
-        chunks: [],
-        metadata: {
-          path: '',
-          processedAt: new Date().toISOString(),
-          method: 'llamaparse',
-          publicUrl: '',
-          totalChunks: 0,
-          characterCount: 0,
-          wordCount: 0,
-          averageChunkSize: 0,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }
-      };
-      
-      setUploadResult(errorResult);
-      return errorResult;
-    } finally {
-      setIsUploading(false);
+      console.error('Error checking document status:', error);
+      throw error;
     }
   };
 
   return {
-    handleDocumentUpload,
-    isUploading,
+    processingJobs: processingJobs || [],
+    isLoading,
+    uploadDocument: uploadMutation.mutate,
+    isUploading: uploadMutation.isPending,
     uploadProgress,
-    uploadResult: uploadResult || {
-      success: false,
-      status: 'none',
-      documentId: '',
-      documentUrl: '',
-      documentType: '',
-      clientId,
-      agentName: agentName || 'AI Assistant',
-      startedAt: new Date().toISOString(),
-      chunks: [],
-      metadata: {
-        path: '',
-        processedAt: new Date().toISOString(),
-        method: '',
-        publicUrl: '',
-        totalChunks: 0,
-        characterCount: 0,
-        wordCount: 0,
-        averageChunkSize: 0
-      }
-    }
+    processingId,
+    checkStatus,
+    refetch
   };
-};
+}

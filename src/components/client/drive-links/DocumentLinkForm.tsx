@@ -16,15 +16,19 @@ const formSchema = z.object({
 export type DocumentLinkFormData = z.infer<typeof formSchema>;
 
 export interface DocumentLinkFormProps {
-  clientId: string;
+  clientId?: string;
   onSubmit: (data: DocumentLinkFormData) => Promise<void>;
   isSubmitting?: boolean;
+  agentName?: string;
+  onAddSuccess?: () => Promise<any>;
 }
 
 export const DocumentLinkForm: React.FC<DocumentLinkFormProps> = ({
   clientId,
   onSubmit,
   isSubmitting = false,
+  agentName = "AI Assistant",
+  onAddSuccess,
 }) => {
   const form = useForm<DocumentLinkFormData>({
     resolver: zodResolver(formSchema),
@@ -38,6 +42,9 @@ export const DocumentLinkForm: React.FC<DocumentLinkFormProps> = ({
     try {
       await onSubmit(data);
       form.reset();
+      if (onAddSuccess) {
+        await onAddSuccess();
+      }
     } catch (error) {
       console.error('Error submitting document link:', error);
     }
@@ -84,7 +91,7 @@ export const DocumentLinkForm: React.FC<DocumentLinkFormProps> = ({
                 />
               </FormControl>
               <FormDescription>
-                How often should we check for changes? (1-365 days)
+                {agentName} will check for changes every {field.value} days
               </FormDescription>
               <FormMessage />
             </FormItem>

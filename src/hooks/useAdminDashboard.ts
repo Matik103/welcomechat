@@ -1,81 +1,109 @@
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { execSql } from '@/utils/rpcUtils';
+import { supabase } from '@/integrations/supabase/client';
 
-export const useAdminDashboard = () => {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['admin-dashboard-stats'],
-    queryFn: async () => {
-      // Fetch active users count
-      const activeUsersQuery = await execSql(`
-        SELECT COUNT(DISTINCT client_id) as active_users 
-        FROM client_activities 
-        WHERE created_at > NOW() - INTERVAL '7 days'
-      `);
-      const activeUsers = activeUsersQuery?.[0]?.active_users || 0;
+// Dashboard stats interface
+interface DashboardStats {
+  activeUsers: number;
+  interactionCount: number;
+  avgResponseTime: number;
+  commonQueries: { query: string; count: number }[];
+  totalClients: number;
+  activeClients: number;
+  activeClientsChange: number;
+}
+
+export function useAdminDashboard() {
+  const fetchDashboardStats = async (): Promise<DashboardStats> => {
+    // Function to safely parse JSON fields
+    const safeGetJsonValue = <T>(jsonObj: any, path: string, defaultValue: T): T => {
+      if (!jsonObj) return defaultValue;
+      try {
+        // For string JSON
+        if (typeof jsonObj === 'string') {
+          try {
+            jsonObj = JSON.parse(jsonObj);
+          } catch (e) {
+            return defaultValue;
+          }
+        }
+        
+        // Handle nested paths like 'stats.count'
+        const parts = path.split('.');
+        let current = jsonObj;
+        
+        for (const part of parts) {
+          if (current === null || current === undefined || typeof current !== 'object') {
+            return defaultValue;
+          }
+          current = current[part];
+        }
+        
+        return current !== undefined && current !== null ? current : defaultValue;
+      } catch (e) {
+        console.error(`Error getting JSON value for path ${path}:`, e);
+        return defaultValue;
+      }
+    };
+
+    try {
+      // Fetch active users - past 7 days
+      const { data: activeUsersData } = await supabase.rpc('get_active_users_count', {
+        days_ago: 7
+      });
       
-      // Fetch interaction count
-      const interactionQuery = await execSql(`
-        SELECT COUNT(*) as count 
-        FROM client_activities 
-        WHERE activity_type = 'chat_interaction'
-        AND created_at > NOW() - INTERVAL '30 days'
-      `);
-      const interactionCount = interactionQuery?.[0]?.count || 0;
+      const activeUsers = safeGetJsonValue<number>(activeUsersData, 'active_users', 0);
+      
+      // Fetch interaction count - past 30 days
+      const { data: interactionCountData } = await supabase.rpc('get_interaction_count', {
+        days_ago: 30
+      });
+      
+      const interactionCount = safeGetJsonValue<number>(interactionCountData, 'count', 0);
       
       // Fetch average response time
-      const responseTimeQuery = await execSql(`
-        SELECT AVG(CAST(metadata->>'response_time_ms' AS INTEGER)) as avg_time
-        FROM client_activities
-        WHERE activity_type = 'chat_interaction'
-        AND created_at > NOW() - INTERVAL '30 days'
-        AND metadata->>'response_time_ms' IS NOT NULL
-      `);
-      const avgResponseTime = responseTimeQuery?.[0]?.avg_time || 0;
+      const { data: avgResponseTimeData } = await supabase.rpc('get_avg_response_time', {
+        days_ago: 30
+      });
+      
+      const avgResponseTime = safeGetJsonValue<number>(avgResponseTimeData, 'avg_time', 0);
       
       // Fetch common queries
-      const commonQueriesQuery = await execSql(`
-        SELECT metadata->>'query' as query, COUNT(*) as count
-        FROM client_activities
-        WHERE activity_type = 'chat_interaction'
-        AND created_at > NOW() - INTERVAL '30 days'
-        GROUP BY metadata->>'query'
-        ORDER BY count DESC
-        LIMIT 5
-      `);
-      const commonQueries = commonQueriesQuery?.map(item => ({
-        query: item.query,
-        count: item.count
-      })) || [];
+      const { data: commonQueriesData } = await supabase.rpc('get_common_queries', {
+        limit_count: 5
+      });
       
-      // Count total clients
-      const totalClientsQuery = await execSql(`
-        SELECT COUNT(DISTINCT client_id) as total_clients
-        FROM ai_agents
-        WHERE interaction_type = 'config'
-      `);
-      const totalClients = totalClientsQuery?.[0]?.total_clients || 0;
+      const commonQueries = Array.isArray(commonQueriesData) 
+        ? commonQueriesData.map(item => ({
+            query: safeGetJsonValue<string>(item, 'query', ''),
+            count: safeGetJsonValue<number>(item, 'count', 0)
+          }))
+        : [];
       
-      // Count active clients in the last 30 days
-      const activeClientsQuery = await execSql(`
-        SELECT COUNT(DISTINCT client_id) as active_clients
-        FROM client_activities
-        WHERE created_at > NOW() - INTERVAL '30 days'
-      `);
-      const activeClients = activeClientsQuery?.[0]?.active_clients || 0;
+      // Fetch total clients
+      const { data: totalClientsData } = await supabase.rpc('get_total_clients_count');
       
-      // Calculate change in active clients from previous 30 days
-      const previousActiveClientsQuery = await execSql(`
-        SELECT COUNT(DISTINCT client_id) as prev_active_clients
-        FROM client_activities
-        WHERE created_at BETWEEN NOW() - INTERVAL '60 days' AND NOW() - INTERVAL '30 days'
-      `);
-      const previousActiveClients = previousActiveClientsQuery?.[0]?.prev_active_clients || 0;
-      const activeClientsChange = previousActiveClients > 0 
-        ? ((activeClients - previousActiveClients) / previousActiveClients) * 100
-        : 100;
+      const totalClients = safeGetJsonValue<number>(totalClientsData, 'total_clients', 0);
+      
+      // Fetch active clients - past 7 days
+      const { data: activeClientsData } = await supabase.rpc('get_active_clients_count', {
+        days_ago: 7
+      });
+      
+      const activeClients = safeGetJsonValue<number>(activeClientsData, 'active_clients', 0);
+      
+      // Fetch active clients - previous 7 days for comparison
+      const { data: prevActiveClientsData } = await supabase.rpc('get_active_clients_count_previous_period', {
+        days_ago: 7
+      });
+      
+      const prevActiveClients = safeGetJsonValue<number>(prevActiveClientsData, 'prev_active_clients', 0);
+      
+      // Calculate change in active clients
+      const activeClientsChange = prevActiveClients > 0 
+        ? ((activeClients - prevActiveClients) / prevActiveClients) * 100
+        : 0;
       
       return {
         activeUsers,
@@ -86,19 +114,33 @@ export const useAdminDashboard = () => {
         activeClients,
         activeClientsChange
       };
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      throw error;
     }
-  });
-  
-  return {
-    activeUsers: data?.activeUsers || 0,
-    interactionCount: data?.interactionCount || 0,
-    avgResponseTime: data?.avgResponseTime || 0,
-    commonQueries: data?.commonQueries || [],
-    totalClients: data?.totalClients || 0,
-    activeClients: data?.activeClients || 0,
-    activeClientsChange: data?.activeClientsChange || 0,
-    isLoading,
-    error,
-    refetch
   };
-};
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['adminDashboardStats'],
+    queryFn: fetchDashboardStats,
+  });
+
+  const stats: DashboardStats = data || {
+    activeUsers: 0,
+    interactionCount: 0,
+    avgResponseTime: 0,
+    commonQueries: [],
+    totalClients: 0,
+    activeClients: 0,
+    activeClientsChange: 0
+  };
+
+  return {
+    ...stats,
+    refetch: async () => {
+      await refetch();
+    },
+    isLoading,
+    error
+  };
+}
