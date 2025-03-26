@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -150,8 +149,7 @@ export default function Index() {
             </CardContent>
           </Card>
           
-          <div className="flex justify-between mt-6">
-            <div></div> {/* Empty div to push the button to the right */}
+          <div className="flex justify-start mt-6">
             <div className="flex space-x-4">
               <Button 
                 variant="outline" 
