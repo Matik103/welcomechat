@@ -22,12 +22,19 @@ export async function registerDocumentProcessing(request: {
       }
     });
 
-    if (!result || !result.success) {
-      throw new Error(result?.error || 'Failed to register document for processing');
+    if (!result) {
+      throw new Error('Failed to register document for processing');
+    }
+
+    // Cast the result to an object with the expected properties
+    const typedResult = result as { success?: boolean; error?: string; activity_id?: string };
+
+    if (!typedResult.success) {
+      throw new Error(typedResult.error || 'Failed to register document for processing');
     }
 
     // Return a job ID (in this case, we're just returning the activity ID)
-    return result.activity_id || '';
+    return typedResult.activity_id || '';
   } catch (error) {
     console.error('Error registering document for processing:', error);
     throw error;
@@ -43,7 +50,7 @@ export async function getDocumentProcessingStatus(jobId: string): Promise<Docume
     const { data, error } = await supabase
       .from('document_processing_jobs')
       .select('*')
-      .eq('id', parseInt(jobId))
+      .eq('id', jobId)
       .single();
 
     if (error) {
@@ -64,12 +71,16 @@ export async function getDocumentProcessingStatus(jobId: string): Promise<Docume
       };
     }
 
+    // Extract the processed_count and failed_count with defaults
+    const processedCount = typeof data.processed_count === 'number' ? data.processed_count : 0;
+    const failedCount = typeof data.failed_count === 'number' ? data.failed_count : 0;
+
     return {
       success: data.status === 'completed',
       error: data.error_message || null,
-      processed: data.processed_count || 0,
-      failed: data.failed_count || 0,
-      jobId: data.id.toString()
+      processed: processedCount,
+      failed: failedCount,
+      jobId: String(data.id)
     };
   } catch (error) {
     console.error('Error getting document processing status:', error);
@@ -126,7 +137,7 @@ export async function processDocument(documentId: string) {
   try {
     // Call the Supabase function to process the document
     const { data, error } = await supabase.functions.invoke('process-document', {
-      body: { document_id: parseInt(documentId) }
+      body: { document_id: documentId }
     });
 
     if (error) {

@@ -73,7 +73,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       // Log the activity
       if (linkToDelete) {
         await logClientActivity(
-          'document_link_deleted',
+          'document_link_removed',
           `Deleted document link: ${linkToDelete.link}`,
           { link: linkToDelete.link }
         );
@@ -107,7 +107,6 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       </CardHeader>
       <CardContent className="space-y-6">
         <DocumentLinkForm
-          clientId={clientId}
           onSubmit={handleAddDocumentLink}
           isSubmitting={addDocumentLinkMutation.isPending}
           agentName="AI Agent"

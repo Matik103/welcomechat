@@ -41,7 +41,7 @@ export const useClientFormSubmission = (clientId: string) => {
             // Log logo upload activity using execSql for safely formatted values
             await callRpcFunctionSafe('log_client_activity', {
               client_id_param: clientId,
-              activity_type_param: 'logo_uploaded',
+              activity_type_param: 'client_updated',
               description_param: `Logo uploaded for client: ${data.client_name}`,
               metadata_param: {
                 logo_url: uploadResult.url,
@@ -57,8 +57,7 @@ export const useClientFormSubmission = (clientId: string) => {
       }
 
       // Update the client record
-      const clientResult = await updateClient({
-        client_id: clientId,
+      const clientResult = await updateClient(clientId, {
         client_name: data.client_name,
         email: data.email
       });
@@ -79,7 +78,7 @@ export const useClientFormSubmission = (clientId: string) => {
         // Log widget settings update activity
         await callRpcFunctionSafe('log_client_activity', {
           client_id_param: clientId,
-          activity_type_param: 'widget_settings_updated',
+          activity_type_param: 'client_updated',
           description_param: 'Widget settings updated',
           metadata_param: {
             client_id: clientId,

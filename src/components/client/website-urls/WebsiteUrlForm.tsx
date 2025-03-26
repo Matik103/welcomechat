@@ -8,8 +8,8 @@ import { toast } from 'sonner';
 import { WebsiteUrlFormData } from '@/types/website-url';
 
 interface WebsiteUrlFormProps {
-  onAdd: (data: WebsiteUrlFormData) => Promise<void>;
-  isAdding: boolean;
+  onSubmit: (data: WebsiteUrlFormData) => Promise<void>;
+  isSubmitting: boolean;
   agentName: string;
   clientId?: string;
   onAddSuccess?: () => Promise<any>;
@@ -17,8 +17,8 @@ interface WebsiteUrlFormProps {
 }
 
 export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
-  onAdd,
-  isAdding,
+  onSubmit,
+  isSubmitting,
   agentName,
   clientId,
   onAddSuccess,
@@ -55,7 +55,7 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
         return;
       }
 
-      await onAdd({ 
+      await onSubmit({ 
         url, 
         refresh_rate: refreshRate
       });
@@ -73,7 +73,7 @@ export const WebsiteUrlForm: React.FC<WebsiteUrlFormProps> = ({
     }
   };
 
-  const isAddingUrl = isAdding || (webstoreHook && webstoreHook.isAdding) || false;
+  const isAddingUrl = isSubmitting || (webstoreHook && webstoreHook.isAdding) || false;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

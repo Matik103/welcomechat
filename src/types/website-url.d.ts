@@ -1,12 +1,13 @@
+
 export interface WebsiteUrl {
-  id: string;
+  id: number;
   client_id: string;
   url: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  last_crawled: string | null;
   refresh_rate: number;
   created_at: string;
-  error: string | null;
+  updated_at: string | null;
+  last_processed?: string | null;
+  status?: string;
 }
 
 export interface WebsiteUrlFormData {

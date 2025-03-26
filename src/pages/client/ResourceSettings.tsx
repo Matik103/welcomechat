@@ -45,8 +45,7 @@ export default function ResourceSettings() {
     addDocumentLink,
     deleteDocumentLink,
     isAddingLink,
-    isDeletingLink,
-    deletingLinkId
+    isDeletingLink
   } = useDriveLinks(effectiveClientId);
 
   // Document Upload
@@ -58,18 +57,26 @@ export default function ResourceSettings() {
 
   const handleAddWebsiteUrl = async (data: WebsiteUrlFormData) => {
     await addWebsiteUrl(data);
+    await createClientActivity(
+      effectiveClientId,
+      'website_added' as ActivityType,
+      `Added website URL: ${data.url}`,
+      { url: data.url, refresh_rate: data.refresh_rate }
+    );
   };
 
   const handleDeleteWebsiteUrl = async (urlId: number) => {
     await deleteWebsiteUrl(urlId);
   };
 
-  const handleAddDocumentLink = async (data: { link: string; refresh_rate: number }) => {
-    await addDocumentLink({
-      link: data.link,
-      refresh_rate: data.refresh_rate,
-      document_type: 'google_drive' // Add default document_type
-    });
+  const handleAddDocumentLink = async (data: { link: string; refresh_rate: number; document_type: string }) => {
+    await addDocumentLink(data);
+    await createClientActivity(
+      effectiveClientId,
+      'document_link_added' as ActivityType,
+      `Added document link: ${data.link}`,
+      { link: data.link, refresh_rate: data.refresh_rate }
+    );
   };
 
   const handleDeleteDocumentLink = async (linkId: number) => {
@@ -83,7 +90,7 @@ export default function ResourceSettings() {
       if (result) {
         await createClientActivity(
           effectiveClientId,
-          "document_processed" as ActivityType,
+          'document_processed' as ActivityType,
           `Uploaded document: ${file.name}`,
           { file_name: file.name, file_type: file.type, file_size: file.size }
         );
@@ -141,7 +148,7 @@ export default function ResourceSettings() {
               deleteDocumentLink={handleDeleteDocumentLink}
               isAddingLink={isAddingLink}
               isDeletingLink={isDeletingLink}
-              deletingLinkId={deletingLinkId}
+              deletingLinkId={null}
               agentName="AI Assistant"
             />
           </TabsContent>
@@ -157,4 +164,4 @@ export default function ResourceSettings() {
       </div>
     </div>
   );
-}
+};

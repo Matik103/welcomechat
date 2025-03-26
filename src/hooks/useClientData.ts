@@ -1,7 +1,7 @@
 
 import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
-import { ClientFormData } from "@/types/client";
+import { ClientFormData } from "@/types/client-form";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const useClientData = (id: string | undefined) => {
@@ -28,7 +28,7 @@ export const useClientData = (id: string | undefined) => {
     refetch
   } = useClient(clientId || '');
   
-  const clientMutation = useClientMutation(clientId);
+  const clientMutation = useClientMutation();
 
   return {
     client,

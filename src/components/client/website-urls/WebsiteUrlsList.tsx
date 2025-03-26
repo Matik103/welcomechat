@@ -6,19 +6,15 @@ import { Loader2, Trash2, RefreshCw } from 'lucide-react';
 
 interface WebsiteUrlsListProps {
   urls: WebsiteUrl[];
-  onDelete: (id: number) => void;
-  onProcess: (url: WebsiteUrl) => void;
-  isDeleteLoading: boolean;
-  isProcessing: boolean;
+  onDelete: (id: number) => Promise<void>;
+  isDeleting: boolean;
   deletingId?: number | null;
 }
 
 export const WebsiteUrlsList: React.FC<WebsiteUrlsListProps> = ({
   urls,
   onDelete,
-  onProcess,
-  isDeleteLoading,
-  isProcessing,
+  isDeleting,
   deletingId,
 }) => {
   if (urls.length === 0) {
@@ -34,25 +30,11 @@ export const WebsiteUrlsList: React.FC<WebsiteUrlsListProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onProcess(url)}
-            disabled={isProcessing}
-            className="h-8 px-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-            title="Process this URL"
-          >
-            {isProcessing && deletingId === url.id ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             onClick={() => onDelete(url.id)}
-            disabled={isDeleteLoading || deletingId === url.id}
+            disabled={isDeleting || deletingId === url.id}
             className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
           >
-            {(isDeleteLoading && deletingId === url.id) ? (
+            {(isDeleting && deletingId === url.id) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Trash2 className="w-4 h-4" />

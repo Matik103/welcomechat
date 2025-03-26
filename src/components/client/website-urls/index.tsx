@@ -6,7 +6,7 @@ import { WebsiteUrl } from '@/types/website-url';
 
 export interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
-  onAdd: (data: { url: string }) => Promise<void>;
+  onAdd: (data: { url: string; refresh_rate: number }) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   isLoading: boolean;
   isAdding: boolean;
@@ -43,7 +43,6 @@ export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
       <WebsiteUrlsList
         urls={urls}
         onDelete={onDelete}
-        isLoading={isLoading}
         isDeleting={isDeleting}
         deletingId={deletingUrlId}
       />

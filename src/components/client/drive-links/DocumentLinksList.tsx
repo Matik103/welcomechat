@@ -8,8 +8,8 @@ import { formatDistanceToNow } from 'date-fns';
 interface DocumentLinksListProps {
   links: DocumentLink[];
   onDelete: (id: number) => Promise<void>;
-  isLoading: boolean;
-  isDeleting: boolean;
+  isLoading?: boolean;
+  isDeleting?: boolean;
   deletingId?: number | null;
 }
 
