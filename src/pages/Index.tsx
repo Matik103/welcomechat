@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +45,6 @@ export default function Index() {
   };
 
   useEffect(() => {
-    // Refresh dashboard data every 5 minutes
     const interval = setInterval(() => {
       refetchDashboard();
       refetchActivities();
@@ -79,12 +77,6 @@ export default function Index() {
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <PageHeading>
-          Welcome.Chat Dashboard
-          <p className="text-sm font-normal text-muted-foreground dashboard-subheading">
-            Overview of your client activity
-          </p>
-        </PageHeading>
         <Button onClick={handleAddClientClick}>
           Add Client
         </Button>
