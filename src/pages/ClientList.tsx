@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { ClientListContainer } from '@/components/client/ClientListContainer';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';

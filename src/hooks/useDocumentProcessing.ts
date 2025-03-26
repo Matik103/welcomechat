@@ -1,159 +1,75 @@
 
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getDocumentsByClientId, deleteDocument, processDocument } from '@/services/documentProcessingService';
 import { toast } from 'sonner';
 
-// Upload document function
-export async function uploadDocumentFunction(file: File, clientId: string): Promise<string> {
-  // Upload implementation...
-  const timestamp = Date.now();
-  const fileExt = file.name.split('.').pop();
-  const filePath = `documents/${clientId}/${timestamp}-${file.name}`;
-  
-  const { data, error } = await supabase.storage
-    .from('client-documents')
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false
-    });
-  
-  if (error) {
-    throw error;
-  }
-  
-  const { data: urlData } = supabase.storage
-    .from('client-documents')
-    .getPublicUrl(filePath);
-  
-  // Create document processing record
-  const { data: jobData, error: jobError } = await supabase
-    .from('document_processing')
-    .insert({
-      document_url: urlData.publicUrl,
-      client_id: clientId,
-      agent_name: 'AI Assistant',
-      document_type: fileExt || 'unknown',
-      status: 'pending',
-      started_at: new Date().toISOString(),
-      metadata: {
-        original_filename: file.name,
-        file_size: file.size,
-        content_type: file.type
-      }
-    })
-    .select('id')
-    .single();
-  
-  if (jobError) {
-    throw jobError;
-  }
-  
-  return jobData.id.toString();
-}
+export const useDocumentProcessing = (clientId: string) => {
+  const queryClient = useQueryClient();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingDocumentId, setProcessingDocumentId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(null);
 
-// Check document processing status
-export async function checkDocumentStatus(documentId: string): Promise<'pending' | 'processing' | 'completed' | 'failed'> {
-  try {
-    const { data, error } = await supabase
-      .from('document_processing')
-      .select('status')
-      .eq('id', parseInt(documentId, 10))
-      .single();
-    
-    if (error) throw error;
-    
-    return data.status as 'pending' | 'processing' | 'completed' | 'failed';
-  } catch (error) {
-    console.error('Error checking document status:', error);
-    return 'failed';
-  }
-}
-
-export function useDocumentProcessing(clientId?: string) {
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-
-  // Query for fetching document processing jobs
-  const { data: processingJobs, isLoading, refetch } = useQuery({
-    queryKey: ['documentProcessingJobs', clientId],
-    queryFn: async () => {
-      if (!clientId) return [];
-      
-      const { data, error } = await supabase
-        .from('document_processing')
-        .select('*')
-        .eq('client_id', clientId)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching document processing jobs:', error);
-        throw error;
-      }
-      
-      return data;
-    },
-    enabled: !!clientId
+  // Fetch documents for client
+  const { data: documents = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['documents', clientId],
+    queryFn: () => getDocumentsByClientId(clientId),
+    enabled: !!clientId,
   });
 
-  // Mutation for uploading and processing a document
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      if (!clientId) {
-        throw new Error('Client ID is required');
-      }
-      
+  // Process document mutation
+  const processDocumentMutation = useMutation({
+    mutationFn: async (documentId: number) => {
+      setIsProcessing(true);
+      setProcessingDocumentId(documentId);
       try {
-        // Simulate upload progress
-        const simulateProgress = () => {
-          let progress = 0;
-          const interval = setInterval(() => {
-            progress += Math.random() * 10;
-            if (progress > 95) {
-              progress = 95; // Don't reach 100% until actually done
-              clearInterval(interval);
-            }
-            setUploadProgress(Math.round(progress));
-          }, 300);
-          
-          return () => clearInterval(interval);
-        };
-        
-        const clearProgressSimulation = simulateProgress();
-        
-        // Upload the document
-        const jobId = await uploadDocumentFunction(file, clientId);
-        setProcessingId(jobId);
-        
-        // Clear progress simulation
-        clearProgressSimulation();
-        setUploadProgress(100);
-        
-        return jobId;
-      } catch (error) {
-        console.error('Error uploading document:', error);
-        toast.error('Failed to upload document');
-        throw error;
+        return await processDocument(documentId.toString());
+      } finally {
+        setIsProcessing(false);
+        setProcessingDocumentId(null);
       }
     },
     onSuccess: () => {
-      refetch();
-      toast.success('Document uploaded successfully and queued for processing');
+      toast.success('Document processing initiated successfully');
+      queryClient.invalidateQueries({ queryKey: ['documents', clientId] });
     },
     onError: (error) => {
-      console.error('Document upload mutation error:', error);
-      toast.error('Failed to upload and process document');
-    }
+      toast.error(`Failed to process document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    },
+  });
+
+  // Delete document mutation
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async (documentId: number) => {
+      setIsDeleting(true);
+      setDeletingDocumentId(documentId);
+      try {
+        return await deleteDocument(documentId);
+      } finally {
+        setIsDeleting(false);
+        setDeletingDocumentId(null);
+      }
+    },
+    onSuccess: () => {
+      toast.success('Document deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['documents', clientId] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    },
   });
 
   return {
-    processingJobs: processingJobs || [],
+    documents,
     isLoading,
-    uploadDocument: uploadMutation.mutate,
-    isUploading: uploadMutation.isPending,
-    uploadProgress,
-    processingId,
-    checkStatus: checkDocumentStatus,
-    refetch
+    error,
+    refetch,
+    processDocument: processDocumentMutation.mutateAsync,
+    deleteDocument: deleteDocumentMutation.mutateAsync,
+    isProcessing,
+    processingDocumentId,
+    isDeleting,
+    deletingDocumentId,
   };
-}
+};

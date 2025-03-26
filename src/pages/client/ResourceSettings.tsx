@@ -1,198 +1,143 @@
 
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Card } from '@/components/ui/card';
-import { ClientLayout } from '@/components/layout/ClientLayout';
-import { WebsiteUrls } from '@/components/client/WebsiteUrls';
-import { DriveLinks } from '@/components/client/DriveLinks';
-import { useClient } from '@/hooks/useClient';
-import { Spinner } from '@/components/ui/spinner';
-import { Button } from '@/components/ui/button';
-import { useNavigation } from '@/hooks/useNavigation';
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
-import { useDocumentLinks } from '@/hooks/useDocumentLinks';
+import { useDriveLinks } from '@/hooks/useDriveLinks';
 import { useDocumentUpload } from '@/hooks/useDocumentUpload';
-import { logClientActivity } from '@/services/activityService';
-import { toast } from 'sonner';
+import { useNavigation } from '@/hooks/useNavigation';
+import { Button } from '@/components/ui/button';
+import { WebsiteUrls } from '@/components/client/website-urls';
+import DriveLinks from '@/components/client/drive-links';
+import { DocumentUpload } from '@/components/client/DocumentUpload';
+import { createClientActivity } from '@/services/activityService';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArrowLeft } from 'lucide-react';
 
 export default function ResourceSettings() {
-  const { id } = useParams<{ id: string }>();
-  const { client, isLoading: isClientLoading } = useClient(id as string);
-  const { goToWidget } = useNavigation();
+  const { clientId } = useParams<{ clientId: string }>();
+  const effectiveClientId = clientId || '';
+  const [activeTab, setActiveTab] = useState('websites');
+  const { goToClientDashboard } = useNavigation();
   
-  // State for currently active tab
-  const [activeTab, setActiveTab] = useState<'urls' | 'documents'>('urls');
-  
-  // Website URLs functionality
+  // Website URLs
   const {
     websiteUrls,
-    isLoading: isLoadingUrls,
-    addWebsiteUrlMutation,
-    deleteWebsiteUrlMutation,
-    refetchWebsiteUrls
-  } = useWebsiteUrls(id as string);
-  
-  // Document links functionality
-  const { 
-    documentLinks, 
-    isLoading: isLoadingDocuments,
+    isLoading: isUrlsLoading,
+    addWebsiteUrl,
+    deleteWebsiteUrl,
+    processWebsiteUrl,
+    validateUrl,
+    validateUrlError,
+    isValidatingUrl,
+    isProcessingUrl,
+    processingUrlId,
+    isDeletingUrl,
+    deletingUrlId
+  } = useWebsiteUrls(effectiveClientId);
+
+  // Drive Links
+  const {
+    documentLinks,
+    isLoading: isLinksLoading,
     addDocumentLink,
     deleteDocumentLink,
-    refetch: refetchDocuments
-  } = useDocumentLinks(id as string);
-  
-  // Document upload functionality
-  const { uploadDocument, isUploading } = useDocumentUpload(id as string);
+    validateDocumentLink,
+    validateLinkError,
+    isValidatingLink,
+    isDeletingLink,
+    deletingLinkId
+  } = useDriveLinks(effectiveClientId);
 
-  // Handle website URL operations
-  const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
+  // Document Upload
+  const {
+    isUploading,
+    uploadDocument,
+    uploadProgress
+  } = useDocumentUpload(effectiveClientId);
+
+  const handleUploadDocument = async (file: File) => {
     try {
-      await addWebsiteUrlMutation.mutateAsync(data);
-      await logClientActivity(id as string, 'website_url_added', `Added website URL: ${data.url}`);
-      refetchWebsiteUrls();
-      toast.success('Website URL added successfully');
+      const result = await uploadDocument(file);
+      
+      if (result) {
+        await createClientActivity(
+          effectiveClientId,
+          'document_added',
+          `Uploaded document: ${file.name}`,
+          { file_name: file.name, file_type: file.type, file_size: file.size }
+        );
+      }
+      
+      return result;
     } catch (error) {
-      console.error('Error adding website URL:', error);
-      toast.error('Failed to add website URL');
+      console.error('Error handling document upload:', error);
+      return null;
     }
   };
-
-  const handleDeleteWebsiteUrl = async (urlId: number) => {
-    try {
-      await deleteWebsiteUrlMutation.mutateAsync(urlId);
-      await logClientActivity(id as string, 'website_url_deleted', 'Deleted website URL');
-      refetchWebsiteUrls();
-      toast.success('Website URL deleted successfully');
-    } catch (error) {
-      console.error('Error deleting website URL:', error);
-      toast.error('Failed to delete website URL');
-    }
-  };
-
-  // Handle document link operations
-  const handleAddDocumentLink = async (data: { link: string; refresh_rate: number }) => {
-    try {
-      await addDocumentLink.mutateAsync({
-        link: data.link,
-        refresh_rate: data.refresh_rate,
-        document_type: 'document'
-      });
-      await logClientActivity(id as string, 'document_link_added', `Added document link: ${data.link}`);
-      refetchDocuments();
-      toast.success('Document link added successfully');
-    } catch (error) {
-      console.error('Error adding document link:', error);
-      toast.error('Failed to add document link');
-    }
-  };
-
-  const handleDeleteDocumentLink = async (linkId: number) => {
-    try {
-      await deleteDocumentLink.mutateAsync(linkId);
-      await logClientActivity(id as string, 'document_link_deleted', 'Deleted document link');
-      refetchDocuments();
-      toast.success('Document link deleted successfully');
-    } catch (error) {
-      console.error('Error deleting document link:', error);
-      toast.error('Failed to delete document link');
-    }
-  };
-
-  // Handle document upload
-  const handleDocumentUpload = async (file: File) => {
-    try {
-      await uploadDocument(file);
-      await logClientActivity(id as string, 'document_uploaded', `Uploaded document: ${file.name}`);
-      refetchDocuments();
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      toast.error('Failed to upload document');
-    }
-  };
-
-  if (isClientLoading) {
-    return (
-      <ClientLayout>
-        <div className="flex justify-center items-center h-screen">
-          <Spinner />
-        </div>
-      </ClientLayout>
-    );
-  }
-
-  if (!client) {
-    return (
-      <ClientLayout>
-        <div className="text-center py-8">
-          <h1 className="text-2xl font-bold">Client Not Found</h1>
-          <p className="mt-2">The requested client could not be found.</p>
-        </div>
-      </ClientLayout>
-    );
-  }
 
   return (
-    <ClientLayout>
-      <div className="container mx-auto py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Resource Settings</h1>
-          <Button onClick={() => goToWidget(id as string)}>
-            Widget Settings
-          </Button>
-        </div>
-
-        <div className="mb-6">
-          <div className="flex space-x-2 border-b">
-            <button
-              onClick={() => setActiveTab('urls')}
-              className={`px-4 py-2 font-medium ${
-                activeTab === 'urls'
-                  ? 'border-b-2 border-primary text-primary'
-                  : 'text-gray-500'
-              }`}
-            >
-              Website URLs
-            </button>
-            <button
-              onClick={() => setActiveTab('documents')}
-              className={`px-4 py-2 font-medium ${
-                activeTab === 'documents'
-                  ? 'border-b-2 border-primary text-primary'
-                  : 'text-gray-500'
-              }`}
-            >
-              Document Links
-            </button>
-          </div>
-        </div>
-
-        {activeTab === 'urls' ? (
-          <WebsiteUrls
-            urls={websiteUrls}
-            isLoading={isLoadingUrls}
-            onAdd={handleAddWebsiteUrl}
-            onDelete={handleDeleteWebsiteUrl}
-            isAdding={addWebsiteUrlMutation.isPending}
-            isDeleting={deleteWebsiteUrlMutation.isPending}
-            agentName="AI Assistant"
-          />
-        ) : (
-          <div className="space-y-6">
-            <DriveLinks
-              documents={documentLinks}
-              isLoading={isLoadingDocuments}
-              isUploading={isUploading}
-              addDocumentLink={handleAddDocumentLink}
-              deleteDocumentLink={handleDeleteDocumentLink}
-              uploadDocument={handleDocumentUpload}
-              isClientView={false}
-              isValidating={false}
-              deletingId={null}
-              isDeleteLoading={false}
-            />
-          </div>
-        )}
+    <div className="container mx-auto py-8 max-w-4xl">
+      <div className="flex justify-between items-center mb-6">
+        <Button variant="ghost" onClick={goToClientDashboard}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Dashboard
+        </Button>
       </div>
-    </ClientLayout>
+      
+      <div className="bg-white rounded-md shadow p-6">
+        <h1 className="text-2xl font-bold mb-6">Resource Settings</h1>
+        
+        <Tabs 
+          defaultValue="websites" 
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
+          <TabsList className="grid grid-cols-3 mb-6">
+            <TabsTrigger value="websites">Website URLs</TabsTrigger>
+            <TabsTrigger value="documents">Google Drive Links</TabsTrigger>
+            <TabsTrigger value="upload">Upload Documents</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="websites" className="space-y-6">
+            <WebsiteUrls
+              urls={websiteUrls}
+              isLoading={isUrlsLoading}
+              addWebsiteUrl={addWebsiteUrl}
+              deleteWebsiteUrl={deleteWebsiteUrl}
+              processUrl={processWebsiteUrl}
+              validateUrl={validateUrl}
+              validateError={validateUrlError}
+              isValidating={isValidatingUrl}
+              isProcessing={isProcessingUrl}
+              processingId={processingUrlId}
+              isDeleting={isDeletingUrl}
+              deletingId={deletingUrlId}
+            />
+          </TabsContent>
+          
+          <TabsContent value="documents" className="space-y-6">
+            <DriveLinks
+              links={documentLinks}
+              isLoading={isLinksLoading}
+              addDocumentLink={addDocumentLink}
+              deleteDocumentLink={deleteDocumentLink}
+              validateLink={validateDocumentLink}
+              validateError={validateLinkError}
+              isValidating={isValidatingLink}
+              isDeleteLoading={isDeletingLink}
+            />
+          </TabsContent>
+          
+          <TabsContent value="upload" className="space-y-6">
+            <DocumentUpload
+              onUpload={handleUploadDocument}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
   );
 }

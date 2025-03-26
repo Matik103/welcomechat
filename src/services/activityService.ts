@@ -29,6 +29,11 @@ export async function createClientActivity(
 }
 
 /**
+ * Alias for createClientActivity for backward compatibility
+ */
+export const logClientActivity = createClientActivity;
+
+/**
  * Fetches client activities for a given client
  */
 export async function getClientActivities(clientId: string, limit = 20, offset = 0) {
@@ -72,12 +77,11 @@ export async function getRecentActivities(limit = 20, offset = 0) {
  */
 export async function countActivitiesByType(clientId: string) {
   try {
-    const { data, error } = await supabase.rpc('count_activities_by_type', {
+    const result = await callRpcFunctionSafe('log_client_activity', {
       client_id_param: clientId
     });
-
-    if (error) throw error;
-    return data || [];
+    
+    return result || [];
   } catch (error) {
     console.error('Error counting activities by type:', error);
     return [];

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { RouteObject } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -6,7 +7,9 @@ const HomePage = React.lazy(() => import('./pages/Home'));
 const AboutPage = React.lazy(() => import('./pages/About'));
 const ContactPage = React.lazy(() => import('./pages/Contact'));
 const AuthPage = React.lazy(() => import('./pages/Auth'));
-const ClientDashboardPage = React.lazy(() => import('./pages/client/ClientDashboard'));
+const ClientListPage = React.lazy(() => import('./pages/ClientList'));
+const AddEditClientPage = React.lazy(() => import('./pages/AddEditClient'));
+const ClientDashboardPage = React.lazy(() => import('./pages/client/Dashboard'));
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminAgentsPage = React.lazy(() => import('./pages/admin/AdminAgents'));
 const AdminClientsPage = React.lazy(() => import('./pages/admin/AdminClients'));
@@ -19,6 +22,11 @@ const DocumentExtractionPage = React.lazy(() => import('./pages/admin/DocumentEx
 const ClientViewPage = React.lazy(() => import('./pages/ClientView'));
 const EditClientInfoPage = React.lazy(() => import('./pages/EditClientInfo'));
 const WidgetSettingsPage = React.lazy(() => import('./pages/WidgetSettings'));
+const NewClientPage = React.lazy(() => import('./pages/client/NewClient'));
+const ClientResourceSettingsPage = React.lazy(() => import('./pages/client/ResourceSettings'));
+const ClientSettingsPage = React.lazy(() => import('./pages/client/Settings'));
+const ClientAccountSettingsPage = React.lazy(() => import('./pages/client/AccountSettings'));
+const CreateClientAccountPage = React.lazy(() => import('./pages/CreateClientAccount'));
 
 export const routes: RouteObject[] = [
   {
@@ -59,7 +67,11 @@ export const routes: RouteObject[] = [
   },
   {
     path: '/admin/clients',
-    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AdminClientsPage /></React.Suspense></ProtectedRoute>,
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><ClientListPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/admin/clients/new',
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AddEditClientPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/admin/clients/view/:clientId',
@@ -78,6 +90,10 @@ export const routes: RouteObject[] = [
   {
     path: '/admin/clients/:clientId/widget-settings',
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><WidgetSettingsPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/admin/clients/:clientId/edit',
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AddEditClientPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/admin/users',
@@ -114,7 +130,33 @@ export const routes: RouteObject[] = [
     ),
   },
   {
+    path: '/client/new',
+    element: (
+      <ProtectedRoute requiredRole="client">
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <NewClientPage />
+        </React.Suspense>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/client/widget-settings',
     element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><WidgetSettingsPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/client/resource-settings',
+    element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><ClientResourceSettingsPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/client/settings',
+    element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><ClientSettingsPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/client/account-settings',
+    element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><ClientAccountSettingsPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/create-client-account',
+    element: <React.Suspense fallback={<div>Loading...</div>}><CreateClientAccountPage /></React.Suspense>,
   },
 ];

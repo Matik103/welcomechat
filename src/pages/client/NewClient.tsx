@@ -1,71 +1,76 @@
 
-import React, { useState } from 'react';
-import { ClientLayout } from '@/components/layout/ClientLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ClientForm } from '@/components/client/ClientForm';
-import { useNewClientForm } from '@/hooks/useNewClientForm';
 import { useNewClientMutation } from '@/hooks/useNewClientMutation';
 import { useNavigation } from '@/hooks/useNavigation';
-import { ClientFormData } from '@/types/client-form';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
+
+// Define client form schema
+const clientFormSchema = z.object({
+  client_name: z.string().min(1, "Client name is required"),
+  email: z.string().email("Invalid email address"),
+  company: z.string().optional(),
+  description: z.string().optional(),
+  widget_settings: z.object({
+    agent_name: z.string().optional(),
+    agent_description: z.string().optional(),
+    logo_url: z.string().optional(),
+    logo_storage_path: z.string().optional()
+  }).optional(),
+  _tempLogoFile: z.any().optional()
+});
+
+export type ClientFormData = z.infer<typeof clientFormSchema>;
 
 export default function NewClient() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigation = useNavigation();
-  const { formValues, errors, handleInputChange, handleLogoChange, validateForm } = useNewClientForm(true);
-  const { createClient } = useNewClientMutation();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    try {
-      setIsSubmitting(true);
-      
-      const newClient = await createClient(formValues as ClientFormData);
-      
-      // Check if client was created successfully
-      if (newClient && newClient.client_id) {
-        toast.success('Client created successfully!');
-        // Redirect to client dashboard or client list
-        navigation.goToClientDashboard();
-      } else {
-        toast.error('Failed to create client. Please try again.');
+  const { goToClientDashboard } = useNavigation();
+  const mutation = useNewClientMutation();
+  
+  const form = useForm<ClientFormData>({
+    resolver: zodResolver(clientFormSchema),
+    defaultValues: {
+      client_name: '',
+      email: '',
+      company: '',
+      description: '',
+      widget_settings: {
+        agent_name: 'AI Assistant',
+        agent_description: ''
       }
+    }
+  });
+
+  const handleSubmit = async (data: ClientFormData) => {
+    try {
+      await mutation.mutateAsync(data);
+      goToClientDashboard();
     } catch (error) {
       console.error('Error creating client:', error);
-      toast.error(`Error creating client: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   return (
-    <ClientLayout>
-      <div className="container mx-auto py-8">
-        <Card className="max-w-3xl mx-auto">
-          <CardHeader>
-            <CardTitle>Create a New Client</CardTitle>
-            <CardDescription>
-              Fill in the details to create a new client and AI assistant.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ClientForm
-              formValues={formValues}
-              errors={errors}
-              isSubmitting={isSubmitting}
-              onSubmit={handleSubmit}
-              onChange={handleInputChange}
-              onLogoChange={handleLogoChange}
-              isClientView={true}
-            />
-          </CardContent>
-        </Card>
+    <div className="container mx-auto py-8 max-w-4xl">
+      <div className="flex justify-between items-center mb-6">
+        <Button variant="ghost" onClick={goToClientDashboard}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Dashboard
+        </Button>
       </div>
-    </ClientLayout>
+      
+      <div className="bg-white rounded-md shadow p-6">
+        <h1 className="text-2xl font-bold mb-6">Create New Client</h1>
+        
+        <ClientForm 
+          form={form}
+          onSubmit={handleSubmit}
+          isSubmitting={mutation.isPending}
+        />
+      </div>
+    </div>
   );
 }

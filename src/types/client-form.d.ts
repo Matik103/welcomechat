@@ -1,27 +1,24 @@
-
 export type ActivityType = 
   | 'client_created'
   | 'client_updated'
   | 'client_deleted'
+  | 'client_recovered'
+  | 'widget_settings_updated'
+  | 'website_url_added'
+  | 'website_url_deleted'
+  | 'drive_link_added'
+  | 'drive_link_deleted'
+  | 'chat_interaction'
+  | 'agent_error'
   | 'document_added'
-  | 'document_removed'
   | 'document_processed'
   | 'document_processing_failed'
+  | 'document_removed'
   | 'url_added'
-  | 'url_removed'
+  | 'url_deleted'
   | 'url_processed'
   | 'url_processing_failed'
-  | 'widget_settings_updated'
-  | 'agent_created'
-  | 'agent_updated'
-  | 'agent_deleted'
-  | 'agent_settings_updated'
-  | 'user_login'
-  | 'user_logout'
-  | 'user_password_reset'
-  | 'user_email_changed'
-  | 'user_profile_updated'
-  | 'chat_interaction';
+  | 'embed_code_copied';
 
 export interface ClientFormData {
   client_name: string;
