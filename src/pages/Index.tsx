@@ -1,160 +1,175 @@
 
-import { useState, useEffect } from "react";
-import { MetricCard } from "@/components/dashboard/MetricCard";
-import { ActivityList } from "@/components/dashboard/ActivityList";
-import { ActionButtons } from "@/components/dashboard/ActionButtons";
-import { useClientStats } from "@/hooks/useClientStats";
-import { useInteractionStats } from "@/hooks/useInteractionStats";
-import { useRecentActivities } from "@/hooks/useRecentActivities";
-import { setupRealtimeActivities } from "@/utils/setupRealtimeActivities";
-import { subscribeToAllActivities } from "@/services/activitySubscriptionService";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Users, Activity, Calendar, Clock } from 'lucide-react';
+import { ChartCard } from '@/components/dashboard/ChartCard';
+import { RecentActivityList } from '@/components/dashboard/RecentActivityList';
+import { useNavigate } from 'react-router-dom';
+import { useAdminDashboard } from '@/hooks/useAdminDashboard';
+import { useRecentActivities } from '@/hooks/useRecentActivities';
+import { SmallStat } from '@/components/dashboard/SmallStat';
+import { PageHeading } from '@/components/dashboard/PageHeading';
+import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 
-const Index = () => {
-  const [timeRange, setTimeRange] = useState<"1d" | "1m" | "1y" | "all">("all");
+export default function Index() {
+  const navigate = useNavigate();
+  const [highlightedActivity, setHighlightedActivity] = useState<number | null>(null);
   
-  // Set up real-time functionality on component mount
-  useEffect(() => {
-    const setup = async () => {
-      try {
-        await setupRealtimeActivities();
-        console.log("Realtime activities set up successfully");
-      } catch (error) {
-        console.error("Failed to set up realtime activities:", error);
-      }
-    };
-    
-    setup();
-  }, []);
-
-  // Set up global activity tracking for the admin dashboard
-  const { 
-    activities: recentActivities,
+  const {
+    activeUsers,
+    interactionCount,
+    avgResponseTime,
+    commonQueries,
+    isLoading: isDashboardLoading,
+    error: dashboardError,
+    refetch: refetchDashboard
+  } = useAdminDashboard();
+  
+  const {
+    activities,
     isLoading: isActivitiesLoading,
-    refetch: refetchActivities 
+    error: activitiesError,
+    refetch: refetchActivities
   } = useRecentActivities();
   
-  useEffect(() => {
-    // Subscribe to all client activities for real-time updates in the activity list
-    const channel = subscribeToAllActivities(() => {
-      console.log("Refreshing activity list due to new activity");
-      refetchActivities();
-    });
-    
-    // Also subscribe to changes in the ai_agents table to update client names
-    const agentsChannel = supabase
-      .channel('dashboard-ai-agents-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'ai_agents',
-      }, (payload) => {
-        console.log("AI agent data changed, refreshing activities to update client names:", payload);
-        refetchActivities();
-      })
-      .subscribe();
-    
-    return () => {
-      if (channel) {
-        console.log("Removing activity subscription channel");
-        supabase.removeChannel(channel);
-      }
-      
-      if (agentsChannel) {
-        console.log("Removing ai_agents subscription channel");
-        supabase.removeChannel(agentsChannel);
-      }
-    };
-  }, [refetchActivities]);
-  
-  // Static stats that don't depend on time range
-  const { 
-    totalClients,
-    activeClients,
-    activeClientsChange,
-    isLoading: isClientStatsLoading 
-  } = useClientStats();
-  
-  // Dynamic stats that depend on time range
-  const { 
-    data: interactionStats,
-    isLoading: isInteractionStatsLoading 
-  } = useInteractionStats(timeRange);
+  // Mock data for metrics we don't have yet
+  const mockData = {
+    totalClients: 35,
+    activeClients: 24,
+    activeClientsChange: 18
+  };
 
-  // Log for debugging
+  const handleActivityClick = (id: number) => {
+    setHighlightedActivity(id === highlightedActivity ? null : id);
+  };
+  
+  const handleAddClientClick = () => {
+    navigate('/admin/clients/new');
+  };
+  
   useEffect(() => {
-    console.log("Dashboard data:", {
-      totalClients,
-      activeClients,
-      interactionStats,
-      recentActivities: recentActivities?.length
-    });
-  }, [totalClients, activeClients, interactionStats, recentActivities]);
+    // Refresh dashboard data every 5 minutes
+    const interval = setInterval(() => {
+      refetchDashboard();
+      refetchActivities();
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [refetchDashboard, refetchActivities]);
+
+  if (dashboardError || activitiesError) {
+    return (
+      <div className="container mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-4">Dashboard Error</h1>
+        <p className="text-red-500">
+          {dashboardError ? `Dashboard error: ${dashboardError.message}` : ''}
+          {activitiesError ? `Activities error: ${activitiesError.message}` : ''}
+        </p>
+        <Button 
+          onClick={() => {
+            refetchDashboard();
+            refetchActivities();
+          }}
+          className="mt-4"
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-gray-900">AI Chatbot Admin System</h1>
-          <p className="text-gray-500">Monitor and manage your AI chatbot clients</p>
-        </div>
-
-        <div className="flex justify-end mb-4">
-          <div className="flex gap-2">
-            {(["1d", "1m", "1y", "all"] as const).map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-3 py-1 text-sm rounded-md ${
-                  timeRange === range
-                    ? "bg-primary text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                } transition-colors duration-200`}
-                disabled={isInteractionStatsLoading}
-              >
-                {range === "1d" ? "1 DAY" :
-                 range === "1m" ? "1 MONTH" :
-                 range === "1y" ? "1 YEAR" : "ALL TIME"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Static metrics that don't depend on time range */}
-          <MetricCard 
-            title="Total Clients" 
-            value={totalClients || 0}
-            isLoading={isClientStatsLoading}
-          />
-          <MetricCard 
-            title="Active Clients" 
-            value={activeClients || 0}
-            change={activeClientsChange}
-            isLoading={isClientStatsLoading}
-          />
-          {/* Dynamic metrics that update with time range */}
-          <MetricCard 
-            title="Avg. Interactions" 
-            value={interactionStats?.totalInteractions || 0}
-            change="12"
-            isLoading={isInteractionStatsLoading}
-          />
-          <MetricCard 
-            title="Total Interactions" 
-            value={interactionStats?.totalInteractions || 0}
-            isLoading={isInteractionStatsLoading}
-          />
-        </div>
-
-        <ActivityList 
-          activities={recentActivities} 
-          isLoading={isActivitiesLoading}
-        />
-        <ActionButtons />
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <PageHeading>
+          Dashboard
+          <p className="text-sm font-normal text-muted-foreground">
+            Overview of your client activity
+          </p>
+        </PageHeading>
+        <Button onClick={handleAddClientClick}>Add Client</Button>
       </div>
+      
+      {isDashboardLoading ? (
+        <DashboardSkeleton />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <SmallStat 
+              title="Active Users" 
+              value={activeUsers} 
+              icon={<Users className="h-6 w-6" />} 
+              description="Users active today"
+              colorClass="text-blue-500 bg-blue-50" 
+            />
+            <SmallStat 
+              title="Clients" 
+              value={mockData.totalClients} 
+              icon={<Users className="h-6 w-6" />} 
+              description={`${mockData.activeClients} active clients`}
+              colorClass="text-green-500 bg-green-50" 
+            />
+            <SmallStat 
+              title="Daily Interactions" 
+              value={interactionCount} 
+              icon={<Activity className="h-6 w-6" />} 
+              description="User queries today"
+              colorClass="text-purple-500 bg-purple-50" 
+            />
+            <SmallStat 
+              title="Response Time" 
+              value={`${avgResponseTime.toFixed(2)}s`} 
+              icon={<Clock className="h-6 w-6" />} 
+              description="Average response time"
+              colorClass="text-amber-500 bg-amber-50" 
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2">
+              <ChartCard title="User Activity" data={commonQueries} className="h-full" />
+            </div>
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Client Growth</CardTitle>
+                <CardDescription>New clients and activity over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-center p-4 text-center">
+                  <div>
+                    <div className="text-5xl font-bold mb-2">{mockData.activeClients}</div>
+                    <div className="text-sm text-muted-foreground">Active Clients</div>
+                    <div className="mt-2 text-sm text-green-500">
+                      +{mockData.activeClientsChange}% from last month
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>Latest actions across all clients</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RecentActivityList 
+                activities={activities as any[]} 
+                isLoading={isActivitiesLoading} 
+                highlightedId={highlightedActivity}
+                onActivityClick={handleActivityClick}
+              />
+            </CardContent>
+            <CardFooter className="flex justify-center border-t p-4">
+              <Button variant="outline" onClick={() => navigate('/admin/clients')}>
+                View All Clients
+              </Button>
+            </CardFooter>
+          </Card>
+        </>
+      )}
     </div>
   );
-};
-
-export default Index;
+}

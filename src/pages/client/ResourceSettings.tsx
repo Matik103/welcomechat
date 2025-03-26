@@ -2,9 +2,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useParams } from "react-router-dom";
-import { WebsiteUrls } from "@/components/client/WebsiteUrls";
-import { WebsiteUrlsList } from "@/components/client/website-urls/WebsiteUrlsList";
-import { DocumentLinksList } from "@/components/client/drive-links/DocumentLinksList";
 import { Button } from "@/components/ui/button";
 import { useWebsiteUrls } from "@/hooks/useWebsiteUrls";
 import { useDocumentLinks } from "@/hooks/useDocumentLinks";
@@ -39,57 +36,22 @@ export default function ResourceSettings() {
   if (!clientId) {
     return <div>Client ID is required</div>;
   }
-
-  const handleAddWebsiteUrl = async (data: { url: string; refresh_rate: number }) => {
-    try {
-      await addWebsiteUrlMutation.mutateAsync(data);
-      await logClientActivity("website_url_added", "Added new website URL");
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error adding website URL:", error);
-      toast.error("Failed to add website URL");
-      return Promise.reject(error);
+  
+  const wrappedLogClientActivity = async (
+    activity_type: ActivityType, 
+    description: string, 
+    metadata?: Record<string, any>
+  ) => {
+    if (logClientActivity) {
+      try {
+        await logClientActivity(activity_type, description, metadata);
+        return Promise.resolve();
+      } catch (error) {
+        console.error("Error logging activity:", error);
+        return Promise.resolve();
+      }
     }
-  };
-
-  const handleDeleteWebsiteUrl = async (urlId: number) => {
-    try {
-      await deleteWebsiteUrlMutation.mutateAsync(urlId);
-      await logClientActivity("website_url_deleted", "Deleted website URL");
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error deleting website URL:", error);
-      toast.error("Failed to delete website URL");
-      return Promise.reject(error);
-    }
-  };
-
-  const handleAddDocumentLink = async (data: { link: string; refresh_rate: number }) => {
-    try {
-      await addDocumentLink.mutateAsync({
-        link: data.link,
-        refresh_rate: data.refresh_rate,
-        document_type: 'document' // Default document type
-      });
-      await logClientActivity("document_link_added", "Added new document link");
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error adding document link:", error);
-      toast.error("Failed to add document link");
-      return Promise.reject(error);
-    }
-  };
-
-  const handleDeleteDocumentLink = async (linkId: number) => {
-    try {
-      await deleteDocumentLink.mutateAsync(linkId);
-      await logClientActivity("document_link_deleted", "Deleted document link");
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error deleting document link:", error);
-      toast.error("Failed to delete document link");
-      return Promise.reject(error);
-    }
+    return Promise.resolve();
   };
 
   return (
@@ -103,7 +65,7 @@ export default function ResourceSettings() {
           isProcessing={isProcessing}
           isDeleting={isDeleting}
           refetchWebsiteUrls={refetchWebsiteUrls}
-          logClientActivity={logClientActivity}
+          logClientActivity={wrappedLogClientActivity}
         />
       </div>
     </div>

@@ -3,11 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Client } from '@/types/client';
 import { createClientActivity } from '@/services/clientActivityService';
+import { useState } from 'react';
 
 export function useClientList() {
   const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState('');
   
-  // Fetch all clients with the specified filters
+  // Fetch all clients from ai_agents table with interaction_type = 'config'
   const getClients = async (args?: { 
     status?: string;
     searchQuery?: string;
@@ -17,8 +19,9 @@ export function useClientList() {
       const { status, searchQuery, includeDeleted = false } = args || {};
       
       let query = supabase
-        .from('clients')
-        .select('*');
+        .from('ai_agents')
+        .select('*')
+        .eq('interaction_type', 'config');
       
       // Apply status filter if provided
       if (status) {
@@ -43,26 +46,27 @@ export function useClientList() {
       }
       
       // Transform data to match Client type
-      return data.map(client => ({
-        id: client.id,
-        client_id: client.id, // Set client_id to id for compatibility
-        client_name: client.client_name || '',
-        email: client.email || '',
-        company: client.company || '',
-        description: '', // Default value
-        status: client.status || 'active',
-        created_at: client.created_at || new Date().toISOString(),
-        updated_at: client.updated_at || new Date().toISOString(),
-        deleted_at: client.deleted_at,
-        deletion_scheduled_at: client.deletion_scheduled_at,
-        last_active: client.last_active,
-        logo_url: client.logo_url || '',
-        logo_storage_path: client.logo_storage_path || '',
-        agent_name: client.agent_name || 'AI Assistant',
-        agent_description: '',
-        widget_settings: client.widget_settings || {},
-        name: client.client_name || '', // For backward compatibility
-        is_error: false
+      return (data || []).map(client => ({
+        id: String(client.id || ''),
+        client_id: String(client.client_id || ''),
+        client_name: String(client.client_name || ''),
+        email: String(client.email || ''),
+        company: String(client.company || ''),
+        description: String(client.description || ''),
+        status: String(client.status || 'active'),
+        created_at: String(client.created_at || new Date().toISOString()),
+        updated_at: String(client.updated_at || new Date().toISOString()),
+        deleted_at: client.deleted_at || null,
+        deletion_scheduled_at: client.deletion_scheduled_at || null,
+        last_active: client.last_active || null,
+        logo_url: String(client.logo_url || ''),
+        logo_storage_path: String(client.logo_storage_path || ''),
+        agent_name: String(client.name || 'AI Assistant'),
+        agent_description: String(client.agent_description || ''),
+        widget_settings: typeof client.settings === 'object' ? client.settings : {},
+        name: String(client.client_name || ''),
+        is_error: false,
+        user_id: ''
       }));
     } catch (error) {
       console.error('Failed to fetch clients:', error);
@@ -74,13 +78,13 @@ export function useClientList() {
   const recoverClient = async (clientId: string): Promise<Client> => {
     try {
       const { data, error } = await supabase
-        .from('clients')
+        .from('ai_agents')
         .update({ 
           deleted_at: null, 
           deletion_scheduled_at: null,
           status: 'active' 
         })
-        .eq('id', clientId)
+        .eq('client_id', clientId)
         .select();
       
       if (error) {
@@ -95,7 +99,30 @@ export function useClientList() {
         `Client was recovered from deletion`
       );
       
-      return data[0] as Client;
+      // Return the first client in the result set
+      const client = data[0];
+      return {
+        id: String(client.id || ''),
+        client_id: String(client.client_id || ''),
+        client_name: String(client.client_name || ''),
+        email: String(client.email || ''),
+        company: String(client.company || ''),
+        description: String(client.description || ''),
+        status: String(client.status || 'active'),
+        created_at: String(client.created_at || ''),
+        updated_at: String(client.updated_at || ''),
+        deleted_at: client.deleted_at,
+        deletion_scheduled_at: client.deletion_scheduled_at,
+        last_active: client.last_active,
+        logo_url: String(client.logo_url || ''),
+        logo_storage_path: String(client.logo_storage_path || ''),
+        agent_name: String(client.name || ''),
+        agent_description: String(client.agent_description || ''),
+        widget_settings: client.settings || {},
+        name: String(client.client_name || ''),
+        is_error: false,
+        user_id: ''
+      };
     } catch (error) {
       console.error('Failed to recover client:', error);
       throw error;
@@ -103,7 +130,7 @@ export function useClientList() {
   };
   
   // Use react-query for data fetching
-  const query = useQuery({
+  const { data: clients = [], isLoading, error, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: () => getClients(),
   });
@@ -117,14 +144,29 @@ export function useClientList() {
     },
   });
 
+  // Filter clients based on search query
+  const filteredClients = searchQuery 
+    ? clients.filter(client => 
+        client.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.email.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : clients;
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
   return {
-    clients: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    clients,
+    filteredClients,
+    isLoading,
+    error,
+    refetch,
     recover: recoverMutation.mutate,
     isRecovering: recoverMutation.isPending,
     recoverError: recoverMutation.error,
-    getFilteredClients: getClients
+    getFilteredClients: getClients,
+    searchQuery,
+    handleSearch
   };
 }

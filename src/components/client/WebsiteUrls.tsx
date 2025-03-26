@@ -9,7 +9,7 @@ import WebsiteUrlsListEmpty from './website-urls/WebsiteUrlsListEmpty';
 
 interface WebsiteUrlsProps {
   urls: WebsiteUrl[];
-  onAdd: (data: WebsiteUrlFormData) => Promise<void>;
+  onAdd: (data: WebsiteUrlFormData) => Promise<boolean>;
   onDelete: (urlId: number) => Promise<void>;
   isLoading: boolean;
   isAdding: boolean;

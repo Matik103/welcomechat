@@ -2,8 +2,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DocumentLink, DocumentLinkFormData } from "@/types/document-processing";
+import { DocumentLink } from "@/types/document-processing";
 
+// Define the form data interface here to avoid conflicts
 export interface DocumentLinkFormData {
   link: string;
   refresh_rate: number;
@@ -14,7 +15,13 @@ export function useDocumentLinks(clientId: string | undefined) {
   const queryClient = useQueryClient();
   
   // Query to fetch document links
-  const { data: documentLinks = [], isLoading, error, refetch, isValidating = false } = useQuery({
+  const { 
+    data: documentLinks = [], 
+    isLoading, 
+    error, 
+    refetch, 
+    isRefetching = false // Use isRefetching instead of isValidating
+  } = useQuery({
     queryKey: ["documentLinks", clientId],
     queryFn: async () => {
       if (!clientId) return [];
@@ -79,7 +86,7 @@ export function useDocumentLinks(clientId: string | undefined) {
     documentLinks,
     isLoading,
     error,
-    isValidating,
+    isValidating: isRefetching,
     addDocumentLink,
     deleteDocumentLink,
     refetch

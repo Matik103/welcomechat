@@ -8,7 +8,6 @@ import { WebsiteUrl } from '@/types/client';
 import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
 import { ActivityType } from '@/types/client-form';
 import { toast } from 'sonner';
-import { Website } from '@/types/document-processing';
 
 interface WebsiteResourcesSectionProps {
   clientId: string;
@@ -106,13 +105,13 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
         return;
       }
       
-      // Create a compatible website object
-      const websiteToProcess: Website = {
+      // Create a compatible website object with scrapable property
+      const websiteToProcess = {
         id: url.id,
         url: url.url,
-        scrapable: true,
         client_id: clientId,
-        refresh_rate: url.refresh_rate || 30
+        refresh_rate: url.refresh_rate || 30,
+        scrapable: true // Add the required property
       };
       
       const result = await storeWebsiteContent(websiteToProcess, clientId);
@@ -160,7 +159,6 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
           }}
           isAdding={addWebsiteUrlMutation.isPending}
           agentName="AI Assistant"
-          clientId={clientId}
         />
         
         <WebsiteUrlsList

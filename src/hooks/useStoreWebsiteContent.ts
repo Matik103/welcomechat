@@ -1,13 +1,24 @@
 
 import { useState } from 'react';
-import { Website, DocumentProcessingResult } from '@/types/document-processing';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+
+// Define the Website type to avoid import issues
+interface Website {
+  id: number;
+  url: string;
+  client_id: string;
+  refresh_rate: number;
+  scrapable: boolean;
+  name?: string;
+  lastFetched?: string;
+  created_at?: string;
+}
 
 export function useStoreWebsiteContent() {
   const [isStoring, setIsStoring] = useState(false);
 
-  const storeWebsiteContent = async (website: Website, clientId: string): Promise<DocumentProcessingResult> => {
+  const storeWebsiteContent = async (website: Website, clientId: string) => {
     if (!website || !clientId) {
       return {
         success: false,
@@ -21,17 +32,18 @@ export function useStoreWebsiteContent() {
       // Create a processing record
       const processingId = uuidv4();
       
-      // Store the URL in the document_processing table
+      // Store the URL in the document_processing_jobs table
       const { data, error } = await supabase
-        .from('document_processing')
+        .from('document_processing_jobs')
         .insert({
-          id: processingId,
           document_url: website.url,
           client_id: clientId,
           agent_name: 'AI Assistant',
           document_type: 'website',
           status: 'pending',
-          started_at: new Date().toISOString(),
+          document_id: processingId, // Use the UUID as document_id
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           metadata: {
             websiteId: website.id,
             refresh_rate: website.refresh_rate || 30
@@ -50,13 +62,13 @@ export function useStoreWebsiteContent() {
       // For the MVP, we'll just simulate success
       // In a real implementation, this would trigger a background job
       await supabase
-        .from('document_processing')
+        .from('document_processing_jobs')
         .update({
           status: 'completed',
-          completed_at: new Date().toISOString(),
-          chunks: [{ content: `Content from ${website.url}` }]
+          content: `Content from ${website.url}`,
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', processingId);
+        .eq('document_id', processingId);
 
       // Update the website's last crawled date
       await supabase

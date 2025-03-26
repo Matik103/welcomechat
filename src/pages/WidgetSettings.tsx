@@ -30,8 +30,11 @@ export default function WidgetSettings() {
 
   // Update widget settings mutation
   const updateSettingsMutation = useMutation({
-    mutationFn: (newSettings: IWidgetSettings) => 
-      clientId ? updateWidgetSettings(clientId, newSettings) : Promise.resolve(defaultSettings),
+    mutationFn: async (newSettings: IWidgetSettings) => {
+      if (!clientId) return defaultSettings;
+      await updateWidgetSettings(clientId, newSettings);
+      return newSettings;
+    },
     onSuccess: () => {
       refetch();
       if (isAdmin) {
@@ -62,10 +65,14 @@ export default function WidgetSettings() {
       
       if (result) {
         await widgetSettingsHook.updateLogo(result.url, result.path);
-        await logClientActivity("logo_uploaded", "Logo was uploaded", { 
-          logo_url: result.url,
-          logo_path: result.path
-        });
+        
+        if (logClientActivity) {
+          await logClientActivity("logo_uploaded", "Logo was uploaded", { 
+            logo_url: result.url,
+            logo_path: result.path
+          });
+        }
+        
         refetch();
       }
     } catch (error) {
@@ -98,7 +105,12 @@ export default function WidgetSettings() {
         updateSettingsMutation={updateSettingsWrapper}
         handleBack={handleNavigateBack}
         handleLogoUpload={handleLogoUploadChange}
-        logClientActivity={logClientActivity}
+        logClientActivity={logClientActivity ? 
+          async (activityType, description, metadata?) => {
+            await logClientActivity(activityType, description, metadata);
+          } : 
+          async () => {}
+        }
       />
     </div>
   );

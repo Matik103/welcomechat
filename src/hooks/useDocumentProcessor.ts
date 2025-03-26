@@ -1,95 +1,103 @@
 
-import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { DocumentProcessingResult, DocumentProcessingOptions } from '@/types/document-processing';
 import { v4 as uuidv4 } from 'uuid';
 
-export function useDocumentProcessor(clientId?: string) {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
+// Define result type here to avoid importing issues
+interface DocumentProcessingResult {
+  success: boolean;
+  error?: string;
+  documentId?: string;
+  processed?: number;
+  failed?: number;
+  urlsScraped?: number;
+  contentStored?: boolean;
+}
 
-  const processDocument = async (
-    documentUrl: string,
-    options: Partial<DocumentProcessingOptions> = {}
-  ): Promise<DocumentProcessingResult> => {
-    if (!clientId && !options.clientId) {
-      return {
-        success: false,
-        error: 'Client ID is required',
-        status: 'failed'
-      };
-    }
+// Define options type here to avoid importing issues
+interface DocumentProcessingOptions {
+  clientId: string;
+  documentType?: string;
+  agentName?: string;
+}
 
-    const effectiveClientId = options.clientId || clientId;
-    const documentType = options.documentType || 'document';
-    const agentName = options.agentName || 'AI Assistant';
-
-    setIsProcessing(true);
-    setProgress(0);
-
-    try {
-      // Generate a processing ID
-      const processingId = uuidv4();
+export function useDocumentProcessor() {
+  const processDocument = useMutation({
+    mutationFn: async (options: {
+      clientId: string;
+      documentUrl: string;
+      documentType: string;
+    }): Promise<DocumentProcessingResult> => {
+      const { clientId, documentUrl, documentType } = options;
       
-      // Create a processing record
-      const { data, error } = await supabase
-        .from('document_processing')
-        .insert({
-          id: processingId,
-          document_url: documentUrl,
-          client_id: effectiveClientId,
-          agent_name: agentName,
-          document_type: documentType,
-          status: 'pending',
-          started_at: new Date().toISOString(),
-          document_id: uuidv4(), // Generate a document ID
-          metadata: {
-            source: 'manual',
-            user_initiated: true
-          }
-        })
-        .select();
+      try {
+        // Create a processing ID
+        const processingId = uuidv4();
+        
+        // Create a document processing record
+        const { data, error } = await supabase
+          .from('document_processing')
+          .insert([
+            {
+              client_id: clientId,
+              document_url: documentUrl,
+              document_type: documentType,
+              agent_name: 'AI Assistant',
+              status: 'pending',
+              started_at: new Date().toISOString(),
+              metadata: {
+                source: 'manual_upload',
+                processingId
+              }
+            }
+          ])
+          .select();
+          
+        if (error) {
+          console.error('Error creating document processing record:', error);
+          return {
+            success: false,
+            error: error.message
+          };
+        }
 
-      if (error) {
-        throw error;
+        // For now, we're just returning success
+        // In a real implementation, you would trigger a background job
+        return {
+          success: true,
+          documentId: processingId,
+          processed: 1,
+          failed: 0
+        };
+      } catch (error) {
+        console.error('Error processing document:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
       }
-
-      // For MVP, just simulate processing
-      setProgress(50);
-      
-      // Update the record to show completion
-      await supabase
-        .from('document_processing')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', processingId);
-      
-      setProgress(100);
-      
-      return {
-        success: true,
-        documentId: processingId,
-        processed: 1,
-        failed: 0,
-        status: 'completed'
-      };
-    } catch (error) {
-      console.error('Error processing document:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        status: 'failed'
-      };
-    } finally {
-      setIsProcessing(false);
     }
-  };
+  });
+
+  const deleteDocument = useMutation({
+    mutationFn: async (documentId: string): Promise<boolean> => {
+      try {
+        // Delete from document_processing if exists
+        await supabase
+          .from('document_processing')
+          .delete()
+          .eq('id', documentId);
+          
+        return true;
+      } catch (error) {
+        console.error('Error deleting document:', error);
+        return false;
+      }
+    }
+  });
 
   return {
     processDocument,
-    isProcessing,
-    progress
+    deleteDocument
   };
 }

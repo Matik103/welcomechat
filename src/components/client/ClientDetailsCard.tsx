@@ -73,7 +73,7 @@ export const ClientDetailsCard = ({
           initialData={client}
           onSubmit={handleFormSubmit}
           isLoading={isSubmitting}
-          error={error ? String(error) : undefined}
+          error={error ? error.message : undefined}
         />
       </CardContent>
     </Card>

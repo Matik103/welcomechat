@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { WidgetSettings } from '@/types/client-form';
+import { WidgetSettings } from '@/types/widget-settings';
+import { defaultSettings } from '@/types/widget-settings';
 import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
 export interface IWidgetSettings extends WidgetSettings {}
@@ -11,9 +12,10 @@ export interface IWidgetSettings extends WidgetSettings {}
 export const getWidgetSettings = async (clientId: string): Promise<WidgetSettings> => {
   try {
     const { data, error } = await supabase
-      .from('clients')
-      .select('widget_settings, agent_name, agent_description, logo_url, logo_storage_path')
-      .eq('id', clientId)
+      .from('ai_agents')
+      .select('settings, name, agent_description, logo_url, logo_storage_path')
+      .eq('client_id', clientId)
+      .eq('interaction_type', 'config')
       .single();
 
     if (error) {
@@ -21,57 +23,40 @@ export const getWidgetSettings = async (clientId: string): Promise<WidgetSetting
       throw error;
     }
 
-    // Default widget settings
-    const defaultSettings: WidgetSettings = {
-      agent_name: data.agent_name || 'AI Assistant',
-      agent_description: data.agent_description || 'Your AI assistant',
-      logo_url: data.logo_url || '',
-      logo_storage_path: data.logo_storage_path || '',
-      chat_color: '#3b82f6',
-      background_color: '#ffffff',
-      button_color: '#3b82f6',
-      font_color: '#1e293b',
-      chat_font_color: '#ffffff',
-      background_opacity: 0.8,
-      button_text: 'Chat with Us',
-      position: 'right',
-      greeting_message: 'Hello! How can I help you today?',
-      text_color: '#1e293b',
-      secondary_color: '#f1f5f9',
-      welcome_text: 'Ask me anything about our products or services.',
-      response_time_text: 'We typically respond in a few minutes.',
-      display_mode: 'popup'
-    };
+    // If no data returned, return default settings
+    if (!data) {
+      return defaultSettings;
+    }
 
+    // Extract widget settings properties with type safety
+    const settings = data.settings || {};
+    
     // Merge default settings with stored settings
-    const storedSettings = data.widget_settings || {};
     const mergedSettings: WidgetSettings = {
       ...defaultSettings,
-      // Safely access widget_settings properties
-      agent_name: storedSettings.agent_name ?? data.agent_name ?? defaultSettings.agent_name,
-      agent_description: storedSettings.agent_description ?? data.agent_description ?? defaultSettings.agent_description,
-      logo_url: storedSettings.logo_url ?? data.logo_url ?? defaultSettings.logo_url,
-      logo_storage_path: storedSettings.logo_storage_path ?? data.logo_storage_path ?? defaultSettings.logo_storage_path,
-      chat_color: storedSettings.chat_color ?? defaultSettings.chat_color,
-      background_color: storedSettings.background_color ?? defaultSettings.background_color,
-      button_color: storedSettings.button_color ?? defaultSettings.button_color,
-      font_color: storedSettings.font_color ?? defaultSettings.font_color,
-      chat_font_color: storedSettings.chat_font_color ?? defaultSettings.chat_font_color,
-      background_opacity: storedSettings.background_opacity ?? defaultSettings.background_opacity,
-      button_text: storedSettings.button_text ?? defaultSettings.button_text,
-      position: (storedSettings.position as "left" | "right") ?? defaultSettings.position,
-      greeting_message: storedSettings.greeting_message ?? defaultSettings.greeting_message,
-      text_color: storedSettings.text_color ?? defaultSettings.text_color,
-      secondary_color: storedSettings.secondary_color ?? defaultSettings.secondary_color,
-      welcome_text: storedSettings.welcome_text ?? defaultSettings.welcome_text,
-      response_time_text: storedSettings.response_time_text ?? defaultSettings.response_time_text,
-      display_mode: storedSettings.display_mode ?? defaultSettings.display_mode
+      agent_name: settings.agent_name || data.name || defaultSettings.agent_name,
+      agent_description: settings.agent_description || data.agent_description || defaultSettings.agent_description,
+      logo_url: settings.logo_url || data.logo_url || defaultSettings.logo_url,
+      logo_storage_path: settings.logo_storage_path || data.logo_storage_path || defaultSettings.logo_storage_path,
     };
+    
+    // Copy any additional properties from settings
+    if (typeof settings === 'object') {
+      Object.entries(settings).forEach(([key, value]) => {
+        if (key !== 'agent_name' && 
+            key !== 'agent_description' && 
+            key !== 'logo_url' && 
+            key !== 'logo_storage_path') {
+          // @ts-ignore - we're copying properties dynamically
+          mergedSettings[key] = value;
+        }
+      });
+    }
 
     return mergedSettings;
   } catch (error) {
     console.error('Error in getWidgetSettings:', error);
-    throw error;
+    return defaultSettings;
   }
 };
 
@@ -81,17 +66,31 @@ export const getWidgetSettings = async (clientId: string): Promise<WidgetSetting
 export const updateWidgetSettings = async (clientId: string, settings: WidgetSettings): Promise<WidgetSettings> => {
   try {
     const { data, error } = await supabase
-      .from('clients')
+      .from('ai_agents')
       .update({
-        widget_settings: settings
+        settings: settings,
+        name: settings.agent_name,
+        agent_description: settings.agent_description,
+        logo_url: settings.logo_url,
+        logo_storage_path: settings.logo_storage_path,
+        updated_at: new Date().toISOString()
       })
-      .eq('id', clientId)
-      .select('widget_settings');
+      .eq('client_id', clientId)
+      .eq('interaction_type', 'config')
+      .select();
 
     if (error) {
       console.error('Error updating widget settings:', error);
       throw error;
     }
+
+    // Log widget settings update activity
+    await callRpcFunctionSafe('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: 'widget_settings_updated',
+      description_param: 'Widget settings updated',
+      metadata_param: { updated_at: new Date().toISOString() }
+    });
 
     return settings;
   } catch (error) {
