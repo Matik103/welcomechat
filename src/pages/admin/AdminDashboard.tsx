@@ -12,13 +12,6 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="container py-8">
-        <div className="mb-8">
-          <h1 className="dashboard-heading">Welcome.Chat Dashboard</h1>
-          <p className="dashboard-subheading mt-2">
-            Websites & Documents that Talk - Admin Portal
-          </p>
-        </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
