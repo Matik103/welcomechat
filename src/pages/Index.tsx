@@ -102,9 +102,6 @@ export default function Index() {
               <CardContent>
                 <div className="text-4xl font-bold mb-1">12</div>
                 <div className="text-sm text-muted-foreground">10 Active +18%</div>
-                <div className="mt-4">
-                  <BarChart data={generateRandomData(12)} height={40} color="#22C55E" />
-                </div>
               </CardContent>
             </Card>
 
@@ -115,9 +112,6 @@ export default function Index() {
               <CardContent>
                 <div className="text-4xl font-bold mb-1">18</div>
                 <div className="text-sm text-muted-foreground">10 Active +18%</div>
-                <div className="mt-4">
-                  <BarChart data={generateRandomData(12)} height={40} color="#6B7280" />
-                </div>
               </CardContent>
             </Card>
 
@@ -128,9 +122,6 @@ export default function Index() {
               <CardContent>
                 <div className="text-4xl font-bold mb-1">1,234</div>
                 <div className="text-sm text-muted-foreground">+18%</div>
-                <div className="mt-4">
-                  <BarChart data={generateRandomData(12)} height={40} color="#EAB308" />
-                </div>
               </CardContent>
             </Card>
 
@@ -141,9 +132,6 @@ export default function Index() {
               <CardContent>
                 <div className="text-4xl font-bold mb-1">484</div>
                 <div className="text-sm text-muted-foreground">+18%</div>
-                <div className="mt-4">
-                  <BarChart data={generateRandomData(12)} height={40} color="#3B82F6" />
-                </div>
               </CardContent>
             </Card>
 
@@ -154,28 +142,25 @@ export default function Index() {
               <CardContent>
                 <div className="text-4xl font-bold mb-1">123</div>
                 <div className="text-sm text-muted-foreground">+18%</div>
-                <div className="mt-4">
-                  <BarChart data={generateRandomData(12)} height={40} color="#EF4444" />
-                </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
             <Card className="bg-zinc-900 text-white">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
                   <Database className="h-5 w-5" />
                   <div>
-                    <CardTitle className="text-sm font-medium">Database</CardTitle>
-                    <CardDescription className="text-zinc-400">REST Requests</CardDescription>
+                    <CardTitle className="text-sm font-medium">Clients</CardTitle>
+                    <CardDescription className="text-zinc-400">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4">13,393</div>
+                <div className="text-2xl font-bold mb-4">12</div>
                 <div className="h-[80px] w-full">
-                  <BarChart data={chartData.database} color="#10B981" />
+                  <BarChart data={chartData.database} color="#22C55E" />
                 </div>
               </CardContent>
             </Card>
@@ -183,17 +168,35 @@ export default function Index() {
             <Card className="bg-zinc-900 text-white">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
-                  <Key className="h-5 w-5" />
+                  <Users className="h-5 w-5" />
                   <div>
-                    <CardTitle className="text-sm font-medium">Auth</CardTitle>
-                    <CardDescription className="text-zinc-400">Auth Requests</CardDescription>
+                    <CardTitle className="text-sm font-medium">Agents</CardTitle>
+                    <CardDescription className="text-zinc-400">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4">382</div>
+                <div className="text-2xl font-bold mb-4">18</div>
                 <div className="h-[80px] w-full">
-                  <BarChart data={chartData.auth} color="#10B981" />
+                  <BarChart data={chartData.auth} color="#6B7280" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-900 text-white">
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <Activity className="h-5 w-5" />
+                  <div>
+                    <CardTitle className="text-sm font-medium">Interactions</CardTitle>
+                    <CardDescription className="text-zinc-400">Activity</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold mb-4">1,234</div>
+                <div className="h-[80px] w-full">
+                  <BarChart data={chartData.storage} color="#EAB308" />
                 </div>
               </CardContent>
             </Card>
@@ -203,15 +206,15 @@ export default function Index() {
                 <div className="flex items-center space-x-2">
                   <HardDrive className="h-5 w-5" />
                   <div>
-                    <CardTitle className="text-sm font-medium">Storage</CardTitle>
-                    <CardDescription className="text-zinc-400">Storage Requests</CardDescription>
+                    <CardTitle className="text-sm font-medium">Trainings</CardTitle>
+                    <CardDescription className="text-zinc-400">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4">99</div>
+                <div className="text-2xl font-bold mb-4">484</div>
                 <div className="h-[80px] w-full">
-                  <BarChart data={chartData.storage} color="#10B981" />
+                  <BarChart data={chartData.realtime} color="#3B82F6" />
                 </div>
               </CardContent>
             </Card>
@@ -221,15 +224,15 @@ export default function Index() {
                 <div className="flex items-center space-x-2">
                   <Zap className="h-5 w-5" />
                   <div>
-                    <CardTitle className="text-sm font-medium">Realtime</CardTitle>
-                    <CardDescription className="text-zinc-400">Realtime Requests</CardDescription>
+                    <CardTitle className="text-sm font-medium">Administration</CardTitle>
+                    <CardDescription className="text-zinc-400">Activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold mb-4">327</div>
+                <div className="text-2xl font-bold mb-4">123</div>
                 <div className="h-[80px] w-full">
-                  <BarChart data={chartData.realtime} color="#10B981" />
+                  <BarChart data={chartData.realtime} color="#EF4444" />
                 </div>
               </CardContent>
             </Card>
