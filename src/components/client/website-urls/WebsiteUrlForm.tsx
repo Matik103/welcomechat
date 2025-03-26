@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -35,7 +34,6 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
   const { addWebsite, storeWebsiteContent, isStoring } = webstoreHook;
   const { checkUrlAccess, isChecking, lastResult } = useUrlAccessCheck();
 
-  // Form setup with validation
   const form = useForm<WebsiteUrlFormValues>({
     resolver: zodResolver(websiteUrlSchema),
     defaultValues: {
@@ -43,10 +41,8 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
     },
   });
 
-  // Get the current URL value from the form
   const watchUrl = form.watch("url");
 
-  // Check Firecrawl configuration on component mount
   useEffect(() => {
     const checkConfig = async () => {
       setIsCheckingConfig(true);
@@ -70,13 +66,10 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
     checkConfig();
   }, []);
 
-  // Check URL validity whenever it changes
   useEffect(() => {
-    // Reset processing state when URL changes
     setProcessingJobId(null);
     setIsContentStored(false);
     
-    // Only validate if we have a potentially valid URL
     if (watchUrl && websiteUrlSchema.shape.url.safeParse(watchUrl).success) {
       const validateUrl = async () => {
         try {
@@ -86,26 +79,22 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
         }
       };
       
-      // Use a debounce to avoid too many API calls while typing
       const timeoutId = setTimeout(validateUrl, 800);
       return () => clearTimeout(timeoutId);
     }
   }, [watchUrl, checkUrlAccess]);
 
-  // Handle form submission
   const onSubmit = async (values: WebsiteUrlFormValues) => {
     if (!clientId) {
       toast.error("Client ID is missing");
       return;
     }
     
-    // Don't proceed if Firecrawl is not configured
     if (!configStatus?.isConfigured) {
       toast.error("Firecrawl API is not configured. Please contact your administrator.");
       return;
     }
 
-    // Perform URL validation before proceeding
     const validation = FirecrawlService.validateUrl(values.url);
     if (!validation.isValid) {
       toast.error(validation.error || "Invalid URL");
@@ -114,7 +103,6 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
 
     setAdding(true);
     try {
-      // Add website to database
       const result = await addWebsite({
         client_id: clientId,
         url: values.url,
@@ -126,7 +114,6 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
         const website = result[0];
         toast.success("Website added to database");
         
-        // Now initiate the processing with Firecrawl
         const documentId = `web-${Date.now()}`;
         const processResult = await FirecrawlService.processDocument(
           website.url,
@@ -151,14 +138,12 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
             setProcessingJobId(processResult.data.jobId);
           }
           
-          // Store the website content in AI agents table
           const storeResult = await storeWebsiteContent(website);
           
           if (storeResult && storeResult.success) {
             setIsContentStored(true);
             toast.success("Website content stored successfully");
             
-            // Clear the form
             form.reset();
             if (onAddSuccess) onAddSuccess();
           } else if (storeResult && storeResult.error) {
@@ -215,7 +200,6 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
             </div>
           )}
           
-          {/* Display validation result */}
           {lastResult && !isChecking && (
             <>
               <ValidationResult 
@@ -224,7 +208,6 @@ export const WebsiteUrlForm = ({ clientId, onAddSuccess, webstoreHook }: Website
                 lastResult={lastResult as UrlCheckResult}
               />
               
-              {/* Display scrapability info if URL is valid */}
               {lastResult.isAccessible && (
                 <ScrapabilityInfo 
                   lastResult={lastResult as UrlCheckResult}
