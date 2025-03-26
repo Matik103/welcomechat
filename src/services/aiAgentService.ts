@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 import { AIAgent } from "@/types/supabase";
 import { toast } from "sonner";
 
@@ -67,14 +68,26 @@ export const aiAgentService = {
         return null;
       }
 
-      const { data, error } = await supabase
+      // Prepare agent data with required fields
+      const agentData = {
+        client_id: agent.client_id,
+        name: agent.name, // This is required
+        interaction_type: agent.interaction_type || 'config',
+        status: agent.status || 'active',
+        agent_description: agent.agent_description || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        settings: agent.settings || {},
+        content: agent.content || '',
+        logo_url: agent.logo_url || '',
+        logo_storage_path: agent.logo_storage_path || '',
+        ai_prompt: agent.ai_prompt || ''
+      };
+
+      // Use supabaseAdmin for admin operations requiring service role
+      const { data, error } = await supabaseAdmin
         .from("ai_agents")
-        .insert([{ 
-          ...agent, 
-          interaction_type: agent.interaction_type || 'config',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
+        .insert(agentData)
         .select()
         .single();
 
@@ -96,12 +109,15 @@ export const aiAgentService = {
    */
   async update(id: string, updates: Partial<AIAgent>): Promise<AIAgent | null> {
     try {
+      // Ensure updates include the updated_at timestamp
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+
       const { data, error } = await supabase
         .from("ai_agents")
-        .update({ 
-          ...updates, 
-          updated_at: new Date().toISOString() 
-        })
+        .update(updateData)
         .eq("id", id)
         .select()
         .single();
