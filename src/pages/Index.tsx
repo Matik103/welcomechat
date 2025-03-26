@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Activity, Clock } from "lucide-react";
+import { Users, Activity, Database, Key, HardDrive, Zap } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { RecentActivityList } from "@/components/dashboard/RecentActivityList";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +11,12 @@ import { SmallStat } from "@/components/dashboard/SmallStat";
 import { PageHeading } from "@/components/dashboard/PageHeading";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ClientActivity } from "@/types/activity";
+import { BarChart } from "@/components/dashboard/BarChart";
+
+// Sample data for charts
+const generateRandomData = (length: number) => {
+  return Array.from({ length }, () => Math.floor(Math.random() * 100));
+};
 
 export default function Index() {
   const navigate = useNavigate();
@@ -35,6 +41,14 @@ export default function Index() {
     error: activitiesError,
     refetch: refetchActivities
   } = useRecentActivities();
+
+  // Sample chart data
+  const chartData = {
+    database: generateRandomData(24),
+    auth: generateRandomData(24),
+    storage: generateRandomData(24),
+    realtime: generateRandomData(24)
+  };
 
   const handleActivityClick = (id: string) => {
     setHighlightedActivity(id === highlightedActivity ? null : id);
@@ -80,35 +94,145 @@ export default function Index() {
         <DashboardSkeleton />
       ) : (
         <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+            <Card className="bg-green-50 hover:bg-green-100 transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-bold">CLIENTS</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold mb-1">12</div>
+                <div className="text-sm text-muted-foreground">10 Active +18%</div>
+                <div className="mt-4">
+                  <BarChart data={generateRandomData(12)} height={40} color="#22C55E" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-100 hover:bg-gray-200 transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-bold">AGENTS</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold mb-1">18</div>
+                <div className="text-sm text-muted-foreground">10 Active +18%</div>
+                <div className="mt-4">
+                  <BarChart data={generateRandomData(12)} height={40} color="#6B7280" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-yellow-50 hover:bg-yellow-100 transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-bold">INTERACTIONS</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold mb-1">1,234</div>
+                <div className="text-sm text-muted-foreground">+18%</div>
+                <div className="mt-4">
+                  <BarChart data={generateRandomData(12)} height={40} color="#EAB308" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-blue-50 hover:bg-blue-100 transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-bold">TRAININGS</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold mb-1">484</div>
+                <div className="text-sm text-muted-foreground">+18%</div>
+                <div className="mt-4">
+                  <BarChart data={generateRandomData(12)} height={40} color="#3B82F6" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-red-50 hover:bg-red-100 transition-colors">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-bold">ADMINISTRATION</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold mb-1">123</div>
+                <div className="text-sm text-muted-foreground">+18%</div>
+                <div className="mt-4">
+                  <BarChart data={generateRandomData(12)} height={40} color="#EF4444" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <SmallStat
-              title="AGENTS"
-              value={activeUsers}
-              icon={<Users className="h-6 w-6" />}
-              description="Total AI Agents"
-              colorClass="text-blue-500 bg-blue-50"
-            />
-            <SmallStat
-              title="INTERACTIONS"
-              value={interactionCount}
-              icon={<Activity className="h-6 w-6" />}
-              description="Total Interactions"
-              colorClass="text-purple-500 bg-purple-50"
-            />
-            <SmallStat
-              title="TRAININGS"
-              value={totalClients}
-              icon={<Users className="h-6 w-6" />}
-              description="Training Sessions"
-              colorClass="text-green-500 bg-green-50"
-            />
-            <SmallStat
-              title="ADMINISTRATION"
-              value={activeClients}
-              icon={<Users className="h-6 w-6" />}
-              description="Admin Tasks"
-              colorClass="text-amber-500 bg-amber-50"
-            />
+            <Card className="bg-zinc-900 text-white">
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <Database className="h-5 w-5" />
+                  <div>
+                    <CardTitle className="text-sm font-medium">Database</CardTitle>
+                    <CardDescription className="text-zinc-400">REST Requests</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold mb-4">13,393</div>
+                <div className="h-[80px] w-full">
+                  <BarChart data={chartData.database} color="#10B981" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-900 text-white">
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <Key className="h-5 w-5" />
+                  <div>
+                    <CardTitle className="text-sm font-medium">Auth</CardTitle>
+                    <CardDescription className="text-zinc-400">Auth Requests</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold mb-4">382</div>
+                <div className="h-[80px] w-full">
+                  <BarChart data={chartData.auth} color="#10B981" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-900 text-white">
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <HardDrive className="h-5 w-5" />
+                  <div>
+                    <CardTitle className="text-sm font-medium">Storage</CardTitle>
+                    <CardDescription className="text-zinc-400">Storage Requests</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold mb-4">99</div>
+                <div className="h-[80px] w-full">
+                  <BarChart data={chartData.storage} color="#10B981" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-900 text-white">
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <Zap className="h-5 w-5" />
+                  <div>
+                    <CardTitle className="text-sm font-medium">Realtime</CardTitle>
+                    <CardDescription className="text-zinc-400">Realtime Requests</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold mb-4">327</div>
+                <div className="h-[80px] w-full">
+                  <BarChart data={chartData.realtime} color="#10B981" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <Card>
