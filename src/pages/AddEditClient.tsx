@@ -4,12 +4,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ClientForm } from "@/components/client/ClientForm";
 import { PageHeading } from "@/components/dashboard/PageHeading";
 import { useClient } from "@/hooks/useClient";
-import { createClient, updateClient, logClientUpdateActivity } from "@/services/clientService";
-import { ClientFormData, Client } from "@/types/client";
+import { createNewClient, updateClient } from "@/services/clientService";
+import { ClientFormData } from "@/types/client-form";
+import { Client } from "@/types/client";
 import { createClientActivity } from "@/services/clientActivityService";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { ExtendedActivityType } from "@/types/activity";
 import { toast } from "sonner";
 
 const AddEditClient = () => {
@@ -45,12 +45,34 @@ const AddEditClient = () => {
   const handleSubmit = async (data: ClientFormData) => {
     try {
       if (isEditMode && clientId) {
-        await updateClient(clientId, data);
-        await logClientUpdateActivity(clientId);
+        await updateClient({
+          client_id: clientId,
+          client_name: data.client_name,
+          email: data.email,
+          agent_name: data.widget_settings?.agent_name
+        });
+        
+        // Log client update activity
+        await createClientActivity(
+          clientId,
+          'client_updated',
+          `Client updated: ${data.client_name}`
+        );
+        
         toast.success("Client updated successfully.");
         navigate("/admin/clients");
       } else {
-        const newClientId = await createClient(data);
+        // Create a new client
+        const clientData = {
+          client_name: data.client_name,
+          email: data.email,
+          agent_name: data.widget_settings?.agent_name || 'AI Assistant',
+          logo_url: data.logo_url,
+          logo_storage_path: data.logo_storage_path,
+          widget_settings: data.widget_settings
+        };
+        
+        const newClient = await createNewClient(clientData);
         toast.success("Client created successfully.");
         navigate("/admin/clients");
       }

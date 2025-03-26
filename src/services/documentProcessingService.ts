@@ -614,7 +614,7 @@ export class DocumentProcessingService {
    */
   static async checkDocumentAccess(documentId: number): Promise<string> {
     try {
-      const result = await callRpcFunction<string>('get_document_access_status', {
+      const result = await callRpcFunction('get_document_access_status', {
         document_id: documentId
       });
       return result || 'unknown';

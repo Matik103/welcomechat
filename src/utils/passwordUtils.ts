@@ -1,6 +1,3 @@
-import { supabase } from '@/integrations/supabase/client';
-import { v4 as uuidv4 } from 'uuid';
-import { execSql } from './rpcUtils';
 
 // Generate a temporary password
 export const generateTempPassword = (length = 12) => {
@@ -15,3 +12,33 @@ export const generateTempPassword = (length = 12) => {
 
 // Alias for backward compatibility
 export const generateClientTempPassword = generateTempPassword;
+
+// Save a temporary password for a client
+export const saveClientTempPassword = async (
+  agentId: string,
+  email: string,
+  tempPassword?: string
+): Promise<any> => {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    
+    const { data, error } = await supabase
+      .from('client_temp_passwords')
+      .insert({
+        agent_id: agentId,
+        email: email,
+        temp_password: tempPassword || generateTempPassword(),
+        created_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error("Error saving temporary password:", error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in saveClientTempPassword:", error);
+    throw error;
+  }
+};
