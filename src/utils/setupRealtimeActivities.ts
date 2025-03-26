@@ -22,8 +22,7 @@ export const setupRealtimeActivities = async () => {
     const clientActivitiesChannel = supabase.channel('public:client_activities');
     
     clientActivitiesChannel
-      .on(
-        'postgres_changes', 
+      .on('postgres_changes' as any, 
         { 
           event: '*', 
           schema: 'public', 
@@ -50,8 +49,7 @@ export const setupRealtimeActivities = async () => {
     const aiAgentsChannel = supabase.channel('public:ai_agents');
     
     aiAgentsChannel
-      .on(
-        'postgres_changes', 
+      .on('postgres_changes' as any, 
         { 
           event: '*', 
           schema: 'public', 
@@ -72,7 +70,7 @@ export const setupRealtimeActivities = async () => {
 
     // Enable Realtime subscription for document-related tables
     await supabase.channel('public:document_links')
-      .on('postgres_changes', {
+      .on('postgres_changes' as any, {
         event: '*',
         schema: 'public',
         table: 'document_links',
@@ -83,7 +81,7 @@ export const setupRealtimeActivities = async () => {
 
     // Enable Realtime subscription for website URLs
     await supabase.channel('public:website_urls')
-      .on('postgres_changes', {
+      .on('postgres_changes' as any, {
         event: '*',
         schema: 'public',
         table: 'website_urls',
@@ -94,7 +92,7 @@ export const setupRealtimeActivities = async () => {
 
     // Enable Realtime subscription for clients table
     await supabase.channel('public:clients')
-      .on('postgres_changes', {
+      .on('postgres_changes' as any, {
         event: '*',
         schema: 'public',
         table: 'clients',
@@ -105,7 +103,7 @@ export const setupRealtimeActivities = async () => {
 
     // Enable Realtime subscription for document processing
     await supabase.channel('public:document_processing')
-      .on('postgres_changes', {
+      .on('postgres_changes' as any, {
         event: '*',
         schema: 'public',
         table: 'document_processing',
@@ -116,7 +114,7 @@ export const setupRealtimeActivities = async () => {
 
     // Enable Realtime subscription for user roles
     await supabase.channel('public:user_roles')
-      .on('postgres_changes', {
+      .on('postgres_changes' as any, {
         event: '*',
         schema: 'public',
         table: 'user_roles',
