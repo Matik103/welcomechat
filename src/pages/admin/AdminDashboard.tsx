@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { setupRealtimeActivities } from '@/utils/setupRealtimeActivities';
+import { subscribeToAllActivities } from '@/services/activitySubscriptionService';
 
 interface ActivityChartData {
   name: string;
@@ -158,6 +159,11 @@ export default function AdminDashboardPage() {
     
     fetchDashboardData();
     
+    const activitiesChannel = subscribeToAllActivities(() => {
+      console.log('Activities changed, refreshing dashboard data');
+      fetchDashboardData();
+    });
+    
     const agentsChannel = supabase.channel('public:ai_agents_dashboard')
       .on('postgres_changes', {
         event: '*',
@@ -168,16 +174,6 @@ export default function AdminDashboardPage() {
       })
       .subscribe();
       
-    const activitiesChannel = supabase.channel('public:client_activities_dashboard')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'client_activities',
-      }, () => {
-        fetchDashboardData();
-      })
-      .subscribe();
-    
     const intervalId = setInterval(fetchDashboardData, 5 * 60 * 1000);
     
     return () => {

@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/use-toast";
 
 export const setupRealtimeActivities = async () => {
   try {
@@ -11,6 +12,13 @@ export const setupRealtimeActivities = async () => {
         table: 'client_activities',
       }, (payload) => {
         console.log('Client activity changed:', payload);
+        // Optional: Show toast notification for important activities
+        if (payload.new && shouldNotifyActivity(payload.new.activity_type)) {
+          toast({
+            title: "New Activity",
+            description: payload.new.description || `${payload.new.activity_type} occurred`,
+          });
+        }
       })
       .subscribe((status) => {
         console.log(`Realtime subscription status for client_activities: ${status}`);
@@ -24,6 +32,11 @@ export const setupRealtimeActivities = async () => {
         table: 'ai_agents',
       }, (payload) => {
         console.log('AI agent change detected:', payload);
+        
+        // Log specific AI agent events based on the interaction_type
+        if (payload.new && payload.new.interaction_type === 'chat_interaction') {
+          // We could handle specific chat interaction changes here
+        }
       })
       .subscribe((status) => {
         console.log(`Realtime subscription status for ai_agents: ${status}`);
@@ -51,9 +64,57 @@ export const setupRealtimeActivities = async () => {
       })
       .subscribe();
 
+    // Enable Realtime subscription for clients table
+    await supabase.channel('public:clients')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'clients',
+      }, (payload) => {
+        console.log('Client changed:', payload);
+      })
+      .subscribe();
+
+    // Enable Realtime subscription for document processing
+    await supabase.channel('public:document_processing')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'document_processing',
+      }, (payload) => {
+        console.log('Document processing changed:', payload);
+      })
+      .subscribe();
+
+    // Enable Realtime subscription for user roles
+    await supabase.channel('public:user_roles')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_roles',
+      }, (payload) => {
+        console.log('User role changed:', payload);
+      })
+      .subscribe();
+
     return true;
   } catch (error) {
     console.error('Error setting up realtime activities:', error);
     return false;
   }
+};
+
+// Helper function to determine if we should notify about an activity
+const shouldNotifyActivity = (activityType: string): boolean => {
+  // Only notify about important events to avoid overwhelming users
+  const notifiableActivities = [
+    'client_created',
+    'client_deleted',
+    'agent_error',
+    'document_processing_failed',
+    'error_logged',
+    'system_update'
+  ];
+  
+  return notifiableActivities.includes(activityType);
 };

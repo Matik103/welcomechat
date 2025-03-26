@@ -27,7 +27,25 @@ export const activityTypeToDisplayText: Partial<Record<ActivityType, string>> = 
   'login': 'Logged in',
   'logout': 'Logged out',
   'website_added': 'Website added',
-  'website_removed': 'Website removed'
+  'website_removed': 'Website removed',
+  'chat_interaction': 'Chat interaction',
+  'agent_error': 'Agent error',
+  'system_update': 'System update',
+  'document_processing_started': 'Document processing started',
+  'document_processing_completed': 'Document processing completed',
+  'agent_name_updated': 'Agent name updated',
+  'agent_description_updated': 'Agent description updated',
+  'agent_logo_updated': 'Agent logo updated',
+  'logo_uploaded': 'Logo uploaded',
+  'drive_link_added': 'Drive link added',
+  'drive_link_deleted': 'Drive link deleted',
+  'client_recovered': 'Client recovered',
+  'webhook_sent': 'Webhook sent',
+  'error_logged': 'Error logged',
+  'interaction_milestone': 'Interaction milestone',
+  'growth_milestone': 'Growth milestone',
+  'invitation_sent': 'Invitation sent',
+  'invitation_accepted': 'Invitation accepted'
 };
 
 // Activity type to icon mapping
@@ -56,7 +74,25 @@ export const activityTypeToIcon: Partial<Record<ActivityType, string>> = {
   'login': 'log-in',
   'logout': 'log-out',
   'website_added': 'globe',
-  'website_removed': 'trash'
+  'website_removed': 'trash',
+  'chat_interaction': 'message-square',
+  'agent_error': 'alert-circle',
+  'system_update': 'refresh-cw',
+  'document_processing_started': 'loader',
+  'document_processing_completed': 'check',
+  'agent_name_updated': 'edit',
+  'agent_description_updated': 'edit-3',
+  'agent_logo_updated': 'image',
+  'logo_uploaded': 'upload',
+  'drive_link_added': 'link',
+  'drive_link_deleted': 'unlink',
+  'client_recovered': 'rotate-ccw',
+  'webhook_sent': 'send',
+  'error_logged': 'alert-triangle',
+  'interaction_milestone': 'award',
+  'growth_milestone': 'trending-up',
+  'invitation_sent': 'mail',
+  'invitation_accepted': 'check'
 };
 
 // Activity type to color mapping
@@ -85,5 +121,23 @@ export const activityTypeToColor: Partial<Record<ActivityType, string>> = {
   'login': 'green',
   'logout': 'gray',
   'website_added': 'green',
-  'website_removed': 'red'
+  'website_removed': 'red',
+  'chat_interaction': 'purple',
+  'agent_error': 'red',
+  'system_update': 'blue',
+  'document_processing_started': 'blue',
+  'document_processing_completed': 'green',
+  'agent_name_updated': 'blue',
+  'agent_description_updated': 'blue',
+  'agent_logo_updated': 'blue',
+  'logo_uploaded': 'purple',
+  'drive_link_added': 'green',
+  'drive_link_deleted': 'red',
+  'client_recovered': 'green',
+  'webhook_sent': 'blue',
+  'error_logged': 'red',
+  'interaction_milestone': 'yellow',
+  'growth_milestone': 'green',
+  'invitation_sent': 'blue',
+  'invitation_accepted': 'green'
 };
