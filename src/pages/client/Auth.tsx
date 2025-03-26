@@ -215,6 +215,13 @@ const ClientAuth = () => {
     <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/lovable-uploads/49c3d031-200e-4995-8d87-ebff9b6b3e4e.png" 
+              alt="Welcome.Chat" 
+              className="h-14" 
+            />
+          </div>
           <CardTitle className="text-2xl font-bold">
             Sign in to your account
           </CardTitle>

@@ -1,64 +1,36 @@
 
-/**
- * Types for website URLs used in the client section
- */
+import { z } from 'zod';
 
+// Define website URL schema for validation
+export const websiteUrlSchema = z.object({
+  url: z.string().url("Please enter a valid URL"),
+  client_id: z.string().optional(),
+  id: z.number().optional(),
+  status: z.enum(['pending', 'processing', 'completed', 'failed']).optional(),
+  created_at: z.string().optional(),
+  scrapable: z.boolean().optional(),
+  is_sitemap: z.boolean().optional()
+});
+
+// Extract type from schema
+export type WebsiteUrlFormData = z.infer<typeof websiteUrlSchema>;
+
+// Props interface for the WebsiteUrlForm component
+export interface WebsiteUrlFormProps {
+  onSubmit?: (data: WebsiteUrlFormData) => Promise<void>;
+  onAdd?: (data: WebsiteUrlFormData) => Promise<void>;
+  isSubmitting?: boolean;
+  isAdding?: boolean;
+  agentName?: string;
+}
+
+// Interface for a WebsiteUrl
 export interface WebsiteUrl {
   id: number;
   client_id: string;
   url: string;
-  refresh_rate: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   created_at: string;
-  updated_at?: string;
-  last_crawled?: string;
-  error?: string;
-  status?: 'pending' | 'processing' | 'completed' | 'failed';
-  scrapability?: 'high' | 'medium' | 'low' | 'unknown';
-}
-
-export interface Website {
-  id: number;
-  client_id: string;
-  url: string;
-  refresh_rate: number;
-  created_at?: string;
-  updated_at?: string;
-  last_crawled?: string;
-  error?: string;
-  status?: string;
   scrapable?: boolean;
-}
-
-export interface WebsiteUrlFormData {
-  url: string;
-  refresh_rate: number;
-}
-
-export interface ValidationResult {
-  isValid: boolean;
-  message: string;
-  status: 'success' | 'error' | 'warning' | 'info';
-}
-
-// Updated WebsiteUrlsProps interface with all required properties
-export interface WebsiteUrlsProps {
-  urls: WebsiteUrl[];
-  isLoading: boolean;
-  onAdd: (data: { url: string; refresh_rate: number; }) => Promise<void>;
-  onDelete: (urlId: number) => Promise<void>;
-  isClientView?: boolean;
-  isAdding?: boolean;
-  isDeleting?: boolean;
-  agentName?: string;
-  addWebsiteUrl?: (data: { url: string; refresh_rate: number; }) => Promise<void>;
-  deleteWebsiteUrl?: (urlId: number) => Promise<void>;
-}
-
-export interface WebsiteUrlFormProps {
-  onAdd: (data: WebsiteUrlFormData) => Promise<void>;
-  isAdding: boolean;
-  agentName: string;
-  clientId?: string;
-  onAddSuccess?: () => Promise<any>;
-  webstoreHook?: { isAdding: boolean };
+  is_sitemap?: boolean;
 }
