@@ -219,7 +219,7 @@ const ClientAuth = () => {
             <img 
               src="/lovable-uploads/49c3d031-200e-4995-8d87-ebff9b6b3e4e.png" 
               alt="Welcome.Chat" 
-              className="h-14" 
+              className="h-14 object-contain mix-blend-multiply"
             />
           </div>
           <CardTitle className="text-2xl font-bold">
