@@ -19,41 +19,51 @@ type AIAgentsPayload = PostgresChangesPayload<Database['public']['Tables']['ai_a
 export const setupRealtimeActivities = async () => {
   try {
     // Enable Realtime subscription for the client_activities table
-    await supabase.channel('public:client_activities')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'client_activities',
-      }, (payload: ClientActivityPayload) => {
-        console.log('Client activity changed:', payload);
-        // Optional: Show toast notification for important activities
-        if (payload.new && shouldNotifyActivity(payload.new.activity_type)) {
-          toast.info(
-            "New Activity", 
-            { 
-              description: payload.new.description || `${payload.new.activity_type} occurred` 
-            }
-          );
+    await supabase
+      .channel('public:client_activities')
+      .on(
+        'postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'client_activities',
+        }, 
+        (payload: ClientActivityPayload) => {
+          console.log('Client activity changed:', payload);
+          // Optional: Show toast notification for important activities
+          if (payload.new && shouldNotifyActivity(payload.new.activity_type)) {
+            toast.info(
+              "New Activity", 
+              { 
+                description: payload.new.description || `${payload.new.activity_type} occurred` 
+              }
+            );
+          }
         }
-      })
+      )
       .subscribe((status) => {
         console.log(`Realtime subscription status for client_activities: ${status}`);
       });
 
     // Enable Realtime subscription for the ai_agents table (all changes)
-    await supabase.channel('public:ai_agents')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'ai_agents',
-      }, (payload: AIAgentsPayload) => {
-        console.log('AI agent change detected:', payload);
-        
-        // Log specific AI agent events based on the interaction_type
-        if (payload.new && payload.new.interaction_type === 'chat_interaction') {
-          // We could handle specific chat interaction changes here
+    await supabase
+      .channel('public:ai_agents')
+      .on(
+        'postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ai_agents',
+        }, 
+        (payload: AIAgentsPayload) => {
+          console.log('AI agent change detected:', payload);
+          
+          // Log specific AI agent events based on the interaction_type
+          if (payload.new && payload.new.interaction_type === 'chat_interaction') {
+            // We could handle specific chat interaction changes here
+          }
         }
-      })
+      )
       .subscribe((status) => {
         console.log(`Realtime subscription status for ai_agents: ${status}`);
       });
