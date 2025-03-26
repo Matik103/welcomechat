@@ -1,64 +1,73 @@
 
-import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { WebsiteUrl } from '@/types/website-url';
 import { toast } from 'sonner';
-import { Website } from '@/types/website-url';
 
-export function useStoreWebsiteContent() {
-  const [isStoring, setIsStoring] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  
-  const storeWebsiteContent = async (website: Website) => {
-    setIsStoring(true);
-    setError(null);
-    
-    try {
-      // Manually construct the URL to the edge function
-      const functionsUrl = `${process.env.VITE_SUPABASE_URL}/functions/v1/crawl-website`;
-      
-      // Call the Supabase edge function to store website content
-      const response = await fetch(functionsUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.VITE_SUPABASE_KEY}`
-        },
-        body: JSON.stringify({
-          url: website.url,
-          client_id: website.client_id,
-          website_id: website.id
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to store website content');
+export const useStoreWebsiteContent = (clientId: string) => {
+  return useMutation({
+    mutationFn: async (website: WebsiteUrl) => {
+      try {
+        // Instead of using the protected supabaseUrl property,
+        // we'll use the environment variable or a default URL
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+        
+        // Make a fetch call to the Supabase function
+        const response = await fetch(`${supabaseUrl}/functions/v1/crawl-website`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY || ''}`,
+          },
+          body: JSON.stringify({
+            websiteId: website.id,
+            clientId: clientId,
+            url: website.url
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to process website');
+        }
+
+        const result = await response.json();
+
+        // Mark the website as processed
+        await supabase
+          .from('website_urls')
+          .update({
+            status: result.success ? 'completed' : 'failed',
+            last_crawled: new Date().toISOString(),
+            error: result.error || null
+          })
+          .eq('id', website.id);
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error storing website content:', error);
+        
+        // Update the website status to failed
+        await supabase
+          .from('website_urls')
+          .update({
+            status: 'failed',
+            last_crawled: new Date().toISOString(),
+            error: error instanceof Error ? error.message : 'Unknown error'
+          })
+          .eq('id', website.id);
+          
+        return { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        };
       }
-      
-      const result = await response.json();
-      
-      // Enhanced response for better feedback
-      return {
-        success: true,
-        urlsScraped: result.urlsScraped || 0,
-        contentStored: result.contentStored || 0
-      };
-    } catch (error) {
-      console.error('Error storing website content:', error);
-      setError(error as Error);
-      
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      };
-    } finally {
-      setIsStoring(false);
+    },
+    onSuccess: () => {
+      toast.success('Website content stored successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to store website content: ${error.message}`);
     }
-  };
-  
-  return {
-    storeWebsiteContent,
-    isStoring,
-    error
-  };
-}
+  });
+};

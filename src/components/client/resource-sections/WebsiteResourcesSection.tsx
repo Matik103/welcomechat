@@ -1,12 +1,15 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { WebsiteUrlForm } from '@/components/client/website-urls/WebsiteUrlForm';
-import { WebsiteUrlsList } from '@/components/client/website-urls/WebsiteUrlsList';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { WebsiteUrlForm } from '../website-urls/WebsiteUrlForm';
+import { WebsiteUrlsList } from '../website-urls/WebsiteUrlsList'; 
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
-import { WebsiteUrl, WebsiteUrlFormData } from '@/types/website-url';
 import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
-import { ActivityType } from '@/types/client-form';
+import { ActivityType, WebsiteUrlFormData } from '@/types/client-form';
+import { WebsiteUrl } from '@/types/website-url';
+import { Website } from '@/types/website-url';
+import { PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WebsiteResourcesSectionProps {
@@ -15,71 +18,78 @@ interface WebsiteResourcesSectionProps {
   logClientActivity: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
 }
 
-export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = ({
+export function WebsiteResourcesSection({ 
   clientId,
   onResourceChange,
   logClientActivity
-}) => {
-  const [processingUrl, setProcessingUrl] = useState<number | null>(null);
+}: WebsiteResourcesSectionProps) {
+  const [showForm, setShowForm] = useState(false);
+  const [isStoring, setIsStoring] = useState(false);
+  const [isWebsiteToProcess, setIsWebsiteToProcess] = useState<WebsiteUrl | null>(null);
   
-  const {
+  // Get website URLs data and mutations
+  const { 
     websiteUrls,
-    isLoading,
-    isError,
+    refetchWebsiteUrls,
     addWebsiteUrlMutation,
     deleteWebsiteUrlMutation,
-    refetchWebsiteUrls
+    isLoading, 
+    isError
   } = useWebsiteUrls(clientId);
   
-  const { storeWebsiteContent, isStoring } = useStoreWebsiteContent();
-
-  const handleAddWebsiteUrl = async (data: WebsiteUrlFormData) => {
+  // Get content storage mutation
+  const storeContentMutation = useStoreWebsiteContent(clientId);
+  
+  // Handle submitting new website URL
+  const handleSubmit = async (data: WebsiteUrlFormData): Promise<void> => {
     try {
-      await addWebsiteUrlMutation.mutateAsync(data);
+      await addWebsiteUrlMutation.mutateAsync({
+        clientId,
+        url: data.url,
+        refresh_rate: data.refresh_rate
+      });
       
-      // Log the activity
+      // Log activity
       await logClientActivity(
-        'website_url_added',
+        'url_added',
         `Added website URL: ${data.url}`,
         { url: data.url, refresh_rate: data.refresh_rate }
       );
       
-      toast.success('Website URL added successfully');
+      // Hide the form after successful submission
+      setShowForm(false);
       
-      if (refetchWebsiteUrls) {
-        refetchWebsiteUrls();
-      }
-      
+      // Notify parent component about the change
       if (onResourceChange) {
         onResourceChange();
       }
+      
+      // Refetch to get the latest data
+      refetchWebsiteUrls();
     } catch (error) {
       console.error('Error adding website URL:', error);
       toast.error('Failed to add website URL');
     }
   };
   
-  const handleDeleteWebsiteUrl = async (id: number) => {
+  // Handle deleting a website URL
+  const handleDelete = async (urlId: number) => {
     try {
-      const urlToDelete = websiteUrls.find(url => url.id === id);
+      // Find the URL being deleted to include in the log
+      const urlToDelete = websiteUrls.find(url => url.id === urlId);
       
-      await deleteWebsiteUrlMutation.mutateAsync(id);
+      await deleteWebsiteUrlMutation.mutateAsync(urlId);
       
-      // Log the activity
+      // Log activity
       if (urlToDelete) {
         await logClientActivity(
-          'website_url_deleted',
-          `Deleted website URL: ${urlToDelete.url}`,
-          { url: urlToDelete.url }
+          'url_removed',
+          `Removed website URL: ${urlToDelete.url}`,
+          { url: urlToDelete.url, url_id: urlId }
         );
       }
       
-      toast.success('Website URL deleted successfully');
-      
-      if (refetchWebsiteUrls) {
-        refetchWebsiteUrls();
-      }
-      
+      // Notify parent component about the change
       if (onResourceChange) {
         onResourceChange();
       }
@@ -89,84 +99,111 @@ export const WebsiteResourcesSection: React.FC<WebsiteResourcesSectionProps> = (
     }
   };
   
-  const handleProcessWebsite = async (url: WebsiteUrl) => {
+  // Handle processing website content
+  const handleProcessWebsite = async (website: WebsiteUrl) => {
     try {
-      setProcessingUrl(url.id);
+      setIsStoring(true);
+      setIsWebsiteToProcess(website);
       
-      if (!clientId) {
-        toast.error('Client ID is missing');
-        return;
-      }
-      
-      // Create a compatible website object
-      const websiteToProcess = {
-        id: url.id,
-        url: url.url,
-        scrapable: true,
-        client_id: clientId,
-        refresh_rate: url.refresh_rate
+      // Create a Website object compatible with storeWebsiteContent
+      const websiteToProcess: Website = {
+        id: website.id,
+        url: website.url,
+        refresh_rate: website.refresh_rate,
+        client_id: website.client_id,
+        created_at: website.created_at,
+        status: website.status
       };
       
-      const result = await storeWebsiteContent(websiteToProcess);
+      // Store the website content
+      const result = await storeContentMutation.mutateAsync(websiteToProcess);
       
+      // Log activity based on the result
       if (result.success) {
-        const pagesScraped = result.urlsScraped || 0;
-        const contentItems = result.contentStored || 0;
-        
-        toast.success(`Processed ${pagesScraped} pages from ${url.url}`);
-        
-        // Log the activity
         await logClientActivity(
-          'website_url_added',
-          `Processed website URL: ${url.url}`,
+          'url_processed',
+          `Processed website: ${website.url}`,
           { 
-            url: url.url, 
-            urls_scraped: pagesScraped,
-            content_stored: contentItems
+            url: website.url, 
+            url_id: website.id
           }
         );
+        
+        toast.success(`Website processed successfully`);
       } else {
-        toast.error(`Failed to process ${url.url}: ${result.error}`);
+        await logClientActivity(
+          'url_processing_failed',
+          `Failed to process website: ${website.url}`,
+          { 
+            url: website.url, 
+            url_id: website.id,
+            error: result.error
+          }
+        );
+        
+        toast.error(`Failed to process website: ${result.error}`);
       }
       
-      if (refetchWebsiteUrls) {
-        await refetchWebsiteUrls();
+      // Refetch to get updated status
+      refetchWebsiteUrls();
+      
+      // Notify parent component about the change
+      if (onResourceChange) {
+        onResourceChange();
       }
     } catch (error) {
       console.error('Error processing website:', error);
-      toast.error(`Error processing website: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error('Failed to process website');
+      
+      // Log the error
+      await logClientActivity(
+        'url_processing_failed',
+        `Failed to process website: ${website.url}`,
+        { 
+          url: website.url, 
+          url_id: website.id,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      );
     } finally {
-      setProcessingUrl(null);
+      setIsStoring(false);
+      setIsWebsiteToProcess(null);
     }
   };
-
+  
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Website URLs</CardTitle>
-        <CardDescription>
-          Add website URLs to extract content for your AI assistant
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Website Resources</CardTitle>
+        <Button 
+          size="sm" 
+          onClick={() => setShowForm(!showForm)}
+          variant={showForm ? "secondary" : "default"}
+        >
+          <PlusCircle className="h-4 w-4 mr-2" />
+          {showForm ? "Cancel" : "Add Website"}
+        </Button>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <WebsiteUrlForm
-          onAdd={handleAddWebsiteUrl}
-          isAdding={addWebsiteUrlMutation.isPending}
-          agentName="AI Assistant"
-          clientId={clientId}
-        />
+      <CardContent>
+        {showForm && (
+          <div className="mb-6">
+            <WebsiteUrlForm 
+              onSubmit={handleSubmit}
+              isSubmitting={addWebsiteUrlMutation.isPending}
+            />
+          </div>
+        )}
         
-        <WebsiteUrlsList
+        <WebsiteUrlsList 
           urls={websiteUrls}
-          onDelete={handleDeleteWebsiteUrl}
+          onDelete={handleDelete}
           onProcess={handleProcessWebsite}
-          isDeleteLoading={deleteWebsiteUrlMutation.isPending}
+          isLoading={isLoading}
           isProcessing={isStoring}
-          deletingId={deleteWebsiteUrlMutation.variables as number | undefined}
+          processingId={isWebsiteToProcess?.id}
+          isDeleting={deleteWebsiteUrlMutation.isPending}
         />
       </CardContent>
     </Card>
   );
-};
-
-export default WebsiteResourcesSection;
+}

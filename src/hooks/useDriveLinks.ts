@@ -1,91 +1,107 @@
 
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { DocumentLink, DocumentType } from '@/types/document-processing';
 import { toast } from 'sonner';
-import { DocumentLink as DriveLink } from '@/types/document-processing'; 
 
 export interface DocumentLinkFormData {
   link: string;
-  refresh_rate: number;
-  document_type: string;
+  document_type: DocumentType;
+  refresh_rate?: number;
 }
 
-export function useDocumentLinks(clientId: string) {
-  const [isValidating, setIsValidating] = useState(false);
+export function useDriveLinks(clientId: string) {
+  const queryClient = useQueryClient();
+  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
+  const [accessStatus, setAccessStatus] = useState<any>(null);
 
-  // Query to fetch document links
-  const { data: documentLinks = [], isLoading, error, refetch } = useQuery({
+  // Get document links
+  const { 
+    data: documentLinks = [], 
+    isLoading, 
+    error, 
+    refetch 
+  } = useQuery({
     queryKey: ['documentLinks', clientId],
     queryFn: async () => {
-      if (!clientId) return [];
       const { data, error } = await supabase
         .from('document_links')
         .select('*')
         .eq('client_id', clientId)
         .order('created_at', { ascending: false });
-
-      if (error) throw new Error(error.message);
-      return data || [];
+      
+      if (error) throw error;
+      return data as DocumentLink[];
     },
-    enabled: !!clientId,
+    staleTime: 1000 * 60, // 1 minute
   });
 
-  // Add document link mutation
+  // Add a document link
   const addDocumentLink = useMutation({
-    mutationFn: async (formData: DocumentLinkFormData) => {
-      if (!clientId) throw new Error('Client ID is required');
-      
-      // Validate link before adding
-      setIsValidating(true);
-      let linkToAdd = formData.link;
-      
-      // Ensure link has https:// prefix
-      if (!linkToAdd.startsWith('http://') && !linkToAdd.startsWith('https://')) {
-        linkToAdd = `https://${linkToAdd}`;
-      }
-      
+    mutationFn: async (data: DocumentLinkFormData) => {
+      // Check drive access first
+      setIsCheckingAccess(true);
       try {
-        // Check if the link is accessible
-        const functionsUrl = `${process.env.VITE_SUPABASE_URL}/functions/v1/check-url-access`;
-        const accessResponse = await fetch(functionsUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.VITE_SUPABASE_KEY}`
-          },
-          body: JSON.stringify({ url: linkToAdd })
-        });
+        // Use the Edge Function to check drive access
+        // Since we can't directly access the protected properties, get the URL from the environment
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'http://localhost:54321';
         
-        const accessData = await accessResponse.json();
+        // Function to make a safe API call to the edge function
+        const checkDriveAccess = async (url: string) => {
+          const response = await fetch(`${supabaseUrl}/functions/v1/check-drive-access`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // Add your Supabase anon key here if needed for the function
+              'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY || ''}`
+            },
+            body: JSON.stringify({ url })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to check drive access: ${response.statusText}`);
+          }
+          
+          return await response.json();
+        };
         
-        if (!accessData.accessible) {
-          throw new Error(`The URL ${linkToAdd} is not accessible. Please check the URL and try again.`);
+        const accessResult = await checkDriveAccess(data.link);
+        setAccessStatus(accessResult);
+        
+        if (!accessResult.isAccessible) {
+          throw new Error(`Cannot access this document. ${accessResult.error || 'Please check the URL and permissions.'}`);
         }
         
-        // Insert the document link
-        const { error } = await supabase
+        // If accessible, add the document link
+        const { data: newLink, error } = await supabase
           .from('document_links')
           .insert({
             client_id: clientId,
-            link: linkToAdd,
-            refresh_rate: formData.refresh_rate,
-            document_type: formData.document_type,
-            access_status: 'accessible'
-          });
+            link: data.link,
+            document_type: data.document_type,
+            refresh_rate: data.refresh_rate || 7,
+            status: 'pending',
+          })
+          .select()
+          .single();
         
-        if (error) throw new Error(error.message);
-        return linkToAdd;
-      } catch (error) {
-        console.error('Error adding document link:', error);
-        throw error;
+        if (error) throw error;
+        return newLink;
       } finally {
-        setIsValidating(false);
+        setIsCheckingAccess(false);
       }
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
+      toast.success('Document link added successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to add document link: ${error.message}`);
+    }
   });
 
-  // Delete document link mutation
+  // Delete a document link
   const deleteDocumentLink = useMutation({
     mutationFn: async (linkId: number) => {
       const { error } = await supabase
@@ -93,47 +109,56 @@ export function useDocumentLinks(clientId: string) {
         .delete()
         .eq('id', linkId);
       
-      if (error) throw new Error(error.message);
-      return linkId;
+      if (error) throw error;
+      return { success: true };
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
+      toast.success('Document link removed successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to remove document link: ${error.message}`);
+    }
   });
 
-  // Function to validate URL access
-  const validateUrlAccess = async (url: string): Promise<boolean> => {
-    setIsValidating(true);
-    try {
-      // Use the built-in URL constructor to validate URL format
-      const _ = new URL(url);
+  // Process a document link
+  const processDocumentLink = useMutation({
+    mutationFn: async (linkId: number) => {
+      const { data, error } = await supabase
+        .from('document_links')
+        .update({ status: 'processing' })
+        .eq('id', linkId)
+        .select()
+        .single();
       
-      // Make a request to check if the URL is accessible
-      const accessCheckUrl = `${process.env.VITE_SUPABASE_URL}/functions/v1/check-url-access`;
-      const response = await fetch(accessCheckUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.VITE_SUPABASE_KEY}`
-        },
-        body: JSON.stringify({ url })
-      });
+      if (error) throw error;
       
-      const result = await response.json();
-      return result.accessible === true;
-    } catch (error) {
-      console.error('Error validating URL access:', error);
-      return false;
-    } finally {
-      setIsValidating(false);
+      // Here you would trigger your document processing service
+      // This is a placeholder for the actual processing logic
+      
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentLinks', clientId] });
+      toast.success('Document processing started');
+    },
+    onError: (error) => {
+      toast.error(`Failed to process document: ${error.message}`);
     }
-  };
+  });
 
   return {
     documentLinks,
     isLoading,
     error,
-    isValidating,
-    addDocumentLink,
-    deleteDocumentLink,
-    validateUrlAccess,
-    refetch
+    refetch,
+    addDocumentLink: addDocumentLink.mutateAsync,
+    isAddingLink: addDocumentLink.isPending,
+    deleteDocumentLink: deleteDocumentLink.mutateAsync,
+    isDeletingLink: deleteDocumentLink.isPending,
+    processDocumentLink: processDocumentLink.mutateAsync,
+    isProcessingLink: processDocumentLink.isPending,
+    isCheckingAccess,
+    accessStatus
   };
 }

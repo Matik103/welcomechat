@@ -8,6 +8,7 @@ import { createClientActivity } from '@/services/clientActivityService';
 import { toast } from 'sonner';
 import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 import { defaultSettings } from '@/types/widget-settings';
+import { WidgetSettings } from '@/types/widget-settings';
 
 export const useClientFormSubmission = (clientId: string) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,11 +65,13 @@ export const useClientFormSubmission = (clientId: string) => {
 
       // If widget settings are provided, update them with defaults for missing values
       if (data.widget_settings) {
-        const completeSettings = {
+        // Create a complete WidgetSettings object by merging with default settings
+        const completeSettings: WidgetSettings = {
           ...defaultSettings,
-          ...data.widget_settings,
           agent_name: data.widget_settings.agent_name || data.client_name,
-          agent_description: data.widget_settings.agent_description || "Your helpful AI assistant"
+          agent_description: data.widget_settings.agent_description || "Your helpful AI assistant",
+          logo_url: data.widget_settings.logo_url || defaultSettings.logo_url,
+          logo_storage_path: data.widget_settings.logo_storage_path || defaultSettings.logo_storage_path
         };
         
         await updateWidgetSettings(clientId, completeSettings);

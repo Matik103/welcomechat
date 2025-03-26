@@ -27,6 +27,8 @@ export async function getClient(clientId: string) {
     }
     
     // Adapt the data to match the Client interface
+    const settings = data.settings || {};
+    
     const client: Client = {
       id: data.id,
       client_id: data.client_id || data.id,
@@ -40,11 +42,11 @@ export async function getClient(clientId: string) {
       deleted_at: data.deleted_at || null,
       deletion_scheduled_at: data.deletion_scheduled_at || null,
       last_active: data.last_active || null,
-      logo_url: data.logo_url || '',
-      logo_storage_path: data.logo_storage_path || '',
-      agent_name: data.name || '',
-      agent_description: data.agent_description || '',
-      widget_settings: data.widget_settings || {},
+      logo_url: settings.logo_url || '',
+      logo_storage_path: settings.logo_storage_path || '',
+      agent_name: data.name || settings.agent_name || '',
+      agent_description: data.agent_description || settings.agent_description || '',
+      widget_settings: settings || {},
       name: data.client_name || data.name || '',
       is_error: data.is_error || false
     };
@@ -59,17 +61,43 @@ export async function getClient(clientId: string) {
 // Update a client
 export async function updateClient(data: ClientUpdateData) {
   try {
+    // First get the current settings
+    const { data: currentClient, error: fetchError } = await supabase
+      .from('ai_agents')
+      .select('settings')
+      .eq('id', data.client_id)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching current client settings:', fetchError);
+      throw fetchError;
+    }
+    
+    // Prepare settings object
+    const currentSettings = currentClient.settings || {};
+    
+    // Update basic client info
+    const updateData: any = {
+      client_name: data.client_name,
+      name: data.client_name, // Keep name in sync with client_name
+      email: data.email,
+      company: data.company,
+      description: data.description,
+      status: data.status,
+      updated_at: new Date().toISOString()
+    };
+    
+    // If logo_url is provided, update it in settings
+    if (data.logo_url) {
+      updateData.settings = {
+        ...currentSettings,
+        logo_url: data.logo_url
+      };
+    }
+    
     const { error } = await supabase
       .from('ai_agents')
-      .update({
-        client_name: data.client_name,
-        email: data.email,
-        company: data.company,
-        description: data.description,
-        status: data.status,
-        logo_url: data.logo_url,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', data.client_id);
     
     if (error) {
@@ -90,18 +118,25 @@ export async function createClient(data: Omit<ClientUpdateData, 'client_id'>) {
     // Generate a unique client ID
     const clientId = crypto.randomUUID();
     
+    // Create default settings object
+    const settings = {
+      agent_name: data.client_name,
+      agent_description: "Your helpful AI assistant",
+      logo_url: data.logo_url || null,
+    };
+    
     const { data: newClient, error } = await supabase
       .from('ai_agents')
       .insert({
         id: clientId,
         client_id: clientId,
         client_name: data.client_name,
-        name: data.client_name,
+        name: data.client_name, // Set name to be same as client_name
         email: data.email,
         company: data.company,
         description: data.description,
         status: data.status || 'active',
-        logo_url: data.logo_url,
+        settings: settings,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         interaction_type: 'config'

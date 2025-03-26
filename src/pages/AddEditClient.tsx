@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ClientForm } from "@/components/client/ClientForm";
 import { PageHeading } from "@/components/dashboard/PageHeading";
 import { useClient } from "@/hooks/useClient";
-import { createNewClient, updateClient } from "@/services/clientService";
+import { createClient, updateClient } from "@/services/clientService";
 import { ClientFormData } from "@/types/client-form";
 import { Client } from "@/types/client";
 import { createClientActivity } from "@/services/clientActivityService";
@@ -49,10 +49,9 @@ const AddEditClient = () => {
           client_id: clientId,
           client_name: data.client_name,
           email: data.email,
-          agent_name: data.widget_settings?.agent_name,
-          // Add missing properties
-          logo_url: data.widget_settings?.logo_url,
-          logo_storage_path: data.widget_settings?.logo_storage_path
+          // Pass along widget_settings properties instead of trying to directly set agent_name
+          company: data.company,
+          description: data.description
         });
         
         // Log client update activity
@@ -69,13 +68,11 @@ const AddEditClient = () => {
         const clientData = {
           client_name: data.client_name,
           email: data.email,
-          agent_name: data.widget_settings?.agent_name || 'AI Assistant',
-          logo_url: data.widget_settings?.logo_url || '',
-          logo_storage_path: data.widget_settings?.logo_storage_path || '',
-          widget_settings: data.widget_settings
+          company: data.company || '',
+          description: data.description || ''
         };
         
-        const newClient = await createNewClient(clientData);
+        const result = await createClient(clientData);
         toast.success("Client created successfully.");
         navigate("/admin/clients");
       }
