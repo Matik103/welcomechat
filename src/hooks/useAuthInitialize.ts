@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -29,6 +30,7 @@ export const useAuthInitialize = ({
 
   useEffect(() => {
     let mounted = true;
+    let navigationInProgress = false;
 
     const initializeAuth = async () => {
       // Skip init if already initialized or handling callback
@@ -63,19 +65,34 @@ export const useAuthInitialize = ({
                                !location.pathname.startsWith('/client/') && 
                                location.pathname !== '/auth';
           
-          if (isAuthPage || isRootPage || isOldAdminPage) {
+          if ((isAuthPage || isRootPage || isOldAdminPage) && !navigationInProgress) {
             // Get the appropriate dashboard route
             const dashboardRoute = getDashboardRoute(determinedUserRole);
             console.log("Redirecting to dashboard in init:", dashboardRoute);
             // Navigate to the appropriate dashboard
-            navigate(dashboardRoute, { replace: true });
+            navigationInProgress = true;
+            
+            // Set initialized first, then navigate with a small delay to prevent UI glitches
+            setAuthInitialized(true);
+            
+            setTimeout(() => {
+              navigate(dashboardRoute, { replace: true });
+              
+              // Clear loading state after navigation is queued
+              if (mounted) setIsLoading(false);
+              
+              // Reset navigation flag after a delay
+              setTimeout(() => {
+                navigationInProgress = false;
+              }, 500);
+            }, 300);
+          } else {
+            // Set initialized first, then clear loading state to prevent flicker
+            setAuthInitialized(true);
+            setTimeout(() => {
+              if (mounted) setIsLoading(false);
+            }, 300);
           }
-          
-          // Set initialized first, then clear loading state to prevent flicker
-          setAuthInitialized(true);
-          setTimeout(() => {
-            if (mounted) setIsLoading(false);
-          }, 300);
         } else {
           console.log("No active session found during init");
           setSession(null);
@@ -86,13 +103,25 @@ export const useAuthInitialize = ({
           const isAuthPage = location.pathname === '/auth';
           const isSetupPage = location.pathname.startsWith('/client/setup');
               
-          if (!isAuthPage && !isSetupPage) {
+          if (!isAuthPage && !isSetupPage && !navigationInProgress) {
             console.log("No session, redirecting to auth page in init");
-            navigate('/auth', { replace: true });
+            navigationInProgress = true;
+            
+            setAuthInitialized(true);
+            
+            setTimeout(() => {
+              navigate('/auth', { replace: true });
+              setIsLoading(false);
+              
+              // Reset navigation flag after a delay
+              setTimeout(() => {
+                navigationInProgress = false;
+              }, 500);
+            }, 300);
+          } else {
+            setAuthInitialized(true);
+            setIsLoading(false);
           }
-          
-          setAuthInitialized(true);
-          setIsLoading(false);
         }
       } catch (error) {
         console.error("Error in initializeAuth:", error);
@@ -108,8 +137,16 @@ export const useAuthInitialize = ({
           const isAuthPage = location.pathname === '/auth';
           const isSetupPage = location.pathname.startsWith('/client/setup');
           
-          if (!isAuthPage && !isSetupPage) {
-            navigate('/auth', { replace: true });
+          if (!isAuthPage && !isSetupPage && !navigationInProgress) {
+            navigationInProgress = true;
+            setTimeout(() => {
+              navigate('/auth', { replace: true });
+              
+              // Reset navigation flag after a delay
+              setTimeout(() => {
+                navigationInProgress = false;
+              }, 500);
+            }, 300);
           }
         }
       }

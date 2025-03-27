@@ -74,14 +74,17 @@ export const useAuthCallback = ({
           // Mark callback as processed to prevent re-processing
           sessionStorage.setItem('auth_callback_processed', 'true');
           
-          // Clear processing flag before navigation
-          sessionStorage.removeItem('auth_callback_processing');
-          
-          // Navigate directly to admin dashboard
-          navigate('/admin/dashboard', { replace: true });
-          
-          // Set loading to false after navigation is queued
-          setIsLoading(false);
+          // Delay navigation to prevent glitchy behavior
+          setTimeout(() => {
+            // Clear processing flag before navigation
+            sessionStorage.removeItem('auth_callback_processing');
+            
+            // Navigate directly to admin dashboard
+            navigate('/admin/dashboard', { replace: true });
+            
+            // Set loading to false after navigation is queued
+            setIsLoading(false);
+          }, 300);
         } else {
           // For non-Google users, check client status
           const userRole = await determineUserRole(callbackSession.user);
@@ -99,14 +102,17 @@ export const useAuthCallback = ({
           // Get the appropriate dashboard route based on role
           const dashboardRoute = getDashboardRoute(userRole);
           
-          // Clear processing flag before navigation
-          sessionStorage.removeItem('auth_callback_processing');
-          
-          // Navigate to the appropriate dashboard
-          navigate(dashboardRoute, { replace: true });
-          
-          // Set loading to false after navigation is queued
-          setIsLoading(false);
+          // Delay navigation to prevent glitchy behavior
+          setTimeout(() => {
+            // Clear processing flag before navigation
+            sessionStorage.removeItem('auth_callback_processing');
+            
+            // Navigate to the appropriate dashboard
+            navigate(dashboardRoute, { replace: true });
+            
+            // Set loading to false after navigation is queued
+            setIsLoading(false);
+          }, 300);
         }
       } catch (error) {
         console.error("Error handling auth callback:", error);

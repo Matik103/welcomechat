@@ -24,6 +24,7 @@ export const useAuthStateChange = ({
 
   useEffect(() => {
     let mounted = true;
+    let navigationInProgress = false;
 
     // Auth state change listener subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -36,10 +37,11 @@ export const useAuthStateChange = ({
         // This prevents double processing with useAuthCallback
         const inCallbackProcess = 
           location.pathname.includes('/auth/callback') || 
-          sessionStorage.getItem('auth_callback_processing') === 'true';
+          sessionStorage.getItem('auth_callback_processing') === 'true' ||
+          navigationInProgress;
           
         if (inCallbackProcess) {
-          console.log("Skipping auth state change - callback is being processed");
+          console.log("Skipping auth state change - callback is being processed or navigation in progress");
           return;
         }
         
@@ -69,7 +71,11 @@ export const useAuthStateChange = ({
             
             if (isAuthPage || !isAdminPage) {
               console.log("Redirecting Google user to admin dashboard");
+              navigationInProgress = true;
               navigate('/admin/dashboard', { replace: true });
+              setTimeout(() => {
+                navigationInProgress = false;
+              }, 1000);
             }
           } else {
             // Determine role from database for non-Google users
@@ -82,7 +88,11 @@ export const useAuthStateChange = ({
             if (isAuthPage) {
               const dashboardRoute = getDashboardRoute(determinedUserRole);
               console.log("Redirecting to dashboard:", dashboardRoute);
+              navigationInProgress = true;
               navigate(dashboardRoute, { replace: true });
+              setTimeout(() => {
+                navigationInProgress = false;
+              }, 1000);
             }
           }
           
@@ -100,8 +110,12 @@ export const useAuthStateChange = ({
           
           // Only redirect to auth page if not already there
           const isAuthPage = location.pathname === '/auth';
-          if (!isAuthPage) {
+          if (!isAuthPage && !navigationInProgress) {
+            navigationInProgress = true;
             navigate('/auth', { replace: true });
+            setTimeout(() => {
+              navigationInProgress = false;
+            }, 1000);
           }
         } else {
           // Handle other events
