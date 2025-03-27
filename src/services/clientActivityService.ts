@@ -30,7 +30,7 @@ export const createClientActivity = async (
         client_id: clientId,
         activity_type,
         description,
-        metadata: metadata as Json
+        activity_data: metadata as Json
       });
 
     if (error) {
