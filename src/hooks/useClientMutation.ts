@@ -3,13 +3,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateClient } from "@/services/clientService";
 import { toast } from "sonner";
 import { Client } from "@/types/client";
+import { ClientFormData } from "@/types/client-form";
 
-type ClientMutationData = {
+export type ClientMutationData = {
   client_id?: string;
   client_name: string;
   email: string;
-  agent_name?: string;
-  agent_description?: string;
+  widget_settings?: {
+    agent_name?: string;
+    agent_description?: string;
+  };
 };
 
 export const useClientMutation = () => {
@@ -21,15 +24,24 @@ export const useClientMutation = () => {
         throw new Error("Cannot update client: Missing client ID");
       }
 
-      const updatedClient = await updateClient(data.client_id, {
+      const updateData: Partial<Client> = {
         client_name: data.client_name,
         email: data.email,
-        name: data.agent_name,
-        agent_name: data.agent_name,
-        agent_description: data.agent_description,
         updated_at: new Date().toISOString()
-      } as Partial<Client>);
+      };
 
+      // Extract agent info from widget_settings if available
+      if (data.widget_settings) {
+        if (data.widget_settings.agent_name) {
+          updateData.name = data.widget_settings.agent_name;
+          updateData.agent_name = data.widget_settings.agent_name;
+        }
+        if (data.widget_settings.agent_description) {
+          updateData.agent_description = data.widget_settings.agent_description;
+        }
+      }
+
+      const updatedClient = await updateClient(data.client_id, updateData);
       return updatedClient.id;
     },
     onSuccess: (_, variables) => {

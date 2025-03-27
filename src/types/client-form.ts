@@ -18,7 +18,7 @@ export const clientFormSchema = z.object({
     agent_description: z.string().optional(),
     logo_url: z.string().optional(),
     logo_storage_path: z.string().optional()
-  }).optional()
+  }).optional().default({})
 });
 
 // Define the client form data type

@@ -23,8 +23,10 @@ interface ClientFormProps {
 const clientFormSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Invalid email address"),
-  agent_name: z.string().min(1, "Agent name is required"),
-  agent_description: z.string().optional(),
+  widget_settings: z.object({
+    agent_name: z.string().min(1, "Agent name is required"),
+    agent_description: z.string().optional()
+  }).optional().default({}),
   client_id: z.string().optional(),
 });
 
@@ -42,8 +44,12 @@ export function ClientForm({
     defaultValues: {
       client_name: initialData.client_name || "",
       email: initialData.email || "",
-      agent_name: initialData.name || initialData.agent_name || "",
-      agent_description: initialData.agent_description || "",
+      widget_settings: {
+        agent_name: initialData.name || initialData.agent_name || 
+                   (initialData.widget_settings?.agent_name) || "",
+        agent_description: initialData.agent_description || 
+                         (initialData.widget_settings?.agent_description) || ""
+      },
       client_id: initialData.client_id,
     },
   });
@@ -91,27 +97,27 @@ export function ClientForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="agent_name">Agent Name</Label>
+        <Label htmlFor="widget_settings.agent_name">Agent Name</Label>
         <Input
-          id="agent_name"
-          {...register("agent_name")}
-          className={errors.agent_name ? "border-red-500" : ""}
+          id="widget_settings.agent_name"
+          {...register("widget_settings.agent_name")}
+          className={errors.widget_settings?.agent_name ? "border-red-500" : ""}
         />
-        {errors.agent_name && (
-          <p className="text-sm text-red-500">{errors.agent_name.message}</p>
+        {errors.widget_settings?.agent_name && (
+          <p className="text-sm text-red-500">{errors.widget_settings.agent_name.message}</p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="agent_description">Agent Description</Label>
+        <Label htmlFor="widget_settings.agent_description">Agent Description</Label>
         <Textarea
-          id="agent_description"
-          {...register("agent_description")}
-          className={errors.agent_description ? "border-red-500" : ""}
+          id="widget_settings.agent_description"
+          {...register("widget_settings.agent_description")}
+          className={errors.widget_settings?.agent_description ? "border-red-500" : ""}
           rows={4}
         />
-        {errors.agent_description && (
-          <p className="text-sm text-red-500">{errors.agent_description.message}</p>
+        {errors.widget_settings?.agent_description && (
+          <p className="text-sm text-red-500">{errors.widget_settings.agent_description.message}</p>
         )}
       </div>
 

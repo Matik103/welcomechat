@@ -25,8 +25,10 @@ export default function AddEditClient() {
   const handleSubmit = async (data: ClientFormData) => {
     try {
       await mutation.mutateAsync({
-        ...data,
-        client_id: isEditing ? clientId : undefined
+        client_id: isEditing ? clientId : undefined,
+        client_name: data.client_name,
+        email: data.email,
+        widget_settings: data.widget_settings
       });
       
       navigate('/admin/clients');

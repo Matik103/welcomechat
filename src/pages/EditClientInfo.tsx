@@ -20,7 +20,12 @@ export function EditClientInfo() {
 
   const handleSubmit = async (data: ClientFormData) => {
     try {
-      await clientMutation.mutateAsync(data);
+      await clientMutation.mutateAsync({
+        client_id: clientId,
+        client_name: data.client_name,
+        email: data.email,
+        widget_settings: data.widget_settings
+      });
       
       if (clientId) {
         // Log activity via console instead of database
