@@ -15,7 +15,7 @@ export const useClientActivity = (clientId: string | undefined) => {
       activity_type: ActivityType,
       description: string,
       metadata?: Record<string, any>
-    ) => {
+    ): Promise<void> {
       if (!clientId) {
         console.warn('No client ID provided for activity logging');
         return;
@@ -25,14 +25,15 @@ export const useClientActivity = (clientId: string | undefined) => {
       setError(null);
 
       try {
-        const result = await createClientActivity(
+        await createClientActivity(
           clientId,
           activity_type,
           description,
           metadata || {}
         );
         
-        return result;
+        // Void return to match the expected Promise<void> type
+        return;
       } catch (err) {
         console.error('Error logging client activity:', err);
         setError(err instanceof Error ? err : new Error(String(err)));

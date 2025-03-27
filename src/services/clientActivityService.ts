@@ -30,15 +30,22 @@ export async function createClientActivity(
       original_activity_type: activity_type !== validActivityType ? activity_type : undefined
     };
     
-    // Use RPC function for better error handling and consistency
-    const result = await callRpcFunctionSafe('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: validActivityType,
-      description_param: description,
-      metadata_param: enhancedMetadata
-    });
+    // Use direct Supabase insert instead of RPC for more reliable operation
+    const { data, error } = await supabase
+      .from('client_activities')
+      .insert({
+        client_id: clientId,
+        activity_type: validActivityType,
+        description: description,
+        metadata: enhancedMetadata as Json
+      });
     
-    return !!result;
+    if (error) {
+      console.error('Error creating client activity:', error);
+      return false;
+    }
+    
+    return true;
   } catch (error) {
     console.error('Error creating client activity:', error);
     return false;
@@ -75,9 +82,10 @@ export async function getClientActivities(clientId: string, limit = 20, offset =
  */
 export async function getRecentActivities(limit = 20, offset = 0) {
   try {
+    // First fetch the activities
     const { data, error } = await supabase
       .from('client_activities')
-      .select('*, clients(client_name)')
+      .select('*, clients:client_id(client_name)')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -86,6 +94,7 @@ export async function getRecentActivities(limit = 20, offset = 0) {
     // Transform the data to include client_name directly on the activity
     const transformedData = data.map(activity => ({
       ...activity,
+      // Extract client_name from the nested clients object
       client_name: activity.clients?.client_name
     }));
     
@@ -101,10 +110,12 @@ export async function getRecentActivities(limit = 20, offset = 0) {
  */
 export async function countActivitiesByType(clientId: string) {
   try {
+    // Use direct SQL query instead of RPC function since the RPC doesn't exist
     const { data, error } = await supabase
-      .rpc('count_activities_by_type', {
-        client_id_param: clientId
-      });
+      .from('client_activities')
+      .select('activity_type, count(*)')
+      .eq('client_id', clientId)
+      .group('activity_type');
     
     if (error) throw error;
     return data || [];
