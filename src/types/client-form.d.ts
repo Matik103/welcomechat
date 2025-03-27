@@ -1,5 +1,4 @@
 
-
 export type ActivityType = 
   | 'login' 
   | 'logout' 
@@ -20,6 +19,7 @@ export type ActivityType =
   | 'password_reset'
   | 'document_link_added'
   | 'document_link_deleted'
+  | 'document_link_removed'
   | 'website_url_added'
   | 'website_url_deleted'
   | 'website_url_processed'
@@ -29,4 +29,3 @@ export type ActivityType =
   | 'url_processing_failed'
   | 'document_processed'
   | 'document_processing_failed';
-

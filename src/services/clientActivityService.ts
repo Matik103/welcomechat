@@ -15,10 +15,11 @@ export const createClientActivity = async (
     
     // Check if the activity type needs to be mapped to a valid enum value
     // We support both old and new activity type names for backward compatibility
-    if (activity_type === 'agent_created') {
-      validActivityType = 'ai_agent_created';
-    } else if (activity_type === 'agent_updated') {
-      validActivityType = 'ai_agent_updated';
+    // Use type assertion to handle the string comparison with the enum
+    if (activity_type as string === 'agent_created') {
+      validActivityType = 'ai_agent_created' as ActivityType;
+    } else if (activity_type as string === 'agent_updated') {
+      validActivityType = 'ai_agent_updated' as ActivityType;
     }
     
     // Use client_activities table name
