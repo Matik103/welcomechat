@@ -700,6 +700,39 @@ export type Database = {
         }
         Relationships: []
       }
+      clients: {
+        Row: {
+          agent_name: string | null
+          client_name: string
+          created_at: string | null
+          email: string
+          id: string
+          status: string | null
+          updated_at: string | null
+          widget_settings: Json | null
+        }
+        Insert: {
+          agent_name?: string | null
+          client_name: string
+          created_at?: string | null
+          email: string
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          widget_settings?: Json | null
+        }
+        Update: {
+          agent_name?: string | null
+          client_name?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          widget_settings?: Json | null
+        }
+        Relationships: []
+      }
       coca_cola: {
         Row: {
           content: string | null

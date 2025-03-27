@@ -1,108 +1,115 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityType } from '@/types/client-form';
 import { Json } from '@/integrations/supabase/types';
-import { Database } from '@/integrations/supabase/types';
 
-type DatabaseActivityType = Database['public']['Enums']['activity_type_enum'];
-
-interface ClientActivity {
-  id: string;
-  client_id: string;
-  activity_type: DatabaseActivityType;
-  description: string;
-  metadata?: Json;
-  created_at: string;
-  updated_at: string;
-}
-
-// Map our application activity types to database activity types
-const activityTypeMap: Record<ActivityType, DatabaseActivityType> = {
-  'client_created': 'client_created',
-  'client_updated': 'client_updated',
-  'client_deleted': 'client_deleted',
-  'client_recovered': 'client_recovered',
-  'widget_settings_updated': 'widget_settings_updated',
-  'website_url_added': 'website_url_added',
-  'website_url_deleted': 'website_url_deleted',
-  'website_url_processed': 'website_url_processed',
-  'document_uploaded': 'document_uploaded',
-  'document_processed': 'document_processed',
-  'document_processing_failed': 'document_processing_failed',
-  'document_processing_started': 'document_processing_started',
-  'document_processing_completed': 'document_processing_completed',
-  'document_link_added': 'document_link_added',
-  'document_link_deleted': 'document_link_deleted',
-  'document_link_removed': 'document_link_deleted',
-  'document_added': 'document_stored',
-  'document_removed': 'document_link_deleted',
-  'chat_interaction': 'chat_interaction',
-  'ai_agent_created': 'ai_agent_created',
-  'ai_agent_updated': 'ai_agent_updated',
-  'error_logged': 'error_logged',
-  'system_update': 'system_update',
-  'login_success': 'login_success',
-  'login_failed': 'login_failed',
-  'logo_uploaded': 'logo_uploaded',
-  'embed_code_copied': 'embed_code_copied',
-  'source_added': 'source_added',
-  'source_deleted': 'source_deleted',
-  'ai_agent_table_created': 'ai_agent_table_created',
-  'signed_out': 'signed_out',
-  'email_sent': 'email_sent',
-  'openai_assistant_document_added': 'openai_assistant_document_added',
-  'config_updated': 'system_update',
-  'agent_updated': 'agent_updated',
-  'widget_updated': 'widget_settings_updated',
-  'agent_error': 'agent_error',
-  'settings_updated': 'system_update',
-  'login': 'login_success',
-  'logout': 'signed_out',
-  'website_added': 'website_url_added',
-  'website_removed': 'website_url_deleted'
-};
-
+/**
+ * Creates a new client activity record in the database
+ * 
+ * @param clientId The client ID
+ * @param activity_type The type of activity
+ * @param description A description of the activity
+ * @param metadata Additional metadata (optional)
+ * @returns The created activity record
+ */
 export const createClientActivity = async (
   clientId: string,
   activity_type: ActivityType,
   description: string,
-  metadata?: Json
-): Promise<ClientActivity | null> => {
+  metadata: Record<string, any> = {}
+): Promise<any> => {
   try {
-    const mappedActivityType = activityTypeMap[activity_type];
-    if (!mappedActivityType) {
-      console.error(`Invalid activity type: ${activity_type}`);
-      return null;
+    // Validate client ID
+    if (!clientId) {
+      throw new Error('Client ID is required to log activity');
     }
 
+    // Validate activity type
+    const validActivityType = activity_type;
+    if (!validActivityType) {
+      throw new Error(`Invalid activity type: ${activity_type}`);
+    }
+    
+    // Insert activity record
     const { data, error } = await supabase
       .from('client_activities')
       .insert({
         client_id: clientId,
-        activity_type: mappedActivityType,
+        activity_type: validActivityType as string, // Cast to string to match the DB enum
         description,
-        metadata,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+        metadata: metadata as Json
+      });
 
     if (error) {
       console.error('Error creating client activity:', error);
-      return null;
+      throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Error creating client activity:', error);
-    return null;
+    console.error('Error in createClientActivity:', error);
+    throw error;
   }
 };
 
-export const getClientActivities = async (
-  clientId: string,
-  limit: number = 10
-): Promise<ClientActivity[]> => {
+/**
+ * Gets recent client activities for all clients
+ * 
+ * @param limit Maximum number of activities to return
+ * @returns A list of recent activities with client information
+ */
+export const getRecentActivities = async (limit = 20): Promise<any[]> => {
+  try {
+    // Fetch recent activities
+    const { data: activities, error } = await supabase
+      .from('client_activities')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching recent activities:', error);
+      throw error;
+    }
+
+    // Get client information for each activity
+    const enrichedActivities = await Promise.all(
+      (activities || []).map(async (activity) => {
+        if (!activity.client_id) {
+          return { ...activity, client_name: 'Unknown' };
+        }
+
+        // Use the correct FROM syntax for the Supabase client
+        const { data: clientData, error: clientError } = await supabase
+          .from('clients')
+          .select('id, client_name')
+          .eq('id', activity.client_id)
+          .single();
+
+        if (clientError || !clientData) {
+          console.log(`Client not found for ID: ${activity.client_id}`);
+          return { ...activity, client_name: 'Unknown' };
+        }
+
+        return { ...activity, client_name: clientData.client_name };
+      })
+    );
+
+    return enrichedActivities;
+  } catch (error) {
+    console.error('Error in getRecentActivities:', error);
+    return [];
+  }
+};
+
+/**
+ * Gets activities for a specific client
+ * 
+ * @param clientId The client ID
+ * @param limit Maximum number of activities to return
+ * @returns A list of client activities
+ */
+export const getClientActivities = async (clientId: string, limit = 50): Promise<any[]> => {
   try {
     const { data, error } = await supabase
       .from('client_activities')
@@ -111,69 +118,48 @@ export const getClientActivities = async (
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching client activities:', error);
+      throw error;
+    }
+
     return data || [];
   } catch (error) {
-    console.error('Error fetching client activities:', error);
+    console.error('Error in getClientActivities:', error);
     return [];
   }
 };
 
-export const getActivityStats = async (clientId: string) => {
+/**
+ * Counts activities by type for a specific client
+ * 
+ * @param clientId The client ID
+ * @returns A record of activity counts by type
+ */
+export const countActivitiesByType = async (clientId: string): Promise<Record<string, number>> => {
   try {
+    // Since groupBy is not available in the Supabase client,
+    // we'll fetch all activities and count them ourselves
     const { data, error } = await supabase
       .from('client_activities')
-      .select('activity_type, count(*)')
-      .eq('client_id', clientId)
-      .order('activity_type');
+      .select('activity_type')
+      .eq('client_id', clientId);
 
-    if (error) throw error;
-    return data || [];
+    if (error) {
+      console.error('Error counting activities by type:', error);
+      throw error;
+    }
+
+    // Count activities by type manually
+    const counts: Record<string, number> = {};
+    (data || []).forEach((activity) => {
+      const type = activity.activity_type;
+      counts[type] = (counts[type] || 0) + 1;
+    });
+
+    return counts;
   } catch (error) {
-    console.error('Error fetching activity stats:', error);
-    return [];
+    console.error('Error in countActivitiesByType:', error);
+    return {};
   }
-};
-
-export const getRecentActivities = async (limit: number = 10): Promise<ClientActivity[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('client_activities')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching recent activities:', error);
-    return [];
-  }
-};
-
-// Helper functions for common activity types
-export const createAgentActivity = async (
-  clientId: string,
-  agentName: string,
-  description: string
-) => {
-  return createClientActivity(
-    clientId,
-    'ai_agent_created',
-    description,
-    { agent_name: agentName }
-  );
-};
-
-export const createDocumentActivity = async (
-  clientId: string,
-  documentName: string,
-  activityType: ActivityType = 'document_processed'
-) => {
-  return createClientActivity(
-    clientId,
-    activityType,
-    `Document ${documentName} was ${activityType.replace('document_', '')}`,
-    { document_name: documentName }
-  );
 };
