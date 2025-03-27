@@ -15,10 +15,6 @@ export const useNavigation = () => {
     goToClientDashboard: () => navigate('/client/dashboard'),
     goToAdminDashboard: () => navigate('/admin/dashboard'),
     goToSettings: () => navigate('/admin/settings'),
-    goToCreateClient: () => {
-      // Client creation is disabled, navigate to clients list instead
-      navigate('/admin/clients');
-    },
     goBack: () => navigate(-1),
   };
 };
