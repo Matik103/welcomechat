@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Activity, Database, Key, HardDrive, Zap } from "lucide-react";
+import { Users, Activity, Database, Key, HardDrive, Zap, Plus } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { RecentActivityList } from "@/components/dashboard/RecentActivityList";
 import { useNavigate } from "react-router-dom";
@@ -258,6 +258,11 @@ export default function Index() {
                 onClick={() => navigate('/admin/clients')}
               >
                 View All Clients
+              </Button>
+              <Button 
+                onClick={() => navigate('/admin/clients/add')}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Add Client
               </Button>
             </div>
           </div>

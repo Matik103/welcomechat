@@ -1,6 +1,6 @@
 
 import React from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface ActionButtonProps {
@@ -29,6 +29,9 @@ export const NewActionButtons = () => {
     <div className="flex flex-wrap gap-4">
       <ActionButton onClick={() => navigate("/admin/clients")}>
         View Client List <ArrowRight className="w-4 h-4" />
+      </ActionButton>
+      <ActionButton primary onClick={() => navigate("/admin/clients/add")}>
+        <Plus className="w-4 h-4" /> Add Client
       </ActionButton>
     </div>
   );
