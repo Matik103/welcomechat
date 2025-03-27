@@ -48,22 +48,7 @@ export interface AIAgent {
   status?: string;
 }
 
-export type ActivityType = 
-  | 'chat_interaction'
-  | 'client_created'
-  | 'client_updated'
-  | 'client_deleted'
-  | 'client_recovered'
-  | 'widget_settings_updated'
-  | 'website_url_added'
-  | 'drive_link_added'
-  | 'document_uploaded'
-  | 'document_processing_started'
-  | 'document_processing_completed'
-  | 'document_processing_failed'
-  | 'openai_assistant_document_added'
-  | 'openai_assistant_upload_failed'
-  | 'system_update';
+export type ActivityType = string;
 
 export interface ClientActivity {
   id: string;
