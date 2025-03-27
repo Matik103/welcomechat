@@ -327,7 +327,7 @@ const Auth = () => {
                     type="button"
                     variant="link"
                     size="sm"
-                    className="px-0 text-sm"
+                    className="px-0 text-sm text-primary"
                     onClick={() => {
                       setIsForgotPassword(true);
                       setEmail("");
