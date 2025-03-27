@@ -15,11 +15,11 @@ export const getInteractionCount = async (
   try {
     const { startDate } = getDateRange(timeRange);
     
-    // Create query for chat interactions
+    // Create query for chat interactions using ai_agents table instead
     let query = supabase
-      .from("client_activities")
+      .from("ai_agents")
       .select("id", { count: "exact" })
-      .eq("activity_type", "chat_interaction")
+      .eq("interaction_type", "chat_interaction")
       .gte("created_at", startDate.toISOString());
       
     // Add client filter if specified

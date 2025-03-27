@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ClientActivity } from '@/types/activity';
@@ -52,7 +51,7 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
   }
 
   // Helper function to get appropriate icon for activity type
-  const getActivityIcon = (type: string) => {
+  const getActivityIcon = (type: string = 'unknown') => {
     // First check if we have a predefined icon in our utility
     if (activityTypeToIcon[type]) {
       const iconName = activityTypeToIcon[type];
@@ -123,7 +122,7 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
 
   // Helper function to format activity description
   const formatActivityDescription = (activity: ClientActivity) => {
-    const { activity_type, client_name, description } = activity;
+    const { type, client_name, description } = activity;
     
     // If there's already a description, use it
     if (description && description.length > 0) {
@@ -131,42 +130,45 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
     }
     
     // Otherwise, generate a description based on activity type
-    if (activity_type.includes('client_created')) {
+    const activityType = type || 'unknown';
+    
+    if (activityType.includes('client_created')) {
       return `New client "${client_name || 'Unknown'}" was created`;
     }
-    if (activity_type.includes('client_updated')) {
+    if (activityType.includes('client_updated')) {
       return `Client "${client_name || 'Unknown'}" was updated`;
     }
-    if (activity_type.includes('agent_created') || activity_type.includes('ai_agent_created')) {
+    if (activityType.includes('agent_created') || activityType.includes('ai_agent_created')) {
       return `New AI agent was created for client "${client_name || 'Unknown'}"`;
     }
-    if (activity_type.includes('agent_updated') || activity_type.includes('ai_agent_updated')) {
+    if (activityType.includes('agent_updated') || activityType.includes('ai_agent_updated')) {
       return `AI agent was updated for client "${client_name || 'Unknown'}"`;
     }
-    if (activity_type.includes('website_url_added')) {
+    if (activityType.includes('website_url_added')) {
       return `Website URL was added to client "${client_name || 'Unknown'}"`;
     }
-    if (activity_type.includes('document_added') || activity_type.includes('document_uploaded')) {
+    if (activityType.includes('document_added') || activityType.includes('document_uploaded')) {
       return `Document was added to client "${client_name || 'Unknown'}"`;
     }
-    if (activity_type.includes('document_link_added')) {
+    if (activityType.includes('document_link_added')) {
       return `Document link was added to client "${client_name || 'Unknown'}"`;
     }
-    if (activity_type.includes('document_link_removed') || activity_type.includes('document_link_deleted')) {
+    if (activityType.includes('document_link_removed') || activityType.includes('document_link_deleted')) {
       return `Document link was removed from client "${client_name || 'Unknown'}"`;
     }
-    if (activity_type.includes('chat_interaction')) {
+    if (activityType.includes('chat_interaction')) {
       return `Chat interaction with client "${client_name || 'Unknown'}"`;
     }
     
     // Fallback to a readable version of the activity type
-    return `${activity_type.replace(/_/g, ' ')} for ${client_name || 'Unknown'}`;
+    return `${activityType.replace(/_/g, ' ')} for ${client_name || 'Unknown'}`;
   };
 
   return (
     <div className="space-y-1">
       {activities.map((activity) => {
-        const activityColor = activityTypeToColor[activity.activity_type] || 'gray';
+        const activityType = activity.type || 'unknown';
+        const activityColor = activityTypeToColor[activityType] || 'gray';
         const bgColorClass = `bg-${activityColor}-100`;
         const textColorClass = `text-${activityColor}-500`;
         
@@ -179,7 +181,7 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
             onClick={() => onActivityClick && onActivityClick(activity.id)}
           >
             <div className={`h-10 w-10 rounded-full ${bgColorClass} flex items-center justify-center`}>
-              {getActivityIcon(activity.activity_type)}
+              {getActivityIcon(activityType)}
             </div>
             
             <div className="flex-1 space-y-1">
@@ -188,7 +190,7 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
                 {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
               </p>
               <p className="text-xs font-mono text-muted-foreground">
-                {getActivityTypeLabel(activity.activity_type)}
+                {getActivityTypeLabel(activityType)}
               </p>
             </div>
           </div>

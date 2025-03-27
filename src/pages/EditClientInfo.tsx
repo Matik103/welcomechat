@@ -4,7 +4,7 @@ import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientForm } from '@/components/client/ClientForm';
-import { ClientFormData, ActivityType } from '@/types/client-form';
+import { ClientFormData } from '@/types/client-form';
 import { toast } from 'sonner';
 import { createClientActivity } from '@/services/clientActivityService';
 
@@ -26,7 +26,6 @@ export function EditClientInfo() {
       if (clientId) {
         await createClientActivity(
           clientId,
-          'client_updated' as ActivityType,
           `Updated client information`,
           { fields_updated: Object.keys(data) }
         );

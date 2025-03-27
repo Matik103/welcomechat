@@ -33,7 +33,6 @@ export const useWidgetSettings = (clientId: string) => {
       // Log the activity
       await createClientActivity(
         clientId,
-        "agent_name_updated",
         `Updated agent name to "${agentName}"`,
         { agent_name: agentName }
       );
@@ -94,7 +93,6 @@ export const useWidgetSettings = (clientId: string) => {
       // Log the activity
       await createClientActivity(
         clientId,
-        "agent_description_updated",
         `Updated agent description`,
         { description_length: description.length }
       );
@@ -160,7 +158,6 @@ export const useWidgetSettings = (clientId: string) => {
       // Log the activity
       await createClientActivity(
         clientId,
-        "agent_logo_updated",
         `Updated agent logo`,
         { 
           logo_url: logoUrl,

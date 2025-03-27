@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -72,7 +73,7 @@ export const ClientActivity = ({
           <TabsContent value="chat" className="mt-0">
             <ActivityList 
               activities={activities.filter(a => 
-                a.activity_type === 'chat_interaction'
+                a.type === 'chat_interaction'
               )} 
             />
           </TabsContent>
@@ -80,10 +81,10 @@ export const ClientActivity = ({
           <TabsContent value="ai" className="mt-0">
             <ActivityList 
               activities={activities.filter(a => 
-                a.activity_type === 'agent_created' || 
-                a.activity_type === 'agent_updated' ||
-                a.activity_type === 'ai_agent_created' || 
-                a.activity_type === 'ai_agent_updated'
+                a.type === 'agent_created' || 
+                a.type === 'agent_updated' ||
+                a.type === 'ai_agent_created' || 
+                a.type === 'ai_agent_updated'
               )} 
             />
           </TabsContent>
@@ -91,11 +92,11 @@ export const ClientActivity = ({
           <TabsContent value="system" className="mt-0">
             <ActivityList 
               activities={activities.filter(a => 
-                a.activity_type !== 'chat_interaction' &&
-                a.activity_type !== 'agent_created' && 
-                a.activity_type !== 'agent_updated' &&
-                a.activity_type !== 'ai_agent_created' && 
-                a.activity_type !== 'ai_agent_updated'
+                a.type !== 'chat_interaction' &&
+                a.type !== 'agent_created' && 
+                a.type !== 'agent_updated' &&
+                a.type !== 'ai_agent_created' && 
+                a.type !== 'ai_agent_updated'
               )} 
             />
           </TabsContent>
@@ -128,7 +129,7 @@ const ActivityList = ({ activities }: { activities: ClientActivityType[] }) => {
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            {getActivityTypeLabel(activity.activity_type)}
+            {getActivityTypeLabel(activity.type)}
           </p>
         </div>
       ))}

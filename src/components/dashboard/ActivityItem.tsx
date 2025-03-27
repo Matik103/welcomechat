@@ -13,7 +13,7 @@ import { activityTypeToIcon, getActivityTypeLabel } from '@/utils/activityTypeUt
 
 interface ActivityItemProps {
   item: {
-    activity_type: string;
+    type?: string; // Changed from activity_type to type
     description: string;
     created_at: string;
     metadata: Json;
@@ -25,7 +25,7 @@ interface ActivityItemProps {
   };
 }
 
-const getActivityIcon = (type: string, metadata: Json) => {
+const getActivityIcon = (type: string = 'unknown', metadata: Json) => {
   // Check if there's an original activity type in metadata
   const originalType = metadata && 
     typeof metadata === 'object' && 
@@ -75,12 +75,12 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
   // Use the properly resolved client name that comes from useRecentActivities hook
   const clientName = item.client_name || "System";
   // Get a human-readable label for the activity type
-  const activityTypeLabel = getActivityTypeLabel(item.activity_type);
+  const activityTypeLabel = getActivityTypeLabel(item.type);
     
   return (
     <div className="flex items-center gap-4 py-3 animate-slide-in">
       <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-        {getActivityIcon(item.activity_type, item.metadata)}
+        {getActivityIcon(item.type, item.metadata)}
       </div>
       <div className="flex-1">
         <p className="text-sm text-gray-900">

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -44,6 +43,11 @@ const ResourceSettings = () => {
     }
   };
 
+  // Fix the type mismatch in logClientActivity
+  const logActivity = (description: string, metadata?: Record<string, any>) => {
+    return logClientActivity(description, metadata);
+  };
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Resource Settings</h1>
@@ -51,11 +55,10 @@ const ResourceSettings = () => {
       <ClientResourceSections 
         clientId={clientId || ''}
         onResourceChange={() => {}}
-        logClientActivity={logClientActivity}
+        logClientActivity={logActivity}
       />
     </div>
   );
 };
 
-// Export ResourceSettings as default export
 export default ResourceSettings;

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,31 +86,22 @@ export function useStoreDocumentContent(clientId: string, agentName: string) {
           .eq("interaction_type", "config")
           .single();
         
-        // Log activity of document storage
+        // Log document storage to console instead of database
+        console.log(`[DOCUMENT STORED]: ${title}`, {
+          clientId,
+          url,
+          title,
+          agentName,
+          documentType: type,
+          size: size || 0,
+          bucket: DOCUMENTS_BUCKET,
+          agentId: data?.[0]?.id || null,
+          agentUrl: agentData?.url || null,
+          agentCreated: agentData?.created_at || null,
+          documentStatus: "active"
+        });
+        
         const docInfo = data[0];
-        
-        // Use typecast for activity_type
-        await supabase
-          .from("client_activities")
-          .insert({
-            client_id: clientId,
-            activity_type: "document_stored" as any,
-            description: `Stored document content: ${title}`,
-            metadata: {
-              url: url,
-              title: title,
-              agent_name: agentName,
-              document_type: type,
-              size: size || 0,
-              bucket: DOCUMENTS_BUCKET, // Add the bucket name for reference
-              // Safe access for agentData properties
-              agent_id: docInfo?.id || null,
-              agent_url: agentData?.url || null,
-              agent_created: agentData?.created_at || null,
-              document_status: "active"
-            }
-          });
-        
         console.log("Document content stored successfully with ID:", docInfo?.id);
         
         // Now that we've stored the document, initiate the LlamaParse processing

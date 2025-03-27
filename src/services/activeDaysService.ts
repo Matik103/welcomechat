@@ -15,10 +15,11 @@ export const getActiveDays = async (
   try {
     const { startDate } = getDateRange(timeRange);
     
-    // Create a query that counts distinct dates
+    // Use ai_agents table instead of client_activities
     let query = supabase
-      .from("client_activities")
+      .from("ai_agents")
       .select("created_at")
+      .eq("interaction_type", "chat_interaction")
       .gte("created_at", startDate.toISOString());
       
     // Add client filter if specified

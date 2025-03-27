@@ -67,7 +67,8 @@ export const activityTypeToIcon: Record<string, string> = {
   'widget_previewed': 'eye',
   'url_deleted': 'trash-2',
   'openai_assistant_upload_failed': 'alert-circle',
-  'schema_update': 'database'
+  'schema_update': 'database',
+  'unknown': 'help-circle'
 };
 
 // Map activity types to color schemes
@@ -142,7 +143,7 @@ export const activityTypeToColor: Record<string, string> = {
 };
 
 // Convert activity type to human-readable label
-export const getActivityTypeLabel = (type: string): string => {
+export const getActivityTypeLabel = (type: string = 'unknown'): string => {
   // Map specific activity types to custom labels if needed
   const customLabels: Record<string, string> = {
     'agent_created': 'AI Agent Created',
@@ -160,7 +161,8 @@ export const getActivityTypeLabel = (type: string): string => {
     'document_processing_completed': 'Document Processing Completed',
     'account_created': 'Account Created',
     'openai_assistant_document_added': 'OpenAI Assistant Document Added',
-    'openai_assistant_upload_failed': 'OpenAI Assistant Upload Failed'
+    'openai_assistant_upload_failed': 'OpenAI Assistant Upload Failed',
+    'unknown': 'Unknown Activity'
   };
 
   if (customLabels[type]) {

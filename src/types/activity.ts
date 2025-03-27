@@ -6,6 +6,7 @@ export interface ClientActivity {
   description: string;
   created_at: string;
   metadata: any;
+  type?: string; // Adding type field to replace activity_type
 }
 
 export interface ClientActivityProps {
