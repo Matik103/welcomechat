@@ -23,7 +23,12 @@ const clientFormSchema = z.object({
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
 
-export function ClientCreationForm() {
+interface ClientCreationFormProps {
+  redirectPath?: string;
+  onSuccess?: (clientId: string) => void;
+}
+
+export function ClientCreationForm({ redirectPath = '/admin/clients', onSuccess }: ClientCreationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -100,9 +105,16 @@ export function ClientCreationForm() {
         toast.success("Client created successfully and welcome email sent", { id: loadingToast });
       }
       
-      // Reset form and navigate back to clients list
+      // Reset form
       form.reset();
-      navigate('/admin/clients');
+      
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess(clientId);
+      } else {
+        // Navigate back to clients list or specified redirect path
+        navigate(redirectPath);
+      }
     } catch (error) {
       console.error('Error creating client:', error);
       toast.error('Failed to create client. Please try again.', { id: loadingToast });

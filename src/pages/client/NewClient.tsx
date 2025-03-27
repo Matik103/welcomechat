@@ -1,75 +1,62 @@
 
-import React from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { ClientForm } from '@/components/client/ClientForm';
-import { useNewClientMutation } from '@/hooks/useNewClientMutation';
-import { useNavigation } from '@/hooks/useNavigation';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-
-// Define client form schema
-const clientFormSchema = z.object({
-  client_name: z.string().min(1, "Client name is required"),
-  email: z.string().email("Invalid email address"),
-  company: z.string().optional(),
-  description: z.string().optional(),
-  widget_settings: z.object({
-    agent_name: z.string().optional(),
-    agent_description: z.string().optional(),
-    logo_url: z.string().optional(),
-    logo_storage_path: z.string().optional()
-  }).optional(),
-  _tempLogoFile: z.any().optional()
-});
-
-export type ClientFormData = z.infer<typeof clientFormSchema>;
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
+import { ClientCreationForm } from "@/components/forms/ClientCreationForm";
 
 export default function NewClient() {
-  const { goToClientDashboard } = useNavigation();
-  const mutation = useNewClientMutation();
-  
-  const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientFormSchema),
-    defaultValues: {
-      client_name: '',
-      email: '',
-      company: '',
-      description: '',
-      widget_settings: {
-        agent_name: 'AI Assistant',
-        agent_description: ''
-      }
-    }
-  });
+  const navigate = useNavigate();
 
-  const handleSubmit = async (data: ClientFormData) => {
-    try {
-      await mutation.mutateAsync(data);
-      goToClientDashboard();
-    } catch (error) {
-      console.error('Error creating client:', error);
-    }
+  const handleGoBack = () => {
+    navigate("/client/dashboard");
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
-      <div className="flex justify-between items-center mb-6">
-        <Button variant="ghost" onClick={goToClientDashboard}>
+    <div className="container py-8">
+      <div className="mb-4">
+        <Button variant="ghost" onClick={handleGoBack}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
         </Button>
       </div>
       
-      <div className="bg-white rounded-md shadow p-6">
-        <h1 className="text-2xl font-bold mb-6">Create New Client</h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <div className="md:col-span-2">
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold">Create New Client Account</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ClientCreationForm redirectPath="/client/dashboard" />
+            </CardContent>
+          </Card>
+        </div>
         
-        <ClientForm 
-          form={form}
-          onSubmit={handleSubmit}
-          isSubmitting={mutation.isPending}
-        />
+        <div>
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle>Process Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert className="bg-gray-50 border-gray-200">
+                <Info className="h-4 w-4" />
+                <AlertTitle className="text-gray-900 font-medium">Client Creation Process</AlertTitle>
+                <AlertDescription>
+                  When you submit the form, we'll:
+                  <ol className="list-decimal ml-4 mt-2 space-y-1 text-sm">
+                    <li>Generate a unique client ID</li>
+                    <li>Create a new client in the database</li>
+                    <li>Generate a secure temporary password</li>
+                    <li>Send a welcome email with login details</li>
+                  </ol>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
