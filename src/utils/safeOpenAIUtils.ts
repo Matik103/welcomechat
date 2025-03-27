@@ -2,18 +2,17 @@
 import { toast } from "sonner";
 
 /**
- * Safe utilities for OpenAI integration that avoid automatic creation
+ * Safe utilities for OpenAI integration that completely disable automatic creation
  * and don't trigger activity logging with invalid enum values
  */
 export const safeOpenAIUtils = {
   /**
-   * Safely creates an OpenAI assistant only when explicitly called
-   * Currently disabled to prevent enum issues
+   * Safely simulates an OpenAI assistant creation without actually making any API calls
+   * This is a dummy function that only logs to console and returns a success response
    */
   createAssistant: async (clientId: string, agentName: string, description: string) => {
-    // This function is intentionally limited to prevent automatic OpenAI assistant creation
-    // that might trigger problematic activity logging
-    console.log('OpenAI assistant creation is currently disabled to prevent database issues');
+    // Log the attempt but don't actually create anything
+    console.log('OpenAI assistant creation is disabled to prevent database issues');
     console.log('Would have created assistant for:', { clientId, agentName, description });
     
     // Return a mock success without actually creating anything

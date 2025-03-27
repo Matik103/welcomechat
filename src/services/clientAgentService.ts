@@ -58,7 +58,6 @@ export const clientAgentService = {
       }
 
       // Only log to console, do not attempt any activity logging to database
-      // Do NOT use "agent_created" as activity type as it seems to be invalid
       console.log(`AI agent created: ${agentName}`, {
         agent_name: agentName,
         client_id: clientId
