@@ -41,13 +41,13 @@ export default function AddClientPage() {
   const onSubmit = async (values: ClientFormValues) => {
     setIsSubmitting(true);
     try {
-      // Direct database insert only - no OpenAI assistant creation or activity logging
-      const { data, error } = await supabaseAdmin.from("ai_agents").insert({
+      // Simplified direct database insert with minimal fields to avoid triggering any side effects
+      const insertData = {
         client_name: values.clientName,
         email: values.email,
         name: values.chatbotName,
         agent_description: values.chatbotDescription || "",
-        interaction_type: "config", // Set type as config
+        interaction_type: "config", 
         settings: {
           agent_name: values.chatbotName,
           agent_description: values.chatbotDescription || "",
@@ -57,18 +57,19 @@ export default function AddClientPage() {
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      }).select();
+      };
+      
+      // Using the most direct database operation possible
+      const { data, error } = await supabaseAdmin
+        .from("ai_agents")
+        .insert(insertData);
 
       if (error) {
         console.error("Error creating client:", error);
         throw error;
       }
 
-      // Console log only - no database activity logging or OpenAI assistant creation
-      console.log(`Client created: ${values.clientName}`, {
-        clientName: values.clientName,
-        chatbotName: values.chatbotName
-      });
+      console.log(`Client created successfully: ${values.clientName}`);
       
       toast.success("Client created successfully!");
       navigate("/admin/clients");
