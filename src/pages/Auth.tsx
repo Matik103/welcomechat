@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,6 @@ import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 
-// Preload the logo image
 const logoUrl = "/lovable-uploads/53c9d241-4eb7-4ef6-8f3b-7c862819fb48.png";
 const preloadImage = new Image();
 preloadImage.src = logoUrl;
@@ -24,7 +22,6 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const { user, isLoading, userRole } = useAuth();
 
   const resetForm = () => {
     setEmail("");
@@ -33,7 +30,6 @@ const Auth = () => {
     setErrorMessage("");
   };
 
-  // If we have a session and user role, redirect to appropriate dashboard
   if (user && userRole) {
     console.log("Auth page - redirecting for user with role:", userRole);
     
@@ -79,7 +75,6 @@ const Auth = () => {
           throw error;
         }
 
-        // Send welcome email
         const { error: emailError } = await supabase.functions.invoke("send-email", {
           body: {
             to: email,
@@ -117,7 +112,6 @@ const Auth = () => {
 
         if (emailError) {
           console.error("Failed to send welcome email:", emailError);
-          // Don't throw the error as signup was successful
           toast.error("Account created but failed to send welcome email. Please check your spam folder for the verification email.");
         } else {
           toast.success("Account created! Check your email for the confirmation link.");
@@ -203,7 +197,7 @@ const Auth = () => {
           <CardContent>
             <form onSubmit={handleEmailAuth} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="reset-email">Email</Label>
+                <Label htmlFor="reset-email" variant="blue">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -284,7 +278,7 @@ const Auth = () => {
           <form onSubmit={handleEmailAuth} className="space-y-4">
             {isSignUp && (
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="fullName" variant="blue">Full Name</Label>
                 <Input
                   id="fullName"
                   placeholder="John Doe"
@@ -296,7 +290,7 @@ const Auth = () => {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" variant="blue">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -312,7 +306,7 @@ const Auth = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" variant="blue">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
