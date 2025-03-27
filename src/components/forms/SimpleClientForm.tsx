@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 import { generateTempPassword } from '@/utils/passwordUtils';
 
 interface SimpleClientFormProps {
@@ -61,8 +62,8 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
       // Generate a temporary password
       const tempPassword = generateTempPassword();
       
-      // Create the client record in ai_agents table
-      const { data: clientData, error: clientError } = await supabase
+      // Create the client record in ai_agents table using supabaseAdmin to bypass RLS
+      const { data: clientData, error: clientError } = await supabaseAdmin
         .from('ai_agents')
         .insert({
           id: clientId,
@@ -94,7 +95,7 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         .from('client_activities')
         .insert({
           client_id: clientId,
-          activity_type: 'ai_agent_created',  // Changed from "agent_created" to a valid enum value
+          activity_type: 'ai_agent_created',
           description: `New client created with AI agent: ${agentName}`,
           metadata: {
             client_name: clientName,
