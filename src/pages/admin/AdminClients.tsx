@@ -30,7 +30,6 @@ export default function AdminClientsPage() {
               <ClientListTable
                 clients={clients}
                 onDeleteClick={() => {
-                  // Delete functionality disabled
                   toast.info("Client deletion has been disabled");
                 }}
               />

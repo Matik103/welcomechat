@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateClient } from "@/services/clientService";
 import { toast } from "sonner";
 import { Client } from "@/types/client";
-import { ClientFormData } from "@/types/client-form";
 
 export type ClientMutationData = {
   client_id?: string;

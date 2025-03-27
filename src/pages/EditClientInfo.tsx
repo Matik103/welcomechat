@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -9,9 +10,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ClientFormData, clientFormSchema } from '@/types/client-form';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+
+// Define a simpler client form schema
+const clientFormSchema = z.object({
+  client_name: z.string().min(1, "Client name is required"),
+  email: z.string().email("Valid email is required"),
+  agent_name: z.string().min(1, "Agent name is required").optional(),
+  agent_description: z.string().optional(),
+});
+
+type ClientFormData = z.infer<typeof clientFormSchema>;
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
@@ -30,7 +40,10 @@ export function EditClientInfo() {
         client_id: clientId,
         client_name: data.client_name,
         email: data.email,
-        widget_settings: data.widget_settings
+        widget_settings: {
+          agent_name: data.agent_name,
+          agent_description: data.agent_description
+        }
       });
       
       if (clientId) {
@@ -87,20 +100,17 @@ function ClientForm({
   error = null,
   submitButtonText = "Save Changes"
 }: ClientFormProps) {
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
   
   const { register, handleSubmit, formState: { errors } } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData.client_name || "",
       email: initialData.email || "",
-      widget_settings: {
-        agent_name: initialData.name || initialData.agent_name || 
-                   (initialData.widget_settings?.agent_name) || "",
-        agent_description: initialData.agent_description || 
-                         (initialData.widget_settings?.agent_description) || ""
-      },
-      client_id: initialData.client_id,
+      agent_name: initialData.name || initialData.agent_name || 
+                 (initialData.widget_settings?.agent_name) || "",
+      agent_description: initialData.agent_description || 
+                       (initialData.widget_settings?.agent_description) || ""
     },
   });
 
@@ -147,27 +157,27 @@ function ClientForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="widget_settings.agent_name">Agent Name</Label>
+        <Label htmlFor="agent_name">Agent Name</Label>
         <Input
-          id="widget_settings.agent_name"
-          {...register("widget_settings.agent_name")}
-          className={errors.widget_settings?.agent_name ? "border-red-500" : ""}
+          id="agent_name"
+          {...register("agent_name")}
+          className={errors.agent_name ? "border-red-500" : ""}
         />
-        {errors.widget_settings?.agent_name && (
-          <p className="text-sm text-red-500">{errors.widget_settings.agent_name.message}</p>
+        {errors.agent_name && (
+          <p className="text-sm text-red-500">{errors.agent_name.message}</p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="widget_settings.agent_description">Agent Description</Label>
+        <Label htmlFor="agent_description">Agent Description</Label>
         <Textarea
-          id="widget_settings.agent_description"
-          {...register("widget_settings.agent_description")}
-          className={errors.widget_settings?.agent_description ? "border-red-500" : ""}
+          id="agent_description"
+          {...register("agent_description")}
+          className={errors.agent_description ? "border-red-500" : ""}
           rows={4}
         />
-        {errors.widget_settings?.agent_description && (
-          <p className="text-sm text-red-500">{errors.widget_settings.agent_description.message}</p>
+        {errors.agent_description && (
+          <p className="text-sm text-red-500">{errors.agent_description.message}</p>
         )}
       </div>
 

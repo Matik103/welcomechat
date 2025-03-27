@@ -1,57 +1,47 @@
 
-import { Eye, MessageSquare, Edit } from "lucide-react";
-import { Link } from "react-router-dom";
-import { toast } from "sonner";
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
+import { Eye, Settings } from 'lucide-react';
 
 interface ClientActionsProps {
   clientId: string;
-  onDeleteClick: () => void;
+  onViewClick?: () => void;
+  onSettingsClick?: () => void;
+  onDeleteClick?: () => void;
 }
 
-export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) => {
-  if (!clientId) {
-    console.error("Missing client ID in ClientActions", clientId);
-    toast.error("Missing client ID for actions");
-    
-    // Return disabled actions when clientId is missing
-    return (
-      <div className="flex items-center justify-end gap-2">
-        <span className="p-1 text-gray-300 cursor-not-allowed" title="View Agent (ID missing)">
-          <Eye className="w-4 h-4" />
-        </span>
-        <span className="p-1 text-gray-300 cursor-not-allowed" title="Widget Settings (ID missing)">
-          <MessageSquare className="w-4 h-4" />
-        </span>
-        <span className="p-1 text-gray-300 cursor-not-allowed" title="Edit Info (ID missing)">
-          <Edit className="w-4 h-4" />
-        </span>
-      </div>
-    );
-  }
-
+export function ClientActions({ 
+  clientId,
+  onViewClick,
+  onSettingsClick,
+  onDeleteClick 
+}: ClientActionsProps) {
   return (
-    <div className="flex items-center justify-end gap-2">
-      <Link
-        to={`/admin/clients/view/${clientId}`}
-        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-        title="View Agent"
+    <div className="flex space-x-2">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onViewClick}
+        asChild
       >
-        <Eye className="w-4 h-4" />
-      </Link>
-      <Link
-        to={`/admin/clients/${clientId}/widget-settings`}
-        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-        title="Widget Settings"
+        <Link to={`/admin/clients/view/${clientId}`}>
+          <Eye className="h-4 w-4" />
+          <span className="sr-only">View client</span>
+        </Link>
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onSettingsClick}
+        asChild
       >
-        <MessageSquare className="w-4 h-4" />
-      </Link>
-      <Link
-        to={`/admin/clients/${clientId}/edit-info`}
-        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-        title="Edit Info"
-      >
-        <Edit className="w-4 h-4" />
-      </Link>
+        <Link to={`/admin/clients/${clientId}/edit-info`}>
+          <Settings className="h-4 w-4" />
+          <span className="sr-only">Edit client settings</span>
+        </Link>
+      </Button>
     </div>
   );
 }
