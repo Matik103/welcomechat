@@ -1,38 +1,35 @@
 
-import { supabase } from '@/integrations/supabase/client';
-
-/**
- * Generates a temporary password for a new client
- */
-export const generateClientTempPassword = (): string => {
-  const length = 12;
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-  let password = "";
-  for (let i = 0, n = charset.length; i < length; ++i) {
-    password += charset.charAt(Math.floor(Math.random() * n));
+// Generate a temporary password
+export const generateTempPassword = (length = 12) => {
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length);
+    password += charset[randomIndex];
   }
   return password;
 };
 
-/**
- * Saves the temporary password for a client
- */
+// Alias for backward compatibility
+export const generateClientTempPassword = generateTempPassword;
+
+// Save a temporary password for a client
 export const saveClientTempPassword = async (
   agentId: string,
   email: string,
-  tempPassword: string
+  tempPassword?: string
 ): Promise<any> => {
   try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    
     const { data, error } = await supabase
-      .from('ai_agents')
-      .update({
-        settings: {
-          tempPassword: tempPassword,
-          tempPasswordSetAt: new Date().toISOString()
-        }
-      })
-      .eq('id', agentId)
-      .eq('email', email);
+      .from('client_temp_passwords')
+      .insert({
+        agent_id: agentId,
+        email: email,
+        temp_password: tempPassword || generateTempPassword(),
+        created_at: new Date().toISOString()
+      });
 
     if (error) {
       console.error("Error saving temporary password:", error);

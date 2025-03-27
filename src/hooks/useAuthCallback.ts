@@ -40,8 +40,6 @@ export const useAuthCallback = ({
     // Keep the loading state true while processing callback
     setIsLoading(true);
     
-    let navigationTimeout: NodeJS.Timeout | null = null;
-    
     const handleCallback = async () => {
       try {
         console.log("Auth callback processing started");
@@ -53,17 +51,8 @@ export const useAuthCallback = ({
         if (sessionError || !callbackSession) {
           console.error("Error getting session from callback URL:", sessionError);
           sessionStorage.removeItem('auth_callback_processing');
-          
-          // Clear any existing navigation timeout
-          if (navigationTimeout) {
-            clearTimeout(navigationTimeout);
-          }
-          
-          navigationTimeout = setTimeout(() => {
-            navigate('/auth', { replace: true });
-            setIsLoading(false);
-          }, 500);
-          
+          navigate('/auth', { replace: true });
+          setIsLoading(false);
           return;
         }
         
@@ -85,22 +74,14 @@ export const useAuthCallback = ({
           // Mark callback as processed to prevent re-processing
           sessionStorage.setItem('auth_callback_processed', 'true');
           
-          // Clear any existing navigation timeout
-          if (navigationTimeout) {
-            clearTimeout(navigationTimeout);
-          }
+          // Clear processing flag before navigation
+          sessionStorage.removeItem('auth_callback_processing');
           
-          // Delay navigation to prevent glitchy behavior
-          navigationTimeout = setTimeout(() => {
-            // Clear processing flag before navigation
-            sessionStorage.removeItem('auth_callback_processing');
-            
-            // Navigate directly to admin dashboard
-            navigate('/admin/dashboard', { replace: true });
-            
-            // Set loading to false after navigation is queued
-            setIsLoading(false);
-          }, 1000);
+          // Navigate directly to admin dashboard
+          navigate('/admin/dashboard', { replace: true });
+          
+          // Set loading to false after navigation is queued
+          setIsLoading(false);
         } else {
           // For non-Google users, check client status
           const userRole = await determineUserRole(callbackSession.user);
@@ -118,49 +99,30 @@ export const useAuthCallback = ({
           // Get the appropriate dashboard route based on role
           const dashboardRoute = getDashboardRoute(userRole);
           
-          // Clear any existing navigation timeout
-          if (navigationTimeout) {
-            clearTimeout(navigationTimeout);
-          }
+          // Clear processing flag before navigation
+          sessionStorage.removeItem('auth_callback_processing');
           
-          // Delay navigation to prevent glitchy behavior
-          navigationTimeout = setTimeout(() => {
-            // Clear processing flag before navigation
-            sessionStorage.removeItem('auth_callback_processing');
-            
-            // Navigate to the appropriate dashboard
-            navigate(dashboardRoute, { replace: true });
-            
-            // Set loading to false after navigation is queued
-            setIsLoading(false);
-          }, 1000);
+          // Navigate to the appropriate dashboard
+          navigate(dashboardRoute, { replace: true });
+          
+          // Set loading to false after navigation is queued
+          setIsLoading(false);
         }
       } catch (error) {
         console.error("Error handling auth callback:", error);
         sessionStorage.removeItem('auth_callback_processing');
-        
-        // Clear any existing navigation timeout
-        if (navigationTimeout) {
-          clearTimeout(navigationTimeout);
-        }
-        
-        navigationTimeout = setTimeout(() => {
-          navigate('/auth', { replace: true });
-          setIsLoading(false);
-        }, 500);
+        navigate('/auth', { replace: true });
+        setIsLoading(false);
       }
     };
     
     // Execute the callback handler with a small delay to ensure the session is available
     const timeoutId = setTimeout(() => {
       handleCallback();
-    }, 800);
+    }, 500);
     
     return () => {
       clearTimeout(timeoutId);
-      if (navigationTimeout) {
-        clearTimeout(navigationTimeout);
-      }
     };
   }, [isCallbackUrl, navigate, setSession, setUser, setUserRole, setIsLoading]);
 };

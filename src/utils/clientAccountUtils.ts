@@ -1,11 +1,19 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
+import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/client-form';
-import { Json } from '@/integrations/supabase/types';
+import { toast } from 'sonner';
 
 /**
- * Creates a new user account in Supabase Auth.
+ * Creates a client user account by calling the create-client-user Edge Function
+ * 
+ * @param email Email address for the new user
+ * @param clientId Client ID associated with the user
+ * @param clientName Client name for the welcome email
+ * @param agentName Agent name for the welcome email
+ * @param agentDescription Agent description
+ * @param tempPassword Temporary password for the user
+ * @returns Object with success status and user data
  */
 export const createClientUserAccount = async (
   email: string,
@@ -13,157 +21,132 @@ export const createClientUserAccount = async (
   clientName: string,
   agentName: string,
   agentDescription: string,
-  tempPassword?: string
-): Promise<{ success: boolean; error?: string }> => {
+  tempPassword: string
+) => {
   try {
-    // Check if admin client is properly configured
-    if (!isAdminClientConfigured()) {
-      console.error("Admin client is not properly configured. Missing service role key.");
-      return { 
-        success: false, 
-        error: "Server configuration error: Missing service role key. Please check the Supabase secrets configuration." 
-      };
-    }
-
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
-      password: tempPassword || generateRandomPassword(),
-      user_metadata: {
+    // Call the Edge Function to create the user account
+    const { data, error } = await supabase.functions.invoke('create-client-user', {
+      body: {
+        email,
         client_id: clientId,
         client_name: clientName,
         agent_name: agentName,
-        agent_description: agentDescription
-      },
+        agent_description: agentDescription,
+        temp_password: tempPassword
+      }
     });
-
+    
     if (error) {
-      console.error("Error creating user:", error);
-      return { success: false, error: error.message };
+      console.error("Error from create-client-user function:", error);
+      throw error;
     }
     
-    // Create a user role entry
-    const roleResult = await createUserRole(data.user.id, 'client', clientId);
-    if (!roleResult) {
-      console.error("Error creating user role");
-      return { success: false, error: "Failed to create user role" };
+    if (!data?.success) {
+      console.error("Failed to create client user account:", data?.message || "Unknown error");
+      throw new Error(data?.message || "Failed to create client user account");
     }
-
-    console.log("User created successfully:", data);
-    return { success: true };
-  } catch (error: any) {
-    console.error("Error in createClientUserAccount:", error);
-    return { success: false, error: error.message || "Unknown error" };
+    
+    console.log("Client user account created successfully:", data);
+    
+    return { 
+      success: true, 
+      userId: data.userId, 
+      clientId: data.clientId,
+      password: data.password
+    };
+  } catch (error) {
+    console.error("Error creating client user account:", error);
+    throw error;
   }
 };
 
 /**
- * Logs client creation activity to the audit log.
+ * Logs a client creation activity in the system
+ * 
+ * @param clientId Client ID
+ * @param clientName Client name
+ * @param email Client email
+ * @param agentName Agent name
+ * @returns Object with success status
  */
 export const logClientCreationActivity = async (
-  clientId: string,
+  clientId: string, 
   clientName: string,
   email: string,
   agentName: string
-): Promise<void> => {
+) => {
   try {
-    const { error } = await supabase
-      .from('client_activities')
-      .insert({
-        activity_type: 'client_created' as ActivityType,
+    await createClientActivity(
+      clientId,
+      'account_created' as ActivityType,
+      `Account created: ${clientName}`,
+      {
         client_id: clientId,
-        description: `Client ${clientName} with email ${email} was created.`,
-        metadata: {
-          client_name: clientName,
-          email: email,
-          agent_name: agentName,
-          timestamp: new Date().toISOString()
-        } as Json
-      });
-
-    if (error) {
-      console.error("Error logging client creation activity:", error);
-      throw error;
-    }
+        email,
+        agent_name: agentName
+      }
+    );
+    
+    return { success: true };
   } catch (error) {
-    console.error("Error in logClientCreationActivity:", error);
-    // Consider whether to rethrow or handle the error silently
+    console.error("Error logging client creation activity:", error);
+    throw error;
   }
 };
 
 /**
- * Sends a welcome email to the new client.
+ * Sends a welcome email to a new client user
+ * 
+ * @param clientId Client ID
+ * @param clientName Client name
+ * @param email Client email
+ * @param agentName Agent name
+ * @param tempPassword Temporary password
+ * @returns Object with email sending status
  */
 export const sendClientWelcomeEmail = async (
   clientId: string,
   clientName: string,
   email: string,
   agentName: string,
-  tempPassword?: string
-): Promise<{ emailSent: boolean; emailError?: string }> => {
+  tempPassword: string
+) => {
   try {
+    // Call the Edge Function to send the welcome email
     const { data, error } = await supabase.functions.invoke('send-welcome-email', {
       body: {
-        client_id: clientId,
-        client_name: clientName,
-        email: email,
-        agent_name: agentName,
-        temp_password: tempPassword
-      },
+        clientId,
+        clientName,
+        email,
+        agentName,
+        tempPassword
+      }
     });
-
+    
     if (error) {
-      console.error("Error sending welcome email:", error);
-      return { emailSent: false, emailError: error.message };
+      console.error("Error from send-welcome-email function:", error);
+      throw error;
     }
-
-    if (data?.success === false) {
-      console.error("Function execution failed:", data?.error);
-      return { emailSent: false, emailError: data.error || 'Function execution failed' };
+    
+    if (!data?.success) {
+      console.error("Failed to send welcome email:", data?.error || "Unknown error");
+      return { 
+        emailSent: false, 
+        emailError: data?.error || "Failed to send welcome email" 
+      };
     }
-
+    
     console.log("Welcome email sent successfully:", data);
-    return { emailSent: true };
-  } catch (error: any) {
-    console.error("Error in sendClientWelcomeEmail:", error);
-    return { emailSent: false, emailError: error.message || "Unknown error" };
-  }
-};
-
-/**
- * Generates a random password for new users.
- * @returns {string} The generated password.
- */
-const generateRandomPassword = (): string => {
-  const length = 12;
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-  let password = "";
-  for (let i = 0, n = charset.length; i < length; ++i) {
-    password += charset.charAt(Math.floor(Math.random() * n));
-  }
-  return password;
-};
-
-/**
- * Creates a user role entry in the user_roles table.
- */
-export const createUserRole = async (userId: string, role: 'admin' | 'manager' | 'client', clientId?: string): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: userId,
-        role: role,
-        client_id: clientId || null,
-      });
-
-    if (error) {
-      console.error("Error creating user role:", error);
-      return false;
-    }
-
-    return true;
+    
+    return { 
+      emailSent: true,
+      emailData: data
+    };
   } catch (error) {
-    console.error("Error in createUserRole:", error);
-    return false;
+    console.error("Error sending welcome email:", error);
+    return { 
+      emailSent: false, 
+      emailError: error instanceof Error ? error.message : "Unknown error" 
+    };
   }
 };

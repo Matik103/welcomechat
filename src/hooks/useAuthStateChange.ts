@@ -24,8 +24,6 @@ export const useAuthStateChange = ({
 
   useEffect(() => {
     let mounted = true;
-    let navigationInProgress = false;
-    let navigationTimeout: NodeJS.Timeout | null = null;
 
     // Auth state change listener subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -38,11 +36,10 @@ export const useAuthStateChange = ({
         // This prevents double processing with useAuthCallback
         const inCallbackProcess = 
           location.pathname.includes('/auth/callback') || 
-          sessionStorage.getItem('auth_callback_processing') === 'true' ||
-          navigationInProgress;
+          sessionStorage.getItem('auth_callback_processing') === 'true';
           
         if (inCallbackProcess) {
-          console.log("Skipping auth state change - callback is being processed or navigation in progress");
+          console.log("Skipping auth state change - callback is being processed");
           return;
         }
         
@@ -72,23 +69,7 @@ export const useAuthStateChange = ({
             
             if (isAuthPage || !isAdminPage) {
               console.log("Redirecting Google user to admin dashboard");
-              
-              // Clear any existing navigation timeout
-              if (navigationTimeout) {
-                clearTimeout(navigationTimeout);
-              }
-              
-              navigationInProgress = true;
-              
-              // Set a debounce to prevent multiple rapid navigations
-              navigationTimeout = setTimeout(() => {
-                navigate('/admin/dashboard', { replace: true });
-                
-                // Reset navigation flag after a longer delay
-                setTimeout(() => {
-                  navigationInProgress = false;
-                }, 2000);
-              }, 500);
+              navigate('/admin/dashboard', { replace: true });
             }
           } else {
             // Determine role from database for non-Google users
@@ -101,23 +82,7 @@ export const useAuthStateChange = ({
             if (isAuthPage) {
               const dashboardRoute = getDashboardRoute(determinedUserRole);
               console.log("Redirecting to dashboard:", dashboardRoute);
-              
-              // Clear any existing navigation timeout
-              if (navigationTimeout) {
-                clearTimeout(navigationTimeout);
-              }
-              
-              navigationInProgress = true;
-              
-              // Set a debounce to prevent multiple rapid navigations
-              navigationTimeout = setTimeout(() => {
-                navigate(dashboardRoute, { replace: true });
-                
-                // Reset navigation flag after a longer delay
-                setTimeout(() => {
-                  navigationInProgress = false;
-                }, 2000);
-              }, 500);
+              navigate(dashboardRoute, { replace: true });
             }
           }
           
@@ -135,23 +100,8 @@ export const useAuthStateChange = ({
           
           // Only redirect to auth page if not already there
           const isAuthPage = location.pathname === '/auth';
-          if (!isAuthPage && !navigationInProgress) {
-            // Clear any existing navigation timeout
-            if (navigationTimeout) {
-              clearTimeout(navigationTimeout);
-            }
-            
-            navigationInProgress = true;
-            
-            // Set a debounce to prevent multiple rapid navigations
-            navigationTimeout = setTimeout(() => {
-              navigate('/auth', { replace: true });
-              
-              // Reset navigation flag after a longer delay
-              setTimeout(() => {
-                navigationInProgress = false;
-              }, 2000);
-            }, 500);
+          if (!isAuthPage) {
+            navigate('/auth', { replace: true });
           }
         } else {
           // Handle other events
@@ -162,9 +112,6 @@ export const useAuthStateChange = ({
 
     return () => {
       mounted = false;
-      if (navigationTimeout) {
-        clearTimeout(navigationTimeout);
-      }
       subscription.unsubscribe();
     };
   }, [setSession, setUser, setUserRole, setIsLoading, navigate, location.pathname]);

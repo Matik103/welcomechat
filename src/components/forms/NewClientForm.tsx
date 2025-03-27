@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +11,6 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
-import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import { 
   generateClientTempPassword, 
   saveClientTempPassword
@@ -49,31 +49,45 @@ export function NewClientForm() {
     const initialToastId = toast.loading("Creating client...");
     
     try {
-      // Check if admin client is configured
-      if (!isAdminClientConfigured()) {
-        toast.error("Admin operations are not available. Missing VITE_SUPABASE_SERVICE_ROLE_KEY.", { id: initialToastId });
-        setIsLoading(false);
-        return;
-      }
-
       // Ensure client_id exists
       if (!data.client_id) {
         data.client_id = uuidv4();
       }
       
-      // Create the AI agent directly (using admin client to bypass RLS)
-      const { data: agentData, error: agentError } = await supabaseAdmin
-        .from('ai_agents')
+      // First create the client record
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
         .insert({
           id: data.client_id,
+          client_name: data.client_name,
+          email: data.email,
+          agent_name: data.agent_name,
+          widget_settings: {
+            agent_name: data.agent_name,
+            agent_description: data.agent_description || "",
+            logo_url: "",
+            client_name: data.client_name,
+            email: data.email,
+            client_id: data.client_id
+          }
+        })
+        .select()
+        .single();
+
+      if (clientError) {
+        console.error("Error creating client:", clientError);
+        throw new Error(clientError.message);
+      }
+
+      // Then create the AI agent
+      const { data: agentData, error: agentError } = await supabase
+        .from('ai_agents')
+        .insert({
           client_id: data.client_id,
           name: data.agent_name,
           agent_description: data.agent_description || "",
           content: "",
           interaction_type: 'config',
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
           settings: {
             agent_name: data.agent_name,
             agent_description: data.agent_description || "",
@@ -81,11 +95,7 @@ export function NewClientForm() {
             client_name: data.client_name,
             email: data.email,
             client_id: data.client_id
-          },
-          email: data.email,
-          client_name: data.client_name,
-          model: 'gpt-4-turbo-preview',
-          is_error: false
+          }
         })
         .select()
         .single();
@@ -99,7 +109,7 @@ export function NewClientForm() {
       const tempPassword = generateClientTempPassword();
       
       // Save the temporary password
-      await saveClientTempPassword(agentData.id, data.email, tempPassword);
+      await saveClientTempPassword(clientData.id, data.email, tempPassword);
       
       // Create the user account in Supabase Auth
       const accountResult = await createClientUserAccount(

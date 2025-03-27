@@ -1,4 +1,3 @@
-
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -19,7 +18,7 @@ import EditClientInfo from "@/pages/EditClientInfo";
 import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
 import CreateClientAccount from "@/pages/CreateClientAccount";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Agents from "@/pages/Agents";
@@ -27,7 +26,6 @@ import Agents from "@/pages/Agents";
 function App() {
   const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
-  const [stableView, setStableView] = useState<React.ReactNode | null>(null);
   
   const isAuthCallback = location.pathname.includes('/auth/callback');
   const isAuthPage = location.pathname === '/auth';
@@ -40,116 +38,106 @@ function App() {
     }
   }, [isAuthCallback]);
   
-  // Stabilize the view to prevent flickering during navigation transitions
-  useEffect(() => {
-    if (isLoading || isAuthCallback) {
-      setStableView(
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
-            <p className="text-sm text-muted-foreground">
-              {isAuthCallback ? "Completing authentication..." : "Loading..."}
-            </p>
-          </div>
+  if (isLoading || isAuthCallback) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+          <p className="text-sm text-muted-foreground">
+            {isAuthCallback ? "Completing authentication..." : "Loading..."}
+          </p>
         </div>
-      );
-      return;
-    }
-    
-    if (!user && isPublicRoute) {
-      setStableView(
-        <div className="min-h-screen bg-background">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/auth/*" element={<Auth />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          <Toaster />
-        </div>
-      );
-      return;
-    }
-    
-    if (!user) {
-      setStableView(
-        <div className="min-h-screen bg-background">
-          <Routes>
-            <Route path="/auth/*" element={<Auth />} />
-            <Route path="*" element={<Navigate to="/auth" replace />} />
-          </Routes>
-          <Toaster />
-        </div>
-      );
-      return;
-    }
-    
-    if (!userRole) {
-      setStableView(
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
-            <p className="text-sm text-muted-foreground">Loading user profile...</p>
-          </div>
-        </div>
-      );
-      return;
-    }
-    
-    console.log("Rendering with user role:", userRole);
-    
-    if (userRole === 'admin') {
-      setStableView(
-        <div className="min-h-screen bg-background">
-          <Header />
-          <Routes>
-            <Route path="/admin/dashboard" element={<Index />} />
-            <Route path="/admin/clients" element={<ClientList />} />
-            <Route path="/admin/agents" element={<Agents />} />
-            <Route path="/admin/agents/:agentId" element={<Agents />} />
-            <Route path="/admin/settings" element={<Settings />} />
-            <Route path="/admin/clients/new" element={<CreateClientAccount />} />
-            <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
-            <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
-            <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
-            <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
-            <Route path="/admin/clients/:clientId" element={<Navigate to="/admin/clients/view/:clientId" replace />} />
-            <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
-            <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/auth/callback" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/client/*" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
-        </div>
-      );
-      return;
-    }
-    
-    setStableView(
+      </div>
+    );
+  }
+
+  if (!user && isPublicRoute) {
+    return (
       <div className="min-h-screen bg-background">
-        <ClientHeader />
         <Routes>
-          <Route path="/client/dashboard" element={<ClientDashboard />} />
-          <Route path="/client/settings" element={<ClientSettings />} />
-          <Route path="/client/account-settings" element={<AccountSettings />} />
-          <Route path="/client/resource-settings" element={<ResourceSettings />} />
-          <Route path="/client/edit-info" element={<EditClientInfo />} />
-          <Route path="/client/widget-settings" element={<WidgetSettings />} />
-          <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
-          <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
-          <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
-          <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/auth/*" element={<Auth />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <Toaster />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Routes>
+          <Route path="/auth/*" element={<Auth />} />
+          <Route path="*" element={<Navigate to="/auth" replace />} />
+        </Routes>
+        <Toaster />
+      </div>
+    );
+  }
+
+  if (!userRole) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+          <p className="text-sm text-muted-foreground">Loading user profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  console.log("Rendering with user role:", userRole);
+
+  if (userRole === 'admin') {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <Routes>
+          <Route path="/admin/dashboard" element={<Index />} />
+          <Route path="/admin/clients" element={<ClientList />} />
+          <Route path="/admin/agents" element={<Agents />} />
+          <Route path="/admin/agents/:agentId" element={<Agents />} />
+          <Route path="/admin/settings" element={<Settings />} />
+          <Route path="/admin/clients/new" element={<CreateClientAccount />} />
+          <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
+          <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
+          <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
+          <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
+          <Route path="/admin/clients/:clientId" element={<Navigate to="/admin/clients/view/:clientId" replace />} />
+          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+          <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/auth/callback" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/client/*" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />
       </div>
     );
-  }, [user, userRole, isLoading, isPublicRoute, isAuthCallback, isAuthPage, location.pathname]);
-  
-  return stableView;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <ClientHeader />
+      <Routes>
+        <Route path="/client/dashboard" element={<ClientDashboard />} />
+        <Route path="/client/settings" element={<ClientSettings />} />
+        <Route path="/client/account-settings" element={<AccountSettings />} />
+        <Route path="/client/resource-settings" element={<ResourceSettings />} />
+        <Route path="/client/edit-info" element={<EditClientInfo />} />
+        <Route path="/client/widget-settings" element={<WidgetSettings />} />
+        <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
+        <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
+        <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Toaster />
+    </div>
+  );
 }
 
 export default App;
