@@ -59,8 +59,7 @@ export function EditClientInfo() {
         />
       </div>
     </div>
-  );
-}
+  };
 
 // Add default export
 export default EditClientInfo;
