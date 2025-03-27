@@ -54,6 +54,12 @@ export const getClientByEmail = async (email: string) => {
 
 export const createClient = async (client: Partial<Client>) => {
   try {
+    // Log the activity type using a string literal rather than an enum
+    console.log(`[Creating client]: ${client.client_name}`, {
+      activityType: 'client_created', // Using string literal
+      timestamp: new Date().toISOString()
+    });
+    
     const { data, error } = await supabase
       .from('ai_agents')
       .insert(client as any)
@@ -70,6 +76,12 @@ export const createClient = async (client: Partial<Client>) => {
 
 export const updateClient = async (clientId: string, updates: Partial<Client>) => {
   try {
+    // Log the activity type using a string literal rather than an enum
+    console.log(`[Updating client]: ${updates.client_name || clientId}`, {
+      activityType: 'client_updated', // Using string literal
+      timestamp: new Date().toISOString()
+    });
+    
     const { data, error } = await supabase
       .from('ai_agents')
       .update(updates as any)

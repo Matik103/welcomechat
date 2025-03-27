@@ -97,8 +97,12 @@ export const aiAgentService = {
         return null;
       }
 
-      // Log to console instead of database
-      console.log(`[ACTIVITY LOG] AI agent created: ${agent.name}`);
+      // Log to console instead of database - using string literal, not enum
+      console.log(`[ACTIVITY LOG] AI agent created: ${agent.name}`, {
+        activityType: 'agent_created',
+        agent_name: agent.name,
+        client_id: agent.client_id
+      });
 
       return data as AIAgent;
     } catch (error) {
@@ -131,8 +135,12 @@ export const aiAgentService = {
         return null;
       }
 
-      // Log to console instead of database
-      console.log(`[ACTIVITY LOG] AI agent updated: ${updates.name || id}`);
+      // Log to console instead of database - using string literal, not enum
+      console.log(`[ACTIVITY LOG] AI agent updated: ${updates.name || id}`, {
+        activityType: 'agent_updated',
+        agent_name: updates.name,
+        agent_id: id
+      });
 
       return data as AIAgent;
     } catch (error) {
@@ -160,8 +168,11 @@ export const aiAgentService = {
         return false;
       }
 
-      // Log to console instead of database
-      console.log(`[ACTIVITY LOG] AI agent deleted: ${id}`);
+      // Log to console instead of database - using string literal, not enum
+      console.log(`[ACTIVITY LOG] AI agent deleted: ${id}`, {
+        activityType: 'agent_deleted',
+        agent_id: id
+      });
 
       return true;
     } catch (error) {

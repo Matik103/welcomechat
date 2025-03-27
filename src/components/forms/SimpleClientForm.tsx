@@ -94,7 +94,7 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         throw new Error(clientError.message);
       }
       
-      // Log activity to console instead of database
+      // Log activity to console instead of database - don't try to use activity_type enum
       console.log(`[ACTIVITY LOG]: New client created: ${clientName}`, {
         clientId,
         activityType: 'client_created', // Using string literal instead of enum
