@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,6 +60,9 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
       // Generate a temporary password
       const tempPassword = generateTempPassword();
       
+      console.log("Creating client with supabaseAdmin, service key exists:", 
+                 !!import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY);
+      
       // Create the client record in ai_agents table using supabaseAdmin to bypass RLS
       const { data: clientData, error: clientError } = await supabaseAdmin
         .from('ai_agents')
@@ -71,8 +73,8 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
           email: email,
           name: agentName,
           agent_description: agentDescription || "",
-          interaction_type: "config", // Adding required field
-          status: "active", // Adding required field
+          interaction_type: "config", // Required field
+          status: "active", // Required field
           settings: {
             agent_name: agentName,
             agent_description: agentDescription || "",
