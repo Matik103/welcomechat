@@ -1,5 +1,5 @@
 
-import { Eye, MessageSquare, Edit, Trash2 } from "lucide-react";
+import { Eye, MessageSquare, Edit } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -25,14 +25,9 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
         <span className="p-1 text-gray-300 cursor-not-allowed" title="Edit Info (ID missing)">
           <Edit className="w-4 h-4" />
         </span>
-        <span className="p-1 text-gray-300 cursor-not-allowed" title="Delete (ID missing)">
-          <Trash2 className="w-4 h-4" />
-        </span>
       </div>
     );
   }
-
-  console.log("Rendering client actions with ID:", clientId);
 
   return (
     <div className="flex items-center justify-end gap-2">
@@ -57,14 +52,6 @@ export const ClientActions = ({ clientId, onDeleteClick }: ClientActionsProps) =
       >
         <Edit className="w-4 h-4" />
       </Link>
-      <button
-        onClick={onDeleteClick}
-        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-        title="Schedule Deletion"
-        aria-label="Schedule agent deletion"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
     </div>
   );
-};
+}
