@@ -94,7 +94,7 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         .from('client_activities')
         .insert({
           client_id: clientId,
-          activity_type: 'client_created',
+          activity_type: 'ai_agent_created',  // Changed from "agent_created" to a valid enum value
           description: `New client created with AI agent: ${agentName}`,
           metadata: {
             client_name: clientName,
