@@ -586,7 +586,6 @@ export type Database = {
       client_activities: {
         Row: {
           activity_data: Json | null
-          activity_type: string
           client_id: string | null
           created_at: string
           description: string | null
@@ -596,7 +595,6 @@ export type Database = {
         }
         Insert: {
           activity_data?: Json | null
-          activity_type: string
           client_id?: string | null
           created_at?: string
           description?: string | null
@@ -606,7 +604,6 @@ export type Database = {
         }
         Update: {
           activity_data?: Json | null
-          activity_type?: string
           client_id?: string | null
           created_at?: string
           description?: string | null
