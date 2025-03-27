@@ -7,7 +7,7 @@ export default function AdminClientsPage() {
     <AdminLayout>
       <div className="container py-8">
         <h1 className="text-3xl font-bold mb-4">Manage Clients</h1>
-        <p>Admin client management interface.</p>
+        <p>Admin client management interface. Client creation has been disabled.</p>
       </div>
     </AdminLayout>
   );

@@ -22,8 +22,6 @@ import { useEffect } from "react";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Agents from "@/pages/Agents";
-import CreateClientAccount from "@/pages/CreateClientAccount";
-import NewClient from "@/pages/client/NewClient";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
@@ -103,8 +101,6 @@ function App() {
           <Route path="/admin/agents" element={<Agents />} />
           <Route path="/admin/agents/:agentId" element={<Agents />} />
           <Route path="/admin/settings" element={<Settings />} />
-          <Route path="/admin/clients/create" element={<CreateClientAccount />} />
-          <Route path="/admin/clients/new" element={<CreateClientAccount />} />
           <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
@@ -132,7 +128,6 @@ function App() {
         <Route path="/client/resource-settings" element={<ResourceSettings />} />
         <Route path="/client/edit-info" element={<EditClientInfo />} />
         <Route path="/client/widget-settings" element={<WidgetSettings />} />
-        <Route path="/client/new" element={<NewClient />} />
         <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
         <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
         <Route path="/" element={<Navigate to="/client/dashboard" replace />} />

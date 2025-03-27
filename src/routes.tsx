@@ -25,8 +25,6 @@ const WidgetSettingsPage = React.lazy(() => import('./pages/WidgetSettings'));
 const ClientResourceSettingsPage = React.lazy(() => import('./pages/client/ResourceSettings'));
 const ClientSettingsPage = React.lazy(() => import('./pages/client/Settings'));
 const ClientAccountSettingsPage = React.lazy(() => import('./pages/client/AccountSettings'));
-const CreateClientAccountPage = React.lazy(() => import('./pages/CreateClientAccount'));
-const NewClientPage = React.lazy(() => import('./pages/client/NewClient'));
 
 export const routes: RouteObject[] = [
   {
@@ -92,10 +90,6 @@ export const routes: RouteObject[] = [
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AddEditClientPage /></React.Suspense></ProtectedRoute>,
   },
   {
-    path: '/admin/clients/new',
-    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><CreateClientAccountPage /></React.Suspense></ProtectedRoute>,
-  },
-  {
     path: '/admin/users',
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AdminUsersPage /></React.Suspense></ProtectedRoute>,
   },
@@ -144,13 +138,5 @@ export const routes: RouteObject[] = [
   {
     path: '/client/account-settings',
     element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><ClientAccountSettingsPage /></React.Suspense></ProtectedRoute>,
-  },
-  {
-    path: '/client/new',
-    element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><NewClientPage /></React.Suspense></ProtectedRoute>,
-  },
-  {
-    path: '/admin/clients/create',
-    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><CreateClientAccountPage /></React.Suspense></ProtectedRoute>,
   },
 ];
