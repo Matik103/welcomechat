@@ -18,8 +18,18 @@ export const createClientActivity = async (
     // Use type assertion to handle the string comparison with the enum
     if (activity_type as string === 'agent_created') {
       validActivityType = 'ai_agent_created' as ActivityType;
+      // Store the original type in metadata for reference
+      metadata = {
+        ...metadata,
+        original_activity_type: 'agent_created'
+      };
     } else if (activity_type as string === 'agent_updated') {
       validActivityType = 'ai_agent_updated' as ActivityType;
+      // Store the original type in metadata for reference
+      metadata = {
+        ...metadata,
+        original_activity_type: 'agent_updated'
+      };
     }
     
     // Use client_activities table name
