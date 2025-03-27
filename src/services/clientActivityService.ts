@@ -2,71 +2,114 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityType } from '@/types/client-form';
 import { Json } from '@/integrations/supabase/types';
+import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
-export const createClientActivity = async (
+/**
+ * Creates a client activity record
+ */
+export async function createClientActivity(
   clientId: string,
   activity_type: ActivityType,
   description: string,
-  metadata?: Record<string, any>
-): Promise<void> => {
+  metadata: Record<string, any> = {}
+): Promise<boolean> {
   try {
-    // Map activity types that might not be in the enum to valid ones
-    let validActivityType = activity_type;
-    
-    // Check if the activity type needs to be mapped to a valid enum value
-    // We support both old and new activity type names for backward compatibility
-    // Use type assertion to handle the string comparison with the enum
-    if (activity_type as string === 'agent_created') {
-      validActivityType = 'ai_agent_created' as ActivityType;
-      // Store the original type in metadata for reference
-      metadata = {
-        ...metadata,
-        original_activity_type: 'agent_created'
-      };
-    } else if (activity_type as string === 'agent_updated') {
-      validActivityType = 'ai_agent_updated' as ActivityType;
-      // Store the original type in metadata for reference
-      metadata = {
-        ...metadata,
-        original_activity_type: 'agent_updated'
-      };
-    }
-    
-    // Use client_activities table name
-    const { error } = await supabase
-      .from('client_activities')
-      .insert({
-        client_id: clientId,
-        activity_type: validActivityType as string,
-        description,
-        metadata
-      } as any);
+    // Map legacy activity types to valid enum values if needed
+    // This ensures backward compatibility while using the valid enum values
+    const activityTypeMapping: Record<string, ActivityType> = {
+      'agent_created': 'ai_agent_created',
+      'agent_updated': 'ai_agent_updated',
+    };
 
-    if (error) {
-      console.error('Error creating client activity:', error);
-    }
+    // Use the mapped activity type or the original one if no mapping exists
+    const validActivityType = activityTypeMapping[activity_type as string] || activity_type;
+    
+    // Store the original type in metadata for reference
+    const enhancedMetadata = {
+      ...metadata,
+      original_activity_type: activity_type !== validActivityType ? activity_type : undefined
+    };
+    
+    // Use RPC function for better error handling and consistency
+    const result = await callRpcFunctionSafe('log_client_activity', {
+      client_id_param: clientId,
+      activity_type_param: validActivityType,
+      description_param: description,
+      metadata_param: enhancedMetadata
+    });
+    
+    return !!result;
   } catch (error) {
     console.error('Error creating client activity:', error);
+    return false;
   }
-};
+}
 
-export const getClientActivities = async (
-  clientId: string,
-  limit: number = 10
-) => {
+/**
+ * Alias for createClientActivity for backward compatibility
+ */
+export const logClientActivity = createClientActivity;
+
+/**
+ * Fetches client activities for a given client
+ */
+export async function getClientActivities(clientId: string, limit = 20, offset = 0) {
   try {
-    // Use client_activities table name
     const { data, error } = await supabase
       .from('client_activities')
       .select('*')
       .eq('client_id', clientId)
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return data;
+    return data || [];
   } catch (error) {
     console.error('Error fetching client activities:', error);
     return [];
   }
-};
+}
+
+/**
+ * Fetches recent activities across all clients
+ */
+export async function getRecentActivities(limit = 20, offset = 0) {
+  try {
+    const { data, error } = await supabase
+      .from('client_activities')
+      .select('*, clients(client_name)')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    
+    // Transform the data to include client_name directly on the activity
+    const transformedData = data.map(activity => ({
+      ...activity,
+      client_name: activity.clients?.client_name
+    }));
+    
+    return transformedData || [];
+  } catch (error) {
+    console.error('Error fetching recent activities:', error);
+    return [];
+  }
+}
+
+/**
+ * Counts activities by type for a specific client
+ */
+export async function countActivitiesByType(clientId: string) {
+  try {
+    const { data, error } = await supabase
+      .rpc('count_activities_by_type', {
+        client_id_param: clientId
+      });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error counting activities by type:', error);
+    return [];
+  }
+}
