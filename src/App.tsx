@@ -1,4 +1,3 @@
-
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -22,6 +21,7 @@ import { useEffect } from "react";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Agents from "@/pages/Agents";
+import CreateClientAccount from "@/pages/CreateClientAccount";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
@@ -101,6 +101,7 @@ function App() {
           <Route path="/admin/agents" element={<Agents />} />
           <Route path="/admin/agents/:agentId" element={<Agents />} />
           <Route path="/admin/settings" element={<Settings />} />
+          <Route path="/admin/clients/create" element={<CreateClientAccount />} />
           <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />

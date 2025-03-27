@@ -6,93 +6,98 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
+import { generateTempPassword } from '@/utils/passwordUtils';
 
 // Form validation schema
 const clientFormSchema = z.object({
-  clientName: z.string().min(2, 'Client name is required'),
+  client_name: z.string().min(2, 'Client name is required'),
   email: z.string().email('Invalid email address'),
-  agentName: z.string().min(1, 'Agent name is required'),
-  agentDescription: z.string().optional()
+  agent_name: z.string().min(1, 'Agent name is required'),
+  agent_description: z.string().optional()
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
 
 export function ClientCreationForm() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      clientName: '',
+      client_name: '',
       email: '',
-      agentName: 'AI Assistant',
-      agentDescription: ''
+      agent_name: 'AI Assistant',
+      agent_description: ''
     },
   });
 
   const onSubmit = async (data: ClientFormValues) => {
-    setIsLoading(true);
-    const createToastId = toast.loading("Creating client...");
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Creating client account...");
     
     try {
+      // Generate a client ID
       const clientId = uuidv4();
       
-      // Create the client record
-      const { error: clientError } = await supabase
-        .from('clients')
+      // Generate a temporary password
+      const tempPassword = generateTempPassword();
+      
+      // First create the client record
+      const { data: clientData, error: clientError } = await supabase
+        .from('ai_agents')
         .insert({
           id: clientId,
-          client_name: data.clientName,
+          client_id: clientId,
+          client_name: data.client_name,
           email: data.email,
-          agent_name: data.agentName,
-          widget_settings: {
-            agent_name: data.agentName,
-            agent_description: data.agentDescription || "",
-            client_name: data.clientName,
-            email: data.email
+          name: data.agent_name,
+          agent_description: data.agent_description || "",
+          settings: {
+            agent_name: data.agent_name,
+            agent_description: data.agent_description || "",
+            client_name: data.client_name,
+            email: data.email,
+            client_id: clientId
           }
-        });
+        })
+        .select()
+        .single();
 
       if (clientError) {
         console.error("Error creating client:", clientError);
         throw new Error(clientError.message);
       }
-
-      // Generate temporary password
-      const tempPassword = generateTempPassword();
       
       // Call the send-welcome-email edge function
-      const { error: emailFnError } = await supabase.functions.invoke(
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke(
         'send-welcome-email', 
         {
           body: {
             clientId: clientId,
-            clientName: data.clientName,
+            clientName: data.client_name,
             email: data.email,
-            agentName: data.agentName,
+            agentName: data.agent_name,
             tempPassword: tempPassword
           }
         }
       );
       
-      if (emailFnError) {
-        console.error("Email function error:", emailFnError);
-        toast.error("Client created but failed to send invitation email", { id: createToastId });
+      if (emailError) {
+        console.error("Error sending welcome email:", emailError);
+        toast.error("Client created but failed to send welcome email", { id: loadingToast });
+        // Continue with success case since client was created
+      } else if (emailResult && !emailResult.success) {
+        console.error("Welcome email sending failed:", emailResult.error);
+        toast.error("Client created but welcome email failed to send", { id: loadingToast });
+        // Continue with success case since client was created
       } else {
-        toast.success("Client created successfully and invitation sent", { id: createToastId });
+        toast.success("Client created successfully and welcome email sent", { id: loadingToast });
       }
       
       // Reset form and navigate back to clients list
@@ -100,21 +105,10 @@ export function ClientCreationForm() {
       navigate('/admin/clients');
     } catch (error) {
       console.error('Error creating client:', error);
-      toast.error('Failed to create client. Please try again.', { id: createToastId });
+      toast.error('Failed to create client. Please try again.', { id: loadingToast });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
-  };
-
-  // Generate a temporary password
-  const generateTempPassword = (length = 12) => {
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
-    let password = '';
-    for (let i = 0; i < length; i++) {
-      const randomIndex = Math.floor(Math.random() * charset.length);
-      password += charset[randomIndex];
-    }
-    return password;
   };
 
   return (
@@ -122,12 +116,16 @@ export function ClientCreationForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
-          name="clientName"
+          name="client_name"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Client Name</FormLabel>
               <FormControl>
-                <Input placeholder="Enter client name" {...field} disabled={isLoading} />
+                <Input
+                  placeholder="Enter client name"
+                  {...field}
+                  disabled={isSubmitting}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -141,11 +139,11 @@ export function ClientCreationForm() {
             <FormItem>
               <FormLabel>Email Address</FormLabel>
               <FormControl>
-                <Input 
-                  type="email" 
-                  placeholder="Enter email address" 
-                  {...field} 
-                  disabled={isLoading} 
+                <Input
+                  type="email"
+                  placeholder="Enter email address"
+                  {...field}
+                  disabled={isSubmitting}
                 />
               </FormControl>
               <FormMessage />
@@ -155,15 +153,15 @@ export function ClientCreationForm() {
 
         <FormField
           control={form.control}
-          name="agentName"
+          name="agent_name"
           render={({ field }) => (
             <FormItem>
               <FormLabel>AI Agent Name</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Enter AI agent name" 
-                  {...field} 
-                  disabled={isLoading} 
+                <Input
+                  placeholder="Enter AI agent name"
+                  {...field}
+                  disabled={isSubmitting}
                 />
               </FormControl>
               <FormMessage />
@@ -173,28 +171,25 @@ export function ClientCreationForm() {
 
         <FormField
           control={form.control}
-          name="agentDescription"
+          name="agent_description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Chatbot Description</FormLabel>
+              <FormLabel>AI Agent Description</FormLabel>
               <FormControl>
                 <Textarea
                   placeholder="Describe your AI assistant's purpose and personality..."
                   {...field}
-                  disabled={isLoading}
-                  rows={5}
+                  disabled={isSubmitting}
+                  rows={4}
                 />
               </FormControl>
               <FormMessage />
-              <p className="text-xs text-gray-500 mt-1">
-                This description helps define how your AI assistant interacts with users and will be used as the system prompt. Client can set this later.
-              </p>
             </FormItem>
           )}
         />
 
-        <Button type="submit" disabled={isLoading} className="w-full bg-blue-500 hover:bg-blue-600">
-          {isLoading ? 'Creating...' : 'Create Client'}
+        <Button type="submit" disabled={isSubmitting} className="w-full">
+          {isSubmitting ? 'Creating...' : 'Create Client'}
         </Button>
       </form>
     </Form>
