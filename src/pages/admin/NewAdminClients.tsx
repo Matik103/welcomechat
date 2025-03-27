@@ -13,12 +13,20 @@ export default function NewAdminClientsPage() {
   const { clients, isLoading, searchQuery, handleSearch } = useClientList();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  const handleOpenModal = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsCreateModalOpen(false);
+  };
+
   return (
     <AdminLayout>
       <div className="container py-8">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-3xl font-bold">Manage Clients</h1>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Button onClick={handleOpenModal}>
             <Plus className="mr-2 h-4 w-4" /> Add Client
           </Button>
         </div>
@@ -49,7 +57,7 @@ export default function NewAdminClientsPage() {
       
       <NewClientModal 
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={handleCloseModal}
       />
     </AdminLayout>
   );

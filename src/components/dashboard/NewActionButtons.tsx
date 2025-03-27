@@ -31,6 +31,10 @@ export const NewActionButtons = () => {
     setIsCreateModalOpen(true);
   };
   
+  const handleCloseModal = () => {
+    setIsCreateModalOpen(false);
+  };
+  
   return (
     <>
       <div className="flex flex-wrap gap-4">
@@ -44,7 +48,7 @@ export const NewActionButtons = () => {
       
       <NewClientModal 
         isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
+        onClose={handleCloseModal} 
       />
     </>
   );
