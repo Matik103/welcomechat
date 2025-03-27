@@ -1,4 +1,3 @@
-
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -8,7 +7,6 @@ import Home from "@/pages/Home";
 import ClientList from "@/pages/ClientList";
 import Settings from "@/pages/Settings";
 import ClientView from "@/pages/ClientView";
-import AddEditClient from "@/pages/AddEditClient";
 import WidgetSettings from "@/pages/WidgetSettings";
 import { useAuth } from "./contexts/AuthContext";
 import ClientSettings from "@/pages/client/Settings";
@@ -104,7 +102,6 @@ function App() {
           <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
-          <Route path="/admin/clients/:clientId/edit" element={<AddEditClient />} />
           <Route path="/admin/clients/:clientId" element={<Navigate to="/admin/clients/view/:clientId" replace />} />
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />

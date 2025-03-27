@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { RouteObject } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -8,7 +7,6 @@ const AboutPage = React.lazy(() => import('./pages/About'));
 const ContactPage = React.lazy(() => import('./pages/Contact'));
 const AuthPage = React.lazy(() => import('./pages/Auth'));
 const ClientListPage = React.lazy(() => import('./pages/ClientList'));
-const AddEditClientPage = React.lazy(() => import('./pages/AddEditClient'));
 const ClientDashboardPage = React.lazy(() => import('./pages/client/Dashboard'));
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminAgentsPage = React.lazy(() => import('./pages/admin/AdminAgents'));
@@ -84,10 +82,6 @@ export const routes: RouteObject[] = [
   {
     path: '/admin/clients/:clientId/widget-settings',
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><WidgetSettingsPage /></React.Suspense></ProtectedRoute>,
-  },
-  {
-    path: '/admin/clients/:clientId/edit',
-    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AddEditClientPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/admin/users',
