@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { PageHeading } from "@/components/dashboard/PageHeading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { NewClientForm } from "@/components/forms/NewClientForm";
+import { ClientCreationForm } from "@/components/forms/ClientCreationForm";
 
 export default function CreateClientAccount() {
   const navigate = useNavigate();
@@ -30,7 +30,7 @@ export default function CreateClientAccount() {
               <CardTitle className="text-2xl font-bold">Create New Client Account</CardTitle>
             </CardHeader>
             <CardContent>
-              <NewClientForm />
+              <ClientCreationForm />
             </CardContent>
           </Card>
         </div>
@@ -48,10 +48,9 @@ export default function CreateClientAccount() {
                   When you submit the form, we'll:
                   <ol className="list-decimal ml-4 mt-2 space-y-1 text-sm">
                     <li>Generate a unique client ID (UUID)</li>
-                    <li>Create a new AI agent in the database</li>
+                    <li>Create a new client in the database</li>
                     <li>Generate a secure temporary password</li>
                     <li>Send a welcome email with login details</li>
-                    <li>Set up the OpenAI assistant (if enabled)</li>
                   </ol>
                 </AlertDescription>
               </Alert>

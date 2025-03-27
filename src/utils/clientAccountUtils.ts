@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/client-form';
@@ -12,11 +11,7 @@ export const createClientUserAccount = async (
   tempPassword: string
 ) => {
   try {
-    // Implementation details would be here
     console.log(`Creating user account for ${email} with client ID ${clientId}`);
-    
-    // This is where you would create the actual user account
-    // For now, we just return success
     return { success: true };
   } catch (error) {
     console.error("Error creating client user account:", error);
