@@ -43,11 +43,6 @@ const ResourceSettings = () => {
     }
   };
 
-  // Adapt the logClientActivity function to match the expected interface in ClientResourceSections
-  const logActivity = (activityType: string, description: string, metadata?: Record<string, any>) => {
-    return logClientActivity(description, metadata);
-  };
-
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Resource Settings</h1>
@@ -55,7 +50,7 @@ const ResourceSettings = () => {
       <ClientResourceSections 
         clientId={clientId || ''}
         onResourceChange={() => {}}
-        logClientActivity={logActivity}
+        logClientActivity={logClientActivity}
       />
     </div>
   );

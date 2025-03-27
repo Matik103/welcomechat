@@ -11,7 +11,7 @@ interface ClientResourceSectionsProps {
   isDeleting?: boolean;
   refetchWebsiteUrls?: () => void;
   onResourceChange?: () => void;
-  logClientActivity: (activity_type: string, description: string, metadata?: Record<string, any>) => Promise<void>;
+  logClientActivity: () => Promise<void>;
 }
 
 export const ClientResourceSections = ({

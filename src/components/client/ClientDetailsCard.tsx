@@ -4,13 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { Client } from '@/types/client';
-import { ActivityType } from '@/types/client-form';
 
 interface ClientDetailsCardProps {
   client: Client | null;
   isLoading?: boolean;
   isClientView?: boolean;
-  logClientActivity?: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
+  logClientActivity?: () => Promise<void>;
 }
 
 export function ClientDetailsCard({ client, isLoading = false, isClientView = false, logClientActivity }: ClientDetailsCardProps) {

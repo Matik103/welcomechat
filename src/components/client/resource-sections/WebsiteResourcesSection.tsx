@@ -6,7 +6,6 @@ import { WebsiteUrlForm } from '../website-urls/WebsiteUrlForm';
 import { WebsiteUrlsList } from '../website-urls/WebsiteUrlsList'; 
 import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
 import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
-import { ActivityType } from '@/types/client-form';
 import { WebsiteUrl, WebsiteUrlFormData } from '@/types/website-url';
 import { PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,7 +13,7 @@ import { toast } from 'sonner';
 interface WebsiteResourcesSectionProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
+  logClientActivity: () => Promise<void>;
 }
 
 export function WebsiteResourcesSection({ 
@@ -48,11 +47,7 @@ export function WebsiteResourcesSection({
       });
       
       // Log activity
-      await logClientActivity(
-        'website_url_added' as ActivityType,
-        `Added website URL: ${data.url}`,
-        { url: data.url, refresh_rate: data.refresh_rate }
-      );
+      await logClientActivity();
       
       // Hide the form after successful submission
       setShowForm(false);
@@ -73,19 +68,10 @@ export function WebsiteResourcesSection({
   // Handle deleting a website URL
   const handleDelete = async (urlId: number) => {
     try {
-      // Find the URL being deleted to include in the log
-      const urlToDelete = websiteUrls.find(url => url.id === urlId);
-      
       await deleteWebsiteUrlMutation.mutateAsync(urlId);
       
       // Log activity
-      if (urlToDelete) {
-        await logClientActivity(
-          'website_url_deleted' as ActivityType,
-          `Removed website URL: ${urlToDelete.url}`,
-          { url: urlToDelete.url, url_id: urlId }
-        );
-      }
+      await logClientActivity();
       
       // Notify parent component about the change
       if (onResourceChange) {
@@ -108,27 +94,10 @@ export function WebsiteResourcesSection({
       
       // Log activity based on the result
       if (result.success) {
-        await logClientActivity(
-          'document_processed' as ActivityType,
-          `Processed website: ${website.url}`,
-          { 
-            url: website.url, 
-            url_id: website.id
-          }
-        );
-        
+        await logClientActivity();
         toast.success(`Website processed successfully`);
       } else {
-        await logClientActivity(
-          'document_processing_failed' as ActivityType,
-          `Failed to process website: ${website.url}`,
-          { 
-            url: website.url, 
-            url_id: website.id,
-            error: result.error
-          }
-        );
-        
+        await logClientActivity();
         toast.error(`Failed to process website: ${result.error}`);
       }
       
@@ -144,15 +113,7 @@ export function WebsiteResourcesSection({
       toast.error('Failed to process website');
       
       // Log the error
-      await logClientActivity(
-        'document_processing_failed' as ActivityType,
-        `Failed to process website: ${website.url}`,
-        { 
-          url: website.url, 
-          url_id: website.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }
-      );
+      await logClientActivity();
     } finally {
       setIsStoring(false);
       setIsWebsiteToProcess(null);
