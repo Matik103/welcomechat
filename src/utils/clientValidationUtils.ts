@@ -12,15 +12,5 @@ export const validateClientData = (data: ClientFormData) => {
     throw new Error("Invalid form data");
   }
 
-  // Ensure widget_settings is properly defined
-  const validatedData = validationResult.data;
-  if (!validatedData.widget_settings) {
-    validatedData.widget_settings = {
-      agent_name: "",
-      agent_description: "",
-      logo_url: ""
-    };
-  }
-
-  return validatedData;
+  return validationResult.data;
 };

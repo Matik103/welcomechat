@@ -8,10 +8,8 @@ export type ClientMutationData = {
   client_id?: string;
   client_name: string;
   email: string;
-  widget_settings?: {
-    agent_name?: string;
-    agent_description?: string;
-  };
+  agent_name?: string;
+  agent_description?: string;
 };
 
 export const useClientMutation = () => {
@@ -29,15 +27,14 @@ export const useClientMutation = () => {
         updated_at: new Date().toISOString()
       };
 
-      // Extract agent info from widget_settings if available
-      if (data.widget_settings) {
-        if (data.widget_settings.agent_name) {
-          updateData.name = data.widget_settings.agent_name;
-          updateData.agent_name = data.widget_settings.agent_name;
-        }
-        if (data.widget_settings.agent_description) {
-          updateData.agent_description = data.widget_settings.agent_description;
-        }
+      // Extract agent info directly from the form data
+      if (data.agent_name) {
+        updateData.name = data.agent_name;
+        updateData.agent_name = data.agent_name;
+      }
+      
+      if (data.agent_description) {
+        updateData.agent_description = data.agent_description;
       }
 
       const updatedClient = await updateClient(data.client_id, updateData);
