@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
-import { ClientCreationForm } from "@/components/forms/ClientCreationForm";
+import { SimpleClientForm } from "@/components/forms/SimpleClientForm";
 
 export default function NewClient() {
   const navigate = useNavigate();
@@ -30,7 +30,7 @@ export default function NewClient() {
               <CardTitle className="text-2xl font-bold">Create New Client Account</CardTitle>
             </CardHeader>
             <CardContent>
-              <ClientCreationForm redirectPath="/client/dashboard" />
+              <SimpleClientForm redirectPath="/client/dashboard" />
             </CardContent>
           </Card>
         </div>

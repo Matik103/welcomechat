@@ -17,18 +17,17 @@ import { generateTempPassword } from '@/utils/passwordUtils';
 const clientFormSchema = z.object({
   client_name: z.string().min(2, 'Client name is required'),
   email: z.string().email('Invalid email address'),
-  agent_name: z.string().min(1, 'Agent name is required'),
+  agent_name: z.string().min(1, 'AI agent name is required'),
   agent_description: z.string().optional()
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
 
-interface ClientCreationFormProps {
+interface SimpleClientFormProps {
   redirectPath?: string;
-  onSuccess?: (clientId: string) => void;
 }
 
-export function ClientCreationForm({ redirectPath = '/admin/clients', onSuccess }: ClientCreationFormProps) {
+export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -53,7 +52,7 @@ export function ClientCreationForm({ redirectPath = '/admin/clients', onSuccess 
       // Generate a temporary password
       const tempPassword = generateTempPassword();
       
-      // First create the client record
+      // Create the client record in ai_agents table
       const { data: clientData, error: clientError } = await supabase
         .from('ai_agents')
         .insert({
@@ -68,7 +67,9 @@ export function ClientCreationForm({ redirectPath = '/admin/clients', onSuccess 
             agent_description: data.agent_description || "",
             client_name: data.client_name,
             email: data.email,
-            client_id: clientId
+            client_id: clientId,
+            tempPassword: tempPassword,
+            tempPasswordSetAt: new Date().toISOString()
           }
         })
         .select()
@@ -79,7 +80,7 @@ export function ClientCreationForm({ redirectPath = '/admin/clients', onSuccess 
         throw new Error(clientError.message);
       }
       
-      // Call the send-welcome-email edge function
+      // Send welcome email with Resend.com through edge function
       const { data: emailResult, error: emailError } = await supabase.functions.invoke(
         'send-welcome-email', 
         {
@@ -88,7 +89,8 @@ export function ClientCreationForm({ redirectPath = '/admin/clients', onSuccess 
             clientName: data.client_name,
             email: data.email,
             agentName: data.agent_name,
-            tempPassword: tempPassword
+            tempPassword: tempPassword,
+            fromEmail: 'admin@welcome.chat'
           }
         }
       );
@@ -96,11 +98,9 @@ export function ClientCreationForm({ redirectPath = '/admin/clients', onSuccess 
       if (emailError) {
         console.error("Error sending welcome email:", emailError);
         toast.error("Client created but failed to send welcome email", { id: loadingToast });
-        // Continue with success case since client was created
       } else if (emailResult && !emailResult.success) {
         console.error("Welcome email sending failed:", emailResult.error);
         toast.error("Client created but welcome email failed to send", { id: loadingToast });
-        // Continue with success case since client was created
       } else {
         toast.success("Client created successfully and welcome email sent", { id: loadingToast });
       }
@@ -108,11 +108,8 @@ export function ClientCreationForm({ redirectPath = '/admin/clients', onSuccess 
       // Reset form
       form.reset();
       
-      // Call onSuccess callback if provided
-      if (onSuccess) {
-        onSuccess(clientId);
-      } else {
-        // Navigate back to clients list or specified redirect path
+      // Navigate to the specified redirect path
+      if (redirectPath) {
         navigate(redirectPath);
       }
     } catch (error) {

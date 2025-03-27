@@ -4,7 +4,7 @@ import { ArrowLeft, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ClientCreationForm } from "@/components/forms/ClientCreationForm";
+import { SimpleClientForm } from "@/components/forms/SimpleClientForm";
 
 export default function CreateClientAccount() {
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ export default function CreateClientAccount() {
               <CardTitle className="text-2xl font-bold">Create New Client Account</CardTitle>
             </CardHeader>
             <CardContent>
-              <ClientCreationForm />
+              <SimpleClientForm redirectPath="/admin/clients" />
             </CardContent>
           </Card>
         </div>
