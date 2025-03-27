@@ -1,3 +1,4 @@
+
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -17,7 +18,6 @@ import ResourceSettings from "@/pages/client/ResourceSettings";
 import EditClientInfo from "@/pages/EditClientInfo";
 import { Toaster } from "sonner";
 import NotFound from "@/pages/NotFound";
-import CreateClientAccount from "@/pages/CreateClientAccount";
 import { useEffect } from "react";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
@@ -101,7 +101,6 @@ function App() {
           <Route path="/admin/agents" element={<Agents />} />
           <Route path="/admin/agents/:agentId" element={<Agents />} />
           <Route path="/admin/settings" element={<Settings />} />
-          <Route path="/admin/clients/new" element={<CreateClientAccount />} />
           <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
