@@ -1,8 +1,0 @@
-
-{
-  "imports": {
-    "std/http/server": "https://deno.land/std@0.168.0/http/server.ts",
-    "oauth2_client": "https://deno.land/x/oauth2_client@v1.0.2/mod.ts",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
-  }
-} 
