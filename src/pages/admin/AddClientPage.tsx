@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from "zod";
@@ -41,19 +40,21 @@ export default function AddClientPage() {
   const onSubmit = async (values: ClientFormValues) => {
     setIsSubmitting(true);
     try {
-      // Create client in the ai_agents table without any activity logging
-      // Only including essential fields and avoiding triggers
+      // IMPORTANT: Direct database insert without any OpenAI assistant creation
+      // Avoiding any triggers or processes that might log activities with invalid enum values
       const { data, error } = await supabaseAdmin
         .from("ai_agents")
         .insert({
           client_name: values.clientName,
           email: values.email,
           name: values.chatbotName,
-          agent_description: values.chatbotDescription,
+          agent_description: values.chatbotDescription || "",
           interaction_type: "config", // Set type as config
           settings: {
             agent_name: values.chatbotName,
-            agent_description: values.chatbotDescription,
+            agent_description: values.chatbotDescription || "",
+            client_name: values.clientName,
+            email: values.email
           },
           status: "active",
           created_at: new Date().toISOString(),
@@ -67,6 +68,7 @@ export default function AddClientPage() {
       }
 
       // Only log to console, no database activity logging
+      // Avoid using "agent_created" as it seems to be an invalid enum
       console.log(`Client created: ${values.clientName}`, {
         clientName: values.clientName,
         chatbotName: values.chatbotName

@@ -43,7 +43,8 @@ export const clientAgentService = {
         email: '', // Add empty email field to prevent null issues
       };
 
-      // Use admin supabase client for operations requiring service role
+      // IMPORTANT: No OpenAI assistant creation here - just direct insert
+      // This prevents any activity logging triggers with invalid enum values
       const { data, error } = await supabaseAdmin
         .from("ai_agents")
         .insert(agentData)
@@ -57,8 +58,8 @@ export const clientAgentService = {
       }
 
       // Only log to console, do not attempt any activity logging to database
+      // Do NOT use "agent_created" as activity type as it seems to be invalid
       console.log(`AI agent created: ${agentName}`, {
-        action: 'agent_created', // Just for console, not database
         agent_name: agentName,
         client_id: clientId
       });
