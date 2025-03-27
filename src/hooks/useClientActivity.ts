@@ -1,10 +1,7 @@
 
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Json } from '@/integrations/supabase/types';
-import { callRpcFunctionSafe } from '@/utils/rpcUtils';
-import { createClientActivity } from '@/services/clientActivityService';
 
+// This is a temporary placeholder hook since client_activities table has been removed
 export const useClientActivity = (clientId: string | undefined) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -20,26 +17,15 @@ export const useClientActivity = (clientId: string | undefined) => {
         return;
       }
 
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        await createClientActivity(
-          clientId,
-          activity_type,
-          description,
-          metadata || {}
-        );
-        
-        // Void return to match the expected Promise<void> type
-        return;
-      } catch (err) {
-        console.error('Error logging client activity:', err);
-        setError(err instanceof Error ? err : new Error(String(err)));
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
+      // Instead of saving to database, we just log to console
+      console.log(`[ACTIVITY LOG] ${activity_type}: ${description}`, {
+        clientId,
+        metadata,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Return void to match the expected Promise<void> type
+      return Promise.resolve();
     },
     [clientId]
   );

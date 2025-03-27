@@ -2,54 +2,31 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
+// This file contains placeholder functions since client_activities table has been removed
+
 /**
- * Subscribes to client activities for a specific client
+ * Subscribes to client activities for a specific client - Currently a no-op function
  */
 export const subscribeToClientActivities = (clientId: string, onUpdate: () => void): RealtimeChannel => {
-  const channel = supabase
-    .channel(`client-activities-${clientId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "client_activities",
-        filter: `client_id=eq.${clientId}`
-      },
-      (payload) => {
-        console.log(`Activity update for client ${clientId}:`, payload);
-        onUpdate();
-      }
-    )
-    .subscribe((status) => {
-      console.log(`Realtime subscription status for client ${clientId} activities: ${status}`);
-    });
-
+  console.log('Activity logging is disabled - client_activities table has been removed');
+  
+  // Create a dummy channel that doesn't actually subscribe to anything
+  const channel = supabase.channel(`dummy-channel-${Date.now()}`);
+  channel.subscribe();
+  
   return channel;
 };
 
 /**
- * Subscribes to all client activities (for admin dashboard)
+ * Subscribes to all client activities (for admin dashboard) - Currently a no-op function
  */
 export const subscribeToAllActivities = (onUpdate: () => void): RealtimeChannel => {
-  const channel = supabase
-    .channel(`all-client-activities`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "client_activities"
-      },
-      (payload) => {
-        console.log("Activity update (global):", payload);
-        onUpdate();
-      }
-    )
-    .subscribe((status) => {
-      console.log(`Realtime subscription status for all activities: ${status}`);
-    });
-
+  console.log('Activity logging is disabled - client_activities table has been removed');
+  
+  // Create a dummy channel that doesn't actually subscribe to anything
+  const channel = supabase.channel(`dummy-channel-${Date.now()}`);
+  channel.subscribe();
+  
   return channel;
 };
 

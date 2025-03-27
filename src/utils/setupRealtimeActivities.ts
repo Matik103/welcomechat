@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/types/supabase";
@@ -11,39 +12,14 @@ type PostgresChangesPayload<T> = {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
 };
 
-// Short type alias for client activity payload
-type ClientActivityPayload = PostgresChangesPayload<Database['public']['Tables']['client_activities']['Row']>;
+// Short type alias for AI agents payload
 type AIAgentsPayload = PostgresChangesPayload<Database['public']['Tables']['ai_agents']['Row']>;
 
 export const setupRealtimeActivities = async () => {
   try {
-    // Enable Realtime subscription for the client_activities table
-    const clientActivitiesChannel = supabase.channel('public:client_activities');
+    // Note: client_activities table has been removed, so we don't subscribe to it
+    console.log('Activity logging is disabled - client_activities table has been removed');
     
-    clientActivitiesChannel
-      .on('postgres_changes' as any, 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'client_activities' 
-        }, 
-        (payload: ClientActivityPayload) => {
-          console.log('Client activity changed:', payload);
-          // Optional: Show toast notification for important activities
-          if (payload.new && shouldNotifyActivity(payload.new.activity_type)) {
-            toast.info(
-              "New Activity", 
-              { 
-                description: payload.new.description || `${payload.new.activity_type} occurred` 
-              }
-            );
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log(`Realtime subscription status for client_activities: ${status}`);
-      });
-
     // Enable Realtime subscription for the ai_agents table (all changes)
     const aiAgentsChannel = supabase.channel('public:ai_agents');
     
@@ -127,23 +103,4 @@ export const setupRealtimeActivities = async () => {
     console.error('Error setting up realtime activities:', error);
     return false;
   }
-};
-
-// Helper function to determine if we should notify about an activity
-const shouldNotifyActivity = (activityType: string): boolean => {
-  // Only notify about important events to avoid overwhelming users
-  const notifiableActivities = [
-    'client_created',
-    'client_deleted',
-    'agent_error',
-    'document_processing_failed',
-    'error_logged',
-    'system_update',
-    'ai_agent_created',
-    'ai_agent_updated',
-    'agent_created',  // Added this for backward compatibility
-    'agent_updated'   // Added this for backward compatibility
-  ];
-  
-  return notifiableActivities.includes(activityType);
 };

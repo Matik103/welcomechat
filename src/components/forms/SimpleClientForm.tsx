@@ -94,24 +94,7 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         throw new Error(clientError.message);
       }
       
-      // Log activity - now using plain text activity_type
-      const { error: activityError } = await supabaseAdmin
-        .from('client_activities')
-        .insert({
-          client_id: clientId,
-          activity_type: 'ai_agent_created', // Using string instead of enum
-          description: `New client created with AI agent: ${agentName}`,
-          metadata: {
-            client_name: clientName,
-            agent_name: agentName,
-            email: email
-          }
-        });
-
-      if (activityError) {
-        console.error("Error logging activity:", activityError);
-        // Continue even if activity logging fails
-      }
+      // Note: client_activities table has been removed, so we no longer log activities here
       
       // Send welcome email with Resend.com through edge function
       const { data: emailResult, error: emailError } = await supabaseAdmin.functions.invoke(

@@ -141,19 +141,7 @@ serve(async (req) => {
 
     console.log("Email sent successfully:", data);
 
-    // Log client activity for email sent
-    await supabase
-      .from("client_activities")
-      .insert({
-        client_id: clientId,
-        activity_type: "client_updated",
-        description: `Welcome email sent to ${clientName}`,
-        metadata: { 
-          email_type: "welcome_email",
-          recipient_email: email,
-          temp_password_length: finalPassword.length
-        }
-      });
+    // Note: client_activities table has been removed, so we no longer log activities here
 
     return new Response(JSON.stringify({ success: true, data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,47 +1,14 @@
 
-import { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ClientActivity } from '@/types/client';
 
+// This is a temporary placeholder since client_activities table has been removed
 export function useRecentActivities(limit: number = 10) {
-  const queryClient = useQueryClient();
-
+  // Mock function that returns empty array since table doesn't exist
   const fetchRecentActivities = async (): Promise<ClientActivity[]> => {
-    try {
-      console.log('Fetching recent activities, limit:', limit);
-      
-      const { data, error } = await supabase
-        .from('client_activities')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      
-      if (error) {
-        console.error('Error fetching activities:', error);
-        throw error;
-      }
-      
-      // Map the data to ensure metadata is correctly typed
-      const activities: ClientActivity[] = data.map(activity => ({
-        id: activity.id,
-        client_id: activity.client_id || undefined,
-        activity_type: activity.activity_type,
-        description: activity.description || '',
-        created_at: activity.created_at,
-        // Convert metadata to Record<string, any>
-        metadata: activity.metadata ? 
-          (typeof activity.metadata === 'object' ? activity.metadata as Record<string, any> : {}) 
-          : undefined
-      }));
-      
-      console.log('Recent activities fetched:', activities.length);
-      
-      return activities;
-    } catch (error) {
-      console.error('Failed to fetch recent activities:', error);
-      throw error;
-    }
+    console.log('Activity logging is disabled - client_activities table has been removed');
+    return [];
   };
 
   const {

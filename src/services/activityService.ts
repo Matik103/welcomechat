@@ -1,9 +1,8 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
 /**
- * Creates a client activity record
+ * Creates a client activity record - Currently just logs to console
  */
 export async function createClientActivity(
   clientId: string,
@@ -12,17 +11,16 @@ export async function createClientActivity(
   metadata: Record<string, any> = {}
 ): Promise<boolean> {
   try {
-    // Use RPC call for better safety and consistency
-    const result = await callRpcFunctionSafe('log_client_activity', {
-      client_id_param: clientId,
-      activity_type_param: activityType,
-      description_param: description,
-      metadata_param: metadata
+    // Log to console instead of database
+    console.log(`[ACTIVITY LOG] ${activityType}: ${description}`, {
+      clientId,
+      metadata,
+      timestamp: new Date().toISOString()
     });
     
-    return !!result;
+    return true;
   } catch (error) {
-    console.error('Error creating client activity:', error);
+    console.error('Error logging client activity:', error);
     return false;
   }
 }
@@ -33,56 +31,25 @@ export async function createClientActivity(
 export const logClientActivity = createClientActivity;
 
 /**
- * Fetches client activities for a given client
+ * Fetches client activities for a given client - Currently returns empty array
  */
 export async function getClientActivities(clientId: string, limit = 20, offset = 0) {
-  try {
-    const { data, error } = await supabase
-      .from('client_activities')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching client activities:', error);
-    return [];
-  }
+  console.log('Activity logging is disabled - client_activities table has been removed');
+  return [];
 }
 
 /**
- * Fetches recent activities across all clients
+ * Fetches recent activities across all clients - Currently returns empty array
  */
 export async function getRecentActivities(limit = 20, offset = 0) {
-  try {
-    const { data, error } = await supabase
-      .from('client_activities')
-      .select('*, ai_agents(client_name)')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching recent activities:', error);
-    return [];
-  }
+  console.log('Activity logging is disabled - client_activities table has been removed');
+  return [];
 }
 
 /**
- * Counts activities by type for a specific client
+ * Counts activities by type for a specific client - Currently returns empty array
  */
 export async function countActivitiesByType(clientId: string) {
-  try {
-    const result = await callRpcFunctionSafe('count_activities_by_type', {
-      client_id_param: clientId
-    });
-    
-    return result || [];
-  } catch (error) {
-    console.error('Error counting activities by type:', error);
-    return [];
-  }
+  console.log('Activity logging is disabled - client_activities table has been removed');
+  return [];
 }
