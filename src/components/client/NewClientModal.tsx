@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useClientAgent, ClientAgentFormData } from "@/hooks/useClientAgent";
+import { toast } from "sonner";
 
 // Form validation schema
 const clientFormSchema = z.object({
@@ -53,8 +54,11 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
     const result = await createClientAgent(formData);
     
     if (result.success) {
+      toast.success("Client created successfully!");
       onClose();
       navigate("/admin/clients");
+    } else {
+      toast.error("Failed to create client");
     }
   };
 

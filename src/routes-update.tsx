@@ -10,8 +10,8 @@ import NewAdminClientsPage from "@/pages/admin/NewAdminClients";
 export const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<ProtectedRoute><NewIndex /></ProtectedRoute>}>
-        <Route index element={<NewIndex />} />
+      <Route element={<ProtectedRoute><NewIndex /></ProtectedRoute>}>
+        <Route path="/" element={<NewIndex />} />
         <Route path="admin/dashboard" element={<NewIndex />} />
         <Route path="admin/clients" element={<NewAdminClientsPage />} />
       </Route>
