@@ -9,42 +9,56 @@ export type Json =
 export type UserRole = 'admin' | 'client';
 
 export type ActivityType = 
+  | 'document_uploaded'
+  | 'document_processing_started'
+  | 'document_processing_completed'
+  | 'document_processing_failed'
+  | 'openai_assistant_document_added'
+  | 'openai_assistant_upload_failed'
+  | 'schema_update'
   | 'client_created'
-  | 'client_updated' 
+  | 'client_updated'
   | 'client_deleted'
   | 'client_recovered'
   | 'widget_settings_updated'
   | 'website_url_added'
   | 'website_url_deleted'
+  | 'website_url_processed'
   | 'drive_link_added'
   | 'drive_link_deleted'
-  | 'document_uploaded'
+  | 'document_link_added'
+  | 'document_link_deleted'
   | 'document_processed'
-  | 'document_processing_failed'
-  | 'chat_interaction'
+  | 'document_stored'
   | 'agent_name_updated'
-  | 'agent_logo_updated'
   | 'agent_description_updated'
-  | 'ai_agent_created'
+  | 'agent_updated'
+  | 'agent_logo_updated'
   | 'ai_agent_updated'
+  | 'ai_agent_created'
+  | 'ai_agent_table_created'
   | 'error_logged'
-  | 'webhook_sent'
   | 'system_update'
   | 'common_query_milestone'
   | 'interaction_milestone'
   | 'growth_milestone'
+  | 'webhook_sent'
+  | 'signed_out'
+  | 'email_sent'
   | 'invitation_sent'
   | 'invitation_accepted'
+  | 'logo_uploaded'
+  | 'url_deleted'
+  | 'source_deleted'
+  | 'source_added'
+  | 'widget_previewed'
   | 'user_role_updated'
   | 'login_success'
   | 'login_failed'
-  | 'logo_uploaded'
-  | 'ai_agent_table_created'
-  | 'source_added'
-  | 'source_deleted'
-  | 'document_processing_started'
-  | 'document_processing_completed'
-  | 'document_processing_failed';
+  | 'embed_code_copied'
+  | 'agent_error'
+  | 'chat_interaction'
+  | 'account_created';
 
 export interface Database {
   public: {
@@ -489,6 +503,13 @@ export interface Database {
     Enums: {
       access_status: "granted" | "pending" | "denied"
       activity_type_enum:
+        | "document_uploaded"
+        | "document_processing_started"
+        | "document_processing_completed"
+        | "document_processing_failed"
+        | "openai_assistant_document_added"
+        | "openai_assistant_upload_failed"
+        | "schema_update"
         | "client_created"
         | "client_updated"
         | "client_deleted"
@@ -496,35 +517,42 @@ export interface Database {
         | "widget_settings_updated"
         | "website_url_added"
         | "website_url_deleted"
+        | "website_url_processed"
         | "drive_link_added"
         | "drive_link_deleted"
-        | "document_uploaded"
+        | "document_link_added"
+        | "document_link_deleted"
         | "document_processed"
-        | "document_processing_failed"
-        | "chat_interaction"
+        | "document_stored"
         | "agent_name_updated"
-        | "agent_logo_updated"
         | "agent_description_updated"
-        | "ai_agent_created"
+        | "agent_updated"
+        | "agent_logo_updated"
         | "ai_agent_updated"
+        | "ai_agent_created"
+        | "ai_agent_table_created"
         | "error_logged"
-        | "webhook_sent"
         | "system_update"
         | "common_query_milestone"
         | "interaction_milestone"
         | "growth_milestone"
+        | "webhook_sent"
+        | "signed_out"
+        | "email_sent"
         | "invitation_sent"
         | "invitation_accepted"
+        | "logo_uploaded"
+        | "url_deleted"
+        | "source_deleted"
+        | "source_added"
+        | "widget_previewed"
         | "user_role_updated"
         | "login_success"
         | "login_failed"
-        | "logo_uploaded"
-        | "ai_agent_table_created"
-        | "document_processing_started"
-        | "document_processing_completed"
-        | "document_processing_failed"
-        | "source_added"
-        | "source_deleted"
+        | "embed_code_copied"
+        | "agent_error"
+        | "chat_interaction"
+        | "account_created"
     }
     CompositeTypes: {
       [_ in never]: never

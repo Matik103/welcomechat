@@ -63,7 +63,13 @@ export const activityTypeToIcon: Record<string, string> = {
   'openai_assistant_document_added': 'file-plus',
   'config_updated': 'settings',
   'agent_error': 'alert-octagon',
-  'widget_settings_updated': 'sliders'
+  'widget_settings_updated': 'sliders',
+  'account_created': 'user-plus',
+  'document_stored': 'hard-drive',
+  'widget_previewed': 'eye',
+  'url_deleted': 'trash-2',
+  'openai_assistant_upload_failed': 'alert-circle',
+  'schema_update': 'database'
 };
 
 // Map activity types to color schemes
@@ -128,7 +134,13 @@ export const activityTypeToColor: Record<string, string> = {
   'openai_assistant_document_added': 'cyan',
   'config_updated': 'blue',
   'agent_error': 'red',
-  'widget_settings_updated': 'amber'
+  'widget_settings_updated': 'amber',
+  'account_created': 'emerald',
+  'document_stored': 'teal',
+  'widget_previewed': 'purple',
+  'url_deleted': 'red',
+  'openai_assistant_upload_failed': 'red',
+  'schema_update': 'indigo'
 };
 
 // Convert activity type to human-readable label
@@ -147,7 +159,10 @@ export const getActivityTypeLabel = (type: string): string => {
     'agent_logo_updated': 'Agent Logo Updated',
     'agent_description_updated': 'Agent Description Updated',
     'document_processing_started': 'Document Processing Started',
-    'document_processing_completed': 'Document Processing Completed'
+    'document_processing_completed': 'Document Processing Completed',
+    'account_created': 'Account Created',
+    'openai_assistant_document_added': 'OpenAI Assistant Document Added',
+    'openai_assistant_upload_failed': 'OpenAI Assistant Upload Failed'
   };
 
   if (customLabels[type]) {

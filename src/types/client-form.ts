@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 import { Json } from '@/integrations/supabase/types';
 
@@ -97,4 +98,5 @@ export type ActivityType =
   | 'login_failed'
   | 'embed_code_copied'
   | 'agent_error'
-  | 'chat_interaction';
+  | 'chat_interaction'
+  | 'account_created';
