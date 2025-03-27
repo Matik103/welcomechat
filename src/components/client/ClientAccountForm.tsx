@@ -5,7 +5,6 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { Client } from "@/types/client";
 import { AgentDescriptionField } from "./form-fields/AgentDescriptionField";
@@ -128,7 +127,11 @@ export function ClientAccountForm({ initialData, onSubmit, isLoading = false }: 
         )}
       </div>
 
-      <AgentDescriptionField form={{ register, formState: { errors } }} />
+      {/* Pass the agent_description value directly */}
+      <AgentDescriptionField 
+        value={watch("agent_description")} 
+        onChange={(e) => setValue("agent_description", e.target.value)}
+      />
 
       <div className="flex flex-col md:flex-row gap-4 pt-4">
         <Button type="submit" disabled={isLoading}>
