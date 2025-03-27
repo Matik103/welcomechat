@@ -1,74 +1,59 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 /**
- * Creates an OpenAI assistant for the client if agent settings are provided
+ * Sets up an OpenAI Assistant for a new client by calling the create-openai-assistant Edge Function
+ * 
+ * @param clientId Client ID 
+ * @param agentName Agent name
+ * @param agentDescription Agent description
+ * @param clientName Client name for the record
+ * @returns Promise with the result
  */
-export const setupOpenAIAssistant = async (clientId: string, agentName: string, agentDescription: string, clientName: string) => {
-  if (agentName || agentDescription) {
-    try {
-      await createOpenAIAssistant(
-        clientId,
-        agentName || "AI Assistant",
-        agentDescription || "",
-        clientName
-      );
-    } catch (openaiError) {
-      console.error("Error creating OpenAI assistant:", openaiError);
-      // Continue even if OpenAI assistant creation fails
-    }
-  }
-};
-
-/**
- * Creates or updates an OpenAI assistant for a client
- */
-export const createOpenAIAssistant = async (
+export const setupOpenAIAssistant = async (
   clientId: string,
   agentName: string,
-  agentDescription: string,
-  clientName?: string
-): Promise<string> => {
+  agentDescription: string = '',
+  clientName: string = ''
+): Promise<{ success: boolean; assistantId?: string; error?: string }> => {
   try {
-    console.log(`Creating/updating OpenAI assistant for client ${clientId}`);
-    
-    // Sanitize input values to prevent errors with quotes
-    const sanitizedAgentName = agentName.replace(/"/g, "'");
-    const sanitizedAgentDescription = agentDescription.replace(/"/g, "'");
-    const sanitizedClientName = clientName ? clientName.replace(/"/g, "'") : undefined;
-    
-    // Call the Supabase Edge Function to create/update the OpenAI assistant
+    // Call the Edge Function to create the OpenAI Assistant
     const { data, error } = await supabase.functions.invoke('create-openai-assistant', {
       body: {
         client_id: clientId,
-        agent_name: sanitizedAgentName,
-        agent_description: sanitizedAgentDescription,
-        client_name: sanitizedClientName
-      },
+        agent_name: agentName,
+        agent_description: agentDescription,
+        client_name: clientName
+      }
     });
-    
+
     if (error) {
-      console.error('OpenAI assistant creation error:', error);
-      toast.error('Failed to create OpenAI assistant');
-      throw new Error(error.message || 'Failed to create OpenAI assistant');
+      console.error('Error creating OpenAI Assistant:', error);
+      return { 
+        success: false, 
+        error: error.message 
+      };
     }
-    
-    console.log('OpenAI assistant response:', data);
-    
-    if (!data || !data.assistant_id) {
-      const errorMsg = 'Invalid response from OpenAI assistant creation';
-      console.error(errorMsg, data);
-      toast.error(errorMsg);
-      throw new Error(errorMsg);
+
+    if (!data?.success || !data?.assistant_id) {
+      console.error('Failed to create OpenAI Assistant:', data?.error || 'Unknown error');
+      return { 
+        success: false, 
+        error: data?.error || 'Failed to create OpenAI Assistant' 
+      };
     }
-    
-    // Success notification
-    toast.success('OpenAI assistant created successfully');
-    return data.assistant_id;
+
+    console.log('OpenAI Assistant created successfully:', data);
+    return {
+      success: true,
+      assistantId: data.assistant_id
+    };
   } catch (error) {
-    console.error('Error in createOpenAIAssistant:', error);
-    toast.error(`OpenAI assistant creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    throw error;
+    console.error('Exception creating OpenAI Assistant:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error creating OpenAI Assistant'
+    };
   }
 };

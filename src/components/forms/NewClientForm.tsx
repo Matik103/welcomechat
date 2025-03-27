@@ -65,6 +65,9 @@ export function NewClientForm() {
           agent_description: data.agent_description || "",
           content: "",
           interaction_type: 'config',
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           settings: {
             agent_name: data.agent_name,
             agent_description: data.agent_description || "",
@@ -74,7 +77,8 @@ export function NewClientForm() {
             client_id: data.client_id
           },
           email: data.email,
-          client_name: data.client_name
+          client_name: data.client_name,
+          model: 'gpt-4-turbo-preview'
         })
         .select()
         .single();
