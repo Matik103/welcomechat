@@ -1,5 +1,3 @@
-
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/types/supabase";
@@ -149,4 +147,3 @@ const shouldNotifyActivity = (activityType: string): boolean => {
   
   return notifiableActivities.includes(activityType);
 };
-

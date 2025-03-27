@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/client-form';
 
 export const createClientUserAccount = async (
   email: string,
@@ -33,7 +34,7 @@ export const logClientCreationActivity = async (
     // Use agent_created for backward compatibility with existing code
     await createClientActivity(
       clientId,
-      'agent_created', // Using the old activity type that works with the enum
+      'agent_created' as ActivityType, // Explicitly cast to ActivityType
       `Client created: ${clientName}`,
       {
         client_id: clientId,
@@ -48,4 +49,3 @@ export const logClientCreationActivity = async (
     throw error;
   }
 };
-

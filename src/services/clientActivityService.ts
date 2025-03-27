@@ -1,5 +1,4 @@
 
-
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityType } from '@/types/client-form';
 import { Json } from '@/integrations/supabase/types';
@@ -60,4 +59,3 @@ export const getClientActivities = async (
     return [];
   }
 };
-
