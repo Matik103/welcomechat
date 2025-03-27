@@ -25,6 +25,7 @@ export const useAuthStateChange = ({
   useEffect(() => {
     let mounted = true;
     let navigationInProgress = false;
+    let navigationTimeout: NodeJS.Timeout | null = null;
 
     // Auth state change listener subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -71,11 +72,23 @@ export const useAuthStateChange = ({
             
             if (isAuthPage || !isAdminPage) {
               console.log("Redirecting Google user to admin dashboard");
+              
+              // Clear any existing navigation timeout
+              if (navigationTimeout) {
+                clearTimeout(navigationTimeout);
+              }
+              
               navigationInProgress = true;
-              navigate('/admin/dashboard', { replace: true });
-              setTimeout(() => {
-                navigationInProgress = false;
-              }, 1000);
+              
+              // Set a debounce to prevent multiple rapid navigations
+              navigationTimeout = setTimeout(() => {
+                navigate('/admin/dashboard', { replace: true });
+                
+                // Reset navigation flag after a longer delay
+                setTimeout(() => {
+                  navigationInProgress = false;
+                }, 2000);
+              }, 500);
             }
           } else {
             // Determine role from database for non-Google users
@@ -88,11 +101,23 @@ export const useAuthStateChange = ({
             if (isAuthPage) {
               const dashboardRoute = getDashboardRoute(determinedUserRole);
               console.log("Redirecting to dashboard:", dashboardRoute);
+              
+              // Clear any existing navigation timeout
+              if (navigationTimeout) {
+                clearTimeout(navigationTimeout);
+              }
+              
               navigationInProgress = true;
-              navigate(dashboardRoute, { replace: true });
-              setTimeout(() => {
-                navigationInProgress = false;
-              }, 1000);
+              
+              // Set a debounce to prevent multiple rapid navigations
+              navigationTimeout = setTimeout(() => {
+                navigate(dashboardRoute, { replace: true });
+                
+                // Reset navigation flag after a longer delay
+                setTimeout(() => {
+                  navigationInProgress = false;
+                }, 2000);
+              }, 500);
             }
           }
           
@@ -111,11 +136,22 @@ export const useAuthStateChange = ({
           // Only redirect to auth page if not already there
           const isAuthPage = location.pathname === '/auth';
           if (!isAuthPage && !navigationInProgress) {
+            // Clear any existing navigation timeout
+            if (navigationTimeout) {
+              clearTimeout(navigationTimeout);
+            }
+            
             navigationInProgress = true;
-            navigate('/auth', { replace: true });
-            setTimeout(() => {
-              navigationInProgress = false;
-            }, 1000);
+            
+            // Set a debounce to prevent multiple rapid navigations
+            navigationTimeout = setTimeout(() => {
+              navigate('/auth', { replace: true });
+              
+              // Reset navigation flag after a longer delay
+              setTimeout(() => {
+                navigationInProgress = false;
+              }, 2000);
+            }, 500);
           }
         } else {
           // Handle other events
@@ -126,6 +162,9 @@ export const useAuthStateChange = ({
 
     return () => {
       mounted = false;
+      if (navigationTimeout) {
+        clearTimeout(navigationTimeout);
+      }
       subscription.unsubscribe();
     };
   }, [setSession, setUser, setUserRole, setIsLoading, navigate, location.pathname]);
