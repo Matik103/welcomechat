@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,14 +94,14 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         throw new Error(clientError.message);
       }
       
-      // Log activity
+      // Log activity - now using plain text activity_type
       const { error: activityError } = await supabaseAdmin
         .from('client_activities')
         .insert({
           client_id: clientId,
-          activity_type: 'ai_agent_created',
+          activity_type: 'ai_agent_created', // Using string instead of enum
           description: `New client created with AI agent: ${agentName}`,
-          activity_data: {
+          metadata: {
             client_name: clientName,
             agent_name: agentName,
             email: email
