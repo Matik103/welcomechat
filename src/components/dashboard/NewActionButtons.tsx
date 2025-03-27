@@ -7,15 +7,18 @@ interface ActionButtonProps {
   children: React.ReactNode;
   primary?: boolean;
   onClick?: () => void;
+  blue?: boolean;
 }
 
-const ActionButton = ({ children, primary = false, onClick }: ActionButtonProps) => (
+const ActionButton = ({ children, primary = false, blue = false, onClick }: ActionButtonProps) => (
   <button
     onClick={onClick}
     className={`${
       primary
         ? "bg-primary text-white hover:bg-primary/90"
-        : "bg-white text-gray-900 border border-gray-200 hover:bg-gray-50"
+        : blue
+          ? "bg-blue-600 text-white hover:bg-blue-700"
+          : "bg-white text-gray-900 border border-gray-200 hover:bg-gray-50"
     } px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors duration-200`}
   >
     {children}
@@ -30,7 +33,7 @@ export const NewActionButtons = () => {
       <ActionButton onClick={() => navigate("/admin/clients")}>
         View Client List <ArrowRight className="w-4 h-4" />
       </ActionButton>
-      <ActionButton primary onClick={() => navigate("/admin/clients/add")}>
+      <ActionButton blue onClick={() => navigate("/admin/clients/add")}>
         <Plus className="w-4 h-4" /> Add Client
       </ActionButton>
     </div>
