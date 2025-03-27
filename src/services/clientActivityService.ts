@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { ActivityType } from '@/types/client-form';
 import { Json } from '@/integrations/supabase/types';
 
 /**
@@ -14,7 +13,7 @@ import { Json } from '@/integrations/supabase/types';
  */
 export const createClientActivity = async (
   clientId: string,
-  activity_type: ActivityType,
+  activity_type: string,
   description: string,
   metadata: Record<string, any> = {}
 ): Promise<any> => {
@@ -23,20 +22,13 @@ export const createClientActivity = async (
     if (!clientId) {
       throw new Error('Client ID is required to log activity');
     }
-
-    // Validate activity type
-    const validActivityType = activity_type;
-    if (!validActivityType) {
-      throw new Error(`Invalid activity type: ${activity_type}`);
-    }
     
-    // Insert activity record - We need to cast the activity_type as any to avoid TypeScript errors
-    // This is because the supabase types are expecting the exact enum type from the database
+    // Insert activity record
     const { data, error } = await supabase
       .from('client_activities')
       .insert({
         client_id: clientId,
-        activity_type: validActivityType as any, // Cast to any to bypass TypeScript checking
+        activity_type: activity_type,
         description,
         metadata: metadata as Json
       });

@@ -1,6 +1,4 @@
 
-import { ActivityType } from '@/types/client-form';
-
 // Map activity types to icon names
 export const activityTypeToIcon: Record<string, string> = {
   'login': 'log-in',

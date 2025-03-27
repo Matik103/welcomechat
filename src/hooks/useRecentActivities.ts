@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ClientActivity, ActivityType } from '@/types/client';
+import { ClientActivity } from '@/types/client';
 
 export function useRecentActivities(limit: number = 10) {
   const queryClient = useQueryClient();
@@ -26,7 +26,7 @@ export function useRecentActivities(limit: number = 10) {
       const activities: ClientActivity[] = data.map(activity => ({
         id: activity.id,
         client_id: activity.client_id || undefined,
-        activity_type: activity.activity_type as ActivityType,
+        activity_type: activity.activity_type,
         description: activity.description || '',
         created_at: activity.created_at,
         // Convert metadata to Record<string, any>

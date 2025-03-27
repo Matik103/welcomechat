@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { ActivityType } from '@/types/client-form';
 import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
 /**
@@ -8,7 +7,7 @@ import { callRpcFunctionSafe } from '@/utils/rpcUtils';
  */
 export async function createClientActivity(
   clientId: string,
-  activityType: ActivityType,
+  activityType: string,
   description: string,
   metadata: Record<string, any> = {}
 ): Promise<boolean> {
@@ -77,7 +76,7 @@ export async function getRecentActivities(limit = 20, offset = 0) {
  */
 export async function countActivitiesByType(clientId: string) {
   try {
-    const result = await callRpcFunctionSafe('log_client_activity', {
+    const result = await callRpcFunctionSafe('count_activities_by_type', {
       client_id_param: clientId
     });
     
