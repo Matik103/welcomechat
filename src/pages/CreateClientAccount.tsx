@@ -2,7 +2,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { PageHeading } from "@/components/dashboard/PageHeading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ClientCreationForm } from "@/components/forms/ClientCreationForm";
