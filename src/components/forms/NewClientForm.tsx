@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 import { 
   generateClientTempPassword, 
   saveClientTempPassword
@@ -54,8 +55,8 @@ export function NewClientForm() {
         data.client_id = uuidv4();
       }
       
-      // First create the client record
-      const { data: clientData, error: clientError } = await supabase
+      // First create the client record using the admin client (bypass RLS)
+      const { data: clientData, error: clientError } = await supabaseAdmin
         .from('clients')
         .insert({
           id: data.client_id,
@@ -79,8 +80,8 @@ export function NewClientForm() {
         throw new Error(clientError.message);
       }
 
-      // Then create the AI agent
-      const { data: agentData, error: agentError } = await supabase
+      // Then create the AI agent (also using admin client)
+      const { data: agentData, error: agentError } = await supabaseAdmin
         .from('ai_agents')
         .insert({
           client_id: data.client_id,
