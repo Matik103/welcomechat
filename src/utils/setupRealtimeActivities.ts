@@ -139,7 +139,9 @@ const shouldNotifyActivity = (activityType: string): boolean => {
     'agent_error',
     'document_processing_failed',
     'error_logged',
-    'system_update'
+    'system_update',
+    'ai_agent_created',  // Added the correct enum value
+    'ai_agent_updated'   // Added the correct enum value
   ];
   
   return notifiableActivities.includes(activityType);

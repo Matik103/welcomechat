@@ -10,12 +10,22 @@ export const createClientActivity = async (
   metadata?: Record<string, any>
 ): Promise<void> => {
   try {
+    // Map activity types that might not be in the enum to valid ones
+    let validActivityType = activity_type;
+    
+    // Check if the activity type needs to be mapped to a valid enum value
+    if (activity_type === 'agent_created') {
+      validActivityType = 'ai_agent_created';
+    } else if (activity_type === 'agent_updated') {
+      validActivityType = 'ai_agent_updated';
+    }
+    
     // Use client_activities table name
     const { error } = await supabase
       .from('client_activities')
       .insert({
         client_id: clientId,
-        activity_type: activity_type as string,
+        activity_type: validActivityType as string,
         description,
         metadata
       } as any);

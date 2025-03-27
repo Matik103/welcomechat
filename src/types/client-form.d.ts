@@ -11,7 +11,8 @@ export type ActivityType =
   | 'client_created'
   | 'client_updated'
   | 'client_deleted'
-  | 'agent_updated'
+  | 'ai_agent_created'  // Changed from agent_updated
+  | 'ai_agent_updated'  // Changed from agent_updated
   | 'widget_updated'
   | 'password_reset'
   | 'document_link_added'

@@ -98,13 +98,19 @@ export function NewClientForm() {
         tempPassword
       );
       
-      // Log activity for client creation
-      await logClientCreationActivity(
-        data.client_id,
-        data.client_name,
-        data.email,
-        data.agent_name
-      );
+      try {
+        // Log activity for client creation
+        // Use ai_agent_created instead of agent_created for activity_type
+        await logClientCreationActivity(
+          data.client_id,
+          data.client_name,
+          data.email,
+          data.agent_name
+        );
+      } catch (activityError) {
+        console.error("Error logging client creation activity:", activityError);
+        // Continue with the process even if activity logging fails
+      }
       
       // Setup OpenAI assistant for this client
       await setupOpenAIAssistant(
