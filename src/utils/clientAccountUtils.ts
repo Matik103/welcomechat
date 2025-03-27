@@ -1,6 +1,8 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
+import { ActivityType } from '@/types/client-form';
+import { Json } from '@/integrations/supabase/types';
 
 /**
  * Creates a new user account in Supabase Auth.
@@ -58,14 +60,15 @@ export const logClientCreationActivity = async (
     const { error } = await supabase
       .from('client_activities')
       .insert({
-        event_type: 'client_created',
+        activity_type: 'client_created' as ActivityType,
         client_id: clientId,
-        client_name: clientName,
-        email: email,
-        agent_name: agentName,
-        timestamp: new Date().toISOString(),
         description: `Client ${clientName} with email ${email} was created.`,
-        user_id: supabase.auth.getUser().then(response => response.data.user?.id) || 'system'
+        metadata: {
+          client_name: clientName,
+          email: email,
+          agent_name: agentName,
+          timestamp: new Date().toISOString()
+        } as Json
       });
 
     if (error) {
