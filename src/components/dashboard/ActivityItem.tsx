@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { 
@@ -13,8 +12,7 @@ import type { Json } from '@/integrations/supabase/types';
 interface ActivityItemProps {
   item: {
     id?: string;
-    type?: string; // Now using type instead of activity_type
-    activity_type?: string; // For backward compatibility
+    type?: string;
     description: string;
     created_at: string;
     metadata?: Json;
@@ -22,7 +20,7 @@ interface ActivityItemProps {
 }
 
 export const ActivityItem = ({ item }: ActivityItemProps) => {
-  const activityType = item.type || item.activity_type || 'unknown';
+  const activityType = item.type || 'unknown';
   const iconName = activityTypeToIcon[activityType] || activityTypeToIcon.default;
   const colorName = activityTypeToColor[activityType] || activityTypeToColor.default;
   

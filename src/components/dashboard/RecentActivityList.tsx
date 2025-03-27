@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,7 +18,7 @@ interface ClientActivity {
   description: string;
   created_at: string;
   metadata: any;
-  type?: string; // Using type instead of activity_type
+  type?: string;
 }
 
 interface RecentActivityListProps {
@@ -60,13 +59,10 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
     );
   }
 
-  // Helper function to get appropriate icon for activity type
   const getActivityIcon = (activityType: string = 'unknown') => {
-    // First check if we have a predefined icon in our utility
     if (activityTypeToIcon[activityType]) {
       const iconName = activityTypeToIcon[activityType];
       
-      // Map string icon names to actual Lucide components
       switch (iconName) {
         case 'users': return <Users className="h-4 w-4" />;
         case 'settings': return <Settings className="h-4 w-4" />;
@@ -103,7 +99,6 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
       }
     }
     
-    // Fallback logic based on keywords in activity type
     if (activityType.includes('create') || activityType.includes('added')) {
       return <UserPlus className="h-4 w-4 text-green-500" />;
     }
@@ -126,20 +121,16 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
       return <Bot className="h-4 w-4 text-indigo-500" />;
     }
     
-    // Default
     return <MessageSquare className="h-4 w-4 text-gray-500" />;
   };
 
-  // Helper function to format activity description
   const formatActivityDescription = (activity: ClientActivity) => {
     const { type, client_name, description } = activity;
     
-    // If there's already a description, use it
     if (description && description.length > 0) {
       return description;
     }
     
-    // Otherwise, generate a description based on activity type
     const activityType = type || 'unknown';
     
     if (activityType.includes('client_created')) {
@@ -170,7 +161,6 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
       return `Chat interaction with client "${client_name || 'Unknown'}"`;
     }
     
-    // Fallback to a readable version of the activity type
     return `${activityType.replace(/_/g, ' ')} for ${client_name || 'Unknown'}`;
   };
 

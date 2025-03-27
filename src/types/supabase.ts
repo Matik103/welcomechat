@@ -53,7 +53,7 @@ export type ActivityType = string;
 export interface ClientActivity {
   id: string;
   client_id: string;
-  activity_type: ActivityType;
+  type: ActivityType;
   description: string;
   metadata?: Json;
   created_at: string;
@@ -69,28 +69,28 @@ export type Database = {
       };
       client_activities: {
         Row: {
-          activity_type: Database["public"]["Enums"]["activity_type_enum"]
-          client_id: string | null
-          created_at: string
-          description: string | null
-          id: number
-          metadata: Json | null
+          type: string;
+          client_id: string | null;
+          created_at: string;
+          description: string | null;
+          id: number;
+          metadata: Json | null;
         }
         Insert: {
-          activity_type: Database["public"]["Enums"]["activity_type_enum"]
-          client_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: number
-          metadata?: Json | null
+          type: string;
+          client_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          id?: number;
+          metadata?: Json | null;
         }
         Update: {
-          activity_type?: Database["public"]["Enums"]["activity_type_enum"]
-          client_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: number
-          metadata?: Json | null
+          type?: string;
+          client_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          id?: number;
+          metadata?: Json | null;
         }
         Relationships: [
           {

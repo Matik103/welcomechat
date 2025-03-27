@@ -1,4 +1,3 @@
-
 import { Json } from '@/integrations/supabase/types';
 import { ActivityType } from './client-form';
 import { AccessStatus } from './document-processing';
@@ -58,7 +57,7 @@ export interface ChatInteraction {
 export interface ClientActivity {
   id: string;
   client_id?: string;
-  activity_type: ActivityType;
+  type: ActivityType;
   description: string;
   created_at: string;
   metadata?: Record<string, any>;
