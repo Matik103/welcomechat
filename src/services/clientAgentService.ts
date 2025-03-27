@@ -56,10 +56,9 @@ export const clientAgentService = {
         return { success: false, data: null, error };
       }
 
-      // Log to console rather than trying to insert into activities table
-      // This avoids the enum validation issue completely
+      // Only log to console, do not attempt any activity logging to database
       console.log(`AI agent created: ${agentName}`, {
-        actionType: 'agent_created',
+        action: 'agent_created', // Just for console, not database
         agent_name: agentName,
         client_id: clientId
       });

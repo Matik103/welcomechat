@@ -41,7 +41,8 @@ export default function AddClientPage() {
   const onSubmit = async (values: ClientFormValues) => {
     setIsSubmitting(true);
     try {
-      // Create client in the ai_agents table directly without activity logging
+      // Create client in the ai_agents table without any activity logging
+      // Only including essential fields and avoiding triggers
       const { data, error } = await supabaseAdmin
         .from("ai_agents")
         .insert({
@@ -65,7 +66,7 @@ export default function AddClientPage() {
         throw error;
       }
 
-      // Log to console instead of database to avoid enum validation issues
+      // Only log to console, no database activity logging
       console.log(`Client created: ${values.clientName}`, {
         clientName: values.clientName,
         chatbotName: values.chatbotName
