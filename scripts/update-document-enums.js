@@ -17,7 +17,7 @@ function runDocumentMigration() {
     });
     
     console.log('Document processing migration completed successfully!');
-    console.log('Activity type enums have been updated in the database');
+    console.log('Document processing setup has been completed in the database');
   } catch (error) {
     console.error('Migration failed:', error.message);
     process.exit(1);

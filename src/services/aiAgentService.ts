@@ -99,7 +99,7 @@ export const aiAgentService = {
 
       // Log to console instead of database - using string literal, not enum
       console.log(`[ACTIVITY LOG] AI agent created: ${agent.name}`, {
-        activityType: 'agent_created',
+        actionType: 'agent_created',
         agent_name: agent.name,
         client_id: agent.client_id
       });
@@ -137,7 +137,7 @@ export const aiAgentService = {
 
       // Log to console instead of database - using string literal, not enum
       console.log(`[ACTIVITY LOG] AI agent updated: ${updates.name || id}`, {
-        activityType: 'agent_updated',
+        actionType: 'agent_updated',
         agent_name: updates.name,
         agent_id: id
       });
@@ -170,7 +170,7 @@ export const aiAgentService = {
 
       // Log to console instead of database - using string literal, not enum
       console.log(`[ACTIVITY LOG] AI agent deleted: ${id}`, {
-        activityType: 'agent_deleted',
+        actionType: 'agent_deleted',
         agent_id: id
       });
 

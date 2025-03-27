@@ -16,7 +16,7 @@ export const createClientActivity = async (
     // Log to console instead of database - no enum references
     console.log(`[ACTIVITY LOG]: ${description}`, {
       clientId,
-      activityType: 'client_activity', // Using string literal instead of enum
+      actionType: 'client_activity', // Using string literal instead of enum
       metadata,
       timestamp: new Date().toISOString()
     });
