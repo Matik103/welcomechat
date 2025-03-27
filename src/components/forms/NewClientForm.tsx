@@ -55,35 +55,11 @@ export function NewClientForm() {
         data.client_id = uuidv4();
       }
       
-      // First create the client record using the admin client (bypass RLS)
-      const { data: clientData, error: clientError } = await supabaseAdmin
-        .from('clients')
-        .insert({
-          id: data.client_id,
-          client_name: data.client_name,
-          email: data.email,
-          agent_name: data.agent_name,
-          widget_settings: {
-            agent_name: data.agent_name,
-            agent_description: data.agent_description || "",
-            logo_url: "",
-            client_name: data.client_name,
-            email: data.email,
-            client_id: data.client_id
-          }
-        })
-        .select()
-        .single();
-
-      if (clientError) {
-        console.error("Error creating client:", clientError);
-        throw new Error(clientError.message);
-      }
-
-      // Then create the AI agent (also using admin client)
+      // Create the AI agent directly (using admin client to bypass RLS)
       const { data: agentData, error: agentError } = await supabaseAdmin
         .from('ai_agents')
         .insert({
+          id: data.client_id,
           client_id: data.client_id,
           name: data.agent_name,
           agent_description: data.agent_description || "",
@@ -96,7 +72,9 @@ export function NewClientForm() {
             client_name: data.client_name,
             email: data.email,
             client_id: data.client_id
-          }
+          },
+          email: data.email,
+          client_name: data.client_name
         })
         .select()
         .single();
@@ -110,7 +88,7 @@ export function NewClientForm() {
       const tempPassword = generateClientTempPassword();
       
       // Save the temporary password
-      await saveClientTempPassword(clientData.id, data.email, tempPassword);
+      await saveClientTempPassword(agentData.id, data.email, tempPassword);
       
       // Create the user account in Supabase Auth
       const accountResult = await createClientUserAccount(
