@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Client } from '@/types/client';
@@ -26,6 +27,7 @@ export const createClient = async (clientData: {
       company: clientData.company || '',
       agent_description: clientData.description || '',
       name: clientData.agent_name || 'AI Assistant',
+      agent_name: clientData.agent_name || 'AI Assistant', // Added for client type compatibility
       interaction_type: 'config',
       status: 'active',
       created_at: new Date().toISOString(),
@@ -33,7 +35,8 @@ export const createClient = async (clientData: {
       settings: {
         client_name: clientData.client_name,
         email: clientData.email
-      }
+      },
+      widget_settings: {} // Added for client type compatibility
     };
     
     // Insert the client into the database
@@ -57,7 +60,8 @@ export const createClient = async (clientData: {
       timestamp: new Date().toISOString()
     });
     
-    return data as Client;
+    // Cast to Client type after ensuring all required fields are present
+    return data as unknown as Client;
   } catch (error) {
     console.error('Error in createClient:', error);
     toast.error(`Failed to create client: ${error instanceof Error ? error.message : 'Unknown error'}`);
