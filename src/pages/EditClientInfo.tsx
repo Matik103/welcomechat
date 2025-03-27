@@ -28,15 +28,6 @@ export function EditClientInfo() {
         agent_description: data.agent_description
       });
       
-      if (clientId) {
-        console.log(`[ACTIVITY LOG]: Updated client information`, {
-          clientId,
-          activityType: 'client_updated',
-          fields_updated: Object.keys(data),
-          timestamp: new Date().toISOString()
-        });
-      }
-      
       toast.success("Client information updated successfully");
       refetchClient();
     } catch (error) {
