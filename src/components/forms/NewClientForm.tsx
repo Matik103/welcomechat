@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,18 +53,15 @@ export function NewClientForm() {
         data.client_id = uuidv4();
       }
       
-      // Create the client/agent in ai_agents table
+      // First create the client record
       const { data: clientData, error: clientError } = await supabase
-        .from('ai_agents')
+        .from('clients')
         .insert({
+          id: data.client_id,
           client_name: data.client_name,
           email: data.email,
-          name: data.agent_name,
-          agent_description: data.agent_description || "",
-          client_id: data.client_id,
-          content: "",
-          interaction_type: 'config',
-          settings: {
+          agent_name: data.agent_name,
+          widget_settings: {
             agent_name: data.agent_name,
             agent_description: data.agent_description || "",
             logo_url: "",
@@ -80,6 +76,32 @@ export function NewClientForm() {
       if (clientError) {
         console.error("Error creating client:", clientError);
         throw new Error(clientError.message);
+      }
+
+      // Then create the AI agent
+      const { data: agentData, error: agentError } = await supabase
+        .from('ai_agents')
+        .insert({
+          client_id: data.client_id,
+          name: data.agent_name,
+          agent_description: data.agent_description || "",
+          content: "",
+          interaction_type: 'config',
+          settings: {
+            agent_name: data.agent_name,
+            agent_description: data.agent_description || "",
+            logo_url: "",
+            client_name: data.client_name,
+            email: data.email,
+            client_id: data.client_id
+          }
+        })
+        .select()
+        .single();
+
+      if (agentError) {
+        console.error("Error creating AI agent:", agentError);
+        throw new Error(agentError.message);
       }
       
       // Generate temporary password for the new client
@@ -100,7 +122,6 @@ export function NewClientForm() {
       
       try {
         // Log activity for client creation
-        // Use ai_agent_created instead of agent_created for activity_type
         await logClientCreationActivity(
           data.client_id,
           data.client_name,
