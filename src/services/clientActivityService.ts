@@ -1,5 +1,3 @@
-import { supabase } from '@/integrations/supabase/client';
-import { Json } from '@/integrations/supabase/types';
 
 /**
  * Creates a new client activity record - Currently just logs to console

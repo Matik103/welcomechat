@@ -94,7 +94,7 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         throw new Error(clientError.message);
       }
       
-      // Note: client_activities table has been removed, so we no longer log activities here
+      // Note: We've completely removed the client_activities logging since the table no longer exists
       
       // Send welcome email with Resend.com through edge function
       const { data: emailResult, error: emailError } = await supabaseAdmin.functions.invoke(
