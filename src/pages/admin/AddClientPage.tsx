@@ -42,25 +42,22 @@ export default function AddClientPage() {
     setIsSubmitting(true);
     try {
       // Direct database insert only - no OpenAI assistant creation or activity logging
-      const { data, error } = await supabaseAdmin
-        .from("ai_agents")
-        .insert({
-          client_name: values.clientName,
-          email: values.email,
-          name: values.chatbotName,
+      const { data, error } = await supabaseAdmin.from("ai_agents").insert({
+        client_name: values.clientName,
+        email: values.email,
+        name: values.chatbotName,
+        agent_description: values.chatbotDescription || "",
+        interaction_type: "config", // Set type as config
+        settings: {
+          agent_name: values.chatbotName,
           agent_description: values.chatbotDescription || "",
-          interaction_type: "config", // Set type as config
-          settings: {
-            agent_name: values.chatbotName,
-            agent_description: values.chatbotDescription || "",
-            client_name: values.clientName,
-            email: values.email
-          },
-          status: "active",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select();
+          client_name: values.clientName,
+          email: values.email
+        },
+        status: "active",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }).select();
 
       if (error) {
         console.error("Error creating client:", error);
