@@ -1,8 +1,7 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { Plus, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { AddClientModal } from "@/components/client/AddClientModal";
 
 interface ActionButtonProps {
   children: React.ReactNode;
@@ -25,23 +24,15 @@ const ActionButton = ({ children, primary = false, onClick }: ActionButtonProps)
 
 export const ActionButtons = () => {
   const navigate = useNavigate();
-  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   
   return (
-    <>
-      <div className="flex flex-wrap gap-4">
-        <ActionButton primary onClick={() => setIsAddClientModalOpen(true)}>
-          <Plus className="w-4 h-4" /> Add New Client
-        </ActionButton>
-        <ActionButton onClick={() => navigate("/admin/clients")}>
-          View Client List <ArrowRight className="w-4 h-4" />
-        </ActionButton>
-      </div>
-      
-      <AddClientModal 
-        isOpen={isAddClientModalOpen}
-        onClose={() => setIsAddClientModalOpen(false)}
-      />
-    </>
+    <div className="flex flex-wrap gap-4">
+      <ActionButton primary onClick={() => navigate('/admin/clients/add')}>
+        <Plus className="w-4 h-4" /> Add New Client
+      </ActionButton>
+      <ActionButton onClick={() => navigate("/admin/clients")}>
+        View Client List <ArrowRight className="w-4 h-4" />
+      </ActionButton>
+    </div>
   );
 };

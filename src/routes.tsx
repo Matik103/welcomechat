@@ -23,6 +23,7 @@ const WidgetSettingsPage = React.lazy(() => import('./pages/WidgetSettings'));
 const ClientResourceSettingsPage = React.lazy(() => import('./pages/client/ResourceSettings'));
 const ClientSettingsPage = React.lazy(() => import('./pages/client/Settings'));
 const ClientAccountSettingsPage = React.lazy(() => import('./pages/client/AccountSettings'));
+const AddClientPage = React.lazy(() => import('./pages/admin/AddClientPage'));
 
 export const routes: RouteObject[] = [
   {
@@ -132,5 +133,20 @@ export const routes: RouteObject[] = [
   {
     path: '/client/account-settings',
     element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><ClientAccountSettingsPage /></React.Suspense></ProtectedRoute>,
+  },
+];
+
+export const adminRoutes = [
+  {
+    path: "dashboard",
+    element: <AdminDashboardPage />,
+  },
+  {
+    path: "clients",
+    element: <AdminClientsPage />,
+  },
+  {
+    path: "clients/add",
+    element: <AddClientPage />,
   },
 ];
