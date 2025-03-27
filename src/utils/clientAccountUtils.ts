@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { createClientActivity } from '@/services/clientActivityService';
@@ -11,24 +12,18 @@ export async function setupNewClientAccount(clientData: any) {
     // Create a new client record in the clients table
     const { error: clientError } = await supabase
       .from('clients')
-      .insert([
-        {
-          id: clientId,
-          name: clientData.name,
-          email: clientData.email,
-          website_url: clientData.website_url,
-          description: clientData.description,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          status: 'active',
-          settings: {
-            primary_color: clientData.primary_color,
-            secondary_color: clientData.secondary_color,
-            logo_url: clientData.logo_url,
-            custom_domain: clientData.custom_domain
-          }
-        }
-      ]);
+      .insert({
+        id: clientId,
+        client_name: clientData.name,
+        email: clientData.email,
+        widget_settings: {
+          primary_color: clientData.primary_color,
+          secondary_color: clientData.secondary_color,
+          logo_url: clientData.logo_url,
+          custom_domain: clientData.custom_domain
+        },
+        status: 'active'
+      });
 
     if (clientError) {
       console.error("Error creating client:", clientError);

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,6 @@ import { toast } from 'sonner';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
 import { useClientActivity } from '@/hooks/useClientActivity';
-import { ActivityType } from '@/types/client-form';
 import { DocumentType } from '@/types/document-processing';
 
 const ResourceSettings = () => {
@@ -43,8 +43,8 @@ const ResourceSettings = () => {
     }
   };
 
-  // Fix the type mismatch in logClientActivity
-  const logActivity = (description: string, metadata?: Record<string, any>) => {
+  // Adapt the logClientActivity function to match the expected interface in ClientResourceSections
+  const logActivity = (activityType: string, description: string, metadata?: Record<string, any>) => {
     return logClientActivity(description, metadata);
   };
 
