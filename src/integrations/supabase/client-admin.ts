@@ -3,9 +3,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+// Hardcode the URL since we know it
 export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
-// For security, we'll use a hardcoded empty string as fallback 
-// (actual key should be provided via import.meta.env in Vite)
+
+// For security, we're using an empty string as fallback if the env var isn't set
+// This will cause authenticated requests to fail, which is safer than exposing a key
 const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "";
 
 // Only import this client for admin operations that require the service role
