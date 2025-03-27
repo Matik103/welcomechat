@@ -48,10 +48,11 @@ export default function CreateClientAccount() {
                   When you submit the form, we'll:
                   <ol className="list-decimal ml-4 mt-2 space-y-1 text-sm">
                     <li>Generate a unique client ID (UUID)</li>
-                    <li>Create a new AI agent in the database</li>
-                    <li>Generate a secure temporary password</li>
+                    <li>Create a new client in the database</li>
+                    <li>Create a secure user account</li>
+                    <li>Generate a temporary password</li>
                     <li>Send a welcome email with login details</li>
-                    <li>Set up the OpenAI assistant (if enabled)</li>
+                    <li>Set up the AI agent</li>
                   </ol>
                 </AlertDescription>
               </Alert>
