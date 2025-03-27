@@ -6,7 +6,6 @@ import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientForm } from '@/components/client/ClientForm';
 import { ClientFormData } from '@/types/client-form';
 import { toast } from 'sonner';
-import { createClientActivity } from '@/services/clientActivityService';
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
@@ -24,11 +23,13 @@ export function EditClientInfo() {
       await clientMutation.mutateAsync(data);
       
       if (clientId) {
-        await createClientActivity(
+        // Log activity via console instead of database
+        console.log(`[ACTIVITY LOG]: Updated client information`, {
           clientId,
-          `Updated client information`,
-          { fields_updated: Object.keys(data) }
-        );
+          activityType: 'client_updated', // Using string literal instead of enum
+          fields_updated: Object.keys(data),
+          timestamp: new Date().toISOString()
+        });
       }
       
       toast.success("Client information updated successfully");

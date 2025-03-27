@@ -6,7 +6,8 @@ import type { Json } from "@/integrations/supabase/types";
 
 interface Activity {
   id?: string;
-  activity_type: string;
+  activity_type?: string; // For backwards compatibility
+  type?: string; // New field that replaces activity_type
   description: string;
   created_at: string;
   metadata: Json;

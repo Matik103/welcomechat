@@ -4,7 +4,6 @@ import { ClientFormData } from '@/types/client-form';
 import { updateClient } from '@/services/clientService';
 import { uploadLogo } from '@/services/uploadService';
 import { updateWidgetSettings } from '@/services/widgetSettingsService';
-import { createClientActivity } from '@/services/clientActivityService';
 import { toast } from 'sonner';
 import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 import { defaultSettings } from '@/types/widget-settings';
@@ -38,15 +37,12 @@ export const useClientFormSubmission = (clientId: string) => {
             data.widget_settings.logo_url = uploadResult.url;
             data.widget_settings.logo_storage_path = uploadResult.path;
             
-            // Log logo upload activity using execSql for safely formatted values
-            await callRpcFunctionSafe('log_client_activity', {
-              client_id_param: clientId,
-              activity_type_param: 'client_updated',
-              description_param: `Logo uploaded for client: ${data.client_name}`,
-              metadata_param: {
-                logo_url: uploadResult.url,
-                client_id: clientId
-              }
+            // Log logo upload activity using console instead of database
+            console.log(`[ACTIVITY LOG]: Logo uploaded for client: ${data.client_name}`, {
+              clientId,
+              activityType: 'client_updated', // Using string literal instead of enum
+              logoUrl: uploadResult.url,
+              timestamp: new Date().toISOString()
             });
           }
         } catch (uploadError) {
@@ -75,27 +71,21 @@ export const useClientFormSubmission = (clientId: string) => {
         
         await updateWidgetSettings(clientId, completeSettings);
         
-        // Log widget settings update activity
-        await callRpcFunctionSafe('log_client_activity', {
-          client_id_param: clientId,
-          activity_type_param: 'client_updated',
-          description_param: 'Widget settings updated',
-          metadata_param: {
-            client_id: clientId,
-            settings_updated: Object.keys(data.widget_settings)
-          }
+        // Log widget settings update with console instead of activity_type enum
+        console.log(`[ACTIVITY LOG]: Widget settings updated for client: ${data.client_name}`, {
+          clientId,
+          activityType: 'client_updated', // Using string literal instead of enum
+          settingsUpdated: Object.keys(data.widget_settings),
+          timestamp: new Date().toISOString()
         });
       }
 
-      // Log client update activity
-      await callRpcFunctionSafe('log_client_activity', {
-        client_id_param: clientId,
-        activity_type_param: 'client_updated',
-        description_param: `Client updated: ${data.client_name}`,
-        metadata_param: {
-          client_id: clientId,
-          email: data.email
-        }
+      // Log client update with console instead of activity_type enum
+      console.log(`[ACTIVITY LOG]: Client updated: ${data.client_name}`, {
+        clientId,
+        activityType: 'client_updated', // Using string literal instead of enum
+        email: data.email,
+        timestamp: new Date().toISOString()
       });
 
       toast.success('Client information updated successfully!');

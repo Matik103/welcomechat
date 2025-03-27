@@ -13,9 +13,10 @@ export const createClientActivity = async (
   metadata: Record<string, any> = {}
 ): Promise<any> => {
   try {
-    // Log to console instead of database
+    // Log to console instead of database - no enum references
     console.log(`[ACTIVITY LOG]: ${description}`, {
       clientId,
+      activityType: 'client_activity', // Using string literal instead of enum
       metadata,
       timestamp: new Date().toISOString()
     });

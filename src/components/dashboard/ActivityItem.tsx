@@ -1,94 +1,95 @@
 
-import React from "react";
-import { format } from "date-fns";
+import React from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { 
   Users, Settings, Link, UserPlus, Edit, Trash2, 
-  RotateCcw, Upload, Eye, Code, Image, Bot, 
-  Key, LogOut, FileText, Mail, ShieldAlert, Calendar,
-  Globe, FilePlus, FileMinus, FileCheck, FileWarning,
-  CheckCircle, AlertCircle, LogIn
-} from "lucide-react";
-import type { Json } from "@/integrations/supabase/types";
-import { activityTypeToIcon, getActivityTypeLabel } from '@/utils/activityTypeUtils';
+  Bot, MessageSquare, File, FileText, AlertCircle, 
+  Globe, CheckCircle, FilePlus, FileCheck, FileWarning,
+  FileMinus, LogIn, LogOut, Key
+} from 'lucide-react';
+import { activityTypeToIcon, activityTypeToColor } from '@/utils/activityTypeUtils';
+import type { Json } from '@/integrations/supabase/types';
 
 interface ActivityItemProps {
   item: {
-    type?: string; // Changed from activity_type to type
+    id?: string;
+    type?: string; // Now using type instead of activity_type
+    activity_type?: string; // For backward compatibility
     description: string;
     created_at: string;
-    metadata: Json;
-    client_name?: string;
-    client_id?: string;
-    client_email?: string;
-    agent_name?: string;
-    agent_description?: string;
+    metadata?: Json;
   };
 }
 
-const getActivityIcon = (type: string = 'unknown', metadata: Json) => {
-  // Check if there's an original activity type in metadata
-  const originalType = metadata && 
-    typeof metadata === 'object' && 
-    metadata !== null && 
-    'original_activity_type' in metadata ? 
-    (metadata.original_activity_type as string) : 
-    undefined;
-  
-  // Use the original type if it exists, otherwise use the provided type
-  const activityType = originalType || type;
-  
-  // Use our new utility function to get the icon name
-  const iconName = activityTypeToIcon[activityType] || 'users';
-  
-  // Return the appropriate icon component
-  switch (iconName) {
-    case 'user-plus': return <UserPlus className="w-4 h-4 text-primary" />;
-    case 'edit': return <Edit className="w-4 h-4 text-primary" />;
-    case 'trash': return <Trash2 className="w-4 h-4 text-destructive" />;
-    case 'rotate-ccw': return <RotateCcw className="w-4 h-4 text-green-500" />;
-    case 'settings': return <Settings className="w-4 h-4 text-primary" />;
-    case 'link': case 'link-2': return <Link className="w-4 h-4 text-primary" />;
-    case 'upload': return <Upload className="w-4 h-4 text-primary" />;
-    case 'image': return <Image className="w-4 h-4 text-primary" />;
-    case 'code': return <Code className="w-4 h-4 text-primary" />;
-    case 'eye': return <Eye className="w-4 h-4 text-primary" />;
-    case 'bot': return <Bot className="w-4 h-4 text-primary" />;
-    case 'key': return <Key className="w-4 h-4 text-primary" />;
-    case 'log-out': return <LogOut className="w-4 h-4 text-primary" />;
-    case 'log-in': return <LogIn className="w-4 h-4 text-primary" />;
-    case 'file-text': return <FileText className="w-4 h-4 text-primary" />;
-    case 'file-plus': return <FilePlus className="w-4 h-4 text-primary" />;
-    case 'file-minus': return <FileMinus className="w-4 h-4 text-primary" />;
-    case 'file-check': return <FileCheck className="w-4 h-4 text-primary" />;
-    case 'file-warning': return <FileWarning className="w-4 h-4 text-primary" />;
-    case 'mail': return <Mail className="w-4 h-4 text-primary" />;
-    case 'shield-alert': return <ShieldAlert className="w-4 h-4 text-destructive" />;
-    case 'calendar': return <Calendar className="w-4 h-4 text-primary" />;
-    case 'globe': return <Globe className="w-4 h-4 text-primary" />;
-    case 'check-circle': return <CheckCircle className="w-4 h-4 text-primary" />;
-    case 'alert-circle': return <AlertCircle className="w-4 h-4 text-destructive" />;
-    case 'users': default: return <Users className="w-4 h-4 text-primary" />;
-  }
-};
-
 export const ActivityItem = ({ item }: ActivityItemProps) => {
-  // Use the properly resolved client name that comes from useRecentActivities hook
-  const clientName = item.client_name || "System";
-  // Get a human-readable label for the activity type
-  const activityTypeLabel = getActivityTypeLabel(item.type);
-    
+  const activityType = item.type || item.activity_type || 'unknown';
+  const iconName = activityTypeToIcon[activityType] || activityTypeToIcon.default;
+  const colorName = activityTypeToColor[activityType] || activityTypeToColor.default;
+  
+  const getIcon = () => {
+    switch (iconName) {
+      case 'users': return <Users size={16} />;
+      case 'settings': return <Settings size={16} />;
+      case 'link': return <Link size={16} />;
+      case 'user-plus': return <UserPlus size={16} />;
+      case 'edit': return <Edit size={16} />;
+      case 'trash': return <Trash2 size={16} />;
+      case 'bot': return <Bot size={16} />;
+      case 'message-square': return <MessageSquare size={16} />;
+      case 'file': return <File size={16} />;
+      case 'file-plus': return <FilePlus size={16} />;
+      case 'file-check': return <FileCheck size={16} />;
+      case 'file-warning': return <FileWarning size={16} />;
+      case 'file-minus': return <FileMinus size={16} />;
+      case 'file-text': return <FileText size={16} />;
+      case 'alert-circle': return <AlertCircle size={16} />;
+      case 'globe': return <Globe size={16} />;
+      case 'check-circle': return <CheckCircle size={16} />;
+      case 'log-in': return <LogIn size={16} />;
+      case 'log-out': return <LogOut size={16} />;
+      case 'key': return <Key size={16} />;
+      default: return <MessageSquare size={16} />;
+    }
+  };
+
+  const getColorClasses = () => {
+    switch (colorName) {
+      case 'green': return 'bg-green-100 text-green-600';
+      case 'blue': return 'bg-blue-100 text-blue-600';
+      case 'red': return 'bg-red-100 text-red-600';
+      case 'indigo': return 'bg-indigo-100 text-indigo-600';
+      case 'purple': return 'bg-purple-100 text-purple-600';
+      case 'amber': return 'bg-amber-100 text-amber-600';
+      case 'gray': return 'bg-gray-100 text-gray-600';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  // Format relative time (e.g., "2 hours ago")
+  const getRelativeTime = () => {
+    try {
+      return formatDistanceToNow(new Date(item.created_at), { addSuffix: true });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Unknown time';
+    }
+  };
+
   return (
-    <div className="flex items-center gap-4 py-3 animate-slide-in">
-      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-        {getActivityIcon(item.type, item.metadata)}
+    <div className="flex items-start space-x-3 mb-3 pb-3 border-b border-gray-100 last:border-0">
+      <div className={`flex-shrink-0 rounded-full p-2 ${getColorClasses()}`}>
+        {getIcon()}
       </div>
-      <div className="flex-1">
-        <p className="text-sm text-gray-900">
-          {clientName} {item.description}
-        </p>
-        <p className="text-xs text-gray-500">
-          {format(new Date(item.created_at), 'MMM d, yyyy HH:mm')} • {activityTypeLabel}
-        </p>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900">{item.description}</p>
+        <p className="text-xs text-gray-500 mt-1">{getRelativeTime()}</p>
+        {item.metadata && (
+          <p className="text-xs text-gray-400 mt-1 truncate max-w-full">
+            {Object.keys(item.metadata as Record<string, any>).length > 0 
+              ? `Details: ${JSON.stringify(item.metadata).substring(0, 50)}...` 
+              : ''}
+          </p>
+        )}
       </div>
     </div>
   );

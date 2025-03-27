@@ -1,138 +1,96 @@
 
-/**
- * Returns a user-friendly label for an activity type
- */
-export function getActivityTypeLabel(type?: string): string {
-  if (!type) return 'Unknown Activity';
-  
-  // Map activity types to user-friendly labels
-  const activityLabels: Record<string, string> = {
-    // Chat interactions
-    'chat_interaction': 'Chat Interaction',
-    
-    // Client actions
-    'client_created': 'Client Created',
-    'client_updated': 'Client Updated',
-    'client_deleted': 'Client Scheduled for Deletion',
-    'client_recovered': 'Client Recovered',
-    
-    // Agent actions
-    'agent_created': 'AI Agent Created',
-    'agent_updated': 'AI Agent Updated',
-    'agent_deleted': 'AI Agent Deleted',
-    'ai_agent_created': 'AI Agent Created',
-    'ai_agent_updated': 'AI Agent Updated',
-    
-    // Website & document actions
-    'website_url_added': 'Website URL Added',
-    'url_deleted': 'Website URL Deleted',
-    'drive_link_added': 'Google Drive Link Added',
-    'drive_link_deleted': 'Google Drive Link Deleted',
-    'document_added': 'Document Added',
-    'document_removed': 'Document Removed',
-    'document_processed': 'Document Processed',
-    'document_processing_failed': 'Document Processing Failed',
-    
-    // System actions
-    'email_sent': 'Email Sent',
-    'email_error': 'Email Error',
-    'system_update': 'System Update',
-    
-    // User actions
-    'invitation_sent': 'Invitation Sent',
-    'invitation_accepted': 'Invitation Accepted',
-    'widget_settings_updated': 'Widget Settings Updated'
-  };
-  
-  return activityLabels[type] || type.replace(/_/g, ' ').split(' ').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ');
-}
+// We're using string literals directly instead of enums now
+type ActivityIconMapping = {
+  [key: string]: string;
+};
 
-/**
- * Maps activity types to icon names
- */
-export const activityTypeToIcon: Record<string, string> = {
-  // Chat interactions
-  'chat_interaction': 'message-square',
-  
-  // Client actions
+type ActivityColorMapping = {
+  [key: string]: string;
+};
+
+export const activityTypeToIcon: ActivityIconMapping = {
+  // Client activities
   'client_created': 'user-plus',
   'client_updated': 'edit',
   'client_deleted': 'trash',
-  'client_recovered': 'rotate-ccw',
   
-  // Agent actions
+  // Agent activities
   'agent_created': 'bot',
   'agent_updated': 'edit',
   'agent_deleted': 'trash',
-  'ai_agent_created': 'bot',
-  'ai_agent_updated': 'edit',
   
-  // Website & document actions
-  'website_url_added': 'globe',
-  'url_deleted': 'trash',
-  'drive_link_added': 'link',
-  'drive_link_deleted': 'link',
+  // Document activities
   'document_added': 'file-plus',
-  'document_removed': 'file-minus',
+  'document_updated': 'file-check',
+  'document_deleted': 'file-minus',
   'document_processed': 'file-check',
   'document_processing_failed': 'file-warning',
   
-  // System actions
-  'email_sent': 'mail',
-  'email_error': 'alert-circle',
+  // Website activities
+  'website_url_added': 'globe',
+  'website_url_updated': 'globe',
+  'website_url_deleted': 'trash',
+  'website_url_processed': 'check',
+  
+  // System activities
   'system_update': 'settings',
+  'system_error': 'alert-circle',
   
-  // User actions
-  'invitation_sent': 'mail',
-  'invitation_accepted': 'check-circle',
-  'widget_settings_updated': 'layout',
+  // Auth activities
+  'login_successful': 'log-in',
+  'login_failed': 'alert-circle',
+  'logout': 'log-out',
+  'password_changed': 'key',
+  'password_reset_requested': 'key',
   
-  // Default
-  'default': 'users'
+  // Default icon
+  'default': 'message-square'
 };
 
-/**
- * Maps activity types to color names (for Tailwind classes)
- */
-export const activityTypeToColor: Record<string, string> = {
-  // Chat interactions
-  'chat_interaction': 'purple',
-  
-  // Client actions
+export const activityTypeToColor: ActivityColorMapping = {
+  // Client activities
   'client_created': 'green',
   'client_updated': 'blue',
   'client_deleted': 'red',
-  'client_recovered': 'green',
   
-  // Agent actions
+  // Agent activities
   'agent_created': 'indigo',
   'agent_updated': 'indigo',
   'agent_deleted': 'red',
-  'ai_agent_created': 'indigo',
-  'ai_agent_updated': 'indigo',
   
-  // Website & document actions
-  'website_url_added': 'blue',
-  'url_deleted': 'red',
-  'drive_link_added': 'blue',
-  'drive_link_deleted': 'red',
+  // Document activities
   'document_added': 'blue',
-  'document_removed': 'red',
+  'document_updated': 'blue',
+  'document_deleted': 'red',
   'document_processed': 'green',
-  'document_processing_failed': 'yellow',
+  'document_processing_failed': 'red',
   
-  // System actions
-  'email_sent': 'blue',
-  'email_error': 'red',
-  'system_update': 'gray',
+  // Website activities
+  'website_url_added': 'purple',
+  'website_url_updated': 'purple',
+  'website_url_deleted': 'red',
+  'website_url_processed': 'green',
   
-  // User actions
-  'invitation_sent': 'blue',
-  'invitation_accepted': 'green',
-  'widget_settings_updated': 'blue',
+  // System activities
+  'system_update': 'amber',
+  'system_error': 'red',
   
-  // Default
+  // Auth activities
+  'login_successful': 'green',
+  'login_failed': 'red',
+  'logout': 'gray',
+  'password_changed': 'blue',
+  'password_reset_requested': 'amber',
+  
+  // Default color
   'default': 'gray'
+};
+
+// Get a human-readable label for an activity type
+export const getActivityTypeLabel = (type: string): string => {
+  // Convert snake_case to Title Case
+  return type
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };

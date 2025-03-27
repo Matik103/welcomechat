@@ -1,6 +1,6 @@
+
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { ClientActivity } from '@/types/activity';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Users, Settings, Link, UserPlus, Edit, Trash2, 
@@ -11,6 +11,16 @@ import {
   CheckCircle, LogIn
 } from 'lucide-react';
 import { activityTypeToIcon, activityTypeToColor, getActivityTypeLabel } from '@/utils/activityTypeUtils';
+
+interface ClientActivity {
+  id: string;
+  client_id: string;
+  client_name?: string;
+  description: string;
+  created_at: string;
+  metadata: any;
+  type?: string; // Using type instead of activity_type
+}
 
 interface RecentActivityListProps {
   activities: ClientActivity[];
@@ -51,10 +61,10 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
   }
 
   // Helper function to get appropriate icon for activity type
-  const getActivityIcon = (type: string = 'unknown') => {
+  const getActivityIcon = (activityType: string = 'unknown') => {
     // First check if we have a predefined icon in our utility
-    if (activityTypeToIcon[type]) {
-      const iconName = activityTypeToIcon[type];
+    if (activityTypeToIcon[activityType]) {
+      const iconName = activityTypeToIcon[activityType];
       
       // Map string icon names to actual Lucide components
       switch (iconName) {
@@ -94,25 +104,25 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
     }
     
     // Fallback logic based on keywords in activity type
-    if (type.includes('create') || type.includes('added')) {
+    if (activityType.includes('create') || activityType.includes('added')) {
       return <UserPlus className="h-4 w-4 text-green-500" />;
     }
-    if (type.includes('delete') || type.includes('removed')) {
+    if (activityType.includes('delete') || activityType.includes('removed')) {
       return <Trash2 className="h-4 w-4 text-red-500" />;
     }
-    if (type.includes('update') || type.includes('change') || type.includes('edited')) {
+    if (activityType.includes('update') || activityType.includes('change') || activityType.includes('edited')) {
       return <Edit className="h-4 w-4 text-blue-500" />;
     }
-    if (type.includes('error') || type.includes('failed')) {
+    if (activityType.includes('error') || activityType.includes('failed')) {
       return <AlertCircle className="h-4 w-4 text-red-500" />;
     }
-    if (type.includes('document') || type.includes('file')) {
+    if (activityType.includes('document') || activityType.includes('file')) {
       return <FileText className="h-4 w-4 text-blue-500" />;
     }
-    if (type.includes('chat') || type.includes('message') || type.includes('interaction')) {
+    if (activityType.includes('chat') || activityType.includes('message') || activityType.includes('interaction')) {
       return <MessageSquare className="h-4 w-4 text-purple-500" />;
     }
-    if (type.includes('agent') || type.includes('ai_agent')) {
+    if (activityType.includes('agent') || activityType.includes('ai_agent')) {
       return <Bot className="h-4 w-4 text-indigo-500" />;
     }
     

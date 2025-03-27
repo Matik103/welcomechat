@@ -94,8 +94,14 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         throw new Error(clientError.message);
       }
       
-      // No activity logging - client_activities table has been completely removed
-      console.log(`[CONSOLE LOG ONLY] New client created: ${clientName}`);
+      // Log activity to console instead of database
+      console.log(`[ACTIVITY LOG]: New client created: ${clientName}`, {
+        clientId,
+        activityType: 'client_created', // Using string literal instead of enum
+        email,
+        agentName,
+        timestamp: new Date().toISOString()
+      });
       
       // Send welcome email with Resend.com through edge function
       const { data: emailResult, error: emailError } = await supabaseAdmin.functions.invoke(

@@ -14,6 +14,7 @@ export async function createClientActivity(
     // Log to console instead of database
     console.log(`[ACTIVITY LOG]: ${description}`, {
       clientId,
+      activityType: 'client_activity', // Use string literal instead of enum 
       metadata,
       timestamp: new Date().toISOString()
     });
