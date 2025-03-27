@@ -1,4 +1,5 @@
 
+
 export type ActivityType = 
   | 'login' 
   | 'logout' 
@@ -11,8 +12,10 @@ export type ActivityType =
   | 'client_created'
   | 'client_updated'
   | 'client_deleted'
-  | 'ai_agent_created'  // Changed from agent_updated
-  | 'ai_agent_updated'  // Changed from agent_updated
+  | 'agent_created'  // Added back this enum value
+  | 'agent_updated'  // Added back this enum value
+  | 'ai_agent_created'
+  | 'ai_agent_updated'
   | 'widget_updated'
   | 'password_reset'
   | 'document_link_added'
@@ -26,3 +29,4 @@ export type ActivityType =
   | 'url_processing_failed'
   | 'document_processed'
   | 'document_processing_failed';
+

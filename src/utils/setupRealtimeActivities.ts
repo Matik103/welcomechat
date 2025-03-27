@@ -1,4 +1,5 @@
 
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/types/supabase";
@@ -140,9 +141,12 @@ const shouldNotifyActivity = (activityType: string): boolean => {
     'document_processing_failed',
     'error_logged',
     'system_update',
-    'ai_agent_created',  // Added the correct enum value
-    'ai_agent_updated'   // Added the correct enum value
+    'ai_agent_created',
+    'ai_agent_updated',
+    'agent_created',  // Added this for backward compatibility
+    'agent_updated'   // Added this for backward compatibility
   ];
   
   return notifiableActivities.includes(activityType);
 };
+

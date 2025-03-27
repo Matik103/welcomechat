@@ -1,4 +1,5 @@
 
+
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityType } from '@/types/client-form';
 import { Json } from '@/integrations/supabase/types';
@@ -14,6 +15,7 @@ export const createClientActivity = async (
     let validActivityType = activity_type;
     
     // Check if the activity type needs to be mapped to a valid enum value
+    // We support both old and new activity type names for backward compatibility
     if (activity_type === 'agent_created') {
       validActivityType = 'ai_agent_created';
     } else if (activity_type === 'agent_updated') {
@@ -58,3 +60,4 @@ export const getClientActivities = async (
     return [];
   }
 };
+
