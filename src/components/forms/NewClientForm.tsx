@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
-import { supabaseAdmin } from '@/integrations/supabase/client-admin';
+import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import { 
   generateClientTempPassword, 
   saveClientTempPassword
@@ -50,6 +50,13 @@ export function NewClientForm() {
     const initialToastId = toast.loading("Creating client...");
     
     try {
+      // Check if admin client is configured
+      if (!isAdminClientConfigured()) {
+        toast.error("Admin operations are not available. Missing VITE_SUPABASE_SERVICE_ROLE_KEY.", { id: initialToastId });
+        setIsLoading(false);
+        return;
+      }
+
       // Ensure client_id exists
       if (!data.client_id) {
         data.client_id = uuidv4();

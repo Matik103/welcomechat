@@ -10,12 +10,28 @@ export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
 // Vite allows for this with import.meta.env instead of process.env
 const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "";
 
+// Provide better error handling if the key is missing
+if (!SUPABASE_SERVICE_KEY) {
+  console.error("VITE_SUPABASE_SERVICE_ROLE_KEY is not defined in your environment variables.");
+  console.error("Please add it to your .env file and restart the server.");
+  console.error("See .env.example for reference.");
+}
+
 // Only import this client for admin operations that require the service role
 // This should not be used in client-side code
-export const supabaseAdmin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-  auth: {
-    persistSession: false, // Don't persist session for admin client
-    autoRefreshToken: false,
-    detectSessionInUrl: false
+export const supabaseAdmin = createClient<Database>(
+  SUPABASE_URL, 
+  SUPABASE_SERVICE_KEY || "MISSING_SERVICE_KEY", // Provide a placeholder to prevent immediate crash
+  {
+    auth: {
+      persistSession: false, // Don't persist session for admin client
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    }
   }
-});
+);
+
+// Add a helper function to check if the admin client is properly configured
+export const isAdminClientConfigured = () => {
+  return !!SUPABASE_SERVICE_KEY;
+};
