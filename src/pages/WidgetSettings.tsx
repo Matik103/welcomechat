@@ -34,10 +34,7 @@ export default function WidgetSettings() {
       if (clientId) {
         await updateWidgetSettings(clientId, newSettings);
         // Log the activity
-        await logClientActivity(
-          'Widget settings updated',
-          { updated_fields: Object.keys(newSettings) }
-        );
+        await logClientActivity();
       }
     },
     onSuccess: () => {
@@ -70,10 +67,7 @@ export default function WidgetSettings() {
       
       if (result) {
         await widgetSettingsHook.updateLogo(result.url, result.path);
-        await logClientActivity('Logo was uploaded', { 
-          logo_url: result.url,
-          logo_path: result.path
-        });
+        await logClientActivity();
         refetch();
       }
     } catch (error) {
@@ -95,11 +89,8 @@ export default function WidgetSettings() {
   };
 
   // Type-safe logClientActivity
-  const logActivityWrapper = async (
-    description: string,
-    metadata?: any
-  ): Promise<void> => {
-    await logClientActivity(description, metadata);
+  const logActivityWrapper = async (): Promise<void> => {
+    await logClientActivity();
   };
 
   return (

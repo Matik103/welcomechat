@@ -4,14 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { DocumentLinkForm } from '@/components/client/drive-links/DocumentLinkForm';
 import { DocumentLinksList } from '@/components/client/drive-links/DocumentLinksList';
 import { useDocumentLinks } from '@/hooks/useDocumentLinks';
-import { ActivityType } from '@/types/client-form';
 import { toast } from 'sonner';
 import { DocumentLinkFormData, DocumentType } from '@/types/document-processing';
 
 interface DocumentResourcesSectionProps {
   clientId: string;
   onResourceChange?: () => void;
-  logClientActivity: (activity_type: ActivityType, description: string, metadata?: Record<string, any>) => Promise<void>;
+  logClientActivity: () => Promise<void>;
 }
 
 export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> = ({
@@ -40,11 +39,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
       await addDocumentLinkMutation.mutateAsync(completeData);
       
       // Log the activity
-      await logClientActivity(
-        'document_link_added',
-        `Added document link: ${data.link}`,
-        { link: data.link, refresh_rate: data.refresh_rate }
-      );
+      await logClientActivity();
       
       toast.success('Document link added successfully');
       
@@ -66,18 +61,10 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
 
   const handleDeleteDocumentLink = async (linkId: number) => {
     try {
-      const linkToDelete = documentLinks.find(link => link.id === linkId);
-      
       await deleteDocumentLinkMutation.mutateAsync(linkId);
       
       // Log the activity
-      if (linkToDelete) {
-        await logClientActivity(
-          'document_link_deleted' as ActivityType,
-          `Deleted document link: ${linkToDelete.link}`,
-          { link: linkToDelete.link }
-        );
-      }
+      await logClientActivity();
       
       toast.success('Document link deleted successfully');
       

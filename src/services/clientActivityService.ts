@@ -1,6 +1,6 @@
 
 /**
- * Simplified client activity service that does nothing
+ * Completely empty client activity service
  */
 export const createClientActivity = async (): Promise<any> => {
   return { success: true };

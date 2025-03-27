@@ -1,6 +1,6 @@
 
 /**
- * Simplified activity service that does nothing
+ * Completely empty activity service
  */
 export async function createClientActivity(): Promise<boolean> {
   return true;

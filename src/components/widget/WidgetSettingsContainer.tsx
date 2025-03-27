@@ -7,7 +7,6 @@ import { WidgetPreviewCard } from "@/components/widget/WidgetPreviewCard";
 import { EmbedCodeCard } from "@/components/widget/EmbedCodeCard";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { ActivityType } from "@/types/client-form";
 import { toast } from "sonner";
 
 interface WidgetSettingsContainerProps {
@@ -21,7 +20,7 @@ interface WidgetSettingsContainerProps {
   };
   handleBack: () => void;
   handleLogoUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  logClientActivity: (activity_type: ActivityType, description: string, metadata?: any) => Promise<void>;
+  logClientActivity: () => Promise<void>;
 }
 
 export function WidgetSettingsContainer({
@@ -52,11 +51,7 @@ export function WidgetSettingsContainer({
 
   const handleCopyEmbedCode = () => {
     if (isClientView) {
-      logClientActivity(
-        "embed_code_copied", 
-        "copied the widget embed code",
-        {}
-      );
+      logClientActivity();
     }
   };
 
