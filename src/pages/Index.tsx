@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,10 +50,6 @@ export default function Index() {
 
   const handleActivityClick = (id: string) => {
     setHighlightedActivity(id === highlightedActivity ? null : id);
-  };
-
-  const handleAddClientClick = () => {
-    navigate('/admin/clients/new');
   };
 
   const handleClientsClick = () => {
@@ -263,9 +258,6 @@ export default function Index() {
                 onClick={() => navigate('/admin/clients')}
               >
                 View All Clients
-              </Button>
-              <Button onClick={handleAddClientClick}>
-                Add Client
               </Button>
             </div>
           </div>
