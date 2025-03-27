@@ -30,12 +30,13 @@ export const createClientActivity = async (
       throw new Error(`Invalid activity type: ${activity_type}`);
     }
     
-    // Insert activity record
+    // Insert activity record - We need to cast the activity_type as any to avoid TypeScript errors
+    // This is because the supabase types are expecting the exact enum type from the database
     const { data, error } = await supabase
       .from('client_activities')
       .insert({
         client_id: clientId,
-        activity_type: validActivityType as string, // Cast to string to match the DB enum
+        activity_type: validActivityType as any, // Cast to any to bypass TypeScript checking
         description,
         metadata: metadata as Json
       });
