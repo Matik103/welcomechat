@@ -8,7 +8,6 @@ export const useClientActivity = (clientId: string | undefined) => {
 
   const logClientActivity = useCallback(
     async (
-      activity_type: string,
       description: string,
       metadata?: Record<string, any>
     ): Promise<void> => {
@@ -18,7 +17,7 @@ export const useClientActivity = (clientId: string | undefined) => {
       }
 
       // Instead of saving to database, we just log to console
-      console.log(`[ACTIVITY LOG] ${activity_type}: ${description}`, {
+      console.log(`[ACTIVITY LOG]: ${description}`, {
         clientId,
         metadata,
         timestamp: new Date().toISOString()

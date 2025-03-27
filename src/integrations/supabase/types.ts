@@ -583,36 +583,6 @@ export type Database = {
         }
         Relationships: []
       }
-      client_activities: {
-        Row: {
-          activity_data: Json | null
-          client_id: string | null
-          created_at: string
-          description: string | null
-          id: string
-          metadata: Json | null
-          updated_at: string
-        }
-        Insert: {
-          activity_data?: Json | null
-          client_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          metadata?: Json | null
-          updated_at?: string
-        }
-        Update: {
-          activity_data?: Json | null
-          client_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          metadata?: Json | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       client_invitations: {
         Row: {
           client_id: string

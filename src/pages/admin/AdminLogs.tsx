@@ -20,8 +20,8 @@ export default function AdminLogsPage() {
               <InfoIcon className="h-4 w-4" />
               <AlertTitle>Client Activities Table Removed</AlertTitle>
               <AlertDescription>
-                The client_activities table has been temporarily removed from the database and will be rebuilt in the future.
-                Activity logging is currently disabled.
+                The client_activities table has been completely removed from the database.
+                Activity logging is currently disabled and will be rebuilt in the future.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -32,7 +32,7 @@ export default function AdminLogsPage() {
             <CardTitle>System Updates</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-500">Activity logging has been temporarily disabled as we rebuild the logging system.</p>
+            <p className="text-gray-500">Activity logging has been temporarily disabled during investigation.</p>
           </CardContent>
         </Card>
       </div>

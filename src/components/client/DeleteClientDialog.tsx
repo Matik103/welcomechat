@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import { Client } from "@/types/client";
 import { supabase } from '@/integrations/supabase/client';
 import { execSql } from '@/utils/rpcUtils';
-import { createClientActivity } from '@/services/clientActivityService';
 
 interface DeleteClientDialogProps {
   isOpen: boolean;
@@ -72,35 +71,13 @@ export const DeleteClientDialog = ({
         throw updateError;
       }
       
-      // Log the deletion in the activities table
-      try {
-        await createClientActivity(
-          client.id,
-          "system_update", // Using a valid activity type
-          `Deletion notification email sent to ${client.client_name}`,
-          { 
-            recipient_email: client.email,
-            email_type: "deletion_notification",
-            client_name: client.client_name,
-            admin_action: true,
-            successful: true
-          }
-        );
-        
-        // Also log a separate activity for the deletion itself
-        await createClientActivity(
-          client.id,
-          "client_deleted",
-          `Client marked for deletion`,
-          { 
-            deleted_by: "admin",
-            deletion_scheduled_at: now
-          }
-        );
-      } catch (activityError) {
-        console.error("Error logging deletion activity:", activityError);
-        // Don't throw error here, we still want to proceed
-      }
+      // Log the deletion to console since client_activities table is removed
+      console.log('Deletion notification email sent', {
+        client_id: client.id,
+        client_name: client.client_name,
+        email: client.email,
+        timestamp: now
+      });
       
       // Refresh the client list
       onClientsUpdated();

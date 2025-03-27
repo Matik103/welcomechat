@@ -8,8 +8,6 @@ export type Json =
 
 export type UserRole = 'admin' | 'client';
 
-export type ActivityType = string;
-
 export interface Database {
   public: {
     Tables: {
@@ -127,34 +125,40 @@ export interface Database {
         }
         Relationships: []
       }
-      client_activities: {
+      document_links: {
         Row: {
-          activity_type: string
+          access_status: Database["public"]["Enums"]["access_status"] | null
           client_id: string | null
           created_at: string
-          description: string | null
+          document_type: string | null
           id: number
-          metadata: Json | null
+          link: string | null
+          notified_at: string | null
+          refresh_rate: number | null
         }
         Insert: {
-          activity_type: string
+          access_status?: Database["public"]["Enums"]["access_status"] | null
           client_id?: string | null
           created_at?: string
-          description?: string | null
+          document_type?: string | null
           id?: number
-          metadata?: Json | null
+          link?: string | null
+          notified_at?: string | null
+          refresh_rate?: number | null
         }
         Update: {
-          activity_type?: string
+          access_status?: Database["public"]["Enums"]["access_status"] | null
           client_id?: string | null
           created_at?: string
-          description?: string | null
+          document_type?: string | null
           id?: number
-          metadata?: Json | null
+          link?: string | null
+          notified_at?: string | null
+          refresh_rate?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "client_activities_client_id_fkey"
+            foreignKeyName: "document_links_client_id_fkey"
             columns: ["client_id"]
             isOne: true
             referencedRelation: "clients"
@@ -212,47 +216,6 @@ export interface Database {
           widget_settings?: Json | null
         }
         Relationships: []
-      }
-      document_links: {
-        Row: {
-          access_status: Database["public"]["Enums"]["access_status"] | null
-          client_id: string | null
-          created_at: string
-          document_type: string | null
-          id: number
-          link: string | null
-          notified_at: string | null
-          refresh_rate: number | null
-        }
-        Insert: {
-          access_status?: Database["public"]["Enums"]["access_status"] | null
-          client_id?: string | null
-          created_at?: string
-          document_type?: string | null
-          id?: number
-          link?: string | null
-          notified_at?: string | null
-          refresh_rate?: number | null
-        }
-        Update: {
-          access_status?: Database["public"]["Enums"]["access_status"] | null
-          client_id?: string | null
-          created_at?: string
-          document_type?: string | null
-          id?: number
-          link?: string | null
-          notified_at?: string | null
-          refresh_rate?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "document_links_client_id_fkey"
-            columns: ["client_id"]
-            isOne: true
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          }
-        ]
       }
       document_processing: {
         Row: {

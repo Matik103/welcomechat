@@ -3,20 +3,18 @@
  * Creates a new client activity record - Currently just logs to console
  * 
  * @param clientId The client ID
- * @param activity_type The type of activity
  * @param description A description of the activity
  * @param metadata Additional metadata (optional)
  * @returns The created activity record
  */
 export const createClientActivity = async (
   clientId: string,
-  activity_type: string,
   description: string,
   metadata: Record<string, any> = {}
 ): Promise<any> => {
   try {
     // Log to console instead of database
-    console.log(`[ACTIVITY LOG] ${activity_type}: ${description}`, {
+    console.log(`[ACTIVITY LOG]: ${description}`, {
       clientId,
       metadata,
       timestamp: new Date().toISOString()

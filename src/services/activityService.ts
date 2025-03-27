@@ -7,13 +7,12 @@ import { callRpcFunctionSafe } from '@/utils/rpcUtils';
  */
 export async function createClientActivity(
   clientId: string,
-  activityType: string,
   description: string,
   metadata: Record<string, any> = {}
 ): Promise<boolean> {
   try {
     // Log to console instead of database
-    console.log(`[ACTIVITY LOG] ${activityType}: ${description}`, {
+    console.log(`[ACTIVITY LOG]: ${description}`, {
       clientId,
       metadata,
       timestamp: new Date().toISOString()
