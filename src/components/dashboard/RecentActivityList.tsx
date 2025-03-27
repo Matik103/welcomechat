@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ClientActivity } from '@/types/activity';
@@ -6,9 +7,11 @@ import {
   Users, Settings, Link, UserPlus, Edit, Trash2, 
   RotateCcw, Upload, Eye, Code, Image, Bot, 
   Key, LogOut, FileText, Mail, ShieldAlert, Calendar,
-  AlertCircle, Check, File, MessageSquare
+  AlertCircle, Check, File, MessageSquare, Globe, 
+  FileCheck, FileWarning, FileMinus, FilePlus, Layout,
+  CheckCircle, LogIn
 } from 'lucide-react';
-import { activityTypeToIcon, activityTypeToColor } from '@/utils/activityTypeUtils';
+import { activityTypeToIcon, activityTypeToColor, getActivityTypeLabel } from '@/utils/activityTypeUtils';
 
 interface RecentActivityListProps {
   activities: ClientActivity[];
@@ -59,7 +62,10 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
         case 'users': return <Users className="h-4 w-4" />;
         case 'settings': return <Settings className="h-4 w-4" />;
         case 'link': return <Link className="h-4 w-4" />;
+        case 'link-2': return <Link className="h-4 w-4" />;
         case 'user-plus': return <UserPlus className="h-4 w-4" />;
+        case 'user': return <Users className="h-4 w-4" />;
+        case 'user-x': return <Users className="h-4 w-4" />;
         case 'edit': return <Edit className="h-4 w-4" />;
         case 'trash': return <Trash2 className="h-4 w-4" />;
         case 'rotate-ccw': return <RotateCcw className="h-4 w-4" />;
@@ -70,12 +76,20 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
         case 'bot': return <Bot className="h-4 w-4" />;
         case 'key': return <Key className="h-4 w-4" />;
         case 'log-out': return <LogOut className="h-4 w-4" />;
+        case 'log-in': return <LogIn className="h-4 w-4" />;
         case 'file-text': return <FileText className="h-4 w-4" />;
+        case 'file-plus': return <FilePlus className="h-4 w-4" />;
+        case 'file-minus': return <FileMinus className="h-4 w-4" />;
+        case 'file-check': return <FileCheck className="h-4 w-4" />;
+        case 'file-warning': return <FileWarning className="h-4 w-4" />;
         case 'mail': return <Mail className="h-4 w-4" />;
         case 'alert-circle': return <AlertCircle className="h-4 w-4" />;
         case 'calendar': return <Calendar className="h-4 w-4" />;
         case 'check': return <Check className="h-4 w-4" />;
+        case 'check-circle': return <CheckCircle className="h-4 w-4" />;
         case 'file': return <File className="h-4 w-4" />;
+        case 'globe': return <Globe className="h-4 w-4" />;
+        case 'layout': return <Layout className="h-4 w-4" />;
         default: return <MessageSquare className="h-4 w-4" />;
       }
     }
@@ -99,14 +113,12 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
     if (type.includes('chat') || type.includes('message') || type.includes('interaction')) {
       return <MessageSquare className="h-4 w-4 text-purple-500" />;
     }
+    if (type.includes('agent') || type.includes('ai_agent')) {
+      return <Bot className="h-4 w-4 text-indigo-500" />;
+    }
     
     // Default
     return <MessageSquare className="h-4 w-4 text-gray-500" />;
-  };
-
-  // Helper function to get color for activity type
-  const getActivityColor = (type: string): string => {
-    return activityTypeToColor[type] || 'gray';
   };
 
   // Helper function to format activity description
@@ -125,11 +137,23 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
     if (activity_type.includes('client_updated')) {
       return `Client "${client_name || 'Unknown'}" was updated`;
     }
+    if (activity_type.includes('agent_created') || activity_type.includes('ai_agent_created')) {
+      return `New AI agent was created for client "${client_name || 'Unknown'}"`;
+    }
+    if (activity_type.includes('agent_updated') || activity_type.includes('ai_agent_updated')) {
+      return `AI agent was updated for client "${client_name || 'Unknown'}"`;
+    }
     if (activity_type.includes('website_url_added')) {
       return `Website URL was added to client "${client_name || 'Unknown'}"`;
     }
     if (activity_type.includes('document_added') || activity_type.includes('document_uploaded')) {
       return `Document was added to client "${client_name || 'Unknown'}"`;
+    }
+    if (activity_type.includes('document_link_added')) {
+      return `Document link was added to client "${client_name || 'Unknown'}"`;
+    }
+    if (activity_type.includes('document_link_removed') || activity_type.includes('document_link_deleted')) {
+      return `Document link was removed from client "${client_name || 'Unknown'}"`;
     }
     if (activity_type.includes('chat_interaction')) {
       return `Chat interaction with client "${client_name || 'Unknown'}"`;
@@ -142,8 +166,9 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
   return (
     <div className="space-y-1">
       {activities.map((activity) => {
-        const activityColor = getActivityColor(activity.activity_type);
-        const colorClass = `text-${activityColor}-500`;
+        const activityColor = activityTypeToColor[activity.activity_type] || 'gray';
+        const bgColorClass = `bg-${activityColor}-100`;
+        const textColorClass = `text-${activityColor}-500`;
         
         return (
           <div
@@ -153,7 +178,7 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
             }`}
             onClick={() => onActivityClick && onActivityClick(activity.id)}
           >
-            <div className={`h-10 w-10 rounded-full bg-${activityColor}-100 flex items-center justify-center`}>
+            <div className={`h-10 w-10 rounded-full ${bgColorClass} flex items-center justify-center`}>
               {getActivityIcon(activity.activity_type)}
             </div>
             
@@ -161,6 +186,9 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
               <p className="text-sm font-medium">{formatActivityDescription(activity)}</p>
               <p className="text-xs text-muted-foreground">
                 {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+              </p>
+              <p className="text-xs font-mono text-muted-foreground">
+                {getActivityTypeLabel(activity.activity_type)}
               </p>
             </div>
           </div>
