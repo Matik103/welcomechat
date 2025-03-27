@@ -1,3 +1,4 @@
+
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -20,6 +21,7 @@ import { useEffect } from "react";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Agents from "@/pages/Agents";
+import AddClientPage from "@/pages/admin/AddClientPage";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
@@ -96,13 +98,13 @@ function App() {
         <Routes>
           <Route path="/admin/dashboard" element={<Index />} />
           <Route path="/admin/clients" element={<ClientList />} />
+          <Route path="/admin/clients/add" element={<AddClientPage />} />
           <Route path="/admin/agents" element={<Agents />} />
           <Route path="/admin/agents/:agentId" element={<Agents />} />
           <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
           <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
           <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
-          <Route path="/admin/clients/:clientId" element={<Navigate to="/admin/clients/view/:clientId" replace />} />
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
           <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />

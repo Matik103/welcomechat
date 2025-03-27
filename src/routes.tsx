@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { RouteObject } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -83,6 +84,10 @@ export const routes: RouteObject[] = [
   {
     path: '/admin/clients/:clientId/widget-settings',
     element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><WidgetSettingsPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '/admin/clients/add',
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><AddClientPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/admin/users',
