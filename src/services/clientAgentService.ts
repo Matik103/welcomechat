@@ -39,6 +39,8 @@ export const clientAgentService = {
         content: '',
         logo_url: logoUrl || '',
         logo_storage_path: logoStoragePath || '',
+        client_name: clientName || '',
+        email: '', // Add empty email field to prevent null issues
       };
 
       // Use admin supabase client for operations requiring service role
@@ -54,7 +56,9 @@ export const clientAgentService = {
         return { success: false, data: null, error };
       }
 
-      console.log(`[ACTIVITY LOG] AI agent created: ${agentName}`, {
+      // Log to console rather than trying to insert into activities table
+      // This avoids the enum validation issue completely
+      console.log(`AI agent created: ${agentName}`, {
         actionType: 'agent_created',
         agent_name: agentName,
         client_id: clientId
