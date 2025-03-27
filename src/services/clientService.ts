@@ -54,9 +54,9 @@ export const getClientByEmail = async (email: string) => {
 
 export const createClient = async (client: Partial<Client>) => {
   try {
-    // Log the activity type using a string literal rather than an enum
-    console.log(`[Creating client]: ${client.client_name}`, {
-      activityType: 'client_created', // Using string literal
+    // Log the action using a generic term to avoid activity_type references
+    console.log(`[Client Action]: Creating client ${client.client_name}`, {
+      action: 'create',
       timestamp: new Date().toISOString()
     });
     
@@ -76,9 +76,9 @@ export const createClient = async (client: Partial<Client>) => {
 
 export const updateClient = async (clientId: string, updates: Partial<Client>) => {
   try {
-    // Log the activity type using a string literal rather than an enum
-    console.log(`[Updating client]: ${updates.client_name || clientId}`, {
-      activityType: 'client_updated', // Using string literal
+    // Log the action using a generic term to avoid activity_type references
+    console.log(`[Client Action]: Updating client ${updates.client_name || clientId}`, {
+      action: 'update',
       timestamp: new Date().toISOString()
     });
     

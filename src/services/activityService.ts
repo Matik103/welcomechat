@@ -11,10 +11,10 @@ export async function createClientActivity(
   metadata: Record<string, any> = {}
 ): Promise<boolean> {
   try {
-    // Log to console instead of database
+    // Log to console only - completely avoiding activityType naming
     console.log(`[ACTIVITY LOG]: ${description}`, {
       clientId,
-      activityType: 'client_activity', // Use string literal instead of enum 
+      action: 'client_activity', // Use generic action instead of activityType
       metadata,
       timestamp: new Date().toISOString()
     });
