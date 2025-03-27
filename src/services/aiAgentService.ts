@@ -96,7 +96,8 @@ export const aiAgentService = {
         return null;
       }
 
-      // Log to console instead of database - using string literal, not enum
+      // Log to console rather than trying to insert into activities table
+      // Use valid enum value if/when activity logging is re-enabled
       console.log(`AI agent created: ${agent.name}`, {
         agent_name: agent.name,
         client_id: agent.client_id
@@ -133,7 +134,8 @@ export const aiAgentService = {
         return null;
       }
 
-      // Log to console instead of database - using string literal, not enum
+      // Log to console rather than trying to insert into activities table
+      // Use valid enum value if/when activity logging is re-enabled
       console.log(`AI agent updated: ${updates.name || id}`, {
         agent_name: updates.name,
         agent_id: id
@@ -165,7 +167,8 @@ export const aiAgentService = {
         return false;
       }
 
-      // Log to console instead of database - using string literal, not enum
+      // Log to console rather than trying to insert into activities table
+      // Use valid enum value if/when activity logging is re-enabled
       console.log(`AI agent deleted: ${id}`, {
         agent_id: id
       });
