@@ -1,19 +1,28 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+import { CreateClientModal } from '@/components/client/CreateClientModal';
 
 export default function AdminClientsPage() {
   const { clients, isLoading, searchQuery, handleSearch } = useClientList();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
     <AdminLayout>
       <div className="container py-8">
-        <h1 className="text-3xl font-bold mb-4">Manage Clients</h1>
-        <p className="text-muted-foreground mb-6">Admin client management interface. Client creation has been disabled.</p>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-bold">Manage Clients</h1>
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add Client
+          </Button>
+        </div>
+        <p className="text-muted-foreground mb-6">Admin client management interface.</p>
         
         <div className="space-y-6">
           <ClientSearchBar 
@@ -37,6 +46,11 @@ export default function AdminClientsPage() {
           </div>
         </div>
       </div>
+      
+      <CreateClientModal 
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </AdminLayout>
   );
 }

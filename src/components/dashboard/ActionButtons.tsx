@@ -1,8 +1,9 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Plus, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { CreateClientModal } from "@/components/client/CreateClientModal";
 
 interface ActionButtonProps {
   children: React.ReactNode;
@@ -25,19 +26,27 @@ const ActionButton = ({ children, primary = false, onClick }: ActionButtonProps)
 
 export const ActionButtons = () => {
   const navigate = useNavigate();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
   const handleAddClientClick = () => {
-    navigate('/admin/clients/new');
+    setIsCreateModalOpen(true);
   };
   
   return (
-    <div className="flex flex-wrap gap-4">
-      <ActionButton primary onClick={handleAddClientClick}>
-        <Plus className="w-4 h-4" /> Add New Client
-      </ActionButton>
-      <ActionButton onClick={() => navigate("/admin/clients")}>
-        View Client List <ArrowRight className="w-4 h-4" />
-      </ActionButton>
-    </div>
+    <>
+      <div className="flex flex-wrap gap-4">
+        <ActionButton primary onClick={handleAddClientClick}>
+          <Plus className="w-4 h-4" /> Add New Client
+        </ActionButton>
+        <ActionButton onClick={() => navigate("/admin/clients")}>
+          View Client List <ArrowRight className="w-4 h-4" />
+        </ActionButton>
+      </div>
+      
+      <CreateClientModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+      />
+    </>
   );
 };
