@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,12 +10,11 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
-import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 import { 
   generateClientTempPassword, 
   saveClientTempPassword
 } from '@/utils/passwordUtils';
-import { createClientUserAccount, logClientCreationActivity, sendClientWelcomeEmail } from '@/utils/clientAccountUtils';
+import { createClientUserAccount, logClientCreationActivity } from '@/utils/clientAccountUtils';
 import { setupOpenAIAssistant } from '@/utils/clientOpenAIUtils';
 
 // Form validation schema
@@ -55,11 +53,35 @@ export function NewClientForm() {
         data.client_id = uuidv4();
       }
       
-      // Create the AI agent directly (using admin client to bypass RLS)
-      const { data: agentData, error: agentError } = await supabaseAdmin
-        .from('ai_agents')
+      // First create the client record
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
         .insert({
           id: data.client_id,
+          client_name: data.client_name,
+          email: data.email,
+          agent_name: data.agent_name,
+          widget_settings: {
+            agent_name: data.agent_name,
+            agent_description: data.agent_description || "",
+            logo_url: "",
+            client_name: data.client_name,
+            email: data.email,
+            client_id: data.client_id
+          }
+        })
+        .select()
+        .single();
+
+      if (clientError) {
+        console.error("Error creating client:", clientError);
+        throw new Error(clientError.message);
+      }
+
+      // Then create the AI agent
+      const { data: agentData, error: agentError } = await supabase
+        .from('ai_agents')
+        .insert({
           client_id: data.client_id,
           name: data.agent_name,
           agent_description: data.agent_description || "",
@@ -72,9 +94,7 @@ export function NewClientForm() {
             client_name: data.client_name,
             email: data.email,
             client_id: data.client_id
-          },
-          email: data.email,
-          client_name: data.client_name
+          }
         })
         .select()
         .single();
@@ -88,10 +108,10 @@ export function NewClientForm() {
       const tempPassword = generateClientTempPassword();
       
       // Save the temporary password
-      await saveClientTempPassword(agentData.id, data.email, tempPassword);
+      await saveClientTempPassword(clientData.id, data.email, tempPassword);
       
       // Create the user account in Supabase Auth
-      const accountResult = await createClientUserAccount(
+      await createClientUserAccount(
         data.email,
         data.client_id,
         data.client_name,
@@ -99,10 +119,6 @@ export function NewClientForm() {
         data.agent_description || "",
         tempPassword
       );
-      
-      if (!accountResult || !accountResult.success) {
-        throw new Error("Failed to create client user account");
-      }
       
       try {
         // Log activity for client creation
@@ -128,17 +144,25 @@ export function NewClientForm() {
       // Update toast to show we're sending welcome email
       toast.loading("Sending welcome email...", { id: initialToastId });
       
-      // Send welcome email
-      const emailResult = await sendClientWelcomeEmail(
-        data.client_id,
-        data.client_name,
-        data.email,
-        data.agent_name,
-        tempPassword
+      // Call the send-welcome-email edge function
+      const { data: emailResult, error: emailFnError } = await supabase.functions.invoke(
+        'send-welcome-email', 
+        {
+          body: {
+            clientId: data.client_id,
+            clientName: data.client_name,
+            email: data.email,
+            agentName: data.agent_name,
+            tempPassword: tempPassword
+          }
+        }
       );
       
-      if (!emailResult.emailSent) {
-        console.error("Email sending failed:", emailResult.emailError);
+      if (emailFnError) {
+        console.error("Email function error:", emailFnError);
+        toast.error("Client created but failed to send invitation email", { id: initialToastId });
+      } else if (emailResult && !emailResult.success) {
+        console.error("Email sending failed:", emailResult.error);
         toast.error("Client created but invitation email failed to send", { id: initialToastId });
       } else {
         toast.success("Client created successfully and invitation sent", { id: initialToastId });

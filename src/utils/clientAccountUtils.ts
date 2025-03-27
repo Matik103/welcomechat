@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/client-form';
 import { toast } from 'sonner';
