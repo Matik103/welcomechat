@@ -2,7 +2,7 @@
 import { Json } from "@/integrations/supabase/types";
 
 /**
- * Extended activity types for client activities
+ * Extended activity types for client activities using string literals
  */
 export type ExtendedActivityType =
   | "chat_interaction"
@@ -52,7 +52,7 @@ export type ExtendedActivityType =
   | "login_failed";
 
 /**
- * Access status type for document links
+ * Access status type for document links using string literals
  */
 export type AccessStatus = 'accessible' | 'inaccessible' | 'unknown' | 'granted' | 'pending' | 'denied';
 

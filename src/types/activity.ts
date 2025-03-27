@@ -15,5 +15,5 @@ export interface ClientActivityProps {
   className?: string;
 }
 
-// Client status type
+// Client status type as string literals instead of enum
 export type ClientStatus = 'active' | 'inactive' | 'deleted';
