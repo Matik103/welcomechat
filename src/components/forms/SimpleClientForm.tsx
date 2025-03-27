@@ -1,27 +1,14 @@
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { generateTempPassword } from '@/utils/passwordUtils';
-
-// Form validation schema
-const clientFormSchema = z.object({
-  client_name: z.string().min(2, 'Client name is required'),
-  email: z.string().email('Invalid email address'),
-  agent_name: z.string().min(1, 'AI agent name is required'),
-  agent_description: z.string().optional()
-});
-
-type ClientFormValues = z.infer<typeof clientFormSchema>;
 
 interface SimpleClientFormProps {
   redirectPath?: string;
@@ -29,19 +16,41 @@ interface SimpleClientFormProps {
 
 export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clientName, setClientName] = useState('');
+  const [email, setEmail] = useState('');
+  const [agentName, setAgentName] = useState('AI Assistant');
+  const [agentDescription, setAgentDescription] = useState('');
   const navigate = useNavigate();
 
-  const form = useForm<ClientFormValues>({
-    resolver: zodResolver(clientFormSchema),
-    defaultValues: {
-      client_name: '',
-      email: '',
-      agent_name: 'AI Assistant',
-      agent_description: ''
-    },
-  });
+  // Simple validation function
+  const validateForm = () => {
+    if (!clientName || clientName.length < 2) {
+      toast.error('Client name is required (minimum 2 characters)');
+      return false;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      toast.error('Valid email address is required');
+      return false;
+    }
+    
+    if (!agentName) {
+      toast.error('AI agent name is required');
+      return false;
+    }
+    
+    return true;
+  };
 
-  const onSubmit = async (data: ClientFormValues) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsSubmitting(true);
     const loadingToast = toast.loading("Creating client account...");
     
@@ -58,15 +67,15 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         .insert({
           id: clientId,
           client_id: clientId,
-          client_name: data.client_name,
-          email: data.email,
-          name: data.agent_name,
-          agent_description: data.agent_description || "",
+          client_name: clientName,
+          email: email,
+          name: agentName,
+          agent_description: agentDescription || "",
           settings: {
-            agent_name: data.agent_name,
-            agent_description: data.agent_description || "",
-            client_name: data.client_name,
-            email: data.email,
+            agent_name: agentName,
+            agent_description: agentDescription || "",
+            client_name: clientName,
+            email: email,
             client_id: clientId,
             tempPassword: tempPassword,
             tempPasswordSetAt: new Date().toISOString()
@@ -80,17 +89,17 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         throw new Error(clientError.message);
       }
       
-      // Log activity - Use 'client_created' instead of 'agent_created' as it's a valid enum value
+      // Log activity
       const { error: activityError } = await supabase
         .from('client_activities')
         .insert({
           client_id: clientId,
-          activity_type: 'client_created', // Changed from 'agent_created' to 'client_created'
-          description: `New client created with AI agent: ${data.agent_name}`,
+          activity_type: 'client_created',
+          description: `New client created with AI agent: ${agentName}`,
           metadata: {
-            client_name: data.client_name,
-            agent_name: data.agent_name,
-            email: data.email
+            client_name: clientName,
+            agent_name: agentName,
+            email: email
           }
         });
 
@@ -105,9 +114,9 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         {
           body: {
             clientId: clientId,
-            clientName: data.client_name,
-            email: data.email,
-            agentName: data.agent_name,
+            clientName: clientName,
+            email: email,
+            agentName: agentName,
             tempPassword: tempPassword,
             fromEmail: 'admin@welcome.chat'
           }
@@ -125,7 +134,10 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
       }
       
       // Reset form
-      form.reset();
+      setClientName('');
+      setEmail('');
+      setAgentName('AI Assistant');
+      setAgentDescription('');
       
       // Navigate to the specified redirect path
       if (redirectPath) {
@@ -140,86 +152,56 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="client_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Client Name</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Enter client name"
-                  {...field}
-                  disabled={isSubmitting}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <Label htmlFor="client_name">Client Name</Label>
+        <Input
+          id="client_name"
+          value={clientName}
+          onChange={(e) => setClientName(e.target.value)}
+          placeholder="Enter client name"
+          disabled={isSubmitting}
         />
+      </div>
 
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email Address</FormLabel>
-              <FormControl>
-                <Input
-                  type="email"
-                  placeholder="Enter email address"
-                  {...field}
-                  disabled={isSubmitting}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+      <div>
+        <Label htmlFor="email">Email Address</Label>
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter email address"
+          disabled={isSubmitting}
         />
+      </div>
 
-        <FormField
-          control={form.control}
-          name="agent_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>AI Agent Name</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Enter AI agent name"
-                  {...field}
-                  disabled={isSubmitting}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+      <div>
+        <Label htmlFor="agent_name">AI Agent Name</Label>
+        <Input
+          id="agent_name"
+          value={agentName}
+          onChange={(e) => setAgentName(e.target.value)}
+          placeholder="Enter AI agent name"
+          disabled={isSubmitting}
         />
+      </div>
 
-        <FormField
-          control={form.control}
-          name="agent_description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>AI Agent Description</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe your AI assistant's purpose and personality..."
-                  {...field}
-                  disabled={isSubmitting}
-                  rows={4}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+      <div>
+        <Label htmlFor="agent_description">AI Agent Description</Label>
+        <Textarea
+          id="agent_description"
+          value={agentDescription}
+          onChange={(e) => setAgentDescription(e.target.value)}
+          placeholder="Describe your AI assistant's purpose and personality..."
+          disabled={isSubmitting}
+          rows={4}
         />
+      </div>
 
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? 'Creating...' : 'Create Client'}
-        </Button>
-      </form>
-    </Form>
+      <Button type="submit" disabled={isSubmitting} className="w-full">
+        {isSubmitting ? 'Creating...' : 'Create Client'}
+      </Button>
+    </form>
   );
 }
