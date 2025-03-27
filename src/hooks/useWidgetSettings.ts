@@ -30,12 +30,8 @@ export const useWidgetSettings = (clientId: string) => {
         throw new Error(`Failed to update agent name: ${agentUpdateError.message}`);
       }
 
-      // Log the activity
-      await createClientActivity(
-        clientId,
-        `Updated agent name to "${agentName}"`,
-        { agent_name: agentName }
-      );
+      // Log the activity - no longer passing arguments as createClientActivity now expects none
+      await createClientActivity();
 
       toast.success('Agent name updated successfully');
       return true;
@@ -90,12 +86,8 @@ export const useWidgetSettings = (clientId: string) => {
         throw new Error(`Failed to update agent description: ${updateError.message}`);
       }
 
-      // Log the activity
-      await createClientActivity(
-        clientId,
-        `Updated agent description`,
-        { description_length: description.length }
-      );
+      // Log the activity - no longer passing arguments
+      await createClientActivity();
 
       toast.success('Agent description updated successfully');
       return true;
@@ -155,15 +147,8 @@ export const useWidgetSettings = (clientId: string) => {
         throw new Error(`Failed to update logo: ${updateError.message}`);
       }
 
-      // Log the activity
-      await createClientActivity(
-        clientId,
-        `Updated agent logo`,
-        { 
-          logo_url: logoUrl,
-          has_storage_path: !!storageFilePath 
-        }
-      );
+      // Log the activity - no longer passing arguments
+      await createClientActivity();
 
       toast.success('Logo updated successfully');
       return true;
