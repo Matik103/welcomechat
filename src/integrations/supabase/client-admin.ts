@@ -13,8 +13,8 @@ const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "
 // Provide better error handling if the key is missing
 if (!SUPABASE_SERVICE_KEY) {
   console.error("VITE_SUPABASE_SERVICE_ROLE_KEY is not defined in your environment variables.");
-  console.error("Please add it to your .env file and restart the server.");
-  console.error("See .env.example for reference.");
+  console.error("Please add it to your .env file or set it as a Supabase secret.");
+  console.error("For Lovable.dev, you need to set this in the Supabase secrets section.");
 }
 
 // Only import this client for admin operations that require the service role

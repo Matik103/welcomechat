@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import { ActivityType } from '@/types/client-form';
@@ -20,7 +21,7 @@ export const createClientUserAccount = async (
       console.error("Admin client is not properly configured. Missing service role key.");
       return { 
         success: false, 
-        error: "Server configuration error: Missing service role key. Please contact an administrator." 
+        error: "Server configuration error: Missing service role key. Please check the Supabase secrets configuration." 
       };
     }
 
