@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 import { generateTempPassword } from '@/utils/passwordUtils';
 
@@ -72,6 +71,8 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
           email: email,
           name: agentName,
           agent_description: agentDescription || "",
+          interaction_type: "config", // Adding required field
+          status: "active", // Adding required field
           settings: {
             agent_name: agentName,
             agent_description: agentDescription || "",
@@ -91,13 +92,13 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
       }
       
       // Log activity
-      const { error: activityError } = await supabase
+      const { error: activityError } = await supabaseAdmin
         .from('client_activities')
         .insert({
           client_id: clientId,
           activity_type: 'ai_agent_created',
           description: `New client created with AI agent: ${agentName}`,
-          metadata: {
+          activity_data: {
             client_name: clientName,
             agent_name: agentName,
             email: email
@@ -110,7 +111,7 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
       }
       
       // Send welcome email with Resend.com through edge function
-      const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+      const { data: emailResult, error: emailError } = await supabaseAdmin.functions.invoke(
         'send-welcome-email', 
         {
           body: {
@@ -146,7 +147,7 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
       }
     } catch (error) {
       console.error('Error creating client:', error);
-      toast.error('Failed to create client. Please try again.', { id: loadingToast });
+      toast.error(`Failed to create client: ${error instanceof Error ? error.message : 'Unknown error'}`, { id: loadingToast });
     } finally {
       setIsSubmitting(false);
     }
