@@ -41,8 +41,7 @@ export default function AddClientPage() {
   const onSubmit = async (values: ClientFormValues) => {
     setIsSubmitting(true);
     try {
-      // IMPORTANT: Direct database insert without any OpenAI assistant creation
-      // Avoiding any triggers or processes that might log activities with invalid enum values
+      // Direct database insert only - no OpenAI assistant creation or activity logging
       const { data, error } = await supabaseAdmin
         .from("ai_agents")
         .insert({
@@ -68,8 +67,7 @@ export default function AddClientPage() {
         throw error;
       }
 
-      // Only log to console, no database activity logging
-      // Avoid using "agent_created" as it seems to be an invalid enum
+      // Console log only - no database activity logging or OpenAI assistant creation
       console.log(`Client created: ${values.clientName}`, {
         clientName: values.clientName,
         chatbotName: values.chatbotName

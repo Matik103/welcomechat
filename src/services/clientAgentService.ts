@@ -5,10 +5,11 @@ import { toast } from "sonner";
 
 /**
  * Service for managing client AI agents
+ * OpenAI assistant creation completely disabled
  */
 export const clientAgentService = {
   /**
-   * Create a new agent for a client
+   * Create a new agent for a client without any OpenAI assistant creation
    */
   async createAgent(
     clientId: string,
@@ -43,8 +44,7 @@ export const clientAgentService = {
         email: '', // Add empty email field to prevent null issues
       };
 
-      // IMPORTANT: No OpenAI assistant creation here - just direct insert
-      // This prevents any activity logging triggers with invalid enum values
+      // Direct database insert only - no OpenAI assistant creation, no activity logging
       const { data, error } = await supabaseAdmin
         .from("ai_agents")
         .insert(agentData)
