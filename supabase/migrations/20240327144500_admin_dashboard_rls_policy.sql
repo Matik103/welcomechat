@@ -50,18 +50,5 @@ CREATE POLICY "Allow users to read their own records" ON ai_agents
            )
     );
 
--- Log the policy change
-INSERT INTO client_activities (
-    activity_type,
-    description,
-    metadata
-)
-VALUES (
-    'system_update',
-    'Updated RLS policies for admin access to ai_agents table',
-    jsonb_build_object(
-        'update_type', 'rls_policy',
-        'table', 'ai_agents',
-        'updated_at', NOW()
-    )
-);
+-- Log policy change to console instead
+RAISE NOTICE 'Updated RLS policies for admin access to ai_agents table at %', NOW();

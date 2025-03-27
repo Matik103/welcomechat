@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DashboardStatCard } from '@/components/admin/DashboardStatCard';
@@ -10,7 +11,7 @@ import {
   Zap
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { setupRealtimeActivities } from '@/utils/setupRealtimeActivities';
 import { subscribeToAllActivities } from '@/services/activitySubscriptionService';
 
