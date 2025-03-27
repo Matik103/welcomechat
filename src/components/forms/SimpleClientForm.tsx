@@ -65,7 +65,7 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
                  !!import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY);
       
       // Create the client record in ai_agents table using supabaseAdmin to bypass RLS
-      // Removed any activity_type related fields from this insert
+      // IMPORTANT: Removed any activity_type related fields and references
       const { data: clientData, error: clientError } = await supabaseAdmin
         .from('ai_agents')
         .insert({
@@ -95,10 +95,10 @@ export function SimpleClientForm({ redirectPath }: SimpleClientFormProps) {
         throw new Error(clientError.message);
       }
       
-      // Log activity to console only - don't interact with activity_type at all
+      // Log to console only - using string literal for the action instead of enum
       console.log(`[ACTIVITY LOG]: New client created: ${clientName}`, {
         clientId,
-        action: 'client_created', // Completely avoiding activityType name
+        action: 'client_created', // Using string literal instead of enum
         email,
         agentName,
         timestamp: new Date().toISOString()
