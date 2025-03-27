@@ -10,6 +10,11 @@ import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 
+// Preload the logo image
+const logoUrl = "/lovable-uploads/53c9d241-4eb7-4ef6-8f3b-7c862819fb48.png";
+const preloadImage = new Image();
+preloadImage.src = logoUrl;
+
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -183,9 +188,11 @@ const Auth = () => {
           <CardHeader className="space-y-1">
             <div className="flex justify-center mb-6">
               <img 
-                src="/lovable-uploads/53c9d241-4eb7-4ef6-8f3b-7c862819fb48.png" 
+                src={logoUrl} 
                 alt="Welcome.Chat" 
-                className="h-16 w-auto" 
+                className="h-16 w-auto"
+                loading="eager"
+                decoding="async"
               />
             </div>
             <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
@@ -257,9 +264,11 @@ const Auth = () => {
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-6">
             <img 
-              src="/lovable-uploads/53c9d241-4eb7-4ef6-8f3b-7c862819fb48.png" 
+              src={logoUrl} 
               alt="Welcome.Chat" 
-              className="h-16 w-auto" 
+              className="h-16 w-auto"
+              loading="eager"
+              decoding="async"
             />
           </div>
           <CardTitle className="text-2xl font-bold">

@@ -5929,6 +5929,8 @@ export type Database = {
         | "embed_code_copied"
         | "agent_error"
         | "chat_interaction"
+        | "agent_created"
+        | "document_link_removed"
       app_role: "admin" | "manager" | "client"
       client_status: "active" | "inactive"
       document_status: "pending" | "processing" | "processed" | "failed"

@@ -19,6 +19,7 @@ export const useClientList = () => {
         .from("ai_agents")
         .select("*", { count: "exact" })
         .eq('interaction_type', 'config')
+        .is('deleted_at', null) // Filter out deleted clients
         .order("created_at", { ascending: false });
       
       // Apply search filter if provided

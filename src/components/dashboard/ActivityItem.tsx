@@ -1,11 +1,15 @@
+
 import React from "react";
 import { format } from "date-fns";
 import { 
   Users, Settings, Link, UserPlus, Edit, Trash2, 
   RotateCcw, Upload, Eye, Code, Image, Bot, 
-  Key, LogOut, FileText, Mail, ShieldAlert, Calendar
+  Key, LogOut, FileText, Mail, ShieldAlert, Calendar,
+  Globe, FilePlus, FileMinus, FileCheck, FileWarning,
+  CheckCircle, AlertCircle, LogIn
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
+import { activityTypeToIcon, getActivityTypeLabel } from '@/utils/activityTypeUtils';
 
 interface ActivityItemProps {
   item: {
@@ -33,61 +37,45 @@ const getActivityIcon = (type: string, metadata: Json) => {
   // Use the original type if it exists, otherwise use the provided type
   const activityType = originalType || type;
   
-  switch (activityType) {
-    case 'client_created':
-      return <UserPlus className="w-4 h-4 text-primary" />;
-    case 'client_updated':
-      return <Edit className="w-4 h-4 text-primary" />;
-    case 'client_deleted':
-      return <Trash2 className="w-4 h-4 text-destructive" />;
-    case 'client_recovered':
-      return <RotateCcw className="w-4 h-4 text-green-500" />;
-    case 'widget_settings_updated':
-      return <Settings className="w-4 h-4 text-primary" />;
-    case 'website_url_added':
-    case 'drive_link_added':
-    case 'document_link_added':
-      return <Link className="w-4 h-4 text-primary" />;
-    case 'website_url_removed':
-    case 'drive_link_removed':
-    case 'url_deleted':
-    case 'drive_link_deleted':
-    case 'document_link_deleted':
-      return <Trash2 className="w-4 h-4 text-primary" />;
-    case 'document_uploaded':
-      return <Upload className="w-4 h-4 text-primary" />;
-    case 'logo_uploaded':
-      return <Image className="w-4 h-4 text-primary" />;
-    case 'embed_code_copied':
-      return <Code className="w-4 h-4 text-primary" />;
-    case 'widget_previewed':
-      return <Eye className="w-4 h-4 text-primary" />;
-    case 'ai_agent_created':
-    case 'ai_agent_updated':
-      return <Bot className="w-4 h-4 text-primary" />;
-    case 'password_changed':
-    case 'password_reset':
-      return <Key className="w-4 h-4 text-primary" />;
-    case 'signed_out':
-      return <LogOut className="w-4 h-4 text-primary" />;
-    case 'document_viewed':
-      return <FileText className="w-4 h-4 text-primary" />;
-    case 'email_sent':
-      return <Mail className="w-4 h-4 text-primary" />;
-    case 'security_alert':
-      return <ShieldAlert className="w-4 h-4 text-destructive" />;
-    case 'scheduled_event':
-      return <Calendar className="w-4 h-4 text-primary" />;
-    case 'chat_interaction':
-      return <Bot className="w-4 h-4 text-primary" />;
-    default:
-      return <Users className="w-4 h-4 text-primary" />;
+  // Use our new utility function to get the icon name
+  const iconName = activityTypeToIcon[activityType] || 'users';
+  
+  // Return the appropriate icon component
+  switch (iconName) {
+    case 'user-plus': return <UserPlus className="w-4 h-4 text-primary" />;
+    case 'edit': return <Edit className="w-4 h-4 text-primary" />;
+    case 'trash': return <Trash2 className="w-4 h-4 text-destructive" />;
+    case 'rotate-ccw': return <RotateCcw className="w-4 h-4 text-green-500" />;
+    case 'settings': return <Settings className="w-4 h-4 text-primary" />;
+    case 'link': case 'link-2': return <Link className="w-4 h-4 text-primary" />;
+    case 'upload': return <Upload className="w-4 h-4 text-primary" />;
+    case 'image': return <Image className="w-4 h-4 text-primary" />;
+    case 'code': return <Code className="w-4 h-4 text-primary" />;
+    case 'eye': return <Eye className="w-4 h-4 text-primary" />;
+    case 'bot': return <Bot className="w-4 h-4 text-primary" />;
+    case 'key': return <Key className="w-4 h-4 text-primary" />;
+    case 'log-out': return <LogOut className="w-4 h-4 text-primary" />;
+    case 'log-in': return <LogIn className="w-4 h-4 text-primary" />;
+    case 'file-text': return <FileText className="w-4 h-4 text-primary" />;
+    case 'file-plus': return <FilePlus className="w-4 h-4 text-primary" />;
+    case 'file-minus': return <FileMinus className="w-4 h-4 text-primary" />;
+    case 'file-check': return <FileCheck className="w-4 h-4 text-primary" />;
+    case 'file-warning': return <FileWarning className="w-4 h-4 text-primary" />;
+    case 'mail': return <Mail className="w-4 h-4 text-primary" />;
+    case 'shield-alert': return <ShieldAlert className="w-4 h-4 text-destructive" />;
+    case 'calendar': return <Calendar className="w-4 h-4 text-primary" />;
+    case 'globe': return <Globe className="w-4 h-4 text-primary" />;
+    case 'check-circle': return <CheckCircle className="w-4 h-4 text-primary" />;
+    case 'alert-circle': return <AlertCircle className="w-4 h-4 text-destructive" />;
+    case 'users': default: return <Users className="w-4 h-4 text-primary" />;
   }
 };
 
 export const ActivityItem = ({ item }: ActivityItemProps) => {
   // Use the properly resolved client name that comes from useRecentActivities hook
   const clientName = item.client_name || "System";
+  // Get a human-readable label for the activity type
+  const activityTypeLabel = getActivityTypeLabel(item.activity_type);
     
   return (
     <div className="flex items-center gap-4 py-3 animate-slide-in">
@@ -98,7 +86,9 @@ export const ActivityItem = ({ item }: ActivityItemProps) => {
         <p className="text-sm text-gray-900">
           {clientName} {item.description}
         </p>
-        <p className="text-xs text-gray-500">{format(new Date(item.created_at), 'MMM d, yyyy HH:mm')}</p>
+        <p className="text-xs text-gray-500">
+          {format(new Date(item.created_at), 'MMM d, yyyy HH:mm')} • {activityTypeLabel}
+        </p>
       </div>
     </div>
   );

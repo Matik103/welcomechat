@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClientActivity as ClientActivityType } from "@/types/client-dashboard";
 import { formatDistanceToNow } from 'date-fns';
+import { getActivityTypeLabel } from '@/utils/activityTypeUtils';
 
 interface ClientActivityProps {
   activities: ClientActivityType[];
@@ -61,6 +62,7 @@ export const ClientActivity = ({
           <TabsList className="mb-4">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="chat">Chat</TabsTrigger>
+            <TabsTrigger value="ai">AI Agent</TabsTrigger>
             <TabsTrigger value="system">System</TabsTrigger>
           </TabsList>
           
@@ -76,10 +78,25 @@ export const ClientActivity = ({
             />
           </TabsContent>
           
+          <TabsContent value="ai" className="mt-0">
+            <ActivityList 
+              activities={activities.filter(a => 
+                a.activity_type === 'agent_created' || 
+                a.activity_type === 'agent_updated' ||
+                a.activity_type === 'ai_agent_created' || 
+                a.activity_type === 'ai_agent_updated'
+              )} 
+            />
+          </TabsContent>
+          
           <TabsContent value="system" className="mt-0">
             <ActivityList 
               activities={activities.filter(a => 
-                a.activity_type !== 'chat_interaction'
+                a.activity_type !== 'chat_interaction' &&
+                a.activity_type !== 'agent_created' && 
+                a.activity_type !== 'agent_updated' &&
+                a.activity_type !== 'ai_agent_created' && 
+                a.activity_type !== 'ai_agent_updated'
               )} 
             />
           </TabsContent>
@@ -118,15 +135,6 @@ const ActivityList = ({ activities }: { activities: ClientActivityType[] }) => {
       ))}
     </div>
   );
-};
-
-// Helper function to format activity types for display
-const getActivityTypeLabel = (type: string): string => {
-  // Convert from snake_case to Title Case with spaces
-  return type
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
 };
 
 export default ClientActivity;

@@ -1,45 +1,41 @@
 
 import React from 'react';
 
-interface ChartDataItem {
+interface BarChartDataItem {
   name: string;
   value: number;
 }
 
 interface BarChartProps {
-  data: ChartDataItem[];
+  data: BarChartDataItem[];
   color?: string;
 }
 
 export function BarChart({ data, color = '#4F46E5' }: BarChartProps) {
-  // Extract just the values for the actual chart rendering
-  const values = data.map(item => item.value);
-  const maxValue = Math.max(...values);
+  // Find the maximum value to scale the chart
+  const maxValue = Math.max(...data.map(item => item.value));
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-end space-x-1 h-20">
-        {values.map((value, index) => {
-          const barHeight = maxValue > 0 ? (value / maxValue) * 100 : 0;
-          return (
-            <div
-              key={index}
-              className="flex-1 rounded-sm transition-all duration-300 ease-in-out hover:opacity-80"
-              style={{
-                height: `${barHeight}%`,
-                backgroundColor: color,
-                minHeight: '1px'
-              }}
-            />
-          );
-        })}
-      </div>
-      
-      {/* Display labels below the bars */}
-      <div className="flex justify-between text-xs text-gray-500">
+    <div className="w-full">
+      <div className="flex flex-col space-y-2">
         {data.map((item, index) => (
-          <div key={index} className="text-center overflow-hidden text-ellipsis whitespace-nowrap">
-            {item.name}
+          <div key={index} className="flex items-center">
+            <div className="w-24 text-sm text-gray-600">{item.name}</div>
+            <div className="flex-1">
+              <div 
+                className="h-6 rounded-sm transition-all duration-300" 
+                style={{ 
+                  width: `${(item.value / maxValue) * 100}%`,
+                  backgroundColor: color,
+                  minWidth: '8px' // Ensures even very small values are visible
+                }}
+              />
+            </div>
+            <div className="ml-2 text-sm text-gray-700">
+              {item.name === 'Response Time' 
+                ? `${(item.value / 1000).toFixed(2)}s` 
+                : item.value.toLocaleString()}
+            </div>
           </div>
         ))}
       </div>

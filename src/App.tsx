@@ -51,7 +51,6 @@ function App() {
     );
   }
 
-  // Handle public routes for landing page, about, contact
   if (!user && isPublicRoute) {
     return (
       <div className="min-h-screen bg-background">
@@ -67,7 +66,6 @@ function App() {
     );
   }
 
-  // Handle unauthenticated users
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
@@ -101,6 +99,7 @@ function App() {
           <Route path="/admin/dashboard" element={<Index />} />
           <Route path="/admin/clients" element={<ClientList />} />
           <Route path="/admin/agents" element={<Agents />} />
+          <Route path="/admin/agents/:agentId" element={<Agents />} />
           <Route path="/admin/settings" element={<Settings />} />
           <Route path="/admin/clients/new" element={<CreateClientAccount />} />
           <Route path="/admin/clients/view/:clientId" element={<ClientView />} />

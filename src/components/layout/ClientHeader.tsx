@@ -43,7 +43,7 @@ export const ClientHeader = () => {
                   <Settings className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56" sideOffset={16}>
+              <DropdownMenuContent align="end" className="w-56 bg-white shadow-lg border border-gray-200" sideOffset={16}>
                 <DropdownMenuLabel className="flex items-center gap-2">
                   <UserCog className="h-4 w-4" />
                   {user.user_metadata.full_name || user.email}

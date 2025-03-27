@@ -1,89 +1,162 @@
 
 import { ActivityType } from '@/types/client-form';
 
-// Activity type to display text mapping
-export const activityTypeToDisplayText: Partial<Record<ActivityType, string>> = {
-  'password_changed': 'Changed password',
-  'website_url_added': 'Added website URL',
-  'website_url_deleted': 'Deleted website URL',
-  'website_url_processed': 'Processed website URL',
-  'document_added': 'Added document',
-  'document_removed': 'Removed document',
-  'client_created': 'Created client',
-  'client_updated': 'Updated client',
-  'client_deleted': 'Deleted client',
-  'agent_updated': 'Updated AI agent',
-  'widget_updated': 'Updated widget',
-  'password_reset': 'Password reset',
-  'document_link_added': 'Added document link',
-  'document_link_deleted': 'Deleted document link',
-  'url_added': 'Added URL',           // Legacy type
-  'url_removed': 'Removed URL',       // Legacy type
-  'url_processed': 'Processed URL',   // Legacy type
-  'url_processing_failed': 'URL processing failed', // Legacy type
-  'document_processed': 'Document processed',
-  'document_processing_failed': 'Document processing failed',
-  'settings_updated': 'Settings updated',
-  'login': 'Logged in',
-  'logout': 'Logged out',
-  'website_added': 'Website added',
-  'website_removed': 'Website removed'
-};
-
-// Activity type to icon mapping
-export const activityTypeToIcon: Partial<Record<ActivityType, string>> = {
-  'password_changed': 'lock',
-  'website_url_added': 'globe',
-  'website_url_deleted': 'trash',
-  'website_url_processed': 'check-circle',
+// Map activity types to icon names
+export const activityTypeToIcon: Record<string, string> = {
+  'login': 'log-in',
+  'logout': 'log-out',
+  'settings_updated': 'settings',
+  'password_changed': 'key',
+  'website_added': 'globe',
+  'website_removed': 'trash',
   'document_added': 'file-plus',
   'document_removed': 'file-minus',
   'client_created': 'user-plus',
   'client_updated': 'user',
-  'client_deleted': 'user-minus',
+  'client_deleted': 'user-x',
+  'client_recovered': 'refresh-cw',
+  'agent_created': 'bot',
   'agent_updated': 'bot',
+  'ai_agent_created': 'bot',
+  'ai_agent_updated': 'bot',
   'widget_updated': 'layout',
   'password_reset': 'key',
   'document_link_added': 'link',
-  'document_link_deleted': 'unlink',
-  'url_added': 'globe',           // Legacy type
-  'url_removed': 'trash',         // Legacy type
-  'url_processed': 'check-circle',   // Legacy type
-  'url_processing_failed': 'alert-circle', // Legacy type
+  'document_link_deleted': 'link-2',
+  'document_link_removed': 'link-2',
+  'website_url_added': 'globe',
+  'website_url_deleted': 'trash',
+  'website_url_processed': 'check-circle',
+  'drive_link_added': 'folder-plus',
+  'drive_link_deleted': 'folder-minus',
+  'document_uploaded': 'upload',
+  'url_added': 'link',
+  'url_removed': 'trash',
+  'url_processed': 'check-circle',
+  'url_processing_failed': 'alert-circle',
   'document_processed': 'file-check',
-  'document_processing_failed': 'file-alert',
-  'settings_updated': 'settings',
-  'login': 'log-in',
-  'logout': 'log-out',
-  'website_added': 'globe',
-  'website_removed': 'trash'
+  'document_processing_failed': 'file-warning',
+  'document_processing_started': 'loader',
+  'document_processing_completed': 'check',
+  'chat_interaction': 'message-circle',
+  'agent_name_updated': 'edit',
+  'agent_logo_updated': 'image',
+  'agent_description_updated': 'edit-3',
+  'error_logged': 'alert-triangle',
+  'webhook_sent': 'send',
+  'system_update': 'refresh-cw',
+  'common_query_milestone': 'award',
+  'interaction_milestone': 'bar-chart-2',
+  'growth_milestone': 'trending-up',
+  'invitation_sent': 'mail',
+  'invitation_accepted': 'check',
+  'user_role_updated': 'user-check',
+  'login_success': 'log-in',
+  'login_failed': 'x-circle',
+  'logo_uploaded': 'image',
+  'embed_code_copied': 'clipboard',
+  'source_added': 'plus-circle',
+  'source_deleted': 'trash-2',
+  'ai_agent_table_created': 'database',
+  'signed_out': 'log-out',
+  'email_sent': 'mail',
+  'openai_assistant_document_added': 'file-plus',
+  'config_updated': 'settings',
+  'agent_error': 'alert-octagon',
+  'widget_settings_updated': 'sliders'
 };
 
-// Activity type to color mapping
-export const activityTypeToColor: Partial<Record<ActivityType, string>> = {
-  'password_changed': 'yellow',
-  'website_url_added': 'green',
-  'website_url_deleted': 'red',
-  'website_url_processed': 'blue',
-  'document_added': 'green',
-  'document_removed': 'red',
-  'client_created': 'green',
-  'client_updated': 'blue',
-  'client_deleted': 'red',
-  'agent_updated': 'purple',
-  'widget_updated': 'blue',
-  'password_reset': 'yellow',
-  'document_link_added': 'green',
-  'document_link_deleted': 'red',
-  'url_added': 'green',           // Legacy type
-  'url_removed': 'red',           // Legacy type
-  'url_processed': 'blue',        // Legacy type
-  'url_processing_failed': 'orange', // Legacy type
-  'document_processed': 'green',
-  'document_processing_failed': 'orange',
-  'settings_updated': 'blue',
+// Map activity types to color schemes
+export const activityTypeToColor: Record<string, string> = {
   'login': 'green',
   'logout': 'gray',
-  'website_added': 'green',
-  'website_removed': 'red'
+  'settings_updated': 'blue',
+  'password_changed': 'purple',
+  'website_added': 'indigo',
+  'website_removed': 'red',
+  'document_added': 'cyan',
+  'document_removed': 'orange',
+  'client_created': 'emerald',
+  'client_updated': 'blue',
+  'client_deleted': 'red',
+  'client_recovered': 'green',
+  'agent_created': 'indigo',
+  'agent_updated': 'violet',
+  'ai_agent_created': 'indigo',
+  'ai_agent_updated': 'violet',
+  'widget_updated': 'amber',
+  'password_reset': 'purple',
+  'document_link_added': 'cyan',
+  'document_link_deleted': 'orange',
+  'document_link_removed': 'orange',
+  'website_url_added': 'indigo',
+  'website_url_deleted': 'red',
+  'website_url_processed': 'green',
+  'drive_link_added': 'blue',
+  'drive_link_deleted': 'red',
+  'document_uploaded': 'teal',
+  'url_added': 'cyan',
+  'url_removed': 'red',
+  'url_processed': 'green',
+  'url_processing_failed': 'red',
+  'document_processed': 'green',
+  'document_processing_failed': 'red',
+  'document_processing_started': 'amber',
+  'document_processing_completed': 'green',
+  'chat_interaction': 'blue',
+  'agent_name_updated': 'violet',
+  'agent_logo_updated': 'pink',
+  'agent_description_updated': 'violet',
+  'error_logged': 'red',
+  'webhook_sent': 'blue',
+  'system_update': 'cyan',
+  'common_query_milestone': 'yellow',
+  'interaction_milestone': 'emerald',
+  'growth_milestone': 'green',
+  'invitation_sent': 'blue',
+  'invitation_accepted': 'green',
+  'user_role_updated': 'purple',
+  'login_success': 'green',
+  'login_failed': 'red',
+  'logo_uploaded': 'pink',
+  'embed_code_copied': 'blue',
+  'source_added': 'cyan',
+  'source_deleted': 'red',
+  'ai_agent_table_created': 'indigo',
+  'signed_out': 'gray',
+  'email_sent': 'blue',
+  'openai_assistant_document_added': 'cyan',
+  'config_updated': 'blue',
+  'agent_error': 'red',
+  'widget_settings_updated': 'amber'
+};
+
+// Convert activity type to human-readable label
+export const getActivityTypeLabel = (type: string): string => {
+  // Map specific activity types to custom labels if needed
+  const customLabels: Record<string, string> = {
+    'agent_created': 'AI Agent Created',
+    'agent_updated': 'AI Agent Updated',
+    'ai_agent_created': 'AI Agent Created',
+    'ai_agent_updated': 'AI Agent Updated',
+    'document_link_removed': 'Document Link Removed',
+    'website_url_added': 'Website URL Added',
+    'website_url_deleted': 'Website URL Deleted',
+    'website_url_processed': 'Website URL Processed',
+    'agent_name_updated': 'Agent Name Updated',
+    'agent_logo_updated': 'Agent Logo Updated',
+    'agent_description_updated': 'Agent Description Updated',
+    'document_processing_started': 'Document Processing Started',
+    'document_processing_completed': 'Document Processing Completed'
+  };
+
+  if (customLabels[type]) {
+    return customLabels[type];
+  }
+
+  // Convert from snake_case to Title Case with spaces
+  return type
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };

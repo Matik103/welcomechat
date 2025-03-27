@@ -9,6 +9,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
 import { handleLogoUpload } from "@/services/uploadService";
 import { WidgetSettings as IWidgetSettings } from "@/types/widget-settings";
+import { ActivityType } from "@/types/client-form";
 import { toast } from "sonner";
 import { defaultSettings } from "@/types/widget-settings";
 
@@ -33,6 +34,12 @@ export default function WidgetSettings() {
     mutationFn: async (newSettings: IWidgetSettings): Promise<void> => {
       if (clientId) {
         await updateWidgetSettings(clientId, newSettings);
+        // Log the activity
+        await logClientActivity(
+          'widget_settings_updated' as ActivityType,
+          'Widget settings updated',
+          { updated_fields: Object.keys(newSettings) }
+        );
       }
     },
     onSuccess: () => {
@@ -65,7 +72,7 @@ export default function WidgetSettings() {
       
       if (result) {
         await widgetSettingsHook.updateLogo(result.url, result.path);
-        await logClientActivity("logo_uploaded", "Logo was uploaded", { 
+        await logClientActivity("logo_uploaded" as ActivityType, "Logo was uploaded", { 
           logo_url: result.url,
           logo_path: result.path
         });
@@ -91,7 +98,7 @@ export default function WidgetSettings() {
 
   // Type-safe logClientActivity
   const logActivityWrapper = async (
-    activity_type: any,
+    activity_type: ActivityType,
     description: string,
     metadata?: any
   ): Promise<void> => {

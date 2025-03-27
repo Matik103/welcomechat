@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -22,7 +23,7 @@ export const DashboardStatCard = ({
   return (
     <Card 
       className={cn(
-        "transition-all duration-200 cursor-pointer hover:opacity-90",
+        "transition-all duration-200 cursor-pointer transform hover:scale-102 hover:shadow-md",
         "rounded-xl shadow-sm",
         bgColor
       )}

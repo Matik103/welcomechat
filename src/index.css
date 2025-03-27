@@ -1,5 +1,4 @@
 
-
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -64,6 +63,11 @@
   animation: slide-in 0.3s ease-out forwards;
 }
 
+/* Custom dropdown styles to ensure visibility */
+[data-radix-popper-content-wrapper] {
+  z-index: 100 !important;
+}
+
 /* Admin dashboard specific typography styles */
 .dashboard-heading {
   font-size: 2.25rem;
@@ -89,4 +93,11 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: #64748b;
+}
+
+@layer utilities {
+  .scale-102 {
+    --tw-scale-x: 1.02;
+    --tw-scale-y: 1.02;
+  }
 }

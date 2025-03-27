@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Agent {
@@ -146,4 +147,4 @@ export const updateAgentStatus = async (agentId: string, status: string): Promis
     console.error('Error updating agent status:', error);
     return false;
   }
-}; 
+};
