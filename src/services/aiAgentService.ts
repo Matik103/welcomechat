@@ -1,7 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin } from "@/integrations/supabase/client-admin";
-import { AIAgent } from "@/types/supabase";
 import { toast } from "sonner";
 
 /**
@@ -11,7 +10,7 @@ export const aiAgentService = {
   /**
    * Get an AI agent by ID
    */
-  async getById(id: string): Promise<AIAgent | null> {
+  async getById(id: string): Promise<any | null> {
     try {
       const { data, error } = await supabase
         .from("ai_agents")
@@ -25,7 +24,7 @@ export const aiAgentService = {
         return null;
       }
 
-      return data as AIAgent;
+      return data;
     } catch (error) {
       console.error("Error in getById:", error);
       return null;
@@ -35,7 +34,7 @@ export const aiAgentService = {
   /**
    * Get AI agents by client ID
    */
-  async getByClientId(clientId: string): Promise<AIAgent[]> {
+  async getByClientId(clientId: string): Promise<any[]> {
     try {
       const { data, error } = await supabase
         .from("ai_agents")
@@ -50,7 +49,7 @@ export const aiAgentService = {
         return [];
       }
 
-      return data as AIAgent[];
+      return data || [];
     } catch (error) {
       console.error("Error in getByClientId:", error);
       return [];
@@ -60,7 +59,7 @@ export const aiAgentService = {
   /**
    * Create a new AI agent
    */
-  async create(agent: Partial<AIAgent>): Promise<AIAgent | null> {
+  async create(agent: any): Promise<any | null> {
     try {
       // Ensure required fields
       if (!agent.client_id || !agent.name) {
@@ -104,7 +103,7 @@ export const aiAgentService = {
         client_id: agent.client_id
       });
 
-      return data as AIAgent;
+      return data;
     } catch (error) {
       console.error("Error in create:", error);
       return null;
@@ -114,7 +113,7 @@ export const aiAgentService = {
   /**
    * Update an AI agent
    */
-  async update(id: string, updates: Partial<AIAgent>): Promise<AIAgent | null> {
+  async update(id: string, updates: any): Promise<any | null> {
     try {
       // Ensure updates include the updated_at timestamp
       const updateData = {
@@ -142,7 +141,7 @@ export const aiAgentService = {
         agent_id: id
       });
 
-      return data as AIAgent;
+      return data;
     } catch (error) {
       console.error("Error in update:", error);
       return null;

@@ -1,7 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Database } from "@/types/supabase";
 
 // Define payload type for better type safety
 type PostgresChangesPayload<T> = {
@@ -13,7 +12,7 @@ type PostgresChangesPayload<T> = {
 };
 
 // Short type alias for AI agents payload
-type AIAgentsPayload = PostgresChangesPayload<Database['public']['Tables']['ai_agents']['Row']>;
+type AIAgentsPayload = PostgresChangesPayload<any>;
 
 export const setupRealtimeActivities = async () => {
   try {
