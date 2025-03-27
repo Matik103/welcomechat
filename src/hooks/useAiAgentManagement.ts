@@ -77,6 +77,9 @@ export const useAiAgentManagement = () => {
           console.log(`Updated agent description to: ${agentDescription}`);
           console.log(`Updated agent logo URL to: ${logoUrl}`);
           
+          // Just log the activity to console instead of saving to DB
+          console.log(`[ACTIVITY LOG] AI agent updated: ${finalAgentName}`);
+          
           return { 
             updated: true, 
             created: false, 
@@ -107,6 +110,10 @@ export const useAiAgentManagement = () => {
           console.log(`Created new AI agent with name: ${finalAgentName}`);
           console.log(`Set agent description to: ${agentDescription}`);
           console.log(`Set agent logo URL to: ${logoUrl}`);
+          
+          // Just log the activity to console instead of saving to DB
+          console.log(`[ACTIVITY LOG] AI agent created: ${finalAgentName}`);
+          
           return { 
             updated: false, 
             created: true, 

@@ -97,6 +97,9 @@ export const aiAgentService = {
         return null;
       }
 
+      // Log to console instead of database
+      console.log(`[ACTIVITY LOG] AI agent created: ${agent.name}`);
+
       return data as AIAgent;
     } catch (error) {
       console.error("Error in create:", error);
@@ -128,6 +131,9 @@ export const aiAgentService = {
         return null;
       }
 
+      // Log to console instead of database
+      console.log(`[ACTIVITY LOG] AI agent updated: ${updates.name || id}`);
+
       return data as AIAgent;
     } catch (error) {
       console.error("Error in update:", error);
@@ -153,6 +159,9 @@ export const aiAgentService = {
         toast.error("Failed to delete AI agent");
         return false;
       }
+
+      // Log to console instead of database
+      console.log(`[ACTIVITY LOG] AI agent deleted: ${id}`);
 
       return true;
     } catch (error) {

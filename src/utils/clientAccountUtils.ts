@@ -1,7 +1,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
-import { createClientActivity } from '@/services/clientActivityService';
+import { toast } from 'sonner';
 
 // Function to set up a new client account
 export async function setupNewClientAccount(clientData: any) {
@@ -9,20 +9,31 @@ export async function setupNewClientAccount(clientData: any) {
     // Generate a unique client ID
     const clientId = uuidv4();
 
-    // Create a new client record in the clients table
+    // Create a new client record in the ai_agents table (which now replaces the clients table)
     const { error: clientError } = await supabase
-      .from('clients')
+      .from('ai_agents')
       .insert({
         id: clientId,
+        client_id: clientId,
         client_name: clientData.name,
+        name: clientData.agent_name || 'AI Assistant',
         email: clientData.email,
-        widget_settings: {
+        agent_description: clientData.agent_description || 'Your AI Assistant',
+        interaction_type: "config",
+        status: "active",
+        settings: {
+          agent_name: clientData.agent_name || 'AI Assistant',
+          agent_description: clientData.agent_description || 'Your AI Assistant',
           primary_color: clientData.primary_color,
           secondary_color: clientData.secondary_color,
           logo_url: clientData.logo_url,
-          custom_domain: clientData.custom_domain
+          custom_domain: clientData.custom_domain,
+          email: clientData.email,
+          client_name: clientData.name
         },
-        status: 'active'
+        logo_url: clientData.logo_url,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
 
     if (clientError) {
@@ -30,39 +41,12 @@ export async function setupNewClientAccount(clientData: any) {
       return { success: false, error: clientError };
     }
 
-    // Create a default AI agent for the client
-    const { error: agentError } = await supabase
-      .from('ai_agents')
-      .insert([
-        {
-          client_id: clientId,
-          name: clientData.agent_name || 'AI Assistant',
-          description: clientData.agent_description || 'Your AI Assistant',
-          interaction_type: 'config',
-          settings: {
-            greeting: clientData.agent_greeting || 'Hello! How can I help you today?',
-            primary_color: clientData.primary_color,
-            secondary_color: clientData.secondary_color,
-            logo_url: clientData.logo_url,
-            agent_description: clientData.agent_description || 'Your AI Assistant'
-          },
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]);
-
-    if (agentError) {
-      console.error("Error creating AI agent:", agentError);
-      return { success: false, error: agentError };
-    }
-
-    // Log client creation - using the fixed parameters
-    await createClientActivity(
+    // Log instead of saving to database
+    console.log("[ACTIVITY LOG] Created new client account:", {
       clientId,
-      "Created new client account",
-      { clientName: clientData.name }
-    );
+      clientName: clientData.name,
+      timestamp: new Date().toISOString()
+    });
 
     return { success: true, clientId };
   } catch (error) {
@@ -74,19 +58,25 @@ export async function setupNewClientAccount(clientData: any) {
 // Function to delete a client account
 export async function deleteClientAccount(clientId: string) {
   try {
-    // Delete the client record from the clients table
+    // Now we update the ai_agents record instead of deleting from clients table
     const { error: clientError } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', clientId);
+      .from('ai_agents')
+      .update({
+        status: 'deleted',
+        deleted_at: new Date().toISOString()
+      })
+      .eq('client_id', clientId);
 
     if (clientError) {
       console.error("Error deleting client:", clientError);
       return { success: false, error: clientError };
     }
 
-    // Optionally, log the deletion activity
-    console.log(`Client account deleted successfully for client ID: ${clientId}`);
+    // Log the deletion in console
+    console.log("[ACTIVITY LOG] Client account deleted:", {
+      clientId,
+      timestamp: new Date().toISOString()
+    });
 
     return { success: true };
   } catch (error) {
