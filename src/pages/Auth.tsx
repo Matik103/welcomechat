@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -223,7 +222,7 @@ const Auth = () => {
               
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full bg-blue-600 hover:bg-blue-700" 
                 disabled={isAuthLoading}
                 aria-label="Send Reset Link"
               >
@@ -237,7 +236,7 @@ const Auth = () => {
               <Button
                 type="button"
                 variant="ghost"
-                className="w-full"
+                className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                 onClick={() => {
                   setIsForgotPassword(false);
                   resetForm();
@@ -327,7 +326,7 @@ const Auth = () => {
                     type="button"
                     variant="link"
                     size="sm"
-                    className="px-0 text-sm text-primary"
+                    className="px-0 text-sm text-blue-600 hover:text-blue-700"
                     onClick={() => {
                       setIsForgotPassword(true);
                       setEmail("");
@@ -351,7 +350,7 @@ const Auth = () => {
             
             <Button 
               type="submit" 
-              className="w-full" 
+              className="w-full bg-blue-600 hover:bg-blue-700" 
               disabled={isAuthLoading || isGoogleLoading}
               aria-label={isSignUp ? "Sign Up" : "Sign In"}
             >
@@ -411,7 +410,7 @@ const Auth = () => {
                     setIsSignUp(false);
                     setErrorMessage("");
                   }}
-                  className="text-primary hover:underline"
+                  className="text-blue-600 hover:text-blue-700 hover:underline"
                   disabled={isAuthLoading || isGoogleLoading}
                 >
                   Sign in
@@ -426,7 +425,7 @@ const Auth = () => {
                     setIsSignUp(true);
                     setErrorMessage("");
                   }}
-                  className="text-primary hover:underline"
+                  className="text-blue-600 hover:text-blue-700 hover:underline"
                   disabled={isAuthLoading || isGoogleLoading}
                 >
                   Sign up
