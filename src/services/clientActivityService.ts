@@ -28,7 +28,7 @@ export const createClientActivity = async (
       .from('client_activities')
       .insert({
         client_id: clientId,
-        activity_type: activity_type,
+        activity_type,
         description,
         metadata: metadata as Json
       });
