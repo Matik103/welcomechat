@@ -1,3 +1,4 @@
+
 -- Enable RLS on ai_agents table
 ALTER TABLE ai_agents ENABLE ROW LEVEL SECURITY;
 
