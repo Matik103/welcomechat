@@ -23,7 +23,11 @@ const clientFormSchema = z.object({
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
 
-const CreateClientForm = () => {
+interface CreateClientFormProps {
+  onSuccess?: () => void;
+}
+
+const CreateClientForm = ({ onSuccess }: CreateClientFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   
@@ -59,7 +63,13 @@ const CreateClientForm = () => {
       }
 
       toast.success("Client created successfully!");
-      navigate("/admin/clients");
+      
+      // Call onSuccess callback if provided, otherwise navigate
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate("/admin/clients");
+      }
     } catch (error: any) {
       console.error("Error creating client:", error);
       toast.error(error.message || "Failed to create client");

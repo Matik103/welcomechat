@@ -24,7 +24,7 @@ export function AddClientModal({ isOpen, onClose }: AddClientModalProps) {
             <X className="h-4 w-4" />
           </Button>
         </DialogHeader>
-        <CreateClientForm />
+        <CreateClientForm onSuccess={onClose} />
       </DialogContent>
     </Dialog>
   );
