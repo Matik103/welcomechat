@@ -78,7 +78,8 @@ export function NewClientForm() {
           },
           email: data.email,
           client_name: data.client_name,
-          model: 'gpt-4-turbo-preview'
+          model: 'gpt-4-turbo-preview',
+          is_error: false
         })
         .select()
         .single();

@@ -45,6 +45,24 @@ export const setupOpenAIAssistant = async (
     }
 
     console.log('OpenAI Assistant created successfully:', data);
+    
+    // Also update the ai_agents record with the assistant_id
+    const { error: updateError } = await supabase
+      .from('ai_agents')
+      .update({ 
+        assistant_id: data.assistant_id,
+        settings: {
+          ...data.settings,
+          assistant_id: data.assistant_id
+        }
+      })
+      .eq('id', clientId);
+      
+    if (updateError) {
+      console.error('Error updating AI agent with assistant ID:', updateError);
+      // Continue despite this error
+    }
+    
     return {
       success: true,
       assistantId: data.assistant_id

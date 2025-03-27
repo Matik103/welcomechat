@@ -66,14 +66,32 @@ export default function Index() {
   };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      refetchDashboard();
-      refetchActivities();
-    }, 5 * 60 * 1000);
-    
-    return () => clearInterval(interval);
+    // Add error handling and logging for the dashboard
+    try {
+      const loadDashboard = async () => {
+        try {
+          await refetchDashboard();
+          await refetchActivities();
+          console.log("Dashboard data loaded successfully");
+        } catch (error) {
+          console.error("Error loading dashboard data:", error);
+          toast.error("Could not load dashboard data. Please try again.");
+        }
+      };
+      
+      loadDashboard();
+      
+      const interval = setInterval(() => {
+        loadDashboard();
+      }, 5 * 60 * 1000);
+      
+      return () => clearInterval(interval);
+    } catch (error) {
+      console.error("Unhandled error in dashboard effect:", error);
+    }
   }, [refetchDashboard, refetchActivities]);
 
+  // Error boundary to prevent blank screen
   if (dashboardError || activitiesError) {
     return (
       <div className="container mx-auto p-6">
@@ -91,6 +109,27 @@ export default function Index() {
         >
           Retry
         </Button>
+        <Button 
+          onClick={() => {
+            navigate('/admin/clients');
+          }}
+          className="mt-4 ml-2"
+          variant="outline"
+        >
+          Go to Clients
+        </Button>
+      </div>
+    );
+  }
+
+  // Prevent blank screen with explicit loading state rendering
+  if (isDashboardLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-4">Loading Dashboard...</h1>
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
       </div>
     );
   }
