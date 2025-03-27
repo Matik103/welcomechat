@@ -15,7 +15,7 @@ export const useClientActivity = (clientId: string | undefined) => {
       activity_type: ActivityType,
       description: string,
       metadata?: Record<string, any>
-    ): Promise<void> {
+    ): Promise<void> => {
       if (!clientId) {
         console.warn('No client ID provided for activity logging');
         return;
