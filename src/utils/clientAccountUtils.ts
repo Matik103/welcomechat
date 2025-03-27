@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 
@@ -55,7 +56,7 @@ export const logClientCreationActivity = async (
 ): Promise<void> => {
   try {
     const { error } = await supabase
-      .from('audit_log')
+      .from('client_activities')
       .insert({
         event_type: 'client_created',
         client_id: clientId,
@@ -64,7 +65,7 @@ export const logClientCreationActivity = async (
         agent_name: agentName,
         timestamp: new Date().toISOString(),
         description: `Client ${clientName} with email ${email} was created.`,
-        user_id: supabase.auth.currentUser?.id || 'system'
+        user_id: supabase.auth.getUser().then(response => response.data.user?.id) || 'system'
       });
 
     if (error) {
@@ -133,7 +134,7 @@ const generateRandomPassword = (): string => {
 /**
  * Creates a user role entry in the user_roles table.
  */
-export const createUserRole = async (userId: string, role: string, clientId?: string): Promise<boolean> => {
+export const createUserRole = async (userId: string, role: 'admin' | 'manager' | 'client', clientId?: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase
       .from('user_roles')
