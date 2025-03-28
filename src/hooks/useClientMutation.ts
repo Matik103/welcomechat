@@ -39,7 +39,11 @@ export const useClientMutation = () => {
     },
     onError: (error) => {
       console.error('Client update failed:', error);
-      toast.error('Failed to update client');
+      // Provide more user-friendly error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any)?.message || 'Failed to update client';
+      toast.error(errorMessage);
     }
   });
 };

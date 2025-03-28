@@ -72,7 +72,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       logo_storage_path: updateData.logo_storage_path
     };
 
-    // First try to update by ID
+    // First try to update by ID - use maybeSingle() instead of single()
     let { data, error } = await supabase
       .from('ai_agents')
       .update({
@@ -87,11 +87,11 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       .eq('id', clientId)
       .eq('interaction_type', 'config')
       .select('*')
-      .single();
+      .maybeSingle();
 
-    // If no rows found by ID, try by client_id
-    if (!data && !error) {
-      console.log("No rows found by ID, trying client_id");
+    // If no rows found by ID or error occurred, try by client_id
+    if (!data || error) {
+      console.log("No rows found by ID or error occurred, trying client_id");
       const { data: clientData, error: clientError } = await supabase
         .from('ai_agents')
         .update({
@@ -106,16 +106,18 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
         .eq('client_id', clientId)
         .eq('interaction_type', 'config')
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (clientError) {
         console.error("Error updating client by client_id:", clientError);
         throw clientError;
       }
       data = clientData;
-    } else if (error) {
-      console.error("Error updating client by ID:", error);
-      throw error;
+    }
+
+    // If we still don't have data, throw an error
+    if (!data) {
+      throw new Error(`No client found with ID or client_id: ${clientId}`);
     }
 
     // Update the settings with an RPC call to safely merge JSON
