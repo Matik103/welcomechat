@@ -19,9 +19,17 @@ export function useWebsitesMutation(clientId: string | undefined) {
       // Ensure we have a valid auth session
       await checkAndRefreshAuth();
       
+      // Make sure client_id is set
+      const websiteData = {
+        client_id: clientId || '',
+        url: newWebsite.url,
+        refresh_rate: newWebsite.refresh_rate,
+        // Add any other fields from newWebsite that should be saved
+      };
+      
       const { data, error } = await supabase
         .from("website_urls")
-        .insert([newWebsite])
+        .insert(websiteData)
         .select();
       
       if (error) {
@@ -30,7 +38,7 @@ export function useWebsitesMutation(clientId: string | undefined) {
       }
       
       console.log("Website added:", data);
-      return data;
+      return data[0] as Website;
     },
     onSuccess: () => {
       // Invalidate and refetch
@@ -62,6 +70,7 @@ export function useWebsitesMutation(clientId: string | undefined) {
       }
       
       console.log("Website deleted successfully");
+      return websiteId;
     },
     onSuccess: () => {
       // Invalidate and refetch
@@ -84,7 +93,12 @@ export function useWebsitesMutation(clientId: string | undefined) {
       
       const { error } = await supabase
         .from("website_urls")
-        .update(updatedWebsite)
+        .update({
+          url: updatedWebsite.url,
+          refresh_rate: updatedWebsite.refresh_rate,
+          status: updatedWebsite.status,
+          // Add any other fields that should be updated
+        })
         .eq("id", updatedWebsite.id);
       
       if (error) {
@@ -93,6 +107,7 @@ export function useWebsitesMutation(clientId: string | undefined) {
       }
       
       console.log("Website updated successfully");
+      return updatedWebsite;
     },
     onSuccess: () => {
       // Invalidate and refetch

@@ -25,6 +25,7 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
             client_id: clientId,
             url: input.url,
             refresh_rate: input.refresh_rate,
+            status: input.status || 'pending'
           })
           .select()
           .single();
