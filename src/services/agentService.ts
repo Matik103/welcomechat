@@ -31,6 +31,8 @@ export const getAllAgents = async (): Promise<Agent[]> => {
         response_time_ms
       `)
       .eq('interaction_type', 'config')
+      .eq('status', 'active')  // Only get active agents
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -93,6 +95,8 @@ export const getAgentById = async (agentId: string): Promise<Agent | null> => {
       `)
       .eq('id', agentId)
       .eq('interaction_type', 'config')
+      .eq('status', 'active')  // Only get active agents
+      .is('deleted_at', null)
       .single();
 
     if (error) throw error;

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,7 +23,7 @@ export default function AdminAgentsPage() {
         setLoading(true);
         
         // Fetch agents from the ai_agents table with config interaction_type
-        // Exclude deleted agents
+        // Exclude agents with deleted status
         const { data: agentsData, error: agentsError } = await supabase
           .from('ai_agents')
           .select(`
@@ -38,19 +37,19 @@ export default function AdminAgentsPage() {
             response_time_ms
           `)
           .eq('interaction_type', 'config')
-          .neq('status', 'deleted')
+          .eq('status', 'active')  // Only show active agents
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .range((page - 1) * pageSize, page * pageSize - 1);
         
         if (agentsError) throw agentsError;
 
-        // Get total count for pagination
+        // Get total count for pagination (only for active agents)
         const { count, error: countError } = await supabase
           .from('ai_agents')
           .select('id', { count: 'exact', head: true })
           .eq('interaction_type', 'config')
-          .neq('status', 'deleted')
+          .eq('status', 'active')  // Only count active agents
           .is('deleted_at', null);
         
         if (countError) throw countError;
@@ -167,15 +166,10 @@ export default function AdminAgentsPage() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={agent.status === "active" ? "default" : "secondary"}
-                          className={`
-                            inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-                            ${agent.status === "active" 
-                              ? "bg-green-100 text-green-700" 
-                              : "bg-gray-100 text-gray-600"}
-                          `}
+                          variant="default"
+                          className="bg-green-100 text-green-700 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
                         >
-                          {agent.status || 'active'}
+                          active
                         </Badge>
                       </TableCell>
                       <TableCell>{agent.total_interactions.toLocaleString()}</TableCell>
