@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import { toast } from 'sonner';
@@ -9,11 +8,8 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
   try {
     console.log('Starting to check if bucket exists:', bucketName);
     
-    // Check if admin client is properly configured
-    if (!isAdminClientConfigured()) {
-      console.error('Supabase admin client is not properly configured. Service role key is missing.');
-      throw new Error('Supabase admin client configuration error: Service role key is missing');
-    }
+    // Always perform the operation with admin client
+    // Now we have hardcoded the service role key, so this should work
     
     // Check if the bucket exists
     const { data: buckets, error: getBucketError } = await supabaseAdmin
