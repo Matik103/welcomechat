@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -31,8 +32,10 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
     },
   });
 
+  // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
+      console.log("Setting EditForm values with initialData:", initialData);
       setValue("client_name", initialData.client_name || "");
       setValue("email", initialData.email || "");
       setValue("agent_name", initialData.name || initialData.agent_name || 

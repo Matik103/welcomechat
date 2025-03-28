@@ -36,6 +36,9 @@ export function EditClientInfo() {
   useEffect(() => {
     // Clear any previous errors when component mounts or client changes
     setUpdateError(null);
+    
+    // Log the client data for debugging
+    console.log("Client data loaded:", client);
   }, [client, id]);
 
   const handleSubmit = async (data: ClientFormData) => {
@@ -63,9 +66,11 @@ export function EditClientInfo() {
       
       // We don't need to toast success here as it's handled in the mutation
       await refetchClient();
+      toast.success("Client information updated successfully");
     } catch (error) {
       console.error("Error updating client:", error);
       setUpdateError(error instanceof Error ? error.message : "Failed to update client information");
+      toast.error("Failed to update client information");
     } finally {
       setFormSubmitting(false);
     }
@@ -96,6 +101,16 @@ export function EditClientInfo() {
         title="Supabase Service Role Key Missing"
         message="The Supabase service role key is missing or invalid. Logo upload functionality requires this key."
         details="This key is required for logo uploads and storage bucket management."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <ErrorDisplay 
+        title="Error Loading Client"
+        message={error instanceof Error ? error.message : "Failed to load client information"}
+        details="Please try again or contact support if the issue persists."
       />
     );
   }

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,7 +44,7 @@ export function ClientForm({
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [formError, setFormError] = useState<string | null>(error || null);
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || '',
@@ -53,6 +53,24 @@ export function ClientForm({
       agent_description: initialData?.agent_description || '',
     },
   });
+
+  // Update form values when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      console.log("Setting form values with initialData:", initialData);
+      setValue('client_name', initialData.client_name || '');
+      setValue('email', initialData.email || '');
+      setValue('agent_name', initialData.agent_name || initialData.name || '');
+      setValue('agent_description', initialData.agent_description || '');
+      setLogoUrl(initialData.logo_url || '');
+      setLogoStoragePath(initialData.logo_storage_path || '');
+    }
+  }, [initialData, setValue]);
+
+  // Update formError when error prop changes
+  useEffect(() => {
+    setFormError(error || null);
+  }, [error]);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
