@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, ResponsiveContainer } from 'recharts';
+import { AnimatedBarChart } from '@/components/dashboard/AnimatedBarChart';
 import { cn } from '@/lib/utils';
 
 interface ActivityChartCardProps {
@@ -10,6 +10,7 @@ interface ActivityChartCardProps {
   data: Array<{ name: string; value: number }>;
   icon?: React.ReactNode;
   className?: string;
+  color?: string;
 }
 
 export const ActivityChartCard = ({
@@ -18,8 +19,12 @@ export const ActivityChartCard = ({
   value,
   data,
   icon,
-  className
+  className,
+  color = '#10B981'
 }: ActivityChartCardProps) => {
+  // Extract values from data for the bar chart
+  const chartValues = data.map(item => item.value);
+
   return (
     <Card className={cn(
       "bg-[#1E1E1E] text-white rounded-xl overflow-hidden",
@@ -34,21 +39,12 @@ export const ActivityChartCard = ({
         <div className="text-2xl font-bold mb-4">{value.toLocaleString()}</div>
         
         <div className="h-[120px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <XAxis 
-                dataKey="name" 
-                tick={false}
-                axisLine={false}
-              />
-              <Bar 
-                dataKey="value" 
-                fill="#10B981"
-                radius={[2, 2, 0, 0]} 
-                barSize={4}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <AnimatedBarChart 
+            data={chartValues} 
+            height={120}
+            color={color}
+            updateInterval={2000}
+          />
         </div>
         <div className="flex justify-between text-xs text-gray-500 mt-2">
           <span>Mar 22, 9am</span>
