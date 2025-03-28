@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useClientData } from '@/hooks/useClientData';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
@@ -9,12 +9,13 @@ import { ClientFormData } from '@/types/client-form';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigation } from '@/hooks/useNavigation';
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { userRole } = useAuth();
   const isAdmin = userRole === 'admin';
+  const navigation = useNavigation();
   
   const { 
     client, 
@@ -44,11 +45,7 @@ export function EditClientInfo() {
   };
 
   const handleNavigateBack = () => {
-    if (isAdmin) {
-      navigate(`/admin/clients`);
-    } else {
-      navigate("/client/dashboard");
-    }
+    navigation.goBack();
   };
 
   return (

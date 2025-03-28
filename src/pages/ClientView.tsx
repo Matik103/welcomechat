@@ -1,5 +1,6 @@
+
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { 
   MessageSquare, 
   Calendar, 
@@ -24,10 +25,11 @@ import { QueryList } from '@/components/client-dashboard/QueryList';
 import { toast } from 'sonner';
 import { supabase } from "@/integrations/supabase/client";
 import { ClientInfoCard } from '@/components/client-view/ClientInfoCard';
+import { useNavigation } from '@/hooks/useNavigation';
 
 const ClientView = () => {
-  const navigate = useNavigate();
   const { clientId = '' } = useParams();
+  const navigation = useNavigation();
   const { client, isLoading: isLoadingClient, error: clientError } = useClient(clientId);
   const { chatHistory, isLoading: isLoadingChatHistory } = useClientChatHistory(clientId);
   const [errorLogs, setErrorLogs] = useState([]);
@@ -217,7 +219,7 @@ const ClientView = () => {
   }, [clientId]);
 
   const handleGoBack = () => {
-    navigate('/admin/clients');
+    navigation.goBack();
   };
 
   if (!clientId) {

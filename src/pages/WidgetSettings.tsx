@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClientActivity } from "@/hooks/useClientActivity";
@@ -13,12 +13,13 @@ import { toast } from "sonner";
 import { defaultSettings } from "@/types/widget-settings";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { useNavigation } from "@/hooks/useNavigation";
 
 export default function WidgetSettings() {
   const { clientId } = useParams<{ clientId: string }>();
   const { user, userRole } = useAuth();
   const isAdmin = userRole === 'admin';
-  const navigate = useNavigate();
+  const navigation = useNavigation();
   const [isUploading, setIsUploading] = useState(false);
   const { logClientActivity } = useClientActivity(clientId);
   const widgetSettingsHook = useWidgetSettings(clientId || "");
@@ -53,11 +54,7 @@ export default function WidgetSettings() {
   });
 
   const handleNavigateBack = () => {
-    if (isAdmin) {
-      navigate(`/admin/clients`);
-    } else {
-      navigate("/client/dashboard");
-    }
+    navigation.goBack();
   };
 
   const handleLogoUploadChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
