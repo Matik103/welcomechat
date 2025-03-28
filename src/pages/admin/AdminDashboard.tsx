@@ -264,6 +264,7 @@ export default function AdminDashboardPage() {
             data={chartData} 
             color={chartColor} 
             barWidth={3}
+            scrollSpeed={150} // Add a scroll speed for the continuous motion
           />
         </div>
       </div>

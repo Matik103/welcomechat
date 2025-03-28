@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface AnimatedBarChartProps {
@@ -9,6 +9,7 @@ interface AnimatedBarChartProps {
   height?: number;
   animated?: boolean;
   className?: string;
+  scrollSpeed?: number;
 }
 
 export function AnimatedBarChart({
@@ -17,53 +18,71 @@ export function AnimatedBarChart({
   barWidth = 4,
   height = 40,
   animated = true,
-  className
+  className,
+  scrollSpeed = 100 // Time in ms for each step of the animation
 }: AnimatedBarChartProps) {
-  const [animatedData, setAnimatedData] = useState<number[]>(data.map(() => 0));
-  const [shouldAnimate, setShouldAnimate] = useState(false);
+  // Create a wider dataset by duplicating the data for continuous scrolling
+  const extendedData = [...data, ...data, ...data]; // Triple the data for smooth scrolling
+  const [position, setPosition] = useState(0);
+  const [visibleData, setVisibleData] = useState<number[]>(data);
+  const [maxValue, setMaxValue] = useState(Math.max(...data, 1));
+  const animationRef = useRef<number>();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Calculate how many bars can fit in the container
+  const calculateVisibleBars = (): number => {
+    if (!containerRef.current) return data.length;
+    const containerWidth = containerRef.current.clientWidth;
+    return Math.floor(containerWidth / (barWidth + 1)); // +1 for the gap
+  };
 
   useEffect(() => {
-    // Initial animation when component mounts
-    const timer = setTimeout(() => {
-      setShouldAnimate(true);
-      setAnimatedData(data);
-    }, 300);
+    // Initial update of visible data slice
+    const visibleBars = calculateVisibleBars();
+    const startIdx = position % data.length;
+    const newVisibleData = [...extendedData.slice(startIdx, startIdx + visibleBars * 2)]; // Get more data than needed for smooth transition
+    setVisibleData(newVisibleData);
+    setMaxValue(Math.max(...newVisibleData, 1));
+  }, [data, position]);
 
-    // Random animation every 3-5 seconds if animated is true
-    let intervalId: NodeJS.Timeout;
-    if (animated) {
-      intervalId = setInterval(() => {
-        // Create a new array with slightly randomized values
-        const newData = data.map(val => {
-          const change = Math.random() * 0.3 - 0.15; // -15% to +15%
-          return Math.max(0, val * (1 + change));
-        });
-        setAnimatedData(newData);
-      }, 3000 + Math.random() * 2000); // Random time between 3-5 seconds
-    }
+  useEffect(() => {
+    if (!animated) return;
 
-    return () => {
-      clearTimeout(timer);
-      if (intervalId) clearInterval(intervalId);
+    const animate = () => {
+      setPosition(prev => (prev + 1) % (data.length * 2)); // Cycle through the data twice to create a smooth loop
+      
+      // Update visible data slice
+      const visibleBars = calculateVisibleBars();
+      const startIdx = position % data.length;
+      const newVisibleData = [...extendedData.slice(startIdx, startIdx + visibleBars * 2)];
+      setVisibleData(newVisibleData);
+      setMaxValue(Math.max(...newVisibleData, 1));
+      
+      animationRef.current = setTimeout(animate, scrollSpeed);
     };
-  }, [data, animated]);
 
-  // Find the maximum value to scale the bars
-  const maxValue = Math.max(...(shouldAnimate ? animatedData : data.map(() => 0)));
+    animationRef.current = setTimeout(animate, scrollSpeed);
+    
+    return () => {
+      if (animationRef.current) {
+        clearTimeout(animationRef.current);
+      }
+    };
+  }, [animated, data, position, scrollSpeed]);
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full overflow-hidden", className)} ref={containerRef}>
       <div 
-        className="flex items-end space-x-1 w-full" 
+        className="flex items-end space-x-1" 
         style={{ height: `${height}px` }}
       >
-        {animatedData.map((value, index) => {
+        {visibleData.map((value, index) => {
           const barHeight = maxValue > 0 ? (value / maxValue) * 100 : 0;
           return (
             <div
-              key={index}
+              key={`bar-${index}-${position}`}
               className={cn(
-                "rounded-sm transition-all duration-500 ease-out",
+                "rounded-sm transition-all duration-300 ease-out",
                 "hover:opacity-80"
               )}
               style={{
@@ -71,8 +90,8 @@ export function AnimatedBarChart({
                 backgroundColor: color,
                 width: `${barWidth}px`,
                 minHeight: '1px',
-                transform: shouldAnimate ? 'translateY(0)' : 'translateY(100%)',
-                opacity: shouldAnimate ? 1 : 0,
+                transform: `translateX(-${position}px)`,
+                opacity: 1,
               }}
             />
           );
