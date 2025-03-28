@@ -16,6 +16,7 @@ import { NewClientModal } from "@/components/client/NewClientModal";
 import { getAllAgents } from "@/services/agentService";
 import { getActiveClientsCount } from "@/services/clientService";
 import { getTotalInteractionsCount } from "@/services/aiInteractionService";
+import { getTrainingResourcesCount } from "@/services/trainingResourcesService";
 
 const generateRandomData = (length: number) => {
   return Array.from({ length }, () => Math.floor(Math.random() * 100));
@@ -28,6 +29,7 @@ export default function Index() {
   const [agentData, setAgentData] = useState({ total: 0, active: 0, change: 0 });
   const [clientData, setClientData] = useState({ total: 0, active: 0, change: 0 });
   const [interactionData, setInteractionData] = useState({ total: 0, recent: 0, change: 0 });
+  const [trainingData, setTrainingData] = useState({ total: 0, recent: 0, change: 0 });
   
   const {
     activeUsers,
@@ -59,7 +61,6 @@ export default function Index() {
         const agents = await getAllAgents();
         const totalAgents = agents.length;
 
-        // Count agents with activity in the last 48 hours
         const timeAgo = new Date();
         timeAgo.setHours(timeAgo.getHours() - 48);
         
@@ -67,7 +68,6 @@ export default function Index() {
           agent.last_active && new Date(agent.last_active) > timeAgo
         ).length;
         
-        // Calculate change percentage (mock data for now)
         const changePercentage = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) / 5 : 0;
         
         setAgentData({
@@ -84,7 +84,6 @@ export default function Index() {
       try {
         const clientStats = await getActiveClientsCount();
         
-        // Calculate change percentage (mock data for now)
         const changePercentage = clientStats.total > 0 ? 
           Math.round((clientStats.active / clientStats.total) * 100) / 5 : 0;
         
@@ -112,9 +111,24 @@ export default function Index() {
       }
     };
     
+    const fetchTrainingResources = async () => {
+      try {
+        const trainingStats = await getTrainingResourcesCount();
+        
+        setTrainingData({
+          total: trainingStats.total,
+          recent: trainingStats.recent,
+          change: trainingStats.changePercentage
+        });
+      } catch (error) {
+        console.error("Error fetching training resources:", error);
+      }
+    };
+    
     fetchAgents();
     fetchClients();
     fetchInteractions();
+    fetchTrainingResources();
   }, []);
 
   const handleActivityClick = (id: string) => {
@@ -127,6 +141,10 @@ export default function Index() {
 
   const handleAgentsClick = () => {
     navigate('/admin/agents');
+  };
+
+  const handleTrainingsClick = () => {
+    console.log('Navigating to trainings page');
   };
 
   useEffect(() => {
@@ -207,8 +225,8 @@ export default function Index() {
                 <CardTitle className="text-lg font-bold text-blue-900">TRAININGS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1 text-blue-800">484</div>
-                <div className="text-sm text-blue-700">+18%</div>
+                <div className="text-4xl font-bold mb-1 text-blue-800">{trainingData.total}</div>
+                <div className="text-sm text-blue-700">{trainingData.recent} Recent {trainingData.change > 0 ? `+${Math.round(trainingData.change)}%` : ''}</div>
               </CardContent>
             </Card>
 
