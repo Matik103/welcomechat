@@ -136,50 +136,117 @@ export default function AdminDashboardPage() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const { data: statsData, error: statsError } = await supabase.rpc('get_admin_dashboard_stats');
+      // Clients: Get all active clients (exclude deleted)
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, status, last_active')
+        .neq('status', 'deleted');
       
-      if (statsError) {
-        console.error('Error fetching dashboard stats:', statsError);
-        toast.error('Failed to load dashboard statistics');
-        throw statsError;
-      }
+      if (clientsError) throw clientsError;
       
+      const totalClients = clientsData.length;
+      
+      // Active clients: clients with activity in last 48 hours
+      const timeAgo = new Date();
+      timeAgo.setHours(timeAgo.getHours() - 48);
+      const activeClients = clientsData.filter(client => {
+        return client.last_active && new Date(client.last_active) > timeAgo;
+      }).length;
+      
+      // Agents: Get all agents from ai_agents table (non-deleted)
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('ai_agents')
+        .select('id, client_id, name, last_active, deleted_at')
+        .eq('interaction_type', 'config')
+        .is('deleted_at', null);
+      
+      if (agentsError) throw agentsError;
+      
+      const totalAgents = agentsData.length;
+      
+      // Active agents: agents with activity in last 48 hours
+      const activeAgents = agentsData.filter(agent => {
+        return agent.last_active && new Date(agent.last_active) > timeAgo;
+      }).length;
+      
+      // Interactions: Count all chat interactions
+      const { count: interactionsCount, error: interactionsError } = await supabase
+        .from('ai_agents')
+        .select('id', { count: 'exact', head: true })
+        .eq('interaction_type', 'chat_interaction');
+      
+      if (interactionsError) throw interactionsError;
+      
+      // Trainings: Combine count of website URLs and document links
+      const { count: websiteUrlsCount, error: websiteUrlsError } = await supabase
+        .from('website_urls')
+        .select('id', { count: 'exact', head: true });
+      
+      if (websiteUrlsError) throw websiteUrlsError;
+      
+      const { count: documentLinksCount, error: documentLinksError } = await supabase
+        .from('document_links')
+        .select('id', { count: 'exact', head: true });
+      
+      if (documentLinksError) throw documentLinksError;
+      
+      const { count: driveLinksCount, error: driveLinksError } = await supabase
+        .from('google_drive_links')
+        .select('id', { count: 'exact', head: true });
+      
+      if (driveLinksError) throw driveLinksError;
+      
+      const trainingsTotal = (websiteUrlsCount || 0) + (documentLinksCount || 0) + (driveLinksCount || 0);
+      
+      // Administration: Count administration-related activities
+      const { count: adminActivitiesCount, error: adminActivitiesError } = await supabase
+        .from('client_activities')
+        .select('id', { count: 'exact', head: true })
+        .in('activity_type', ['client_created', 'client_updated', 'client_deleted', 'system_update', 'agent_name_updated']);
+      
+      if (adminActivitiesError) throw adminActivitiesError;
+      
+      // Get activity charts data from RPC function
       const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
       
-      if (chartError) {
-        console.error('Error fetching chart data:', chartError);
-        toast.error('Failed to load activity charts');
-        throw chartError;
-      }
+      if (chartError) throw chartError;
       
-      const parsedStatsData = typeof statsData === 'string' ? JSON.parse(statsData) : statsData;
       const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
       
+      // Update state with all fetched data
       setDashboardData({
         clients: {
-          ...parsedStatsData?.clients,
+          total: totalClients,
+          active: activeClients,
+          changePercentage: 5, // Mock data for now
           chartData: generateChartData()
         },
         agents: {
-          ...parsedStatsData?.agents,
+          total: totalAgents,
+          active: activeAgents,
+          changePercentage: 8, // Mock data for now
           chartData: generateChartData()
         },
         interactions: {
-          ...parsedStatsData?.interactions,
+          total: interactionsCount || 0,
+          changePercentage: 12, // Mock data for now
           chartData: generateChartData()
         },
         trainings: {
-          ...parsedStatsData?.trainings,
+          total: trainingsTotal,
+          changePercentage: 15, // Mock data for now
           chartData: generateChartData()
         },
         administration: {
-          ...parsedStatsData?.administration,
+          total: adminActivitiesCount || 0,
+          changePercentage: 3, // Mock data for now
           chartData: generateChartData()
         },
         activityCharts: parsedChartData
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      toast.error('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
@@ -307,7 +374,7 @@ export default function AdminDashboardPage() {
             chartData={dashboardData.interactions.chartData}
             chartColor="#CA8A04"
             icon={<MessagesSquare size={18} className="text-yellow-600" />}
-            onClick={() => {}}
+            onClick={() => {}} // Not clickable for now
           />
           
           <StatCardWithChart
@@ -318,7 +385,7 @@ export default function AdminDashboardPage() {
             chartData={dashboardData.trainings.chartData}
             chartColor="#2563EB"
             icon={<Lightbulb size={18} className="text-blue-600" />}
-            onClick={() => {}}
+            onClick={() => {}} // Not clickable for now
           />
           
           <StatCardWithChart
@@ -329,7 +396,7 @@ export default function AdminDashboardPage() {
             chartData={dashboardData.administration.chartData}
             chartColor="#DC2626"
             icon={<Settings size={18} className="text-red-600" />}
-            onClick={() => {}}
+            onClick={() => {}} // Not clickable for now
           />
         </div>
         
