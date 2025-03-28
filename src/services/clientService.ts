@@ -66,21 +66,23 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     console.log("Update data:", JSON.stringify(updateData));
 
     // First check if the client exists
-    const { data: existingClient, error: checkError } = await supabase
+    const { data: existingClients, error: checkError } = await supabase
       .from('ai_agents')
       .select('*')
       .eq('client_id', clientId)
-      .eq('interaction_type', 'config')
-      .single();
+      .eq('interaction_type', 'config');
       
     if (checkError) {
       console.error("Error finding client:", checkError);
       throw new Error(`Client not found: ${checkError.message}`);
     }
     
-    if (!existingClient) {
+    if (!existingClients || existingClients.length === 0) {
       throw new Error(`No client found with ID: ${clientId}`);
     }
+    
+    // Use the first client record if multiple exist
+    const existingClient = existingClients[0];
 
     // Create an object for the settings to update
     const settingsToUpdate = {
@@ -108,20 +110,23 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
         throw new Error("RPC function returned false");
       }
       
-      // If RPC succeeded, fetch the updated client
-      const { data: updatedClient, error: fetchError } = await supabase
+      // If RPC succeeded, fetch the updated client, but don't use .single()
+      const { data: updatedClients, error: fetchError } = await supabase
         .from('ai_agents')
         .select('*')
         .eq('client_id', clientId)
-        .eq('interaction_type', 'config')
-        .single();
+        .eq('interaction_type', 'config');
         
       if (fetchError) {
         console.error("Error fetching updated client:", fetchError);
         throw fetchError;
       }
       
-      return mapAgentToClient(updatedClient);
+      if (!updatedClients || updatedClients.length === 0) {
+        throw new Error("Client was updated but could not be retrieved");
+      }
+      
+      return mapAgentToClient(updatedClients[0]);
     } catch (error) {
       console.error("Error with RPC call:", error);
       
@@ -129,7 +134,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       console.log("Falling back to direct update method");
       
       // Update the client record directly with the new data
-      const { data: updatedClient, error: updateError } = await supabase
+      const { data: updatedClients, error: updateError } = await supabase
         .from('ai_agents')
         .update({
           client_name: updateData.client_name,
@@ -142,12 +147,15 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
         })
         .eq('client_id', clientId)
         .eq('interaction_type', 'config')
-        .select('*')
-        .single();
+        .select();
 
       if (updateError) {
         console.error("Error updating client basic info:", updateError);
         throw updateError;
+      }
+      
+      if (!updatedClients || updatedClients.length === 0) {
+        throw new Error("No client was updated");
       }
       
       // Update settings separately
@@ -168,7 +176,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
         // Don't throw here, as we already updated the basic client info
       }
       
-      return mapAgentToClient(updatedClient);
+      return mapAgentToClient(updatedClients[0]);
     }
   } catch (error) {
     console.error("Error updating client:", error);
