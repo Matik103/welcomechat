@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
 import { JsonObject } from "@/types/supabase-extensions";
@@ -72,8 +71,8 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       logo_storage_path: updateData.logo_storage_path
     };
 
-    // Update the client record directly with the new data
-    const { data, error } = await supabase
+    // First try to update by ID
+    let { data, error } = await supabase
       .from('ai_agents')
       .update({
         client_name: updateData.client_name,
@@ -84,13 +83,37 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
         logo_storage_path: updateData.logo_storage_path,
         updated_at: new Date().toISOString()
       })
-      .eq('client_id', clientId)
+      .eq('id', clientId)
       .eq('interaction_type', 'config')
       .select('*')
       .single();
 
-    if (error) {
-      console.error("Error updating client basic info:", error);
+    // If no rows found by ID, try by client_id
+    if (!data && !error) {
+      console.log("No rows found by ID, trying client_id");
+      const { data: clientData, error: clientError } = await supabase
+        .from('ai_agents')
+        .update({
+          client_name: updateData.client_name,
+          email: updateData.email,
+          name: updateData.agent_name,
+          agent_description: updateData.agent_description,
+          logo_url: updateData.logo_url,
+          logo_storage_path: updateData.logo_storage_path,
+          updated_at: new Date().toISOString()
+        })
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .select('*')
+        .single();
+
+      if (clientError) {
+        console.error("Error updating client by client_id:", clientError);
+        throw clientError;
+      }
+      data = clientData;
+    } else if (error) {
+      console.error("Error updating client by ID:", error);
       throw error;
     }
 
@@ -101,7 +124,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
         sql_query: `
           UPDATE ai_agents
           SET settings = settings || $1::jsonb
-          WHERE client_id = $2 AND interaction_type = 'config'
+          WHERE (id = $2 OR client_id = $2) AND interaction_type = 'config'
         `,
         query_params: [JSON.stringify(settingsToUpdate), clientId]
       }
