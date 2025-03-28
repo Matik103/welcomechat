@@ -1,5 +1,5 @@
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { updateClient } from '@/services/clientService';
 import { ClientFormData } from '@/types/client-form';
@@ -9,9 +9,18 @@ interface MutationParams extends ClientFormData {
 }
 
 export const useClientMutation = () => {
+  const queryClient = useQueryClient();
+  
   return useMutation({
     mutationFn: async (params: MutationParams) => {
+      if (!params.client_id) {
+        throw new Error("Client ID is required");
+      }
+      
       try {
+        console.log("Updating client with ID:", params.client_id);
+        console.log("Update data:", JSON.stringify(params));
+        
         // Prepare the update data
         const updateData = {
           client_name: params.client_name,
@@ -24,15 +33,21 @@ export const useClientMutation = () => {
   
         // Update the client in the database
         const updated = await updateClient(params.client_id, updateData);
-        return updated;
+        return updated.id;
       } catch (error) {
         console.error('Error in updateClient mutation:', error);
-        throw error; // Re-throw for the UI to handle
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new Error(`Client update failed: ${errorMessage}`);
       }
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate relevant queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ['client', variables.client_id] });
+      toast.success("Client information updated successfully");
     },
     onError: (error) => {
       console.error('Client update failed:', error);
-      toast.error('Failed to update client');
+      toast.error(`Failed to update client information: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
 };

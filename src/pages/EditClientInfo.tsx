@@ -21,7 +21,8 @@ export function EditClientInfo() {
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('profile');
-  const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   
   const { 
     client, 
@@ -32,32 +33,46 @@ export function EditClientInfo() {
     refetchClient
   } = useClientData(id);
 
+  useEffect(() => {
+    // Clear any previous errors when component mounts or client changes
+    setUpdateError(null);
+  }, [client, id]);
+
   const handleSubmit = async (data: ClientFormData) => {
+    if (!clientId) {
+      toast.error("Client ID is missing. Cannot update client.");
+      return;
+    }
+    
     try {
+      setFormSubmitting(true);
+      setUpdateError(null);
+      
+      console.log("Submitting client update for ID:", clientId);
+      console.log("Form data:", JSON.stringify(data));
+      
       await clientMutation.mutateAsync({
         client_id: clientId,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
-        agent_description: data.agent_description,
-        logo_url: data.logo_url,
-        logo_storage_path: data.logo_storage_path
+        agent_description: data.agent_description || '',
+        logo_url: data.logo_url || '',
+        logo_storage_path: data.logo_storage_path || ''
       });
       
-      toast.success("Client information updated successfully");
-      refetchClient();
+      // We don't need to toast success here as it's handled in the mutation
+      await refetchClient();
     } catch (error) {
       console.error("Error updating client:", error);
-      toast.error("Failed to update client information");
+      setUpdateError(error instanceof Error ? error.message : "Failed to update client information");
+    } finally {
+      setFormSubmitting(false);
     }
   };
 
   const handleNavigateBack = () => {
     navigation.goBack();
-  };
-
-  const handleRetryServiceKey = () => {
-    setServiceKeyError(!isAdminClientConfigured());
   };
 
   // Function to log client activity
@@ -73,13 +88,12 @@ export function EditClientInfo() {
     }
   };
 
-  if (serviceKeyError) {
+  if (!isAdminClientConfigured()) {
     return (
       <ErrorDisplay 
         title="Supabase Service Role Key Missing"
         message="The Supabase service role key is missing or invalid. Logo upload functionality requires this key."
-        details="To fix this issue, add your Supabase service role key to the .env file as VITE_SUPABASE_SERVICE_ROLE_KEY. This key is required for logo uploads and storage bucket management."
-        onRetry={handleRetryServiceKey}
+        details="This key is required for logo uploads and storage bucket management."
       />
     );
   }
@@ -114,8 +128,8 @@ export function EditClientInfo() {
             <ClientForm 
               initialData={client}
               onSubmit={handleSubmit}
-              isLoading={isLoadingClient || clientMutation.isPending}
-              error={error ? (error instanceof Error ? error.message : String(error)) : null}
+              isLoading={isLoadingClient || formSubmitting}
+              error={updateError || (error ? (error instanceof Error ? error.message : String(error)) : null)}
               submitButtonText="Update Client"
             />
             
