@@ -63,7 +63,7 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
 
 export const uploadLogo = async (file: File, clientId: string): Promise<{ url: string, path: string }> => {
   try {
-    const bucketName = 'client-assets';
+    const bucketName = 'bot-logos';
     
     console.log('Ensuring bucket exists:', bucketName);
     // Ensure the bucket exists before uploading
@@ -71,7 +71,7 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
     
     // Generate a unique file path
     const fileExt = file.name.split('.').pop();
-    const filePath = `logos/${clientId}/${uuid()}.${fileExt}`;
+    const filePath = `${clientId}/${uuid()}.${fileExt}`;
     
     console.log('Uploading file:', file.name, 'type:', file.type, 'size:', file.size);
     

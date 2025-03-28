@@ -89,7 +89,7 @@ export function ClientForm({
       
       // Parse the storage path to get the bucket and file path
       const pathParts = logoStoragePath.split('/');
-      const bucket = 'client-assets';
+      const bucket = 'bot-logos';
       const filePath = logoStoragePath;
       
       // Delete the file from storage
