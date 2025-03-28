@@ -30,7 +30,7 @@ export const callRpcFunction = callRpcFunctionSafe;
 
 /**
  * Execute a raw SQL query via RPC
- * Fixed to use the correct parameter names (sql_query instead of query_text)
+ * Uses the correct parameter names for the exec_sql function
  */
 export const execSql = async <T>(
   query: string, 

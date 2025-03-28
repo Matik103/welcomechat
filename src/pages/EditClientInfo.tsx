@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useClientData } from '@/hooks/useClientData';
 import { useParams } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/hooks/useNavigation';
+import { ClientResourceSections } from '@/components/client/ClientResourceSections';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +50,19 @@ export function EditClientInfo() {
     navigation.goBack();
   };
 
+  // Function to log client activity
+  const logClientActivity = async () => {
+    try {
+      // In a real implementation, we would log client activity
+      // This is a placeholder for now
+      console.log("Logging client activity for client:", clientId);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error logging client activity:", error);
+      return Promise.reject(error);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8">
       <Button 
@@ -63,18 +78,36 @@ export function EditClientInfo() {
       <PageHeading>
         Edit Client Information
         <p className="text-sm font-normal text-muted-foreground">
-          Update client details and settings
+          Update client details and manage resources
         </p>
       </PageHeading>
 
       <div className="mt-6">
-        <ClientForm 
-          initialData={client}
-          onSubmit={handleSubmit}
-          isLoading={isLoadingClient || clientMutation.isPending}
-          error={error ? (error instanceof Error ? error.message : String(error)) : null}
-          submitButtonText="Update Client"
-        />
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="profile">Profile Information</TabsTrigger>
+            <TabsTrigger value="resources">Resources</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="profile" className="space-y-6">
+            <ClientForm 
+              initialData={client}
+              onSubmit={handleSubmit}
+              isLoading={isLoadingClient || clientMutation.isPending}
+              error={error ? (error instanceof Error ? error.message : String(error)) : null}
+              submitButtonText="Update Client"
+            />
+          </TabsContent>
+          
+          <TabsContent value="resources">
+            {clientId && (
+              <ClientResourceSections 
+                clientId={clientId} 
+                logClientActivity={logClientActivity}
+              />
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
