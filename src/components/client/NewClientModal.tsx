@@ -79,6 +79,9 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
         throw error;
       }
       
+      // Just log to console instead of creating activity record
+      console.log(`[Activity Log] Client created: ${values.clientName}`);
+      
       toast.success("Client created successfully!");
       onClose();
       navigate("/admin/clients");

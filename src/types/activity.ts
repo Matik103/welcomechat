@@ -1,3 +1,4 @@
+
 export interface ClientActivity {
   id: string;
   client_id: string;

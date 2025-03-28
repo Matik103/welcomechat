@@ -40,7 +40,7 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
       // Generate a client ID (would normally come from the backend)
       const tempClientId = crypto.randomUUID();
       
-      // Create AI agent (which also creates the client)
+      // Create AI agent (which also creates the client) but disable activity logging
       const result = await ensureAiAgentExists(
         tempClientId,
         data.agent_name,

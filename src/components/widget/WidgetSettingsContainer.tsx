@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { WidgetSettings as IWidgetSettings } from "@/types/widget-settings";
 import { WidgetSettingsForm } from "@/components/widget/WidgetSettingsForm";
@@ -42,6 +41,13 @@ export function WidgetSettingsContainer({
   const handleSave = async () => {
     try {
       await updateSettingsMutation.mutateAsync(currentSettings);
+      
+      // Log to console instead of creating an activity
+      console.log("[Activity Log] Widget settings updated", {
+        clientId,
+        settings: currentSettings
+      });
+      
       toast.success("Widget settings saved successfully!");
     } catch (error) {
       console.error("Error saving widget settings:", error);
@@ -51,7 +57,10 @@ export function WidgetSettingsContainer({
 
   const handleCopyEmbedCode = () => {
     if (isClientView) {
-      logClientActivity();
+      // Log to console instead of creating an activity
+      console.log("[Activity Log] Embed code copied", {
+        clientId
+      });
     }
   };
 
