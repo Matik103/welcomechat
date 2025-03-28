@@ -20,6 +20,7 @@ export const useClientList = () => {
         .select("*", { count: "exact" })
         .eq('interaction_type', 'config')
         .is('deleted_at', null) // Filter out deleted clients
+        .neq('status', 'deleted') // Exclude clients with "deleted" status
         .order("created_at", { ascending: false });
       
       // Apply search filter if provided
