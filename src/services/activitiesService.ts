@@ -1,6 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { ActivityType } from "@/types/activity";
+import { ActivityType } from '@/types/activity';
 
 /**
  * Create a client activity log (console only, no database operations)

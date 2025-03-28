@@ -20,7 +20,7 @@ export type ClientStatus = 'active' | 'inactive' | 'deleted';
 // Define a safer set of activity types that avoids collisions with database enum
 export type ActivityType = 
   | 'chat_interaction'
-  | 'client_created'
+  | 'client_created' 
   | 'client_updated'
   | 'client_deleted'
   | 'client_recovered'
