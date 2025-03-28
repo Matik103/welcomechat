@@ -7,8 +7,8 @@ import { toast } from 'sonner';
 // Hardcode the URL since we know it
 export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
 
-// Get the service role key from environment variables
-// In production, this should be stored in Supabase secrets
+// Get the service role key from environment variables or use the hardcoded one
+// In production, this should be stored securely in environment variables
 const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || 
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.qB6EALQwgkR9BQ2_QR_4MmXFQgFrm17D_yODKmnFE7M";
 
@@ -27,6 +27,9 @@ export const supabaseAdmin = createClient<Database>(
 
 // Export a function to check if the admin client is configured properly
 export const isAdminClientConfigured = (): boolean => {
-  return !!SUPABASE_SERVICE_KEY;
+  if (!SUPABASE_SERVICE_KEY) {
+    console.error("SUPABASE_SERVICE_KEY is not configured");
+    return false;
+  }
+  return true;
 };
-

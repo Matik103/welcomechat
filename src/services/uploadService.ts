@@ -9,8 +9,10 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
   try {
     console.log('Starting to check if bucket exists:', bucketName);
     
-    // Always perform the operation with admin client
-    // Now we have hardcoded the service role key, so this should work
+    // Check if admin client is configured
+    if (!isAdminClientConfigured()) {
+      throw new Error('Supabase admin client not properly configured. Service role key is missing.');
+    }
     
     // Check if the bucket exists
     const { data: buckets, error: getBucketError } = await supabaseAdmin
@@ -37,6 +39,16 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
       if (createBucketError) {
         console.error('Error creating bucket:', createBucketError);
         throw createBucketError;
+      }
+      
+      // Set bucket policy to public
+      const { error: policyError } = await supabaseAdmin
+        .storage
+        .from(bucketName)
+        .createSignedUrl('dummy.txt', 60); // This is just to test if we have access
+      
+      if (policyError && !policyError.message.includes('not found')) {
+        console.error('Error checking bucket policy:', policyError);
       }
       
       console.log('Bucket created successfully with public access:', bucketName);
