@@ -3,7 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientFormData } from '@/types/client-form';
 import { Client } from '@/types/client';
-import { updateClient } from '@/services/clientService';
 import { toast } from 'sonner';
 
 export interface ClientUpdateParams extends Partial<ClientFormData> {
@@ -49,6 +48,12 @@ export const useClientMutation = () => {
           throw new Error("Failed to retrieve updated client data");
         }
         
+        // Extract widget settings, ensuring it's an object
+        const widgetSettings: Record<string, any> = 
+          typeof data.settings === 'object' && data.settings !== null 
+            ? data.settings 
+            : {};
+        
         // Map the data to a Client object
         return {
           id: data.id,
@@ -61,7 +66,7 @@ export const useClientMutation = () => {
           agent_name: data.name || params.agent_name || "",
           agent_description: data.agent_description || params.agent_description || "",
           logo_url: data.logo_url || "",
-          widget_settings: data.settings || {},
+          widget_settings: widgetSettings,
           user_id: "",
           company: data.company || "",
           description: data.description || "",
