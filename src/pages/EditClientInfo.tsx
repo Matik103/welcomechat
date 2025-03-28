@@ -21,8 +21,7 @@ export function EditClientInfo() {
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('profile');
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
   
   const { 
     client, 
@@ -33,59 +32,32 @@ export function EditClientInfo() {
     refetchClient
   } = useClientData(id);
 
-  // Force immediate data load on component mount
-  useEffect(() => {
-    if (id && !client && !isLoadingClient) {
-      console.log("Forcing client data refetch for ID:", id);
-      refetchClient();
-    }
-  }, [id, client, isLoadingClient, refetchClient]);
-
-  useEffect(() => {
-    // Clear any previous errors when component mounts or client changes
-    setUpdateError(null);
-    
-    // Log the client data for debugging
-    console.log("Client data loaded:", client);
-  }, [client, id]);
-
   const handleSubmit = async (data: ClientFormData) => {
-    if (!clientId) {
-      toast.error("Client ID is missing. Cannot update client.");
-      return;
-    }
-    
     try {
-      setFormSubmitting(true);
-      setUpdateError(null);
-      
-      console.log("Submitting client update for ID:", clientId);
-      console.log("Form data:", JSON.stringify(data));
-      
       await clientMutation.mutateAsync({
         client_id: clientId,
         client_name: data.client_name,
         email: data.email,
         agent_name: data.agent_name,
-        agent_description: data.agent_description || '',
-        logo_url: data.logo_url || '',
-        logo_storage_path: data.logo_storage_path || ''
+        agent_description: data.agent_description,
+        logo_url: data.logo_url,
+        logo_storage_path: data.logo_storage_path
       });
       
-      // We don't need to toast success here as it's handled in the mutation
-      await refetchClient();
       toast.success("Client information updated successfully");
+      refetchClient();
     } catch (error) {
       console.error("Error updating client:", error);
-      setUpdateError(error instanceof Error ? error.message : "Failed to update client information");
       toast.error("Failed to update client information");
-    } finally {
-      setFormSubmitting(false);
     }
   };
 
   const handleNavigateBack = () => {
     navigation.goBack();
+  };
+
+  const handleRetryServiceKey = () => {
+    setServiceKeyError(!isAdminClientConfigured());
   };
 
   // Function to log client activity
@@ -101,60 +73,14 @@ export function EditClientInfo() {
     }
   };
 
-  // Check if Supabase service role key is configured
-  const isServiceRoleConfigured = isAdminClientConfigured();
-  if (!isServiceRoleConfigured) {
+  if (serviceKeyError) {
     return (
       <ErrorDisplay 
         title="Supabase Service Role Key Missing"
         message="The Supabase service role key is missing or invalid. Logo upload functionality requires this key."
-        details="This key is required for logo uploads and storage bucket management."
+        details="To fix this issue, add your Supabase service role key to the .env file as VITE_SUPABASE_SERVICE_ROLE_KEY. This key is required for logo uploads and storage bucket management."
+        onRetry={handleRetryServiceKey}
       />
-    );
-  }
-
-  if (error) {
-    return (
-      <ErrorDisplay 
-        title="Error Loading Client"
-        message={error instanceof Error ? error.message : "Failed to load client information"}
-        details="Please try again or contact support if the issue persists."
-      />
-    );
-  }
-
-  // Show a loading state while client data is being fetched
-  if (isLoadingClient && !client) {
-    return (
-      <div className="container mx-auto py-8">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="mb-4 flex items-center gap-1"
-          onClick={handleNavigateBack}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Clients
-        </Button>
-        
-        <PageHeading>
-          Loading Client Information...
-          <p className="text-sm font-normal text-muted-foreground">
-            Please wait while we retrieve the client details
-          </p>
-        </PageHeading>
-        
-        <div className="mt-6 p-8 flex justify-center">
-          <div className="animate-pulse flex flex-col space-y-6 w-full max-w-xl">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-10 bg-gray-200 rounded w-full"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-10 bg-gray-200 rounded w-full"></div>
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-10 bg-gray-200 rounded w-full"></div>
-          </div>
-        </div>
-      </div>
     );
   }
 
@@ -188,8 +114,8 @@ export function EditClientInfo() {
             <ClientForm 
               initialData={client}
               onSubmit={handleSubmit}
-              isLoading={isLoadingClient || formSubmitting}
-              error={updateError || (error ? (error instanceof Error ? error.message : String(error)) : null)}
+              isLoading={isLoadingClient || clientMutation.isPending}
+              error={error ? (error instanceof Error ? error.message : String(error)) : null}
               submitButtonText="Update Client"
             />
             

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from 'sonner';
@@ -7,7 +8,7 @@ import { execSql } from '@/utils/rpcUtils';
 import { ChatInteraction } from '@/types/agent';
 
 export const useClientViewData = (clientId: string) => {
-  const clientQuery = useClient(clientId);
+  const { client, isLoading: isLoadingClient, error: clientError } = useClient(clientId);
   const { chatHistory, isLoading: isLoadingChatHistory } = useClientChatHistory(clientId);
   const [errorLogs, setErrorLogs] = useState([]);
   const [commonQueries, setCommonQueries] = useState([]);
@@ -22,11 +23,11 @@ export const useClientViewData = (clientId: string) => {
 
   // Show client error toast only once
   useEffect(() => {
-    if (clientQuery.error) {
+    if (clientError) {
       toast.error("Failed to load client information");
-      console.error("Client error:", clientQuery.error);
+      console.error("Client error:", clientError);
     }
-  }, [clientQuery.error]);
+  }, [clientError]);
 
   useEffect(() => {
     const fetchErrorLogs = async () => {
@@ -116,7 +117,7 @@ export const useClientViewData = (clientId: string) => {
     };
 
     const fetchAgentStats = async () => {
-      if (!clientId || !clientQuery.data?.agent_name) return;
+      if (!clientId || !client?.agent_name) return;
       
       try {
         // Get basic stats directly
@@ -182,10 +183,10 @@ export const useClientViewData = (clientId: string) => {
       fetchCommonQueries();
     }
 
-    if (clientId && clientQuery.data) {
+    if (clientId && client) {
       fetchAgentStats();
     }
-  }, [clientId, clientQuery.data]);
+  }, [clientId, client]);
 
   // Subscribe to updates
   useEffect(() => {
@@ -233,9 +234,9 @@ export const useClientViewData = (clientId: string) => {
   }, [clientId]);
 
   return {
-    client: clientQuery.data,
-    isLoadingClient: clientQuery.isLoading,
-    clientError: clientQuery.error,
+    client,
+    isLoadingClient,
+    clientError,
     chatHistory,
     isLoadingChatHistory,
     errorLogs,

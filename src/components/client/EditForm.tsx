@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -26,30 +25,18 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      client_name: "",
-      email: "",
-      agent_name: "",
+      client_name: initialData?.client_name || "",
+      email: initialData?.email || "",
+      agent_name: initialData?.name || initialData?.agent_name || initialData?.widget_settings?.agent_name || "",
     },
   });
 
-  // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
-      console.log("Setting EditForm values with initialData:", initialData);
-      
-      // Set values from initialData, with fallbacks to ensure fields are filled
       setValue("client_name", initialData.client_name || "");
       setValue("email", initialData.email || "");
-      
-      // Try multiple possible sources for agent_name with fallbacks
-      const agentName = 
-        initialData.agent_name || 
-        initialData.name || 
-        (initialData.widget_settings && typeof initialData.widget_settings === 'object' && 
-          'agent_name' in initialData.widget_settings ? initialData.widget_settings.agent_name : "") ||
-        "";
-      
-      setValue("agent_name", agentName);
+      setValue("agent_name", initialData.name || initialData.agent_name || 
+        (initialData.widget_settings && initialData.widget_settings.agent_name) || "");
     }
   }, [initialData, setValue]);
 

@@ -3,7 +3,6 @@ import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
 import { ClientFormData } from "@/types/client-form";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
 
 export const useClientData = (id: string | undefined) => {
   const { user, userRole } = useAuth();
@@ -22,24 +21,21 @@ export const useClientData = (id: string | undefined) => {
   console.log("useClientData: user role =", userRole);
   console.log("useClientData: using clientId =", clientId);
   
-  const clientQuery = useClient(clientId || '');
+  const { 
+    client, 
+    isLoading, 
+    error,
+    refetch
+  } = useClient(clientId || '');
   
   const clientMutation = useClientMutation();
-  
-  // Force a refetch if we have a clientId but no data yet
-  useEffect(() => {
-    if (clientId && !clientQuery.data && !clientQuery.isLoading && !clientQuery.error) {
-      console.log("Forcing initial client data fetch for ID:", clientId);
-      clientQuery.refetch();
-    }
-  }, [clientId, clientQuery]);
 
   return {
-    client: clientQuery.data,
-    isLoadingClient: clientQuery.isLoading,
-    error: clientQuery.error,
+    client,
+    isLoadingClient: isLoading,
+    error,
     clientMutation,
     clientId: clientId, // Keep the property name as clientId for backward compatibility
-    refetchClient: clientQuery.refetch
+    refetchClient: refetch
   };
 };
