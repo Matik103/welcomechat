@@ -1,8 +1,7 @@
-
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import Home from "@/pages/Home";
@@ -25,6 +24,8 @@ import Agents from "@/pages/Agents";
 import ClientAuth from "@/pages/client/Auth";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Loader2 } from "lucide-react";
+import { isAdminClientConfigured } from "./integrations/supabase/client-admin";
+import ErrorDisplay from "./components/ErrorDisplay";
 
 // Loading component for Suspense fallbacks
 const LoadingFallback = () => (
@@ -39,6 +40,7 @@ const LoadingFallback = () => (
 function App() {
   const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
+  const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
   
   const isAuthCallback = location.pathname.includes('/auth/callback');
   const isAuthPage = location.pathname === '/auth';
@@ -57,7 +59,24 @@ function App() {
     console.log('Current path:', location.pathname);
     console.log('User authenticated:', !!user);
     console.log('User role:', userRole);
+    
+    // Check if admin client is configured
+    setAdminConfigError(!isAdminClientConfigured());
   }, [isAuthCallback, location.pathname, user, userRole]);
+  
+  // Show error if admin client is not configured properly
+  if (adminConfigError) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <ErrorDisplay 
+          title="Configuration Error" 
+          message="The application is missing required Supabase configuration." 
+          details="The VITE_SUPABASE_SERVICE_ROLE_KEY environment variable is missing or empty. This key is required for admin operations such as bucket management."
+        />
+        <Toaster />
+      </div>
+    );
+  }
   
   // Show loader during authentication
   if (isLoading) {
