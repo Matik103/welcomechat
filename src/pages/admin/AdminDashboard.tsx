@@ -139,7 +139,7 @@ export default function AdminDashboardPage() {
       // Clients: Get all unique client_ids from ai_agents table (exclude deleted)
       const { data: agentsData, error: agentsError } = await supabase
         .from('ai_agents')
-        .select('client_id, last_active, name, interaction_type')
+        .select('client_id, last_active, name, interaction_type, status, created_at, deleted_at')
         .eq('interaction_type', 'config')
         .is('deleted_at', null);
       
@@ -147,39 +147,44 @@ export default function AdminDashboardPage() {
       
       // Get unique client IDs to count total non-deleted clients
       const uniqueClientIds = new Set();
-      agentsData.forEach(agent => {
-        if (agent.client_id) uniqueClientIds.add(agent.client_id);
-      });
-      
-      const totalClients = uniqueClientIds.size;
-      
-      // Active clients: clients with activity in last 48 hours
+      const activeClientIds = new Set();
+      const nonDeletedAgents = [];
+
+      // Time threshold for "active" clients (48 hours ago)
       const timeAgo = new Date();
       timeAgo.setHours(timeAgo.getHours() - 48);
       
-      // Count unique client_ids with activity in the last 48 hours
-      const activeClientIds = new Set();
-      agentsData.forEach(agent => {
-        if (agent.client_id && agent.last_active && new Date(agent.last_active) > timeAgo) {
-          activeClientIds.add(agent.client_id);
+      for (const agent of agentsData) {
+        // Only count clients that are not deleted or with deleted status
+        if (agent.client_id && agent.status !== 'deleted') {
+          uniqueClientIds.add(agent.client_id);
+          
+          // Count as active if has activity in last 48 hours
+          if (agent.last_active && new Date(agent.last_active) > timeAgo) {
+            activeClientIds.add(agent.client_id);
+          }
+          
+          // Add to non-deleted agents array
+          nonDeletedAgents.push(agent);
         }
-      });
+      }
       
+      const totalClients = uniqueClientIds.size;
       const activeClients = activeClientIds.size;
       
-      // Get the growth rate for clients (mock for now)
-      const clientGrowthRate = totalClients > 0 ? (activeClients / totalClients) * 10 : 0;
+      // Calculate client growth rate from active/total ratio
+      const clientGrowthRate = totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0;
       
-      // Agents: Count agents from the same query result
-      const totalAgents = agentsData.length;
+      // Agents: Count from non-deleted agents
+      const totalAgents = nonDeletedAgents.length;
       
       // Active agents: agents with activity in last 48 hours
-      const activeAgents = agentsData.filter(agent => {
-        return agent.last_active && new Date(agent.last_active) > timeAgo;
-      }).length;
+      const activeAgents = nonDeletedAgents.filter(agent => 
+        agent.last_active && new Date(agent.last_active) > timeAgo
+      ).length;
       
-      // Get the growth rate for agents (mock for now)
-      const agentGrowthRate = totalAgents > 0 ? (activeAgents / totalAgents) * 12 : 0;
+      // Get the growth rate for agents based on active/total ratio
+      const agentGrowthRate = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) : 0;
       
       // Interactions: Count all chat interactions
       const { count: interactionsCount, error: interactionsError } = await supabase
@@ -211,7 +216,6 @@ export default function AdminDashboardPage() {
       const trainingsTotal = (websiteUrlsCount || 0) + (documentLinksCount || 0) + (driveLinksCount || 0);
       
       // Administration: Count administration-related activities using activities table
-      // Use only the valid activity types from the enum
       const { count: adminActivitiesCount, error: adminActivitiesError } = await supabase
         .from('activities')
         .select('id', { count: 'exact', head: true })
@@ -231,13 +235,13 @@ export default function AdminDashboardPage() {
         clients: {
           total: totalClients,
           active: activeClients,
-          changePercentage: clientGrowthRate, // Use the calculated growth rate
+          changePercentage: clientGrowthRate,
           chartData: generateChartData()
         },
         agents: {
           total: totalAgents,
           active: activeAgents,
-          changePercentage: agentGrowthRate, // Use the calculated growth rate
+          changePercentage: agentGrowthRate,
           chartData: generateChartData()
         },
         interactions: {
@@ -343,7 +347,7 @@ export default function AdminDashboardPage() {
           <AnimatedBarChart 
             data={chartData} 
             color={chartColor} 
-            updateInterval={150} // Changed to updateInterval which is expected by AnimatedBarChart
+            updateInterval={150}
           />
         </div>
       </div>
