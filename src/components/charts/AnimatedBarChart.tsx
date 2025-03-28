@@ -26,7 +26,8 @@ export function AnimatedBarChart({
   const [position, setPosition] = useState(0);
   const [visibleData, setVisibleData] = useState<number[]>(data);
   const [maxValue, setMaxValue] = useState(Math.max(...data, 1));
-  const animationRef = useRef<number>();
+  // Change the type from number to NodeJS.Timeout
+  const animationRef = useRef<NodeJS.Timeout>();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Calculate how many bars can fit in the container
