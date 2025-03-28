@@ -7,6 +7,7 @@ import { getUserRole } from '@/services/authService';
 import { useAuthInitialize } from '@/hooks/useAuthInitialize';
 import { useAuthStateChange } from '@/hooks/useAuthStateChange';
 import { useAuthCallback } from '@/hooks/useAuthCallback';
+import { useAuthState } from '@/hooks/useAuthState';
 
 export type UserRole = 'admin' | 'client' | null;
 
@@ -29,13 +30,21 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {}
 });
 
-// Separate the provider component definition from its export
-const AuthProviderComponent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [authInitialized, setAuthInitialized] = useState(false);
+// Define the provider component
+function AuthProviderInner({ children }: { children: React.ReactNode }) {
+  // Use a custom hook to manage auth state to ensure hooks are always called
+  const {
+    session,
+    setSession,
+    user,
+    setUser,
+    userRole,
+    setUserRole,
+    isLoading,
+    setIsLoading,
+    authInitialized,
+    setAuthInitialized
+  } = useAuthState();
   
   const location = useLocation();
   const isCallbackUrl = location.pathname.includes('/auth/callback');
@@ -78,7 +87,7 @@ const AuthProviderComponent: React.FC<{ children: React.ReactNode }> = ({ childr
       
       return () => clearTimeout(timeout);
     }
-  }, [isLoading]);
+  }, [isLoading, setIsLoading]);
   
   // Sign out handler
   const signOut = async () => {
@@ -105,11 +114,11 @@ const AuthProviderComponent: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+}
 
-// Export the provider as a named component
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <AuthProviderComponent>{children}</AuthProviderComponent>;
+// Export the provider as a named component to ensure proper naming in React DevTools
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  return <AuthProviderInner>{children}</AuthProviderInner>;
 };
 
 // Export the hook

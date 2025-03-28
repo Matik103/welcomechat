@@ -1,4 +1,5 @@
 
+import React from 'react';
 import EditClientInfo from '../EditClientInfo';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 
