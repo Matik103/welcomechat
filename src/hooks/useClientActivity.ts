@@ -31,11 +31,11 @@ export const useClientActivity = (clientId?: string) => {
     metadata: any = {}
   ) => {
     // Map any potentially unsafe activity types to safe ones
-    let safeType = "client_updated";
+    let safeType: ActivityType = "client_updated";
     
     // Only use the provided type if it's in our safe list
     if (SAFE_ACTIVITY_TYPES.includes(type as string)) {
-      safeType = type as string;
+      safeType = type as ActivityType;
     } else {
       console.warn(`Activity type "${type}" is not in the safe list, using "client_updated" instead`);
     }
