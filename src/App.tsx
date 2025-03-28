@@ -38,7 +38,7 @@ const LoadingFallback = () => (
 );
 
 function App() {
-  const { user, userRole, isLoading, setIsLoading } = useAuth();
+  const { user, userRole, isLoading, setIsLoading, session } = useAuth();
   const location = useLocation();
   const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
   
@@ -55,7 +55,7 @@ function App() {
     isLoading,
     setIsLoading,
     isAuthPage,
-    session: user ? { user } : null
+    session
   });
   
   useEffect(() => {
