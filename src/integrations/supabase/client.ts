@@ -4,16 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { toast } from 'sonner';
 
-// Get the URL and anon key from environment variables
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY;
-
-// Fallback key for development only
-const FALLBACK_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is";
-
-if (!SUPABASE_PUBLISHABLE_KEY) {
-  console.warn("VITE_SUPABASE_ANON_KEY is not configured, using fallback key for development");
-}
+// Supabase configuration - using direct values instead of relying on environment variables
+export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is";
 
 // Create a singleton instance to avoid multiple instances
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
@@ -25,7 +18,7 @@ export const supabase = (() => {
     console.log("Initializing Supabase client...");
     supabaseInstance = createClient<Database>(
       SUPABASE_URL, 
-      SUPABASE_PUBLISHABLE_KEY || FALLBACK_ANON_KEY, 
+      SUPABASE_ANON_KEY, 
       {
         auth: {
           persistSession: true,

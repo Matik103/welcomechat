@@ -4,17 +4,14 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { toast } from 'sonner';
 
-// Get the URL and service role key from environment variables
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
-const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.SUPABASE_SERVICE_ROLE_KEY || "";
+// Supabase configuration - using direct values instead of relying on environment variables
+export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
+const SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
 
-// Check if we have a valid service role key
-const hasValidServiceKey = SUPABASE_SERVICE_KEY && SUPABASE_SERVICE_KEY.length > 20;
-
-// Create the admin client with the service role key (if available)
+// Create the admin client with the service role key
 export const supabaseAdmin = createClient<Database>(
   SUPABASE_URL, 
-  SUPABASE_SERVICE_KEY || 'MISSING_SERVICE_KEY', // Fallback to prevent runtime error
+  SUPABASE_SERVICE_KEY, 
   {
     auth: {
       persistSession: false,
@@ -26,17 +23,12 @@ export const supabaseAdmin = createClient<Database>(
 
 // Export a function to check if the admin client is configured properly
 export const isAdminClientConfigured = (): boolean => {
-  return hasValidServiceKey;
+  return true; // We now have the key directly in the code
 };
 
 // Export a function to initialize bucket if it doesn't exist
 export const initializeBotLogosBucket = async (): Promise<boolean> => {
   try {
-    if (!isAdminClientConfigured()) {
-      console.error("Cannot initialize bot-logos bucket: Supabase service role key is missing or invalid");
-      return false;
-    }
-    
     // Check if bucket exists first
     const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
     
