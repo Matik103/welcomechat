@@ -1,3 +1,4 @@
+
 -- Drop the existing activity_type enum if it exists
 DROP TYPE IF EXISTS activity_type CASCADE;
 
