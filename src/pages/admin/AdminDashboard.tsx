@@ -18,7 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { setupRealtimeActivities } from '@/utils/setupRealtimeActivities';
 import { subscribeToAllActivities } from '@/services/activitySubscriptionService';
-import { AnimatedBarChart } from '@/components/charts/AnimatedBarChart';
+import { AnimatedBarChart } from '@/components/dashboard/AnimatedBarChart';
 import { Card } from '@/components/ui/card';
 
 interface ActivityChartData {
@@ -136,21 +136,29 @@ export default function AdminDashboardPage() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Clients: Get all active clients (exclude deleted)
+      // Clients: Get all active clients from ai_agents table (exclude deleted)
       const { data: clientsData, error: clientsError } = await supabase
-        .from('clients')
-        .select('id, status, last_active')
-        .neq('status', 'deleted');
+        .from('ai_agents')
+        .select('client_id, last_active')
+        .eq('interaction_type', 'config')
+        .is('deleted_at', null);
       
       if (clientsError) throw clientsError;
       
-      const totalClients = clientsData.length;
+      // Get unique client IDs to count total non-deleted clients
+      const uniqueClientIds = new Set();
+      clientsData.forEach(agent => {
+        if (agent.client_id) uniqueClientIds.add(agent.client_id);
+      });
+      
+      const totalClients = uniqueClientIds.size;
       
       // Active clients: clients with activity in last 48 hours
       const timeAgo = new Date();
       timeAgo.setHours(timeAgo.getHours() - 48);
-      const activeClients = clientsData.filter(client => {
-        return client.last_active && new Date(client.last_active) > timeAgo;
+      
+      const activeClients = clientsData.filter(agent => {
+        return agent.last_active && new Date(agent.last_active) > timeAgo;
       }).length;
       
       // Agents: Get all agents from ai_agents table (non-deleted)
@@ -198,11 +206,11 @@ export default function AdminDashboardPage() {
       
       const trainingsTotal = (websiteUrlsCount || 0) + (documentLinksCount || 0) + (driveLinksCount || 0);
       
-      // Administration: Count administration-related activities
+      // Administration: Count administration-related activities using activities table
       const { count: adminActivitiesCount, error: adminActivitiesError } = await supabase
-        .from('client_activities')
+        .from('activities')
         .select('id', { count: 'exact', head: true })
-        .in('activity_type', ['client_created', 'client_updated', 'client_deleted', 'system_update', 'agent_name_updated']);
+        .in('type', ['client_created', 'client_updated', 'client_deleted', 'system_update', 'agent_name_updated']);
       
       if (adminActivitiesError) throw adminActivitiesError;
       
