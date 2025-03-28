@@ -1,21 +1,20 @@
-
 // This client has the service role key for admin operations
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { toast } from 'sonner';
 
-// Hardcode the URL since we know it
-export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
+// Get the URL and service role key from environment variables
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
+const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
-// Get the service role key from environment variables or use the hardcoded one
-// In production, this should be stored securely in environment variables
-const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || 
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.qB6EALQwgkR9BQ2_QR_4MmXFQgFrm17D_yODKmnFE7M";
+if (!SUPABASE_SERVICE_KEY) {
+  console.error("VITE_SUPABASE_SERVICE_ROLE_KEY is not configured");
+}
 
 // Create the admin client with the service role key
 export const supabaseAdmin = createClient<Database>(
   SUPABASE_URL, 
-  SUPABASE_SERVICE_KEY, 
+  SUPABASE_SERVICE_KEY || '', 
   {
     auth: {
       persistSession: false,
@@ -28,7 +27,7 @@ export const supabaseAdmin = createClient<Database>(
 // Export a function to check if the admin client is configured properly
 export const isAdminClientConfigured = (): boolean => {
   if (!SUPABASE_SERVICE_KEY) {
-    console.error("SUPABASE_SERVICE_KEY is not configured");
+    console.error("VITE_SUPABASE_SERVICE_ROLE_KEY is not configured");
     return false;
   }
   return true;

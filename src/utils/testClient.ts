@@ -1,8 +1,8 @@
-
 import { config } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import type { Database } from '@/integrations/supabase/types';
+import { fileURLToPath } from 'url';
 
 // Load environment variables from .env file
 config();
@@ -21,7 +21,7 @@ export enum ActivityType {
   ChatMessageReceived = 'chat_message_received'
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const resendApiKey = process.env.RESEND_API_KEY || '';
 
@@ -182,6 +182,6 @@ export async function setupTestClient() {
 }
 
 // Run setup if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === fileURLToPath(process.argv[1])) {
   setupTestClient();
 }
