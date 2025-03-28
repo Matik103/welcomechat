@@ -41,7 +41,8 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
   try {
     const bucketName = 'client-assets';
     
-    // Ensure the bucket exists
+    console.log('Ensuring bucket exists:', bucketName);
+    // Ensure the bucket exists before uploading
     await ensureBucketExists(bucketName);
     
     // Generate a unique file path
@@ -71,6 +72,8 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
       .storage
       .from(bucketName)
       .getPublicUrl(data.path);
+    
+    console.log('Upload successful, public URL:', publicUrlData.publicUrl);
     
     return {
       url: publicUrlData.publicUrl,
