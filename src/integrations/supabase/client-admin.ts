@@ -6,19 +6,15 @@ import { toast } from 'sonner';
 
 // Get the URL and service role key from environment variables
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
-const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_KEY;
+const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "";
 
-// Fallback key for development only - do not use in production
-const FALLBACK_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.qB6EALQwgkR9BQ2_QR_4MmXFQgFrm17D_yODKmnFE7M";
+// Check if we have a valid service role key
+const hasValidServiceKey = SUPABASE_SERVICE_KEY && SUPABASE_SERVICE_KEY.startsWith('eyJ');
 
-if (!SUPABASE_SERVICE_KEY) {
-  console.warn("VITE_SUPABASE_SERVICE_ROLE_KEY is not configured, using fallback key for development. This is not recommended for production.");
-}
-
-// Create the admin client with the service role key
+// Create the admin client with the service role key (if available)
 export const supabaseAdmin = createClient<Database>(
   SUPABASE_URL, 
-  SUPABASE_SERVICE_KEY || FALLBACK_SERVICE_KEY, 
+  SUPABASE_SERVICE_KEY, 
   {
     auth: {
       persistSession: false,
@@ -30,17 +26,28 @@ export const supabaseAdmin = createClient<Database>(
 
 // Export a function to check if the admin client is configured properly
 export const isAdminClientConfigured = (): boolean => {
-  return Boolean(SUPABASE_SERVICE_KEY || FALLBACK_SERVICE_KEY);
+  return hasValidServiceKey;
 };
 
 // Export a function to initialize bucket if it doesn't exist
 export const initializeBotLogosBucket = async (): Promise<boolean> => {
   try {
+    if (!isAdminClientConfigured()) {
+      console.error("Cannot initialize bot-logos bucket: Supabase service role key is missing or invalid");
+      return false;
+    }
+    
     // Check if bucket exists first
     const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
     
     if (listError) {
       console.error("Error listing buckets:", listError);
+      
+      // If we get an invalid signature error, it means the service role key is invalid
+      if (listError.message.includes('invalid signature')) {
+        toast.error('Authentication error: Invalid Supabase service role key');
+      }
+      
       return false;
     }
     

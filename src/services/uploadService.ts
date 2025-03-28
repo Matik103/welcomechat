@@ -5,13 +5,15 @@ import { toast } from 'sonner';
 import { v4 as uuid } from 'uuid';
 
 // Helper function to ensure the bucket exists
-const ensureBucketExists = async (bucketName: string): Promise<void> => {
+const ensureBucketExists = async (bucketName: string): Promise<boolean> => {
   try {
     console.log('Starting to check if bucket exists:', bucketName);
     
     // Check if admin client is configured
     if (!isAdminClientConfigured()) {
-      throw new Error('Supabase admin client not properly configured. Service role key is missing.');
+      console.error('Supabase admin client not properly configured. Service role key is missing.');
+      toast.error('Server configuration error: Missing service role key');
+      return false;
     }
     
     // Check if the bucket exists
@@ -21,7 +23,15 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
     
     if (getBucketError) {
       console.error('Error listing buckets:', getBucketError);
-      throw getBucketError;
+      
+      // If we get an invalid signature error, it means the service role key is invalid
+      if (getBucketError.message.includes('invalid signature')) {
+        toast.error('Authentication error: Invalid Supabase service role key');
+        return false;
+      }
+      
+      toast.error(`Failed to list buckets: ${getBucketError.message}`);
+      return false;
     }
     
     const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
@@ -38,7 +48,8 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
       
       if (createBucketError) {
         console.error('Error creating bucket:', createBucketError);
-        throw createBucketError;
+        toast.error(`Failed to create bucket: ${createBucketError.message}`);
+        return false;
       }
       
       // Set bucket policy to public
@@ -52,12 +63,15 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
       }
       
       console.log('Bucket created successfully with public access:', bucketName);
+      return true;
     } else {
       console.log('Bucket already exists:', bucketName);
+      return true;
     }
   } catch (error) {
     console.error('Error ensuring bucket exists:', error);
-    throw error;
+    toast.error(`Bucket configuration error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return false;
   }
 };
 
@@ -67,7 +81,11 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
     
     console.log('Ensuring bucket exists:', bucketName);
     // Ensure the bucket exists before uploading
-    await ensureBucketExists(bucketName);
+    const bucketReady = await ensureBucketExists(bucketName);
+    
+    if (!bucketReady) {
+      throw new Error('Logo storage is not configured properly. Please check server configuration.');
+    }
     
     // Generate a unique file path
     const fileExt = file.name.split('.').pop();
@@ -76,6 +94,7 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
     console.log('Uploading file:', file.name, 'type:', file.type, 'size:', file.size);
     
     // Upload the file to Supabase storage
+    // Try using the regular client first, only for the upload operation
     const { data, error } = await supabase
       .storage
       .from(bucketName)
@@ -87,8 +106,34 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
     
     if (error) {
       console.error('Error uploading logo:', error);
-      toast.error(`Upload failed: ${error.message}`);
-      throw error;
+      
+      // If permission denied, try with admin client
+      if (error.message.includes('Permission denied')) {
+        console.log('Retrying upload with admin client...');
+        const adminUploadResult = await supabaseAdmin
+          .storage
+          .from(bucketName)
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true,
+            contentType: file.type
+          });
+        
+        if (adminUploadResult.error) {
+          console.error('Admin upload also failed:', adminUploadResult.error);
+          toast.error(`Upload failed: ${adminUploadResult.error.message}`);
+          throw adminUploadResult.error;
+        }
+        
+        data = adminUploadResult.data;
+      } else {
+        toast.error(`Upload failed: ${error.message}`);
+        throw error;
+      }
+    }
+    
+    if (!data || !data.path) {
+      throw new Error('Upload completed but no file path was returned');
     }
     
     // Get the public URL
@@ -96,6 +141,10 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
       .storage
       .from(bucketName)
       .getPublicUrl(data.path);
+    
+    if (!publicUrlData || !publicUrlData.publicUrl) {
+      throw new Error('Failed to generate public URL for uploaded file');
+    }
     
     console.log('Upload successful, public URL:', publicUrlData.publicUrl);
     
