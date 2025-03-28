@@ -1,6 +1,8 @@
+
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Suspense } from "react";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import Home from "@/pages/Home";
@@ -22,6 +24,17 @@ import Contact from "@/pages/Contact";
 import Agents from "@/pages/Agents";
 import ClientAuth from "@/pages/client/Auth";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Loader2 } from "lucide-react";
+
+// Loading component for Suspense fallbacks
+const LoadingFallback = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="flex flex-col items-center">
+      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+      <p className="text-sm text-muted-foreground">Loading...</p>
+    </div>
+  </div>
+);
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
@@ -41,102 +54,114 @@ function App() {
     }
   }, [isAuthCallback]);
   
-  if (isLoading || isAuthCallback) {
+  // Show loader during authentication
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
           <p className="text-sm text-muted-foreground">
-            {isAuthCallback ? "Completing authentication..." : "Loading..."}
+            {isAuthCallback ? "Completing authentication..." : "Loading your dashboard..."}
           </p>
         </div>
       </div>
     );
   }
 
+  // Show public routes when not authenticated
   if (!user && isPublicRoute) {
     return (
       <div className="min-h-screen bg-background">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/auth/*" element={<Auth />} />
-          <Route path="/client/auth" element={<ClientAuth />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/auth/*" element={<Auth />} />
+            <Route path="/client/auth" element={<ClientAuth />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
         <Toaster />
       </div>
     );
   }
 
+  // Redirect to login if not authenticated
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
-        <Routes>
-          <Route path="/auth/*" element={<Auth />} />
-          <Route path="/client/auth" element={<ClientAuth />} />
-          <Route path="*" element={<Navigate to="/auth" replace />} />
-        </Routes>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/auth/*" element={<Auth />} />
+            <Route path="/client/auth" element={<ClientAuth />} />
+            <Route path="*" element={<Navigate to="/auth" replace />} />
+          </Routes>
+        </Suspense>
         <Toaster />
       </div>
     );
   }
 
+  // Wait for user role to be determined
   if (!userRole) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
           <p className="text-sm text-muted-foreground">Loading user profile...</p>
         </div>
       </div>
     );
   }
 
-  console.log("Rendering with user role:", userRole);
-
+  // Admin routes
   if (userRole === 'admin') {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <Routes>
-          <Route path="/admin/dashboard" element={<Index />} />
-          <Route path="/admin/clients" element={<ClientList />} />
-          <Route path="/admin/agents" element={<Agents />} />
-          <Route path="/admin/agents/:agentId" element={<Agents />} />
-          <Route path="/admin/settings" element={<Settings />} />
-          <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
-          <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
-          <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
-          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
-          <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/auth/callback" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/client/*" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/admin/dashboard" element={<Index />} />
+            <Route path="/admin/clients" element={<ClientList />} />
+            <Route path="/admin/agents" element={<Agents />} />
+            <Route path="/admin/agents/:agentId" element={<Agents />} />
+            <Route path="/admin/settings" element={<Settings />} />
+            <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
+            <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
+            <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
+            <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+            <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/auth/callback" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/client/*" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
         <Toaster />
       </div>
     );
   }
 
+  // Client routes
   return (
     <div className="min-h-screen bg-background">
       <ClientHeader />
-      <Routes>
-        <Route path="/client/dashboard" element={<ClientDashboard />} />
-        <Route path="/client/settings" element={<ClientSettings />} />
-        <Route path="/client/account-settings" element={<AccountSettings />} />
-        <Route path="/client/resource-settings" element={<ResourceSettings />} />
-        <Route path="/client/edit-info" element={<EditClientInfo />} />
-        <Route path="/client/widget-settings" element={<WidgetSettings />} />
-        <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
-        <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
-        <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
-        <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          <Route path="/client/dashboard" element={<ClientDashboard />} />
+          <Route path="/client/settings" element={<ClientSettings />} />
+          <Route path="/client/account-settings" element={<AccountSettings />} />
+          <Route path="/client/resource-settings" element={<ResourceSettings />} />
+          <Route path="/client/edit-info" element={<EditClientInfo />} />
+          <Route path="/client/widget-settings" element={<WidgetSettings />} />
+          <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
+          <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
+          <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
       <Toaster />
     </div>
   );

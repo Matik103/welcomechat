@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
   
-  // Instead of using useLocation directly, we'll check for the callback URL manually
+  // Instead of using useLocation, safely check URL
   const isCallbackUrl = typeof window !== 'undefined' && 
     window.location.pathname.includes('/auth/callback');
   
