@@ -19,6 +19,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
 };
 
+// Create context with default values
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
@@ -28,7 +29,8 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {}
 });
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Separate the provider component definition from its export
+const AuthProviderComponent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
@@ -105,4 +107,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// Export the provider as a named component
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <AuthProviderComponent>{children}</AuthProviderComponent>;
+};
+
+// Export the hook
 export const useAuth = () => useContext(AuthContext);
