@@ -14,6 +14,7 @@ import { ClientResourceSections } from '@/components/client/ClientResourceSectio
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import ErrorDisplay from '@/components/ErrorDisplay';
+import { ClientDetailsCard } from '@/components/client/ClientDetailsCard';
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
@@ -32,8 +33,20 @@ export function EditClientInfo() {
     refetchClient
   } = useClientData(id);
 
+  useEffect(() => {
+    if (error) {
+      console.error("Error loading client data:", error);
+      toast.error(`Error loading client: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }, [error]);
+
   const handleSubmit = async (data: ClientFormData) => {
     try {
+      if (!clientId) {
+        toast.error("Client ID is required to update client");
+        return;
+      }
+      
       await clientMutation.mutateAsync({
         client_id: clientId,
         client_name: data.client_name,
@@ -48,7 +61,7 @@ export function EditClientInfo() {
       refetchClient();
     } catch (error) {
       console.error("Error updating client:", error);
-      toast.error("Failed to update client information");
+      toast.error(`Failed to update client: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -84,6 +97,17 @@ export function EditClientInfo() {
     );
   }
 
+  if (error && !client) {
+    return (
+      <ErrorDisplay 
+        title="Error Loading Client"
+        message={`Unable to load client data: ${error instanceof Error ? error.message : String(error)}`}
+        details={`Client ID: ${id || 'unknown'}`}
+        onRetry={refetchClient}
+      />
+    );
+  }
+
   return (
     <div className="container mx-auto py-8">
       <Button 
@@ -103,55 +127,74 @@ export function EditClientInfo() {
         </p>
       </PageHeading>
 
-      <div className="mt-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="profile">Profile Information</TabsTrigger>
-            <TabsTrigger value="resources">Resources</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="profile" className="space-y-6">
-            <ClientForm 
-              initialData={client}
-              onSubmit={handleSubmit}
-              isLoading={isLoadingClient || clientMutation.isPending}
-              error={error ? (error instanceof Error ? error.message : String(error)) : null}
-              submitButtonText="Update Client"
-            />
+      {isLoadingClient ? (
+        <div className="mt-6 animate-pulse space-y-4">
+          <div className="h-8 w-1/3 bg-gray-200 rounded"></div>
+          <div className="h-24 bg-gray-200 rounded"></div>
+          <div className="h-12 w-1/4 bg-gray-200 rounded"></div>
+        </div>
+      ) : (
+        <div className="mt-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="profile">Profile Information</TabsTrigger>
+              <TabsTrigger value="resources">Resources</TabsTrigger>
+            </TabsList>
             
-            <div className="flex justify-end mt-4">
-              <Button 
-                type="button" 
-                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-                onClick={() => setActiveTab('resources')}
-              >
-                Next: Resources <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="resources">
-            {clientId && (
-              <ClientResourceSections 
-                clientId={clientId} 
-                logClientActivity={logClientActivity}
-                onResourceChange={refetchClient}
-              />
-            )}
+            <TabsContent value="profile" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <ClientForm 
+                    initialData={client}
+                    onSubmit={handleSubmit}
+                    isLoading={isLoadingClient || clientMutation.isPending}
+                    error={error ? (error instanceof Error ? error.message : String(error)) : null}
+                    submitButtonText="Update Client"
+                  />
+                </div>
+                <div className="lg:col-span-1">
+                  <ClientDetailsCard 
+                    client={client} 
+                    isLoading={isLoadingClient} 
+                    logClientActivity={logClientActivity}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-4">
+                <Button 
+                  type="button" 
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                  onClick={() => setActiveTab('resources')}
+                >
+                  Next: Resources <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </TabsContent>
             
-            <div className="flex justify-start mt-4">
-              <Button 
-                type="button" 
-                variant="outline"
-                className="flex items-center gap-2"
-                onClick={() => setActiveTab('profile')}
-              >
-                <ArrowLeft className="h-4 w-4" /> Back to Profile
-              </Button>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+            <TabsContent value="resources">
+              {clientId && (
+                <ClientResourceSections 
+                  clientId={clientId} 
+                  logClientActivity={logClientActivity}
+                  onResourceChange={refetchClient}
+                />
+              )}
+              
+              <div className="flex justify-start mt-4">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setActiveTab('profile')}
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to Profile
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,14 +3,14 @@ import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
 import { ClientFormData } from "@/types/client-form";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
+import { toast } from "sonner";
 
 export const useClientData = (id: string | undefined) => {
   const { user, userRole } = useAuth();
   
-  // Only use the user metadata client ID in specific cases:
-  // 1. We're in client view (userRole is 'client')
-  // 2. No ID was explicitly provided
+  // Determine the appropriate clientId to use
+  // Try the explicitly provided ID first, then fall back to user metadata
   let clientId = id;
   if (!clientId && userRole === 'client' && user?.user_metadata?.client_id) {
     clientId = user.user_metadata.client_id;
@@ -25,13 +25,26 @@ export const useClientData = (id: string | undefined) => {
   } = useClient(clientId || '', {
     staleTime: 300000, // 5 minutes
     cacheTime: 600000,  // 10 minutes
+    retry: 3,
+    enabled: Boolean(clientId)
   });
+  
+  // Log errors for debugging purposes
+  useEffect(() => {
+    if (error) {
+      console.error("Error in useClientData hook:", error);
+      if (id) {
+        console.log(`Attempted to fetch client with ID: ${id}`);
+      }
+    }
+  }, [error, id]);
   
   const clientMutation = useClientMutation();
 
   // Memoized refetch function to avoid unnecessary re-renders
   const refetchClient = useCallback(() => {
     if (clientId) {
+      console.log("Refetching client data for:", clientId);
       return refetch();
     }
     return Promise.resolve();
@@ -42,7 +55,7 @@ export const useClientData = (id: string | undefined) => {
     isLoadingClient: isLoading,
     error,
     clientMutation,
-    clientId: clientId, // Keep the property name as clientId for backward compatibility
+    clientId, // Keep the property name as clientId for backward compatibility
     refetchClient
   };
 };

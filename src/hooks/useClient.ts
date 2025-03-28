@@ -18,36 +18,8 @@ export const useClient = (clientId: string, options = {}) => {
       try {
         console.log("Fetching client data for ID:", clientId);
         
-        // First try with a more robust query using OR condition
-        const { data: initialData, error: initialError } = await supabase
-          .from('ai_agents')
-          .select('*')
-          .or(`id.eq.${clientId},client_id.eq.${clientId}`)
-          .eq('interaction_type', 'config')
-          .limit(1)
-          .maybeSingle();
-          
-        if (initialData) {
-          console.log("Found client with OR condition:", initialData);
-          return mapAgentToClient(initialData);
-        }
-        
-        // The OR query might not work in all Supabase versions, try individual queries
-        // First try to get the client by ID
-        const { data, error } = await supabase
-          .from('ai_agents')
-          .select('*')
-          .eq('id', clientId)
-          .eq('interaction_type', 'config')
-          .maybeSingle();
-        
-        if (data) {
-          console.log("Found client by ID:", data);
-          return mapAgentToClient(data);
-        }
-        
-        // Try by client_id as fallback
-        const { data: clientData, error: clientError } = await supabase
+        // First try with a direct query using client_id
+        const { data: clientIdData, error: clientIdError } = await supabase
           .from('ai_agents')
           .select('*')
           .eq('client_id', clientId)
@@ -56,14 +28,27 @@ export const useClient = (clientId: string, options = {}) => {
           .limit(1)
           .maybeSingle();
             
-        if (clientData) {
-          console.log("Found client by client_id:", clientData);
-          return mapAgentToClient(clientData);
+        if (clientIdData) {
+          console.log("Found client by client_id:", clientIdData);
+          return mapAgentToClient(clientIdData);
         }
-          
-        // Try with SQL query as a last resort
+        
+        // If not found by client_id, try with id
+        const { data: idData, error: idError } = await supabase
+          .from('ai_agents')
+          .select('*')
+          .eq('id', clientId)
+          .eq('interaction_type', 'config')
+          .maybeSingle();
+        
+        if (idData) {
+          console.log("Found client by ID:", idData);
+          return mapAgentToClient(idData);
+        }
+        
+        // Try with SQL query as a last resort for format issues
         const sqlResult = await callRpcFunctionSafe<any[]>('exec_sql', {
-          query_text: `
+          sql_query: `
             SELECT * FROM ai_agents
             WHERE (id::text = $1 OR client_id::text = $1)
             AND interaction_type = 'config'
@@ -88,7 +73,7 @@ export const useClient = (clientId: string, options = {}) => {
     enabled: !!clientId,
     staleTime: 30000, // Consider data fresh for 30 seconds
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-    retry: 3, // Retry failed requests 3 times
+    retry: 2, // Retry failed requests 2 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     ...options
   });
