@@ -131,8 +131,11 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       'exec_sql',
       {
         sql_query: `
+          WITH settings_json AS (
+            SELECT $1::text::jsonb as new_settings
+          )
           UPDATE ai_agents
-          SET settings = COALESCE(settings, '{}'::jsonb) || $1::jsonb
+          SET settings = COALESCE(settings, '{}'::jsonb) || (SELECT new_settings FROM settings_json)
           WHERE ${queryField} = '${queryValue}' AND interaction_type = 'config'
           RETURNING settings;
         `,
