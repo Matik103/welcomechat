@@ -8,12 +8,11 @@ import { useNavigate } from "react-router-dom";
 import { useAiAgentManagement } from "@/hooks/useAiAgentManagement";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { clientFormSchema, ClientFormData } from "@/types/client-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-// Modified schema to make chatbot fields optional
+// Schema with optional chatbot fields
 import { z } from "zod";
 const createClientSchema = z.object({
   client_name: z.string().min(1, "Client name is required"),
