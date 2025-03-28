@@ -17,6 +17,7 @@ export interface ClientActivityProps {
 
 export type ClientStatus = 'active' | 'inactive' | 'deleted';
 
+// Define a safer set of activity types that avoids collisions with database enum
 export type ActivityType = 
   | 'chat_interaction'
   | 'client_created'
@@ -34,3 +35,6 @@ export type ActivityType =
   | 'login_success'
   | 'login_failed'
   | 'error_logged';
+
+// This approach prevents us from trying to use potentially invalid enum values
+// by entirely avoiding database inserts for activities
