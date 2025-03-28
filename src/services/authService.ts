@@ -17,6 +17,8 @@ export const getUserRole = async (): Promise<UserRole> => {
       return null;
     }
     
+    console.log("Checking role for user:", user.email);
+    
     // Option 1: Check user_roles table
     try {
       const { data: roleData, error: roleError } = await supabase
@@ -59,7 +61,7 @@ export const getUserRole = async (): Promise<UserRole> => {
       console.error("Error checking ai_agents table:", clientErr);
     }
     
-    // Default to admin if no role found
+    // Default to admin for now as a fallback
     console.log("No role found, defaulting to admin");
     return 'admin';
   } catch (error) {
@@ -74,12 +76,15 @@ export const getUserRole = async (): Promise<UserRole> => {
  */
 export const checkAndRefreshAuth = async (): Promise<boolean> => {
   try {
+    console.log("Checking and refreshing auth if needed");
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session || !session.user) {
       console.warn("No valid session found");
       return false;
     }
+    
+    console.log("Valid session found for user:", session.user.email);
     
     // Auto-refresh token if it's about to expire
     if (session.expires_at) {
@@ -113,11 +118,14 @@ export const checkAndRefreshAuth = async (): Promise<boolean> => {
  */
 export const signOut = async (): Promise<void> => {
   try {
+    console.log("Signing out user");
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Error during sign out:", error);
     } else {
       console.log("User signed out successfully");
+      // Clear any auth-related local storage
+      sessionStorage.removeItem('auth_callback_processed');
     }
   } catch (error) {
     console.error("Exception during sign out:", error);

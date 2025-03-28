@@ -17,18 +17,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If authentication is complete and no user, redirect to login
+    // Handle authentication issues
     if (!isLoading && !user) {
+      console.log("No authenticated user found, redirecting to /auth");
       navigate('/auth', { replace: true });
     }
     
-    // If authentication is complete, user exists, but role doesn't match
+    // Handle role-based access
     if (!isLoading && user && requiredRole && userRole !== requiredRole) {
+      console.log(`User role (${userRole}) doesn't match required role (${requiredRole}), redirecting`);
       const redirectPath = userRole === 'admin' ? '/admin/dashboard' : '/client/dashboard';
       navigate(redirectPath, { replace: true });
     }
   }, [isLoading, user, userRole, requiredRole, navigate]);
 
+  // Show loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -40,11 +43,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // Handle no user case (could happen during auth issues or session timeouts)
   if (!user) {
+    console.log("No user in protected route, redirecting to /auth");
     return <Navigate to="/auth" replace />;
   }
 
+  // Handle role mismatch
   if (requiredRole && userRole !== requiredRole) {
+    console.log(`Role mismatch in protected route. User: ${userRole}, Required: ${requiredRole}`);
     return <Navigate to="/" replace />;
   }
 

@@ -32,20 +32,24 @@ export const useAuthCallback = ({
       setIsLoading(true);
       
       try {
+        console.log("Processing auth callback...");
         // Try to get the session from the URL
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error("Auth callback error:", error);
+          setIsLoading(false);
           return;
         }
         
         if (data?.session) {
+          console.log("Auth callback: Got session for user", data.session.user.email);
           setSession(data.session);
           setUser(data.session.user);
           
           // Get user role
           const role = await getUserRole();
+          console.log("Auth callback: User role determined as:", role);
           setUserRole(role);
           
           // Mark callback as processed to avoid duplicate processing
@@ -54,12 +58,15 @@ export const useAuthCallback = ({
           // Redirect to appropriate page after callback is processed
           if (typeof window !== 'undefined') {
             const redirectPath = role === 'admin' ? '/admin/dashboard' : '/client/dashboard';
+            console.log("Auth callback: Redirecting to", redirectPath);
             window.location.href = redirectPath;
           }
+        } else {
+          console.warn("Auth callback: No session found");
+          setIsLoading(false);
         }
       } catch (err) {
         console.error("Error in auth callback:", err);
-      } finally {
         setIsLoading(false);
       }
     };

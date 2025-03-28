@@ -6,16 +6,40 @@ import type { Database } from './types';
 export const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2ODgwNzAsImV4cCI6MjA1NDI2NDA3MH0.UAu24UdDN_5iAWPkQBgBgEuq3BZDKjwDiK2_AT84_is";
 
+// Create a singleton instance to avoid multiple instances
+let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
-
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    persistSession: true,
-    storageKey: 'welcomechat_auth_token',
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
-    debug: false
+export const supabase = (() => {
+  if (!supabaseInstance) {
+    console.log("Initializing Supabase client...");
+    supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        persistSession: true,
+        storageKey: 'welcomechat_auth_token',
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        debug: process.env.NODE_ENV === 'development'
+      }
+    });
   }
-});
+  return supabaseInstance;
+})();
+
+// Export a function to force refresh the session if needed
+export const refreshSupabaseSession = async () => {
+  try {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error("Error refreshing session:", error);
+      return false;
+    }
+    console.log("Session refreshed successfully");
+    return true;
+  } catch (e) {
+    console.error("Exception refreshing session:", e);
+    return false;
+  }
+};
