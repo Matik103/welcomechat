@@ -1,6 +1,5 @@
 
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
@@ -8,10 +7,11 @@ import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { NewClientModal } from '@/components/client/NewClientModal';
 
 export default function AdminClientsPage() {
   const { clients, isLoading, searchQuery, handleSearch } = useClientList();
-  const navigate = useNavigate();
+  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
 
   return (
     <AdminLayout>
@@ -19,7 +19,7 @@ export default function AdminClientsPage() {
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-3xl font-bold">Manage Clients</h1>
           <Button 
-            onClick={() => navigate('/admin/clients/add')}
+            onClick={() => setIsAddClientModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Client
@@ -49,6 +49,11 @@ export default function AdminClientsPage() {
           </div>
         </div>
       </div>
+      
+      <NewClientModal 
+        isOpen={isAddClientModalOpen}
+        onClose={() => setIsAddClientModalOpen(false)}
+      />
     </AdminLayout>
   );
 }

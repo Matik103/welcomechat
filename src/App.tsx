@@ -21,7 +21,6 @@ import { useEffect } from "react";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Agents from "@/pages/Agents";
-import AddClientPage from "@/pages/admin/AddClientPage";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
@@ -98,7 +97,6 @@ function App() {
         <Routes>
           <Route path="/admin/dashboard" element={<Index />} />
           <Route path="/admin/clients" element={<ClientList />} />
-          <Route path="/admin/clients/add" element={<AddClientPage />} />
           <Route path="/admin/agents" element={<Agents />} />
           <Route path="/admin/agents/:agentId" element={<Agents />} />
           <Route path="/admin/settings" element={<Settings />} />

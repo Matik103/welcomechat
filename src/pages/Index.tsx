@@ -12,6 +12,7 @@ import { PageHeading } from "@/components/dashboard/PageHeading";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ClientActivity } from "@/types/activity";
 import { BarChart } from "@/components/dashboard/BarChart";
+import { NewClientModal } from "@/components/client/NewClientModal";
 
 const generateRandomData = (length: number) => {
   return Array.from({ length }, () => Math.floor(Math.random() * 100));
@@ -19,6 +20,7 @@ const generateRandomData = (length: number) => {
 
 export default function Index() {
   const navigate = useNavigate();
+  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [highlightedActivity, setHighlightedActivity] = useState<string | null>(null);
   
   const {
@@ -260,13 +262,18 @@ export default function Index() {
                 View All Clients
               </Button>
               <Button 
-                onClick={() => navigate('/admin/clients/add')}
+                onClick={() => setIsAddClientModalOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Plus className="mr-2 h-4 w-4" /> Add Client
               </Button>
             </div>
           </div>
+
+          <NewClientModal 
+            isOpen={isAddClientModalOpen}
+            onClose={() => setIsAddClientModalOpen(false)}
+          />
         </>
       )}
     </div>

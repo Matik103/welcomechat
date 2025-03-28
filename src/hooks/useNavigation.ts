@@ -15,7 +15,6 @@ export const useNavigation = () => {
     goToClientDashboard: () => navigate('/client/dashboard'),
     goToAdminDashboard: () => navigate('/admin/dashboard'),
     goToSettings: () => navigate('/admin/settings'),
-    goToAddClient: () => navigate('/admin/clients/add'),
     goBack: () => navigate(-1),
   };
 };
