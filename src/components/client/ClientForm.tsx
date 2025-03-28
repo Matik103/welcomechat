@@ -39,29 +39,41 @@ export function ClientForm({
   error,
   submitButtonText = 'Save Changes'
 }: ClientFormProps) {
-  const [logoUrl, setLogoUrl] = useState<string>(initialData?.logo_url || '');
-  const [logoStoragePath, setLogoStoragePath] = useState<string>(initialData?.logo_storage_path || '');
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [logoStoragePath, setLogoStoragePath] = useState<string>('');
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [formError, setFormError] = useState<string | null>(error || null);
 
+  // Initialize form with empty values first
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      client_name: initialData?.client_name || '',
-      email: initialData?.email || '',
-      agent_name: initialData?.agent_name || initialData?.name || '',
-      agent_description: initialData?.agent_description || '',
+      client_name: '',
+      email: '',
+      agent_name: '',
+      agent_description: '',
     },
   });
 
   // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
-      console.log("Setting form values with initialData:", initialData);
+      console.log("Setting ClientForm values with initialData:", initialData);
+      
+      // Set initial data for form fields
       setValue('client_name', initialData.client_name || '');
       setValue('email', initialData.email || '');
-      setValue('agent_name', initialData.agent_name || initialData.name || '');
+      
+      // Use multiple fallbacks for agent_name
+      const agentName = 
+        initialData.agent_name || 
+        initialData.name || 
+        '';
+      
+      setValue('agent_name', agentName);
       setValue('agent_description', initialData.agent_description || '');
+      
+      // Set logo data
       setLogoUrl(initialData.logo_url || '');
       setLogoStoragePath(initialData.logo_storage_path || '');
     }

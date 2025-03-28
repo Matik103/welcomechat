@@ -26,9 +26,9 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      client_name: initialData?.client_name || "",
-      email: initialData?.email || "",
-      agent_name: initialData?.name || initialData?.agent_name || initialData?.widget_settings?.agent_name || "",
+      client_name: "",
+      email: "",
+      agent_name: "",
     },
   });
 
@@ -36,10 +36,20 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
   useEffect(() => {
     if (initialData) {
       console.log("Setting EditForm values with initialData:", initialData);
+      
+      // Set values from initialData, with fallbacks to ensure fields are filled
       setValue("client_name", initialData.client_name || "");
       setValue("email", initialData.email || "");
-      setValue("agent_name", initialData.name || initialData.agent_name || 
-        (initialData.widget_settings && initialData.widget_settings.agent_name) || "");
+      
+      // Try multiple possible sources for agent_name with fallbacks
+      const agentName = 
+        initialData.agent_name || 
+        initialData.name || 
+        (initialData.widget_settings && typeof initialData.widget_settings === 'object' && 
+          'agent_name' in initialData.widget_settings ? initialData.widget_settings.agent_name : "") ||
+        "";
+      
+      setValue("agent_name", agentName);
     }
   }, [initialData, setValue]);
 

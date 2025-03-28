@@ -33,6 +33,14 @@ export function EditClientInfo() {
     refetchClient
   } = useClientData(id);
 
+  // Force immediate data load on component mount
+  useEffect(() => {
+    if (id && !client && !isLoadingClient) {
+      console.log("Forcing client data refetch for ID:", id);
+      refetchClient();
+    }
+  }, [id, client, isLoadingClient, refetchClient]);
+
   useEffect(() => {
     // Clear any previous errors when component mounts or client changes
     setUpdateError(null);
@@ -112,6 +120,41 @@ export function EditClientInfo() {
         message={error instanceof Error ? error.message : "Failed to load client information"}
         details="Please try again or contact support if the issue persists."
       />
+    );
+  }
+
+  // Show a loading state while client data is being fetched
+  if (isLoadingClient && !client) {
+    return (
+      <div className="container mx-auto py-8">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="mb-4 flex items-center gap-1"
+          onClick={handleNavigateBack}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Clients
+        </Button>
+        
+        <PageHeading>
+          Loading Client Information...
+          <p className="text-sm font-normal text-muted-foreground">
+            Please wait while we retrieve the client details
+          </p>
+        </PageHeading>
+        
+        <div className="mt-6 p-8 flex justify-center">
+          <div className="animate-pulse flex flex-col space-y-6 w-full max-w-xl">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-10 bg-gray-200 rounded w-full"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-10 bg-gray-200 rounded w-full"></div>
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-10 bg-gray-200 rounded w-full"></div>
+          </div>
+        </div>
+      </div>
     );
   }
 
