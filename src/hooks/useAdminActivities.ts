@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
-import { supabase } from "@/integrations/supabase/client";
 import { ClientActivity } from '@/types/activity';
+import { getRecentActivities } from '@/services/activitiesService';
 
 export const useAdminActivities = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,12 +13,17 @@ export const useAdminActivities = () => {
       setIsLoading(true);
       setError(null);
       
-      // Mock activities array since database operations are causing errors
-      // This is safer than trying to query the activities table
-      const mockActivities: ClientActivity[] = [];
+      // Get activities from the service
+      const { success, data, error: serviceError } = await getRecentActivities(limit);
       
-      setActivities(mockActivities);
-      return mockActivities;
+      if (!success || serviceError) {
+        throw new Error(serviceError?.message || 'Failed to fetch activities');
+      }
+      
+      // Use the returned data or empty array as fallback
+      const activitiesData = data || [];
+      setActivities(activitiesData);
+      return activitiesData;
     } catch (err) {
       console.error("Error fetching admin activities:", err);
       setError(err instanceof Error ? err : new Error('Failed to fetch activities'));

@@ -1,7 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
 import { ActivityType } from "@/types/activity";
-import { toast } from "sonner";
 
 export const useClientActivities = () => {
   /**

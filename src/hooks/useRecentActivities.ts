@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { ClientActivity } from '@/types/activity';
+import { getRecentActivities } from '@/services/activitiesService';
 
 export const useRecentActivities = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -12,10 +13,16 @@ export const useRecentActivities = () => {
       setIsLoading(true);
       setError(null);
       
-      // Instead of fetching from the database, just return empty array
-      // This prevents the database error with the enum
-      setActivities([]);
-      return [];
+      // Get recent activities from the service
+      const { success, data, error: serviceError } = await getRecentActivities(20);
+      
+      if (!success || serviceError) {
+        throw new Error(serviceError?.message || 'Failed to fetch activities');
+      }
+      
+      // If successful but empty, just set empty array
+      setActivities(data || []);
+      return data || [];
     } catch (err) {
       console.error("Error fetching recent activities:", err);
       setError(err instanceof Error ? err : new Error('Failed to fetch activities'));
