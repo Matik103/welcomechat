@@ -230,6 +230,16 @@ export default function AdminDashboardPage() {
     chartColor,
     icon,
     onClick
+  }: {
+    title: string;
+    value: number;
+    active?: number; // Made this optional
+    changePercentage?: number;
+    bgColor: string;
+    chartData: number[];
+    chartColor: string;
+    icon: React.ReactNode;
+    onClick: () => void;
   }) => (
     <Card
       className={`${bgColor} hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 cursor-pointer overflow-hidden`}
