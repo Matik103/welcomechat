@@ -2,7 +2,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
-import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
 export const useClient = (clientId: string) => {
   const { 
@@ -30,7 +29,7 @@ export const useClient = (clientId: string) => {
         
         if (error) {
           console.error("Error fetching from ai_agents by client_id:", error);
-          return null;
+          throw error;
         }
         
         if (!data) return null;
@@ -38,7 +37,7 @@ export const useClient = (clientId: string) => {
         return mapAgentToClient(data);
       } catch (error) {
         console.error("Error fetching client:", error);
-        return null;
+        throw error;
       }
     },
     enabled: !!clientId,
@@ -65,6 +64,12 @@ function mapAgentToClient(agentData: any): Client {
       ? status as 'active' | 'inactive' | 'deleted'
       : 'active';
   
+  // Ensure settings is an object
+  const settings = 
+    typeof agentData.settings === 'object' && agentData.settings !== null
+      ? agentData.settings
+      : {};
+  
   return {
     id: String(agentData.id || ''),
     client_id: String(agentData.client_id || ''),
@@ -72,9 +77,9 @@ function mapAgentToClient(agentData: any): Client {
     client_name: clientName,
     company: String(agentData.company || ''),
     description: agentData.description || '',
-    email: String(agentData.email || (agentData.settings?.email) || ''),
-    logo_url: String(agentData.logo_url || (agentData.settings?.logo_url) || ''),
-    logo_storage_path: String(agentData.logo_storage_path || (agentData.settings?.logo_storage_path) || ''),
+    email: String(agentData.email || (settings.email) || ''),
+    logo_url: String(agentData.logo_url || (settings.logo_url) || ''),
+    logo_storage_path: String(agentData.logo_storage_path || (settings.logo_storage_path) || ''),
     created_at: String(agentData.created_at || ''),
     updated_at: String(agentData.updated_at || ''),
     deletion_scheduled_at: agentData.deletion_scheduled_at || null,
@@ -83,7 +88,7 @@ function mapAgentToClient(agentData: any): Client {
     agent_name: String(agentData.name || ''),
     agent_description: String(agentData.agent_description || ''),
     last_active: agentData.last_active ? String(agentData.last_active) : null,
-    widget_settings: agentData.settings || {},
+    widget_settings: settings,
     name: String(agentData.name || ''),
     is_error: agentData.is_error || false
   };

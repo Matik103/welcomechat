@@ -7,7 +7,7 @@ import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
 import { ClientFormData } from '@/types/client-form';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/hooks/useNavigation';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
@@ -97,8 +97,8 @@ export function EditClientInfo() {
 
       {isLoadingClient ? (
         <div className="flex justify-center items-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-2">Loading client information...</span>
+          <Loader2 className="h-8 w-8 animate-spin mr-2 text-primary" />
+          <span>Loading client information...</span>
         </div>
       ) : error ? (
         <div className="bg-destructive/10 text-destructive p-4 rounded-md mt-6">
@@ -123,11 +123,15 @@ export function EditClientInfo() {
             </TabsContent>
             
             <TabsContent value="resources">
-              {clientId && (
+              {clientId ? (
                 <ClientResourceSections 
                   clientId={clientId} 
                   logClientActivity={logClientActivity}
                 />
+              ) : (
+                <div className="p-4 bg-yellow-50 text-yellow-700 rounded-md">
+                  Client ID is required to manage resources
+                </div>
               )}
             </TabsContent>
           </Tabs>

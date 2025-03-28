@@ -12,7 +12,7 @@ import { ClientFormData } from "@/types/client-form";
 import { Loader2 } from "lucide-react";
 
 interface ClientFormProps {
-  initialData?: Partial<Client>;
+  initialData?: Partial<Client> | null;
   onSubmit: (data: ClientFormData) => Promise<void>;
   isLoading?: boolean;
   error?: string | null;
@@ -39,12 +39,12 @@ export function ClientForm({
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      client_name: initialData.client_name || "",
-      email: initialData.email || "",
-      agent_name: initialData.name || initialData.agent_name || 
-                (initialData.widget_settings?.agent_name) || "",
-      agent_description: initialData.agent_description || 
-                      (initialData.widget_settings?.agent_description) || ""
+      client_name: initialData?.client_name || "",
+      email: initialData?.email || "",
+      agent_name: initialData?.name || initialData?.agent_name || 
+                (initialData?.widget_settings?.agent_name) || "",
+      agent_description: initialData?.agent_description || 
+                      (initialData?.widget_settings?.agent_description) || ""
     },
   });
 
@@ -56,9 +56,9 @@ export function ClientForm({
         client_name: initialData.client_name || "",
         email: initialData.email || "",
         agent_name: initialData.name || initialData.agent_name || 
-                  (initialData.widget_settings?.agent_name) || "",
+                  (initialData.widget_settings && initialData.widget_settings.agent_name) || "",
         agent_description: initialData.agent_description || 
-                        (initialData.widget_settings?.agent_description) || ""
+                        (initialData.widget_settings && initialData.widget_settings.agent_description) || ""
       });
     }
   }, [initialData, reset]);
