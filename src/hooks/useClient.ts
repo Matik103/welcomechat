@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
@@ -18,7 +17,7 @@ export const useClient = (clientId: string) => {
       try {
         console.log("Fetching client data for ID:", clientId);
         
-        // Direct query to ai_agents table
+        // First try to get the client by ID
         const { data, error } = await supabase
           .from('ai_agents')
           .select('*')
@@ -26,8 +25,13 @@ export const useClient = (clientId: string) => {
           .eq('interaction_type', 'config')
           .single();
         
+        if (data) {
+          console.log("Found client by ID:", data);
+          return mapAgentToClient(data);
+        }
+        
         if (error) {
-          console.error("Error fetching from ai_agents by id:", error);
+          console.log("Error fetching by ID, trying client_id:", error);
           
           // Try by client_id as fallback
           const { data: clientData, error: clientError } = await supabase
@@ -39,8 +43,13 @@ export const useClient = (clientId: string) => {
             .limit(1)
             .single();
             
+          if (clientData) {
+            console.log("Found client by client_id:", clientData);
+            return mapAgentToClient(clientData);
+          }
+          
           if (clientError) {
-            console.error("Error fetching from ai_agents by client_id:", clientError);
+            console.log("Error fetching by client_id, trying SQL:", clientError);
             
             // Try with SQL query as a last resort
             const sqlResult = await callRpcFunctionSafe<any[]>('exec_sql', {
@@ -54,27 +63,25 @@ export const useClient = (clientId: string) => {
               query_params: [clientId]
             });
             
-            if (!sqlResult || !Array.isArray(sqlResult) || sqlResult.length === 0) {
-              return null;
+            if (sqlResult && Array.isArray(sqlResult) && sqlResult.length > 0) {
+              console.log("Found client by SQL:", sqlResult[0]);
+              return mapAgentToClient(sqlResult[0]);
             }
-            
-            return mapAgentToClient(sqlResult[0]);
           }
-          
-          if (!clientData) return null;
-          
-          return mapAgentToClient(clientData);
         }
         
-        if (!data) return null;
-        
-        return mapAgentToClient(data);
+        console.log("No client found for ID:", clientId);
+        return null;
       } catch (error) {
         console.error("Error fetching client:", error);
         return null;
       }
     },
     enabled: !!clientId,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    retry: 3, // Retry failed requests 3 times
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 
   return { client, isLoading, error, refetch };
