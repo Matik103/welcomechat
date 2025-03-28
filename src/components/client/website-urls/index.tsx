@@ -1,7 +1,7 @@
 
 import React, { useEffect } from 'react';
-import { WebsiteUrlsLoading } from './WebsiteUrlsLoading';
-import { WebsiteUrlsListEmpty } from './WebsiteUrlsListEmpty';
+import WebsiteUrlsLoading from './WebsiteUrlsLoading';
+import WebsiteUrlsListEmpty from './WebsiteUrlsListEmpty';
 import { WebsiteUrlsTable } from './WebsiteUrlsTable';
 import { useWebsiteUrlsFetch } from '@/hooks/website-urls/useWebsiteUrlsFetch';
 import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
@@ -16,7 +16,7 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
   const { 
     websiteUrls, 
     isLoading, 
-    refetch 
+    refetchWebsiteUrls 
   } = useWebsiteUrlsFetch(clientId);
 
   const { 
@@ -26,8 +26,8 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
 
   useEffect(() => {
     // Initial fetch
-    refetch();
-  }, [refetch, clientId]);
+    refetchWebsiteUrls();
+  }, [refetchWebsiteUrls, clientId]);
 
   const handleDelete = async (websiteUrlId: number) => {
     try {
@@ -39,7 +39,7 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
       }
       
       // Trigger refetch after delete
-      refetch();
+      refetchWebsiteUrls();
       
       // Notify parent component if needed
       if (onResourceChange) {
@@ -60,7 +60,7 @@ export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: W
 
   return (
     <WebsiteUrlsTable 
-      websiteUrls={websiteUrls} 
+      urls={websiteUrls} 
       onDelete={handleDelete} 
       isDeleting={deleteWebsiteUrlMutation.isPending}
     />

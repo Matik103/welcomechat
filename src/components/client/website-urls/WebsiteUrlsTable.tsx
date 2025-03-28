@@ -13,7 +13,7 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { WebsiteUrl } from '@/types/website-url';
 import { truncateString, formatDate } from '@/utils/stringUtils';
 
-interface WebsiteUrlsTableProps {
+export interface WebsiteUrlsTableProps {
   urls: WebsiteUrl[];
   onDelete: (urlId: number) => Promise<void>;
   isDeleting: boolean;

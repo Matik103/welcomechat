@@ -2,7 +2,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-const WebsiteUrlsLoading: React.FC = () => {
+export const WebsiteUrlsLoading: React.FC = () => {
   return (
     <div className="text-center py-4">
       <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />

@@ -27,20 +27,15 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
         throw createBucketError;
       }
       
-      // Set a permissive policy on the bucket
+      // Set permission policies on the bucket for public read access
+      // Note: createPolicy was deprecated, using the newer approach
       const { error: policyError } = await supabaseAdmin
         .storage
         .from(bucketName)
-        .createPolicy('read_policy', {
-          name: 'Public Read Policy',
-          definition: {
-            permissionLevel: 'READ',
-            expression: 'true'
-          }
-        });
+        .setPublic(true);
       
       if (policyError) {
-        console.error('Error creating bucket policy:', policyError);
+        console.error('Error setting bucket policy:', policyError);
       }
     }
   } catch (error) {
