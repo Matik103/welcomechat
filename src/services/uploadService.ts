@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import { toast } from 'sonner';
