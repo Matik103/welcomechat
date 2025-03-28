@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
+import { useNavigate, useLocation } from "react-router-dom";
 import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
 
 type AuthStateChangeProps = {
@@ -18,14 +19,8 @@ export const useAuthStateChange = ({
   setUserRole,
   setIsLoading
 }: AuthStateChangeProps) => {
-  // Use a navigation function that doesn't rely on react-router
-  const navigate = (path: string, options?: { replace?: boolean }) => {
-    if (options?.replace) {
-      window.location.replace(path);
-    } else {
-      window.location.href = path;
-    }
-  };
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     let mounted = true;
@@ -39,9 +34,8 @@ export const useAuthStateChange = ({
         
         // Skip processing if we're on the callback URL or if callback is being processed
         // This prevents double processing with useAuthCallback
-        const currentPath = window.location.pathname;
         const inCallbackProcess = 
-          currentPath.includes('/auth/callback') || 
+          location.pathname.includes('/auth/callback') || 
           sessionStorage.getItem('auth_callback_processing') === 'true';
           
         if (inCallbackProcess) {
@@ -70,8 +64,8 @@ export const useAuthStateChange = ({
             sessionStorage.setItem('user_role_set', 'admin');
             
             // Only redirect if we're on the auth page or we're not already on an admin page
-            const isAuthPage = currentPath === '/auth' || currentPath === '/';
-            const isAdminPage = currentPath.startsWith('/admin/');
+            const isAuthPage = location.pathname === '/auth' || location.pathname === '/';
+            const isAdminPage = location.pathname.startsWith('/admin/');
             
             if (isAuthPage || !isAdminPage) {
               console.log("Redirecting Google user to admin dashboard");
@@ -84,7 +78,7 @@ export const useAuthStateChange = ({
             sessionStorage.setItem('user_role_set', determinedUserRole);
             
             // Only redirect if we're on the auth page
-            const isAuthPage = currentPath === '/auth' || currentPath === '/';
+            const isAuthPage = location.pathname === '/auth' || location.pathname === '/';
             if (isAuthPage) {
               const dashboardRoute = getDashboardRoute(determinedUserRole);
               console.log("Redirecting to dashboard:", dashboardRoute);
@@ -105,7 +99,7 @@ export const useAuthStateChange = ({
           sessionStorage.removeItem('auth_callback_processing');
           
           // Only redirect to auth page if not already there
-          const isAuthPage = currentPath === '/auth';
+          const isAuthPage = location.pathname === '/auth';
           if (!isAuthPage) {
             navigate('/auth', { replace: true });
           }
@@ -120,5 +114,5 @@ export const useAuthStateChange = ({
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [setSession, setUser, setUserRole, setIsLoading]);
+  }, [setSession, setUser, setUserRole, setIsLoading, navigate, location.pathname]);
 };

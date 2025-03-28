@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DashboardStatCard } from '@/components/admin/DashboardStatCard';
 import { ActivityChartCard } from '@/components/admin/ActivityChartCard';
@@ -58,10 +58,10 @@ interface DashboardData {
   };
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboardPage() {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [dashboardData, setDashboardData] = React.useState<DashboardData>({
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
     clients: {
       total: 0,
       active: 0,
@@ -112,90 +112,156 @@ export default function AdminDashboard() {
     }
   });
   
-  React.useEffect(() => {
-    // For now, we're just rendering a simple dashboard
-    // We'll add functionality later
-    setIsLoading(false);
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const { data: statsData, error: statsError } = await supabase.rpc('get_admin_dashboard_stats');
+      
+      if (statsError) {
+        console.error('Error fetching dashboard stats:', statsError);
+        toast.error('Failed to load dashboard statistics');
+        throw statsError;
+      }
+      
+      const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
+      
+      if (chartError) {
+        console.error('Error fetching chart data:', chartError);
+        toast.error('Failed to load activity charts');
+        throw chartError;
+      }
+      
+      const parsedStatsData = typeof statsData === 'string' ? JSON.parse(statsData) : statsData;
+      const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
+      
+      setDashboardData({
+        clients: parsedStatsData?.clients as DashboardData['clients'],
+        agents: parsedStatsData?.agents as DashboardData['agents'],
+        interactions: parsedStatsData?.interactions as DashboardData['interactions'],
+        trainings: parsedStatsData?.trainings as DashboardData['trainings'],
+        administration: parsedStatsData?.administration as DashboardData['administration'],
+        activityCharts: parsedChartData as DashboardData['activityCharts']
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    setupRealtimeActivities().then(success => {
+      if (success) {
+        console.log('Realtime subscriptions set up successfully');
+      } else {
+        console.error('Failed to set up realtime subscriptions');
+      }
+    });
+    
+    fetchDashboardData();
+    
+    const activitiesChannel = subscribeToAllActivities(() => {
+      console.log('Activities changed, refreshing dashboard data');
+      fetchDashboardData();
+    });
+    
+    const agentsChannel = supabase.channel('public:ai_agents_dashboard')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ai_agents',
+      }, () => {
+        fetchDashboardData();
+      })
+      .subscribe();
+      
+    const intervalId = setInterval(fetchDashboardData, 5 * 60 * 1000);
+    
+    return () => {
+      clearInterval(intervalId);
+      supabase.removeChannel(agentsChannel);
+      supabase.removeChannel(activitiesChannel);
+    };
   }, []);
-
+  
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-semibold mb-6">Admin Dashboard</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        <DashboardStatCard
-          title="CLIENTS"
-          value={12}
-          active={8}
-          changePercentage={10}
-          bgColor="bg-[#ECFDF5]"
-          onClick={() => navigate('/admin/clients')}
-        />
+    <AdminLayout>
+      <div className="container py-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+          <DashboardStatCard
+            title="CLIENTS"
+            value={dashboardData.clients.total}
+            active={dashboardData.clients.active}
+            changePercentage={dashboardData.clients.changePercentage}
+            bgColor="bg-[#ECFDF5]"
+            onClick={() => navigate('/admin/clients')}
+          />
+          
+          <DashboardStatCard
+            title="AGENTS"
+            value={dashboardData.agents.total}
+            active={dashboardData.agents.active}
+            changePercentage={dashboardData.agents.changePercentage}
+            bgColor="bg-gray-100"
+            onClick={() => navigate('/admin/agents')}
+          />
+          
+          <DashboardStatCard
+            title="INTERACTIONS"
+            value={dashboardData.interactions.total}
+            changePercentage={dashboardData.interactions.changePercentage}
+            bgColor="bg-[#FEF9C3]"
+          />
+          
+          <DashboardStatCard
+            title="TRAININGS"
+            value={dashboardData.trainings.total}
+            changePercentage={dashboardData.trainings.changePercentage}
+            bgColor="bg-[#EFF6FF]"
+          />
+          
+          <DashboardStatCard
+            title="ADMINISTRATION"
+            value={dashboardData.administration.total}
+            changePercentage={dashboardData.administration.changePercentage}
+            bgColor="bg-[#FEE2E2]"
+          />
+        </div>
         
-        <DashboardStatCard
-          title="AGENTS"
-          value={5}
-          active={3}
-          changePercentage={5}
-          bgColor="bg-gray-100"
-          onClick={() => navigate('/admin/agents')}
-        />
-        
-        <DashboardStatCard
-          title="INTERACTIONS"
-          value={256}
-          changePercentage={15}
-          bgColor="bg-[#FEF9C3]"
-        />
-        
-        <DashboardStatCard
-          title="TRAININGS"
-          value={42}
-          changePercentage={8}
-          bgColor="bg-[#EFF6FF]"
-        />
-        
-        <DashboardStatCard
-          title="ADMINISTRATION"
-          value={18}
-          changePercentage={3}
-          bgColor="bg-[#FEE2E2]"
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <ActivityChartCard
+            title="Database"
+            subtitle="REST Requests"
+            value={dashboardData.activityCharts.database.value}
+            data={dashboardData.activityCharts.database.data}
+            icon={<Database size={18} />}
+          />
+          
+          <ActivityChartCard
+            title="Auth"
+            subtitle="Auth Requests"
+            value={dashboardData.activityCharts.auth.value}
+            data={dashboardData.activityCharts.auth.data}
+            icon={<KeyRound size={18} />}
+          />
+          
+          <ActivityChartCard
+            title="Storage"
+            subtitle="Storage Requests"
+            value={dashboardData.activityCharts.storage.value}
+            data={dashboardData.activityCharts.storage.data}
+            icon={<HardDrive size={18} />}
+          />
+          
+          <ActivityChartCard
+            title="Realtime"
+            subtitle="Realtime Requests"
+            value={dashboardData.activityCharts.realtime.value}
+            data={dashboardData.activityCharts.realtime.data}
+            icon={<Zap size={18} />}
+          />
+        </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <ActivityChartCard
-          title="Database"
-          subtitle="REST Requests"
-          value="128"
-          data={[]}
-          icon={<Database size={18} />}
-        />
-        
-        <ActivityChartCard
-          title="Auth"
-          subtitle="Auth Requests"
-          value="56"
-          data={[]}
-          icon={<KeyRound size={18} />}
-        />
-        
-        <ActivityChartCard
-          title="Storage"
-          subtitle="Storage Requests"
-          value="32"
-          data={[]}
-          icon={<HardDrive size={18} />}
-        />
-        
-        <ActivityChartCard
-          title="Realtime"
-          subtitle="Realtime Requests"
-          value="24"
-          data={[]}
-          icon={<Zap size={18} />}
-        />
-      </div>
-    </div>
+    </AdminLayout>
   );
 }
