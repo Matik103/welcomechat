@@ -1,99 +1,133 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
 
 const supabaseUrl = "https://mgjodiqecnnltsgorife.supabase.co";
 const supabaseServiceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
 
 // Create Supabase client with service role key
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey);
 
-async function setupTestClient() {
+async function createActivity(agentId: string, type: string) {
   try {
-    console.log('Starting test client setup...');
-    
-    // First check if the test client already exists
-    const { data: existingClient, error: findError } = await supabase
+    const { data, error } = await supabase
+      .from('activities')
+      .insert([
+        {
+          ai_agent_id: agentId,
+          type: 'document_added',
+          metadata: { message: type }
+        }
+      ])
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating activity:', error);
+    return null;
+  }
+}
+
+async function createAgent(clientId: string, name: string, email: string, company: string) {
+  try {
+    // Check if agent already exists
+    const { data: existingAgent, error: checkError } = await supabase
       .from('ai_agents')
       .select('*')
-      .eq('email', 'test@example.com')
-      .eq('interaction_type', 'config')
+      .eq('client_id', clientId)
       .single();
 
-    if (findError && findError.code !== 'PGRST116') {
-      console.error('Error checking for existing client:', findError);
-      return;
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
     }
 
-    let client;
-    if (existingClient) {
-      console.log('Found existing test client:', existingClient);
-      client = existingClient;
-    } else {
-      console.log('Creating new test client...');
-      const { data: newClient, error: clientError } = await supabase
-        .from('ai_agents')
-        .insert({
-          name: 'Test Agent',
-          client_name: 'Test Client',
-          email: 'test@example.com',
-          company: 'Test Company',
-          interaction_type: 'config',
+    if (existingAgent) {
+      console.log('Agent already exists:', existingAgent);
+      return existingAgent;
+    }
+
+    // Create new agent
+    const { data: agent, error: insertError } = await supabase
+      .from('ai_agents')
+      .insert([
+        {
+          client_id: clientId,
+          name,
+          email,
+          company,
+          model: 'gpt-4',
           status: 'active',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (clientError) {
-        console.error('Error creating client:', clientError);
-        console.error('Full error details:', JSON.stringify(clientError, null, 2));
-        return;
-      }
-
-      console.log('Created new test client:', newClient);
-      client = newClient;
-    }
-
-    // Create a document processing agent
-    console.log('Creating document processing agent...');
-    const { data: agent, error: agentError } = await supabase
-      .from('ai_agents')
-      .insert({
-        client_id: client.id,
-        name: 'Test Agent',
-        interaction_type: 'document',
-        status: 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+        }
+      ])
       .select()
       .single();
 
-    if (agentError) {
-      console.error('Error creating agent:', agentError);
-      console.error('Full error details:', JSON.stringify(agentError, null, 2));
-      return;
+    if (insertError) throw insertError;
+
+    // Log activity
+    await createActivity(agent.id, 'Agent created');
+
+    return agent;
+  } catch (error) {
+    console.error('Error in createAgent:', error);
+    throw error;
+  }
+}
+
+async function setupTestClient() {
+  try {
+    // Check if test client exists
+    const { data: existingClient, error: checkError } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('email', 'clientest3@gmail.com')
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
     }
 
-    console.log('Created document processing agent:', agent);
+    if (existingClient) {
+      console.log('Test client already exists:', existingClient);
+      return existingClient;
+    }
 
-    return {
-      clientId: client.id,
-      agentName: 'Test Agent'
-    };
+    // Create test client
+    const { data: client, error: insertError } = await supabase
+      .from('clients')
+      .insert([
+        {
+          client_name: 'Test Client',
+          email: 'clientest3@gmail.com',
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+
+    // Create document processing agent
+    const agent = await createAgent(
+      client.id,
+      'Document Processing Agent',
+      'agent@test.com',
+      'Test Company'
+    );
+
+    console.log('Setup completed successfully:', { client, agent });
+    return { client, agent };
   } catch (error) {
-    console.error('Error in setupTestClient:', error);
-    console.error('Full error details:', JSON.stringify(error, null, 2));
+    console.error('Setup failed:', error);
+    throw error;
   }
 }
 
 // Run the setup
-setupTestClient().then(result => {
-  if (result) {
-    console.log('\nTest client setup complete. Use these values for document processing:');
-    console.log('Client ID:', result.clientId);
-    console.log('Agent Name:', result.agentName);
-  } else {
-    console.log('\nFailed to set up test client and agent.');
-  }
-}); 
+setupTestClient()
+  .then(result => console.log('Setup result:', result))
+  .catch(error => console.error('Setup error:', error)); 
