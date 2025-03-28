@@ -76,6 +76,11 @@ export function EditClientInfo() {
     }
   };
 
+  // Function to handle the retry button click
+  const handleRetry = () => {
+    refetchClient();
+  };
+
   // Error state UI
   const renderErrorState = () => (
     <div className="bg-destructive/10 text-destructive p-6 rounded-md mt-6 flex flex-col items-center">
@@ -85,7 +90,7 @@ export function EditClientInfo() {
       <p className="text-sm opacity-80 mb-4">
         Error details: {error instanceof Error ? error.message : String(error)}
       </p>
-      <Button onClick={refetchClient} variant="outline">
+      <Button onClick={handleRetry} variant="outline">
         Try Again
       </Button>
     </div>

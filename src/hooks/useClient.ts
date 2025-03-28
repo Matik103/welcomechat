@@ -17,7 +17,7 @@ export const useClient = (clientId: string) => {
       try {
         console.log("Fetching client data for ID:", clientId);
         
-        // Modified approach: query without using .single() to avoid errors when no record found
+        // Query without using .single() to avoid errors when no record found
         const { data, error } = await supabase
           .from('ai_agents')
           .select('*')

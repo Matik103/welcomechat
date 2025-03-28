@@ -41,9 +41,11 @@ export function ClientForm({
     client_name: initialData?.client_name || "",
     email: initialData?.email || "",
     agent_name: initialData?.name || initialData?.agent_name || 
-              (initialData?.widget_settings && initialData?.widget_settings.agent_name) || "",
+              (initialData?.widget_settings && typeof initialData.widget_settings === 'object' ? 
+                initialData.widget_settings.agent_name : "") || "",
     agent_description: initialData?.agent_description || 
-                    (initialData?.widget_settings && initialData?.widget_settings.agent_description) || ""
+                    (initialData?.widget_settings && typeof initialData.widget_settings === 'object' ? 
+                      initialData.widget_settings.agent_description : "") || ""
   };
   
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormData>({
@@ -55,13 +57,18 @@ export function ClientForm({
   useEffect(() => {
     if (initialData) {
       console.log("Setting form values with initialData:", initialData);
+      
+      const widgetSettings = initialData.widget_settings && 
+                           typeof initialData.widget_settings === 'object' ? 
+                           initialData.widget_settings : {};
+      
       reset({
         client_name: initialData.client_name || "",
         email: initialData.email || "",
         agent_name: initialData.name || initialData.agent_name || 
-                  (initialData.widget_settings && initialData.widget_settings.agent_name) || "",
+                  (widgetSettings.agent_name as string) || "",
         agent_description: initialData.agent_description || 
-                        (initialData.widget_settings && initialData.widget_settings.agent_description) || ""
+                        (widgetSettings.agent_description as string) || ""
       });
     }
   }, [initialData, reset]);
