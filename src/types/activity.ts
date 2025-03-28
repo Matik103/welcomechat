@@ -1,4 +1,3 @@
-
 export interface ClientActivity {
   id: string;
   client_id: string;
@@ -15,5 +14,22 @@ export interface ClientActivityProps {
   className?: string;
 }
 
-// Client status type as string literals instead of enum
 export type ClientStatus = 'active' | 'inactive' | 'deleted';
+
+export type ActivityType = 
+  | 'chat_interaction'
+  | 'client_created'
+  | 'client_updated'
+  | 'client_deleted'
+  | 'client_recovered'
+  | 'ai_agent_created'
+  | 'ai_agent_updated'
+  | 'ai_agent_deleted'
+  | 'website_url_added'
+  | 'website_url_deleted'
+  | 'document_link_added'
+  | 'document_link_deleted'
+  | 'document_uploaded'
+  | 'login_success'
+  | 'login_failed'
+  | 'error_logged';
