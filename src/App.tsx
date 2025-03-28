@@ -23,7 +23,7 @@ import Agents from "@/pages/Agents";
 import ClientAuth from "@/pages/client/Auth";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Loader2 } from "lucide-react";
-import { isAdminClientConfigured } from "./integrations/supabase/client-admin";
+import { isAdminClientConfigured, initializeBotLogosBucket } from "./integrations/supabase/client-admin";
 import ErrorDisplay from "./components/ErrorDisplay";
 import { useAuthSafetyTimeout } from "./hooks/useAuthSafetyTimeout";
 
@@ -41,6 +41,7 @@ function App() {
   const { user, userRole, isLoading, setIsLoading, session } = useAuth();
   const location = useLocation();
   const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
   
   const isAuthCallback = location.pathname.includes('/auth/callback');
   const isAuthPage = location.pathname === '/auth';
@@ -59,28 +60,48 @@ function App() {
   });
   
   useEffect(() => {
-    if (!isAuthCallback) {
-      sessionStorage.removeItem('auth_callback_processed');
-    }
-    
-    // Debug statements to help identify current state
-    console.log('Current path:', location.pathname);
-    console.log('User authenticated:', !!user);
-    console.log('User role:', userRole);
-    console.log('Loading state:', isLoading);
-    
-    // Check if admin client is configured
-    setAdminConfigError(!isAdminClientConfigured());
-    
-    // Force loading to false after short timeout if we're on dashboard
-    if (location.pathname.includes('/dashboard') && isLoading) {
-      const timer = setTimeout(() => {
-        console.log('Forcing loading state to complete due to dashboard path');
-        setIsLoading(false);
-      }, 3000);
+    // Initialize the application
+    const initializeApp = async () => {
+      setIsInitializing(true);
       
-      return () => clearTimeout(timer);
-    }
+      // Check if auth callback is processed
+      if (!isAuthCallback) {
+        sessionStorage.removeItem('auth_callback_processed');
+      }
+      
+      // Debug statements to help identify current state
+      console.log('Current path:', location.pathname);
+      console.log('User authenticated:', !!user);
+      console.log('User role:', userRole);
+      console.log('Loading state:', isLoading);
+      
+      // Check if admin client is configured
+      const isConfigured = isAdminClientConfigured();
+      setAdminConfigError(!isConfigured);
+      
+      // If admin client is configured, try to initialize the bucket
+      if (isConfigured) {
+        try {
+          await initializeBotLogosBucket();
+        } catch (error) {
+          console.error('Error initializing bot-logos bucket:', error);
+        }
+      }
+      
+      // Force loading to false after short timeout if we're on dashboard
+      if (location.pathname.includes('/dashboard') && isLoading) {
+        const timer = setTimeout(() => {
+          console.log('Forcing loading state to complete due to dashboard path');
+          setIsLoading(false);
+        }, 3000);
+        
+        return () => clearTimeout(timer);
+      }
+      
+      setIsInitializing(false);
+    };
+    
+    initializeApp();
   }, [isAuthCallback, location.pathname, user, userRole, isLoading, setIsLoading]);
   
   // Show error if admin client is not configured properly
@@ -110,8 +131,8 @@ function App() {
     }
   }, [isLoading, setIsLoading]);
   
-  // Show loader during authentication
-  if (isLoading) {
+  // Show loader during authentication or initialization
+  if (isLoading || isInitializing) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center">
@@ -122,11 +143,6 @@ function App() {
         </div>
       </div>
     );
-  }
-
-  // Redirect to auth page if not authenticated and on home page
-  if (!user && isHomePage) {
-    return <Navigate to="/auth" replace />;
   }
 
   // Show public routes when not authenticated

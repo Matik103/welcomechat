@@ -3,14 +3,16 @@ import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ErrorDisplayProps {
   title: string;
   message: string;
   details?: string;
+  onRetry?: () => void;
 }
 
-export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ title, message, details }) => {
+export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ title, message, details, onRetry }) => {
   return (
     <Card className="p-6 max-w-4xl mx-auto my-8">
       <Alert variant="destructive" className="mb-4">
@@ -36,6 +38,15 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ title, message, deta
           <li>Restart your development server after updating environment variables</li>
         </ul>
       </div>
+      
+      {onRetry && (
+        <Button 
+          onClick={onRetry}
+          className="mt-4"
+        >
+          Retry
+        </Button>
+      )}
     </Card>
   );
 };

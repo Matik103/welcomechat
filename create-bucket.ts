@@ -1,7 +1,13 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = "https://mgjodiqecnnltsgorife.supabase.co";
-const SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.qB6EALQwgkR9BQ2_QR_4MmXFQgFrm17D_yODKmnFE7M";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
+const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_SERVICE_KEY) {
+  console.error("VITE_SUPABASE_SERVICE_ROLE_KEY is not configured");
+  process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: {
@@ -31,4 +37,4 @@ async function createBucket() {
   }
 }
 
-createBucket(); 
+createBucket();
