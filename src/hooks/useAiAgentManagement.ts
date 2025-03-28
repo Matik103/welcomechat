@@ -21,6 +21,7 @@ export function useAiAgentManagement() {
 
   /**
    * Create or update an AI agent for a client
+   * Uses console logging instead of activity table inserts to avoid enum validation errors
    */
   const ensureAiAgentExists = async (
     clientId: string,
