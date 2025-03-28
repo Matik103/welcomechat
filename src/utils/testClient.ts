@@ -1,3 +1,4 @@
+
 import { config } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
