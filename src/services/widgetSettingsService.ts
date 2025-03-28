@@ -2,16 +2,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { WidgetSettings } from "@/types/client-form";
 
-// Define default widget settings
-const defaultSettings: WidgetSettings = {
-  agent_name: 'AI Assistant',
-  agent_description: 'Your helpful AI assistant',
-  logo_url: '',
-  logo_storage_path: '',
-  initial_message: 'Hello! How can I help you today?',
-  placement: 'bottom-right',
-  primary_color: '#3b82f6'
-};
+// Define default widget settings - imported from client-form.ts
+import { defaultSettings } from "@/types/client-form";
 
 /**
  * Get widget settings for a client

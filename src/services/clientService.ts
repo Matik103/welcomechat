@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
 import { JsonObject } from "@/types/supabase-extensions";
@@ -90,7 +91,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     const { error: settingsError } = await supabase.rpc(
       'exec_sql',
       {
-        query_text: `
+        sql_query: `
           UPDATE ai_agents
           SET settings = settings || $1::jsonb
           WHERE client_id = $2 AND interaction_type = 'config'

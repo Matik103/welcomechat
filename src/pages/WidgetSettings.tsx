@@ -8,7 +8,7 @@ import { useClientActivity } from "@/hooks/useClientActivity";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
 import { handleLogoUpload } from "@/services/uploadService";
-import { WidgetSettings as IWidgetSettings, defaultSettings } from "@/types/widget-settings";
+import { WidgetSettings, defaultSettings } from "@/types/client-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -32,7 +32,7 @@ export default function WidgetSettings() {
 
   // Update widget settings mutation
   const updateSettingsMutation = useMutation({
-    mutationFn: async (newSettings: IWidgetSettings): Promise<void> => {
+    mutationFn: async (newSettings: WidgetSettings): Promise<void> => {
       if (clientId) {
         await updateWidgetSettings(clientId, newSettings);
         // Log the activity with safe activity type
