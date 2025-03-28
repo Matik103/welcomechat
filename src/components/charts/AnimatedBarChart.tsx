@@ -26,7 +26,6 @@ export function AnimatedBarChart({
   const [position, setPosition] = useState(0);
   const [visibleData, setVisibleData] = useState<number[]>(data);
   const [maxValue, setMaxValue] = useState(Math.max(...data, 1));
-  // Change the type from number to NodeJS.Timeout
   const animationRef = useRef<NodeJS.Timeout>();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -52,10 +51,16 @@ export function AnimatedBarChart({
     const animate = () => {
       setPosition(prev => (prev + 1) % (data.length * 2)); // Cycle through the data twice to create a smooth loop
       
-      // Update visible data slice
+      // Update visible data slice with random jitter for more liveliness
       const visibleBars = calculateVisibleBars();
       const startIdx = position % data.length;
-      const newVisibleData = [...extendedData.slice(startIdx, startIdx + visibleBars * 2)];
+      
+      // Add some random variation to the data points for visual interest
+      const newVisibleData = [...extendedData.slice(startIdx, startIdx + visibleBars * 2)].map(value => {
+        const jitter = Math.random() * 0.1 - 0.05; // +/- 5% variation
+        return Math.max(value * (1 + jitter), 1);
+      });
+      
       setVisibleData(newVisibleData);
       setMaxValue(Math.max(...newVisibleData, 1));
       
@@ -93,6 +98,7 @@ export function AnimatedBarChart({
                 minHeight: '1px',
                 transform: `translateX(-${position}px)`,
                 opacity: 1,
+                animation: "pulse 2s infinite ease-in-out",
               }}
             />
           );

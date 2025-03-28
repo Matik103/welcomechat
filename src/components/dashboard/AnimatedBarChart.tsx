@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import './AnimatedBarChart.css';
@@ -8,6 +9,7 @@ interface AnimatedBarChartProps {
   color?: string;
   className?: string;
   updateInterval?: number;
+  flowing?: boolean;
 }
 
 export function AnimatedBarChart({
@@ -15,7 +17,8 @@ export function AnimatedBarChart({
   height = 80,
   color = '#10B981',
   className,
-  updateInterval = 1000
+  updateInterval = 1000,
+  flowing = false
 }: AnimatedBarChartProps) {
   const [displayData, setDisplayData] = useState<number[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,7 +39,12 @@ export function AnimatedBarChart({
       if (now >= updateInterval) {
         // Shift data to the left
         setDisplayData(prev => {
-          const newData = [...prev.slice(1), data[data.length - 1]];
+          // Create new data point with slight random variation for visual interest
+          const newValue = data[Math.floor(Math.random() * data.length)];
+          const jitter = Math.random() * 0.2 - 0.1; // +/- 10% variation
+          const newDataPoint = Math.max(1, newValue * (1 + jitter));
+          
+          const newData = [...prev.slice(1), newDataPoint];
           return newData;
         });
         lastUpdateRef.current = timestamp;
@@ -54,30 +62,30 @@ export function AnimatedBarChart({
     };
   }, [data, updateInterval]);
 
-  const maxValue = Math.max(...displayData);
+  const maxValue = Math.max(...displayData, 1);
 
   return (
     <div 
       ref={containerRef}
       className={cn(
         "relative overflow-hidden",
+        flowing && "flowing-chart",
         className
       )}
       style={{ height: `${height}px` }}
     >
       <div className="absolute inset-0 flex items-end space-x-1">
         {displayData.map((value, index) => {
-          const barHeight = maxValue > 0 ? (value / maxValue) * 100 : 0;
+          const barHeight = (value / maxValue) * 100;
           return (
             <div
               key={index}
-              className="flex-1 rounded-sm transition-all duration-300 ease-in-out hover:opacity-80"
+              className="flex-1 rounded-sm animated-bar"
               style={{
                 height: `${barHeight}%`,
                 backgroundColor: color,
                 minHeight: '1px',
-                animation: 'barFlow 2s linear infinite',
-                animationDelay: `${index * 0.1}s`
+                animationDelay: `${index * 0.05}s`
               }}
             />
           );
