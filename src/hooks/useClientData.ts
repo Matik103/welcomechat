@@ -3,6 +3,7 @@ import { useClient } from "./useClient";
 import { useClientMutation } from "./useClientMutation";
 import { ClientFormData } from "@/types/client-form";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCallback } from "react";
 
 export const useClientData = (id: string | undefined) => {
   const { user, userRole } = useAuth();
@@ -15,20 +16,26 @@ export const useClientData = (id: string | undefined) => {
     clientId = user.user_metadata.client_id;
   }
   
-  // Log this info for debugging
-  console.log("useClientData: id param =", id);
-  console.log("useClientData: user metadata client_id =", user?.user_metadata?.client_id);
-  console.log("useClientData: user role =", userRole);
-  console.log("useClientData: using clientId =", clientId);
-  
+  // Get client data with staleTime to prevent excessive refetching
   const { 
     client, 
     isLoading, 
     error,
     refetch
-  } = useClient(clientId || '');
+  } = useClient(clientId || '', {
+    staleTime: 300000, // 5 minutes
+    cacheTime: 600000,  // 10 minutes
+  });
   
   const clientMutation = useClientMutation();
+
+  // Memoized refetch function to avoid unnecessary re-renders
+  const refetchClient = useCallback(() => {
+    if (clientId) {
+      return refetch();
+    }
+    return Promise.resolve();
+  }, [clientId, refetch]);
 
   return {
     client,
@@ -36,6 +43,6 @@ export const useClientData = (id: string | undefined) => {
     error,
     clientMutation,
     clientId: clientId, // Keep the property name as clientId for backward compatibility
-    refetchClient: refetch
+    refetchClient
   };
 };

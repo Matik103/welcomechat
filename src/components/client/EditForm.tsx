@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useEffect, memo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,8 +22,9 @@ const clientFormSchema = z.object({
   agent_name: z.string().min(1, "Agent name is required"),
 });
 
-export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormProps) {
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
+// Use React.memo to prevent unnecessary re-renders
+const EditForm = memo(({ initialData, onSubmit, isLoading = false }: EditFormProps) => {
+  const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData?.client_name || "",
@@ -31,14 +33,17 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
     },
   });
 
+  // Only reset the form when initialData changes to avoid unnecessary resets
   useEffect(() => {
     if (initialData) {
-      setValue("client_name", initialData.client_name || "");
-      setValue("email", initialData.email || "");
-      setValue("agent_name", initialData.name || initialData.agent_name || 
-        (initialData.widget_settings && initialData.widget_settings.agent_name) || "");
+      reset({
+        client_name: initialData.client_name || "",
+        email: initialData.email || "",
+        agent_name: initialData.name || initialData.agent_name || 
+          (initialData.widget_settings && initialData.widget_settings.agent_name) || ""
+      });
     }
-  }, [initialData, setValue]);
+  }, [initialData?.id, reset, initialData]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -93,4 +98,8 @@ export function EditForm({ initialData, onSubmit, isLoading = false }: EditFormP
       </div>
     </form>
   );
-}
+});
+
+EditForm.displayName = "EditForm";
+
+export { EditForm };
