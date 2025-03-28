@@ -32,6 +32,7 @@ export default function AdminClientsPage() {
             <ClientSearchBar 
               value={searchQuery} 
               onChange={handleSearch} 
+              className="w-full max-w-md"
             />
             <Button 
               onClick={() => setIsAddClientModalOpen(true)}
