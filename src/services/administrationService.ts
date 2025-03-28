@@ -12,45 +12,48 @@ export const getAdministrationActivitiesCount = async (): Promise<{
   changePercentage: number 
 }> => {
   try {
+    // Define the activity types that are considered administration activities
+    const adminActivityTypes = [
+      'client_created', 
+      'client_updated', 
+      'client_deleted',
+      'client_recovered',
+      'agent_created',
+      'agent_updated',
+      'agent_deleted',
+      'agent_name_updated',
+      'agent_description_updated',
+      'agent_error',
+      'agent_logo_updated',
+      'document_added',
+      'document_removed',
+      'document_processed',
+      'document_processing_failed',
+      'url_added',
+      'url_removed',
+      'url_processed',
+      'url_processing_failed',
+      'webhook_sent',
+      'email_sent',
+      'invitation_sent',
+      'invitation_accepted',
+      'widget_previewed',
+      'user_role_updated',
+      'login_success',
+      'login_failed',
+      'signed_out',
+      'widget_settings_updated',
+      'logo_uploaded',
+      'system_update',
+      'source_deleted',
+      'source_added'
+    ] as string[];
+      
     // Count all administration-related activities
     const { count: totalCount, error: countError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', [
-        'client_created', 
-        'client_updated', 
-        'client_deleted',
-        'client_recovered',
-        'agent_created',
-        'agent_updated',
-        'agent_deleted',
-        'agent_name_updated',
-        'agent_description_updated',
-        'agent_error',
-        'agent_logo_updated',
-        'document_added',
-        'document_removed',
-        'document_processed',
-        'document_processing_failed',
-        'url_added',
-        'url_removed',
-        'url_processed',
-        'url_processing_failed',
-        'webhook_sent',
-        'email_sent',
-        'invitation_sent',
-        'invitation_accepted',
-        'widget_previewed',
-        'user_role_updated',
-        'login_success',
-        'login_failed',
-        'signed_out',
-        'widget_settings_updated',
-        'logo_uploaded',
-        'system_update',
-        'source_deleted',
-        'source_added'
-      ] as ActivityType[]);
+      .in('type', adminActivityTypes);
       
     if (countError) throw countError;
     
@@ -62,41 +65,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
     const { count: recentCount, error: recentError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', [
-        'client_created', 
-        'client_updated', 
-        'client_deleted',
-        'client_recovered',
-        'agent_created',
-        'agent_updated',
-        'agent_deleted',
-        'agent_name_updated',
-        'agent_description_updated',
-        'agent_error',
-        'agent_logo_updated',
-        'document_added',
-        'document_removed',
-        'document_processed',
-        'document_processing_failed',
-        'url_added',
-        'url_removed',
-        'url_processed',
-        'url_processing_failed',
-        'webhook_sent',
-        'email_sent',
-        'invitation_sent',
-        'invitation_accepted',
-        'widget_previewed',
-        'user_role_updated',
-        'login_success',
-        'login_failed',
-        'signed_out',
-        'widget_settings_updated',
-        'logo_uploaded',
-        'system_update',
-        'source_deleted',
-        'source_added'
-      ] as ActivityType[])
+      .in('type', adminActivityTypes)
       .gt('created_at', timeAgoStr);
       
     if (recentError) throw recentError;
