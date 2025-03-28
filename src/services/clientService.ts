@@ -64,6 +64,40 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     console.log("Updating client with ID:", clientId);
     console.log("Update data:", JSON.stringify(updateData));
 
+    // First, verify if the client exists before attempting to update
+    const { data: existingClient, error: findError } = await supabase
+      .from('ai_agents')
+      .select('id, client_id, interaction_type')
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .eq('interaction_type', 'config')
+      .limit(1)
+      .maybeSingle();
+
+    if (findError) {
+      console.error("Error finding client:", findError);
+      throw findError;
+    }
+
+    if (!existingClient) {
+      // Try a more explicit query if the first one didn't work
+      const { data: explicitClient } = await supabase.rpc(
+        'exec_sql',
+        {
+          sql_query: `
+            SELECT id, client_id FROM ai_agents
+            WHERE (id::text = $1 OR client_id::text = $1) 
+            AND interaction_type = 'config'
+            LIMIT 1
+          `,
+          query_params: [clientId]
+        }
+      );
+
+      if (!explicitClient || explicitClient.length === 0) {
+        throw new Error(`No client found with ID or client_id: ${clientId}`);
+      }
+    }
+
     // Create an object for the settings to update
     const settingsToUpdate = {
       agent_name: updateData.agent_name,
@@ -72,7 +106,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       logo_storage_path: updateData.logo_storage_path
     };
 
-    // First try to update by ID - use maybeSingle() instead of single()
+    // Try updating by ID first
     let { data, error } = await supabase
       .from('ai_agents')
       .update({
@@ -117,7 +151,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
 
     // If we still don't have data, throw an error
     if (!data) {
-      throw new Error(`No client found with ID or client_id: ${clientId}`);
+      throw new Error(`Failed to update client with ID or client_id: ${clientId}`);
     }
 
     // Update the settings with an RPC call to safely merge JSON
