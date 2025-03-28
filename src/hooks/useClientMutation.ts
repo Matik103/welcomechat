@@ -1,57 +1,83 @@
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateClient } from "@/services/clientService";
-import { toast } from "sonner";
-import { Client } from "@/types/client";
+import { useMutation } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { ClientFormData } from '@/types/client-form';
+import { Client } from '@/types/client';
+import { updateClient } from '@/services/clientService';
+import { toast } from 'sonner';
 
-export type ClientMutationData = {
-  client_id?: string;
-  client_name: string;
-  email: string;
-  agent_name?: string;
-  agent_description?: string;
-};
+export interface ClientUpdateParams extends Partial<ClientFormData> {
+  client_id: string;
+}
 
 export const useClientMutation = () => {
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async (data: ClientMutationData) => {
-      if (!data.client_id) {
-        throw new Error("Cannot update client: Missing client ID");
+    mutationFn: async (params: ClientUpdateParams): Promise<Client> => {
+      try {
+        console.log("Updating client with params:", params);
+        
+        if (!params.client_id) {
+          throw new Error("Client ID is required for update");
+        }
+        
+        // Update the ai_agents table directly
+        const { data, error } = await supabase
+          .from('ai_agents')
+          .update({
+            name: params.agent_name,
+            client_name: params.client_name,
+            email: params.email,
+            agent_description: params.agent_description,
+            settings: {
+              agent_name: params.agent_name,
+              agent_description: params.agent_description,
+              client_name: params.client_name,
+              email: params.email
+            }
+          })
+          .eq('client_id', params.client_id)
+          .eq('interaction_type', 'config')
+          .select('*')
+          .single();
+          
+        if (error) {
+          console.error("Error updating client:", error);
+          throw error;
+        }
+        
+        if (!data) {
+          throw new Error("Failed to retrieve updated client data");
+        }
+        
+        // Map the data to a Client object
+        return {
+          id: data.id,
+          client_id: data.client_id || "",
+          client_name: data.client_name || params.client_name || "",
+          email: data.email || params.email || "",
+          status: (data.status as 'active' | 'inactive' | 'deleted') || 'active',
+          created_at: data.created_at || "",
+          updated_at: data.updated_at || "",
+          agent_name: data.name || params.agent_name || "",
+          agent_description: data.agent_description || params.agent_description || "",
+          logo_url: data.logo_url || "",
+          widget_settings: data.settings || {},
+          user_id: "",
+          company: data.company || "",
+          description: data.description || "",
+          logo_storage_path: data.logo_storage_path || "",
+          deletion_scheduled_at: data.deletion_scheduled_at || null,
+          deleted_at: data.deleted_at || null,
+          last_active: data.last_active || null,
+          name: data.name || params.agent_name || "",
+          is_error: data.is_error || false
+        };
+      } catch (error) {
+        console.error("Error in client mutation:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        toast.error(`Failed to update client: ${errorMessage}`);
+        throw error;
       }
-
-      const updateData: Partial<Client> = {
-        client_name: data.client_name,
-        email: data.email,
-        updated_at: new Date().toISOString()
-      };
-
-      // Extract agent info directly from the form data
-      if (data.agent_name) {
-        updateData.name = data.agent_name;
-        updateData.agent_name = data.agent_name;
-      }
-      
-      if (data.agent_description) {
-        updateData.agent_description = data.agent_description;
-      }
-
-      const updatedClient = await updateClient(data.client_id, updateData);
-      return updatedClient.id;
-    },
-    onSuccess: (_, variables) => {
-      toast.success("Client updated successfully");
-      
-      // Invalidate relevant queries
-      if (variables.client_id) {
-        queryClient.invalidateQueries({ queryKey: ['client', variables.client_id] });
-        queryClient.invalidateQueries({ queryKey: ['clients'] });
-      }
-    },
-    onError: (error) => {
-      console.error("Error updating client:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to update client");
     }
   });
 };

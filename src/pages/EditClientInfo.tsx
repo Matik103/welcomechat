@@ -28,8 +28,21 @@ export function EditClientInfo() {
     refetchClient
   } = useClientData(id);
 
+  useEffect(() => {
+    if (clientId) {
+      console.log("Client data loaded:", client);
+    }
+  }, [client, clientId]);
+
   const handleSubmit = async (data: ClientFormData) => {
+    if (!clientId) {
+      toast.error("No client ID available for update");
+      return;
+    }
+    
     try {
+      console.log("Submitting form data:", data);
+      
       await clientMutation.mutateAsync({
         client_id: clientId,
         client_name: data.client_name,
@@ -82,33 +95,44 @@ export function EditClientInfo() {
         </p>
       </PageHeading>
 
-      <div className="mt-6">
-        <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="profile">Profile Information</TabsTrigger>
-            <TabsTrigger value="resources">Resources</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="profile" className="space-y-6">
-            <ClientForm 
-              initialData={client}
-              onSubmit={handleSubmit}
-              isLoading={isLoadingClient || clientMutation.isPending}
-              error={error ? (error instanceof Error ? error.message : String(error)) : null}
-              submitButtonText="Update Client"
-            />
-          </TabsContent>
-          
-          <TabsContent value="resources">
-            {clientId && (
-              <ClientResourceSections 
-                clientId={clientId} 
-                logClientActivity={logClientActivity}
+      {isLoadingClient ? (
+        <div className="flex justify-center items-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2">Loading client information...</span>
+        </div>
+      ) : error ? (
+        <div className="bg-destructive/10 text-destructive p-4 rounded-md mt-6">
+          Error loading client: {error instanceof Error ? error.message : String(error)}
+        </div>
+      ) : (
+        <div className="mt-6">
+          <Tabs defaultValue="profile" className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="profile">Profile Information</TabsTrigger>
+              <TabsTrigger value="resources">Resources</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="profile" className="space-y-6">
+              <ClientForm 
+                initialData={client}
+                onSubmit={handleSubmit}
+                isLoading={isLoadingClient || clientMutation.isPending}
+                error={error ? (error instanceof Error ? error.message : String(error)) : null}
+                submitButtonText="Update Client"
               />
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+            </TabsContent>
+            
+            <TabsContent value="resources">
+              {clientId && (
+                <ClientResourceSections 
+                  clientId={clientId} 
+                  logClientActivity={logClientActivity}
+                />
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
     </div>
   );
 }

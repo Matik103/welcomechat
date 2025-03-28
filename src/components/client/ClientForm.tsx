@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,7 +36,7 @@ export function ClientForm({
 }: ClientFormProps) {
   const [submitting, setSubmitting] = useState(false);
   
-  const { register, handleSubmit, formState: { errors } } = useForm<ClientFormData>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       client_name: initialData.client_name || "",
@@ -47,6 +47,21 @@ export function ClientForm({
                       (initialData.widget_settings?.agent_description) || ""
     },
   });
+
+  // Update form values when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      console.log("Setting form values with initialData:", initialData);
+      reset({
+        client_name: initialData.client_name || "",
+        email: initialData.email || "",
+        agent_name: initialData.name || initialData.agent_name || 
+                  (initialData.widget_settings?.agent_name) || "",
+        agent_description: initialData.agent_description || 
+                        (initialData.widget_settings?.agent_description) || ""
+      });
+    }
+  }, [initialData, reset]);
 
   const handleFormSubmit = async (data: ClientFormData) => {
     setSubmitting(true);

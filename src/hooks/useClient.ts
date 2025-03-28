@@ -18,52 +18,19 @@ export const useClient = (clientId: string) => {
       try {
         console.log("Fetching client data for ID:", clientId);
         
-        // Direct query to ai_agents table
+        // Query ai_agents table with config interaction_type for client configuration
         const { data, error } = await supabase
           .from('ai_agents')
           .select('*')
-          .eq('id', clientId)
+          .eq('client_id', clientId)
           .eq('interaction_type', 'config')
+          .order('created_at', { ascending: false })
+          .limit(1)
           .single();
         
         if (error) {
-          console.error("Error fetching from ai_agents by id:", error);
-          
-          // Try by client_id as fallback
-          const { data: clientData, error: clientError } = await supabase
-            .from('ai_agents')
-            .select('*')
-            .eq('client_id', clientId)
-            .eq('interaction_type', 'config')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-            
-          if (clientError) {
-            console.error("Error fetching from ai_agents by client_id:", clientError);
-            
-            // Try with SQL query as a last resort
-            const sqlResult = await callRpcFunctionSafe<any[]>('exec_sql', {
-              query_text: `
-                SELECT * FROM ai_agents
-                WHERE client_id = $1
-                AND interaction_type = 'config'
-                ORDER BY created_at DESC
-                LIMIT 1
-              `,
-              query_params: [clientId]
-            });
-            
-            if (!sqlResult || !Array.isArray(sqlResult) || sqlResult.length === 0) {
-              return null;
-            }
-            
-            return mapAgentToClient(sqlResult[0]);
-          }
-          
-          if (!clientData) return null;
-          
-          return mapAgentToClient(clientData);
+          console.error("Error fetching from ai_agents by client_id:", error);
+          return null;
         }
         
         if (!data) return null;
