@@ -13,6 +13,17 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+// Modified schema to make chatbot fields optional
+import { z } from "zod";
+const createClientSchema = z.object({
+  client_name: z.string().min(1, "Client name is required"),
+  email: z.string().email("Valid email is required"),
+  agent_name: z.string().optional(),
+  agent_description: z.string().optional()
+});
+
+type CreateClientFormValues = z.infer<typeof createClientSchema>;
+
 interface CreateClientModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,17 +34,17 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
   const { ensureAiAgentExists } = useAiAgentManagement();
   const navigate = useNavigate();
 
-  const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientFormSchema),
+  const form = useForm<CreateClientFormValues>({
+    resolver: zodResolver(createClientSchema),
     defaultValues: {
       client_name: "",
       email: "",
-      agent_name: "AI Assistant",
+      agent_name: "",
       agent_description: ""
     }
   });
 
-  const handleSubmit = async (data: ClientFormData) => {
+  const handleSubmit = async (data: CreateClientFormValues) => {
     try {
       setIsSubmitting(true);
       
@@ -43,18 +54,20 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
       // Create AI agent (which also creates the client) but disable activity logging
       const result = await ensureAiAgentExists(
         tempClientId,
-        data.agent_name,
+        data.agent_name || "Default Agent", // Provide a default if empty
         data.agent_description,
         "", // logoUrl
         "", // logoStoragePath
-        data.client_name
+        data.client_name,
+        true // skipActivityLog - ensure we skip activity logging
       );
       
-      if (result.created) {
+      if (result.success) {
         toast.success("Client created successfully!");
         navigate(`/admin/clients`);
         onClose();
       } else {
+        console.error("Failed to create client:", result.error);
         toast.error("Failed to create client");
       }
     } catch (error) {
@@ -112,7 +125,7 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
               name="agent_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Chatbot Name</FormLabel>
+                  <FormLabel>Chatbot Name (Optional)</FormLabel>
                   <FormControl>
                     <Input placeholder="AI Assistant" {...field} />
                   </FormControl>
@@ -126,7 +139,7 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
               name="agent_description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Chatbot Description</FormLabel>
+                  <FormLabel>Chatbot Description (Optional)</FormLabel>
                   <FormControl>
                     <Textarea 
                       placeholder="Describe what this chatbot does" 

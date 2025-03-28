@@ -25,7 +25,7 @@ export function useAiAgentManagement() {
    */
   const ensureAiAgentExists = async (
     clientId: string,
-    agentName: string,
+    agentName: string = "Default Agent", // Provide default value
     description?: string,
     logoUrl?: string,
     logoStoragePath?: string,
@@ -37,12 +37,15 @@ export function useAiAgentManagement() {
     let created = false;
     
     try {
+      // Ensure we have a valid agent name
+      const finalAgentName = agentName?.trim() ? agentName : "Default Agent";
+      
       // Check if agent exists
       const { data: existingAgents, error: fetchError } = await supabase
         .from('ai_agents')
         .select('*')
         .eq('client_id', clientId)
-        .eq('name', agentName)
+        .eq('name', finalAgentName)
         .eq('interaction_type', 'config')
         .is('deleted_at', null)
         .limit(1);
@@ -55,7 +58,7 @@ export function useAiAgentManagement() {
           .from('ai_agents')
           .insert({
             client_id: clientId,
-            name: agentName,
+            name: finalAgentName,
             description: description || '',
             logo_url: logoUrl || '',
             logo_storage_path: logoStoragePath || '',
@@ -72,7 +75,7 @@ export function useAiAgentManagement() {
         if (!skipActivityLog) {
           console.log("[Activity Log] AI Agent created", {
             client_id: clientId,
-            agent_name: agentName,
+            agent_name: finalAgentName,
             type: "ai_agent_created"
           });
         }
@@ -88,7 +91,7 @@ export function useAiAgentManagement() {
             last_active: new Date().toISOString()
           })
           .eq('client_id', clientId)
-          .eq('name', agentName)
+          .eq('name', finalAgentName)
           .eq('interaction_type', 'config');
         
         if (updateError) throw updateError;
@@ -97,7 +100,7 @@ export function useAiAgentManagement() {
         if (!skipActivityLog) {
           console.log("[Activity Log] AI Agent updated", {
             client_id: clientId,
-            agent_name: agentName,
+            agent_name: finalAgentName,
             type: "ai_agent_updated"
           });
         }
