@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 // Get the URL and service role key from environment variables
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
-const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "";
+const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 // Check if we have a valid service role key
 const hasValidServiceKey = SUPABASE_SERVICE_KEY && SUPABASE_SERVICE_KEY.length > 20;
