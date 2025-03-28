@@ -43,7 +43,8 @@ export function WebsiteResourcesSection({
     try {
       await addWebsiteUrlMutation.mutateAsync({
         url: data.url,
-        refresh_rate: data.refresh_rate
+        refresh_rate: data.refresh_rate,
+        client_id: clientId
       });
       
       // Log activity
@@ -155,14 +156,24 @@ export function WebsiteResourcesSection({
           </div>
         )}
         
-        <WebsiteUrlsList 
-          urls={websiteUrls}
-          onDelete={handleDelete}
-          onProcess={handleProcessWebsite}
-          isDeleting={deleteWebsiteUrlMutation.isPending}
-          isProcessing={isStoring}
-          deletingId={processingWebsiteId}
-        />
+        {websiteUrls && websiteUrls.length > 0 ? (
+          <WebsiteUrlsList 
+            urls={websiteUrls}
+            onDelete={handleDelete}
+            onProcess={handleProcessWebsite}
+            isDeleting={deleteWebsiteUrlMutation.isPending}
+            isProcessing={isStoring}
+            deletingId={processingWebsiteId}
+          />
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            {isLoading ? (
+              "Loading website URLs..."
+            ) : (
+              "No website URLs added yet. Add your first website URL to get started."
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

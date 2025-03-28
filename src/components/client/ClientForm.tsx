@@ -125,12 +125,17 @@ export function ClientForm({
   };
 
   const processFormSubmit = async (data: ClientFormData) => {
-    // Include logo URL and storage path in the form data
-    await onSubmit({
-      ...data,
-      logo_url: logoUrl,
-      logo_storage_path: logoStoragePath
-    });
+    try {
+      // Include logo URL and storage path in the form data
+      await onSubmit({
+        ...data,
+        logo_url: logoUrl,
+        logo_storage_path: logoStoragePath
+      });
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      toast.error(`Failed to update client: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   return (
@@ -203,7 +208,7 @@ export function ClientForm({
       <div className="flex flex-col md:flex-row gap-4 pt-4">
         <Button 
           type="submit" 
-          disabled={isLoading}
+          disabled={isLoading || isUploadingLogo}
           className="bg-blue-600 hover:bg-blue-700 text-white"
         >
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

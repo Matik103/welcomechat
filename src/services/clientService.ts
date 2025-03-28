@@ -61,6 +61,9 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
   }
 
   try {
+    console.log("Updating client with ID:", clientId);
+    console.log("Update data:", JSON.stringify(updateData));
+
     // Create an object for the settings to update
     const settingsToUpdate = {
       agent_name: updateData.agent_name,
@@ -69,14 +72,17 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       logo_storage_path: updateData.logo_storage_path
     };
 
-    // Check if we need to update the ai_agents table
+    // Update the client record directly with the new data
     const { data, error } = await supabase
       .from('ai_agents')
       .update({
-        ...updateData,
-        // Update settings directly without using jsonb_merge
-        settings: supabase.storage.from('document-storage').getPublicUrl('dummy').data.publicUrl,
-        // ^ This line is a workaround to avoid the error - we'll overwrite this value below
+        client_name: updateData.client_name,
+        email: updateData.email,
+        name: updateData.agent_name,
+        agent_description: updateData.agent_description,
+        logo_url: updateData.logo_url,
+        logo_storage_path: updateData.logo_storage_path,
+        updated_at: new Date().toISOString()
       })
       .eq('client_id', clientId)
       .eq('interaction_type', 'config')
@@ -84,10 +90,11 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       .single();
 
     if (error) {
+      console.error("Error updating client basic info:", error);
       throw error;
     }
 
-    // Now update the settings properly with a direct SQL query
+    // Update the settings with an RPC call to safely merge JSON
     const { error: settingsError } = await supabase.rpc(
       'exec_sql',
       {
@@ -102,6 +109,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
 
     if (settingsError) {
       console.error("Error updating settings:", settingsError);
+      // Don't throw here, as the basic update succeeded
     }
 
     // Ensure widget_settings is always treated as an object

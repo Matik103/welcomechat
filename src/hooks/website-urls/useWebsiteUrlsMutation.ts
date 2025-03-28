@@ -9,12 +9,14 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
 
   const addWebsiteUrlMutation = useMutation({
     mutationFn: async (input: WebsiteUrlFormData): Promise<WebsiteUrl> => {
-      if (!clientId) {
+      if (!clientId && !input.client_id) {
         console.error("Client ID is missing");
         throw new Error("Client ID is required");
       }
       
-      console.log("Adding website URL with client ID:", clientId);
+      const effectiveClientId = input.client_id || clientId;
+      
+      console.log("Adding website URL with client ID:", effectiveClientId);
       console.log("Input data:", input);
       
       // Insert the website URL
@@ -22,7 +24,7 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
         const { data, error } = await supabase
           .from("website_urls")
           .insert({
-            client_id: clientId,
+            client_id: effectiveClientId,
             url: input.url,
             refresh_rate: input.refresh_rate,
             status: input.status || 'pending'
