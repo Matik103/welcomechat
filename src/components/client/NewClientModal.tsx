@@ -50,6 +50,7 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
     
     try {
       // Create a bare minimum record without any fields that might trigger side effects
+      // or activity logging that could cause the enum error
       const insertData = {
         client_name: values.clientName,
         email: values.email,
@@ -68,6 +69,7 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
       };
       
       // Direct database insert with no select() to minimize any potential triggers
+      // that might attempt to create activity records
       const { error } = await supabaseAdmin
         .from("ai_agents")
         .insert(insertData);
