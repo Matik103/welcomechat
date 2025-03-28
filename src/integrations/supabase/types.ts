@@ -13,23 +13,26 @@ export type Database = {
         Row: {
           ai_agent_id: string
           created_at: string | null
+          description: string | null
           id: string
           metadata: Json | null
-          type: Database["public"]["Enums"]["activity_type"]
+          type: Database["public"]["Enums"]["activity_type"] | null
         }
         Insert: {
           ai_agent_id: string
           created_at?: string | null
+          description?: string | null
           id?: string
           metadata?: Json | null
-          type: Database["public"]["Enums"]["activity_type"]
+          type?: Database["public"]["Enums"]["activity_type"] | null
         }
         Update: {
           ai_agent_id?: string
           created_at?: string | null
+          description?: string | null
           id?: string
           metadata?: Json | null
-          type?: Database["public"]["Enums"]["activity_type"]
+          type?: Database["public"]["Enums"]["activity_type"] | null
         }
         Relationships: [
           {
@@ -3948,6 +3951,15 @@ export type Database = {
             }
             Returns: unknown
           }
+      log_activity: {
+        Args: {
+          agent_id: string
+          activity_type: Database["public"]["Enums"]["activity_type"]
+          description: string
+          metadata?: Json
+        }
+        Returns: undefined
+      }
       log_agent_error: {
         Args: {
           client_id_param: string
@@ -5879,6 +5891,12 @@ export type Database = {
         | "url_processing_failed"
         | "chat_message_sent"
         | "chat_message_received"
+        | "agent_created"
+        | "agent_updated"
+        | "agent_deleted"
+        | "client_created"
+        | "client_updated"
+        | "client_deleted"
       activity_type_enum:
         | "document_added"
         | "document_removed"
