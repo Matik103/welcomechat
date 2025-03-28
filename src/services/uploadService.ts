@@ -95,7 +95,10 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
     
     // Upload the file to Supabase storage
     // Try using the regular client first, only for the upload operation
-    const { data, error } = await supabase
+    let uploadData;
+    let uploadError;
+    
+    const uploadResult = await supabase
       .storage
       .from(bucketName)
       .upload(filePath, file, {
@@ -104,11 +107,14 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
         contentType: file.type // Explicitly set the content type
       });
     
-    if (error) {
-      console.error('Error uploading logo:', error);
+    uploadData = uploadResult.data;
+    uploadError = uploadResult.error;
+    
+    if (uploadError) {
+      console.error('Error uploading logo:', uploadError);
       
       // If permission denied, try with admin client
-      if (error.message.includes('Permission denied')) {
+      if (uploadError.message.includes('Permission denied')) {
         console.log('Retrying upload with admin client...');
         const adminUploadResult = await supabaseAdmin
           .storage
@@ -125,14 +131,14 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
           throw adminUploadResult.error;
         }
         
-        data = adminUploadResult.data;
+        uploadData = adminUploadResult.data;
       } else {
-        toast.error(`Upload failed: ${error.message}`);
-        throw error;
+        toast.error(`Upload failed: ${uploadError.message}`);
+        throw uploadError;
       }
     }
     
-    if (!data || !data.path) {
+    if (!uploadData || !uploadData.path) {
       throw new Error('Upload completed but no file path was returned');
     }
     
@@ -140,7 +146,7 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
     const { data: publicUrlData } = supabase
       .storage
       .from(bucketName)
-      .getPublicUrl(data.path);
+      .getPublicUrl(uploadData.path);
     
     if (!publicUrlData || !publicUrlData.publicUrl) {
       throw new Error('Failed to generate public URL for uploaded file');
@@ -150,7 +156,7 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
     
     return {
       url: publicUrlData.publicUrl,
-      path: data.path
+      path: uploadData.path
     };
   } catch (error) {
     console.error('Error in uploadLogo:', error);
