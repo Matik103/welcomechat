@@ -5,7 +5,6 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Suspense, useState, useEffect } from "react";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
-import Home from "@/pages/Home";
 import ClientList from "@/pages/ClientList";
 import Settings from "@/pages/Settings";
 import ClientView from "@/pages/ClientView";
@@ -92,18 +91,22 @@ function App() {
     );
   }
 
+  // Redirect to auth page if not authenticated and on home page
+  if (!user && isHomePage) {
+    return <Navigate to="/auth" replace />;
+  }
+
   // Show public routes when not authenticated
   if (!user && isPublicRoute) {
     return (
       <div className="min-h-screen bg-background">
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
-            <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/auth/*" element={<Auth />} />
             <Route path="/client/auth" element={<ClientAuth />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/auth" replace />} />
           </Routes>
         </Suspense>
         <Toaster />
