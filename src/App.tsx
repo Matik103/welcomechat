@@ -22,6 +22,7 @@ import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Agents from "@/pages/Agents";
 import ClientAuth from "@/pages/client/Auth";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
@@ -101,7 +102,7 @@ function App() {
       <div className="min-h-screen bg-background">
         <Header />
         <Routes>
-          <Route path="/admin/dashboard" element={<Index />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/clients" element={<ClientList />} />
           <Route path="/admin/agents" element={<Agents />} />
           <Route path="/admin/agents/:agentId" element={<Agents />} />
