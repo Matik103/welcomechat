@@ -37,6 +37,10 @@ export const useClient = (clientId: string) => {
       const settings = client.settings || {};
       const parsedSettings = typeof settings === 'object' ? settings : {};
       
+      // The database may not have user_id directly in the ai_agents table
+      // So we'll handle this explicitly
+      const userId = client.user_id !== undefined ? client.user_id : '';
+      
       return {
         id: client.id,
         client_id: client.client_id || '',
@@ -57,7 +61,7 @@ export const useClient = (clientId: string) => {
         widget_settings: parsedSettings,
         name: client.name || '',
         is_error: client.is_error || false,
-        user_id: client.user_id || '' // Ensure we have this property
+        user_id: userId // Using the explicitly handled user_id value
       };
     } catch (error) {
       console.error("Error in fetchClient:", error);
