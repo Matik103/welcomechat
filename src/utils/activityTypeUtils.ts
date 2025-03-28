@@ -1,46 +1,31 @@
-
 import { ActivityType } from '@/types/activity';
 
 // Map activity types to icon names
-export const activityTypeToIcon: Record<string, string> = {
-  'chat_interaction': 'message-square',
-  'client_created': 'user-plus',
-  'client_updated': 'edit',
-  'client_deleted': 'trash',
-  'client_recovered': 'rotate-ccw',
-  'ai_agent_created': 'bot',
-  'ai_agent_updated': 'edit',
-  'ai_agent_deleted': 'trash',
-  'website_url_added': 'globe',
-  'website_url_deleted': 'trash',
-  'document_link_added': 'link',
-  'document_link_deleted': 'link',
-  'document_uploaded': 'file-plus',
-  'login_success': 'log-in',
-  'login_failed': 'alert-circle',
-  'error_logged': 'alert-circle',
-  'unknown': 'help-circle'
+export const activityTypeIcons: Record<string, string> = {
+  'document_added': 'file-plus',
+  'document_removed': 'file-minus',
+  'document_processed': 'check-circle',
+  'document_processing_failed': 'x-circle',
+  'url_added': 'globe',
+  'url_removed': 'globe-off',
+  'url_processed': 'check-circle',
+  'url_processing_failed': 'x-circle',
+  'chat_message_sent': 'message-square',
+  'chat_message_received': 'message-circle'
 };
 
 // Map activity types to colors
-export const activityTypeToColor: Record<string, string> = {
-  'chat_interaction': 'purple',
-  'client_created': 'green',
-  'client_updated': 'blue',
-  'client_deleted': 'red',
-  'client_recovered': 'amber',
-  'ai_agent_created': 'indigo',
-  'ai_agent_updated': 'blue',
-  'ai_agent_deleted': 'red',
-  'website_url_added': 'sky',
-  'website_url_deleted': 'red',
-  'document_link_added': 'emerald',
-  'document_link_deleted': 'red',
-  'document_uploaded': 'emerald',
-  'login_success': 'green',
-  'login_failed': 'red',
-  'error_logged': 'red',
-  'unknown': 'gray'
+export const activityTypeColors: Record<string, string> = {
+  'document_added': 'emerald',
+  'document_removed': 'red',
+  'document_processed': 'green',
+  'document_processing_failed': 'red',
+  'url_added': 'sky',
+  'url_removed': 'red',
+  'url_processed': 'green',
+  'url_processing_failed': 'red',
+  'chat_message_sent': 'blue',
+  'chat_message_received': 'indigo'
 };
 
 // Get a readable label for an activity type

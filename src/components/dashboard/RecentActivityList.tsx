@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
@@ -7,9 +7,9 @@ import {
   Key, LogOut, FileText, Mail, ShieldAlert, Calendar,
   AlertCircle, Check, File, MessageSquare, Globe, 
   FileCheck, FileWarning, FileMinus, FilePlus, Layout,
-  CheckCircle, LogIn
+  XCircle, MessageCircle, HelpCircle
 } from 'lucide-react';
-import { activityTypeToIcon, activityTypeToColor, getActivityTypeLabel } from '@/utils/activityTypeUtils';
+import { activityTypeIcons, activityTypeColors, getActivityTypeLabel } from '@/utils/activityTypeUtils';
 
 interface ClientActivity {
   id: string;
@@ -59,69 +59,20 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
     );
   }
 
-  const getActivityIcon = (activityType: string = 'unknown') => {
-    if (activityTypeToIcon[activityType]) {
-      const iconName = activityTypeToIcon[activityType];
-      
-      switch (iconName) {
-        case 'users': return <Users className="h-4 w-4" />;
-        case 'settings': return <Settings className="h-4 w-4" />;
-        case 'link': return <Link className="h-4 w-4" />;
-        case 'link-2': return <Link className="h-4 w-4" />;
-        case 'user-plus': return <UserPlus className="h-4 w-4" />;
-        case 'user': return <Users className="h-4 w-4" />;
-        case 'user-x': return <Users className="h-4 w-4" />;
-        case 'edit': return <Edit className="h-4 w-4" />;
-        case 'trash': return <Trash2 className="h-4 w-4" />;
-        case 'rotate-ccw': return <RotateCcw className="h-4 w-4" />;
-        case 'upload': return <Upload className="h-4 w-4" />;
-        case 'eye': return <Eye className="h-4 w-4" />;
-        case 'code': return <Code className="h-4 w-4" />;
-        case 'image': return <Image className="h-4 w-4" />;
-        case 'bot': return <Bot className="h-4 w-4" />;
-        case 'key': return <Key className="h-4 w-4" />;
-        case 'log-out': return <LogOut className="h-4 w-4" />;
-        case 'log-in': return <LogIn className="h-4 w-4" />;
-        case 'file-text': return <FileText className="h-4 w-4" />;
-        case 'file-plus': return <FilePlus className="h-4 w-4" />;
-        case 'file-minus': return <FileMinus className="h-4 w-4" />;
-        case 'file-check': return <FileCheck className="h-4 w-4" />;
-        case 'file-warning': return <FileWarning className="h-4 w-4" />;
-        case 'mail': return <Mail className="h-4 w-4" />;
-        case 'alert-circle': return <AlertCircle className="h-4 w-4" />;
-        case 'calendar': return <Calendar className="h-4 w-4" />;
-        case 'check': return <Check className="h-4 w-4" />;
-        case 'check-circle': return <CheckCircle className="h-4 w-4" />;
-        case 'file': return <File className="h-4 w-4" />;
-        case 'globe': return <Globe className="h-4 w-4" />;
-        case 'layout': return <Layout className="h-4 w-4" />;
-        default: return <MessageSquare className="h-4 w-4" />;
-      }
-    }
+  const getActivityIcon = (activityType: string) => {
+    const iconName = activityTypeIcons[activityType] || 'help-circle';
     
-    if (activityType.includes('create') || activityType.includes('added')) {
-      return <UserPlus className="h-4 w-4 text-green-500" />;
+    switch (iconName) {
+      case 'file-plus': return <FilePlus className="h-4 w-4" />;
+      case 'file-minus': return <FileMinus className="h-4 w-4" />;
+      case 'check-circle': return <CheckCircle className="h-4 w-4" />;
+      case 'x-circle': return <XCircle className="h-4 w-4" />;
+      case 'globe': return <Globe className="h-4 w-4" />;
+      case 'globe-off': return <GlobeOff className="h-4 w-4" />;
+      case 'message-square': return <MessageSquare className="h-4 w-4" />;
+      case 'message-circle': return <MessageCircle className="h-4 w-4" />;
+      default: return <HelpCircle className="h-4 w-4" />;
     }
-    if (activityType.includes('delete') || activityType.includes('removed')) {
-      return <Trash2 className="h-4 w-4 text-red-500" />;
-    }
-    if (activityType.includes('update') || activityType.includes('change') || activityType.includes('edited')) {
-      return <Edit className="h-4 w-4 text-blue-500" />;
-    }
-    if (activityType.includes('error') || activityType.includes('failed')) {
-      return <AlertCircle className="h-4 w-4 text-red-500" />;
-    }
-    if (activityType.includes('document') || activityType.includes('file')) {
-      return <FileText className="h-4 w-4 text-blue-500" />;
-    }
-    if (activityType.includes('chat') || activityType.includes('message') || activityType.includes('interaction')) {
-      return <MessageSquare className="h-4 w-4 text-purple-500" />;
-    }
-    if (activityType.includes('agent') || activityType.includes('ai_agent')) {
-      return <Bot className="h-4 w-4 text-indigo-500" />;
-    }
-    
-    return <MessageSquare className="h-4 w-4 text-gray-500" />;
   };
 
   const formatActivityDescription = (activity: ClientActivity) => {
@@ -168,7 +119,7 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
     <div className="space-y-1">
       {activities.map((activity) => {
         const activityType = activity.type || 'unknown';
-        const activityColor = activityTypeToColor[activityType] || 'gray';
+        const activityColor = activityTypeColors[activityType] || 'gray';
         const bgColorClass = `bg-${activityColor}-100`;
         const textColorClass = `text-${activityColor}-500`;
         
