@@ -41,7 +41,7 @@ export default function AddClientPage() {
   const onSubmit = async (values: ClientFormValues) => {
     setIsSubmitting(true);
     try {
-      // Simplified direct database insert with minimal fields to avoid triggering any side effects
+      // Create a bare minimum record without any fields that might trigger side effects
       const insertData = {
         client_name: values.clientName,
         email: values.email,
@@ -59,8 +59,8 @@ export default function AddClientPage() {
         updated_at: new Date().toISOString()
       };
       
-      // Using the most direct database operation possible
-      const { data, error } = await supabaseAdmin
+      // Direct database insert with no select() to minimize any potential triggers
+      const { error } = await supabaseAdmin
         .from("ai_agents")
         .insert(insertData);
 
