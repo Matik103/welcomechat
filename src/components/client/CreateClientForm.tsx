@@ -1,156 +1,160 @@
 
-import { useState } from "react";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import { useAiAgentManagement } from '@/hooks/useAiAgentManagement';
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2 } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { supabaseAdmin } from "@/integrations/supabase/client-admin";
-
-// Form validation schema
-const clientFormSchema = z.object({
-  clientName: z.string().min(1, "Client name is required"),
+// Schema with optional chatbot fields
+const createClientSchema = z.object({
+  client_name: z.string().min(1, "Client name is required"),
   email: z.string().email("Valid email is required"),
-  chatbotName: z.string().min(1, "Chatbot name is required"),
-  chatbotDescription: z.string().optional(),
+  agent_name: z.string().optional(),
+  agent_description: z.string().optional()
 });
 
-type ClientFormValues = z.infer<typeof clientFormSchema>;
+type CreateClientFormValues = z.infer<typeof createClientSchema>;
 
 interface CreateClientFormProps {
   onSuccess?: () => void;
 }
 
-const CreateClientForm = ({ onSuccess }: CreateClientFormProps) => {
+const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { ensureAiAgentExists } = useAiAgentManagement();
   const navigate = useNavigate();
-  
-  const form = useForm<ClientFormValues>({
-    resolver: zodResolver(clientFormSchema),
+
+  const form = useForm<CreateClientFormValues>({
+    resolver: zodResolver(createClientSchema),
     defaultValues: {
-      clientName: "",
+      client_name: "",
       email: "",
-      chatbotName: "AI Assistant",
-      chatbotDescription: "",
-    },
+      agent_name: "AI Assistant",
+      agent_description: ""
+    }
   });
 
-  const onSubmit = async (values: ClientFormValues) => {
-    setIsSubmitting(true);
+  const handleSubmit = async (data: CreateClientFormValues) => {
     try {
-      // Create client in the ai_agents table
-      const { data, error } = await supabaseAdmin.from("ai_agents").insert({
-        client_name: values.clientName,
-        email: values.email,
-        name: values.chatbotName,
-        agent_description: values.chatbotDescription,
-        interaction_type: "config", // Set type as config
-        settings: {
-          agent_name: values.chatbotName,
-          agent_description: values.chatbotDescription,
-        },
-        status: "active"
-      }).select();
-
-      if (error) {
-        throw error;
-      }
-
-      toast.success("Client created successfully!");
+      setIsSubmitting(true);
       
-      // Call onSuccess callback if provided, otherwise navigate
-      if (onSuccess) {
-        onSuccess();
+      // Generate a client ID (would normally come from the backend)
+      const tempClientId = crypto.randomUUID();
+      
+      // Create AI agent (which also creates the client) but disable activity logging
+      const result = await ensureAiAgentExists(
+        tempClientId,
+        data.agent_name || "AI Assistant", // Provide a default if empty
+        data.agent_description,
+        "", // logoUrl
+        "", // logoStoragePath
+        data.client_name,
+        true // skipActivityLog - ensure we skip activity logging
+      );
+      
+      if (result.success) {
+        toast.success("Client created successfully!");
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          navigate(`/admin/clients`);
+        }
       } else {
-        navigate("/admin/clients");
+        console.error("Failed to create client:", result.error);
+        toast.error("Failed to create client");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating client:", error);
-      toast.error(error.message || "Failed to create client");
+      toast.error("An error occurred while creating the client");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="clientName" variant="blue">Client Name</Label>
-        <Input
-          id="clientName"
-          {...form.register("clientName")}
-          placeholder="Enter client name"
-          className={form.formState.errors.clientName ? "border-red-500" : ""}
-        />
-        {form.formState.errors.clientName && (
-          <p className="text-sm text-red-500">{form.formState.errors.clientName.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="email" variant="blue">Email Address</Label>
-        <Input
-          id="email"
-          type="email"
-          {...form.register("email")}
-          placeholder="client@example.com"
-          className={form.formState.errors.email ? "border-red-500" : ""}
-        />
-        {form.formState.errors.email && (
-          <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="chatbotName" variant="blue">Chatbot Name</Label>
-        <Input
-          id="chatbotName"
-          {...form.register("chatbotName")}
-          placeholder="AI Assistant"
-          className={form.formState.errors.chatbotName ? "border-red-500" : ""}
-        />
-        {form.formState.errors.chatbotName && (
-          <p className="text-sm text-red-500">{form.formState.errors.chatbotName.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="chatbotDescription" variant="blue">Chatbot Description</Label>
-        <Textarea
-          id="chatbotDescription"
-          {...form.register("chatbotDescription")}
-          placeholder="Describe what this chatbot does"
-          className={form.formState.errors.chatbotDescription ? "border-red-500" : ""}
-          rows={4}
-        />
-        {form.formState.errors.chatbotDescription && (
-          <p className="text-sm text-red-500">{form.formState.errors.chatbotDescription.message}</p>
-        )}
-      </div>
-
-      <div className="flex justify-end">
-        <Button 
-          type="submit" 
-          disabled={isSubmitting}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating...
-            </>
-          ) : (
-            "Create Client"
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="client_name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Client Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter client name" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
-        </Button>
-      </div>
-    </form>
+        />
+        
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email Address</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="client@example.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="agent_name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Chatbot Name</FormLabel>
+              <FormControl>
+                <Input placeholder="AI Assistant" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="agent_description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Chatbot Description</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Describe what this chatbot does" 
+                  className="min-h-[100px]" 
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700">
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Client"
+            )}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 };
 
