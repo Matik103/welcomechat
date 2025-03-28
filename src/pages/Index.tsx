@@ -14,6 +14,7 @@ import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ClientActivity } from "@/types/activity";
 import { BarChart } from "@/components/dashboard/BarChart";
 import { NewClientModal } from "@/components/client/NewClientModal";
+import { getAllAgents } from "@/services/agentService";
 
 const generateRandomData = (length: number) => {
   return Array.from({ length }, () => Math.floor(Math.random() * 100));
@@ -23,6 +24,7 @@ export default function Index() {
   const navigate = useNavigate();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [highlightedActivity, setHighlightedActivity] = useState<string | null>(null);
+  const [agentData, setAgentData] = useState({ total: 0, active: 0, change: 0 });
   
   const {
     activeUsers,
@@ -50,6 +52,36 @@ export default function Index() {
     storage: generateRandomData(24),
     realtime: generateRandomData(24)
   };
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const agents = await getAllAgents();
+        const totalAgents = agents.length;
+
+        // Count agents with activity in the last 48 hours
+        const timeAgo = new Date();
+        timeAgo.setHours(timeAgo.getHours() - 48);
+        
+        const activeAgents = agents.filter(agent => 
+          agent.last_active && new Date(agent.last_active) > timeAgo
+        ).length;
+        
+        // Calculate change percentage (mock data for now)
+        const changePercentage = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) / 5 : 0;
+        
+        setAgentData({
+          total: totalAgents,
+          active: activeAgents,
+          change: changePercentage
+        });
+      } catch (error) {
+        console.error("Error fetching agents:", error);
+      }
+    };
+    
+    fetchAgents();
+  }, []);
 
   const handleActivityClick = (id: string) => {
     setHighlightedActivity(id === highlightedActivity ? null : id);
@@ -121,8 +153,8 @@ export default function Index() {
                 <CardTitle className="text-lg font-bold text-gray-900">AGENTS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1 text-gray-800">18</div>
-                <div className="text-sm text-gray-700">10 Active +18%</div>
+                <div className="text-4xl font-bold mb-1 text-gray-800">{agentData.total}</div>
+                <div className="text-sm text-gray-700">{agentData.active} Active {agentData.change > 0 ? `+${Math.round(agentData.change)}%` : ''}</div>
               </CardContent>
             </Card>
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DashboardStatCard } from '@/components/admin/DashboardStatCard';
@@ -20,6 +19,7 @@ import { setupRealtimeActivities } from '@/utils/setupRealtimeActivities';
 import { subscribeToAllActivities } from '@/services/activitySubscriptionService';
 import { AnimatedBarChart } from '@/components/dashboard/AnimatedBarChart';
 import { Card } from '@/components/ui/card';
+import { getAllAgents } from '@/services/agentService';
 
 interface ActivityChartData {
   name: string;
@@ -136,36 +136,41 @@ export default function AdminDashboardPage() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
+      // Get information about agents
+      const agents = await getAllAgents();
+      const totalAgents = agents.length;
+      
+      // Time threshold for "active" clients and agents (48 hours ago)
+      const timeAgo = new Date();
+      timeAgo.setHours(timeAgo.getHours() - 48);
+      
+      // Active agents: agents with activity in last 48 hours
+      const activeAgents = agents.filter(agent => 
+        agent.last_active && new Date(agent.last_active) > timeAgo
+      ).length;
+      
       // Clients: Get all unique client_ids from ai_agents table (exclude deleted)
       const { data: agentsData, error: agentsError } = await supabase
         .from('ai_agents')
-        .select('client_id, last_active, name, interaction_type, status, created_at, deleted_at')
+        .select('client_id, last_active, status, deleted_at')
         .eq('interaction_type', 'config')
+        .eq('status', 'active')
         .is('deleted_at', null);
       
       if (agentsError) throw agentsError;
       
-      // Get unique client IDs to count total non-deleted clients
+      // Get unique client IDs to count total active clients
       const uniqueClientIds = new Set();
       const activeClientIds = new Set();
-      const nonDeletedAgents = [];
-
-      // Time threshold for "active" clients (48 hours ago)
-      const timeAgo = new Date();
-      timeAgo.setHours(timeAgo.getHours() - 48);
       
       for (const agent of agentsData) {
-        // Only count clients that are not deleted or with deleted status
-        if (agent.client_id && agent.status !== 'deleted') {
+        if (agent.client_id) {
           uniqueClientIds.add(agent.client_id);
           
           // Count as active if has activity in last 48 hours
           if (agent.last_active && new Date(agent.last_active) > timeAgo) {
             activeClientIds.add(agent.client_id);
           }
-          
-          // Add to non-deleted agents array
-          nonDeletedAgents.push(agent);
         }
       }
       
@@ -174,14 +179,6 @@ export default function AdminDashboardPage() {
       
       // Calculate client growth rate from active/total ratio
       const clientGrowthRate = totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0;
-      
-      // Agents: Count from non-deleted agents
-      const totalAgents = nonDeletedAgents.length;
-      
-      // Active agents: agents with activity in last 48 hours
-      const activeAgents = nonDeletedAgents.filter(agent => 
-        agent.last_active && new Date(agent.last_active) > timeAgo
-      ).length;
       
       // Get the growth rate for agents based on active/total ratio
       const agentGrowthRate = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) : 0;
