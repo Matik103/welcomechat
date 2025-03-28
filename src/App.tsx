@@ -30,8 +30,10 @@ function App() {
   const isAuthCallback = location.pathname.includes('/auth/callback');
   const isAuthPage = location.pathname === '/auth';
   const isClientAuthPage = location.pathname === '/client/auth';
-  const isPublicRoute = isAuthPage || isClientAuthPage || isAuthCallback || location.pathname === '/' || 
-                        location.pathname === '/about' || location.pathname === '/contact';
+  const isHomePage = location.pathname === '/';
+  const isAboutPage = location.pathname === '/about';
+  const isContactPage = location.pathname === '/contact';
+  const isPublicRoute = isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage;
   
   useEffect(() => {
     if (!isAuthCallback) {
