@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
 import { JsonObject } from "@/types/supabase-extensions";
@@ -64,7 +65,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     console.log("Update data:", JSON.stringify(updateData));
 
     // First, get the client record to determine if we're dealing with id or client_id
-    const { data: clientRecord, error: findError } = await supabase.rpc(
+    const { data: clientRecordResult, error: findError } = await supabase.rpc(
       'exec_sql',
       {
         sql_query: `
@@ -82,16 +83,17 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       throw findError;
     }
 
-    if (!clientRecord || clientRecord.length === 0) {
+    if (!clientRecordResult || !Array.isArray(clientRecordResult) || clientRecordResult.length === 0) {
       throw new Error(`No client found with ID or client_id: ${clientId}`);
     }
 
-    const actualRecord = clientRecord[0];
-    console.log("Found client record:", actualRecord);
+    // Get the first row from the result
+    const clientRecord = clientRecordResult[0] as { id: string; client_id: string };
+    console.log("Found client record:", clientRecord);
     
     // Determine the field to query on (id or client_id)
-    const queryField = clientId === actualRecord.id ? 'id' : 'client_id';
-    const queryValue = queryField === 'id' ? actualRecord.id : actualRecord.client_id;
+    const queryField = clientId === clientRecord.id ? 'id' : 'client_id';
+    const queryValue = queryField === 'id' ? clientRecord.id : clientRecord.client_id;
 
     // Create an object for the settings to update
     const settingsToUpdate = {
