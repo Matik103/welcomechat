@@ -207,10 +207,11 @@ export default function AdminDashboardPage() {
       const trainingsTotal = (websiteUrlsCount || 0) + (documentLinksCount || 0) + (driveLinksCount || 0);
       
       // Administration: Count administration-related activities using activities table
+      // Use only the valid activity types from the enum
       const { count: adminActivitiesCount, error: adminActivitiesError } = await supabase
         .from('activities')
         .select('id', { count: 'exact', head: true })
-        .in('type', ['client_created', 'client_updated', 'client_deleted', 'system_update', 'agent_name_updated']);
+        .in('type', ['client_created', 'client_updated', 'client_deleted']);
       
       if (adminActivitiesError) throw adminActivitiesError;
       
@@ -338,8 +339,7 @@ export default function AdminDashboardPage() {
           <AnimatedBarChart 
             data={chartData} 
             color={chartColor} 
-            barWidth={3}
-            scrollSpeed={150} // Add a scroll speed for the continuous motion
+            updateInterval={150} // Changed to updateInterval which is expected by AnimatedBarChart
           />
         </div>
       </div>
