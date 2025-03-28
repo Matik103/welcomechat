@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 import { toast } from 'sonner';
@@ -27,16 +26,9 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
         throw createBucketError;
       }
       
-      // Set permission policies on the bucket for public read access
-      // Note: createPolicy was deprecated, using the newer approach
-      const { error: policyError } = await supabaseAdmin
-        .storage
-        .from(bucketName)
-        .setPublic(true);
-      
-      if (policyError) {
-        console.error('Error setting bucket policy:', policyError);
-      }
+      // Set bucket to public access
+      // Note: When we create a bucket with public:true, we don't need to set policies manually
+      console.log('Bucket created with public access:', bucketName);
     }
   } catch (error) {
     console.error('Error ensuring bucket exists:', error);
