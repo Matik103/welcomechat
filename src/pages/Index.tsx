@@ -15,6 +15,7 @@ import { ClientActivity } from "@/types/activity";
 import { BarChart } from "@/components/dashboard/BarChart";
 import { NewClientModal } from "@/components/client/NewClientModal";
 import { getAllAgents } from "@/services/agentService";
+import { getActiveClientsCount } from "@/services/clientService";
 
 const generateRandomData = (length: number) => {
   return Array.from({ length }, () => Math.floor(Math.random() * 100));
@@ -25,15 +26,13 @@ export default function Index() {
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [highlightedActivity, setHighlightedActivity] = useState<string | null>(null);
   const [agentData, setAgentData] = useState({ total: 0, active: 0, change: 0 });
+  const [clientData, setClientData] = useState({ total: 0, active: 0, change: 0 });
   
   const {
     activeUsers,
     interactionCount,
     avgResponseTime,
     commonQueries,
-    totalClients,
-    activeClients,
-    activeClientsChange,
     isLoading: isDashboardLoading,
     error: dashboardError,
     refetch: refetchDashboard
@@ -80,7 +79,26 @@ export default function Index() {
       }
     };
     
+    const fetchClients = async () => {
+      try {
+        const clientStats = await getActiveClientsCount();
+        
+        // Calculate change percentage (mock data for now)
+        const changePercentage = clientStats.total > 0 ? 
+          Math.round((clientStats.active / clientStats.total) * 100) / 5 : 0;
+        
+        setClientData({
+          total: clientStats.total,
+          active: clientStats.active,
+          change: changePercentage
+        });
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+      }
+    };
+    
     fetchAgents();
+    fetchClients();
   }, []);
 
   const handleActivityClick = (id: string) => {
@@ -140,8 +158,8 @@ export default function Index() {
                 <CardTitle className="text-lg font-bold text-green-900">CLIENTS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1 text-green-800">{totalClients}</div>
-                <div className="text-sm text-green-700">{activeClients} Active {activeClientsChange > 0 ? `+${Math.round(activeClientsChange)}%` : ''}</div>
+                <div className="text-4xl font-bold mb-1 text-green-800">{clientData.total}</div>
+                <div className="text-sm text-green-700">{clientData.active} Active {clientData.change > 0 ? `+${Math.round(clientData.change)}%` : ''}</div>
               </CardContent>
             </Card>
 
