@@ -1,5 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 import { Client } from "@/types/client";
 import { JsonObject } from "@/types/supabase-extensions";
 
@@ -65,30 +65,25 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     console.log("Update data:", JSON.stringify(updateData));
 
     // First, get the client record to determine if we're dealing with id or client_id
-    const { data: clientRecordResult, error: findError } = await supabase.rpc(
-      'exec_sql',
-      {
-        sql_query: `
-          SELECT id, client_id FROM ai_agents
-          WHERE (id::text = $1 OR client_id::text = $1) 
-          AND interaction_type = 'config'
-          LIMIT 1
-        `,
-        query_params: [clientId]
-      }
-    );
+    const { data: clientRecordResult, error: findError } = await supabaseAdmin
+      .from('ai_agents')
+      .select('id, client_id')
+      .or(`id.eq.${clientId},client_id.eq.${clientId}`)
+      .eq('interaction_type', 'config')
+      .limit(1)
+      .single();
 
     if (findError) {
       console.error("Error finding client:", findError);
       throw findError;
     }
 
-    if (!clientRecordResult || !Array.isArray(clientRecordResult) || clientRecordResult.length === 0) {
+    if (!clientRecordResult) {
       throw new Error(`No client found with ID or client_id: ${clientId}`);
     }
 
     // Get the first row from the result
-    const clientRecord = clientRecordResult[0] as { id: string; client_id: string };
+    const clientRecord = clientRecordResult;
     console.log("Found client record:", clientRecord);
     
     // Determine the field to query on (id or client_id)
@@ -106,7 +101,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     };
 
     // Update the main record
-    const { data, error } = await supabase
+    const { data: updateResult, error: updateError } = await supabaseAdmin
       .from('ai_agents')
       .update({
         client_name: updateData.client_name,
@@ -122,22 +117,22 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       .select('*')
       .maybeSingle();
 
-    if (error) {
-      console.error(`Error updating client by ${queryField}:`, error);
-      throw error;
+    if (updateError) {
+      console.error(`Error updating client by ${queryField}:`, updateError);
+      throw updateError;
     }
 
-    if (!data) {
+    if (!updateResult) {
       throw new Error(`Failed to update client with ${queryField}: ${queryValue}`);
     }
 
     // Update the settings with an RPC call to safely merge JSON
-    const { error: settingsError } = await supabase.rpc(
+    const { error: settingsError } = await supabaseAdmin.rpc(
       'exec_sql',
       {
         sql_query: `
           UPDATE ai_agents
-          SET settings = settings || $1::jsonb
+          SET settings = COALESCE(settings, '{}'::jsonb) || $1::jsonb
           WHERE ${queryField} = $2 AND interaction_type = 'config'
         `,
         query_params: [JSON.stringify(settingsToUpdate), queryValue]
@@ -150,31 +145,49 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     }
 
     // Ensure widget_settings is always treated as an object
-    const widgetSettings = data.settings ? 
-      (typeof data.settings === 'object' ? data.settings : {}) : 
+    const widgetSettings = updateResult.settings ? 
+      (typeof updateResult.settings === 'object' ? updateResult.settings : {}) : 
       {};
     
+    // Create an activity record for the update using admin client
+    const { error: activityError } = await supabaseAdmin
+      .from('activities')
+      .insert({
+        ai_agent_id: updateResult.id,
+        type: 'client_updated',
+        metadata: {
+          client_name: updateData.client_name,
+          email: updateData.email,
+          agent_name: updateData.agent_name
+        }
+      });
+
+    if (activityError) {
+      console.error("Error creating activity record:", activityError);
+      // Don't throw here as the main update succeeded
+    }
+
     return {
-      id: data.id,
-      client_id: data.client_id || '',
-      client_name: data.client_name || '',
-      email: data.email || '',
-      status: data.status as 'active' | 'inactive' | 'deleted' || 'active',
-      created_at: data.created_at || '',
-      updated_at: data.updated_at || '',
-      agent_name: data.name || '',
-      agent_description: data.agent_description || '',
-      logo_url: data.logo_url || '',
+      id: updateResult.id,
+      client_id: updateResult.client_id || '',
+      client_name: updateResult.client_name || '',
+      email: updateResult.email || '',
+      status: updateResult.status as 'active' | 'inactive' | 'deleted' || 'active',
+      created_at: updateResult.created_at || '',
+      updated_at: updateResult.updated_at || '',
+      agent_name: updateResult.name || '',
+      agent_description: updateResult.agent_description || '',
+      logo_url: updateResult.logo_url || '',
       widget_settings: widgetSettings as Record<string, any>,
       user_id: '',
-      company: data.company || '',
-      description: data.description || '',
-      logo_storage_path: data.logo_storage_path || '',
-      deletion_scheduled_at: data.deletion_scheduled_at || null,
-      deleted_at: data.deleted_at || null,
-      last_active: data.last_active || null,
-      name: data.name || '',
-      is_error: data.is_error || false
+      company: updateResult.company || '',
+      description: updateResult.description || '',
+      logo_storage_path: updateResult.logo_storage_path || '',
+      deletion_scheduled_at: updateResult.deletion_scheduled_at || null,
+      deleted_at: updateResult.deleted_at || null,
+      last_active: updateResult.last_active || null,
+      name: updateResult.name || '',
+      is_error: updateResult.is_error || false
     };
   } catch (error) {
     console.error("Error updating client:", error);
