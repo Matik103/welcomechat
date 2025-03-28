@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,7 +12,7 @@ import { ClientFormData } from "@/types/client-form";
 import { Loader2 } from "lucide-react";
 
 interface ClientFormProps {
-  initialData?: Partial<Client> | null;
+  initialData?: Partial<Client>;
   onSubmit: (data: ClientFormData) => Promise<void>;
   isLoading?: boolean;
   error?: string | null;
@@ -28,7 +28,7 @@ const clientFormSchema = z.object({
 });
 
 export function ClientForm({
-  initialData = null,
+  initialData = {},
   onSubmit,
   isLoading = false,
   error = null,
@@ -36,42 +36,17 @@ export function ClientForm({
 }: ClientFormProps) {
   const [submitting, setSubmitting] = useState(false);
   
-  // Safely extract values from initialData, ensuring undefined/null values are handled
-  const safeInitialData = {
-    client_name: initialData?.client_name || "",
-    email: initialData?.email || "",
-    agent_name: initialData?.name || initialData?.agent_name || 
-              (initialData?.widget_settings && typeof initialData.widget_settings === 'object' ? 
-                initialData.widget_settings.agent_name : "") || "",
-    agent_description: initialData?.agent_description || 
-                    (initialData?.widget_settings && typeof initialData.widget_settings === 'object' ? 
-                      initialData.widget_settings.agent_description : "") || ""
-  };
-  
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormData>({
+  const { register, handleSubmit, formState: { errors } } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: safeInitialData,
+    defaultValues: {
+      client_name: initialData.client_name || "",
+      email: initialData.email || "",
+      agent_name: initialData.name || initialData.agent_name || 
+                (initialData.widget_settings?.agent_name) || "",
+      agent_description: initialData.agent_description || 
+                      (initialData.widget_settings?.agent_description) || ""
+    },
   });
-
-  // Update form values when initialData changes
-  useEffect(() => {
-    if (initialData) {
-      console.log("Setting form values with initialData:", initialData);
-      
-      const widgetSettings = initialData.widget_settings && 
-                           typeof initialData.widget_settings === 'object' ? 
-                           initialData.widget_settings : {};
-      
-      reset({
-        client_name: initialData.client_name || "",
-        email: initialData.email || "",
-        agent_name: initialData.name || initialData.agent_name || 
-                  (widgetSettings.agent_name as string) || "",
-        agent_description: initialData.agent_description || 
-                        (widgetSettings.agent_description as string) || ""
-      });
-    }
-  }, [initialData, reset]);
 
   const handleFormSubmit = async (data: ClientFormData) => {
     setSubmitting(true);
