@@ -13,7 +13,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
 }> => {
   try {
     // Define the activity types that are considered administration activities
-    const adminActivityTypes = [
+    const adminActivityTypes: ActivityType[] = [
       'client_created', 
       'client_updated', 
       'client_deleted',
@@ -47,13 +47,13 @@ export const getAdministrationActivitiesCount = async (): Promise<{
       'system_update',
       'source_deleted',
       'source_added'
-    ] as string[];
+    ];
       
     // Count all administration-related activities
     const { count: totalCount, error: countError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', adminActivityTypes);
+      .in('type', adminActivityTypes as any);
       
     if (countError) throw countError;
     
@@ -65,7 +65,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
     const { count: recentCount, error: recentError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', adminActivityTypes)
+      .in('type', adminActivityTypes as any)
       .gt('created_at', timeAgoStr);
       
     if (recentError) throw recentError;
