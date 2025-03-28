@@ -1,19 +1,19 @@
-import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Session, User } from "@supabase/supabase-js";
-import { UserRole } from "@/types/auth";
-import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
 
-type AuthInitializeProps = {
+import { useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Session, User } from '@supabase/supabase-js';
+import { UserRole } from '@/contexts/AuthContext';
+import { getUserRole } from '@/services/authService';
+
+interface UseAuthInitializeProps {
   authInitialized: boolean;
   isCallbackUrl: boolean;
   setSession: (session: Session | null) => void;
   setUser: (user: User | null) => void;
-  setUserRole: (role: UserRole | null) => void;
+  setUserRole: (role: UserRole) => void;
   setIsLoading: (isLoading: boolean) => void;
   setAuthInitialized: (initialized: boolean) => void;
-};
+}
 
 export const useAuthInitialize = ({
   authInitialized,
@@ -23,112 +23,47 @@ export const useAuthInitialize = ({
   setUserRole,
   setIsLoading,
   setAuthInitialized
-}: AuthInitializeProps) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
+}: UseAuthInitializeProps) => {
   useEffect(() => {
-    let mounted = true;
-
+    // Skip initialization if we're on the callback URL or if already initialized
+    if (isCallbackUrl || authInitialized) return;
+    
     const initializeAuth = async () => {
-      // Skip init if already initialized or handling callback
-      if (authInitialized || isCallbackUrl) return;
+      setIsLoading(true);
       
       try {
-        console.log("Initializing auth state");
+        // Get current session
+        const { data, error } = await supabase.auth.getSession();
         
-        // Keep loading state true until we've completed all checks
-        setIsLoading(true);
-        
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-
-        if (currentSession?.user) {
-          console.log("Session found during init:", currentSession.user.email);
-          
-          setSession(currentSession);
-          setUser(currentSession.user);
-          
-          // Always check for client status
-          const determinedUserRole = await determineUserRole(currentSession.user);
-          console.log("User role determined in init:", determinedUserRole, "for", currentSession.user.email);
-          setUserRole(determinedUserRole);
-          sessionStorage.setItem('user_role_set', determinedUserRole);
-          
-          // Handle redirects if on auth page or at root
-          const isAuthPage = location.pathname === '/auth';
-          const isRootPage = location.pathname === '/';
-          const isOldAdminPage = !location.pathname.startsWith('/admin/') && 
-                               !location.pathname.startsWith('/client/') && 
-                               location.pathname !== '/auth';
-          
-          if (isAuthPage || isRootPage || isOldAdminPage) {
-            // Get the appropriate dashboard route
-            const dashboardRoute = getDashboardRoute(determinedUserRole);
-            console.log("Redirecting to dashboard in init:", dashboardRoute);
-            // Navigate to the appropriate dashboard
-            navigate(dashboardRoute, { replace: true });
-          }
-          
-          // Set initialized first, then clear loading state to prevent flicker
-          setAuthInitialized(true);
-          setTimeout(() => {
-            if (mounted) setIsLoading(false);
-          }, 300);
-        } else {
-          console.log("No active session found during init");
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          sessionStorage.removeItem('user_role_set');
-          
-          const isAuthPage = location.pathname === '/auth';
-          const isSetupPage = location.pathname.startsWith('/client/setup');
-              
-          if (!isAuthPage && !isSetupPage) {
-            console.log("No session, redirecting to auth page in init");
-            navigate('/auth', { replace: true });
-          }
-          
-          setAuthInitialized(true);
-          setIsLoading(false);
+        if (error) {
+          console.error("Error getting session:", error);
+          return;
         }
-      } catch (error) {
-        console.error("Error in initializeAuth:", error);
-        if (mounted) {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          setAuthInitialized(true);
-          setIsLoading(false);
-          sessionStorage.removeItem('user_role_set');
+        
+        if (data?.session) {
+          setSession(data.session);
+          setUser(data.session.user);
           
-          // Redirect to auth page on error
-          const isAuthPage = location.pathname === '/auth';
-          const isSetupPage = location.pathname.startsWith('/client/setup');
-          
-          if (!isAuthPage && !isSetupPage) {
-            navigate('/auth', { replace: true });
-          }
+          // Get user role
+          const role = await getUserRole();
+          setUserRole(role);
         }
+      } catch (err) {
+        console.error("Error in auth initialization:", err);
+      } finally {
+        setIsLoading(false);
+        setAuthInitialized(true);
       }
     };
-
+    
     initializeAuth();
-
-    return () => {
-      mounted = false;
-    };
   }, [
-    navigate, 
-    location.pathname, 
-    authInitialized, 
+    authInitialized,
+    isCallbackUrl, 
+    setAuthInitialized, 
+    setIsLoading, 
     setSession, 
     setUser, 
-    setUserRole, 
-    setIsLoading, 
-    setAuthInitialized, 
-    isCallbackUrl
+    setUserRole
   ]);
 };
