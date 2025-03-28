@@ -16,10 +16,7 @@ const SAFE_ACTIVITY_TYPES = [
   "chat_message_received",
   "client_created",
   "client_updated",
-  "client_deleted",
-  "agent_created",
-  "agent_updated",
-  "agent_deleted"
+  "client_deleted"
 ];
 
 export const useClientActivity = (clientId?: string) => {
