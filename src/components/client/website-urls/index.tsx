@@ -1,57 +1,68 @@
 
-import React from 'react';
-import { WebsiteUrlForm } from './WebsiteUrlForm';
-import { WebsiteUrlsList } from './WebsiteUrlsList';
-import { WebsiteUrl, WebsiteUrlFormData } from '@/types/website-url';
+import React, { useEffect } from 'react';
+import { WebsiteUrlsLoading } from './WebsiteUrlsLoading';
+import { WebsiteUrlsListEmpty } from './WebsiteUrlsListEmpty';
+import { WebsiteUrlsTable } from './WebsiteUrlsTable';
+import { useWebsiteUrlsFetch } from '@/hooks/website-urls/useWebsiteUrlsFetch';
+import { useWebsiteUrlsMutation } from '@/hooks/website-urls/useWebsiteUrlsMutation';
 
 export interface WebsiteUrlsProps {
-  urls: WebsiteUrl[];
-  onAdd: (data: WebsiteUrlFormData) => Promise<void>;
-  onDelete: (id: number) => Promise<void>;
-  isLoading: boolean;
-  isAdding: boolean;
-  isDeleting: boolean;
-  deletingId?: number;
-  agentName: string;
-  deletingUrlId?: number;
+  clientId: string;
+  onResourceChange?: () => void;
+  logClientActivity?: () => Promise<void>;
 }
 
-export const WebsiteUrls: React.FC<WebsiteUrlsProps> = ({
-  urls,
-  onAdd,
-  onDelete,
-  isLoading,
-  isAdding,
-  isDeleting,
-  deletingId,
-  agentName,
-  deletingUrlId
-}) => {
-  return (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-2">Website URLs</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Add website URLs to be processed for your AI agent. The content will be indexed and made available to your agent.
-        </p>
-        
-        <WebsiteUrlForm 
-          onSubmit={onAdd} 
-          onAdd={onAdd}
-          isSubmitting={isAdding}
-          isAdding={isAdding}
-          agentName={agentName} 
-        />
-      </div>
-      
-      <WebsiteUrlsList
-        urls={urls}
-        onDelete={onDelete}
-        isDeleting={isDeleting}
-        deletingId={deletingId || deletingUrlId}
-      />
-    </div>
-  );
-};
+export function WebsiteUrls({ clientId, onResourceChange, logClientActivity }: WebsiteUrlsProps) {
+  const { 
+    websiteUrls, 
+    isLoading, 
+    refetch 
+  } = useWebsiteUrlsFetch(clientId);
 
-export default WebsiteUrls;
+  const { 
+    deleteWebsiteUrl, 
+    deleteWebsiteUrlMutation 
+  } = useWebsiteUrlsMutation(clientId);
+
+  useEffect(() => {
+    // Initial fetch
+    refetch();
+  }, [refetch, clientId]);
+
+  const handleDelete = async (websiteUrlId: number) => {
+    try {
+      await deleteWebsiteUrl(websiteUrlId);
+      
+      // Log client activity
+      if (logClientActivity) {
+        await logClientActivity();
+      }
+      
+      // Trigger refetch after delete
+      refetch();
+      
+      // Notify parent component if needed
+      if (onResourceChange) {
+        onResourceChange();
+      }
+    } catch (error) {
+      console.error("Error deleting website URL:", error);
+    }
+  };
+
+  if (isLoading) {
+    return <WebsiteUrlsLoading />;
+  }
+
+  if (!websiteUrls || websiteUrls.length === 0) {
+    return <WebsiteUrlsListEmpty />;
+  }
+
+  return (
+    <WebsiteUrlsTable 
+      websiteUrls={websiteUrls} 
+      onDelete={handleDelete} 
+      isDeleting={deleteWebsiteUrlMutation.isPending}
+    />
+  );
+}

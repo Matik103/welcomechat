@@ -75,6 +75,7 @@ export function WebsiteResourcesSection({
           <WebsiteUrls 
             clientId={clientId}
             onResourceChange={onResourceChange}
+            logClientActivity={logClientActivity}
           />
         </CardContent>
       </Card>

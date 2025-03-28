@@ -1,18 +1,71 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 import { toast } from 'sonner';
 import { v4 as uuid } from 'uuid';
 
+// Helper function to ensure the bucket exists
+const ensureBucketExists = async (bucketName: string): Promise<void> => {
+  try {
+    // Check if the bucket exists
+    const { data: buckets, error: getBucketError } = await supabaseAdmin
+      .storage
+      .listBuckets();
+    
+    const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+    
+    if (!bucketExists) {
+      // Create the bucket if it doesn't exist
+      const { error: createBucketError } = await supabaseAdmin
+        .storage
+        .createBucket(bucketName, {
+          public: true  // Make the bucket public
+        });
+      
+      if (createBucketError) {
+        console.error('Error creating bucket:', createBucketError);
+        throw createBucketError;
+      }
+      
+      // Set a permissive policy on the bucket
+      const { error: policyError } = await supabaseAdmin
+        .storage
+        .from(bucketName)
+        .createPolicy('read_policy', {
+          name: 'Public Read Policy',
+          definition: {
+            permissionLevel: 'READ',
+            expression: 'true'
+          }
+        });
+      
+      if (policyError) {
+        console.error('Error creating bucket policy:', policyError);
+      }
+    }
+  } catch (error) {
+    console.error('Error ensuring bucket exists:', error);
+    throw error;
+  }
+};
+
 export const uploadLogo = async (file: File, clientId: string): Promise<{ url: string, path: string }> => {
   try {
+    const bucketName = 'client-assets';
+    
+    // Ensure the bucket exists
+    await ensureBucketExists(bucketName);
+    
     // Generate a unique file path
     const fileExt = file.name.split('.').pop();
     const filePath = `logos/${clientId}/${uuid()}.${fileExt}`;
     
+    console.log('Uploading file:', file.name, 'type:', file.type, 'size:', file.size);
+    
     // Upload the file to Supabase storage
     const { data, error } = await supabase
       .storage
-      .from('client-assets')
+      .from(bucketName)
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: true,
@@ -28,7 +81,7 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
     // Get the public URL
     const { data: publicUrlData } = supabase
       .storage
-      .from('client-assets')
+      .from(bucketName)
       .getPublicUrl(data.path);
     
     return {
