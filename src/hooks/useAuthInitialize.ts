@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useLocation } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
@@ -24,8 +23,14 @@ export const useAuthInitialize = ({
   setIsLoading,
   setAuthInitialized
 }: AuthInitializeProps) => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  // Use a navigation function that doesn't rely on react-router
+  const navigate = (path: string, options?: { replace?: boolean }) => {
+    if (options?.replace) {
+      window.location.replace(path);
+    } else {
+      window.location.href = path;
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -57,11 +62,12 @@ export const useAuthInitialize = ({
           sessionStorage.setItem('user_role_set', determinedUserRole);
           
           // Handle redirects if on auth page or at root
-          const isAuthPage = location.pathname === '/auth';
-          const isRootPage = location.pathname === '/';
-          const isOldAdminPage = !location.pathname.startsWith('/admin/') && 
-                               !location.pathname.startsWith('/client/') && 
-                               location.pathname !== '/auth';
+          const currentPath = window.location.pathname;
+          const isAuthPage = currentPath === '/auth';
+          const isRootPage = currentPath === '/';
+          const isOldAdminPage = !currentPath.startsWith('/admin/') && 
+                               !currentPath.startsWith('/client/') && 
+                               currentPath !== '/auth';
           
           if (isAuthPage || isRootPage || isOldAdminPage) {
             // Get the appropriate dashboard route
@@ -83,8 +89,9 @@ export const useAuthInitialize = ({
           setUserRole(null);
           sessionStorage.removeItem('user_role_set');
           
-          const isAuthPage = location.pathname === '/auth';
-          const isSetupPage = location.pathname.startsWith('/client/setup');
+          const currentPath = window.location.pathname;
+          const isAuthPage = currentPath === '/auth';
+          const isSetupPage = currentPath.startsWith('/client/setup');
               
           if (!isAuthPage && !isSetupPage) {
             console.log("No session, redirecting to auth page in init");
@@ -105,8 +112,9 @@ export const useAuthInitialize = ({
           sessionStorage.removeItem('user_role_set');
           
           // Redirect to auth page on error
-          const isAuthPage = location.pathname === '/auth';
-          const isSetupPage = location.pathname.startsWith('/client/setup');
+          const currentPath = window.location.pathname;
+          const isAuthPage = currentPath === '/auth';
+          const isSetupPage = currentPath.startsWith('/client/setup');
           
           if (!isAuthPage && !isSetupPage) {
             navigate('/auth', { replace: true });
@@ -121,8 +129,6 @@ export const useAuthInitialize = ({
       mounted = false;
     };
   }, [
-    navigate, 
-    location.pathname, 
     authInitialized, 
     setSession, 
     setUser, 

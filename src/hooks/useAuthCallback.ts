@@ -1,7 +1,6 @@
 
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 import { determineUserRole, getDashboardRoute } from "@/utils/authUtils";
@@ -21,7 +20,14 @@ export const useAuthCallback = ({
   setUserRole,
   setIsLoading
 }: AuthCallbackProps) => {
-  const navigate = useNavigate();
+  // Use a navigation function that doesn't rely on react-router
+  const navigate = (path: string, options?: { replace?: boolean }) => {
+    if (options?.replace) {
+      window.location.replace(path);
+    } else {
+      window.location.href = path;
+    }
+  };
 
   useEffect(() => {
     if (!isCallbackUrl) return;
@@ -124,5 +130,5 @@ export const useAuthCallback = ({
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [isCallbackUrl, navigate, setSession, setUser, setUserRole, setIsLoading]);
+  }, [isCallbackUrl, setSession, setUser, setUserRole, setIsLoading]);
 };
