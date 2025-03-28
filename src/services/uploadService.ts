@@ -7,15 +7,24 @@ import { v4 as uuid } from 'uuid';
 // Helper function to ensure the bucket exists
 const ensureBucketExists = async (bucketName: string): Promise<void> => {
   try {
+    console.log('Starting to check if bucket exists:', bucketName);
+    
     // Check if the bucket exists
     const { data: buckets, error: getBucketError } = await supabaseAdmin
       .storage
       .listBuckets();
     
+    if (getBucketError) {
+      console.error('Error listing buckets:', getBucketError);
+      throw getBucketError;
+    }
+    
     const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+    console.log('Bucket exists?', bucketExists);
     
     if (!bucketExists) {
       // Create the bucket if it doesn't exist
+      console.log('Creating bucket:', bucketName);
       const { error: createBucketError } = await supabaseAdmin
         .storage
         .createBucket(bucketName, {
@@ -27,9 +36,9 @@ const ensureBucketExists = async (bucketName: string): Promise<void> => {
         throw createBucketError;
       }
       
-      // Set bucket to public access
-      // Note: When we create a bucket with public:true, we don't need to set policies manually
-      console.log('Bucket created with public access:', bucketName);
+      console.log('Bucket created successfully with public access:', bucketName);
+    } else {
+      console.log('Bucket already exists:', bucketName);
     }
   } catch (error) {
     console.error('Error ensuring bucket exists:', error);

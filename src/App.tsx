@@ -52,7 +52,12 @@ function App() {
     if (!isAuthCallback) {
       sessionStorage.removeItem('auth_callback_processed');
     }
-  }, [isAuthCallback]);
+    
+    // Debug statements to help identify current state
+    console.log('Current path:', location.pathname);
+    console.log('User authenticated:', !!user);
+    console.log('User role:', userRole);
+  }, [isAuthCallback, location.pathname, user, userRole]);
   
   // Show loader during authentication
   if (isLoading) {
@@ -122,6 +127,7 @@ function App() {
         <Header />
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
+            <Route path="/" element={<Index />} />
             <Route path="/admin/dashboard" element={<Index />} />
             <Route path="/admin/clients" element={<ClientList />} />
             <Route path="/admin/agents" element={<Agents />} />
@@ -130,7 +136,6 @@ function App() {
             <Route path="/admin/clients/view/:clientId" element={<ClientView />} />
             <Route path="/admin/clients/:clientId/widget-settings" element={<WidgetSettings />} />
             <Route path="/admin/clients/:id/edit-info" element={<EditClientInfo />} />
-            <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
             <Route path="/auth" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/auth/callback" element={<Navigate to="/admin/dashboard" replace />} />
@@ -149,6 +154,7 @@ function App() {
       <ClientHeader />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
+          <Route path="/" element={<ClientDashboard />} />
           <Route path="/client/dashboard" element={<ClientDashboard />} />
           <Route path="/client/settings" element={<ClientSettings />} />
           <Route path="/client/account-settings" element={<AccountSettings />} />
@@ -157,7 +163,6 @@ function App() {
           <Route path="/client/widget-settings" element={<WidgetSettings />} />
           <Route path="/auth" element={<Navigate to="/client/dashboard" replace />} />
           <Route path="/auth/callback" element={<Navigate to="/client/dashboard" replace />} />
-          <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
           <Route path="/admin/*" element={<Navigate to="/client/dashboard" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
