@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,94 +97,7 @@ const ClientAuth = () => {
       console.error("Auth error:", error);
       
       if (error.message?.includes("Invalid login credentials")) {
-        try {
-          const { data: clientData, error: clientLookupError } = await supabase
-            .from('ai_agents')
-            .select('id, client_id')
-            .eq('email', email)
-            .eq('interaction_type', 'config')
-            .single();
-            
-          if (clientLookupError) {
-            console.error("Error looking up client by email for password check:", clientLookupError);
-            setErrorMessage("Invalid email or password. Please try again.");
-          } else if (clientData) {
-            const clientId = clientData.client_id || clientData.id;
-            console.log("Found client_id for password check:", clientId);
-            
-            const { data: tempPasswords, error: tempPasswordError } = await supabase
-              .from('client_temp_passwords')
-              .select('temp_password, id')
-              .eq('agent_id', clientId)
-              .order('created_at', { ascending: false })
-              .limit(1);
-              
-            if (tempPasswordError) {
-              console.error("Error checking temp passwords:", tempPasswordError);
-              setErrorMessage("Invalid email or password. Please make sure you're using the exact password from the welcome email.");
-            } 
-            else if (tempPasswords && tempPasswords.length > 0) {
-              const tempPassword = tempPasswords[0];
-              console.log("Found temp password record:", tempPassword.id);
-              
-              if (password !== tempPassword.temp_password) {
-                console.log("Password mismatch. Expected:", tempPassword.temp_password, "Got:", password);
-                const currentYear = new Date().getFullYear();
-                setErrorMessage(
-                  `The password you entered doesn't match. Please use the exact password from the welcome email (format: Welcome${currentYear}#XXX).`
-                );
-              } else {
-                console.log("Password matches stored temp password but login still failed");
-                setErrorMessage(
-                  "Your password appears correct but login failed. The account may not be properly set up."
-                );
-                
-                try {
-                  console.log("Attempting to recreate user account with matching password");
-                  const { data, error } = await supabase.functions.invoke(
-                    'create-client-user',
-                    {
-                      body: {
-                        email: email,
-                        client_id: clientId,
-                        temp_password: tempPassword.temp_password
-                      }
-                    }
-                  );
-                  
-                  if (error) {
-                    console.error("Error recreating user:", error);
-                  } else {
-                    console.log("User account recreated:", data);
-                    
-                    const { error: retryError } = await supabase.auth.signInWithPassword({
-                      email,
-                      password: tempPassword.temp_password,
-                    });
-                    
-                    if (retryError) {
-                      console.error("Retry sign in error:", retryError);
-                      setErrorMessage("Account recreated but sign in still failed. Please try again or contact support.");
-                    } else {
-                      console.log("Retry sign in successful after recreation");
-                      toast.success("Successfully signed in!");
-                    }
-                  }
-                } catch (createError) {
-                  console.error("Exception recreating user:", createError);
-                }
-              }
-            } else {
-              console.log("No temporary password found for client:", clientId);
-              setErrorMessage("No account found with this email address. Please check your email or contact support.");
-            }
-          } else {
-            setErrorMessage("Invalid email or password. Please try again.");
-          }
-        } catch (clientLookupError) {
-          console.error("Error in client lookup process:", clientLookupError);
-          setErrorMessage("An error occurred while verifying your credentials. Please try again.");
-        }
+        setErrorMessage("Invalid email or password. Please try again.");
       } else {
         setErrorMessage(error.message || "Failed to sign in");
       }

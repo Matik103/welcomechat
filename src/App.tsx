@@ -21,6 +21,7 @@ import { useEffect } from "react";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Agents from "@/pages/Agents";
+import ClientAuth from "@/pages/client/Auth";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();
@@ -28,7 +29,8 @@ function App() {
   
   const isAuthCallback = location.pathname.includes('/auth/callback');
   const isAuthPage = location.pathname === '/auth';
-  const isPublicRoute = isAuthPage || isAuthCallback || location.pathname === '/' || 
+  const isClientAuthPage = location.pathname === '/client/auth';
+  const isPublicRoute = isAuthPage || isClientAuthPage || isAuthCallback || location.pathname === '/' || 
                         location.pathname === '/about' || location.pathname === '/contact';
   
   useEffect(() => {
@@ -58,6 +60,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/auth/*" element={<Auth />} />
+          <Route path="/client/auth" element={<ClientAuth />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster />
@@ -70,6 +73,7 @@ function App() {
       <div className="min-h-screen bg-background">
         <Routes>
           <Route path="/auth/*" element={<Auth />} />
+          <Route path="/client/auth" element={<ClientAuth />} />
           <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>
         <Toaster />
