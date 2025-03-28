@@ -1,7 +1,7 @@
 
 import { ActivityType } from "@/types/activity";
 
-export const useClientActivity = () => {
+export const useClientActivity = (clientId?: string) => {
   /**
    * Create a client activity in the console log only (avoiding database)
    * This prevents the 'invalid input value for enum activity_type' error
@@ -31,8 +31,6 @@ export const useClientActivity = () => {
    * Log client activity without database operations
    */
   const logClientActivity = async (
-    clientId?: string,
-    clientName?: string,
     type: ActivityType | string = "unknown",
     description: string = "Client activity",
     metadata: any = {}
@@ -46,7 +44,7 @@ export const useClientActivity = () => {
       // Just log to console and don't attempt to write to database
       await createClientActivity(
         clientId,
-        clientName,
+        undefined, // clientName can be undefined
         type,
         description,
         metadata

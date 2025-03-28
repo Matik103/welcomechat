@@ -33,6 +33,10 @@ const ResourceSettings = () => {
         refresh_rate: data.refresh_rate,
         document_type: docType
       });
+      
+      // Log activity after successful addition
+      await logClientActivity("document_link_added", "Document link added successfully");
+      
       toast.success('Document link added successfully');
       setOpenAddDocumentDialog(false);
     } catch (error) {
@@ -50,7 +54,9 @@ const ResourceSettings = () => {
       <ClientResourceSections 
         clientId={clientId || ''}
         onResourceChange={() => {}}
-        logClientActivity={logClientActivity}
+        logClientActivity={async () => {
+          await logClientActivity("client_updated", "Resources updated");
+        }}
       />
     </div>
   );

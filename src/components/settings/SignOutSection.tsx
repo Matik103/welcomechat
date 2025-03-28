@@ -13,7 +13,7 @@ export function SignOutSection() {
   const handleSignOut = async () => {
     try {
       // Log the sign out activity
-      await logClientActivity();
+      await logClientActivity("login_failed", "User signed out");
       
       // Sign out
       await signOut();

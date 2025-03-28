@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { WidgetSettingsContainer } from "@/components/widget/WidgetSettingsContainer";
 import { useParams, useNavigate } from "react-router-dom";
@@ -34,7 +33,7 @@ export default function WidgetSettings() {
       if (clientId) {
         await updateWidgetSettings(clientId, newSettings);
         // Log the activity
-        await logClientActivity();
+        await logClientActivity("client_updated", "Widget settings updated");
       }
     },
     onSuccess: () => {
@@ -90,7 +89,7 @@ export default function WidgetSettings() {
 
   // Type-safe logClientActivity
   const logActivityWrapper = async (): Promise<void> => {
-    await logClientActivity();
+    await logClientActivity("client_updated", "Widget settings activity logged");
   };
 
   return (
