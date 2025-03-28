@@ -50,7 +50,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
         'system_update',
         'source_deleted',
         'source_added'
-      ] as Array<string>);
+      ] as ActivityType[]);
       
     if (countError) throw countError;
     
@@ -96,7 +96,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
         'system_update',
         'source_deleted',
         'source_added'
-      ] as Array<string>)
+      ] as ActivityType[])
       .gt('created_at', timeAgoStr);
       
     if (recentError) throw recentError;
