@@ -50,12 +50,6 @@ export const useAuthCallback = ({
           
           // Mark callback as processed to avoid duplicate processing
           sessionStorage.setItem('auth_callback_processed', 'true');
-          
-          // Redirect to appropriate page after callback is processed
-          if (typeof window !== 'undefined') {
-            const redirectPath = role === 'admin' ? '/admin/dashboard' : '/client/dashboard';
-            window.location.href = redirectPath;
-          }
         }
       } catch (err) {
         console.error("Error in auth callback:", err);
