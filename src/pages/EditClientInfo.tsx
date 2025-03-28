@@ -7,7 +7,7 @@ import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
 import { ClientFormData } from '@/types/client-form';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/hooks/useNavigation';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
@@ -76,6 +76,21 @@ export function EditClientInfo() {
     }
   };
 
+  // Error state UI
+  const renderErrorState = () => (
+    <div className="bg-destructive/10 text-destructive p-6 rounded-md mt-6 flex flex-col items-center">
+      <AlertTriangle className="h-12 w-12 mb-4" />
+      <h3 className="text-lg font-semibold mb-2">Error Loading Client Data</h3>
+      <p className="text-center mb-4">We couldn't load this client's information. The client may not exist or there might be an issue with the connection.</p>
+      <p className="text-sm opacity-80 mb-4">
+        Error details: {error instanceof Error ? error.message : String(error)}
+      </p>
+      <Button onClick={refetchClient} variant="outline">
+        Try Again
+      </Button>
+    </div>
+  );
+
   return (
     <div className="container mx-auto py-8">
       <Button 
@@ -101,8 +116,11 @@ export function EditClientInfo() {
           <span>Loading client information...</span>
         </div>
       ) : error ? (
-        <div className="bg-destructive/10 text-destructive p-4 rounded-md mt-6">
-          Error loading client: {error instanceof Error ? error.message : String(error)}
+        renderErrorState()
+      ) : !client ? (
+        <div className="bg-orange-100 text-orange-800 p-6 rounded-md mt-6">
+          <h3 className="text-lg font-semibold mb-2">Client Not Found</h3>
+          <p>We couldn't find the client with ID: {id}</p>
         </div>
       ) : (
         <div className="mt-6">

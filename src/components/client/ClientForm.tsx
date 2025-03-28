@@ -28,7 +28,7 @@ const clientFormSchema = z.object({
 });
 
 export function ClientForm({
-  initialData = {},
+  initialData = null,
   onSubmit,
   isLoading = false,
   error = null,
@@ -36,16 +36,19 @@ export function ClientForm({
 }: ClientFormProps) {
   const [submitting, setSubmitting] = useState(false);
   
+  // Safely extract values from initialData, ensuring undefined/null values are handled
+  const safeInitialData = {
+    client_name: initialData?.client_name || "",
+    email: initialData?.email || "",
+    agent_name: initialData?.name || initialData?.agent_name || 
+              (initialData?.widget_settings && initialData?.widget_settings.agent_name) || "",
+    agent_description: initialData?.agent_description || 
+                    (initialData?.widget_settings && initialData?.widget_settings.agent_description) || ""
+  };
+  
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: {
-      client_name: initialData?.client_name || "",
-      email: initialData?.email || "",
-      agent_name: initialData?.name || initialData?.agent_name || 
-                (initialData?.widget_settings?.agent_name) || "",
-      agent_description: initialData?.agent_description || 
-                      (initialData?.widget_settings?.agent_description) || ""
-    },
+    defaultValues: safeInitialData,
   });
 
   // Update form values when initialData changes

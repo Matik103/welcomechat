@@ -17,24 +17,27 @@ export const useClient = (clientId: string) => {
       try {
         console.log("Fetching client data for ID:", clientId);
         
-        // Query ai_agents table with config interaction_type for client configuration
+        // Modified approach: query without using .single() to avoid errors when no record found
         const { data, error } = await supabase
           .from('ai_agents')
           .select('*')
           .eq('client_id', clientId)
           .eq('interaction_type', 'config')
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .limit(1);
         
         if (error) {
           console.error("Error fetching from ai_agents by client_id:", error);
           throw error;
         }
         
-        if (!data) return null;
+        if (!data || data.length === 0) {
+          console.log("No client data found for ID:", clientId);
+          return null;
+        }
         
-        return mapAgentToClient(data);
+        // Use the first record returned
+        return mapAgentToClient(data[0]);
       } catch (error) {
         console.error("Error fetching client:", error);
         throw error;
@@ -48,6 +51,8 @@ export const useClient = (clientId: string) => {
 
 // Helper function to map ai_agents data to Client type
 function mapAgentToClient(agentData: any): Client {
+  if (!agentData) return createEmptyClient();
+  
   console.log("Raw agent data:", agentData);
   
   // Get the best client name
@@ -91,5 +96,31 @@ function mapAgentToClient(agentData: any): Client {
     widget_settings: settings,
     name: String(agentData.name || ''),
     is_error: agentData.is_error || false
+  };
+}
+
+// Create an empty client object when no data is found
+function createEmptyClient(): Client {
+  return {
+    id: '',
+    client_id: '',
+    user_id: '',
+    client_name: '',
+    company: '',
+    description: '',
+    email: '',
+    logo_url: '',
+    logo_storage_path: '',
+    created_at: '',
+    updated_at: '',
+    deletion_scheduled_at: null,
+    deleted_at: null,
+    status: 'active',
+    agent_name: '',
+    agent_description: '',
+    last_active: null,
+    widget_settings: {},
+    name: '',
+    is_error: false
   };
 }
