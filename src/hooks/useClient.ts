@@ -37,9 +37,11 @@ export const useClient = (clientId: string) => {
       const settings = client.settings || {};
       const parsedSettings = typeof settings === 'object' ? settings : {};
       
-      // Instead of directly accessing client.user_id, let's extract it from settings if available
-      // or set a default empty string
-      const userId = settings.user_id || '';
+      // Safely extract the user_id from settings when it's an object
+      let userId = '';
+      if (typeof settings === 'object' && settings !== null && 'user_id' in settings) {
+        userId = settings.user_id as string || '';
+      }
       
       return {
         id: client.id,
@@ -61,7 +63,7 @@ export const useClient = (clientId: string) => {
         widget_settings: parsedSettings,
         name: client.name || '',
         is_error: client.is_error || false,
-        user_id: userId // Using the extracted userId
+        user_id: userId // Using the safely extracted userId
       };
     } catch (error) {
       console.error("Error in fetchClient:", error);
