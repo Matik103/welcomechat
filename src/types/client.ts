@@ -23,7 +23,7 @@ export interface Client {
   // Adding name field for backward compatibility
   name?: string;
   is_error?: boolean;
-  user_id?: string; // Added for compatibility
+  user_id: string; // Ensure this is required
 }
 
 // Export these types from client-dashboard.ts to avoid circular dependencies

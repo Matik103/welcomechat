@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from 'sonner';
@@ -8,7 +7,7 @@ import { execSql } from '@/utils/rpcUtils';
 import { ChatInteraction } from '@/types/agent';
 
 export const useClientViewData = (clientId: string) => {
-  const { client, isLoading: isLoadingClient, error: clientError } = useClient(clientId);
+  const clientQuery = useClient(clientId);
   const { chatHistory, isLoading: isLoadingChatHistory } = useClientChatHistory(clientId);
   const [errorLogs, setErrorLogs] = useState([]);
   const [commonQueries, setCommonQueries] = useState([]);
@@ -23,11 +22,11 @@ export const useClientViewData = (clientId: string) => {
 
   // Show client error toast only once
   useEffect(() => {
-    if (clientError) {
+    if (clientQuery.error) {
       toast.error("Failed to load client information");
-      console.error("Client error:", clientError);
+      console.error("Client error:", clientQuery.error);
     }
-  }, [clientError]);
+  }, [clientQuery.error]);
 
   useEffect(() => {
     const fetchErrorLogs = async () => {
@@ -117,7 +116,7 @@ export const useClientViewData = (clientId: string) => {
     };
 
     const fetchAgentStats = async () => {
-      if (!clientId || !client?.agent_name) return;
+      if (!clientId || !clientQuery.data?.agent_name) return;
       
       try {
         // Get basic stats directly
@@ -183,10 +182,10 @@ export const useClientViewData = (clientId: string) => {
       fetchCommonQueries();
     }
 
-    if (clientId && client) {
+    if (clientId && clientQuery.data) {
       fetchAgentStats();
     }
-  }, [clientId, client]);
+  }, [clientId, clientQuery.data]);
 
   // Subscribe to updates
   useEffect(() => {
@@ -234,9 +233,9 @@ export const useClientViewData = (clientId: string) => {
   }, [clientId]);
 
   return {
-    client,
-    isLoadingClient,
-    clientError,
+    client: clientQuery.data,
+    isLoadingClient: clientQuery.isLoading,
+    clientError: clientQuery.error,
     chatHistory,
     isLoadingChatHistory,
     errorLogs,

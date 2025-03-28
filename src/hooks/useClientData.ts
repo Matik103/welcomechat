@@ -21,21 +21,16 @@ export const useClientData = (id: string | undefined) => {
   console.log("useClientData: user role =", userRole);
   console.log("useClientData: using clientId =", clientId);
   
-  const { 
-    client, 
-    isLoading, 
-    error,
-    refetch
-  } = useClient(clientId || '');
+  const clientQuery = useClient(clientId || '');
   
   const clientMutation = useClientMutation();
 
   return {
-    client,
-    isLoadingClient: isLoading,
-    error,
+    client: clientQuery.data,
+    isLoadingClient: clientQuery.isLoading,
+    error: clientQuery.error,
     clientMutation,
     clientId: clientId, // Keep the property name as clientId for backward compatibility
-    refetchClient: refetch
+    refetchClient: clientQuery.refetch
   };
 };

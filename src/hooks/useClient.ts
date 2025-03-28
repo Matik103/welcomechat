@@ -57,7 +57,7 @@ export const useClient = (clientId: string) => {
         widget_settings: parsedSettings,
         name: client.name || '',
         is_error: client.is_error || false,
-        user_id: client.user_id || ''
+        user_id: client.user_id || '' // Ensure we have this property
       };
     } catch (error) {
       console.error("Error in fetchClient:", error);
