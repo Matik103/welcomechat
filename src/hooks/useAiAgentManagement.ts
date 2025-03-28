@@ -1,6 +1,14 @@
+
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+
+// Define the mutation variable types for better type safety
+interface UpdateAgentStatusParams {
+  clientId: string;
+  agentName: string;
+  status: 'active' | 'inactive' | 'deleted';
+}
 
 export function useAiAgentManagement() {
   const [isCreating, setIsCreating] = useState(false);
@@ -104,8 +112,9 @@ export function useAiAgentManagement() {
     }
   };
   
-  const updateAgentStatusMutation = useMutation(
-    async ({ clientId, agentName, status }: { clientId: string; agentName: string; status: 'active' | 'inactive' | 'deleted' }) => {
+  // Fixed mutation to properly type the mutation parameters and return type
+  const updateAgentStatusMutation = useMutation({
+    mutationFn: async ({ clientId, agentName, status }: UpdateAgentStatusParams) => {
       setIsUpdating(true);
       setError(null);
       
@@ -123,23 +132,26 @@ export function useAiAgentManagement() {
       
       return data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['ai-agents']);
-      },
-      onSettled: () => {
-        setIsUpdating(false);
-      },
-    }
-  );
+    onSuccess: () => {
+      // Fixed the invalidation query format
+      queryClient.invalidateQueries({ queryKey: ['ai-agents'] });
+    },
+    onSettled: () => {
+      setIsUpdating(false);
+    },
+  });
 
   const deleteAiAgent = async (clientId: string, agentName: string) => {
     setIsDeleting(true);
     setError(null);
     
     try {
-      // First, update the agent status to 'deleted'
-      await updateAgentStatusMutation.mutateAsync({ clientId, agentName, status: 'deleted' });
+      // Fixed the mutation call to match the expected parameter type
+      await updateAgentStatusMutation.mutateAsync({ 
+        clientId, 
+        agentName, 
+        status: 'deleted' 
+      });
       
       // Log to console instead of creating activity
       console.log("[Activity Log] AI Agent deleted", {
