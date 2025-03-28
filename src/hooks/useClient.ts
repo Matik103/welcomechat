@@ -1,9 +1,10 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
 import { callRpcFunctionSafe } from '@/utils/rpcUtils';
 
-export const useClient = (clientId: string) => {
+export const useClient = (clientId: string, options = {}) => {
   const { 
     data: client, 
     isLoading, 
@@ -82,6 +83,7 @@ export const useClient = (clientId: string) => {
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     retry: 3, // Retry failed requests 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    ...options
   });
 
   return { client, isLoading, error, refetch };
