@@ -31,6 +31,7 @@ export function WebsiteUrlForm({ onAdd, onSubmit, isAdding = false, isSubmitting
         return;
       }
       
+      // Prevent default navigation
       await submitFunction(data);
       form.reset();
     } catch (error) {

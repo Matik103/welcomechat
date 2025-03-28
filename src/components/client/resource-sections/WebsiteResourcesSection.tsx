@@ -1,180 +1,83 @@
 
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { WebsiteUrlForm } from '../website-urls/WebsiteUrlForm';
-import { WebsiteUrlsList } from '../website-urls/WebsiteUrlsList'; 
-import { useWebsiteUrls } from '@/hooks/useWebsiteUrls';
-import { useStoreWebsiteContent } from '@/hooks/useStoreWebsiteContent';
-import { WebsiteUrl, WebsiteUrlFormData } from '@/types/website-url';
-import { PlusCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { WebsiteUrlForm } from "../website-urls/WebsiteUrlForm";
+import { WebsiteUrls } from "../website-urls";
+import { useWebsiteUrlsMutation } from "@/hooks/website-urls/useWebsiteUrlsMutation";
 
 interface WebsiteResourcesSectionProps {
   clientId: string;
-  onResourceChange?: () => void;
   logClientActivity: () => Promise<void>;
+  onResourceChange?: () => void;
 }
 
 export function WebsiteResourcesSection({ 
-  clientId,
-  onResourceChange,
-  logClientActivity
+  clientId, 
+  logClientActivity,
+  onResourceChange
 }: WebsiteResourcesSectionProps) {
-  const [showForm, setShowForm] = useState(false);
-  const [isStoring, setIsStoring] = useState(false);
-  const [processingWebsiteId, setProcessingWebsiteId] = useState<number | null>(null);
-  
-  // Get website URLs data and mutations
+  const [isAddingUrl, setIsAddingUrl] = useState(false);
   const { 
-    websiteUrls,
-    refetchWebsiteUrls,
-    addWebsiteUrlMutation,
-    deleteWebsiteUrlMutation,
-    isLoading, 
-    isError
-  } = useWebsiteUrls(clientId);
-  
-  // Get content storage mutation
-  const storeContentMutation = useStoreWebsiteContent(clientId);
-  
-  // Handle submitting new website URL
-  const handleSubmit = async (data: WebsiteUrlFormData): Promise<void> => {
+    addWebsiteUrl, 
+    addWebsiteUrlMutation, 
+  } = useWebsiteUrlsMutation(clientId);
+
+  const handleAddUrl = async (data: { url: string; refresh_rate: number }) => {
+    setIsAddingUrl(true);
     try {
-      await addWebsiteUrlMutation.mutateAsync({
+      await addWebsiteUrl({
+        client_id: clientId,
         url: data.url,
         refresh_rate: data.refresh_rate,
-        client_id: clientId
+        status: 'pending'
       });
       
       // Log activity
       await logClientActivity();
       
-      // Hide the form after successful submission
-      setShowForm(false);
-      
-      // Notify parent component about the change
-      if (onResourceChange) {
-        onResourceChange();
-      }
-      
-      // Refetch to get the latest data
-      refetchWebsiteUrls();
-      
-      toast.success('Website URL added successfully');
-    } catch (error) {
-      console.error('Error adding website URL:', error);
-      toast.error('Failed to add website URL');
-    }
-  };
-  
-  // Handle deleting a website URL
-  const handleDelete = async (urlId: number) => {
-    try {
-      await deleteWebsiteUrlMutation.mutateAsync(urlId);
-      
-      // Log activity
-      await logClientActivity();
-      
-      // Notify parent component about the change
-      if (onResourceChange) {
-        onResourceChange();
-      }
-      
-      toast.success('Website URL deleted successfully');
-    } catch (error) {
-      console.error('Error deleting website URL:', error);
-      toast.error('Failed to delete website URL');
-    }
-  };
-  
-  // Handle processing website content
-  const handleProcessWebsite = async (website: WebsiteUrl) => {
-    try {
-      setIsStoring(true);
-      setProcessingWebsiteId(website.id);
-      
-      // Store the website content
-      const result = await storeContentMutation.mutateAsync(website);
-      
-      // Log activity based on the result
-      if (result.success) {
-        await logClientActivity();
-        toast.success(`Website processed successfully`);
-      } else {
-        await logClientActivity();
-        toast.error(`Failed to process website: ${result.error}`);
-      }
-      
-      // Refetch to get updated status
-      refetchWebsiteUrls();
-      
-      // Notify parent component about the change
+      // Notify parent component if needed
       if (onResourceChange) {
         onResourceChange();
       }
     } catch (error) {
-      console.error('Error processing website:', error);
-      toast.error('Failed to process website');
-      
-      // Log the error
-      await logClientActivity();
+      console.error("Error adding website URL:", error);
     } finally {
-      setIsStoring(false);
-      setProcessingWebsiteId(null);
+      setIsAddingUrl(false);
     }
   };
-  
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Website Resources</CardTitle>
-          <CardDescription>Add and manage website URLs for your AI agent</CardDescription>
-        </div>
-        <Button 
-          size="sm" 
-          onClick={() => setShowForm(!showForm)}
-          variant={showForm ? "outline" : "default"}
-          className={!showForm ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
-        >
-          <PlusCircle className="h-4 w-4 mr-2" />
-          {showForm ? "Cancel" : "Add Website"}
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {showForm && (
-          <div className="mb-6">
-            <WebsiteUrlForm 
-              onSubmit={handleSubmit}
-              onAdd={handleSubmit}
-              isSubmitting={addWebsiteUrlMutation.isPending}
-              isAdding={addWebsiteUrlMutation.isPending}
-              agentName="AI Assistant"
-              clientId={clientId}
-            />
-          </div>
-        )}
-        
-        {websiteUrls && websiteUrls.length > 0 ? (
-          <WebsiteUrlsList 
-            urls={websiteUrls}
-            onDelete={handleDelete}
-            onProcess={handleProcessWebsite}
-            isDeleting={deleteWebsiteUrlMutation.isPending}
-            isProcessing={isStoring}
-            deletingId={processingWebsiteId}
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Website URLs</CardTitle>
+          <CardDescription>
+            Add website URLs that your AI assistant can learn from
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WebsiteUrlForm 
+            onAdd={handleAddUrl} 
+            isAdding={isAddingUrl || addWebsiteUrlMutation.isPending}
+            clientId={clientId}
           />
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            {isLoading ? (
-              "Loading website URLs..."
-            ) : (
-              "No website URLs added yet. Add your first website URL to get started."
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Existing Website URLs</CardTitle>
+          <CardDescription>
+            Manage the websites your AI assistant uses as knowledge sources
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WebsiteUrls 
+            clientId={clientId}
+            onResourceChange={onResourceChange}
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

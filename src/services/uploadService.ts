@@ -15,7 +15,8 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
       .from('client-assets')
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: true
+        upsert: true,
+        contentType: file.type // Explicitly set the content type
       });
     
     if (error) {
@@ -49,15 +50,15 @@ export const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement
   }
   
   // Validate file type
-  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
+  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
   if (!validTypes.includes(file.type)) {
-    toast.error('Please upload a valid image file (JPEG, PNG, GIF, or SVG)');
+    toast.error('Please upload a valid image file (JPEG, PNG, GIF, SVG, or WebP)');
     return null;
   }
   
-  // Validate file size (max 2MB)
-  if (file.size > 2 * 1024 * 1024) {
-    toast.error('File size should be less than 2MB');
+  // Validate file size (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('File size should be less than 5MB');
     return null;
   }
   

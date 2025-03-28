@@ -14,6 +14,7 @@ import { FormErrorMessage } from '@/components/ui/form-error-message';
 import { LogoManagement } from '@/components/widget/LogoManagement';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { uploadLogo } from '@/services/uploadService';
 
 // Define the schema for form validation
 const clientFormSchema = z.object({
@@ -41,6 +42,7 @@ export function ClientForm({
   const [logoUrl, setLogoUrl] = useState<string>(initialData?.logo_url || '');
   const [logoStoragePath, setLogoStoragePath] = useState<string>(initialData?.logo_storage_path || '');
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [formError, setFormError] = useState<string | null>(error || null);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
@@ -58,38 +60,22 @@ export function ClientForm({
     
     try {
       setIsUploadingLogo(true);
+      setFormError(null);
       
-      // Generate a unique file path for the logo
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `logos/${initialData?.client_id || 'new'}/${fileName}`;
+      // Use clientId if available, otherwise use 'new' as a placeholder
+      const effectiveClientId = initialData?.client_id || 'new';
       
-      // Upload the file to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('document-storage')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-        
-      if (error) {
-        toast.error(`Upload failed: ${error.message}`);
-        throw error;
-      }
-      
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('document-storage')
-        .getPublicUrl(data.path);
+      // Upload the logo using the uploadLogo service
+      const result = await uploadLogo(file, effectiveClientId);
       
       // Update state with the new logo URL
-      setLogoUrl(publicUrl);
-      setLogoStoragePath(data.path);
+      setLogoUrl(result.url);
+      setLogoStoragePath(result.path);
       
       toast.success('Logo uploaded successfully');
     } catch (error) {
       console.error('Error uploading logo:', error);
-      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setFormError(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUploadingLogo(false);
     }
@@ -101,10 +87,15 @@ export function ClientForm({
     try {
       setIsUploadingLogo(true);
       
+      // Parse the storage path to get the bucket and file path
+      const pathParts = logoStoragePath.split('/');
+      const bucket = 'client-assets';
+      const filePath = logoStoragePath;
+      
       // Delete the file from storage
       const { error } = await supabase.storage
-        .from('document-storage')
-        .remove([logoStoragePath]);
+        .from(bucket)
+        .remove([filePath]);
         
       if (error) {
         toast.error(`Failed to remove logo: ${error.message}`);
@@ -118,7 +109,7 @@ export function ClientForm({
       toast.success('Logo removed successfully');
     } catch (error) {
       console.error('Error removing logo:', error);
-      toast.error(`Failed to remove logo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setFormError(`Failed to remove logo: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUploadingLogo(false);
     }
@@ -126,6 +117,7 @@ export function ClientForm({
 
   const processFormSubmit = async (data: ClientFormData) => {
     try {
+      setFormError(null);
       // Include logo URL and storage path in the form data
       await onSubmit({
         ...data,
@@ -134,13 +126,13 @@ export function ClientForm({
       });
     } catch (error) {
       console.error("Error submitting form:", error);
-      toast.error(`Failed to update client: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setFormError(`Failed to update client: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   return (
     <form onSubmit={handleSubmit(processFormSubmit)} className="space-y-6">
-      {error && <FormErrorMessage message={error} />}
+      {(formError || error) && <FormErrorMessage message={formError || error} />}
       
       <div className="space-y-4">
         <div className="space-y-2">
