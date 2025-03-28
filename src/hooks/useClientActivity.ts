@@ -36,6 +36,8 @@ export const useClientActivity = (clientId?: string) => {
     // Only use the provided type if it's in our safe list
     if (SAFE_ACTIVITY_TYPES.includes(type as string)) {
       safeType = type as string;
+    } else {
+      console.warn(`Activity type "${type}" is not in the safe list, using "client_updated" instead`);
     }
     
     try {
@@ -75,7 +77,7 @@ export const useClientActivity = (clientId?: string) => {
   ) => {
     if (!clientId) {
       console.warn("Cannot log client activity: No client ID provided");
-      return;
+      return { success: false, error: "No client ID provided" };
     }
 
     try {

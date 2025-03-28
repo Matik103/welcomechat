@@ -66,7 +66,7 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         // Set safe type for activity logging
-        type: "client_created" 
+        type: "document_added" // Using a safe type from our list
       };
       
       // Insert the record
