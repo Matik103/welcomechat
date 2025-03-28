@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { WidgetSettings as IWidgetSettings } from "@/types/widget-settings";
+import { WidgetSettings } from "@/types/client-form";
 import { WidgetSettingsForm } from "@/components/widget/WidgetSettingsForm";
 import { WidgetSettingsHeader } from "@/components/widget/WidgetSettingsHeader";
 import { WidgetPreviewCard } from "@/components/widget/WidgetPreviewCard";
@@ -11,12 +11,12 @@ import { toast } from "sonner";
 
 interface WidgetSettingsContainerProps {
   clientId?: string;
-  settings: IWidgetSettings;
+  settings: WidgetSettings;
   isClientView: boolean;
   isUploading: boolean;
   updateSettingsMutation: {
     isPending: boolean;
-    mutateAsync: (newSettings: IWidgetSettings) => Promise<void>;
+    mutateAsync: (newSettings: WidgetSettings) => Promise<void>;
   };
   handleBack: () => void;
   handleLogoUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
@@ -33,9 +33,9 @@ export function WidgetSettingsContainer({
   handleLogoUpload,
   logClientActivity
 }: WidgetSettingsContainerProps) {
-  const [currentSettings, setCurrentSettings] = useState<IWidgetSettings>(settings);
+  const [currentSettings, setCurrentSettings] = useState<WidgetSettings>(settings);
 
-  const handleSettingsChange = (newSettings: Partial<IWidgetSettings>) => {
+  const handleSettingsChange = (newSettings: Partial<WidgetSettings>) => {
     setCurrentSettings({ ...currentSettings, ...newSettings });
   };
 

@@ -8,20 +8,9 @@ const defaultSettings: WidgetSettings = {
   agent_description: 'Your helpful AI assistant',
   logo_url: '',
   logo_storage_path: '',
-  chat_color: '#3b82f6',
-  background_color: '#ffffff',
-  button_color: '#3b82f6',
-  font_color: '#000000',
-  chat_font_color: '#ffffff',
-  background_opacity: 0.9,
-  button_text: 'Chat',
-  position: 'right',
-  greeting_message: 'Hello! How can I help you today?',
-  text_color: '#000000',
-  secondary_color: '#f3f4f6',
-  welcome_text: 'Welcome to our chat assistant',
-  response_time_text: 'Responds in a few seconds',
-  display_mode: 'auto'
+  initial_message: 'Hello! How can I help you today?',
+  placement: 'bottom-right',
+  primary_color: '#3b82f6'
 };
 
 /**
@@ -62,11 +51,6 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
       ...settingsObj
     };
     
-    // Make sure button_color is set if it's missing
-    if (!mergedSettings.button_color) {
-      mergedSettings.button_color = defaultSettings.button_color;
-    }
-    
     return mergedSettings as WidgetSettings;
   } catch (error) {
     console.error('Error getting widget settings:', error);
@@ -90,11 +74,6 @@ export async function updateWidgetSettings(
       ...currentSettings,
       ...settings
     };
-    
-    // Make sure button_color is set if it's missing
-    if (!updatedSettings.button_color) {
-      updatedSettings.button_color = defaultSettings.button_color;
-    }
     
     // Update the settings in the database
     const { error } = await supabase
