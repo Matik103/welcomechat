@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin, isAdminClientConfigured } from '@/integrations/supabase/client-admin';
 import { toast } from 'sonner';
 import { v4 as uuid } from 'uuid';
+import ErrorDisplay from '@/components/ErrorDisplay';
 
 // Helper function to ensure the bucket exists
 const ensureBucketExists = async (bucketName: string): Promise<boolean> => {
@@ -25,7 +26,7 @@ const ensureBucketExists = async (bucketName: string): Promise<boolean> => {
       console.error('Error listing buckets:', getBucketError);
       
       // If we get an invalid signature error, it means the service role key is invalid
-      if (getBucketError.message.includes('invalid signature')) {
+      if (getBucketError.message?.includes('invalid signature')) {
         toast.error('Authentication error: Invalid Supabase service role key');
         return false;
       }
@@ -58,7 +59,7 @@ const ensureBucketExists = async (bucketName: string): Promise<boolean> => {
         .from(bucketName)
         .createSignedUrl('dummy.txt', 60); // This is just to test if we have access
       
-      if (policyError && !policyError.message.includes('not found')) {
+      if (policyError && !policyError.message?.includes('not found')) {
         console.error('Error checking bucket policy:', policyError);
       }
       
@@ -114,7 +115,7 @@ export const uploadLogo = async (file: File, clientId: string): Promise<{ url: s
       console.error('Error uploading logo:', uploadError);
       
       // If permission denied, try with admin client
-      if (uploadError.message.includes('Permission denied')) {
+      if (uploadError.message?.includes('Permission denied')) {
         console.log('Retrying upload with admin client...');
         const adminUploadResult = await supabaseAdmin
           .storage

@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/hooks/useNavigation';
 import { ClientResourceSections } from '@/components/client/ClientResourceSections';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { isAdminClientConfigured } from '@/integrations/supabase/client-admin';
+import ErrorDisplay from '@/components/ErrorDisplay';
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +21,7 @@ export function EditClientInfo() {
   const isAdmin = userRole === 'admin';
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('profile');
+  const [serviceKeyError, setServiceKeyError] = useState<boolean>(!isAdminClientConfigured());
   
   const { 
     client, 
@@ -53,6 +56,10 @@ export function EditClientInfo() {
     navigation.goBack();
   };
 
+  const handleRetryServiceKey = () => {
+    setServiceKeyError(!isAdminClientConfigured());
+  };
+
   // Function to log client activity
   const logClientActivity = async () => {
     try {
@@ -65,6 +72,17 @@ export function EditClientInfo() {
       return Promise.reject(error);
     }
   };
+
+  if (serviceKeyError) {
+    return (
+      <ErrorDisplay 
+        title="Supabase Service Role Key Missing"
+        message="The Supabase service role key is missing or invalid. Logo upload functionality requires this key."
+        details="To fix this issue, add your Supabase service role key to the .env file as VITE_SUPABASE_SERVICE_ROLE_KEY. This key is required for logo uploads and storage bucket management."
+        onRetry={handleRetryServiceKey}
+      />
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">

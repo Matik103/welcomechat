@@ -9,12 +9,12 @@ export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://mgjodi
 const SUPABASE_SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "";
 
 // Check if we have a valid service role key
-const hasValidServiceKey = SUPABASE_SERVICE_KEY && SUPABASE_SERVICE_KEY.startsWith('eyJ');
+const hasValidServiceKey = SUPABASE_SERVICE_KEY && SUPABASE_SERVICE_KEY.length > 20;
 
 // Create the admin client with the service role key (if available)
 export const supabaseAdmin = createClient<Database>(
   SUPABASE_URL, 
-  SUPABASE_SERVICE_KEY, 
+  SUPABASE_SERVICE_KEY || 'MISSING_SERVICE_KEY', // Fallback to prevent runtime error
   {
     auth: {
       persistSession: false,
@@ -44,14 +44,14 @@ export const initializeBotLogosBucket = async (): Promise<boolean> => {
       console.error("Error listing buckets:", listError);
       
       // If we get an invalid signature error, it means the service role key is invalid
-      if (listError.message.includes('invalid signature')) {
+      if (listError.message?.includes('invalid signature')) {
         toast.error('Authentication error: Invalid Supabase service role key');
       }
       
       return false;
     }
     
-    const bucketExists = buckets.some(bucket => bucket.name === 'bot-logos');
+    const bucketExists = buckets?.some(bucket => bucket.name === 'bot-logos');
     
     if (!bucketExists) {
       console.log('Creating bot-logos bucket...');
