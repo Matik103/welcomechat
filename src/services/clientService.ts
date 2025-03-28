@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
 import { JsonObject } from "@/types/supabase-extensions";
