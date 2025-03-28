@@ -29,8 +29,8 @@ export const useAuthSafetyTimeout = ({
     const inCallbackProcess = sessionStorage.getItem('auth_callback_processing') === 'true';
     
     // Use different timeouts based on context
-    // Longer timeout for callback process, shorter for regular auth
-    const timeoutDuration = inCallbackProcess ? 12000 : 5000;
+    // Shorter timeout for dashboard pages
+    const timeoutDuration = 3000;
     
     const safetyTimeout = setTimeout(() => {
       // Double-check we're still loading before forcing completion

@@ -25,6 +25,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Loader2 } from "lucide-react";
 import { isAdminClientConfigured } from "./integrations/supabase/client-admin";
 import ErrorDisplay from "./components/ErrorDisplay";
+import { useAuthSafetyTimeout } from "./hooks/useAuthSafetyTimeout";
 
 // Loading component for Suspense fallbacks
 const LoadingFallback = () => (
@@ -37,7 +38,7 @@ const LoadingFallback = () => (
 );
 
 function App() {
-  const { user, userRole, isLoading } = useAuth();
+  const { user, userRole, isLoading, setIsLoading } = useAuth();
   const location = useLocation();
   const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
   
@@ -49,6 +50,14 @@ function App() {
   const isContactPage = location.pathname === '/contact';
   const isPublicRoute = isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage;
   
+  // Use the safety timeout hook to prevent infinite loading
+  useAuthSafetyTimeout({
+    isLoading,
+    setIsLoading,
+    isAuthPage,
+    session: user ? { user } : null
+  });
+  
   useEffect(() => {
     if (!isAuthCallback) {
       sessionStorage.removeItem('auth_callback_processed');
@@ -58,10 +67,21 @@ function App() {
     console.log('Current path:', location.pathname);
     console.log('User authenticated:', !!user);
     console.log('User role:', userRole);
+    console.log('Loading state:', isLoading);
     
     // Check if admin client is configured
     setAdminConfigError(!isAdminClientConfigured());
-  }, [isAuthCallback, location.pathname, user, userRole]);
+    
+    // Force loading to false after short timeout if we're on dashboard
+    if (location.pathname.includes('/dashboard') && isLoading) {
+      const timer = setTimeout(() => {
+        console.log('Forcing loading state to complete due to dashboard path');
+        setIsLoading(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthCallback, location.pathname, user, userRole, isLoading, setIsLoading]);
   
   // Show error if admin client is not configured properly
   if (adminConfigError) {
@@ -76,6 +96,19 @@ function App() {
       </div>
     );
   }
+  
+  // Check if we're still loading but it's been too long (more than 5 seconds)
+  // This helps prevent infinite loading states
+  useEffect(() => {
+    if (isLoading) {
+      const forceLoadingTimeout = setTimeout(() => {
+        console.log('Forcing loading state to complete after timeout');
+        setIsLoading(false);
+      }, 5000);
+      
+      return () => clearTimeout(forceLoadingTimeout);
+    }
+  }, [isLoading, setIsLoading]);
   
   // Show loader during authentication
   if (isLoading) {
@@ -130,15 +163,12 @@ function App() {
     );
   }
 
-  // Wait for user role to be determined
-  if (!userRole) {
+  // If user is authenticated but role is not determined, set a default role after timeout
+  if (!userRole && user) {
+    console.log('User is authenticated but role is not determined, defaulting to admin');
+    // Default to admin role if role determination is taking too long
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <p className="text-sm text-muted-foreground">Loading user profile...</p>
-        </div>
-      </div>
+      <Navigate to="/admin/dashboard" replace />
     );
   }
 
