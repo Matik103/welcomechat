@@ -51,6 +51,7 @@
     "date-fns": "^3.6.0",
     "dotenv": "^16.4.7",
     "embla-carousel-react": "^8.3.0",
+    "esbuild": "^0.25.1",
     "input-otp": "^1.2.4",
     "llamaindex": "^0.1.15",
     "lucide-react": "^0.462.0",
@@ -87,7 +88,7 @@
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vite": "^5.4.1",
+    "vite": "^6.2.3",
     "vite-node": "^3.0.9"
   }
 }
