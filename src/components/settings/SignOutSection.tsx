@@ -12,7 +12,7 @@ export function SignOutSection() {
 
   const handleSignOut = async () => {
     try {
-      // Log the sign out activity with safe type
+      // Log the sign out activity
       await logClientActivity("client_updated", "User signed out");
       
       // Sign out

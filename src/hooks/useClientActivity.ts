@@ -26,7 +26,7 @@ export const useClientActivity = (clientId?: string) => {
   const createClientActivity = async (
     clientId: string,
     clientName: string | undefined,
-    type: ActivityType | string,
+    type: ActivityType,
     description: string,
     metadata: any = {}
   ) => {
@@ -35,7 +35,7 @@ export const useClientActivity = (clientId?: string) => {
     
     // Only use the provided type if it's in our safe list
     if (SAFE_ACTIVITY_TYPES.includes(type as string)) {
-      safeType = type as ActivityType;
+      safeType = type;
     } else {
       console.warn(`Activity type "${type}" is not in the safe list, using "client_updated" instead`);
     }
@@ -71,7 +71,7 @@ export const useClientActivity = (clientId?: string) => {
    * Log client activity with fallback to safe activity type
    */
   const logClientActivity = async (
-    type: ActivityType | string = "client_updated",
+    type: ActivityType = "client_updated",
     description: string = "Client activity",
     metadata: any = {}
   ) => {
