@@ -1,8 +1,11 @@
 
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useNavigation = () => {
   const navigate = useNavigate();
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
   
   return {
     goToClientList: () => navigate('/admin/clients'),
@@ -15,6 +18,12 @@ export const useNavigation = () => {
     goToClientDashboard: () => navigate('/client/dashboard'),
     goToAdminDashboard: () => navigate('/admin/dashboard'),
     goToSettings: () => navigate('/admin/settings'),
-    goBack: () => navigate(-1),
+    goBack: () => {
+      if (isAdmin) {
+        navigate('/admin/clients');
+      } else {
+        navigate('/client/dashboard');
+      }
+    },
   };
 };

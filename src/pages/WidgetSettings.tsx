@@ -11,6 +11,8 @@ import { handleLogoUpload } from "@/services/uploadService";
 import { WidgetSettings as IWidgetSettings } from "@/types/widget-settings";
 import { toast } from "sonner";
 import { defaultSettings } from "@/types/widget-settings";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function WidgetSettings() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -52,7 +54,7 @@ export default function WidgetSettings() {
 
   const handleNavigateBack = () => {
     if (isAdmin) {
-      navigate(`/admin/clients/${clientId}`);
+      navigate(`/admin/clients`);
     } else {
       navigate("/client/dashboard");
     }
@@ -95,16 +97,28 @@ export default function WidgetSettings() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <WidgetSettingsContainer
-        clientId={clientId}
-        settings={settings || defaultSettings}
-        isClientView={!isAdmin}
-        isUploading={isUploading}
-        updateSettingsMutation={updateSettingsWrapper}
-        handleBack={handleNavigateBack}
-        handleLogoUpload={handleLogoUploadChange}
-        logClientActivity={logActivityWrapper}
-      />
+      <div className="container mx-auto px-4 py-8">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="mb-4 flex items-center gap-1"
+          onClick={handleNavigateBack}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Clients
+        </Button>
+        
+        <WidgetSettingsContainer
+          clientId={clientId}
+          settings={settings || defaultSettings}
+          isClientView={!isAdmin}
+          isUploading={isUploading}
+          updateSettingsMutation={updateSettingsWrapper}
+          handleBack={handleNavigateBack}
+          handleLogoUpload={handleLogoUploadChange}
+          logClientActivity={logActivityWrapper}
+        />
+      </div>
     </div>
   );
 }

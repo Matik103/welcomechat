@@ -1,14 +1,21 @@
 
 import React from 'react';
 import { useClientData } from '@/hooks/useClientData';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeading } from '@/components/dashboard/PageHeading';
 import { ClientForm } from '@/components/client/ClientForm';
 import { toast } from 'sonner';
 import { ClientFormData } from '@/types/client-form';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function EditClientInfo() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
+  
   const { 
     client, 
     isLoadingClient,
@@ -36,8 +43,26 @@ export function EditClientInfo() {
     }
   };
 
+  const handleNavigateBack = () => {
+    if (isAdmin) {
+      navigate(`/admin/clients`);
+    } else {
+      navigate("/client/dashboard");
+    }
+  };
+
   return (
     <div className="container mx-auto py-8">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="mb-4 flex items-center gap-1"
+        onClick={handleNavigateBack}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Clients
+      </Button>
+      
       <PageHeading>
         Edit Client Information
         <p className="text-sm font-normal text-muted-foreground">

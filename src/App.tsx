@@ -1,4 +1,3 @@
-
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -22,6 +21,7 @@ import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Agents from "@/pages/Agents";
 import ClientAuth from "@/pages/client/Auth";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 
 function App() {
   const { user, userRole, isLoading } = useAuth();

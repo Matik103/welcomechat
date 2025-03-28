@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { RouteObject } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -133,6 +132,10 @@ export const routes: RouteObject[] = [
   {
     path: '/client/account-settings',
     element: <ProtectedRoute requiredRole="client"><React.Suspense fallback={<div>Loading...</div>}><ClientAccountSettingsPage /></React.Suspense></ProtectedRoute>,
+  },
+  {
+    path: '*',
+    element: <React.Suspense fallback={<div>Loading...</div>}>Not Found</React.Suspense>,
   },
 ];
 
