@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -334,6 +335,19 @@ export interface Database {
           p_status?: string
         }
         Returns: string
+      }
+      update_client_with_settings: {
+        Args: {
+          p_client_id: string
+          p_client_name: string
+          p_email: string
+          p_agent_name: string
+          p_agent_description?: string
+          p_logo_url?: string
+          p_logo_storage_path?: string
+          p_settings?: Json
+        }
+        Returns: boolean
       }
       get_agent_dashboard_stats: {
         Args: {

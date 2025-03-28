@@ -1,6 +1,8 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
 import { JsonObject } from "@/types/supabase-extensions";
+import { callRpcFunctionSafe } from "@/utils/rpcUtils";
 
 /**
  * Get the count of active clients
@@ -89,19 +91,39 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     };
 
     // Update both the client record and the settings JSON in a transaction
-    const { data, error } = await supabase.rpc('update_client_with_settings', {
-      p_client_id: clientId,
-      p_client_name: updateData.client_name,
-      p_email: updateData.email,
-      p_agent_name: updateData.agent_name,
-      p_agent_description: updateData.agent_description,
-      p_logo_url: updateData.logo_url,
-      p_logo_storage_path: updateData.logo_storage_path,
-      p_settings: JSON.stringify(settingsToUpdate)
-    });
+    try {
+      // Use our callRpcFunctionSafe utility which has proper typing
+      const result = await callRpcFunctionSafe<boolean>('update_client_with_settings', {
+        p_client_id: clientId,
+        p_client_name: updateData.client_name,
+        p_email: updateData.email,
+        p_agent_name: updateData.agent_name,
+        p_agent_description: updateData.agent_description,
+        p_logo_url: updateData.logo_url,
+        p_logo_storage_path: updateData.logo_storage_path,
+        p_settings: settingsToUpdate
+      });
 
-    if (error) {
-      console.error("Error updating client with RPC:", error);
+      if (!result) {
+        throw new Error("RPC function returned false");
+      }
+      
+      // If RPC succeeded, fetch the updated client
+      const { data: updatedClient, error: fetchError } = await supabase
+        .from('ai_agents')
+        .select('*')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .single();
+        
+      if (fetchError) {
+        console.error("Error fetching updated client:", fetchError);
+        throw fetchError;
+      }
+      
+      return mapAgentToClient(updatedClient);
+    } catch (error) {
+      console.error("Error with RPC call:", error);
       
       // Fall back to direct update if RPC fails
       console.log("Falling back to direct update method");
@@ -148,21 +170,6 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       
       return mapAgentToClient(updatedClient);
     }
-
-    // If RPC succeeded, fetch the updated client
-    const { data: updatedClient, error: fetchError } = await supabase
-      .from('ai_agents')
-      .select('*')
-      .eq('client_id', clientId)
-      .eq('interaction_type', 'config')
-      .single();
-      
-    if (fetchError) {
-      console.error("Error fetching updated client:", fetchError);
-      throw fetchError;
-    }
-    
-    return mapAgentToClient(updatedClient);
   } catch (error) {
     console.error("Error updating client:", error);
     throw error;

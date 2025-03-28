@@ -88,7 +88,9 @@ export function EditClientInfo() {
     }
   };
 
-  if (!isAdminClientConfigured()) {
+  // Check if Supabase service role key is configured
+  const isServiceRoleConfigured = isAdminClientConfigured();
+  if (!isServiceRoleConfigured) {
     return (
       <ErrorDisplay 
         title="Supabase Service Role Key Missing"
