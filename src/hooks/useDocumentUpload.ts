@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { DOCUMENTS_BUCKET } from '@/utils/supabaseStorage';
 import { DocumentProcessingResult } from '@/types/document-processing';
 
 export function useDocumentUpload(clientId: string) {
@@ -43,7 +44,7 @@ export function useDocumentUpload(clientId: string) {
       
       // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client-documents')
+        .from(DOCUMENTS_BUCKET)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -57,7 +58,7 @@ export function useDocumentUpload(clientId: string) {
       
       // Get public URL for the uploaded file
       const { data: publicUrlData } = supabase.storage
-        .from('client-documents')
+        .from(DOCUMENTS_BUCKET)
         .getPublicUrl(filePath);
       
       const fileUrl = publicUrlData.publicUrl;

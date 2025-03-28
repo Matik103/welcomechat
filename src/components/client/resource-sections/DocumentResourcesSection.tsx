@@ -96,7 +96,7 @@ export const DocumentResourcesSection: React.FC<DocumentResourcesSectionProps> =
         <DocumentLinkForm
           onSubmit={handleAddDocumentLink}
           isSubmitting={addDocumentLinkMutation.isPending}
-          agentName="AI Agent"
+          agentName="AI Assistant"
         />
         
         <DocumentLinksList

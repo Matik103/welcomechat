@@ -64,7 +64,18 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
     // Check if we need to update the ai_agents table
     const { data, error } = await supabase
       .from('ai_agents')
-      .update(updateData)
+      .update({
+        ...updateData,
+        // Update widget settings with the logo information
+        settings: supabase.rpc('jsonb_merge', {
+          source: { 
+            agent_name: updateData.agent_name,
+            agent_description: updateData.agent_description,
+            logo_url: updateData.logo_url,
+            logo_storage_path: updateData.logo_storage_path
+          }
+        })
+      })
       .eq('client_id', clientId)
       .eq('interaction_type', 'config')
       .select('*')

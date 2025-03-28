@@ -1,6 +1,6 @@
 
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WebsiteUrlForm } from '../website-urls/WebsiteUrlForm';
 import { WebsiteUrlsList } from '../website-urls/WebsiteUrlsList'; 
@@ -23,7 +23,7 @@ export function WebsiteResourcesSection({
 }: WebsiteResourcesSectionProps) {
   const [showForm, setShowForm] = useState(false);
   const [isStoring, setIsStoring] = useState(false);
-  const [isWebsiteToProcess, setIsWebsiteToProcess] = useState<WebsiteUrl | null>(null);
+  const [processingWebsiteId, setProcessingWebsiteId] = useState<number | null>(null);
   
   // Get website URLs data and mutations
   const { 
@@ -59,6 +59,8 @@ export function WebsiteResourcesSection({
       
       // Refetch to get the latest data
       refetchWebsiteUrls();
+      
+      toast.success('Website URL added successfully');
     } catch (error) {
       console.error('Error adding website URL:', error);
       toast.error('Failed to add website URL');
@@ -77,6 +79,8 @@ export function WebsiteResourcesSection({
       if (onResourceChange) {
         onResourceChange();
       }
+      
+      toast.success('Website URL deleted successfully');
     } catch (error) {
       console.error('Error deleting website URL:', error);
       toast.error('Failed to delete website URL');
@@ -87,7 +91,7 @@ export function WebsiteResourcesSection({
   const handleProcessWebsite = async (website: WebsiteUrl) => {
     try {
       setIsStoring(true);
-      setIsWebsiteToProcess(website);
+      setProcessingWebsiteId(website.id);
       
       // Store the website content
       const result = await storeContentMutation.mutateAsync(website);
@@ -116,18 +120,22 @@ export function WebsiteResourcesSection({
       await logClientActivity();
     } finally {
       setIsStoring(false);
-      setIsWebsiteToProcess(null);
+      setProcessingWebsiteId(null);
     }
   };
   
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Website Resources</CardTitle>
+        <div>
+          <CardTitle>Website Resources</CardTitle>
+          <CardDescription>Add and manage website URLs for your AI agent</CardDescription>
+        </div>
         <Button 
           size="sm" 
           onClick={() => setShowForm(!showForm)}
-          variant={showForm ? "secondary" : "default"}
+          variant={showForm ? "outline" : "default"}
+          className={!showForm ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
         >
           <PlusCircle className="h-4 w-4 mr-2" />
           {showForm ? "Cancel" : "Add Website"}
@@ -142,6 +150,7 @@ export function WebsiteResourcesSection({
               isSubmitting={addWebsiteUrlMutation.isPending}
               isAdding={addWebsiteUrlMutation.isPending}
               agentName="AI Assistant"
+              clientId={clientId}
             />
           </div>
         )}
@@ -150,10 +159,9 @@ export function WebsiteResourcesSection({
           urls={websiteUrls}
           onDelete={handleDelete}
           onProcess={handleProcessWebsite}
-          isDeleting={false}
+          isDeleting={deleteWebsiteUrlMutation.isPending}
           isProcessing={isStoring}
-          isDeleteLoading={deleteWebsiteUrlMutation.isPending}
-          deletingId={isWebsiteToProcess?.id}
+          deletingId={processingWebsiteId}
         />
       </CardContent>
     </Card>

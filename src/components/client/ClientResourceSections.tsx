@@ -65,6 +65,6 @@ export const ClientResourceSections = ({
       </Card>
     </div>
   );
-};
+}
 
 export default ClientResourceSections;
