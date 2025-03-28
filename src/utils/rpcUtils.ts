@@ -30,6 +30,7 @@ export const callRpcFunction = callRpcFunctionSafe;
 
 /**
  * Execute a raw SQL query via RPC
+ * Fixed to use the correct parameter names (sql_query instead of query_text)
  */
 export const execSql = async <T>(
   query: string, 
@@ -37,7 +38,7 @@ export const execSql = async <T>(
 ): Promise<T> => {
   try {
     const { data, error } = await supabase.rpc('exec_sql' as any, { 
-      query_text: query,
+      sql_query: query,
       query_params: params 
     });
     

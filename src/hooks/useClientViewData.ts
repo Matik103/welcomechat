@@ -21,6 +21,7 @@ export const useClientViewData = (clientId: string) => {
     success_rate: 100
   });
 
+  // Show client error toast only once
   useEffect(() => {
     if (clientError) {
       toast.error("Failed to load client information");
@@ -35,23 +36,22 @@ export const useClientViewData = (clientId: string) => {
       try {
         setIsLoadingErrorLogs(true);
         
-        const query = `
-          SELECT id, error_type, error_message, error_status, query_text, created_at
-          FROM ai_agents
-          WHERE client_id = '${clientId}' 
-          AND is_error = true
-          ORDER BY created_at DESC
-          LIMIT 10
-        `;
+        // Get error logs directly from ai_agents table
+        const { data, error } = await supabase
+          .from('ai_agents')
+          .select('id, error_type, error_message as message, error_status as status, query_text, created_at')
+          .eq('client_id', clientId)
+          .eq('is_error', true)
+          .order('created_at', { ascending: false })
+          .limit(10);
         
-        const result = await execSql(query);
-        
-        if (result && Array.isArray(result)) {
-          setErrorLogs(result);
+        if (error) {
+          console.error('Error fetching error logs:', error);
+        } else if (data) {
+          setErrorLogs(data);
         }
       } catch (error) {
         console.error('Error fetching error logs:', error);
-        toast.error("Failed to load error logs");
       } finally {
         setIsLoadingErrorLogs(false);
       }
@@ -63,25 +63,54 @@ export const useClientViewData = (clientId: string) => {
       try {
         setIsLoadingCommonQueries(true);
         
-        const query = `
-          SELECT query_text, COUNT(*) as frequency, MAX(created_at) as last_asked, id
-          FROM ai_agents
-          WHERE client_id = '${clientId}'
-          AND interaction_type = 'chat_interaction'
-          AND query_text IS NOT NULL
-          GROUP BY query_text, id
-          ORDER BY frequency DESC
-          LIMIT 10
-        `;
+        // Get common queries directly from ai_agents table
+        const { data, error } = await supabase
+          .from('ai_agents')
+          .select('query_text, id, created_at')
+          .eq('client_id', clientId)
+          .eq('interaction_type', 'chat_interaction')
+          .not('query_text', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(10);
         
-        const result = await execSql(query);
-        
-        if (result && Array.isArray(result)) {
+        if (error) {
+          console.error('Error fetching common queries:', error);
+        } else if (data) {
+          // Process and count frequencies
+          const queryMap = new Map();
+          data.forEach(item => {
+            if (item.query_text) {
+              if (!queryMap.has(item.query_text)) {
+                queryMap.set(item.query_text, {
+                  frequency: 1,
+                  id: item.id,
+                  last_asked: item.created_at
+                });
+              } else {
+                const entry = queryMap.get(item.query_text);
+                entry.frequency += 1;
+                if (new Date(item.created_at) > new Date(entry.last_asked)) {
+                  entry.last_asked = item.created_at;
+                }
+              }
+            }
+          });
+          
+          // Convert map to array
+          const result = Array.from(queryMap.entries()).map(([query_text, data]) => ({
+            query_text,
+            frequency: data.frequency,
+            id: data.id,
+            last_asked: data.last_asked
+          }));
+          
+          // Sort by frequency
+          result.sort((a, b) => b.frequency - a.frequency);
+          
           setCommonQueries(result);
         }
       } catch (error) {
         console.error('Error fetching common queries:', error);
-        toast.error("Failed to load common queries");
       } finally {
         setIsLoadingCommonQueries(false);
       }
@@ -91,51 +120,59 @@ export const useClientViewData = (clientId: string) => {
       if (!clientId || !client?.agent_name) return;
       
       try {
-        const query = `
-          SELECT 
-            get_agent_dashboard_stats('${clientId}', '${client.agent_name || client.name}')
-        `;
+        // Get basic stats directly
+        const { data: interactions, error: interactionsError } = await supabase
+          .from('ai_agents')
+          .select('response_time_ms')
+          .eq('client_id', clientId)
+          .eq('interaction_type', 'chat_interaction')
+          .not('response_time_ms', 'is', null);
         
-        const result = await execSql(query);
-        console.log('Raw agent stats result:', result);
-        
-        if (result && Array.isArray(result) && result.length > 0) {
-          let statsData = null;
-          const rawStats = result[0];
-          
-          if (typeof rawStats === 'string') {
-            try {
-              statsData = JSON.parse(rawStats);
-            } catch (e) {
-              console.error('Error parsing stats JSON string:', e);
-            }
-          } else if (typeof rawStats === 'object' && rawStats !== null) {
-            statsData = rawStats;
-            
-            const possibleJsonProperty = Object.values(rawStats)[0];
-            if (typeof possibleJsonProperty === 'string') {
-              try {
-                const parsed = JSON.parse(possibleJsonProperty);
-                if (parsed && typeof parsed === 'object') {
-                  statsData = parsed;
-                }
-              } catch (e) {
-                console.error('Error trying to parse property as JSON:', e);
-              }
-            }
-          }
-          
-          console.log('Processed agent stats data:', statsData);
-          
-          if (statsData) {
-            setAgentStats({
-              total_interactions: statsData.total_interactions || 0,
-              active_days: statsData.active_days || 0,
-              average_response_time: statsData.average_response_time || 0,
-              success_rate: 100
-            });
-          }
+        if (interactionsError) {
+          console.error('Error fetching agent stats:', interactionsError);
+          return;
         }
+        
+        // Calculate response time average
+        let totalResponseTime = 0;
+        interactions?.forEach(item => {
+          if (item.response_time_ms) {
+            totalResponseTime += item.response_time_ms;
+          }
+        });
+        
+        const avgResponseTime = interactions?.length 
+          ? Math.round(totalResponseTime / interactions.length) 
+          : 0;
+        
+        // Get unique days
+        const { data: uniqueDays, error: daysError } = await supabase
+          .from('ai_agents')
+          .select('created_at')
+          .eq('client_id', clientId)
+          .eq('interaction_type', 'chat_interaction');
+        
+        if (daysError) {
+          console.error('Error fetching agent days stats:', daysError);
+          return;
+        }
+        
+        // Count unique days
+        const days = new Set();
+        uniqueDays?.forEach(item => {
+          if (item.created_at) {
+            const date = new Date(item.created_at).toDateString();
+            days.add(date);
+          }
+        });
+        
+        // Update stats
+        setAgentStats({
+          total_interactions: interactions?.length || 0,
+          active_days: days.size,
+          average_response_time: avgResponseTime,
+          success_rate: 100
+        });
       } catch (error) {
         console.error('Error fetching agent stats:', error);
       }
@@ -151,6 +188,7 @@ export const useClientViewData = (clientId: string) => {
     }
   }, [clientId, client]);
 
+  // Subscribe to updates
   useEffect(() => {
     if (!clientId) return;
 
@@ -167,19 +205,18 @@ export const useClientViewData = (clientId: string) => {
         () => {
           const fetchErrorLogs = async () => {
             try {
-              const query = `
-                SELECT id, error_type, error_message, error_status, query_text, created_at
-                FROM ai_agents
-                WHERE client_id = '${clientId}' 
-                AND is_error = true
-                ORDER BY created_at DESC
-                LIMIT 10
-              `;
+              const { data, error } = await supabase
+                .from('ai_agents')
+                .select('id, error_type, error_message as message, error_status as status, query_text, created_at')
+                .eq('client_id', clientId)
+                .eq('is_error', true)
+                .order('created_at', { ascending: false })
+                .limit(10);
               
-              const result = await execSql(query);
-              
-              if (result && Array.isArray(result)) {
-                setErrorLogs(result);
+              if (error) {
+                console.error('Error refetching error logs:', error);
+              } else if (data) {
+                setErrorLogs(data);
               }
             } catch (error) {
               console.error('Error refetching error logs:', error);
