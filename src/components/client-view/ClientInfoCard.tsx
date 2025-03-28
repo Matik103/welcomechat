@@ -3,6 +3,7 @@ import React from "react";
 import { Calendar, Users, Activity, Bot, Globe, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface ClientInfoCardProps {
   client: any;
@@ -41,30 +42,47 @@ export function ClientInfoCard({ client, chatHistory, aiAgentStats }: ClientInfo
 
   // Determine client status with fallback
   const clientStatus = client.status || 'active';
+  
+  // Get initials for avatar fallback
+  const getInitials = () => {
+    if (!clientName) return 'CL';
+    return clientName
+      .split(' ')
+      .map((name: string) => name[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Users className="h-5 w-5 text-blue-500" />
-          Client Information
-        </CardTitle>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10">
+            {client.logo_url ? (
+              <AvatarImage 
+                src={client.logo_url} 
+                alt={clientName}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : null}
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              {getInitials()}
+            </AvatarFallback>
+          </Avatar>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-500" />
+            {clientName}
+          </CardTitle>
+        </div>
+        <Badge variant={clientStatus === 'active' ? "default" : "destructive"} className={clientStatus === 'active' ? "bg-green-500 hover:bg-green-600" : ""}>
+          {clientStatus}
+        </Badge>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Client Name</h3>
-              <p className="font-semibold">{clientName}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Status</h3>
-              <Badge variant={clientStatus === 'active' ? "default" : "destructive"} className={clientStatus === 'active' ? "bg-green-500 hover:bg-green-600" : ""}>
-                {clientStatus}
-              </Badge>
-            </div>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <h3 className="text-sm font-medium text-gray-500">AI Agent</h3>

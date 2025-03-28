@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { Client } from '@/types/client';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface ClientDetailsCardProps {
   client: Client | null;
@@ -67,10 +68,38 @@ export function ClientDetailsCard({ client, isLoading = false, isClientView = fa
     ? formatDistanceToNow(new Date(client.last_active), { addSuffix: true })
     : 'never';
 
+  // Get client initials for avatar fallback
+  const getInitials = () => {
+    if (!client.client_name) return 'CL';
+    return client.client_name
+      .split(' ')
+      .map(name => name[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
   return (
     <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-lg">Client Details</CardTitle>
+      <CardHeader className="flex flex-row items-center gap-4">
+        <Avatar className="h-12 w-12">
+          {client.logo_url ? (
+            <AvatarImage 
+              src={client.logo_url} 
+              alt={client.client_name} 
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          ) : null}
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            {getInitials()}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <CardTitle className="text-lg">{client.client_name}</CardTitle>
+          <p className="text-sm text-muted-foreground">{client.agent_name || 'AI Assistant'}</p>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
