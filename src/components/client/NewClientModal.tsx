@@ -49,8 +49,7 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
     setError(null);
     
     try {
-      // Create a bare minimum record without any fields that might trigger side effects
-      // or activity logging that could cause the enum error
+      // Create a record with all required fields
       const insertData = {
         client_name: values.clientName,
         email: values.email,
@@ -65,11 +64,12 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
         },
         status: "active",
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        // Set safe type for activity logging
+        type: "client_created" 
       };
       
-      // Direct database insert with no select() to minimize any potential triggers
-      // that might attempt to create activity records
+      // Insert the record
       const { error } = await supabaseAdmin
         .from("ai_agents")
         .insert(insertData);
@@ -78,9 +78,6 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
         console.error("Error creating client:", error);
         throw error;
       }
-      
-      // Just log to console instead of creating activity record
-      console.log(`[Activity Log] Client created: ${values.clientName}`);
       
       toast.success("Client created successfully!");
       onClose();

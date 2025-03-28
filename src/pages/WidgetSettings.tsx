@@ -33,7 +33,7 @@ export default function WidgetSettings() {
     mutationFn: async (newSettings: IWidgetSettings): Promise<void> => {
       if (clientId) {
         await updateWidgetSettings(clientId, newSettings);
-        // Log the activity
+        // Log the activity with safe activity type
         await logClientActivity("client_updated", "Widget settings updated");
       }
     },
@@ -67,7 +67,7 @@ export default function WidgetSettings() {
       
       if (result) {
         await widgetSettingsHook.updateLogo(result.url, result.path);
-        await logClientActivity();
+        await logClientActivity("client_updated", "Logo updated");
         refetch();
       }
     } catch (error) {
