@@ -1,146 +1,186 @@
-
+import { config } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
+import { Resend } from 'resend';
 import type { Database } from '@/integrations/supabase/types';
 
-// Load environment variables from .env file if in Node.js environment
-if (typeof process !== 'undefined' && process.env) {
-  dotenv.config();
+// Load environment variables from .env file
+config();
+
+// Define valid activity types
+export enum ActivityType {
+  DocumentAdded = 'document_added',
+  DocumentRemoved = 'document_removed',
+  DocumentProcessed = 'document_processed',
+  DocumentProcessingFailed = 'document_processing_failed',
+  UrlAdded = 'url_added',
+  UrlRemoved = 'url_removed',
+  UrlProcessed = 'url_processed',
+  UrlProcessingFailed = 'url_processing_failed',
+  ChatMessageSent = 'chat_message_sent',
+  ChatMessageReceived = 'chat_message_received'
 }
 
-// Get Supabase URL and key from environment variables if available, otherwise use hardcoded values
-const supabaseUrl = process.env.SUPABASE_URL || "https://mgjodiqecnnltsgorife.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nam9kaXFlY25ubHRzZ29yaWZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODY4ODA3MCwiZXhwIjoyMDU0MjY0MDcwfQ.thtPMLu_bYdkY-Pl6jxszkcugDYOXnJPqCN4-y6HLT4";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const resendApiKey = process.env.RESEND_API_KEY || '';
 
-// Create Supabase client with service role key
+if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
+  throw new Error('Missing required environment variables');
+}
+
 const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey);
+const resend = new Resend(resendApiKey);
 
-async function createActivity(agentId: string, type: string) {
+async function sendWelcomeEmail(email: string, clientName: string) {
   try {
-    console.log(`Creating activity for agent ${agentId}: ${type}`);
-    
-    // Use console.log instead of database insert to avoid potential enum errors
-    console.log(`[Activity Log] Agent ${agentId}: ${type}`);
-    
-    return { id: 'mock-activity-id', created_at: new Date().toISOString() };
+    const { data, error } = await resend.emails.send({
+      from: 'Welcome <welcome@welcome.com>',
+      to: email,
+      subject: 'Welcome to Welcome!',
+      html: `
+        <h1>Welcome ${clientName}!</h1>
+        <p>Thank you for joining Welcome. We're excited to have you on board.</p>
+        <p>You can now start using our platform to manage your documents and chat with your AI assistant.</p>
+      `
+    });
+
+    if (error) {
+      console.error('Error sending welcome email:', error);
+      return false;
+    }
+
+    console.log('Welcome email sent successfully:', data);
+    return true;
+  } catch (error) {
+    console.error('Error sending welcome email:', error);
+    return false;
+  }
+}
+
+async function createActivity(agentId: string, type: ActivityType, description: string) {
+  try {
+    const { data, error } = await supabase
+      .from('activities')
+      .insert([
+        {
+          ai_agent_id: agentId,
+          type: type,
+          metadata: { description }
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating activity:', error);
+      return null;
+    }
+
+    console.log('Activity created successfully:', data);
+    return data;
   } catch (error) {
     console.error('Error creating activity:', error);
     return null;
   }
 }
 
-async function createAgent(clientId: string, name: string, email: string, company: string) {
+async function createAgent(clientId: string, name: string, description: string) {
   try {
-    // Check if agent already exists
-    const { data: existingAgent, error: checkError } = await supabase
-      .from('ai_agents')
-      .select('*')
-      .eq('client_id', clientId)
-      .single();
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      throw checkError;
-    }
-
-    if (existingAgent) {
-      console.log('Agent already exists:', existingAgent);
-      return existingAgent;
-    }
-
-    // Create new agent with safe defaults that won't trigger enum validation errors
-    const { data: agent, error: insertError } = await supabase
+    const { data, error } = await supabase
       .from('ai_agents')
       .insert([
         {
           client_id: clientId,
-          name,
-          email,
-          company,
-          model: 'gpt-4',
-          status: 'active',
-          interaction_type: 'config', // Use a safe enum value
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          name: name,
+          description: description,
+          type: ActivityType.DocumentAdded
         }
       ])
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (error) {
+      console.error('Error creating agent:', error);
+      return null;
+    }
 
-    // Log activity to console instead of database
-    console.log(`[Activity Log] Agent created: ${name} (${agent.id})`);
-
-    return agent;
+    console.log('Agent created successfully:', data);
+    return data;
   } catch (error) {
-    console.error('Error in createAgent:', error);
-    throw error;
+    console.error('Error creating agent:', error);
+    return null;
   }
 }
 
-async function setupTestClient() {
+export async function createNewClient(
+  clientName: string,
+  email: string,
+  chatbotName: string,
+  chatbotDescription: string
+) {
   try {
-    console.log('Starting test client setup...');
-    
-    // Check if test client exists
-    const { data: existingClient, error: checkError } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('email', 'clientest3@gmail.com')
-      .single();
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      throw checkError;
-    }
-
-    if (existingClient) {
-      console.log('Test client already exists:', existingClient);
-      return existingClient;
-    }
-
-    // Create test client
-    const { data: client, error: insertError } = await supabase
+    // Create client
+    const { data: client, error: clientError } = await supabase
       .from('clients')
       .insert([
         {
-          client_name: 'Test Client',
-          email: 'clientest3@gmail.com',
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          client_name: clientName,
+          email: email,
+          status: 'active'
         }
       ])
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (clientError) {
+      console.error('Error creating client:', clientError);
+      return null;
+    }
 
-    // Create document processing agent
-    const agent = await createAgent(
-      client.id,
-      'Document Processing Agent',
-      'agent@test.com',
-      'Test Company'
+    // Send welcome email
+    await sendWelcomeEmail(email, clientName);
+
+    // Create chatbot agent
+    const agent = await createAgent(client.id, chatbotName, chatbotDescription);
+
+    if (!agent) {
+      console.error('Failed to create chatbot agent');
+      return null;
+    }
+
+    // Create activity for agent creation
+    await createActivity(
+      agent.id,
+      ActivityType.DocumentAdded,
+      `Chatbot agent ${chatbotName} created`
     );
 
-    console.log('Setup completed successfully:', { client, agent });
     return { client, agent };
   } catch (error) {
-    console.error('Setup failed:', error);
-    throw error;
+    console.error('Error in createNewClient:', error);
+    return null;
   }
 }
 
-// Only run the setup if this is being executed directly (not imported)
-if (require.main === module) {
-  console.log('Running test client setup script directly...');
-  setupTestClient()
-    .then(result => console.log('Setup result:', result))
-    .catch(error => console.error('Setup error:', error));
-} else {
-  console.log('Test client module imported, not running setup automatically');
+// Function to setup test client
+export async function setupTestClient() {
+  const result = await createNewClient(
+    'Test Client',
+    'test@example.com',
+    'Test Chatbot',
+    'A test chatbot for development'
+  );
+
+  if (result) {
+    console.log('Test client setup successful:', result);
+  } else {
+    console.error('Test client setup failed');
+  }
+
+  return result;
 }
 
-// Export functions for use in other scripts
-export { setupTestClient, createAgent, createActivity };
+// Run setup if this file is executed directly
+if (require.main === module) {
+  setupTestClient();
+}
