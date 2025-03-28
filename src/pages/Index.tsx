@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Activity, Database, Key, HardDrive, Zap, Plus } from "lucide-react";
+import { Users, Activity, Database, Key, HardDrive, Zap, Plus, Settings } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { RecentActivityList } from "@/components/dashboard/RecentActivityList";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +18,7 @@ import { getAllAgents } from "@/services/agentService";
 import { getActiveClientsCount } from "@/services/clientService";
 import { getTotalInteractionsCount } from "@/services/aiInteractionService";
 import { getTrainingResourcesCount } from "@/services/trainingResourcesService";
+import { getAdministrationActivitiesCount } from "@/services/administrationService";
 
 const generateRandomData = (length: number) => {
   return Array.from({ length }, () => Math.floor(Math.random() * 100));
@@ -30,6 +32,7 @@ export default function Index() {
   const [clientData, setClientData] = useState({ total: 0, active: 0, change: 0 });
   const [interactionData, setInteractionData] = useState({ total: 0, recent: 0, change: 0 });
   const [trainingData, setTrainingData] = useState({ total: 0, recent: 0, change: 0 });
+  const [administrationData, setAdministrationData] = useState({ total: 0, recent: 0, change: 0 });
   
   const {
     activeUsers,
@@ -125,10 +128,25 @@ export default function Index() {
       }
     };
     
+    const fetchAdministrationActivities = async () => {
+      try {
+        const adminStats = await getAdministrationActivitiesCount();
+        
+        setAdministrationData({
+          total: adminStats.total,
+          recent: adminStats.recent,
+          change: adminStats.changePercentage
+        });
+      } catch (error) {
+        console.error("Error fetching administration activities:", error);
+      }
+    };
+    
     fetchAgents();
     fetchClients();
     fetchInteractions();
     fetchTrainingResources();
+    fetchAdministrationActivities();
   }, []);
 
   const handleActivityClick = (id: string) => {
@@ -235,8 +253,8 @@ export default function Index() {
                 <CardTitle className="text-lg font-bold text-pink-900">ADMINISTRATION</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1 text-pink-800">123</div>
-                <div className="text-sm text-pink-700">+18%</div>
+                <div className="text-4xl font-bold mb-1 text-pink-800">{administrationData.total}</div>
+                <div className="text-sm text-pink-700">{administrationData.recent} Recent {administrationData.change > 0 ? `+${Math.round(administrationData.change)}%` : ''}</div>
               </CardContent>
             </Card>
           </div>
@@ -309,7 +327,7 @@ export default function Index() {
             <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
-                  <Zap className="h-5 w-5 text-pink-600" />
+                  <Settings className="h-5 w-5 text-pink-600" />
                   <div>
                     <CardTitle className="text-sm font-medium text-slate-900">Administration</CardTitle>
                   </div>
