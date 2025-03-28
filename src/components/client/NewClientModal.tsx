@@ -5,14 +5,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useClientAgent, ClientAgentFormData } from "@/hooks/useClientAgent";
-import { toast } from "sonner";
 
 // Form validation schema
 const clientFormSchema = z.object({
@@ -31,7 +31,8 @@ interface NewClientModalProps {
 
 export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
   const navigate = useNavigate();
-  const { createClientAgent, isCreating, error } = useClientAgent();
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
@@ -44,21 +45,47 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
   });
 
   const handleSubmit = async (values: ClientFormValues) => {
-    const formData: ClientAgentFormData = {
-      clientName: values.clientName,
-      email: values.email,
-      agentName: values.agentName || "AI Assistant",
-      agentDescription: values.agentDescription || "",
-    };
+    setIsCreating(true);
+    setError(null);
     
-    const result = await createClientAgent(formData);
-    
-    if (result.success) {
+    try {
+      // Create a bare minimum record without any fields that might trigger side effects
+      const insertData = {
+        client_name: values.clientName,
+        email: values.email,
+        name: values.agentName || "AI Assistant",
+        agent_description: values.agentDescription || "",
+        interaction_type: "config", 
+        settings: {
+          agent_name: values.agentName || "AI Assistant",
+          agent_description: values.agentDescription || "",
+          client_name: values.clientName,
+          email: values.email
+        },
+        status: "active",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Direct database insert with no select() to minimize any potential triggers
+      const { error } = await supabaseAdmin
+        .from("ai_agents")
+        .insert(insertData);
+
+      if (error) {
+        console.error("Error creating client:", error);
+        throw error;
+      }
+      
       toast.success("Client created successfully!");
       onClose();
       navigate("/admin/clients");
-    } else {
-      toast.error("Failed to create client");
+    } catch (err: any) {
+      console.error("Error creating client:", err);
+      setError(err.message || "Failed to create client");
+      toast.error(err.message || "Failed to create client");
+    } finally {
+      setIsCreating(false);
     }
   };
 
