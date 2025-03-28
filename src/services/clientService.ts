@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/client";
+import { JsonObject } from "@/types/supabase-extensions";
 
 /**
  * Update a client with new data
@@ -27,6 +28,11 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       throw error;
     }
 
+    // Ensure widget_settings is always treated as an object
+    const widgetSettings = data.settings ? 
+      (typeof data.settings === 'object' ? data.settings : {}) : 
+      {};
+    
     return {
       id: data.id,
       client_id: data.client_id || '',
@@ -38,7 +44,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       agent_name: data.name || '',
       agent_description: data.agent_description || '',
       logo_url: data.logo_url || '',
-      widget_settings: data.settings || {},
+      widget_settings: widgetSettings as Record<string, any>,
       user_id: '',
       company: data.company || '',
       description: data.description || '',

@@ -37,8 +37,9 @@ export const useAiAgentManagement = () => {
         console.log("AI agent found, updating:", existingAgent.id);
         
         // Create settings object with all the values
+        const existingSettings = existingAgent.settings || {};
         const settings = {
-          ...(existingAgent.settings || {}),
+          ...(typeof existingSettings === 'object' ? existingSettings : {}),
           agent_name: agentName,
           agent_description: agentDescription || "",
           logo_url: logoUrl || "",
