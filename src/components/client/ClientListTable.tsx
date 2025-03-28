@@ -95,8 +95,8 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
                 </TableCell>
                 <TableCell>
                   <ClientActions 
-                    clientId={client.id} 
-                    onDeleteClick={() => onDeleteClick(client)} 
+                    clientId={client.id}
+                    onDeleteClick={() => onDeleteClick(client)}
                   />
                 </TableCell>
               </TableRow>

@@ -2,20 +2,22 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Eye, Settings } from 'lucide-react';
+import { Eye, Settings, Trash2, Layout } from 'lucide-react';
 
 interface ClientActionsProps {
   clientId: string;
   onViewClick?: () => void;
   onSettingsClick?: () => void;
   onDeleteClick?: () => void;
+  onWidgetSettingsClick?: () => void;
 }
 
 export function ClientActions({ 
   clientId,
   onViewClick,
   onSettingsClick,
-  onDeleteClick 
+  onDeleteClick,
+  onWidgetSettingsClick 
 }: ClientActionsProps) {
   return (
     <div className="flex space-x-2">
@@ -34,6 +36,18 @@ export function ClientActions({
       <Button
         variant="ghost"
         size="icon"
+        onClick={onWidgetSettingsClick}
+        asChild
+      >
+        <Link to={`/admin/clients/${clientId}/widget-settings`}>
+          <Layout className="h-4 w-4" />
+          <span className="sr-only">Widget settings</span>
+        </Link>
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={onSettingsClick}
         asChild
       >
@@ -41,6 +55,15 @@ export function ClientActions({
           <Settings className="h-4 w-4" />
           <span className="sr-only">Edit client settings</span>
         </Link>
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onDeleteClick}
+      >
+        <Trash2 className="h-4 w-4 text-destructive" />
+        <span className="sr-only">Delete client</span>
       </Button>
     </div>
   );
