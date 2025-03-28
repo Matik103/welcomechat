@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,7 @@ import { BarChart } from "@/components/dashboard/BarChart";
 import { NewClientModal } from "@/components/client/NewClientModal";
 import { getAllAgents } from "@/services/agentService";
 import { getActiveClientsCount } from "@/services/clientService";
+import { getTotalInteractionsCount } from "@/services/aiInteractionService";
 
 const generateRandomData = (length: number) => {
   return Array.from({ length }, () => Math.floor(Math.random() * 100));
@@ -27,6 +27,7 @@ export default function Index() {
   const [highlightedActivity, setHighlightedActivity] = useState<string | null>(null);
   const [agentData, setAgentData] = useState({ total: 0, active: 0, change: 0 });
   const [clientData, setClientData] = useState({ total: 0, active: 0, change: 0 });
+  const [interactionData, setInteractionData] = useState({ total: 0, recent: 0, change: 0 });
   
   const {
     activeUsers,
@@ -97,8 +98,23 @@ export default function Index() {
       }
     };
     
+    const fetchInteractions = async () => {
+      try {
+        const interactionStats = await getTotalInteractionsCount();
+        
+        setInteractionData({
+          total: interactionStats.total,
+          recent: interactionStats.recent,
+          change: interactionStats.changePercentage
+        });
+      } catch (error) {
+        console.error("Error fetching interactions:", error);
+      }
+    };
+    
     fetchAgents();
     fetchClients();
+    fetchInteractions();
   }, []);
 
   const handleActivityClick = (id: string) => {
@@ -181,8 +197,8 @@ export default function Index() {
                 <CardTitle className="text-lg font-bold text-yellow-900">INTERACTIONS</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold mb-1 text-yellow-800">1,234</div>
-                <div className="text-sm text-yellow-700">+18%</div>
+                <div className="text-4xl font-bold mb-1 text-yellow-800">{interactionData.total}</div>
+                <div className="text-sm text-yellow-700">{interactionData.recent} Recent {interactionData.change > 0 ? `+${Math.round(interactionData.change)}%` : ''}</div>
               </CardContent>
             </Card>
 

@@ -61,3 +61,47 @@ export const fetchRecentInteractions = async (clientId: string): Promise<ChatInt
     return [];
   }
 };
+
+/**
+ * Get total count of interactions across all clients
+ */
+export const getTotalInteractionsCount = async (): Promise<{ total: number, recent: number, changePercentage: number }> => {
+  try {
+    // Get total interactions count
+    const { count: totalCount, error: countError } = await supabase
+      .from('ai_agents')
+      .select('*', { count: 'exact', head: true })
+      .eq('interaction_type', 'chat_interaction');
+      
+    if (countError) throw countError;
+    
+    // Get recent interactions (last 48 hours)
+    const timeAgo = new Date();
+    timeAgo.setHours(timeAgo.getHours() - 48);
+    
+    const { count: recentCount, error: recentError } = await supabase
+      .from('ai_agents')
+      .select('*', { count: 'exact', head: true })
+      .eq('interaction_type', 'chat_interaction')
+      .gt('created_at', timeAgo.toISOString());
+      
+    if (recentError) throw recentError;
+    
+    // Calculate change percentage
+    const previousPeriodCount = totalCount - recentCount;
+    let changePercentage = 0;
+    
+    if (previousPeriodCount > 0) {
+      changePercentage = Math.round((recentCount / previousPeriodCount) * 100) / 5;
+    }
+    
+    return {
+      total: totalCount || 0,
+      recent: recentCount || 0,
+      changePercentage
+    };
+  } catch (error) {
+    console.error("Error getting interactions count:", error);
+    return { total: 0, recent: 0, changePercentage: 0 };
+  }
+};
