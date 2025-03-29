@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
+import { safeParseSettings } from '@/utils/clientSettingsUtils';
 
 export const useClientList = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -41,7 +42,8 @@ export const useClientList = () => {
         agent_name: agent.name || '',
         agent_description: agent.agent_description || '',
         logo_url: agent.logo_url || '',
-        widget_settings: agent.settings || {},
+        // Use the safeParseSettings utility to ensure widget_settings is always an object
+        widget_settings: safeParseSettings(agent.settings),
         user_id: '',
         company: agent.company || '',
         description: agent.description || '',

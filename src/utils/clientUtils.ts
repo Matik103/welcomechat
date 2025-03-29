@@ -91,17 +91,22 @@ export const recoverClientAccount = async (token: string): Promise<{ success: bo
       console.warn("Warning: Failed to mark recovery token as used:", tokenUpdateError);
     }
     
-    // Record recovery activity
+    // Record recovery activity using the ai_agents table as an activity log
+    // to avoid issues with enum types
     const { error: activityError } = await supabaseAdmin
-      .from('activities')
+      .from('ai_agents')
       .insert({
-        ai_agent_id: tokenData.client_id,
+        client_id: tokenData.client_id,
+        interaction_type: 'activity_log',
+        name: 'Activity Logger',
         type: 'client_recovered',
+        content: 'Client account recovered using recovery token',
         metadata: {
           recovered_at: new Date().toISOString(),
           recovery_method: 'token',
           activity_subtype: 'account_recovered'
-        }
+        },
+        created_at: new Date().toISOString()
       });
       
     if (activityError) {
