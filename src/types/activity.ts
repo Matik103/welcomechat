@@ -28,6 +28,7 @@ export enum ActivityType {
   URL_REMOVED = 'url_removed',
   URL_PROCESSED = 'url_processed',
   URL_PROCESSING_FAILED = 'url_processing_failed',
+  CHAT_INTERACTION = 'chat_interaction',
   CHAT_MESSAGE_SENT = 'chat_message_sent',
   CHAT_MESSAGE_RECEIVED = 'chat_message_received',
   CLIENT_CREATED = 'client_created',
@@ -58,7 +59,7 @@ export enum ActivityType {
   ERROR_LOGGED = 'error_logged'
 }
 
-// Also export type for type checking
+// Export literal type string union for type checking
 export type ActivityTypeString = 
   | 'document_added'
   | 'document_removed'
@@ -68,6 +69,7 @@ export type ActivityTypeString =
   | 'url_removed'
   | 'url_processed'
   | 'url_processing_failed'
+  | 'chat_interaction'
   | 'chat_message_sent'
   | 'chat_message_received'
   | 'client_created'

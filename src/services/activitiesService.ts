@@ -43,12 +43,12 @@ export const createActivity = async (
     // Convert the ActivityType enum to a string value acceptable by the database
     const safeActivityType = getSafeActivityType(typeof type === 'string' ? type : String(type));
     
-    // Insert as a string literal rather than using the ActivityTypeString type
+    // Insert activity using type assertion to match the expected database enum
     const { error } = await supabase
       .from('activities')
       .insert({
         ai_agent_id: clientId,
-        type: safeActivityType,
+        type: safeActivityType as ActivityTypeString,
         description,
         metadata,
         created_at: new Date().toISOString()

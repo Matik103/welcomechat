@@ -1,3 +1,4 @@
+
 import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 // Map activity types to icon names
@@ -98,9 +99,9 @@ export const getActivityTypeLabel = (activityType: string): string => {
  * This is crucial for preventing type errors when inserting activities
  * as Supabase enforces strict type checking on enum columns
  */
-export const getSafeActivityType = (type: string): string => {
+export const getSafeActivityType = (type: string): ActivityTypeString => {
   // These activity types are known to exist in the database
-  const safeActivityTypes = [
+  const safeActivityTypes: ActivityTypeString[] = [
     'document_added',
     'document_removed',
     'document_processed',
@@ -140,8 +141,8 @@ export const getSafeActivityType = (type: string): string => {
     'error_logged'
   ];
   
-  if (safeActivityTypes.includes(type)) {
-    return type;
+  if (safeActivityTypes.includes(type as ActivityTypeString)) {
+    return type as ActivityTypeString;
   }
   
   // Fallback to client_updated which is a safe activity type that exists in the database
