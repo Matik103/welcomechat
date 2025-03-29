@@ -51,6 +51,12 @@ export const saveClientTempPassword = async (
         throw createError;
       }
       
+      // Add the user to the client role
+      await supabaseAdmin.from('user_roles').insert({
+        user_id: authData.user.id,
+        role: 'client'
+      });
+      
       console.log("Created auth user for:", email);
     } else {
       // If user exists, update password
