@@ -1,7 +1,8 @@
+
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import ClientList from "@/pages/ClientList";
@@ -41,13 +42,16 @@ function App() {
   const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   
-  const isAuthCallback = location.pathname.includes('/auth/callback');
-  const isAuthPage = location.pathname === '/auth';
-  const isClientAuthPage = location.pathname === '/client/auth';
-  const isHomePage = location.pathname === '/';
-  const isAboutPage = location.pathname === '/about';
-  const isContactPage = location.pathname === '/contact';
-  const isPublicRoute = isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage;
+  // Memoize these values to prevent unnecessary re-renders
+  const isAuthCallback = useMemo(() => location.pathname.includes('/auth/callback'), [location.pathname]);
+  const isAuthPage = useMemo(() => location.pathname === '/auth', [location.pathname]);
+  const isClientAuthPage = useMemo(() => location.pathname === '/client/auth', [location.pathname]);
+  const isHomePage = useMemo(() => location.pathname === '/', [location.pathname]);
+  const isAboutPage = useMemo(() => location.pathname === '/about', [location.pathname]);
+  const isContactPage = useMemo(() => location.pathname === '/contact', [location.pathname]);
+  const isPublicRoute = useMemo(() => (
+    isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage
+  ), [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage]);
   
   useAuthSafetyTimeout({
     isLoading,
@@ -58,7 +62,8 @@ function App() {
   
   useEffect(() => {
     const initializeApp = async () => {
-      setIsInitializing(true);
+      // Prevent multiple initialization attempts
+      if (!isInitializing) return;
       
       if (!isAuthCallback) {
         sessionStorage.removeItem('auth_callback_processed');
@@ -80,20 +85,23 @@ function App() {
         }
       }
       
-      if (location.pathname.includes('/dashboard') && isLoading) {
-        const timer = setTimeout(() => {
-          console.log('Forcing loading state to complete due to dashboard path');
-          setIsLoading(false);
-        }, 3000);
-        
-        return () => clearTimeout(timer);
-      }
-      
       setIsInitializing(false);
     };
     
     initializeApp();
-  }, [isAuthCallback, location.pathname, user, userRole, isLoading, setIsLoading]);
+  }, [isAuthCallback, location.pathname, user, userRole, isLoading, isInitializing]);
+  
+  // Use a separate effect for forcing loading state completion
+  useEffect(() => {
+    if (isLoading && location.pathname.includes('/dashboard')) {
+      const timer = setTimeout(() => {
+        console.log('Forcing loading state to complete due to dashboard path');
+        setIsLoading(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, location.pathname, setIsLoading]);
   
   if (adminConfigError) {
     return (
@@ -108,8 +116,9 @@ function App() {
     );
   }
   
+  // Simple loading timeout if still loading after initialization
   useEffect(() => {
-    if (isLoading) {
+    if (isLoading && !isInitializing) {
       const forceLoadingTimeout = setTimeout(() => {
         console.log('Forcing loading state to complete after timeout');
         setIsLoading(false);
@@ -117,7 +126,7 @@ function App() {
       
       return () => clearTimeout(forceLoadingTimeout);
     }
-  }, [isLoading, setIsLoading]);
+  }, [isLoading, isInitializing, setIsLoading]);
   
   if (isLoading || isInitializing) {
     return (
@@ -132,6 +141,7 @@ function App() {
     );
   }
 
+  // Public route rendering
   if (!user && isPublicRoute) {
     return (
       <div className="min-h-screen bg-background">
@@ -149,6 +159,7 @@ function App() {
     );
   }
 
+  // Not authenticated
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
@@ -164,6 +175,7 @@ function App() {
     );
   }
 
+  // User authenticated but role not determined
   if (!userRole && user) {
     console.log('User is authenticated but role is not determined, defaulting to admin');
     return (
@@ -171,13 +183,14 @@ function App() {
     );
   }
 
+  // Admin routes
   if (userRole === 'admin') {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<Index />} />
             <Route path="/admin/clients" element={<ClientList />} />
             <Route path="/admin/agents" element={<Agents />} />
@@ -198,12 +211,13 @@ function App() {
     );
   }
 
+  // Client routes
   return (
     <div className="min-h-screen bg-background">
       <ClientHeader />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
-          <Route path="/" element={<ClientDashboard />} />
+          <Route path="/" element={<Navigate to="/client/dashboard" replace />} />
           <Route path="/client/dashboard" element={<ClientDashboard />} />
           <Route path="/client/settings" element={<ClientSettings />} />
           <Route path="/client/account-settings" element={<AccountSettings />} />

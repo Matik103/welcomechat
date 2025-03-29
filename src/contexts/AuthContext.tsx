@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -104,16 +104,17 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const value = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
     session,
     user,
     userRole,
     isLoading,
-    setIsLoading, // Expose setIsLoading to allow components to update loading state
+    setIsLoading,
     signOut
-  };
+  }), [session, user, userRole, isLoading]);
   
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 
 // Export the provider as a named component to ensure proper naming in React DevTools
