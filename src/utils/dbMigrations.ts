@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
@@ -46,6 +48,20 @@ async function executeSql(query: string, description: string) {
 async function applyDatabaseMigrations() {
   try {
     console.log('Applying database migrations...');
+
+    // First, apply the execute_sql function
+    const sqlFunctionPath = path.join(process.cwd(), 'supabase/migrations/20240330_create_execute_sql_function.sql');
+    const sqlFunctionQuery = fs.readFileSync(sqlFunctionPath, 'utf8');
+    
+    // Execute the SQL function creation directly using the Supabase client
+    const { error: functionError } = await supabaseAdmin.rpc('exec_sql', { sql_query: sqlFunctionQuery });
+    
+    if (functionError) {
+      console.error('Failed to create execute_sql function:', functionError.message);
+      return { success: false, error: functionError };
+    }
+    
+    console.log('Successfully created execute_sql function');
 
     // 1. Drop existing activity_type enum
     await executeSql(
