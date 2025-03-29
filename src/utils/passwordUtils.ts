@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 
@@ -53,23 +52,26 @@ export const saveClientTempPassword = async (
       };
     }
     
-    // Check if user already exists in Supabase Auth
-    const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+    // Check if user already exists in Supabase Auth - using the correct API
+    const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
-    if (checkError && checkError.message !== "User not found") {
-      console.error("Error checking for existing user:", checkError);
+    if (listError) {
+      console.error("Error fetching users from Supabase Auth:", listError);
       return { 
         success: false, 
-        error: `Error checking for existing user: ${checkError.message}` 
+        error: `Error fetching users: ${listError.message}` 
       };
     }
     
+    // Find the user by email
+    const existingUser = userList.users.find(user => user.email === email);
+    
     // If user exists, update their password
-    if (existingUser?.user) {
+    if (existingUser) {
       console.log("User exists, updating password");
       
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        existingUser.user.id,
+        existingUser.id,
         { password: tempPassword }
       );
       

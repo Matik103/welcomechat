@@ -26,10 +26,21 @@ export const sendWelcomeEmail = async (
   }
   
   try {
-    // Verify the client exists in Supabase Auth
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+    // Verify the client exists in Supabase Auth - using the correct API
+    const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
-    if (userError) {
+    if (listError) {
+      console.error("Error fetching users from Supabase Auth:", listError);
+      return {
+        emailSent: false,
+        emailError: `Failed to fetch users: ${listError.message}`
+      };
+    }
+    
+    // Find the user by email
+    const existingUser = userList.users.find(user => user.email === email);
+    
+    if (!existingUser) {
       console.log("User not found in Supabase Auth, creating user");
       
       // Create the user in Supabase Auth if they don't exist
@@ -53,7 +64,23 @@ export const sendWelcomeEmail = async (
       
       console.log("Created Supabase Auth user successfully:", createdUser.user.id);
     } else {
-      console.log("User found in Supabase Auth:", userData.user.id);
+      console.log("User found in Supabase Auth:", existingUser.id);
+      
+      // Update the existing user's password
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        existingUser.id,
+        { password: tempPassword }
+      );
+      
+      if (updateError) {
+        console.error("Failed to update user password:", updateError);
+        return {
+          emailSent: false,
+          emailError: `Failed to update user password: ${updateError.message}`
+        };
+      }
+      
+      console.log("Updated user password successfully");
     }
     
     // Generate the HTML template
