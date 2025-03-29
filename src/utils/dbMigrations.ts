@@ -24,7 +24,7 @@ async function executeSql(query: string, description: string) {
     // If we can query the table, it means we have access
     if (!error) {
       // Now execute our actual query
-      const { data: result, error: queryError } = await supabaseAdmin.rpc('exec_sql', { sql_query: query });
+      const { data: result, error: queryError } = await supabaseAdmin.rpc('execute_sql', { query });
       
       if (queryError) {
         console.error(`Failed to ${description}:`, queryError.message);
