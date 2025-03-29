@@ -3,7 +3,8 @@ import { Resend } from 'resend';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Use import.meta.env instead of process.env for Vite applications
+const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
 
 export const sendWelcomeEmail = async (to: string, clientName: string, password: string) => {
   try {

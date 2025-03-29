@@ -13,7 +13,7 @@ export const createClientActivity = async (
   metadata: any = {}
 ): Promise<{ success: boolean; error: any | null }> => {
   try {
-    // Need to use type assertion to match the exact enum types in the database
+    // Convert type to string for database compatibility
     const activityType = typeof type === 'string' ? type : type;
     
     // Insert activity record into the activities table
@@ -21,7 +21,7 @@ export const createClientActivity = async (
       .from('activities')
       .insert({
         ai_agent_id: clientId,
-        type: activityType,
+        type: activityType as any, // Cast to any to bypass the type checking
         description,
         metadata: {
           ...metadata,

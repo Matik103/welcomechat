@@ -1,3 +1,4 @@
+
 import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 // Map activity types to icon names
@@ -97,9 +98,10 @@ const VALID_ACTIVITY_TYPES = Object.values(ActivityType);
 
 // Ensure activity type is a valid enum value
 export const getSafeActivityType = (type: string): ActivityTypeString => {
-  // Check if the provided type is a valid ActivityType
-  const isValidType = VALID_ACTIVITY_TYPES.includes(type as any);
+  // Check if the provided type is valid
+  const validTypes = Object.values(ActivityType) as string[];
+  const isValidType = validTypes.includes(type);
   
   // Return the type if valid, or a safe fallback
-  return isValidType ? (type as ActivityTypeString) : ActivityType.CLIENT_UPDATED;
+  return isValidType ? (type as ActivityTypeString) : 'client_updated';
 };
