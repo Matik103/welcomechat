@@ -16,7 +16,7 @@ export async function getWidgetSettings(clientId: string): Promise<WidgetSetting
       .select('settings, name, agent_description, logo_url, logo_storage_path')
       .eq('client_id', clientId)
       .eq('interaction_type', 'config')
-      .single();
+      .maybeSingle(); // Changed from single() to maybeSingle()
     
     if (error) throw error;
     
@@ -88,20 +88,47 @@ export async function updateWidgetSettings(
       ...settings
     };
     
-    // Update the settings in the database
-    const { error } = await supabase
+    // Check if an agent config record exists
+    const { data, error: checkError } = await supabase
       .from('ai_agents')
-      .update({
-        settings: updatedSettings,
-        name: updatedSettings.agent_name, // Also update the name field directly
-        agent_description: updatedSettings.agent_description, // Update agent_description field
-        logo_url: updatedSettings.logo_url, // Update logo_url field
-        logo_storage_path: updatedSettings.logo_storage_path // Update logo_storage_path field
-      })
+      .select('id')
       .eq('client_id', clientId)
-      .eq('interaction_type', 'config');
+      .eq('interaction_type', 'config')
+      .maybeSingle();
+      
+    if (checkError) throw checkError;
     
-    if (error) throw error;
+    if (data) {
+      // Update existing record
+      const { error } = await supabase
+        .from('ai_agents')
+        .update({
+          settings: updatedSettings,
+          name: updatedSettings.agent_name, // Also update the name field directly
+          agent_description: updatedSettings.agent_description, // Update agent_description field
+          logo_url: updatedSettings.logo_url, // Update logo_url field
+          logo_storage_path: updatedSettings.logo_storage_path // Update logo_storage_path field
+        })
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config');
+      
+      if (error) throw error;
+    } else {
+      // Create new record if none exists
+      const { error } = await supabase
+        .from('ai_agents')
+        .insert({
+          client_id: clientId,
+          name: updatedSettings.agent_name,
+          agent_description: updatedSettings.agent_description,
+          logo_url: updatedSettings.logo_url,
+          logo_storage_path: updatedSettings.logo_storage_path,
+          settings: updatedSettings,
+          interaction_type: 'config'
+        });
+        
+      if (error) throw error;
+    }
   } catch (error) {
     console.error('Error updating widget settings:', error);
     throw error;

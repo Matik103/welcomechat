@@ -101,26 +101,61 @@ export const getWidgetSettings = async (clientId: string): Promise<WidgetSetting
  */
 export const updateWidgetSettings = async (clientId: string, settings: WidgetSettings): Promise<boolean> => {
   try {
-    // Update settings in ai_agents table
-    const agentQuery = `
-      UPDATE ai_agents
-      SET 
-        settings = $1,
-        name = $2,
-        agent_description = $3,
-        logo_url = $4,
-        logo_storage_path = $5
-      WHERE client_id = $6 AND interaction_type = 'config'
+    // First check if a record exists
+    const checkQuery = `
+      SELECT id FROM ai_agents
+      WHERE client_id = $1 AND interaction_type = 'config'
+      LIMIT 1
     `;
     
-    await execSql(agentQuery, [
-      JSON.stringify(settings),
-      settings.agent_name,
-      settings.agent_description,
-      settings.logo_url,
-      settings.logo_storage_path,
-      clientId
-    ]);
+    const existingRecord = await execSql(checkQuery, [clientId]);
+    
+    if (existingRecord && Array.isArray(existingRecord) && existingRecord.length > 0) {
+      // Update existing record
+      const updateQuery = `
+        UPDATE ai_agents
+        SET 
+          settings = $1,
+          name = $2,
+          agent_description = $3,
+          logo_url = $4,
+          logo_storage_path = $5
+        WHERE client_id = $6 AND interaction_type = 'config'
+      `;
+      
+      await execSql(updateQuery, [
+        JSON.stringify(settings),
+        settings.agent_name,
+        settings.agent_description,
+        settings.logo_url,
+        settings.logo_storage_path,
+        clientId
+      ]);
+    } else {
+      // Insert new record
+      const insertQuery = `
+        INSERT INTO ai_agents (
+          client_id,
+          name,
+          agent_description,
+          logo_url,
+          logo_storage_path,
+          settings,
+          interaction_type
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, 'config'
+        )
+      `;
+      
+      await execSql(insertQuery, [
+        clientId,
+        settings.agent_name,
+        settings.agent_description,
+        settings.logo_url,
+        settings.logo_storage_path,
+        JSON.stringify(settings)
+      ]);
+    }
     
     return true;
   } catch (error) {
