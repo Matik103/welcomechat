@@ -1,7 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
 
 // Load environment variables
 dotenv.config();
@@ -26,10 +24,18 @@ async function executeSql(query: string, description: string) {
     // If we can query the table, it means we have access
     if (!error) {
       // Now execute our actual query
-      const { data: result, error: queryError } = await supabaseAdmin.rpc('execute_sql', { query });
+      const { data: result, error: queryError } = await supabaseAdmin.from('activities').select('*').limit(1);
       
       if (queryError) {
         console.error(`Failed to ${description}:`, queryError.message);
+        return false;
+      }
+      
+      // Execute the actual query using raw SQL
+      const { error: sqlError } = await supabaseAdmin.rpc('exec_sql', { sql_query: query });
+      
+      if (sqlError) {
+        console.error(`Failed to ${description}:`, sqlError.message);
         return false;
       }
       
@@ -48,20 +54,6 @@ async function executeSql(query: string, description: string) {
 async function applyDatabaseMigrations() {
   try {
     console.log('Applying database migrations...');
-
-    // First, apply the execute_sql function
-    const sqlFunctionPath = path.join(process.cwd(), 'supabase/migrations/20240330_create_execute_sql_function.sql');
-    const sqlFunctionQuery = fs.readFileSync(sqlFunctionPath, 'utf8');
-    
-    // Execute the SQL function creation directly using the Supabase client
-    const { error: functionError } = await supabaseAdmin.rpc('exec_sql', { sql_query: sqlFunctionQuery });
-    
-    if (functionError) {
-      console.error('Failed to create execute_sql function:', functionError.message);
-      return { success: false, error: functionError };
-    }
-    
-    console.log('Successfully created execute_sql function');
 
     // 1. Drop existing activity_type enum
     await executeSql(
