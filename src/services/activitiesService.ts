@@ -40,6 +40,11 @@ export const createActivity = async (
       }
     }
     
+    // If still no client_name, try to use agent_name as fallback
+    if (!metadata.client_name && metadata.agent_name) {
+      metadata.client_name = metadata.agent_name;
+    }
+    
     // Convert the ActivityType enum to a string value acceptable by the database
     const safeActivityType = getSafeActivityType(typeof type === 'string' ? type : String(type));
     

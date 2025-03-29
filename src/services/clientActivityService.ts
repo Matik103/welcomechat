@@ -20,6 +20,12 @@ export const createClientActivity = async (
     // Ensure we have a client name, even if it's a placeholder
     const safeClientName = clientName || "Unknown Client";
     
+    // Ensure client_name is always in metadata
+    const enhancedMetadata = {
+      ...metadata,
+      client_name: metadata.client_name || safeClientName
+    };
+    
     // Insert activity record into the activities table without type assertion
     const { error } = await supabase
       .from('activities')
@@ -27,10 +33,7 @@ export const createClientActivity = async (
         ai_agent_id: clientId,
         type: safeActivityType, // Using string directly without type assertion
         description,
-        metadata: {
-          ...metadata,
-          client_name: safeClientName
-        },
+        metadata: enhancedMetadata,
         created_at: new Date().toISOString()
       } as any); // Use 'as any' to bypass TypeScript's type checking for this insert
       
@@ -42,7 +45,7 @@ export const createClientActivity = async (
         client_id: clientId,
         client_name: safeClientName,
         description,
-        metadata,
+        metadata: enhancedMetadata,
         created_at: new Date().toISOString(),
         type: safeActivityType
       });

@@ -54,11 +54,15 @@ export default function WidgetSettings() {
     mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
       if (clientId) {
         await updateWidgetSettings(clientId, newSettings);
+        
+        // Make sure we have a client name for the activity log
+        const clientName = client?.client_name || newSettings.agent_name || "Unknown";
+        
         // Log the activity with safe activity type and client name
         await logClientActivity("widget_settings_updated", 
-          `Widget settings updated for "${client?.client_name || newSettings.agent_name || 'Unknown'}"`, 
+          `Widget settings updated for "${clientName}"`, 
           {
-            client_name: client?.client_name,
+            client_name: clientName,
             agent_name: newSettings.agent_name,
             settings_changed: true
           });
@@ -90,10 +94,15 @@ export default function WidgetSettings() {
       
       if (result) {
         await widgetSettingsHook.updateLogo(result.url, result.path);
+        
+        // Make sure we have a client name for the activity log
+        const clientName = client?.client_name || settings?.agent_name || "Unknown";
+        
+        // Log with the correct client name
         await logClientActivity("logo_uploaded", 
-          `Logo updated for "${client?.client_name || settings?.agent_name || 'Unknown'}"`, 
+          `Logo updated for "${clientName}"`, 
           {
-            client_name: client?.client_name,
+            client_name: clientName,
             agent_name: settings?.agent_name,
             logo_url: result.url
           });
@@ -117,12 +126,15 @@ export default function WidgetSettings() {
     mutateAsync: updateSettingsMutation.mutateAsync
   };
 
-  // Type-safe logClientActivity
+  // Type-safe logClientActivity with client name
   const logActivityWrapper = async (): Promise<void> => {
+    // Make sure we have a client name for the activity log
+    const clientName = client?.client_name || settings?.agent_name || "Unknown";
+    
     await logClientActivity("widget_previewed", 
-      `Widget previewed for "${client?.client_name || settings?.agent_name || 'Unknown'}"`, 
+      `Widget previewed for "${clientName}"`, 
       {
-        client_name: client?.client_name,
+        client_name: clientName,
         agent_name: settings?.agent_name
       });
   };
