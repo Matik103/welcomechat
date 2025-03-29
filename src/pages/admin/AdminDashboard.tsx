@@ -8,9 +8,17 @@ import { useAdminDashboardData } from '@/hooks/useAdminDashboardData';
 import { StatsCardsSection } from '@/components/admin/dashboard/StatsCardsSection';
 import { ActivityChartsSection } from '@/components/admin/dashboard/ActivityChartsSection';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
+import { RecentActivityList } from '@/components/dashboard/RecentActivityList';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useRecentActivities } from '@/hooks/useRecentActivities';
 
 export default function AdminDashboardPage() {
   const { isLoading, dashboardData, fetchDashboardData } = useAdminDashboardData();
+  const { 
+    activities, 
+    isLoading: isActivitiesLoading 
+  } = useRecentActivities();
   
   useEffect(() => {
     // Add error handling for real-time setup
@@ -84,6 +92,21 @@ export default function AdminDashboardPage() {
           <>
             <StatsCardsSection dashboardData={dashboardData} />
             <ActivityChartsSection activityCharts={dashboardData.activityCharts} />
+            
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold">Recent Activity</CardTitle>
+                <CardDescription>Latest actions across all clients</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RecentActivityList
+                  activities={activities || []}
+                  isLoading={isActivitiesLoading}
+                  highlightedId={null}
+                  onActivityClick={() => {}}
+                />
+              </CardContent>
+            </Card>
           </>
         ) : (
           <div className="text-center py-10">
