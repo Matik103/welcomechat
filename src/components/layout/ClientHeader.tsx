@@ -36,7 +36,11 @@ export const ClientHeader = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <Link to="/client/dashboard">
-              <img src="/logo.svg" alt="Logo" className="h-8 w-auto" />
+              <img 
+                src="/lovable-uploads/e262d378-49c1-4219-ae37-ce0264b3500c.png" 
+                alt="Welcome.Chat Logo" 
+                className="h-12" 
+              />
             </Link>
           </div>
           <div className="flex items-center gap-4">
