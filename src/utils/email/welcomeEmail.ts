@@ -2,15 +2,24 @@
 import { supabase } from '@/integrations/supabase/client';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
+import { generateClientInvitationTemplate } from './emailTemplates';
 
 export const sendWelcomeEmail = async (to: string, clientName: string, password: string) => {
   try {
+    // Generate beautiful HTML email using our template
+    const htmlContent = generateClientInvitationTemplate({
+      clientName: clientName,
+      email: to,
+      tempPassword: password,
+      productName: 'Welcome.Chat'
+    });
+    
     // Call the Supabase edge function for sending emails
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
         to: to,
-        subject: 'Welcome to Acme!',
-        html: `<p>Hello ${clientName},</p><p>Welcome to Acme! Your password is: <strong>${password}</strong></p>`,
+        subject: 'Welcome to Welcome.Chat - Your Account Details',
+        html: htmlContent,
         from: 'Welcome.Chat <admin@welcome.chat>'
       },
     });
