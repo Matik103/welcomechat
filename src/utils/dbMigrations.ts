@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
@@ -18,33 +19,16 @@ const supabaseAdmin = createClient(
 
 async function executeSql(query: string, description: string) {
   try {
-    // Execute the query directly using the Supabase client
-    const { data, error } = await supabaseAdmin.from('activities').select('*').limit(1);
+    // Execute the query using the exec_sql RPC function
+    const { error: sqlError } = await supabaseAdmin.rpc('exec_sql', { sql_query: query });
     
-    // If we can query the table, it means we have access
-    if (!error) {
-      // Now execute our actual query
-      const { data: result, error: queryError } = await supabaseAdmin.from('activities').select('*').limit(1);
-      
-      if (queryError) {
-        console.error(`Failed to ${description}:`, queryError.message);
-        return false;
-      }
-      
-      // Execute the actual query using raw SQL
-      const { error: sqlError } = await supabaseAdmin.rpc('exec_sql', { sql_query: query });
-      
-      if (sqlError) {
-        console.error(`Failed to ${description}:`, sqlError.message);
-        return false;
-      }
-      
-      console.log(`Successfully ${description}`);
-      return true;
-    } else {
-      console.error('Failed to verify database access:', error.message);
+    if (sqlError) {
+      console.error(`Failed to ${description}:`, sqlError.message);
       return false;
     }
+    
+    console.log(`Successfully ${description}`);
+    return true;
   } catch (error) {
     console.error(`Error while ${description}:`, error);
     return false;

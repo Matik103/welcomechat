@@ -1,3 +1,4 @@
+
 -- Create a function to execute SQL queries with service role permissions
 CREATE OR REPLACE FUNCTION public.execute_sql(query text)
 RETURNS void

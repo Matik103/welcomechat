@@ -1,3 +1,4 @@
+
 -- Drop existing policies if they exist
 DROP POLICY IF EXISTS "Enable insert access for authenticated users" ON activities;
 
@@ -6,9 +7,14 @@ CREATE POLICY "Enable insert access for authenticated users" ON activities
   FOR INSERT
   TO public
   WITH CHECK (
-    auth.role() = 'authenticated' AND
-    ai_agent_id IN (
-      SELECT id FROM ai_agents WHERE email = auth.jwt() ->> 'email'
+    auth.role() = 'authenticated' AND (
+      -- Allow activities for agents where user's email matches
+      ai_agent_id IN (
+        SELECT id FROM ai_agents WHERE email = auth.jwt() ->> 'email'
+      )
+      OR
+      -- Allow activities for client deletions and updates
+      type IN ('client_deleted', 'client_updated', 'client_created', 'client_recovered')
     )
   );
 
