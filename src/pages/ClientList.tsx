@@ -4,33 +4,79 @@ import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
 import { toast } from 'sonner';
 import { Client } from '@/types/client';
+import { Button } from '@/components/ui/button';
+import { Plus, Loader2 } from 'lucide-react';
+import { AddClientModal } from '@/components/client/AddClientModal';
 
 export default function ClientList() {
   const { clients, isLoading, searchQuery, handleSearch, refetch } = useClientList();
+  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   
   const handleDeleteClick = (client: Client) => {
     console.log('Delete clicked for client:', client.client_name);
   };
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Clients</h1>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+            <p className="mt-1 text-sm text-gray-500">Manage your client accounts and settings</p>
+          </div>
+          <Button 
+            onClick={() => setIsAddClientModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+          >
+            <Plus className="mr-2 h-4 w-4" /> Add New Client
+          </Button>
         </div>
         
-        <ClientSearchBar 
-          value={searchQuery} 
-          onChange={handleSearch} 
-        />
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="w-full sm:max-w-md">
+            <ClientSearchBar 
+              value={searchQuery} 
+              onChange={handleSearch}
+              className="w-full" 
+            />
+          </div>
+        </div>
         
-        <div className="bg-white rounded-md shadow">
-          <ClientListTable
-            clients={clients}
-            onDeleteClick={handleDeleteClick}
-          />
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <p className="text-sm text-gray-500">Loading clients...</p>
+              </div>
+            </div>
+          ) : clients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+              <p className="text-gray-500 mb-4">No clients found</p>
+              <Button 
+                onClick={() => setIsAddClientModalOpen(true)}
+                variant="outline"
+                className="inline-flex items-center"
+              >
+                <Plus className="mr-2 h-4 w-4" /> Add Your First Client
+              </Button>
+            </div>
+          ) : (
+            <ClientListTable
+              clients={clients}
+              onDeleteClick={handleDeleteClick}
+            />
+          )}
         </div>
       </div>
+
+      <AddClientModal 
+        isOpen={isAddClientModalOpen}
+        onClose={() => {
+          setIsAddClientModalOpen(false);
+          refetch(); // Refresh the client list after adding a new client
+        }}
+      />
     </div>
   );
 }
