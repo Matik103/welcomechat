@@ -1,4 +1,6 @@
 
+import { supabase } from '@/integrations/supabase/client';
+
 export interface EmailOptions {
   to: string | string[];
   subject: string;
@@ -37,7 +39,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
       }
       
       // Call the Supabase Edge Function
-      const { data, error } = await window.supabase.functions.invoke('send-email', {
+      const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: options.to,
           subject: options.subject,
