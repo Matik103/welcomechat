@@ -53,13 +53,9 @@ export const sendDeletionEmail = async (
       formattedDeletionDate
     });
     
-    // Send the email - switch to use delivered@resend.dev for testing
-    // Use the actual email in production
-    const testMode = process.env.NODE_ENV !== 'production';
-    const recipientEmail = testMode ? 'delivered@resend.dev' : email;
-    
+    // Send the email using the actual email address (no test mode)
     const emailResult = await sendEmail({
-      to: recipientEmail,
+      to: email,
       subject: 'Important: Your Account is Scheduled for Deletion',
       html: html,
       from: 'Welcome.Chat <admin@welcome.chat>'
