@@ -1,5 +1,4 @@
-
-import { ActivityType } from '@/types/activity';
+import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 // Map activity types to icon names
 export const activityTypeToIcon: Record<string, string> = {
@@ -93,11 +92,14 @@ export const getActivityTypeLabel = (activityType: string): string => {
     .join(' ');
 };
 
+// List of valid activity types for type checking
+const VALID_ACTIVITY_TYPES = Object.values(ActivityType);
+
 // Ensure activity type is a valid enum value
-export const getSafeActivityType = (type: string): ActivityType => {
+export const getSafeActivityType = (type: string): ActivityTypeString => {
   // Check if the provided type is a valid ActivityType
-  const isValidType = Object.values(ActivityType).includes(type as ActivityType);
+  const isValidType = VALID_ACTIVITY_TYPES.includes(type as any);
   
   // Return the type if valid, or a safe fallback
-  return isValidType ? (type as ActivityType) : 'client_updated';
+  return isValidType ? (type as ActivityTypeString) : ActivityType.CLIENT_UPDATED;
 };

@@ -1,6 +1,7 @@
 
 import { Resend } from 'resend';
 import { createClientActivity } from '@/services/clientActivityService';
+import { ActivityType } from '@/types/activity';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -17,7 +18,7 @@ export const sendWelcomeEmail = async (to: string, clientName: string, password:
     await createClientActivity(
       "", // We don't have the agent ID here, it will be filled in the CreateClientForm
       clientName,
-      'email_sent',
+      ActivityType.EMAIL_SENT,
       `Welcome email sent to ${to}`,
       {
         email_type: "welcome",
