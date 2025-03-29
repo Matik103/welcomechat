@@ -4,9 +4,8 @@ import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
-import { MessageCircle, Loader2, Bot, User } from "lucide-react";
+import { MessageCircle, Loader2 } from "lucide-react";
 import { useAgentContent } from "@/hooks/useAgentContent";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
@@ -142,6 +141,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     }, 1000);
   };
 
+  // Render the appropriate widget based on the display mode
   const renderWidgetPreview = () => {
     switch(settings.display_mode) {
       case 'inline':
@@ -154,6 +154,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     }
   };
 
+  // Render the floating widget preview
   const renderFloatingWidget = () => {
     return (
       <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex justify-end items-end p-4 bg-gray-50">
@@ -200,7 +201,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                     secondaryColor={settings.secondary_color}
                     isTyping={isTyping}
                     messagesEndRef={messagesEndRef}
-                    logoUrl={settings.logo_url}
                   />
                   
                   <ChatInput 
@@ -225,7 +225,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                 <img 
                   src={settings.logo_url} 
                   alt="Assistant" 
-                  className="w-8 h-8 object-contain rounded-full"
+                  className="w-8 h-8 object-contain"
                   onError={(e) => {
                     e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";
                   }}
@@ -240,25 +240,21 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     );
   };
 
+  // Render the inline widget preview
   const renderInlineWidget = () => {
     return (
       <div className="w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex flex-col justify-center items-center p-4 bg-gray-50">
         <div className="w-full max-w-[500px] border border-gray-200 rounded-lg overflow-hidden shadow-md bg-white">
           <div className="p-3 flex items-center gap-2" style={{ backgroundColor: settings.chat_color, color: 'white' }}>
             {settings.logo_url && (
-              <Avatar className="h-6 w-6 flex-shrink-0">
-                <AvatarImage 
-                  src={settings.logo_url} 
-                  alt={settings.agent_name || "Assistant"}
-                  onError={(e) => {
-                    console.error("Error loading logo in inline widget:", e);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-                <AvatarFallback className="bg-primary/10 text-white text-xs">
-                  <Bot className="h-4 w-4" />
-                </AvatarFallback>
-              </Avatar>
+              <img 
+                src={settings.logo_url} 
+                alt="Assistant" 
+                className="w-6 h-6 object-contain rounded-full"
+                onError={(e) => {
+                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";
+                }}
+              />
             )}
             <span className="font-medium">{settings.agent_name || 'Chat'}</span>
           </div>
@@ -267,26 +263,14 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
             {messages.map((message, index) => (
               <div 
                 key={index} 
-                className={`mb-3 flex items-start ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                className={`mb-2 ${message.isUser ? 'text-right' : 'text-left'}`}
               >
-                {!message.isUser && (
-                  <Avatar className="mr-2 h-6 w-6 flex-shrink-0">
-                    <AvatarImage 
-                      src={settings.logo_url} 
-                      alt="Assistant" 
-                      onError={(e) => {
-                        console.error("Error loading logo in inline message:", e);
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      <Bot className="h-3 w-3" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                
                 <div 
-                  className={`inline-block px-3 py-2 rounded-lg max-w-[80%]`}
+                  className={`inline-block px-3 py-2 rounded-lg max-w-[80%] ${
+                    message.isUser 
+                      ? 'bg-indigo-600 text-white' 
+                      : `bg-${settings.secondary_color} text-${settings.text_color}`
+                  }`}
                   style={{ 
                     backgroundColor: message.isUser ? settings.chat_color : settings.secondary_color,
                     color: message.isUser ? 'white' : settings.text_color
@@ -294,34 +278,13 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                 >
                   {message.text}
                 </div>
-                
-                {message.isUser && (
-                  <Avatar className="ml-2 h-6 w-6 flex-shrink-0">
-                    <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-                      <User className="h-3 w-3" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
               </div>
             ))}
             {isTyping && (
-              <div className="flex items-start mb-3">
-                <Avatar className="mr-2 h-6 w-6 flex-shrink-0">
-                  <AvatarImage 
-                    src={settings.logo_url} 
-                    alt="Assistant" 
-                    onError={(e) => {
-                      console.error("Error loading logo in inline typing:", e);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                    <Bot className="h-3 w-3" />
-                  </AvatarFallback>
-                </Avatar>
+              <div className="text-left mb-2">
                 <div 
-                  className="inline-block px-3 py-2 rounded-lg bg-gray-100"
-                  style={{ color: settings.text_color }}
+                  className="inline-block px-3 py-2 rounded-lg bg-gray-200"
+                  style={{ backgroundColor: settings.secondary_color, color: settings.text_color }}
                 >
                   <div className="flex gap-1">
                     <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce delay-100"></div>
@@ -362,6 +325,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     );
   };
 
+  // Render the sidebar widget preview
   const renderSidebarWidget = () => {
     return (
       <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4 bg-gray-50">
@@ -386,18 +350,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
             style={{ backgroundColor: settings.chat_color }}
             onClick={handleToggleExpand}
           >
-            {settings.logo_url ? (
-              <img 
-                src={settings.logo_url} 
-                alt="Assistant" 
-                className="w-6 h-6 object-contain rounded-full"
-                onError={(e) => {
-                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E";
-                }}
-              />
-            ) : (
-              <MessageCircle className="text-white" />
-            )}
+            <MessageCircle className="text-white" />
           </div>
           
           {expanded && (
@@ -406,19 +359,13 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                 className="p-3 flex items-center gap-2" 
                 style={{ backgroundColor: settings.chat_color, color: 'white' }}
               >
-                <Avatar className="h-6 w-6 flex-shrink-0">
-                  <AvatarImage 
+                {settings.logo_url && (
+                  <img 
                     src={settings.logo_url} 
-                    alt={settings.agent_name || "Assistant"}
-                    onError={(e) => {
-                      console.error("Error loading logo in sidebar header:", e);
-                      e.currentTarget.style.display = 'none';
-                    }}
+                    alt="Assistant" 
+                    className="w-6 h-6 object-contain rounded-full"
                   />
-                  <AvatarFallback className="bg-primary/10 text-white text-xs">
-                    <Bot className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
+                )}
                 <span className="font-medium">{settings.agent_name || 'Chat'}</span>
               </div>
               
@@ -426,24 +373,8 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                 {messages.map((message, index) => (
                   <div 
                     key={index} 
-                    className={`mb-3 flex items-start ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                    className={`mb-2 ${message.isUser ? 'text-right' : 'text-left'}`}
                   >
-                    {!message.isUser && (
-                      <Avatar className="mr-2 h-6 w-6 flex-shrink-0">
-                        <AvatarImage 
-                          src={settings.logo_url} 
-                          alt="Assistant"
-                          onError={(e) => {
-                            console.error("Error loading logo in sidebar message:", e);
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                          <Bot className="h-3 w-3" />
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    
                     <div 
                       className={`inline-block px-3 py-2 rounded-lg max-w-[80%]`}
                       style={{ 
@@ -453,31 +384,10 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                     >
                       {message.text}
                     </div>
-                    
-                    {message.isUser && (
-                      <Avatar className="ml-2 h-6 w-6 flex-shrink-0">
-                        <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-                          <User className="h-3 w-3" />
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
                   </div>
                 ))}
                 {isTyping && (
-                  <div className="flex items-start mb-3">
-                    <Avatar className="mr-2 h-6 w-6 flex-shrink-0">
-                      <AvatarImage 
-                        src={settings.logo_url} 
-                        alt="Assistant"
-                        onError={(e) => {
-                          console.error("Error loading logo in sidebar typing:", e);
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                        <Bot className="h-3 w-3" />
-                      </AvatarFallback>
-                    </Avatar>
+                  <div className="text-left mb-2">
                     <div 
                       className="inline-block px-3 py-2 rounded-lg"
                       style={{ backgroundColor: settings.secondary_color, color: settings.text_color }}

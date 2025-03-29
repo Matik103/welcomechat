@@ -3,8 +3,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { WidgetSettings } from "@/types/widget-settings";
 import { LogoManagement } from "./LogoManagement";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bot } from "lucide-react";
 
 interface BrandingSettingsProps {
   settings: WidgetSettings;
@@ -24,7 +22,7 @@ export function BrandingSettings({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <Label htmlFor="agent_name">AI Agent Name</Label>
         <Input
@@ -41,29 +39,12 @@ export function BrandingSettings({
 
       <div>
         <Label>Logo</Label>
-        <div className="flex items-start gap-4 mt-2">
-          {settings.logo_url && (
-            <div className="flex-shrink-0">
-              <Avatar className="h-16 w-16 border border-gray-200">
-                <AvatarImage src={settings.logo_url} alt={settings.agent_name || "AI Assistant"} />
-                <AvatarFallback className="bg-primary/10 text-primary">
-                  <Bot className="h-8 w-8" />
-                </AvatarFallback>
-              </Avatar>
-            </div>
-          )}
-          <div className="flex-grow">
-            <LogoManagement
-              logoUrl={settings.logo_url}
-              isUploading={isUploading}
-              onLogoUpload={onLogoUpload}
-              onRemoveLogo={handleRemoveLogo}
-            />
-            <p className="text-sm text-muted-foreground mt-1">
-              Upload your brand logo to personalize the chat widget. This will appear as the agent's avatar in conversations.
-            </p>
-          </div>
-        </div>
+        <LogoManagement
+          logoUrl={settings.logo_url}
+          isUploading={isUploading}
+          onLogoUpload={onLogoUpload}
+          onRemoveLogo={handleRemoveLogo}
+        />
       </div>
 
       <div>
@@ -75,9 +56,6 @@ export function BrandingSettings({
           placeholder="Hi 👋, how can I help?"
           className="mt-1"
         />
-        <p className="text-sm text-muted-foreground mt-1">
-          The first message users see when they open the chat
-        </p>
       </div>
 
       <div>
@@ -89,9 +67,6 @@ export function BrandingSettings({
           placeholder="I typically respond right away"
           className="mt-1"
         />
-        <p className="text-sm text-muted-foreground mt-1">
-          Let users know how quickly they can expect a response
-        </p>
       </div>
     </div>
   );
