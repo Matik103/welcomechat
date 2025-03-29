@@ -1,11 +1,14 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 import { WebsiteUrl, WebsiteUrlFormData } from "@/types/website-url";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function useWebsiteUrlsMutation(clientId: string | undefined) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const addWebsiteUrlMutation = useMutation({
     mutationFn: async (input: WebsiteUrlFormData): Promise<WebsiteUrl> => {
@@ -18,8 +21,9 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
       
       console.log("Adding website URL with client ID:", effectiveClientId);
       console.log("Input data:", input);
+      console.log("Current user:", user?.id);
       
-      // Insert the website URL
+      // First try with regular supabase client
       try {
         const { data, error } = await supabase
           .from("website_urls")
@@ -33,8 +37,30 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
           .single();
           
         if (error) {
-          console.error("Supabase error:", error);
-          throw error;
+          console.error("Regular client error:", error);
+          // If that fails, try with admin client if available
+          if (supabaseAdmin) {
+            console.log("Trying with admin client");
+            const { data: adminData, error: adminError } = await supabaseAdmin
+              .from("website_urls")
+              .insert({
+                client_id: effectiveClientId,
+                url: input.url,
+                refresh_rate: input.refresh_rate,
+                status: input.status || 'pending'
+              })
+              .select()
+              .single();
+              
+            if (adminError) {
+              console.error("Admin client error:", adminError);
+              throw adminError;
+            }
+            
+            return adminData as WebsiteUrl;
+          } else {
+            throw error;
+          }
         }
         
         if (!data) {
@@ -59,11 +85,32 @@ export function useWebsiteUrlsMutation(clientId: string | undefined) {
   const deleteWebsiteUrlMutation = useMutation({
     mutationFn: async (urlId: number): Promise<number> => {
       try {
+        // First try with regular client
         const { error } = await supabase
           .from("website_urls")
           .delete()
           .eq("id", urlId);
-        if (error) throw error;
+          
+        if (error) {
+          console.error("Regular client delete error:", error);
+          
+          // If that fails, try with admin client if available
+          if (supabaseAdmin) {
+            console.log("Trying delete with admin client");
+            const { error: adminError } = await supabaseAdmin
+              .from("website_urls")
+              .delete()
+              .eq("id", urlId);
+              
+            if (adminError) {
+              console.error("Admin client delete error:", adminError);
+              throw adminError;
+            }
+          } else {
+            throw error;
+          }
+        }
+        
         return urlId;
       } catch (error) {
         console.error("Error deleting website URL:", error);

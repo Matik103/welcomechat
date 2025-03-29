@@ -4,6 +4,7 @@ CREATE OR REPLACE FUNCTION log_website_url_changes()
 RETURNS TRIGGER AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
+        -- Log the activity using explicit insert privileges
         INSERT INTO client_activities (
             client_id,
             activity_type,
@@ -21,7 +22,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create trigger on website_urls table
 DROP TRIGGER IF EXISTS log_website_url_changes ON website_urls;

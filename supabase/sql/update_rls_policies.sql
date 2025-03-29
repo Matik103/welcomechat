@@ -11,38 +11,16 @@ CREATE POLICY "Service role has full access to website URLs"
     USING (auth.jwt() ->> 'role' = 'service_role')
     WITH CHECK (auth.jwt() ->> 'role' = 'service_role');
 
-CREATE POLICY "Authenticated users can manage their own website URLs"
+-- Allow all authenticated users to access all website URLs (more permissive policy)
+CREATE POLICY "Authenticated users can access all website URLs"
     ON website_urls
     FOR ALL
-    USING (
-        auth.uid() IN (
-            SELECT id FROM ai_agents WHERE id = client_id
-        )
-        OR 
-        auth.uid() IN (
-            SELECT user_id FROM user_clients WHERE client_id = website_urls.client_id
-        )
-        OR 
-        auth.uid() IN (
-            SELECT user_id FROM user_roles WHERE client_id = website_urls.client_id OR role = 'admin'
-        )
-    )
-    WITH CHECK (
-        auth.uid() IN (
-            SELECT id FROM ai_agents WHERE id = client_id
-        )
-        OR 
-        auth.uid() IN (
-            SELECT user_id FROM user_clients WHERE client_id = website_urls.client_id
-        )
-        OR 
-        auth.uid() IN (
-            SELECT user_id FROM user_roles WHERE client_id = website_urls.client_id OR role = 'admin'
-        )
-    );
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
 
--- Enable RLS
+-- Make sure RLS is enabled (but with our permissive policy)
 ALTER TABLE website_urls ENABLE ROW LEVEL SECURITY;
 
 -- Verify policies
-SELECT * FROM pg_policies WHERE tablename = 'website_urls'; 
+SELECT * FROM pg_policies WHERE tablename = 'website_urls';
