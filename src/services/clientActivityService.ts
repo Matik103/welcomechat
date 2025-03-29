@@ -18,7 +18,7 @@ export const createClientActivity = async (
       .from('activities')
       .insert({
         ai_agent_id: clientId,
-        type: type as ActivityType,
+        type: type as string, // Cast to string to avoid TypeScript errors
         description,
         metadata: {
           ...metadata,

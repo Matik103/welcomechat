@@ -37,6 +37,7 @@ export const activityTypeToIcon: Record<string, string> = {
   'system_update': 'settings',
   'source_deleted': 'trash',
   'source_added': 'plus',
+  'error_logged': 'alert-triangle',
   'unknown': 'help-circle'
 };
 
@@ -76,6 +77,7 @@ export const activityTypeToColor: Record<string, string> = {
   'system_update': 'gray',
   'source_deleted': 'red',
   'source_added': 'green',
+  'error_logged': 'red',
   'unknown': 'gray'
 };
 
@@ -89,4 +91,13 @@ export const getActivityTypeLabel = (activityType: string): string => {
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+};
+
+// Ensure activity type is a valid enum value
+export const getSafeActivityType = (type: string): ActivityType => {
+  // Check if the provided type is a valid ActivityType
+  const isValidType = Object.values(ActivityType).includes(type as ActivityType);
+  
+  // Return the type if valid, or a safe fallback
+  return isValidType ? (type as ActivityType) : 'client_updated';
 };

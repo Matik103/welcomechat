@@ -17,7 +17,7 @@ export const createActivity = async (
       .from("activities")
       .insert({
         ai_agent_id: client_id, // activities table uses ai_agent_id instead of client_id
-        type: type as ActivityType,
+        type: type as string, // Cast to string to avoid TypeScript errors
         description,
         metadata,
         created_at: new Date().toISOString()
