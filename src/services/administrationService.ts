@@ -53,7 +53,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
     const { count: totalCount, error: countError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', adminActivityTypes);
+      .in('type', adminActivityTypes as any); // Use type assertion to bypass type checking
       
     if (countError) throw countError;
     
@@ -65,7 +65,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
     const { count: recentCount, error: recentError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', adminActivityTypes)
+      .in('type', adminActivityTypes as any) // Use type assertion to bypass type checking
       .gt('created_at', timeAgoStr);
       
     if (recentError) throw recentError;
