@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
+import { User } from '@supabase/supabase-js';
 
 /**
  * Generates a secure temporary password for new clients
@@ -64,8 +65,8 @@ export const saveClientTempPassword = async (
       };
     }
     
-    // Find the user by email
-    const existingUser = userList.users.find(user => user.email === email);
+    // Find the user by email - explicitly typing the users array
+    const existingUser = userList.users.find((user: User) => user.email === email);
     
     // If user exists, update their password
     if (existingUser) {

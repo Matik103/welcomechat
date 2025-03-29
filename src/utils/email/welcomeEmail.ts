@@ -2,6 +2,7 @@
 import { sendEmail } from './emailSender';
 import { generateClientInvitationTemplate } from './emailTemplates';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
+import { User } from '@supabase/supabase-js';
 
 /**
  * Sends a welcome email to a newly created client with their login credentials
@@ -37,8 +38,8 @@ export const sendWelcomeEmail = async (
       };
     }
     
-    // Find the user by email
-    const existingUser = userList.users.find(user => user.email === email);
+    // Find the user by email - explicitly typing the users array
+    const existingUser = userList.users.find((user: User) => user.email === email);
     
     if (!existingUser) {
       console.log("User not found in Supabase Auth, creating user");
