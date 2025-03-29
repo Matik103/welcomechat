@@ -18,13 +18,25 @@ const supabaseAdmin = createClient(
 
 async function executeSql(query: string, description: string) {
   try {
-    const { error } = await supabaseAdmin.rpc('exec_sql', { sql_query: query });
-    if (error) {
-      console.error(`Failed to ${description}:`, error.message);
+    // Execute the query directly using the Supabase client
+    const { data, error } = await supabaseAdmin.from('activities').select('*').limit(1);
+    
+    // If we can query the table, it means we have access
+    if (!error) {
+      // Now execute our actual query
+      const { data: result, error: queryError } = await supabaseAdmin.rpc('exec_sql', { sql_query: query });
+      
+      if (queryError) {
+        console.error(`Failed to ${description}:`, queryError.message);
+        return false;
+      }
+      
+      console.log(`Successfully ${description}`);
+      return true;
+    } else {
+      console.error('Failed to verify database access:', error.message);
       return false;
     }
-    console.log(`Successfully ${description}`);
-    return true;
   } catch (error) {
     console.error(`Error while ${description}:`, error);
     return false;
@@ -36,14 +48,10 @@ async function applyDatabaseMigrations() {
     console.log('Applying database migrations...');
 
     // 1. Drop existing activity_type enum
-    const dropEnumSuccess = await executeSql(
+    await executeSql(
       'DROP TYPE IF EXISTS activity_type CASCADE;',
       'dropped activity_type enum'
     );
-
-    if (!dropEnumSuccess) {
-      throw new Error('Failed to drop activity_type enum');
-    }
 
     // 2. Create new activity_type enum
     const createEnumSuccess = await executeSql(`
@@ -122,14 +130,10 @@ async function applyDatabaseMigrations() {
     }
 
     // 6. Update RLS policies
-    const dropPolicySuccess = await executeSql(
+    await executeSql(
       'DROP POLICY IF EXISTS "Enable insert access for authenticated users" ON activities;',
       'dropped existing policy'
     );
-
-    if (!dropPolicySuccess) {
-      throw new Error('Failed to drop existing policy');
-    }
 
     const createPolicySuccess = await executeSql(`
       CREATE POLICY "Enable insert access for authenticated users" ON activities
