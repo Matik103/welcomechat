@@ -72,16 +72,30 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   );
 
   // Convert stats to the expected format for the InteractionStats component
+  // Making sure we have both snake_case and camelCase versions to satisfy the type
   const formattedStats = useMemo(() => stats ? {
-    total_interactions: stats.totalInteractions,
-    active_days: stats.activeDays,
-    average_response_time: stats.averageResponseTime,
-    top_queries: stats.topQueries
+    // Snake case versions
+    total_interactions: stats.total_interactions,
+    active_days: stats.active_days,
+    average_response_time: stats.average_response_time,
+    top_queries: stats.top_queries,
+    
+    // CamelCase versions required by InteractionStats type
+    totalInteractions: stats.totalInteractions || stats.total_interactions,
+    activeDays: stats.activeDays || stats.active_days,
+    averageResponseTime: stats.averageResponseTime || stats.average_response_time,
+    topQueries: stats.topQueries || stats.top_queries
   } : {
+    // Default values with both naming conventions
     total_interactions: 0,
     active_days: 0,
     average_response_time: 0,
-    top_queries: []
+    top_queries: [],
+    
+    totalInteractions: 0,
+    activeDays: 0,
+    averageResponseTime: 0,
+    topQueries: []
   }, [stats]);
 
   // Format top queries for the QueryList component
