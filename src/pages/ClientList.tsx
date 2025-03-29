@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
@@ -6,7 +7,7 @@ import { toast } from 'sonner';
 import { Client } from '@/types/client';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2 } from 'lucide-react';
-import { AddClientModal } from '@/components/client/AddClientModal';
+import { UnifiedClientModal } from '@/components/client/UnifiedClientModal';
 
 export default function ClientList() {
   const { clients, isLoading, searchQuery, handleSearch, refetch } = useClientList();
@@ -70,7 +71,7 @@ export default function ClientList() {
         </div>
       </div>
 
-      <AddClientModal 
+      <UnifiedClientModal 
         isOpen={isAddClientModalOpen}
         onClose={() => {
           setIsAddClientModalOpen(false);
