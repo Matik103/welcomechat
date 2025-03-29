@@ -1,12 +1,16 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
 import { toast } from 'sonner';
+import { Client } from '@/types/client';
 
 export default function ClientList() {
-  const { clients, isLoading, searchQuery, handleSearch } = useClientList();
+  const { clients, isLoading, searchQuery, handleSearch, refetch } = useClientList();
+  
+  const handleDeleteClick = (client: Client) => {
+    console.log('Delete clicked for client:', client.client_name);
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -23,7 +27,7 @@ export default function ClientList() {
         <div className="bg-white rounded-md shadow">
           <ClientListTable
             clients={clients}
-            onDeleteClick={() => toast.info("Client deletion has been disabled")}
+            onDeleteClick={handleDeleteClick}
           />
         </div>
       </div>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ClientListTable } from '@/components/client/ClientListTable';
@@ -8,10 +7,15 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { AddClientModal } from '@/components/client/AddClientModal';
+import { Client } from '@/types/client';
 
 export default function AdminClientsPage() {
-  const { clients, isLoading, searchQuery, handleSearch } = useClientList();
+  const { clients, isLoading, searchQuery, handleSearch, refetch } = useClientList();
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
+
+  const handleDeleteClick = (client: Client) => {
+    console.log('Delete clicked for client:', client.client_name);
+  };
 
   return (
     <AdminLayout>
@@ -50,9 +54,7 @@ export default function AdminClientsPage() {
             ) : (
               <ClientListTable
                 clients={clients}
-                onDeleteClick={() => {
-                  toast.info("Client deletion has been disabled");
-                }}
+                onDeleteClick={handleDeleteClick}
               />
             )}
           </div>

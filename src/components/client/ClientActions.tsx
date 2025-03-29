@@ -61,6 +61,7 @@ export function ClientActions({
         variant="ghost"
         size="icon"
         onClick={onDeleteClick}
+        title="Schedule client deletion"
       >
         <Trash2 className="h-4 w-4 text-destructive" />
         <span className="sr-only">Delete client</span>

@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { recoverClientAccount } from '@/utils/clientUtils';
 
 const ClientAuth = () => {
   const [loading, setLoading] = useState(false);
@@ -19,6 +19,9 @@ const ClientAuth = () => {
   const { user, isLoading, userRole } = useAuth();
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const recoveryToken = queryParams.get('recovery');
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -31,6 +34,38 @@ const ClientAuth = () => {
   useEffect(() => {
     console.log("Current user state:", { user, userRole, isLoading });
   }, [user, userRole, isLoading]);
+
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
+
+  useEffect(() => {
+    const handleRecovery = async () => {
+      if (recoveryToken) {
+        setIsRecovering(true);
+        try {
+          const result = await recoverClientAccount(recoveryToken);
+          
+          if (result.success) {
+            setRecoverySuccess(true);
+            toast.success("Your account has been successfully recovered!");
+            setTimeout(() => {
+              const newUrl = window.location.pathname;
+              window.history.replaceState({}, document.title, newUrl);
+            }, 500);
+          } else {
+            toast.error("Account recovery failed. The link may be invalid or expired.");
+          }
+        } catch (error) {
+          console.error("Error recovering account:", error);
+          toast.error("An error occurred while attempting to recover your account");
+        } finally {
+          setIsRecovering(false);
+        }
+      }
+    };
+    
+    handleRecovery();
+  }, [recoveryToken]);
 
   if (isLoading && !loadTimeout) {
     return (
@@ -55,6 +90,52 @@ const ClientAuth = () => {
         </div>
       );
     }
+  }
+
+  if (isRecovering) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow">
+          <div className="text-center">
+            <h2 className="text-3xl font-extrabold text-gray-900">Account Recovery</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Please wait while we restore your account...
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (recoverySuccess) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <h2 className="mt-3 text-3xl font-extrabold text-gray-900">Account Recovered!</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Your account has been successfully recovered and is now active again.
+            </p>
+            <div className="mt-5">
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Continue to Login
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
