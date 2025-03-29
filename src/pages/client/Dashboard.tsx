@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +18,17 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
+  const [isPageVisible, setIsPageVisible] = useState(true);
+  
+  // Handle page visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsPageVisible(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
   
   // Set a short timeout to prevent getting stuck in loading state
   useEffect(() => {
@@ -46,6 +56,9 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     isLoading,
     agentName
   } = useClientDashboard(effectiveClientId || '', user?.user_metadata?.agent_name || 'AI Assistant');
+
+  // Only show loading state if we're actually loading and the page is visible
+  const shouldShowLoading = isLoading && !loadTimeout && isPageVisible;
 
   // Convert stats to the expected format for the InteractionStats component
   const formattedStats: any = stats ? {
@@ -81,16 +94,16 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   }, [refreshDashboard]);
 
   // Very minimal loading state - only show if we don't have a user yet
-  if (!user && !loadTimeout) {
+  if (shouldShowLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          <p className="mt-4 text-sm text-gray-600">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
-
-  // Show loading spinner, but with a short timeout to prevent stuck UIs
-  const isInitialLoading = isLoading && !loadTimeout;
 
   return (
     <div className="bg-[#F8F9FA] min-h-screen">
@@ -122,7 +135,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <InteractionStats 
             stats={formattedStats} 
-            isLoading={isInitialLoading || isRefreshing} 
+            isLoading={shouldShowLoading} 
           />
         </div>
 
@@ -134,7 +147,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
               <CardTitle>Recent Interactions</CardTitle>
             </CardHeader>
             <CardContent>
-              {isInitialLoading ? (
+              {shouldShowLoading ? (
                 <div className="flex items-center justify-center h-40">
                   <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                 </div>
@@ -156,7 +169,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
           {/* Common queries card */}
           <QueryList 
             queries={queries} 
-            isLoading={isInitialLoading || isRefreshing} 
+            isLoading={shouldShowLoading} 
           />
         </div>
       </div>

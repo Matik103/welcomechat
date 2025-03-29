@@ -1,5 +1,4 @@
-
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { useAuthSafetyTimeout } from "./hooks/useAuthSafetyTimeout";
@@ -25,6 +24,22 @@ function App() {
   const isPublicRoute = useMemo(() => (
     isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage
   ), [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage]);
+
+  // Check for stored auth state
+  useEffect(() => {
+    const storedState = sessionStorage.getItem('auth_state');
+    if (storedState) {
+      try {
+        const { timestamp } = JSON.parse(storedState);
+        // If we have recent stored state, don't show loading
+        if (Date.now() - timestamp < 60 * 60 * 1000) {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error checking stored auth state:', error);
+      }
+    }
+  }, [setIsLoading]);
   
   // Initialize timeout for auth loading
   useAuthSafetyTimeout({
@@ -52,8 +67,10 @@ function App() {
     );
   }
   
-  // Show loading state during initialization or auth
-  if (isLoading || isInitializing) {
+  // Only show loading state if we're initializing or in an auth callback
+  const shouldShowLoading = (isLoading && isAuthCallback) || isInitializing;
+  
+  if (shouldShowLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center">
