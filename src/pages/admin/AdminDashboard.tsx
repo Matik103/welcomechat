@@ -44,7 +44,7 @@ export default function AdminDashboardPage() {
         }
         
         // Subscribe to all activities
-        activitiesChannel = subscribeToAllActivities((payload) => {
+        activitiesChannel = subscribeToAllActivities((payload: any) => {
           console.log('Activities changed:', payload);
           // Only refresh if we received a meaningful change
           if (payload && payload.new) {
