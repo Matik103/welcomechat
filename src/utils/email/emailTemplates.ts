@@ -1,118 +1,134 @@
 
-interface DeletionTemplateParams {
-  clientName: string;
-  recoveryUrl: string;
-  formattedDeletionDate: string;
-}
-
 interface ClientInvitationParams {
   clientName: string;
   email: string;
   tempPassword: string;
-  productName?: string;
+  productName: string;
 }
 
-/**
- * Generates HTML template for client deletion notification emails
- */
-export const generateDeletionNotificationTemplate = (params: DeletionTemplateParams): string => {
-  const { clientName, recoveryUrl, formattedDeletionDate } = params;
-  
+export const generateClientInvitationTemplate = ({
+  clientName,
+  email,
+  tempPassword,
+  productName
+}: ClientInvitationParams): string => {
   return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="color: #ff4a4a;">Account Scheduled for Deletion</h1>
-      </div>
-      
-      <p>Hello ${clientName || 'Client'},</p>
-      
-      <p>Your account has been scheduled for deletion. All your data will be <strong>permanently removed</strong> on ${formattedDeletionDate}.</p>
-      
-      <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p><strong>If this was a mistake</strong>, you can recover your account by clicking the button below:</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${recoveryUrl}" 
-             style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-            Recover My Account
-          </a>
-        </div>
-        
-        <p>This recovery link will expire on ${formattedDeletionDate}.</p>
-      </div>
-      
-      <p>If you intended to delete your account, no further action is required. Your data will be automatically removed after the deletion date.</p>
-      
-      <div style="border-top: 1px solid #e0e0e0; margin-top: 30px; padding-top: 20px;">
-        <p><strong>What gets deleted?</strong></p>
-        <ul style="margin-top: 5px;">
-          <li>All website URLs and content</li>
-          <li>All document links and content</li>
-          <li>Chat history and interactions</li>
-          <li>Account settings and configurations</li>
-        </ul>
-      </div>
-      
-      <p>If you have any questions, please contact our support team.</p>
-      
-      <p>Best regards,<br>The Welcome.Chat Team</p>
-      
-      <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
-        © ${new Date().getFullYear()} Welcome.Chat. All rights reserved.
-      </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to ${productName}</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .header {
+      background-color: #4F46E5;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      border-radius: 8px 8px 0 0;
+    }
+    .content {
+      padding: 20px;
+    }
+    .credentials {
+      background-color: #f9fafb;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+      border-left: 4px solid #4F46E5;
+    }
+    .credentials p {
+      margin: 10px 0;
+    }
+    .button {
+      display: inline-block;
+      background-color: #4F46E5;
+      color: white !important;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      margin: 20px 0;
+      font-weight: bold;
+      text-align: center;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #eaeaea;
+      color: #666;
+      font-size: 12px;
+    }
+    .security-notice {
+      background-color: #fffbeb;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+      border-left: 4px solid #f59e0b;
+    }
+    .steps {
+      margin: 20px 0;
+    }
+    .steps ol {
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Welcome to ${productName}!</h1>
     </div>
-  `;
-};
-
-/**
- * Generates HTML template for client invitation emails
- */
-export const generateClientInvitationTemplate = (params: ClientInvitationParams): string => {
-  const { clientName, email, tempPassword, productName = 'Welcome.Chat' } = params;
-  
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="color: #4f46e5;">Welcome to ${productName}!</h1>
-      </div>
-      
-      <p>Hello ${clientName || 'Client'},</p>
+    <div class="content">
+      <p>Hello ${clientName},</p>
       
       <p>Your AI assistant account has been created and is ready for configuration. Here are your login credentials:</p>
       
-      <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p><strong>Email Address:</strong></p>
-        <p style="color: #4f46e5;">${email || ''}</p>
-        
-        <p><strong>Temporary Password:</strong></p>
-        <p style="color: #4f46e5; font-family: monospace; font-size: 16px;">${tempPassword || ''}</p>
+      <div class="credentials">
+        <p><strong>Email Address:</strong><br>${email}</p>
+        <p><strong>Temporary Password:</strong><br>${tempPassword}</p>
       </div>
       
-      <p>To get started:</p>
-      <ol>
-        <li>Click the "Sign In" button below</li>
-        <li>Enter your email and temporary password exactly as shown above</li>
-        <li>You'll be taken to your client dashboard</li>
-        <li>Configure your AI assistant's settings</li>
-      </ol>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="https://welcomeai.io/client/auth" 
-           style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-          Sign In
-        </a>
+      <div class="steps">
+        <p><strong>To get started:</strong></p>
+        <ol>
+          <li>Click the "Sign In" button below</li>
+          <li>Enter your email and temporary password exactly as shown above</li>
+          <li>You'll be taken to your client dashboard</li>
+          <li>Configure your AI assistant's settings</li>
+        </ol>
       </div>
       
-      <div style="border-top: 1px solid #e0e0e0; margin-top: 30px; padding-top: 20px;">
+      <a href="https://welcome.chat/client/auth" class="button">Sign In</a>
+      
+      <div class="security-notice">
         <p><strong>Security Notice:</strong></p>
         <p>For security reasons, please change your password after your first login. If you didn't request this account, please ignore this email.</p>
       </div>
       
       <p>Best regards,<br>The ${productName} Team</p>
-      
-      <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
-        © ${new Date().getFullYear()} ${productName}. All rights reserved.
-      </div>
     </div>
+    <div class="footer">
+      &copy; ${new Date().getFullYear()} ${productName}. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>
   `;
 };
