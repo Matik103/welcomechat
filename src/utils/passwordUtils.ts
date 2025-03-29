@@ -25,13 +25,20 @@ export const saveClientTempPassword = async (
     // First create or update the Supabase Auth user
     const generatedPassword = tempPassword || generateTempPassword();
     
-    // Check if user exists
-    const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+    // Check if user exists by listing users with a filter
+    const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+      filter: {
+        email: email
+      }
+    });
     
-    if (checkError && !checkError.message.includes('User not found')) {
-      console.error("Error checking if user exists:", checkError);
-      throw checkError;
+    if (listError) {
+      console.error("Error listing users:", listError);
+      throw listError;
     }
+    
+    // Find the user with the exact matching email
+    const existingUser = users?.users?.find(user => user.email === email);
     
     // If user doesn't exist, create it
     if (!existingUser) {
@@ -51,7 +58,7 @@ export const saveClientTempPassword = async (
     } else {
       // If user exists, update password
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        existingUser.user.id,
+        existingUser.id,
         { password: generatedPassword }
       );
       
