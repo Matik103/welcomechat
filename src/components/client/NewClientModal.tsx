@@ -6,7 +6,9 @@ import { z } from "zod";
 import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabaseAdmin } from "@/integrations/supabase/client-admin";
+import { supabaseAdmin } from "@/integrations/supabase/admin";
+import { generateTempPassword, saveClientTempPassword } from "@/utils/passwordUtils";
+import { sendWelcomeEmail } from "@/utils/email/welcomeEmail";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -49,6 +51,9 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
     setError(null);
     
     try {
+      // Generate a temporary password
+      const tempPassword = generateTempPassword();
+      
       // Create a record with all required fields
       const insertData = {
         client_name: values.clientName,
@@ -70,13 +75,36 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
       };
       
       // Insert the record
-      const { error } = await supabaseAdmin
+      const { data, error } = await supabaseAdmin
         .from("ai_agents")
-        .insert(insertData);
+        .insert(insertData)
+        .select()
+        .single();
 
       if (error) {
         console.error("Error creating client:", error);
         throw error;
+      }
+      
+      const agentId = data?.id;
+      
+      if (agentId) {
+        // Store the temporary password
+        await saveClientTempPassword(agentId, values.email, tempPassword);
+        
+        // Send welcome email
+        const emailResult = await sendWelcomeEmail(
+          values.email,
+          values.clientName,
+          tempPassword
+        );
+        
+        if (emailResult.emailSent) {
+          toast.success("Client created and welcome email sent successfully!");
+        } else {
+          toast.warning(`Client created but failed to send welcome email: ${emailResult.emailError}`);
+          console.error("Failed to send welcome email:", emailResult.emailError);
+        }
       }
       
       toast.success("Client created successfully!");

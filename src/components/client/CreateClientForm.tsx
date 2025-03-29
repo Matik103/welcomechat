@@ -11,6 +11,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
+import { generateTempPassword } from '@/utils/passwordUtils';
+import { sendWelcomeEmail } from '@/utils/email/welcomeEmail';
+import { saveClientTempPassword } from '@/utils/passwordUtils';
 
 // Schema with optional chatbot fields
 const createClientSchema = z.object({
@@ -48,6 +51,10 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
       // Generate a client ID (would normally come from the backend)
       const tempClientId = crypto.randomUUID();
       
+      // Generate a temporary password
+      const tempPassword = generateTempPassword();
+      console.log("Generated temporary password:", tempPassword.substring(0, 3) + "...");
+      
       // Create AI agent (which also creates the client) but disable activity logging
       const result = await ensureAiAgentExists(
         tempClientId,
@@ -60,7 +67,32 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
       );
       
       if (result.success) {
-        toast.success("Client created successfully!");
+        // Store the temporary password
+        try {
+          await saveClientTempPassword(
+            result.agentId || tempClientId, 
+            data.email,
+            tempPassword
+          );
+          
+          // Send welcome email with credentials
+          const emailResult = await sendWelcomeEmail(
+            data.email,
+            data.client_name,
+            tempPassword
+          );
+          
+          if (emailResult.emailSent) {
+            toast.success("Client created and welcome email sent successfully!");
+          } else {
+            toast.warning(`Client created but failed to send welcome email: ${emailResult.emailError}`);
+            console.error("Failed to send welcome email:", emailResult.emailError);
+          }
+        } catch (error) {
+          console.error("Error saving temporary password:", error);
+          toast.warning("Client created but failed to set up login credentials.");
+        }
+        
         if (onSuccess) {
           onSuccess();
         } else {

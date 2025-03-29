@@ -1,4 +1,6 @@
 
+import { supabaseAdmin } from '@/integrations/supabase/admin';
+
 // Generate a temporary password
 export const generateTempPassword = (length = 12) => {
   const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
@@ -20,9 +22,7 @@ export const saveClientTempPassword = async (
   tempPassword?: string
 ): Promise<any> => {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
-    
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('client_temp_passwords')
       .insert({
         agent_id: agentId,
