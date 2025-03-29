@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabaseAdmin } from "@/integrations/supabase/admin";
@@ -50,10 +49,8 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
     setError(null);
     
     try {
-      // Generate a temporary password
       const tempPassword = generateTempPassword();
       
-      // Create a record with all required fields
       const insertData = {
         client_name: values.clientName,
         email: values.email,
@@ -69,11 +66,9 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        // Set safe type for activity logging
-        type: "client_created" // Using a safe type from our activity types list
+        type: "client_created"
       };
       
-      // Insert the record
       const { data, error } = await supabaseAdmin
         .from("ai_agents")
         .insert(insertData)
@@ -88,10 +83,8 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
       const agentId = data?.id;
       
       if (agentId) {
-        // Store the temporary password
         await saveClientTempPassword(agentId, values.email, tempPassword);
         
-        // Send welcome email
         const emailResult = await sendWelcomeEmail(
           values.email,
           values.clientName,

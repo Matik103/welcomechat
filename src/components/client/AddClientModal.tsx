@@ -1,5 +1,4 @@
 
-import { X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +19,6 @@ export function AddClientModal({ isOpen, onClose }: AddClientModalProps) {
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader className="flex justify-between items-center">
           <DialogTitle>Create New Client</DialogTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
         </DialogHeader>
         <CreateClientForm onSuccess={onClose} />
       </DialogContent>

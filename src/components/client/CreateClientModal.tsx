@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAiAgentManagement } from "@/hooks/useAiAgentManagement";
@@ -116,9 +115,6 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
         <DialogHeader>
           <DialogTitle className="flex justify-between items-center">
             <span>Create New Client</span>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
           </DialogTitle>
         </DialogHeader>
         
