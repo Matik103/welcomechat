@@ -4,9 +4,8 @@ import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
-import { MessageCircle, Loader2, Bot, User } from "lucide-react";
+import { MessageCircle, Loader2 } from "lucide-react";
 import { useAgentContent } from "@/hooks/useAgentContent";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface WidgetPreviewProps {
   settings: WidgetSettings;
