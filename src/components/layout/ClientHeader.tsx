@@ -44,13 +44,16 @@ export const ClientHeader = () => {
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold text-gray-900 mr-4">
+            <Link 
+              to="/client/dashboard" 
+              className="text-xl font-semibold text-gray-900 hover:text-gray-700 transition-colors"
+            >
               Dashboard
-            </h1>
+            </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Settings className="h-5 w-5" />
+                <Button variant="ghost" className="font-semibold">
+                  {clientName}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -76,3 +79,4 @@ export const ClientHeader = () => {
     </header>
   );
 };
+
