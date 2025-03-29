@@ -18,7 +18,12 @@ serve(async (req) => {
 
   try {
     // Initialize Resend with API key from Supabase environment variables
-    const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      throw new Error('RESEND_API_KEY environment variable is not set');
+    }
+    
+    const resend = new Resend(resendApiKey);
 
     // Get the request body
     const { to, subject, html, from = 'WelcomeChat <admin@welcome.chat>' } = await req.json() as EmailRequest;
@@ -39,6 +44,13 @@ serve(async (req) => {
       );
     }
 
+    console.log("Sending email:", {
+      to,
+      subject,
+      from,
+      htmlLength: html.length
+    });
+
     // Send the email using Resend
     const { data, error } = await resend.emails.send({
       from,
@@ -48,7 +60,7 @@ serve(async (req) => {
     });
 
     if (error) {
-      console.error('Error sending email:', error);
+      console.error('Email sending error:', error);
       return new Response(
         JSON.stringify({ error: error.message }),
         {
@@ -60,6 +72,8 @@ serve(async (req) => {
         }
       );
     }
+
+    console.log("Email sent successfully:", data);
 
     // Return success response
     return new Response(

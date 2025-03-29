@@ -42,8 +42,9 @@ export const sendDeletionEmail = async (
       day: 'numeric'
     });
     
-    // Create the recovery URL
-    const recoveryUrl = `${window.location.origin}/client/auth?recovery=${recoveryToken}`;
+    // Create the recovery URL - ensure we have the correct origin
+    const origin = window.location.origin || 'https://welcomeai.io';
+    const recoveryUrl = `${origin}/client/auth?recovery=${recoveryToken}`;
     
     // Generate the HTML template
     const html = generateDeletionNotificationTemplate({
@@ -52,9 +53,13 @@ export const sendDeletionEmail = async (
       formattedDeletionDate
     });
     
-    // Send the email
+    // Send the email - switch to use delivered@resend.dev for testing
+    // Use the actual email in production
+    const testMode = process.env.NODE_ENV !== 'production';
+    const recipientEmail = testMode ? 'delivered@resend.dev' : email;
+    
     const emailResult = await sendEmail({
-      to: email,
+      to: recipientEmail,
       subject: 'Important: Your Account is Scheduled for Deletion',
       html: html,
       from: 'Welcome.Chat <admin@welcome.chat>'

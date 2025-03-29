@@ -66,7 +66,7 @@ export const DeleteClientConfirmDialog = ({
       const recoveryToken = await generateRecoveryToken(client.id);
       
       // Update the client status
-      const { data, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('ai_agents')
         .update({ 
           deletion_scheduled_at: deletionDate,
@@ -80,25 +80,33 @@ export const DeleteClientConfirmDialog = ({
       }
       
       // Send email notification to the client
-      const emailResult = await sendDeletionEmail(
-        client.email, 
-        client.client_name, 
-        recoveryToken,
-        deletionDate
-      );
-      
-      if (!emailResult.emailSent) {
-        console.warn("Warning: Failed to send deletion email notification:", emailResult.emailError);
-        toast.warning("Client scheduled for deletion, but email notification could not be sent");
-      } else {
-        // Log the deletion
-        console.log('Deletion notification email sent', {
-          client_id: client.id,
-          client_name: client.client_name,
-          email: client.email,
-          timestamp: now,
-          scheduled_deletion_date: deletionDate
-        });
+      let emailSent = false;
+      let emailError;
+      try {
+        const emailResult = await sendDeletionEmail(
+          client.email, 
+          client.client_name, 
+          recoveryToken,
+          deletionDate
+        );
+        
+        emailSent = emailResult.emailSent;
+        emailError = emailResult.emailError;
+        
+        if (!emailSent) {
+          console.warn("Warning: Failed to send deletion email notification:", emailError);
+        } else {
+          console.log('Deletion notification email sent', {
+            client_id: client.id,
+            client_name: client.client_name,
+            email: client.email,
+            timestamp: now,
+            scheduled_deletion_date: deletionDate
+          });
+        }
+      } catch (emailErr) {
+        console.error("Error when sending deletion email:", emailErr);
+        emailError = emailErr instanceof Error ? emailErr.message : String(emailErr);
       }
       
       // Record the action in activities table
@@ -111,20 +119,30 @@ export const DeleteClientConfirmDialog = ({
             scheduled_deletion_date: deletionDate,
             client_name: client.client_name,
             recovery_token_generated: !!recoveryToken,
-            activity_subtype: 'deletion_scheduled' // Add subtype to preserve original intent
+            activity_subtype: 'deletion_scheduled', // Add subtype to preserve original intent
+            email_notification_sent: emailSent,
+            email_error: emailError
           }
         });
         
       if (activityError) {
         console.warn("Warning: Failed to record deletion activity:", activityError);
-        console.error("Activity error details:", activityError);
       }
       
       // Refresh the client list
       onClientsUpdated();
       
-      // Close the dialog and show success message
-      toast.success(`${client.client_name} has been scheduled for deletion in 30 days`);
+      // Close the dialog and show appropriate message
+      if (emailSent) {
+        toast.success(`${client.client_name} has been scheduled for deletion in 30 days`, {
+          description: "A recovery link was sent to the client's email."
+        });
+      } else {
+        toast.warning(`${client.client_name} has been scheduled for deletion, but email notification failed`, {
+          description: "The client may not receive a recovery link."
+        });
+      }
+      
       handleClose();
       
     } catch (err) {
