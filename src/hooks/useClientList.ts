@@ -1,105 +1,81 @@
 
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Client } from "@/types/client";
-import { useState } from "react";
-
-export interface ClientListResponse {
-  data: Client[];
-  count: number;
-}
+import { useState, useEffect, useCallback } from 'react';
+import { Client } from '@/types/client';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useClientList = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState<Error | null>(null);
 
-  const { data, error, isLoading, refetch } = useQuery({
-    queryKey: ["clients", searchQuery],
-    queryFn: async (): Promise<ClientListResponse> => {
+  const fetchClients = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
       let query = supabase
-        .from("ai_agents")
-        .select("*", { count: "exact" })
-        .eq('interaction_type', 'config')
-        .is('deleted_at', null) // Filter out deleted clients
-        .neq('status', 'deleted') // Exclude clients with "deleted" status
-        .order("created_at", { ascending: false });
+        .from('ai_agents')
+        .select('*')
+        .eq('interaction_type', 'config');
       
-      // Apply search filter if provided
       if (searchQuery) {
-        query = query.or(`client_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,company.ilike.%${searchQuery}%`);
+        query = query.or(`client_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
       }
-
-      const { data, error, count } = await query;
-
+      
+      const { data, error } = await query;
+      
       if (error) {
-        console.error("Error fetching clients:", error);
         throw error;
       }
-
-      // Ensure data is not null before mapping
-      const clients = data ? data.map(mapToClient) : [];
-
-      return {
-        data: clients,
-        count: count || 0,
-      };
-    },
-  });
-
-  // Helper function to map database data to Client type
-  const mapToClient = (client: any): Client => {
-    // Convert Supabase Json type to standard Record<string, any>
-    let widgetSettingsRecord: Record<string, any> = {};
-    
-    if (client.settings) {
-      if (typeof client.settings === 'object') {
-        widgetSettingsRecord = { ...client.settings };
-      } else if (typeof client.settings === 'string') {
-        try {
-          widgetSettingsRecord = JSON.parse(client.settings);
-        } catch (e) {
-          widgetSettingsRecord = {};
-        }
-      }
+      
+      // Convert to Client type
+      const formattedClients: Client[] = data.map(agent => ({
+        id: agent.id,
+        client_id: agent.client_id || '',
+        client_name: agent.client_name || '',
+        email: agent.email || '',
+        status: agent.status as 'active' | 'inactive' | 'deleted' || 'active',
+        created_at: agent.created_at || '',
+        updated_at: agent.updated_at || '',
+        agent_name: agent.name || '',
+        agent_description: agent.agent_description || '',
+        logo_url: agent.logo_url || '',
+        widget_settings: agent.settings || {},
+        user_id: '',
+        company: agent.company || '',
+        description: agent.description || '',
+        logo_storage_path: agent.logo_storage_path || '',
+        deletion_scheduled_at: agent.deletion_scheduled_at || null,
+        deleted_at: agent.deleted_at || null,
+        last_active: agent.last_active || null,
+        name: agent.name || '',
+        is_error: agent.is_error || false
+      }));
+      
+      setClients(formattedClients);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Safe user_id extraction
-    const userId = (client as any).user_id !== undefined ? (client as any).user_id : null;
-    
-    return {
-      id: client.id,
-      client_id: client.client_id || client.id,
-      client_name: client.client_name || '',
-      email: client.email || '',
-      company: client.company || '',
-      description: client.description || '',
-      logo_url: client.logo_url || '',
-      logo_storage_path: client.logo_storage_path || '',
-      created_at: client.created_at || '',
-      updated_at: client.updated_at || '',
-      deleted_at: client.deleted_at,
-      deletion_scheduled_at: client.deletion_scheduled_at,
-      last_active: client.last_active,
-      status: client.status || 'active',
-      agent_name: client.name || '',
-      agent_description: client.agent_description || '',
-      widget_settings: widgetSettingsRecord,
-      name: client.name || '',
-      is_error: !!client.is_error,
-      user_id: userId
-    };
+  }, [searchQuery]);
+  
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
+  
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
   };
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
-
+  
   return {
-    clients: data?.data || [],
-    count: data?.count || 0,
+    clients,
     isLoading,
     error,
-    refetch,
     searchQuery,
     handleSearch,
+    refetch: fetchClients
   };
 };

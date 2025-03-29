@@ -34,6 +34,11 @@ export const ClientListTable = ({ clients, onDeleteClick }: ClientListTableProps
     // For now, we're just closing the dialog
     setIsDeleteDialogOpen(false);
     setClientToDelete(null);
+    
+    // If onDeleteClick is provided, call it to notify parent components
+    if (onDeleteClick && clientToDelete) {
+      onDeleteClick(clientToDelete);
+    }
   };
 
   return (

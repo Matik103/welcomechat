@@ -106,7 +106,7 @@ export const DeleteClientConfirmDialog = ({
         .from('activities')
         .insert({
           ai_agent_id: client.id,
-          type: 'client_deleted', // Changed from 'client_deletion_scheduled' to a valid enum value
+          type: 'client_deleted', // Using a valid enum value
           metadata: {
             scheduled_deletion_date: deletionDate,
             client_name: client.client_name,
@@ -117,6 +117,7 @@ export const DeleteClientConfirmDialog = ({
         
       if (activityError) {
         console.warn("Warning: Failed to record deletion activity:", activityError);
+        console.error("Activity error details:", activityError);
       }
       
       // Refresh the client list

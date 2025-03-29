@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { ClientListTable } from '@/components/client/ClientListTable';
@@ -15,6 +16,8 @@ export default function AdminClientsPage() {
 
   const handleDeleteClick = (client: Client) => {
     console.log('Delete clicked for client:', client.client_name);
+    // Refetch after deletion
+    refetch();
   };
 
   return (
