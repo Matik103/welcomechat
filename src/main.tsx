@@ -17,6 +17,10 @@ const queryClient = new QueryClient({
       refetchOnMount: true,
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      // Add these to help with better recovery
+      refetchOnReconnect: true,
+      refetchInterval: false,
+      refetchIntervalInBackground: false,
     },
   },
 });

@@ -48,9 +48,10 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isCallbackUrl = location.pathname.includes('/auth/callback');
 
-  // Persist auth state to sessionStorage
+  // Persist auth state to sessionStorage on updates
   useEffect(() => {
     if (session && user && userRole) {
+      console.log("Persisting auth state to session storage");
       sessionStorage.setItem('auth_state', JSON.stringify({
         session,
         user,
@@ -62,17 +63,33 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
 
   // Try to restore auth state from sessionStorage on mount
   useEffect(() => {
-    if (!authInitialized && !isCallbackUrl) {
+    if (!authInitialized && !isCallbackUrl && !user) {
       const storedState = sessionStorage.getItem('auth_state');
       if (storedState) {
         try {
+          console.log("Attempting to restore auth state from session storage");
           const { session: storedSession, user: storedUser, userRole: storedRole, timestamp } = JSON.parse(storedState);
           // Only restore if the stored state is less than 1 hour old
           if (Date.now() - timestamp < 60 * 60 * 1000) {
+            console.log("Restoring auth state from session storage");
             setSession(storedSession);
             setUser(storedUser);
             setUserRole(storedRole);
+            
+            // Verify the session is still valid with Supabase
+            supabase.auth.getSession().then(({ data, error }) => {
+              if (error || !data.session) {
+                console.warn("Restored session is invalid, clearing state");
+                setSession(null);
+                setUser(null);
+                setUserRole(null);
+                sessionStorage.removeItem('auth_state');
+              } else {
+                console.log("Session verified with Supabase");
+              }
+            });
           } else {
+            console.log("Stored auth state is too old, removing");
             sessionStorage.removeItem('auth_state');
           }
         } catch (error) {
@@ -82,7 +99,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       }
       setAuthInitialized(true);
     }
-  }, [authInitialized, isCallbackUrl]);
+  }, [authInitialized, isCallbackUrl, user]);
   
   // Initialize auth - check for existing session
   useAuthInitialize({
@@ -136,6 +153,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       sessionStorage.removeItem('auth_callback_processed');
       sessionStorage.removeItem('auth_callback_processing');
       sessionStorage.removeItem('user_role_set');
+      sessionStorage.removeItem('auth_state');
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {
