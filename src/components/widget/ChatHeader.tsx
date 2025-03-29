@@ -28,14 +28,16 @@ export function ChatHeader({
     >
       <div className="flex items-center gap-2">
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage 
-            src={logoUrl} 
-            alt={displayName}
-            onError={(e) => {
-              console.error("Error loading logo in chat header:", e);
-              e.currentTarget.style.display = 'none';
-            }}
-          />
+          {logoUrl ? (
+            <AvatarImage 
+              src={logoUrl} 
+              alt={displayName}
+              onError={(e) => {
+                console.error("Error loading logo in chat header:", e);
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : null}
           <AvatarFallback className="text-xs bg-primary/10 text-primary">
             <Bot className="w-5 h-5" />
           </AvatarFallback>
