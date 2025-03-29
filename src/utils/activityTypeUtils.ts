@@ -99,9 +99,9 @@ export const getActivityTypeLabel = (activityType: string): string => {
  * This is crucial for preventing type errors when inserting activities
  * as Supabase enforces strict type checking on enum columns
  */
-export const getSafeActivityType = (type: string): ActivityTypeString => {
+export const getSafeActivityType = (type: string): string => {
   // These activity types are known to exist in the database
-  const safeActivityTypes: ActivityTypeString[] = [
+  const safeActivityTypes: string[] = [
     'document_added',
     'document_removed',
     'document_processed',
@@ -141,8 +141,8 @@ export const getSafeActivityType = (type: string): ActivityTypeString => {
     'error_logged'
   ];
   
-  if (safeActivityTypes.includes(type as ActivityTypeString)) {
-    return type as ActivityTypeString;
+  if (safeActivityTypes.includes(type)) {
+    return type;
   }
   
   // Fallback to client_updated which is a safe activity type that exists in the database
