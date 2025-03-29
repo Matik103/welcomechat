@@ -43,7 +43,7 @@ export const useClientMutation = () => {
       const errorMessage = error instanceof Error 
         ? error.message 
         : typeof error === 'object' && error !== null && 'message' in error 
-          ? String(error.message) 
+          ? String((error as { message: unknown }).message) 
           : 'Failed to update client';
       toast.error(errorMessage);
     }
