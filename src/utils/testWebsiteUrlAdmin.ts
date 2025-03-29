@@ -1,3 +1,4 @@
+
 import { supabaseAdmin } from "@/integrations/supabase/admin";
 
 async function testWebsiteUrlOperations() {
@@ -46,4 +47,4 @@ async function testWebsiteUrlOperations() {
 }
 
 // Run the test
-testWebsiteUrlOperations(); 
+testWebsiteUrlOperations();
