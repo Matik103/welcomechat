@@ -7,7 +7,7 @@ import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { AddClientModal } from '@/components/client/AddClientModal';
+import { NewClientModal } from '@/components/client/NewClientModal';
 import { Client } from '@/types/client';
 
 export default function AdminClientsPage() {
@@ -29,7 +29,7 @@ export default function AdminClientsPage() {
             onClick={() => setIsAddClientModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            <Plus className="mr-2 h-4 w-4" /> Add Client
+            <Plus className="mr-2 h-4 w-4" /> Add New Client
           </Button>
         </div>
         <p className="text-muted-foreground mb-6">Admin client management interface.</p>
@@ -41,12 +41,6 @@ export default function AdminClientsPage() {
               onChange={handleSearch} 
               className="w-full max-w-md"
             />
-            <Button 
-              onClick={() => setIsAddClientModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="mr-2 h-4 w-4" /> Add Client
-            </Button>
           </div>
           
           <div className="bg-white rounded-md shadow">
@@ -64,7 +58,7 @@ export default function AdminClientsPage() {
         </div>
       </div>
       
-      <AddClientModal 
+      <NewClientModal 
         isOpen={isAddClientModalOpen}
         onClose={() => setIsAddClientModalOpen(false)}
       />

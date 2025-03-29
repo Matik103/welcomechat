@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { setupRealtimeActivities } from '@/utils/setupRealtimeActivities';
@@ -43,8 +42,8 @@ export default function AdminDashboardPage() {
           console.warn('Failed to set up realtime subscriptions, will use polling fallback');
         }
         
-        // Subscribe to all activities - FIX: Ensure the callback accepts the payload parameter
-        activitiesChannel = subscribeToAllActivities((payload: any) => {
+        // Subscribe to all activities
+        activitiesChannel = subscribeToAllActivities((payload) => {
           console.log('Activities changed:', payload);
           // Only refresh if we received a meaningful change
           if (payload && payload.new) {

@@ -28,7 +28,7 @@ export const subscribeToClientActivities = (clientId: string, onUpdate: (payload
 /**
  * Subscribes to all activities
  */
-export const subscribeToAllActivities = (onUpdate: (payload?: any) => void): RealtimeChannel => {
+export const subscribeToAllActivities = (onUpdate: (payload: any) => void): RealtimeChannel => {
   const channel = supabase
     .channel(`all-activities`)
     .on(
