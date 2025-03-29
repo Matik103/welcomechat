@@ -1,8 +1,8 @@
-
 import { Resend } from 'resend';
 
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend using import.meta.env instead of process.env
+// This works in Vite applications which run in the browser
+const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
 
 interface EmailResponse {
   success: boolean;
@@ -199,11 +199,6 @@ export const sendWelcomeEmail = async (email: string, clientName: string, tempPa
 
 /**
  * Sends a deletion notification email to the client with recovery instructions
- * @param email The client's email address
- * @param clientName The client's name
- * @param recoveryToken The recovery token
- * @param deletionDate The scheduled deletion date
- * @returns Object indicating if the email was sent successfully
  */
 export const sendDeletionEmail = async (
   email: string, 
