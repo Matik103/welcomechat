@@ -13,13 +13,30 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-      refetchOnWindowFocus: false, // Don't refetch when window gets focus
-      refetchOnMount: 'always', // Only refetch on mount if data is stale
+      refetchOnWindowFocus: true, // Enable refetching when window gets focus
+      refetchOnMount: 'always', // Always refetch on mount
       retry: 1, // Only retry failed requests once
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      // Add a refetch interval handler to customize behavior
+      refetchIntervalInBackground: false, // Don't refetch in the background
+      refetchOnReconnect: true, // Refetch when reconnecting
     },
   },
 });
+
+// Set up focus tracking for React Query
+const focusHandler = () => {
+  // Tell React Query that the window is focused
+  if (document.visibilityState === 'visible') {
+    queryClient.invalidateQueries();
+    console.log('Window focused - invalidating queries');
+  }
+};
+
+// Add event listener for visibility change
+if (typeof window !== 'undefined') {
+  document.addEventListener('visibilitychange', focusHandler);
+}
 
 // Initialize RPC functions in the background
 initializeRpcFunctions().catch(console.error);

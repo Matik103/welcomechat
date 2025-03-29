@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
 import { callRpcFunctionSafe } from '@/utils/rpcUtils';
+import { useEffect } from 'react';
 
 export const useClient = (clientId: string, options = {}) => {
   const { 
@@ -75,8 +76,27 @@ export const useClient = (clientId: string, options = {}) => {
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     retry: 2, // Retry failed requests 2 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    refetchOnWindowFocus: true, // Add this to ensure refetching when window regains focus
+    refetchOnMount: true, // Refetch when component mounts
+    refetchOnReconnect: true, // Refetch when network reconnects
     ...options
   });
+  
+  // Set up manual refetch on visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && clientId) {
+        console.log('Document became visible - refetching client data for:', clientId);
+        refetch();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [clientId, refetch]);
 
   return { client, isLoading, error, refetch };
 };

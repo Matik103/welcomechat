@@ -10,10 +10,21 @@ export function useAuthState() {
   const [isLoading, setIsLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
   const focusHandled = useRef(false);
+  const lastFocusTime = useRef(0);
 
-  // Handle window focus events - only once per focus
+  // Handle window focus events - with improved debouncing
   useEffect(() => {
     const handleFocus = () => {
+      // Prevent rapid re-focus handling by adding a time threshold
+      const now = Date.now();
+      if (now - lastFocusTime.current < 2000) {
+        console.log('Focus event ignored - too soon after last focus');
+        return;
+      }
+      
+      lastFocusTime.current = now;
+      console.log('Window focused - checking auth state');
+      
       // Skip if we've already handled this focus event
       if (focusHandled.current) return;
       focusHandled.current = true;
@@ -21,24 +32,33 @@ export function useAuthState() {
       // Reset flag when focus is lost
       const handleBlur = () => {
         focusHandled.current = false;
+        console.log('Window blurred - reset focus handling flag');
       };
       
       window.addEventListener('blur', handleBlur, { once: true });
       
       // Check if we have stored auth state
       const storedState = sessionStorage.getItem('auth_state');
-      if (storedState && !session) {
+      if (storedState) {
         try {
           const { session: storedSession, user: storedUser, userRole: storedRole, timestamp } = JSON.parse(storedState);
           // Only restore if the stored state is less than 1 hour old
           if (Date.now() - timestamp < 60 * 60 * 1000) {
+            console.log('Restoring auth state from session storage');
             setSession(storedSession);
             setUser(storedUser);
             setUserRole(storedRole);
             setIsLoading(false);
+            
+            // Dispatch a custom event to notify the app that auth state has been restored
+            window.dispatchEvent(new CustomEvent('authStateRestored'));
+          } else {
+            console.log('Stored auth state is too old, not restoring');
+            sessionStorage.removeItem('auth_state');
           }
         } catch (error) {
           console.error('Error restoring auth state on focus:', error);
+          sessionStorage.removeItem('auth_state');
         }
       }
       
@@ -46,8 +66,14 @@ export function useAuthState() {
     };
 
     window.addEventListener('focus', handleFocus);
+    
+    // Initial check on mount
+    if (!session && !user) {
+      handleFocus();
+    }
+    
     return () => window.removeEventListener('focus', handleFocus);
-  }, [session]);
+  }, [session, user]);
 
   // Use useCallback to memoize the setter functions
   const setSessionCallback = useCallback((newSession: Session | null) => {

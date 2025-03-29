@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
 import { safeParseSettings } from '@/utils/clientSettingsUtils';
@@ -9,12 +9,22 @@ export const useClientList = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<Error | null>(null);
+  const lastFetchTime = useRef<number>(0);
 
   const fetchClients = useCallback(async () => {
+    // Don't refetch if we just did within the last 5 seconds
+    const now = Date.now();
+    if (now - lastFetchTime.current < 5000) {
+      console.log('Skipping fetch - too soon after last fetch');
+      return;
+    }
+    
+    lastFetchTime.current = now;
     setIsLoading(true);
     setError(null);
     
     try {
+      console.log('Fetching clients data...');
       let query = supabase
         .from('ai_agents')
         .select('*')
@@ -65,6 +75,7 @@ export const useClientList = () => {
         !client.deletion_scheduled_at
       );
       
+      console.log(`Fetched ${filteredClients.length} clients successfully`);
       setClients(filteredClients);
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -74,8 +85,32 @@ export const useClientList = () => {
     }
   }, [searchQuery]);
   
+  // Initial fetch on component mount
   useEffect(() => {
     fetchClients();
+  }, [fetchClients]);
+  
+  // Set up refetch on window focus and auth state restoration
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Document became visible - refetching clients');
+        fetchClients();
+      }
+    };
+    
+    const handleAuthStateRestored = () => {
+      console.log('Auth state restored - refetching clients');
+      fetchClients();
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('authStateRestored', handleAuthStateRestored);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('authStateRestored', handleAuthStateRestored);
+    };
   }, [fetchClients]);
   
   const handleSearch = (value: string) => {
