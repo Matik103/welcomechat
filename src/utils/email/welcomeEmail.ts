@@ -1,3 +1,4 @@
+
 import { Resend } from 'resend';
 import { createClientActivity } from '@/services/clientActivityService';
 

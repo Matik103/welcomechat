@@ -18,7 +18,7 @@ export const createClientActivity = async (
       .from('activities')
       .insert({
         ai_agent_id: clientId,
-        type,
+        type: type as ActivityType,
         description,
         metadata: {
           ...metadata,
