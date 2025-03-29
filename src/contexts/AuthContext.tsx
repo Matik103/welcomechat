@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,7 +31,6 @@ const AuthContext = createContext<AuthContextType>({
 
 // Define the provider component
 function AuthProviderInner({ children }: { children: React.ReactNode }) {
-  // Use a custom hook to manage auth state to ensure hooks are always called
   const {
     session,
     setSession,
@@ -48,6 +46,42 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   
   const location = useLocation();
   const isCallbackUrl = location.pathname.includes('/auth/callback');
+
+  // Persist auth state to sessionStorage
+  useEffect(() => {
+    if (session && user && userRole) {
+      sessionStorage.setItem('auth_state', JSON.stringify({
+        session,
+        user,
+        userRole,
+        timestamp: Date.now()
+      }));
+    }
+  }, [session, user, userRole]);
+
+  // Try to restore auth state from sessionStorage on mount
+  useEffect(() => {
+    if (!authInitialized && !isCallbackUrl) {
+      const storedState = sessionStorage.getItem('auth_state');
+      if (storedState) {
+        try {
+          const { session: storedSession, user: storedUser, userRole: storedRole, timestamp } = JSON.parse(storedState);
+          // Only restore if the stored state is less than 1 hour old
+          if (Date.now() - timestamp < 60 * 60 * 1000) {
+            setSession(storedSession);
+            setUser(storedUser);
+            setUserRole(storedRole);
+          } else {
+            sessionStorage.removeItem('auth_state');
+          }
+        } catch (error) {
+          console.error('Error restoring auth state:', error);
+          sessionStorage.removeItem('auth_state');
+        }
+      }
+      setAuthInitialized(true);
+    }
+  }, [authInitialized, isCallbackUrl]);
   
   // Initialize auth - check for existing session
   useAuthInitialize({

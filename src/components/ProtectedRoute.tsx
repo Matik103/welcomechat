@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -15,21 +14,41 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { user, userRole, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [isRehydrating, setIsRehydrating] = useState(true);
 
   useEffect(() => {
-    // Handle authentication issues
-    if (!isLoading && !user) {
-      console.log("No authenticated user found, redirecting to /auth");
-      navigate('/auth', { replace: true });
+    // Check for stored auth state to determine if we're rehydrating
+    const storedState = sessionStorage.getItem('auth_state');
+    if (storedState) {
+      try {
+        const { timestamp } = JSON.parse(storedState);
+        // If stored state is less than 1 hour old, we're likely rehydrating
+        if (Date.now() - timestamp < 60 * 60 * 1000) {
+          setIsRehydrating(true);
+          // Give a short delay to allow auth state to rehydrate
+          const timer = setTimeout(() => {
+            setIsRehydrating(false);
+          }, 1000);
+          return () => clearTimeout(timer);
+        }
+      } catch (error) {
+        console.error('Error checking stored auth state:', error);
+      }
     }
-    
-    // Handle role-based access
-    if (!isLoading && user && requiredRole && userRole !== requiredRole) {
-      console.log(`User role (${userRole}) doesn't match required role (${requiredRole}), redirecting`);
-      const redirectPath = userRole === 'admin' ? '/admin/dashboard' : '/client/dashboard';
-      navigate(redirectPath, { replace: true });
-    }
-  }, [isLoading, user, userRole, requiredRole, navigate]);
+    setIsRehydrating(false);
+  }, []);
+
+  // Don't redirect while rehydrating
+  if (isRehydrating) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-2 text-sm text-muted-foreground">Restoring your session...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading state
   if (isLoading) {
@@ -52,7 +71,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Handle role mismatch
   if (requiredRole && userRole !== requiredRole) {
     console.log(`Role mismatch in protected route. User: ${userRole}, Required: ${requiredRole}`);
-    return <Navigate to="/" replace />;
+    const redirectPath = userRole === 'admin' ? '/admin/dashboard' : '/client/dashboard';
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;
