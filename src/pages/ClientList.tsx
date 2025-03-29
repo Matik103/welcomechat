@@ -38,7 +38,7 @@ export default function ClientList() {
       </div>
 
       <DeleteClientDialog
-        isOpen={isDeleteDialogOpen}
+        open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         client={selectedClient}
         onClientsUpdated={refetch}

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   AlertDialog,
@@ -18,11 +19,12 @@ import { sendDeletionEmail } from '@/services/emailService';
 import { Client } from '@/types/client';
 
 interface DeleteClientDialogProps {
-  client: Client;
+  client: Client | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onClose: () => void;
-  onDeleted: () => void;
+  onClose?: () => void;
+  onDeleted?: () => void;
+  onClientsUpdated?: () => void;
 }
 
 export const DeleteClientDialog: React.FC<DeleteClientDialogProps> = ({
@@ -30,10 +32,20 @@ export const DeleteClientDialog: React.FC<DeleteClientDialogProps> = ({
   open,
   onOpenChange,
   onClose,
-  onDeleted
+  onDeleted,
+  onClientsUpdated
 }) => {
   const [deleteText, setDeleteText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleClose = () => {
+    if (onClose) onClose();
+  };
+
+  const handleDeleted = () => {
+    if (onDeleted) onDeleted();
+    if (onClientsUpdated) onClientsUpdated();
+  };
 
   const deleteClient = async () => {
     try {
@@ -104,8 +116,8 @@ export const DeleteClientDialog: React.FC<DeleteClientDialogProps> = ({
       }
       
       toast.success(`${client.client_name} has been scheduled for deletion in 30 days`);
-      onClose();
-      onDeleted();
+      handleClose();
+      handleDeleted();
     } catch (error: any) {
       console.error("Error in deleteClient:", error);
       toast.error(`Error: ${error.message || 'Unknown error'}`);

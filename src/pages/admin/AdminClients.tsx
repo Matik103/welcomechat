@@ -71,7 +71,7 @@ export default function AdminClientsPage() {
       />
 
       <DeleteClientDialog
-        isOpen={isDeleteDialogOpen}
+        open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         client={selectedClient}
         onClientsUpdated={refetch}
