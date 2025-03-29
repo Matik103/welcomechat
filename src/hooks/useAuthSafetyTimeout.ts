@@ -18,7 +18,7 @@ export const useAuthSafetyTimeout = ({
 }: AuthSafetyTimeoutProps) => {
   const navigate = useNavigate();
 
-  // Safety timeout to prevent infinite loading
+  // Safety timeout to prevent infinite loading - only during initial auth
   useEffect(() => {
     // Only set a timeout if we're in loading state
     if (!isLoading) return;
@@ -27,9 +27,15 @@ export const useAuthSafetyTimeout = ({
     
     // Check if we're in the callback process
     const inCallbackProcess = sessionStorage.getItem('auth_callback_processing') === 'true';
+    const initialAuthComplete = sessionStorage.getItem('initial_auth_complete') === 'true';
+    
+    // Skip timeout if we're not in initial auth or callback
+    if (initialAuthComplete && !inCallbackProcess) {
+      console.log("Skipping safety timeout - not in initial auth process");
+      return;
+    }
     
     // Use different timeouts based on context
-    // Shorter timeout for dashboard pages
     const timeoutDuration = 3000;
     
     const safetyTimeout = setTimeout(() => {
@@ -43,6 +49,9 @@ export const useAuthSafetyTimeout = ({
         // Clear callback processing flags
         sessionStorage.removeItem('auth_callback_processing');
         sessionStorage.removeItem('auth_callback_processed');
+        
+        // Set initial auth as complete
+        sessionStorage.setItem('initial_auth_complete', 'true');
         
         // If we've been stuck loading and not on auth page, redirect to auth
         if (!isAuthPage && !session) {

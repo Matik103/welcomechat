@@ -26,9 +26,12 @@ function App() {
     isAuthPage || isClientAuthPage || isAuthCallback || isHomePage || isAboutPage || isContactPage
   ), [isAuthPage, isClientAuthPage, isAuthCallback, isHomePage, isAboutPage, isContactPage]);
   
-  // Initialize timeout for auth loading
+  // Only apply the auth safety timeout during initial auth, not during navigation
+  const shouldApplyTimeout = isLoading && (isAuthCallback || !sessionStorage.getItem('initial_auth_complete'));
+  
+  // Initialize timeout for auth loading only when needed
   useAuthSafetyTimeout({
-    isLoading,
+    isLoading: shouldApplyTimeout,
     setIsLoading,
     isAuthPage,
     session
@@ -36,11 +39,18 @@ function App() {
   
   // Handle app initialization
   const { adminConfigError, isInitializing } = useAppInitialization(
-    isLoading, 
+    shouldApplyTimeout, 
     user, 
     userRole, 
     setIsLoading
   );
+  
+  // Mark initial auth as complete after first successful load
+  useMemo(() => {
+    if (!isLoading && !isInitializing && user) {
+      sessionStorage.setItem('initial_auth_complete', 'true');
+    }
+  }, [isLoading, isInitializing, user]);
   
   // Show configuration error if Supabase is not configured correctly
   if (adminConfigError) {
@@ -52,8 +62,8 @@ function App() {
     );
   }
   
-  // Show loading state during initialization or auth
-  if (isLoading || isInitializing) {
+  // Only show loading state during initial auth, not during navigation
+  if ((isLoading || isInitializing) && (isAuthCallback || !sessionStorage.getItem('initial_auth_complete'))) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center">
