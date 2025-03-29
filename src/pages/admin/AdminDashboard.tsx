@@ -7,8 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAdminDashboardData } from '@/hooks/useAdminDashboardData';
 import { StatsCardsSection } from '@/components/admin/dashboard/StatsCardsSection';
 import { ActivityChartsSection } from '@/components/admin/dashboard/ActivityChartsSection';
-import { Loader2, RefreshCcw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { DashboardHeader } from '@/components/client-dashboard/DashboardHeader';
+import { DashboardLoading } from '@/components/client-dashboard/DashboardLoading';
 
 export default function AdminDashboardPage() {
   const { isLoading, dashboardData, fetchDashboardData } = useAdminDashboardData();
@@ -43,7 +43,7 @@ export default function AdminDashboardPage() {
           console.warn('Failed to set up realtime subscriptions, will use polling fallback');
         }
         
-        // Subscribe to all activities
+        // Subscribe to all activities - FIX: Ensure the callback accepts the payload parameter
         activitiesChannel = subscribeToAllActivities((payload: any) => {
           console.log('Activities changed:', payload);
           // Only refresh if we received a meaningful change
@@ -90,12 +90,7 @@ export default function AdminDashboardPage() {
   if (!isSetupComplete) {
     return (
       <AdminLayout>
-        <div className="container py-8 flex items-center justify-center h-[80vh]">
-          <div className="flex flex-col items-center">
-            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Initializing dashboard...</p>
-          </div>
-        </div>
+        <DashboardLoading message="Initializing dashboard..." />
       </AdminLayout>
     );
   }
@@ -126,32 +121,13 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="container py-8 max-w-7xl mx-auto">
-        <div className="flex justify-end mb-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleManualRefresh}
-            disabled={isLoading || isManuallyRefreshing}
-            className="flex items-center gap-1"
-          >
-            {isManuallyRefreshing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Refreshing...</span>
-              </>
-            ) : (
-              <>
-                <RefreshCcw className="h-4 w-4" />
-                <span>Refresh</span>
-              </>
-            )}
-          </Button>
-        </div>
+        <DashboardHeader
+          isRefreshing={isLoading || isManuallyRefreshing}
+          onRefresh={handleManualRefresh}
+        />
         
-        {isLoading ? (
-          <div className="flex justify-center items-center h-[60vh]">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          </div>
+        {isLoading && !isManuallyRefreshing ? (
+          <DashboardLoading />
         ) : (
           <>
             <StatsCardsSection dashboardData={dashboardData} />

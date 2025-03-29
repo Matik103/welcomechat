@@ -5,7 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 /**
  * Subscribes to client activities for a specific client
  */
-export const subscribeToClientActivities = (clientId: string, onUpdate: () => void): RealtimeChannel => {
+export const subscribeToClientActivities = (clientId: string, onUpdate: (payload?: any) => void): RealtimeChannel => {
   const channel = supabase
     .channel(`client-activities-${clientId}`)
     .on(
@@ -16,8 +16,8 @@ export const subscribeToClientActivities = (clientId: string, onUpdate: () => vo
         table: "activities",
         filter: `ai_agent_id=eq.${clientId}`
       },
-      () => {
-        onUpdate();
+      (payload) => {
+        onUpdate(payload);
       }
     )
     .subscribe();
@@ -28,7 +28,7 @@ export const subscribeToClientActivities = (clientId: string, onUpdate: () => vo
 /**
  * Subscribes to all activities
  */
-export const subscribeToAllActivities = (onUpdate: () => void): RealtimeChannel => {
+export const subscribeToAllActivities = (onUpdate: (payload?: any) => void): RealtimeChannel => {
   const channel = supabase
     .channel(`all-activities`)
     .on(
@@ -38,8 +38,8 @@ export const subscribeToAllActivities = (onUpdate: () => void): RealtimeChannel 
         schema: "public",
         table: "activities"
       },
-      () => {
-        onUpdate();
+      (payload) => {
+        onUpdate(payload);
       }
     )
     .subscribe();
@@ -50,7 +50,7 @@ export const subscribeToAllActivities = (onUpdate: () => void): RealtimeChannel 
 /**
  * Subscribes to chat interactions for a specific client
  */
-export const subscribeToChatInteractions = (clientId: string, onUpdate: () => void): RealtimeChannel => {
+export const subscribeToChatInteractions = (clientId: string, onUpdate: (payload?: any) => void): RealtimeChannel => {
   const channel = supabase
     .channel(`chat-interactions-${clientId}`)
     .on(
@@ -61,8 +61,8 @@ export const subscribeToChatInteractions = (clientId: string, onUpdate: () => vo
         table: "ai_agents",
         filter: `client_id=eq.${clientId} AND interaction_type=eq.chat_interaction`
       },
-      () => {
-        onUpdate();
+      (payload) => {
+        onUpdate(payload);
       }
     )
     .subscribe();
@@ -73,7 +73,7 @@ export const subscribeToChatInteractions = (clientId: string, onUpdate: () => vo
 /**
  * Subscribes to all chat interactions (for admin dashboard)
  */
-export const subscribeToAllChatInteractions = (onUpdate: () => void): RealtimeChannel => {
+export const subscribeToAllChatInteractions = (onUpdate: (payload?: any) => void): RealtimeChannel => {
   const channel = supabase
     .channel(`all-chat-interactions`)
     .on(
@@ -84,8 +84,8 @@ export const subscribeToAllChatInteractions = (onUpdate: () => void): RealtimeCh
         table: "ai_agents",
         filter: `interaction_type=eq.chat_interaction`
       },
-      () => {
-        onUpdate();
+      (payload) => {
+        onUpdate(payload);
       }
     )
     .subscribe();
