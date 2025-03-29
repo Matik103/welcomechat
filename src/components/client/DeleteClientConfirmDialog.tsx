@@ -14,9 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Client } from "@/types/client";
-import { supabase } from '@/integrations/supabase/client';
-import { sendDeletionEmail } from '@/utils/emailUtils';
-import { generateRecoveryToken } from '@/utils/clientUtils';
+import { scheduleClientDeletion } from '@/utils/clientUtils';
 
 interface DeleteClientConfirmDialogProps {
   isOpen: boolean;
@@ -56,81 +54,33 @@ export const DeleteClientConfirmDialog = ({
       
       console.log(`Scheduling deletion of client: ${client.id}`);
       
-      // Set the deletion_scheduled_at timestamp to 30 days from now
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-      const deletionDate = thirtyDaysFromNow.toISOString();
-      const now = new Date().toISOString();
-      
-      // Generate a recovery token
-      const recoveryToken = await generateRecoveryToken(client.id);
-      
-      // Update the client status
-      const { data, error: updateError } = await supabase
-        .from('ai_agents')
-        .update({ 
-          deletion_scheduled_at: deletionDate,
-          status: 'scheduled_deletion'
-        })
-        .eq('id', client.id);
-      
-      if (updateError) {
-        console.error("Error scheduling client deletion:", updateError);
-        throw updateError;
-      }
-      
-      // Send email notification to the client
-      const emailResult = await sendDeletionEmail(
-        client.email, 
-        client.client_name, 
-        recoveryToken,
-        deletionDate
+      // Use the scheduleClientDeletion function to handle the deletion
+      const result = await scheduleClientDeletion(
+        client.id,
+        client.email,
+        client.client_name
       );
       
-      if (!emailResult.emailSent) {
-        console.warn("Warning: Failed to send deletion email notification:", emailResult.emailError);
-        toast.warning("Client scheduled for deletion, but email notification could not be sent");
-      } else {
-        // Log the deletion
-        console.log('Deletion notification email sent', {
-          client_id: client.id,
-          client_name: client.client_name,
-          email: client.email,
-          timestamp: now,
-          scheduled_deletion_date: deletionDate
-        });
-      }
-      
-      // Record the action in activities table
-      const { error: activityError } = await supabase
-        .from('activities')
-        .insert({
-          ai_agent_id: client.id,
-          type: 'client_deleted', // Using a valid enum value
-          metadata: {
-            scheduled_deletion_date: deletionDate,
-            client_name: client.client_name,
-            recovery_token_generated: !!recoveryToken,
-            activity_subtype: 'deletion_scheduled' // Add subtype to preserve original intent
-          }
-        });
-        
-      if (activityError) {
-        console.warn("Warning: Failed to record deletion activity:", activityError);
-        console.error("Activity error details:", activityError);
+      if (!result.success) {
+        throw result.error || new Error("Failed to schedule client deletion");
       }
       
       // Refresh the client list
       onClientsUpdated();
       
-      // Close the dialog and show success message
-      toast.success(`${client.client_name} has been scheduled for deletion in 30 days`);
+      // Show success message with recovery token info if available
+      toast.success(
+        `${client.client_name} has been scheduled for deletion`,
+        {
+          description: "A recovery link has been sent to the client's email address."
+        }
+      );
+      
       handleClose();
       
     } catch (err) {
-      console.error("Error during client deletion scheduling:", err);
-      setError(`Failed to schedule client deletion: ${err instanceof Error ? err.message : String(err)}`);
-      toast.error("Failed to schedule client deletion");
+      console.error("Error during client deletion:", err);
+      setError(`Failed to delete client: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsDeleting(false);
     }
