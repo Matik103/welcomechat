@@ -7,7 +7,7 @@ import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { UnifiedClientModal } from '@/components/client/UnifiedClientModal';
+import { AddClientModal } from '@/components/client/AddClientModal';
 import { Client } from '@/types/client';
 
 export default function AdminClientsPage() {
@@ -58,7 +58,7 @@ export default function AdminClientsPage() {
         </div>
       </div>
       
-      <UnifiedClientModal 
+      <AddClientModal 
         isOpen={isAddClientModalOpen}
         onClose={() => {
           setIsAddClientModalOpen(false);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { PageHeading } from "@/components/dashboard/PageHeading";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ClientActivity } from "@/types/activity";
 import { BarChart } from "@/components/dashboard/BarChart";
-import { UnifiedClientModal } from "@/components/client/UnifiedClientModal";
+import { NewClientModal } from "@/components/client/NewClientModal";
 import { getAllAgents } from "@/services/agentService";
 import { getActiveClientsCount } from "@/services/clientService";
 import { getTotalInteractionsCount } from "@/services/aiInteractionService";
@@ -372,7 +373,7 @@ export default function Index() {
             </div>
           </div>
 
-          <UnifiedClientModal 
+          <NewClientModal 
             isOpen={isAddClientModalOpen}
             onClose={() => setIsAddClientModalOpen(false)}
           />
