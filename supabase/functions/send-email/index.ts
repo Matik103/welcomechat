@@ -20,13 +20,13 @@ serve(async (req) => {
     // Initialize Resend with API key from Supabase environment variables
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
-      throw new Error('RESEND_API_KEY environment variable is not set');
+      throw new Error('RESEND_API_KEY environment variable is not set in Supabase secrets');
     }
     
     const resend = new Resend(resendApiKey);
 
     // Get the request body
-    const { to, subject, html, from = 'Welcome.Chat <admin@welcome.chat>' } = await req.json() as EmailRequest;
+    const { to, subject, html, from = 'Acme <onboarding@resend.dev>' } = await req.json() as EmailRequest;
 
     // Validate required fields
     if (!to || !subject || !html) {
