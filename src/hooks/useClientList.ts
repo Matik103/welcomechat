@@ -31,29 +31,33 @@ export const useClientList = () => {
       }
       
       // Convert to Client type
-      const formattedClients: Client[] = data.map(agent => ({
-        id: agent.id,
-        client_id: agent.client_id || '',
-        client_name: agent.client_name || '',
-        email: agent.email || '',
-        status: agent.status as 'active' | 'inactive' | 'deleted' || 'active',
-        created_at: agent.created_at || '',
-        updated_at: agent.updated_at || '',
-        agent_name: agent.name || '',
-        agent_description: agent.agent_description || '',
-        logo_url: agent.logo_url || '',
+      const formattedClients: Client[] = data.map(agent => {
         // Use the safeParseSettings utility to ensure widget_settings is always an object
-        widget_settings: safeParseSettings(agent.settings),
-        user_id: '',
-        company: agent.company || '',
-        description: agent.description || '',
-        logo_storage_path: agent.logo_storage_path || '',
-        deletion_scheduled_at: agent.deletion_scheduled_at || null,
-        deleted_at: agent.deleted_at || null,
-        last_active: agent.last_active || null,
-        name: agent.name || '',
-        is_error: agent.is_error || false
-      }));
+        const parsedSettings = safeParseSettings(agent.settings);
+        
+        return {
+          id: agent.id,
+          client_id: agent.client_id || '',
+          client_name: agent.client_name || '',
+          email: agent.email || '',
+          status: agent.status as 'active' | 'inactive' | 'deleted' || 'active',
+          created_at: agent.created_at || '',
+          updated_at: agent.updated_at || '',
+          agent_name: agent.name || '',
+          agent_description: agent.agent_description || '',
+          logo_url: agent.logo_url || '',
+          widget_settings: parsedSettings,
+          user_id: '',
+          company: agent.company || '',
+          description: agent.description || '',
+          logo_storage_path: agent.logo_storage_path || '',
+          deletion_scheduled_at: agent.deletion_scheduled_at || null,
+          deleted_at: agent.deleted_at || null,
+          last_active: agent.last_active || null,
+          name: agent.name || '',
+          is_error: agent.is_error || false
+        };
+      });
       
       setClients(formattedClients);
     } catch (error) {

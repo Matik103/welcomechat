@@ -14,8 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Client } from "@/types/client";
-import { supabase } from '@/integrations/supabase/client';
-import { execSql } from '@/utils/rpcUtils';
+import { scheduleClientDeletion } from '@/utils/clientUtils';
 
 interface DeleteClientDialogProps {
   isOpen: boolean;
@@ -55,35 +54,28 @@ export const DeleteClientDialog = ({
       
       console.log(`Scheduling deletion of client: ${client.id}`);
       
-      // Set the deletion_scheduled_at timestamp
-      const now = new Date().toISOString();
+      // Use the scheduleClientDeletion function to handle the deletion
+      const result = await scheduleClientDeletion(
+        client.id,
+        client.email,
+        client.client_name
+      );
       
-      const { data, error: updateError } = await supabase
-        .from('ai_agents')
-        .update({ 
-          deletion_scheduled_at: now,
-          status: 'deleted'
-        })
-        .eq('id', client.id);
-      
-      if (updateError) {
-        console.error("Error scheduling client deletion:", updateError);
-        throw updateError;
+      if (!result.success) {
+        throw result.error || new Error("Failed to schedule client deletion");
       }
-      
-      // Log the deletion to console since client_activities table is removed
-      console.log('Deletion notification email sent', {
-        client_id: client.id,
-        client_name: client.client_name,
-        email: client.email,
-        timestamp: now
-      });
       
       // Refresh the client list
       onClientsUpdated();
       
-      // Close the dialog
-      toast.success(`${client.client_name} has been scheduled for deletion`);
+      // Show success message with recovery token info if available
+      toast.success(
+        `${client.client_name} has been scheduled for deletion`,
+        {
+          description: "A recovery link has been sent to the client's email address."
+        }
+      );
+      
       handleClose();
       
     } catch (err) {
