@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
-import { toast } from 'sonner';
 import { DeleteClientDialog } from '@/components/client/DeleteClientDialog';
 import { Client } from '@/types/client';
 

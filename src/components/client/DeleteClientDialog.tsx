@@ -128,11 +128,6 @@ export const DeleteClientDialog: React.FC<DeleteClientDialogProps> = ({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogTrigger asChild>
-        <Button variant="destructive" disabled={isDeleting}>
-          Schedule Deletion
-        </Button>
-      </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>

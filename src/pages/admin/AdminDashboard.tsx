@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAdminDashboardData } from '@/hooks/useAdminDashboardData';
 import { StatsCardsSection } from '@/components/admin/dashboard/StatsCardsSection';
 import { ActivityChartsSection } from '@/components/admin/dashboard/ActivityChartsSection';
+import { Loader2 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const { isLoading, dashboardData, fetchDashboardData } = useAdminDashboardData();
@@ -44,12 +45,17 @@ export default function AdminDashboardPage() {
       supabase.removeChannel(agentsChannel);
       supabase.removeChannel(activitiesChannel);
     };
-  }, []);
+  }, [fetchDashboardData]);
   
   return (
     <AdminLayout>
       <div className="container py-8 max-w-7xl mx-auto">
-        {!isLoading && (
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <span className="ml-2 text-lg text-gray-600">Loading dashboard data...</span>
+          </div>
+        ) : (
           <>
             <StatsCardsSection dashboardData={dashboardData} />
             <ActivityChartsSection activityCharts={dashboardData.activityCharts} />
