@@ -26,9 +26,10 @@ export const isAdminClientConfigured = (): boolean => {
 };
 
 // Initialize a bucket if it doesn't exist
-export const initializeBucket = async (bucketName: string, options?: {
-  public?: boolean,
-  allowedMimeTypes?: string[]
+export const initializeBucket = async (bucketName: string, options: {
+  public: boolean, // Changed from optional to required
+  allowedMimeTypes?: string[],
+  fileSizeLimit?: string | number
 }): Promise<boolean> => {
   try {
     // Check if bucket exists first
@@ -65,7 +66,7 @@ export const initializeBucket = async (bucketName: string, options?: {
 // For backward compatibility, export the bot logos bucket initialization function
 export const initializeBotLogosBucket = (): Promise<boolean> => {
   return initializeBucket('bot-logos', {
-    public: true,
+    public: true, // This is now properly required
     allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
   });
 };
