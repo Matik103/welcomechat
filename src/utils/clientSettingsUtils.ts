@@ -1,7 +1,7 @@
 
 import { Json } from "@/integrations/supabase/types";
 
-export function safeParseSettings(settings: string | number | true | { [key: string]: Json | undefined; } | Json[] | null): Record<string, any> {
+export function safeParseSettings(settings: string | number | boolean | { [key: string]: Json | undefined; } | Json[] | null): Record<string, any> {
   if (!settings) {
     return {};
   }
@@ -22,7 +22,7 @@ export function safeParseSettings(settings: string | number | true | { [key: str
 }
 
 export function getSettingsProp<T>(
-  settings: string | number | true | { [key: string]: Json | undefined; } | Json[] | null, 
+  settings: string | number | boolean | { [key: string]: Json | undefined; } | Json[] | null, 
   prop: string, 
   defaultValue: T
 ): T {
