@@ -37,6 +37,8 @@ export const saveClientTempPassword = async (
     const users = listData?.users || [];
     const existingUser = users.find(user => user?.email === email);
     
+    let userId: string;
+    
     // If user doesn't exist, create it
     if (!existingUser) {
       const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -51,11 +53,18 @@ export const saveClientTempPassword = async (
         throw createError;
       }
       
+      userId = authData.user.id;
+      
       // Add the user to the client role
-      await supabaseAdmin.from('user_roles').insert({
-        user_id: authData.user.id,
+      const { error: roleError } = await supabaseAdmin.from('user_roles').insert({
+        user_id: userId,
         role: 'client'
       });
+      
+      if (roleError) {
+        console.error("Error assigning client role:", roleError);
+        // Continue execution even if role assignment fails
+      }
       
       console.log("Created auth user for:", email);
     } else {
@@ -70,6 +79,7 @@ export const saveClientTempPassword = async (
         throw updateError;
       }
       
+      userId = existingUser.id;
       console.log("Updated password for existing user:", email);
     }
     
@@ -88,7 +98,7 @@ export const saveClientTempPassword = async (
       throw error;
     }
 
-    return { data, password: generatedPassword };
+    return { data, password: generatedPassword, userId };
   } catch (error) {
     console.error("Error in saveClientTempPassword:", error);
     throw error;
