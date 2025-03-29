@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { ActivityTypeString } from "@/types/activity";
+import { ActivityType } from "@/types/activity";
 
 /**
  * Get total count of administration activities across all clients
@@ -13,7 +13,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
 }> => {
   try {
     // Define the activity types that are considered administration activities
-    const adminActivityTypes: ActivityTypeString[] = [
+    const adminActivityTypes: ActivityType[] = [
       'client_created', 
       'client_updated', 
       'client_deleted',
@@ -53,7 +53,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
     const { count: totalCount, error: countError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', adminActivityTypes as any); // Use type assertion to bypass type checking
+      .in('type', adminActivityTypes as any);
       
     if (countError) throw countError;
     
@@ -65,7 +65,7 @@ export const getAdministrationActivitiesCount = async (): Promise<{
     const { count: recentCount, error: recentError } = await supabase
       .from('activities')
       .select('*', { count: 'exact', head: true })
-      .in('type', adminActivityTypes as any) // Use type assertion to bypass type checking
+      .in('type', adminActivityTypes as any)
       .gt('created_at', timeAgoStr);
       
     if (recentError) throw recentError;

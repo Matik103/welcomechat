@@ -1,5 +1,5 @@
 
-import { ActivityType, ActivityTypeString } from '@/types/activity';
+import { ActivityType } from '@/types/activity';
 
 // Map activity types to icon names
 export const activityTypeToIcon: Record<string, string> = {
@@ -37,7 +37,6 @@ export const activityTypeToIcon: Record<string, string> = {
   'system_update': 'settings',
   'source_deleted': 'trash',
   'source_added': 'plus',
-  'error_logged': 'alert-triangle',
   'unknown': 'help-circle'
 };
 
@@ -77,7 +76,6 @@ export const activityTypeToColor: Record<string, string> = {
   'system_update': 'gray',
   'source_deleted': 'red',
   'source_added': 'green',
-  'error_logged': 'red',
   'unknown': 'gray'
 };
 
@@ -91,17 +89,4 @@ export const getActivityTypeLabel = (activityType: string): string => {
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-};
-
-// List of valid activity types for type checking
-const VALID_ACTIVITY_TYPES = Object.values(ActivityType);
-
-// Ensure activity type is a valid enum value
-export const getSafeActivityType = (type: string): ActivityTypeString => {
-  // Check if the provided type is valid
-  const validTypes = Object.values(ActivityType) as string[];
-  const isValidType = validTypes.includes(type);
-  
-  // Return the type if valid, or a safe fallback
-  return isValidType ? (type as ActivityTypeString) : 'client_updated';
 };

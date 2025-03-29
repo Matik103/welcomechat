@@ -40,8 +40,7 @@ CREATE TYPE activity_type AS ENUM (
   'logo_uploaded',
   'system_update',
   'source_deleted',
-  'source_added',
-  'error_logged'
+  'source_added'
 );
 
 -- Update the activities table to use the new enum

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -160,15 +159,6 @@ export const RecentActivityList: React.FC<RecentActivityListProps> = ({
     }
     if (activityType.includes('chat_interaction')) {
       return `Chat interaction with client "${client_name || 'Unknown'}"`;
-    }
-    if (activityType.includes('email_sent')) {
-      return `Email sent to client "${client_name || 'Unknown'}"`;
-    }
-    if (activityType.includes('error_logged')) {
-      return `Error logged for client "${client_name || 'Unknown'}"`;
-    }
-    if (activityType.includes('login_success')) {
-      return `Successful login for client "${client_name || 'Unknown'}"`;
     }
     
     return `${activityType.replace(/_/g, ' ')} for ${client_name || 'Unknown'}`;

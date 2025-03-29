@@ -7,12 +7,8 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
   const location = useLocation();
   const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
-  const [bucketInitialized, setBucketInitialized] = useState<boolean>(false);
   
-  // Check if this is initial auth or navigation
-  const isInitialAuth = !sessionStorage.getItem('initial_auth_complete');
-  
-  // Handle app initialization - only once
+  // Handle app initialization
   useEffect(() => {
     const initializeApp = async () => {
       if (!isInitializing) return;
@@ -25,14 +21,14 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
       console.log('Current path:', location.pathname);
       console.log('User authenticated:', !!user);
       console.log('User role:', userRole);
+      console.log('Loading state:', isLoading);
       
       const isConfigured = isAdminClientConfigured();
       setAdminConfigError(!isConfigured);
       
-      if (isConfigured && !bucketInitialized) {
+      if (isConfigured) {
         try {
           await initializeBotLogosBucket();
-          setBucketInitialized(true);
         } catch (error) {
           console.error('Error initializing bot-logos bucket:', error);
         }
@@ -42,12 +38,11 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
     };
     
     initializeApp();
-  }, [location.pathname, user, userRole, isInitializing, bucketInitialized]);
+  }, [location.pathname, user, userRole, isLoading, isInitializing, setIsLoading]);
   
-  // Force loading state completion after initialization for dashboard paths
+  // Timeout for dashboard loading
   useEffect(() => {
-    // Only apply timeout during initial auth
-    if (isLoading && isInitialAuth && location.pathname.includes('/dashboard')) {
+    if (isLoading && location.pathname.includes('/dashboard')) {
       const timer = setTimeout(() => {
         console.log('Forcing loading state to complete due to dashboard path');
         setIsLoading(false);
@@ -55,21 +50,19 @@ export function useAppInitialization(isLoading: boolean, user: any, userRole: an
       
       return () => clearTimeout(timer);
     }
-  }, [isLoading, location.pathname, setIsLoading, isInitialAuth]);
+  }, [isLoading, location.pathname, setIsLoading]);
   
-  // General loading timeout - only during initial auth
+  // Force loading state completion after initialization
   useEffect(() => {
-    if (isLoading && !isInitializing && isInitialAuth) {
+    if (isLoading && !isInitializing) {
       const forceLoadingTimeout = setTimeout(() => {
-        console.log('Forcing loading state to complete after initialization timeout');
+        console.log('Forcing loading state to complete after timeout');
         setIsLoading(false);
-        // Mark initial auth as complete
-        sessionStorage.setItem('initial_auth_complete', 'true');
       }, 5000);
       
       return () => clearTimeout(forceLoadingTimeout);
     }
-  }, [isLoading, isInitializing, setIsLoading, isInitialAuth]);
+  }, [isLoading, isInitializing, setIsLoading]);
   
   return {
     adminConfigError,

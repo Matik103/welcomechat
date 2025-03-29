@@ -4,7 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Toaster } from "sonner";
 import Index from "@/pages/Index";
-import AdminClientsPage from "@/pages/admin/AdminClients";
+import ClientList from "@/pages/ClientList";
 import Agents from "@/pages/Agents";
 import Settings from "@/pages/Settings";
 import ClientView from "@/pages/ClientView";
@@ -21,7 +21,7 @@ export const AdminRoutes = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/dashboard" element={<Index />} />
-          <Route path="/admin/clients" element={<AdminClientsPage />} />
+          <Route path="/admin/clients" element={<ClientList />} />
           <Route path="/admin/agents" element={<Agents />} />
           <Route path="/admin/agents/:agentId" element={<Agents />} />
           <Route path="/admin/settings" element={<Settings />} />

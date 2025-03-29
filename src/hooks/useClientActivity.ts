@@ -1,6 +1,24 @@
 
-import { ActivityType, ActivityTypeString } from "@/types/activity";
+import { ActivityType } from "@/types/activity";
 import { supabase } from "@/integrations/supabase/client";
+
+// Safe activity types that match the database enum
+const SAFE_ACTIVITY_TYPES = [
+  "document_added",
+  "document_removed",
+  "document_processed",
+  "document_processing_failed",
+  "url_added",
+  "url_removed",
+  "url_processed",
+  "url_processing_failed",
+  "chat_message_sent",
+  "chat_message_received",
+  "client_created",
+  "client_updated",
+  "client_deleted",
+  "client_recovered"
+];
 
 export const useClientActivity = (clientId?: string) => {
   /**
@@ -9,23 +27,32 @@ export const useClientActivity = (clientId?: string) => {
   const createClientActivity = async (
     clientId: string,
     clientName: string | undefined,
-    type: ActivityType | ActivityTypeString,
+    type: ActivityType,
     description: string,
     metadata: any = {}
   ) => {
-    // Use enum value directly since we've updated the Enum to match database values
+    // Map any potentially unsafe activity types to safe ones
+    let safeType: ActivityType = "client_updated";
+    
+    // Only use the provided type if it's in our safe list
+    if (SAFE_ACTIVITY_TYPES.includes(type as string)) {
+      safeType = type;
+    } else {
+      console.warn(`Activity type "${type}" is not in the safe list, using "client_updated" instead`);
+    }
+    
     try {
-      // Create a direct record in the activities table
+      // Create a direct record in the ai_agents table to avoid enum issues
       const { data, error } = await supabase
-        .from('activities')
+        .from('ai_agents')
         .insert({
-          ai_agent_id: clientId,
-          type: type as any, // Cast to any to bypass the type checking
-          description,
-          metadata: {
-            ...metadata,
-            client_name: clientName
-          },
+          client_id: clientId,
+          client_name: clientName,
+          interaction_type: 'activity_log',
+          name: 'Activity Logger',
+          type: safeType,
+          content: description,
+          metadata: metadata,
           created_at: new Date().toISOString()
         });
       
@@ -42,10 +69,10 @@ export const useClientActivity = (clientId?: string) => {
   };
 
   /**
-   * Log client activity with the current client ID
+   * Log client activity with fallback to safe activity type
    */
   const logClientActivity = async (
-    type: ActivityType | ActivityTypeString = ActivityType.CLIENT_UPDATED,
+    type: ActivityType = "client_updated",
     description: string = "Client activity",
     metadata: any = {}
   ) => {
@@ -55,10 +82,15 @@ export const useClientActivity = (clientId?: string) => {
     }
 
     try {
+      // Use a safe default if the provided type is not in our safe list
+      const safeType = SAFE_ACTIVITY_TYPES.includes(type as string) 
+        ? type 
+        : "client_updated";
+      
       return await createClientActivity(
         clientId,
         undefined, // clientName can be undefined
-        type,
+        safeType,
         description,
         metadata
       );

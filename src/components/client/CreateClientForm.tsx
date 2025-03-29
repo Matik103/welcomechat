@@ -14,7 +14,6 @@ import { Loader2 } from 'lucide-react';
 import { generateTempPassword } from '@/utils/passwordUtils';
 import { sendWelcomeEmail } from '@/utils/email/welcomeEmail';
 import { saveClientTempPassword } from '@/utils/passwordUtils';
-import { createClientActivity } from '@/services/clientActivityService';
 
 // Schema with optional chatbot fields
 const createClientSchema = z.object({
@@ -60,7 +59,7 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
       
       toast.loading("Setting up AI agent...", { id: toastId });
       
-      // Create AI agent (which also creates the client)
+      // Create AI agent (which also creates the client) but disable activity logging
       const result = await ensureAiAgentExists(
         tempClientId,
         data.agent_name || "AI Assistant", // Provide a default if empty
@@ -68,26 +67,12 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
         "", // logoUrl
         "", // logoStoragePath
         data.client_name,
-        false // Now we want to log activities
+        true // skipActivityLog - ensure we skip activity logging
       );
       
       if (result.success) {
         // Store the temporary password - using agent.id instead of agentId
         const agentId = result.agent?.id || tempClientId;
-        
-        // Log client creation activity
-        await createClientActivity(
-          agentId,
-          data.client_name,
-          'client_created',
-          `New client ${data.client_name} created with agent ${data.agent_name || "AI Assistant"}`,
-          {
-            email: data.email,
-            agent_name: data.agent_name || "AI Assistant",
-            agent_description: data.agent_description,
-            creation_method: "admin_form"
-          }
-        );
         
         toast.loading("Configuring client credentials...", { id: toastId });
         
@@ -96,18 +81,6 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
             agentId, 
             data.email,
             tempPassword
-          );
-          
-          // Log credentials setup activity
-          await createClientActivity(
-            agentId,
-            data.client_name,
-            'client_updated',
-            `Setup login credentials for ${data.client_name}`,
-            {
-              email: data.email,
-              has_temp_password: true
-            }
           );
           
           toast.loading("Sending welcome email...", { id: toastId });
@@ -120,34 +93,8 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
           );
           
           if (emailResult.emailSent) {
-            // Log email sent activity
-            await createClientActivity(
-              agentId,
-              data.client_name,
-              'email_sent',
-              `Welcome email sent to ${data.email}`,
-              {
-                email_type: "welcome",
-                recipient: data.email,
-                client_name: data.client_name
-              }
-            );
-            
             toast.success("Client created and welcome email sent successfully!", { id: toastId });
           } else {
-            // Log email failure
-            await createClientActivity(
-              agentId,
-              data.client_name,
-              'error_logged',
-              `Failed to send welcome email to ${data.email}`,
-              {
-                error: emailResult.emailError,
-                email_type: "welcome",
-                recipient: data.email
-              }
-            );
-            
             toast.warning("Client created but failed to send welcome email", { 
               id: toastId,
               description: emailResult.emailError
@@ -156,19 +103,6 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
           }
         } catch (error) {
           console.error("Error setting up client credentials:", error);
-          
-          // Log credential setup error
-          await createClientActivity(
-            agentId,
-            data.client_name,
-            'error_logged',
-            `Failed to set up login credentials for ${data.client_name}`,
-            {
-              error: String(error),
-              email: data.email
-            }
-          );
-          
           toast.warning("Client created but failed to set up login credentials", { id: toastId });
         }
         
@@ -179,20 +113,6 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
         }
       } else {
         console.error("Failed to create client:", result.error);
-        
-        // Log client creation error
-        await createClientActivity(
-          tempClientId,
-          data.client_name,
-          'error_logged',
-          `Failed to create client ${data.client_name}`,
-          {
-            error: result.error,
-            email: data.email,
-            agent_name: data.agent_name || "AI Assistant"
-          }
-        );
-        
         toast.error("Failed to create client", { 
           id: toastId,
           description: result.error 
