@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
@@ -104,4 +105,4 @@ async function testWebsiteUrl() {
   }
 }
 
-testWebsiteUrl(); 
+testWebsiteUrl();

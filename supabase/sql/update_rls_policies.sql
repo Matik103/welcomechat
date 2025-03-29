@@ -1,3 +1,4 @@
+
 -- Drop existing policies
 DROP POLICY IF EXISTS "Service role has full access to website URLs" ON website_urls;
 DROP POLICY IF EXISTS "Authenticated users can manage their own website URLs" ON website_urls;
@@ -21,6 +22,10 @@ CREATE POLICY "Authenticated users can manage their own website URLs"
         auth.uid() IN (
             SELECT user_id FROM user_clients WHERE client_id = website_urls.client_id
         )
+        OR 
+        auth.uid() IN (
+            SELECT user_id FROM user_roles WHERE client_id = website_urls.client_id OR role = 'admin'
+        )
     )
     WITH CHECK (
         auth.uid() IN (
@@ -29,6 +34,10 @@ CREATE POLICY "Authenticated users can manage their own website URLs"
         OR 
         auth.uid() IN (
             SELECT user_id FROM user_clients WHERE client_id = website_urls.client_id
+        )
+        OR 
+        auth.uid() IN (
+            SELECT user_id FROM user_roles WHERE client_id = website_urls.client_id OR role = 'admin'
         )
     );
 
