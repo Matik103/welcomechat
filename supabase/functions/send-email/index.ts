@@ -20,7 +20,7 @@ serve(async (req) => {
     // Initialize Resend with API key from Supabase environment variables
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
-      throw new Error('RESEND_API_KEY environment variable is not set');
+      throw new Error('RESEND_API_KEY environment variable is not set in Supabase secrets');
     }
     
     const resend = new Resend(resendApiKey);

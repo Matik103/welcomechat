@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Client } from '@/types/client';
 import { supabase } from '@/integrations/supabase/client';
 import { safeParseSettings } from '@/utils/clientSettingsUtils';
@@ -30,13 +30,7 @@ export const useClientList = () => {
         throw error;
       }
       
-      // If no data returned
-      if (!data || data.length === 0) {
-        setClients([]);
-        return [];
-      }
-      
-      // Convert to Client type with proper handling of widget_settings
+      // Convert to Client type
       const formattedClients: Client[] = data.map(agent => {
         // Use the safeParseSettings utility to ensure widget_settings is always an object
         const parsedSettings = safeParseSettings(agent.settings);
@@ -72,23 +66,21 @@ export const useClientList = () => {
       );
       
       setClients(filteredClients);
-      return filteredClients;
     } catch (error) {
       console.error('Error fetching clients:', error);
       setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
-      return [];
     } finally {
       setIsLoading(false);
     }
   }, [searchQuery]);
   
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-  };
-  
   useEffect(() => {
     fetchClients();
   }, [fetchClients]);
+  
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+  };
   
   return {
     clients,

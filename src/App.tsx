@@ -10,7 +10,6 @@ import { UnauthenticatedRoutes } from "./components/routes/UnauthenticatedRoutes
 import { AdminRoutes } from "./components/routes/AdminRoutes";
 import { ClientRoutes } from "./components/routes/ClientRoutes";
 import { ConfigError } from "./components/routes/ErrorDisplay";
-import { LoadingFallback } from "./components/routes/LoadingFallback";
 
 function App() {
   const { user, userRole, isLoading, setIsLoading, session } = useAuth();

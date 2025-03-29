@@ -21,56 +21,65 @@ export const useAuthCallback = ({
   setIsLoading
 }: UseAuthCallbackProps) => {
   useEffect(() => {
-    // Only run this if we're on the callback URL
     if (!isCallbackUrl) return;
     
-    const handleAuthCallback = async () => {
-      // Avoid processing the callback multiple times
-      const processed = sessionStorage.getItem('auth_callback_processed');
-      if (processed) return;
-      
-      setIsLoading(true);
-      
+    // Skip if already processed to avoid infinite loops
+    const authCallbackProcessed = sessionStorage.getItem('auth_callback_processed') === 'true';
+    if (authCallbackProcessed) {
+      console.log('Auth callback already processed, skipping');
+      return;
+    }
+    
+    // Mark as processing
+    sessionStorage.setItem('auth_callback_processing', 'true');
+    
+    const getSession = async () => {
       try {
-        console.log("Processing auth callback...");
-        // Try to get the session from the URL
+        setIsLoading(true);
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error("Auth callback error:", error);
+          console.error('Error getting session in callback:', error);
           setIsLoading(false);
           return;
         }
         
         if (data?.session) {
-          console.log("Auth callback: Got session for user", data.session.user.email);
           setSession(data.session);
           setUser(data.session.user);
           
-          // Get user role
-          const role = await getUserRole();
-          console.log("Auth callback: User role determined as:", role);
-          setUserRole(role);
-          
-          // Mark callback as processed to avoid duplicate processing
-          sessionStorage.setItem('auth_callback_processed', 'true');
-          
-          // Redirect to appropriate page after callback is processed
-          if (typeof window !== 'undefined') {
-            const redirectPath = role === 'admin' ? '/admin/dashboard' : '/client/dashboard';
-            console.log("Auth callback: Redirecting to", redirectPath);
-            window.location.href = redirectPath;
-          }
+          // Get role with a slight delay to avoid circular dependency
+          setTimeout(async () => {
+            try {
+              const role = await getUserRole();
+              setUserRole(role);
+              
+              // Store role in session storage as a fallback
+              if (role) {
+                sessionStorage.setItem('user_role_set', role);
+              }
+            } catch (error) {
+              console.error('Error getting user role in callback:', error);
+            } finally {
+              // Mark as completed regardless of outcome
+              sessionStorage.setItem('auth_callback_processed', 'true');
+              sessionStorage.removeItem('auth_callback_processing');
+              setIsLoading(false);
+            }
+          }, 500);
         } else {
-          console.warn("Auth callback: No session found");
           setIsLoading(false);
+          sessionStorage.setItem('auth_callback_processed', 'true');
+          sessionStorage.removeItem('auth_callback_processing');
         }
-      } catch (err) {
-        console.error("Error in auth callback:", err);
+      } catch (error) {
+        console.error('Error in auth callback:', error);
         setIsLoading(false);
+        sessionStorage.setItem('auth_callback_processed', 'true');
+        sessionStorage.removeItem('auth_callback_processing');
       }
     };
     
-    handleAuthCallback();
-  }, [isCallbackUrl, setIsLoading, setSession, setUser, setUserRole]);
+    getSession();
+  }, [isCallbackUrl, setSession, setUser, setUserRole, setIsLoading]);
 };

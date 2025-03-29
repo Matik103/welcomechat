@@ -1,18 +1,18 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { createClientActivity } from '@/services/clientActivityService';
 
 export const useAiAgentManagement = () => {
   const [isCreating, setIsCreating] = useState(false);
 
   const ensureAiAgentExists = async (
     clientId: string,
-    agentName: string,
+    agentName: string = "AI Assistant",
     agentDescription?: string,
     logoUrl?: string,
     logoStoragePath?: string,
     clientName?: string,
-    skipActivityLog = false
+    skipActivityLog: boolean = false
   ) => {
     if (!clientId) {
       return { success: false, error: "Client ID is required" };
@@ -123,6 +123,21 @@ export const useAiAgentManagement = () => {
         });
       }
 
+      // Log activity if skipActivityLog is false
+      if (!skipActivityLog && newAgent) {
+        await createClientActivity(
+          clientId,
+          clientName || agentName,
+          'agent_created',
+          `Created AI agent "${agentName}" for client ${clientName || 'Unknown'}`,
+          {
+            agent_name: agentName,
+            agent_description: agentDescription || '',
+            client_name: clientName
+          }
+        );
+      }
+      
       return { success: true, agent: newAgent, error: null };
     } catch (error) {
       console.error("Error ensuring AI agent exists:", error);

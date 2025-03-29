@@ -97,6 +97,10 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       setSession(null);
       setUser(null);
       setUserRole(null);
+      // Clear any auth-related local storage
+      sessionStorage.removeItem('auth_callback_processed');
+      sessionStorage.removeItem('auth_callback_processing');
+      sessionStorage.removeItem('user_role_set');
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {
