@@ -7,6 +7,7 @@ export interface ClientActivity {
   created_at: string;
   metadata: any;
   type?: string;
+  ai_agent_id?: string; // Added for compatibility with activities table
 }
 
 export interface ClientActivityProps {
@@ -53,4 +54,5 @@ export type ActivityType =
   | 'logo_uploaded'
   | 'system_update'
   | 'source_deleted'
-  | 'source_added';
+  | 'source_added'
+  | 'error_logged';

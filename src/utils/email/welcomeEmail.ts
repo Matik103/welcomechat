@@ -1,70 +1,33 @@
+import { Resend } from 'resend';
+import { createClientActivity } from '@/services/clientActivityService';
 
-import { sendEmail, EmailOptions } from './emailSender';
-import { generateClientInvitationTemplate } from './emailTemplates';
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-/**
- * Sends a welcome email to the client with their credentials
- */
-export const sendWelcomeEmail = async (email: string, clientName: string, tempPassword: string) => {
-  console.log("Sending welcome email to:", email);
-  console.log("Using password:", tempPassword ? `${tempPassword.substring(0, 3)}...` : "No password provided");
-  
-  if (!email || !email.includes('@')) {
-    console.error("Invalid email address provided:", email);
-    return {
-      emailSent: false,
-      emailError: "Invalid email address"
-    };
-  }
-  
-  if (!tempPassword) {
-    console.error("No temporary password provided");
-    return {
-      emailSent: false,
-      emailError: "No temporary password provided"
-    };
-  }
-  
+export const sendWelcomeEmail = async (to: string, clientName: string, password: string) => {
   try {
-    // Generate the HTML template
-    const html = generateClientInvitationTemplate({
-      clientName: clientName || "Client",
-      email: email,
-      tempPassword: tempPassword,
-      productName: "Welcome.Chat"
+    const data = await resend.emails.send({
+      from: 'Acme <onboarding@resend.dev>',
+      to: [to],
+      subject: 'Welcome to Acme!',
+      html: `<p>Hello ${clientName},</p><p>Welcome to Acme! Your password is: <strong>${password}</strong></p>`,
     });
     
-    // Create email options
-    const emailOptions: EmailOptions = {
-      to: email,
-      subject: "Welcome to Welcome.Chat - Your Account Details",
-      html: html,
-      from: "Welcome.Chat <admin@welcome.chat>"
-    };
+    // Log activity for email sent
+    await createClientActivity(
+      "", // We don't have the agent ID here, it will be filled in the CreateClientForm
+      clientName,
+      'email_sent',
+      `Welcome email sent to ${to}`,
+      {
+        email_type: "welcome",
+        recipient: to,
+        client_name: clientName
+      }
+    );
     
-    const emailResult = await sendEmail(emailOptions);
-    
-    console.log("Welcome email result:", emailResult);
-    
-    if (!emailResult.success) {
-      console.error("Error sending welcome email:", emailResult.error);
-      console.error("Error details:", emailResult.details);
-      return {
-        emailSent: false,
-        emailError: emailResult.error
-      };
-    }
-    
-    console.log("Welcome email sent successfully");
-    return {
-      emailSent: true
-    };
+    return { emailSent: true, emailError: null };
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error("Exception while sending welcome email:", error);
-    return {
-      emailSent: false,
-      emailError: errorMsg
-    };
+    console.error("Error sending welcome email:", error);
+    return { emailSent: false, emailError: String(error) };
   }
 };

@@ -3,17 +3,47 @@ import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 /**
- * Simplified subscriptions that return dummy channels
+ * Subscribes to client activities for a specific client
  */
 export const subscribeToClientActivities = (clientId: string, onUpdate: () => void): RealtimeChannel => {
-  const channel = supabase.channel(`dummy-channel-${Date.now()}`);
-  channel.subscribe();
+  const channel = supabase
+    .channel(`client-activities-${clientId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "activities",
+        filter: `ai_agent_id=eq.${clientId}`
+      },
+      () => {
+        onUpdate();
+      }
+    )
+    .subscribe();
+
   return channel;
 };
 
+/**
+ * Subscribes to all activities
+ */
 export const subscribeToAllActivities = (onUpdate: () => void): RealtimeChannel => {
-  const channel = supabase.channel(`dummy-channel-${Date.now()}`);
-  channel.subscribe();
+  const channel = supabase
+    .channel(`all-activities`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "activities"
+      },
+      () => {
+        onUpdate();
+      }
+    )
+    .subscribe();
+
   return channel;
 };
 
