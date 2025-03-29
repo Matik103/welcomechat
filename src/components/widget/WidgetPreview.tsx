@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
@@ -42,6 +41,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const typeResponse = (response: string) => {
     setIsTyping(true);
     
+    // Add empty AI message that will be filled character by character
     const newMessageIndex = messages.length;
     setMessages(prev => [...prev, { text: "", isUser: false }]);
     
@@ -67,10 +67,11 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isTyping) return;
 
-    // Add the user message to the chat
-    setMessages(prev => [...prev, { text: inputValue, isUser: true }]);
     const userQuery = inputValue;
     setInputValue("");
+    
+    // Add user message immediately
+    setMessages(prev => [...prev, { text: userQuery, isUser: true }]);
     
     if (clientId) {
       try {
@@ -105,6 +106,9 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   };
 
   const simulateResponse = (userQuery: string) => {
+    // Add user message immediately
+    setMessages(prev => [...prev, { text: userQuery, isUser: true }]);
+    
     setTimeout(() => {
       let responseText = "I'm your AI assistant. This is a preview of how the widget will look on your website.";
       
@@ -139,6 +143,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
         }
       }
       
+      // Add AI response
       typeResponse(responseText);
     }, 1000);
   };

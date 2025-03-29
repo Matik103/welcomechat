@@ -1,4 +1,3 @@
-
 import { Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; 
 import { Bot, User } from "lucide-react";
