@@ -295,15 +295,7 @@ export const sendDeletionEmail = async (
   const emailResult = await sendEmail({
     to: email,
     subject: "Important: Your Account is Scheduled for Deletion",
-    template: "client-invitation",
     from: "Welcome.Chat <admin@welcome.chat>",
-    params: {
-      clientName: clientName || "Client",
-      recoveryToken: recoveryToken,
-      recoveryUrl: recoveryUrl,
-      deletionDate: formattedDeletionDate,
-      productName: "Welcome.Chat"
-    },
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <div style="text-align: center; margin-bottom: 20px;">
