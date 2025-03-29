@@ -54,8 +54,14 @@ export default function WidgetSettings() {
     mutationFn: async (newSettings: WidgetSettingsType): Promise<void> => {
       if (clientId) {
         await updateWidgetSettings(clientId, newSettings);
-        // Log the activity with safe activity type
-        await logClientActivity("client_updated", "Widget settings updated");
+        // Log the activity with safe activity type and client name
+        await logClientActivity("widget_settings_updated", 
+          `Widget settings updated for "${client?.client_name || newSettings.agent_name || 'Unknown'}"`, 
+          {
+            client_name: client?.client_name,
+            agent_name: newSettings.agent_name,
+            settings_changed: true
+          });
       }
     },
     onSuccess: () => {
@@ -84,7 +90,13 @@ export default function WidgetSettings() {
       
       if (result) {
         await widgetSettingsHook.updateLogo(result.url, result.path);
-        await logClientActivity("client_updated", "Logo updated");
+        await logClientActivity("logo_uploaded", 
+          `Logo updated for "${client?.client_name || settings?.agent_name || 'Unknown'}"`, 
+          {
+            client_name: client?.client_name,
+            agent_name: settings?.agent_name,
+            logo_url: result.url
+          });
         refetch();
       }
     } catch (error) {
@@ -107,7 +119,12 @@ export default function WidgetSettings() {
 
   // Type-safe logClientActivity
   const logActivityWrapper = async (): Promise<void> => {
-    await logClientActivity("client_updated", "Widget settings activity logged");
+    await logClientActivity("widget_previewed", 
+      `Widget previewed for "${client?.client_name || settings?.agent_name || 'Unknown'}"`, 
+      {
+        client_name: client?.client_name,
+        agent_name: settings?.agent_name
+      });
   };
 
   return (

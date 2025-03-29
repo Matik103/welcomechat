@@ -16,6 +16,9 @@ export const createClientActivity = async (
     // Convert type to string for database compatibility
     const activityType = typeof type === 'string' ? type : type;
     
+    // Ensure we have a client name, even if it's a placeholder
+    const safeClientName = clientName || "Unknown Client";
+    
     // Insert activity record into the activities table
     const { error } = await supabase
       .from('activities')
@@ -25,7 +28,7 @@ export const createClientActivity = async (
         description,
         metadata: {
           ...metadata,
-          client_name: clientName
+          client_name: safeClientName
         },
         created_at: new Date().toISOString()
       });
@@ -36,7 +39,7 @@ export const createClientActivity = async (
       // Log to console as fallback
       console.log(`[Activity Log] ${type}:`, {
         client_id: clientId,
-        client_name: clientName,
+        client_name: safeClientName,
         description,
         metadata,
         created_at: new Date().toISOString(),

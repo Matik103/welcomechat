@@ -42,10 +42,6 @@ export function WidgetSettingsContainer({
   const handleSave = async () => {
     try {
       await updateSettingsMutation.mutateAsync(currentSettings);
-      
-      // Log activity after successful update
-      await logClientActivity();
-      
       toast.success("Widget settings saved successfully!");
     } catch (error) {
       console.error("Error saving widget settings:", error);
@@ -55,7 +51,7 @@ export function WidgetSettingsContainer({
 
   const handleCopyEmbedCode = async () => {
     if (isClientView) {
-      // Log activity when embed code is copied
+      // Log activity when embed code is copied with detailed information
       await logClientActivity();
     }
   };

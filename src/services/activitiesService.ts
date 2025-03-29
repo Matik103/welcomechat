@@ -1,66 +1,89 @@
 
-import { ActivityType, ActivityTypeString } from '@/types/activity';
 import { supabase } from "@/integrations/supabase/client";
+import { ActivityType, ActivityTypeString } from "@/types/activity";
 
 /**
- * Create a client activity in the activities table (not client_activities)
+ * Create an activity record in the activities table
  */
 export const createActivity = async (
-  client_id: string,
+  clientId: string,
   type: ActivityType | ActivityTypeString,
   description: string,
   metadata: any = {}
-) => {
+): Promise<{ success: boolean; error: any | null }> => {
   try {
-    // Convert type to string for database compatibility
-    const activityType = typeof type === 'string' ? type : type;
-    
-    // Insert into the activities table instead of client_activities
-    const { data, error } = await supabase
-      .from("activities")
-      .insert({
-        ai_agent_id: client_id, // activities table uses ai_agent_id instead of client_id
-        type: activityType as any, // Cast to any to bypass the type checking
-        description,
-        metadata,
-        created_at: new Date().toISOString()
-      });
-
-    if (error) {
-      console.error("Error creating activity:", error);
-      // Fallback to console log if database insert fails
-      console.log(`[Activity Log] ${type}:`, {
-        client_id,
-        description,
-        type,
-        metadata,
-        created_at: new Date().toISOString()
-      });
-      return { success: false, data: null, error };
+    // First, try to get client name if not provided in metadata
+    if (!metadata.client_name) {
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('client_name')
+        .eq('id', clientId)
+        .single();
+        
+      if (clientData?.client_name) {
+        metadata.client_name = clientData.client_name;
+      }
     }
     
-    return { success: true, data, error: null };
+    // Get agent name if not provided
+    if (!metadata.agent_name) {
+      const { data: agentData } = await supabase
+        .from('ai_agents')
+        .select('name')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .maybeSingle();
+        
+      if (agentData?.name) {
+        metadata.agent_name = agentData.name;
+      }
+    }
+    
+    const { error } = await supabase
+      .from('activities')
+      .insert({
+        ai_agent_id: clientId,
+        type,
+        description,
+        metadata,
+        created_at: new Date().toISOString()
+      });
+      
+    if (error) {
+      console.error("Error creating activity:", error);
+      return { success: false, error };
+    }
+    
+    return { success: true, error: null };
   } catch (error) {
-    console.error("Error logging activity:", error);
-    return { success: false, data: null, error };
+    console.error("Error in createActivity:", error);
+    return { success: false, error };
   }
 };
 
 /**
- * Get recent activities from database
+ * Get recent activities
  */
-export const getRecentActivities = async (limit = 10) => {
+export const getRecentActivities = async (
+  limit: number = 20
+): Promise<{ success: boolean; data?: any[]; error?: Error }> => {
   try {
     const { data, error } = await supabase
-      .from("activities")
-      .select("*")
-      .order("created_at", { ascending: false })
+      .from('activities')
+      .select('*')
+      .order('created_at', { ascending: false })
       .limit(limit);
-
-    if (error) throw error;
-    return { success: true, data, error: null };
+      
+    if (error) {
+      throw error;
+    }
+    
+    return { success: true, data };
   } catch (error) {
     console.error("Error fetching recent activities:", error);
-    return { success: false, data: [], error };
+    return { 
+      success: false, 
+      error: error instanceof Error ? error : new Error('Unknown error') 
+    };
   }
 };
