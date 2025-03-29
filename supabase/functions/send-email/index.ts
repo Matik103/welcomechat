@@ -26,7 +26,7 @@ serve(async (req) => {
     const resend = new Resend(resendApiKey);
 
     // Get the request body
-    const { to, subject, html, from = 'Acme <onboarding@resend.dev>' } = await req.json() as EmailRequest;
+    const { to, subject, html, from = 'Welcome.Chat <admin@welcome.chat>' } = await req.json() as EmailRequest;
 
     // Validate required fields
     if (!to || !subject || !html) {

@@ -11,6 +11,7 @@ export const sendWelcomeEmail = async (to: string, clientName: string, password:
         to: to,
         subject: 'Welcome to Acme!',
         html: `<p>Hello ${clientName},</p><p>Welcome to Acme! Your password is: <strong>${password}</strong></p>`,
+        from: 'Welcome.Chat <admin@welcome.chat>'
       },
     });
     
