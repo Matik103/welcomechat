@@ -3,7 +3,13 @@ import { Resend } from 'resend';
 
 // Initialize Resend using import.meta.env instead of process.env
 // This works in Vite applications which run in the browser
-const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
+const apiKey = import.meta.env.VITE_RESEND_API_KEY;
+
+if (!apiKey) {
+  console.error('VITE_RESEND_API_KEY is not set in environment variables');
+}
+
+const resend = new Resend(apiKey);
 
 interface EmailResponse {
   success: boolean;
