@@ -1,7 +1,4 @@
-import { Resend } from 'resend';
-
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { supabase } from "@/integrations/supabase/client";
 
 interface EmailResponse {
   success: boolean;
@@ -25,7 +22,7 @@ export interface EmailOptions {
 }
 
 /**
- * Sends an email using Resend
+ * Sends an email using either Supabase Edge Functions (production) or direct Resend API (development)
  */
 export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
   try {
@@ -35,7 +32,8 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
       hasHtml: !!options.html,
       template: options.template,
       hasParams: !!options.params,
-      from: options.from || "default"
+      from: options.from || "default",
+      environment: process.env.NODE_ENV
     });
 
     let html = options.html || "";
@@ -111,28 +109,75 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
       };
     }
 
-    // Send email using Resend
-    const { data, error } = await resend.emails.send({
-      from: options.from || 'WelcomeChat <admin@welcome.chat>',
-      to: options.to,
-      subject: options.subject,
-      html: html
-    });
+    // In production, use Supabase Edge Function
+    if (process.env.NODE_ENV === 'production') {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          from: options.from || 'WelcomeChat <admin@welcome.chat>',
+          to: options.to,
+          subject: options.subject,
+          html: html
+        }
+      });
 
-    if (error) {
-      console.error("Error sending email:", error);
+      if (error) {
+        console.error("Error sending email through Edge Function:", error);
+        return {
+          success: false,
+          error: error.message,
+          details: error
+        };
+      }
+
+      console.log("Email sent successfully through Edge Function:", data);
       return {
-        success: false,
-        error: error.message,
-        details: error
+        success: true,
+        details: data
       };
     }
+    // In development, use direct Resend API
+    else {
+      const apiKey = process.env.VITE_RESEND_API_KEY;
+      if (!apiKey) {
+        console.error("Resend API key not found in environment variables");
+        return {
+          success: false,
+          error: "Missing API key",
+          details: { message: "Resend API key not found in environment" }
+        };
+      }
 
-    console.log("Email sent successfully:", data);
-    return {
-      success: true,
-      details: data
-    };
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: options.from || 'WelcomeChat <admin@welcome.chat>',
+          to: options.to,
+          subject: options.subject,
+          html: html
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("Error sending email through Resend API:", error);
+        return {
+          success: false,
+          error: error.message || 'Failed to send email',
+          details: error
+        };
+      }
+
+      const data = await response.json();
+      console.log("Email sent successfully through Resend API:", data);
+      return {
+        success: true,
+        details: data
+      };
+    }
   } catch (error) {
     console.error("Error sending email:", error);
     return {
@@ -237,10 +282,10 @@ export const sendDeletionEmail = async (
   const recoveryUrl = `${window.location.origin}/client/auth?recovery=${recoveryToken}`;
   
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'WelcomeChat <admin@welcome.chat>',
+    const emailResult = await sendEmail({
       to: email,
       subject: "Important: Your Account is Scheduled for Deletion",
+      from: 'WelcomeChat <admin@welcome.chat>',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <div style="text-align: center; margin-bottom: 20px;">
@@ -287,15 +332,15 @@ export const sendDeletionEmail = async (
       `
     });
     
-    if (error) {
-      console.error("Error sending deletion notification email:", error);
+    if (!emailResult.success) {
+      console.error("Error sending deletion notification email:", emailResult.error);
       return {
         emailSent: false,
-        emailError: error.message
+        emailError: emailResult.error
       };
     }
     
-    console.log("Deletion notification email sent successfully:", data);
+    console.log("Deletion notification email sent successfully:", emailResult.details);
     return {
       emailSent: true
     };
