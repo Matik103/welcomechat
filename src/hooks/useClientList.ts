@@ -1,14 +1,34 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchClients } from '@/services/clientService';
+import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
 
+/**
+ * Custom hook for fetching and managing client list data
+ */
 export const useClientList = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   
-  // Use React Query with improved caching
+  // Function to fetch clients from Supabase
+  const fetchClients = async (): Promise<Client[]> => {
+    const { data, error } = await supabase
+      .from('ai_agents')
+      .select('*')
+      .eq('interaction_type', 'config')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error("Error fetching clients:", error);
+      throw error;
+    }
+    
+    return (data || []) as Client[];
+  };
+  
+  // Use React Query with proper configuration
   const { 
     data: clients = [], 
     isLoading,
@@ -17,7 +37,7 @@ export const useClientList = () => {
     queryKey: ['clients'],
     queryFn: fetchClients,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes - replaced deprecated cacheTime
     refetchOnWindowFocus: false,
   });
   
