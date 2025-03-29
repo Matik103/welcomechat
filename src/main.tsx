@@ -12,15 +12,11 @@ import { AuthProvider } from './contexts/AuthContext';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60 * 1000,
-      refetchOnWindowFocus: true,
-      refetchOnMount: true,
-      retry: 3,
+      staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+      refetchOnWindowFocus: false, // Don't refetch when window gets focus
+      refetchOnMount: 'always', // Only refetch on mount if data is stale
+      retry: 1, // Only retry failed requests once
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      // Add these to help with better recovery
-      refetchOnReconnect: true,
-      refetchInterval: false,
-      refetchIntervalInBackground: false,
     },
   },
 });

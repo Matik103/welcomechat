@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { UserRole } from "@/types/auth";
 
@@ -8,13 +9,25 @@ export function useAuthState() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
+  const focusHandled = useRef(false);
 
-  // Handle window focus events
+  // Handle window focus events - only once per focus
   useEffect(() => {
     const handleFocus = () => {
+      // Skip if we've already handled this focus event
+      if (focusHandled.current) return;
+      focusHandled.current = true;
+      
+      // Reset flag when focus is lost
+      const handleBlur = () => {
+        focusHandled.current = false;
+      };
+      
+      window.addEventListener('blur', handleBlur, { once: true });
+      
       // Check if we have stored auth state
       const storedState = sessionStorage.getItem('auth_state');
-      if (storedState) {
+      if (storedState && !session) {
         try {
           const { session: storedSession, user: storedUser, userRole: storedRole, timestamp } = JSON.parse(storedState);
           // Only restore if the stored state is less than 1 hour old
@@ -28,11 +41,13 @@ export function useAuthState() {
           console.error('Error restoring auth state on focus:', error);
         }
       }
+      
+      return () => window.removeEventListener('blur', handleBlur);
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [session]);
 
   // Use useCallback to memoize the setter functions
   const setSessionCallback = useCallback((newSession: Session | null) => {

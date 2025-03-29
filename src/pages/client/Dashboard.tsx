@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { InteractionStats } from "@/components/client-dashboard/InteractionStats";
@@ -19,6 +20,7 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   const navigate = useNavigate();
   const [loadTimeout, setLoadTimeout] = useState<boolean>(false);
   const [isPageVisible, setIsPageVisible] = useState(true);
+  const [firstLoadComplete, setFirstLoadComplete] = useState(false);
   
   // Handle page visibility changes
   useEffect(() => {
@@ -32,22 +34,28 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   
   // Set a short timeout to prevent getting stuck in loading state
   useEffect(() => {
+    if (firstLoadComplete) return;
+    
     const timeout = setTimeout(() => {
       setLoadTimeout(true);
+      setFirstLoadComplete(true);
     }, 1000);
     
     return () => clearTimeout(timeout);
-  }, []);
+  }, [firstLoadComplete]);
   
   // Redirect if not authenticated
   useEffect(() => {
-    if (!user && !loadTimeout) {
+    if (!user && loadTimeout) {
       navigate("/auth", { replace: true });
     }
   }, [user, navigate, loadTimeout]);
 
   // Get client ID from user metadata if not provided
-  const effectiveClientId = clientId || user?.user_metadata?.client_id;
+  const effectiveClientId = useMemo(() => 
+    clientId || user?.user_metadata?.client_id, 
+    [clientId, user?.user_metadata?.client_id]
+  );
   
   const {
     stats,
@@ -58,10 +66,13 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
   } = useClientDashboard(effectiveClientId || '', user?.user_metadata?.agent_name || 'AI Assistant');
 
   // Only show loading state if we're actually loading and the page is visible
-  const shouldShowLoading = isLoading && !loadTimeout && isPageVisible;
+  const shouldShowLoading = useMemo(() => 
+    isLoading && !loadTimeout && isPageVisible && !firstLoadComplete,
+    [isLoading, loadTimeout, isPageVisible, firstLoadComplete]
+  );
 
   // Convert stats to the expected format for the InteractionStats component
-  const formattedStats: any = stats ? {
+  const formattedStats = useMemo(() => stats ? {
     total_interactions: stats.totalInteractions,
     active_days: stats.activeDays,
     average_response_time: stats.averageResponseTime,
@@ -71,27 +82,23 @@ const ClientDashboard = ({ clientId }: ClientDashboardProps) => {
     active_days: 0,
     average_response_time: 0,
     top_queries: []
-  };
+  }, [stats]);
 
   // Format top queries for the QueryList component
-  const queries: QueryItem[] = stats?.topQueries?.map(q => ({
+  const queries = useMemo(() => stats?.topQueries?.map(q => ({
     id: `query-${Math.random().toString(36).substr(2, 9)}`,
     query_text: q.query_text,
     frequency: q.frequency
-  })) || [];
-
-  // Handle refresh
-  const refreshDashboard = useCallback(() => {
-    window.location.reload();
-  }, []);
+  })) || [], [stats?.topQueries]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    refreshDashboard();
+    window.location.reload();
+    // This timeout is just for UI feedback, the page will reload before it completes
     setTimeout(() => setIsRefreshing(false), 1000);
-  }, [refreshDashboard]);
+  }, []);
 
   // Very minimal loading state - only show if we don't have a user yet
   if (shouldShowLoading) {

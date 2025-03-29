@@ -87,19 +87,24 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
               } else {
                 console.log("Session verified with Supabase");
               }
+              setIsLoading(false);
             });
           } else {
             console.log("Stored auth state is too old, removing");
             sessionStorage.removeItem('auth_state');
+            setIsLoading(false);
           }
         } catch (error) {
           console.error('Error restoring auth state:', error);
           sessionStorage.removeItem('auth_state');
+          setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
       setAuthInitialized(true);
     }
-  }, [authInitialized, isCallbackUrl, user]);
+  }, [authInitialized, isCallbackUrl, user, setSession, setUser, setUserRole, setIsLoading, setAuthInitialized]);
   
   // Initialize auth - check for existing session
   useAuthInitialize({

@@ -17,8 +17,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const navigate = useNavigate();
   const [isRehydrating, setIsRehydrating] = useState(true);
   const [rehydrationFailed, setRehydrationFailed] = useState(false);
+  const [rehydrationAttempted, setRehydrationAttempted] = useState(false);
 
   useEffect(() => {
+    // Only run rehydration logic once to prevent loops
+    if (rehydrationAttempted) return;
+    
     // Check for stored auth state to determine if we're rehydrating
     const storedState = sessionStorage.getItem('auth_state');
     if (storedState) {
@@ -34,19 +38,23 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               setRehydrationFailed(true);
             }
             setIsRehydrating(false);
+            setRehydrationAttempted(true);
           }, 2000); // Increased timeout to 2 seconds
           return () => clearTimeout(timer);
         } else {
           console.log("Stored auth state expired");
           sessionStorage.removeItem('auth_state');
+          setRehydrationAttempted(true);
         }
       } catch (error) {
         console.error('Error checking stored auth state:', error);
         sessionStorage.removeItem('auth_state');
+        setRehydrationAttempted(true);
       }
     }
     setIsRehydrating(false);
-  }, [user]);
+    setRehydrationAttempted(true);
+  }, [user, rehydrationAttempted]);
 
   // If rehydration failed, redirect to auth
   if (rehydrationFailed) {

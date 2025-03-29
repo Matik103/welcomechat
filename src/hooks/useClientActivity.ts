@@ -1,12 +1,12 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ActivityType, ActivityTypeString } from '@/types/activity';
 import { createActivity } from '@/services/activitiesService';
 
 export function useClientActivity(clientId?: string) {
   const [isLogging, setIsLogging] = useState(false);
 
-  const logClientActivity = async (
+  const logClientActivity = useCallback(async (
     type: ActivityType | ActivityTypeString,
     description: string,
     metadata: any = {}
@@ -31,7 +31,7 @@ export function useClientActivity(clientId?: string) {
     } finally {
       setIsLogging(false);
     }
-  };
+  }, [clientId]);
 
   return {
     logClientActivity,
