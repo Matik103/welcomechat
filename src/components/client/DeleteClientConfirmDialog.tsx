@@ -106,11 +106,12 @@ export const DeleteClientConfirmDialog = ({
         .from('activities')
         .insert({
           ai_agent_id: client.id,
-          type: 'client_deletion_scheduled',
+          type: 'client_deleted', // Changed from 'client_deletion_scheduled' to a valid enum value
           metadata: {
             scheduled_deletion_date: deletionDate,
             client_name: client.client_name,
-            recovery_token_generated: !!recoveryToken
+            recovery_token_generated: !!recoveryToken,
+            activity_subtype: 'deletion_scheduled' // Add subtype to preserve original intent
           }
         });
         

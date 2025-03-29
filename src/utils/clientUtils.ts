@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 import { v4 as uuidv4 } from 'uuid';
@@ -96,10 +95,11 @@ export const recoverClientAccount = async (token: string): Promise<{ success: bo
       .from('activities')
       .insert({
         ai_agent_id: tokenData.client_id,
-        type: 'client_recovered',
+        type: 'client_updated',
         metadata: {
           recovered_at: new Date().toISOString(),
-          recovery_method: 'token'
+          recovery_method: 'token',
+          activity_subtype: 'account_recovered'
         }
       });
       
