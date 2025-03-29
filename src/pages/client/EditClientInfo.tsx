@@ -52,7 +52,10 @@ export default function EditClientInfo() {
       refetchClient();
     } catch (error) {
       console.error("Error updating client:", error);
-      toast.error(`Failed to update client: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : String(error);
+      toast.error(`Failed to update client: ${errorMessage}`);
     }
   };
 

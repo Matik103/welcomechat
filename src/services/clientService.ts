@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin } from "@/integrations/supabase/client-admin";
 import { Client } from "@/types/client";
@@ -72,11 +71,11 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       .or(`id.eq.${clientId},client_id.eq.${clientId}`)
       .eq('interaction_type', 'config')
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (findError) {
       console.error("Error finding client:", findError);
-      throw findError;
+      throw new Error(`Failed to find client: ${findError.message}`);
     }
 
     if (!clientRecordResult) {
@@ -120,7 +119,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
 
     if (updateError) {
       console.error(`Error updating client by ${queryField}:`, updateError);
-      throw updateError;
+      throw new Error(`Failed to update client: ${updateError.message}`);
     }
 
     if (!updateResult) {
@@ -160,6 +159,7 @@ export const updateClient = async (clientId: string, updateData: Partial<Client>
       .insert({
         ai_agent_id: updateResult.id,
         type: 'client_updated',
+        description: `Client updated: ${updateData.client_name}`,
         metadata: {
           client_name: updateData.client_name,
           email: updateData.email,
