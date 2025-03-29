@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { ActivityType, ActivityTypeString } from "@/types/activity";
+import { getSafeActivityType } from "@/utils/activityTypeUtils";
 
 /**
  * Create an activity record in the activities table
@@ -39,11 +40,14 @@ export const createActivity = async (
       }
     }
     
+    // Convert the ActivityType enum to a string value acceptable by the database
+    const safeActivityType = getSafeActivityType(typeof type === 'string' ? type : type.toString());
+    
     const { error } = await supabase
       .from('activities')
       .insert({
         ai_agent_id: clientId,
-        type,
+        type: safeActivityType,
         description,
         metadata,
         created_at: new Date().toISOString()

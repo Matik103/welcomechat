@@ -96,12 +96,58 @@ export const getActivityTypeLabel = (activityType: string): string => {
 // List of valid activity types for type checking
 const VALID_ACTIVITY_TYPES = Object.values(ActivityType);
 
-// Ensure activity type is a valid enum value
-export const getSafeActivityType = (type: string): ActivityTypeString => {
-  // Check if the provided type is valid
-  const validTypes = Object.values(ActivityType) as string[];
-  const isValidType = validTypes.includes(type);
+/**
+ * Ensure activity type is a valid enum value for the database
+ * 
+ * This is crucial for preventing type errors when inserting activities
+ * as Supabase enforces strict type checking on enum columns
+ */
+export const getSafeActivityType = (type: string): string => {
+  // These activity types are known to exist in the database
+  const safeActivityTypes = [
+    'document_added',
+    'document_removed',
+    'document_processed',
+    'document_processing_failed',
+    'url_added',
+    'url_removed',
+    'url_processed',
+    'url_processing_failed',
+    'chat_message_sent',
+    'chat_message_received',
+    'client_created',
+    'client_updated',
+    'client_deleted',
+    'client_recovered',
+    'agent_created',
+    'agent_updated',
+    'agent_deleted',
+    'agent_name_updated',
+    'agent_description_updated',
+    'agent_error',
+    'agent_logo_updated',
+    'webhook_sent',
+    'email_sent',
+    'invitation_sent',
+    'invitation_accepted',
+    'widget_previewed',
+    'user_role_updated',
+    'login_success',
+    'login_failed',
+    'signed_out',
+    'widget_settings_updated',
+    'logo_uploaded',
+    'system_update',
+    'source_deleted',
+    'source_added',
+    'error_logged'
+  ];
   
-  // Return the type if valid, or a safe fallback
-  return isValidType ? (type as ActivityTypeString) : 'client_updated';
+  if (safeActivityTypes.includes(type)) {
+    return type;
+  }
+  
+  // Fallback to client_updated which is a safe activity type that exists in the database
+  console.warn(`Activity type "${type}" is not in the allowed list, using "client_updated" instead`);
+  return 'client_updated';
 };

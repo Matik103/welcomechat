@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { ActivityType, ActivityTypeString } from "@/types/activity";
+import { getSafeActivityType } from "@/utils/activityTypeUtils";
 
 /**
  * Create a client activity record for tracking actions
@@ -13,8 +14,8 @@ export const createClientActivity = async (
   metadata: any = {}
 ): Promise<{ success: boolean; error: any | null }> => {
   try {
-    // Convert type to string for database compatibility
-    const activityType = typeof type === 'string' ? type : type;
+    // Convert the ActivityType enum to a string value acceptable by the database
+    const safeActivityType = getSafeActivityType(typeof type === 'string' ? type : type.toString());
     
     // Ensure we have a client name, even if it's a placeholder
     const safeClientName = clientName || "Unknown Client";
@@ -24,7 +25,7 @@ export const createClientActivity = async (
       .from('activities')
       .insert({
         ai_agent_id: clientId,
-        type: activityType as any, // Cast to any to bypass the type checking
+        type: safeActivityType,
         description,
         metadata: {
           ...metadata,
@@ -43,7 +44,7 @@ export const createClientActivity = async (
         description,
         metadata,
         created_at: new Date().toISOString(),
-        type
+        type: safeActivityType
       });
       
       return { success: false, error };
