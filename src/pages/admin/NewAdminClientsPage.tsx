@@ -16,8 +16,8 @@ export default function NewAdminClientsPage() {
   return (
     <AdminLayout>
       <div className="container py-8">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-3xl font-bold">Manage Clients</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Clients</h1>
           <Button 
             onClick={() => setIsAddClientModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700"
@@ -25,7 +25,6 @@ export default function NewAdminClientsPage() {
             <Plus className="mr-2 h-4 w-4" /> Add Client
           </Button>
         </div>
-        <p className="text-muted-foreground mb-6">Admin client management interface.</p>
         
         <div className="space-y-6">
           <ClientSearchBar 
