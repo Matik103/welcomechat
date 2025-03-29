@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -46,12 +47,12 @@ export const reactivateClientAccount = async (email: string): Promise<boolean> =
         continue;
       }
       
-      // Log the reactivation
+      // Log the reactivation - using 'client_recovered' as an acceptable activity type
       const { error: activityError } = await supabase
         .from('activities')
         .insert({
           ai_agent_id: client.id,
-          type: 'client_reactivated',
+          type: 'client_recovered',
           metadata: {
             reactivated_at: new Date().toISOString(),
             previously_scheduled_deletion: client.deletion_scheduled_at
@@ -72,6 +73,59 @@ export const reactivateClientAccount = async (email: string): Promise<boolean> =
     
   } catch (error) {
     console.error("Error in reactivateClientAccount:", error);
+    return false;
+  }
+};
+
+/**
+ * Creates a user role for the specified user
+ * @param userId The user ID to assign the role to
+ * @param role The role to assign (admin, client, etc)
+ * @returns True if successful, false otherwise
+ */
+export const createUserRole = async (userId: string, role: string): Promise<boolean> => {
+  if (!userId || !role) {
+    console.error("Invalid parameters: userId and role are required");
+    return false;
+  }
+
+  try {
+    // Check if user already has this role
+    const { data: existingRole, error: checkError } = await supabase
+      .from('user_roles')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('role', role)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Error checking existing role:", checkError);
+      return false;
+    }
+
+    // If role already exists, return success
+    if (existingRole) {
+      console.log(`User ${userId} already has role ${role}`);
+      return true;
+    }
+
+    // Insert the new role
+    const { error: insertError } = await supabase
+      .from('user_roles')
+      .insert({ 
+        user_id: userId, 
+        role: role 
+      });
+
+    if (insertError) {
+      console.error("Error creating user role:", insertError);
+      return false;
+    }
+
+    console.log(`Successfully assigned role ${role} to user ${userId}`);
+    return true;
+  } catch (error) {
+    console.error("Error in createUserRole:", error);
     return false;
   }
 };

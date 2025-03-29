@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Dialog, 
@@ -99,13 +98,14 @@ export const DeleteClientDialog = ({
         // Continue with deletion process even if email fails
       }
       
-      // Log the activity
+      // Log the activity using a valid activity type
       const { error: activityError } = await supabase
         .from('activities')
         .insert({
           ai_agent_id: client.id,
-          type: 'client_deletion_scheduled',
+          type: 'client_deleted',
           metadata: {
+            action: 'deletion_scheduled',
             client_name: client.client_name,
             email: client.email,
             scheduled_at: new Date().toISOString(),

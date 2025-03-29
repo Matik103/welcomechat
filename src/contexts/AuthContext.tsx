@@ -1,8 +1,11 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { reactivateClientAccount } from '@/utils/authUtils';
+
+export type UserRole = 'admin' | 'client' | null;
 
 interface AuthContextType {
   session: Session | null;
@@ -10,7 +13,8 @@ interface AuthContextType {
   signIn: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   isLoading: boolean;
-  userRole: string | null;
+  setIsLoading: (isLoading: boolean) => void;
+  userRole: UserRole;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,7 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -102,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signOut,
     isLoading,
+    setIsLoading,
     userRole,
   };
 
