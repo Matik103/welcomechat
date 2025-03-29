@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -73,7 +72,7 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
         const agentId = result.agent?.id || tempClientId;
         
         try {
-          await saveClientTempPassword(
+          const passwordResult = await saveClientTempPassword(
             agentId, 
             data.email,
             tempPassword
@@ -83,7 +82,7 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
           const emailResult = await sendWelcomeEmail(
             data.email,
             data.client_name,
-            tempPassword
+            passwordResult.password || tempPassword // Use password from result if available
           );
           
           if (emailResult.emailSent) {

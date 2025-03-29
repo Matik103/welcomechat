@@ -71,7 +71,7 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
         const agentId = result.agent?.id || tempClientId;
         
         try {
-          await saveClientTempPassword(
+          const passwordResult = await saveClientTempPassword(
             agentId, 
             data.email,
             tempPassword
@@ -81,7 +81,7 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
           const emailResult = await sendWelcomeEmail(
             data.email,
             data.client_name,
-            tempPassword
+            passwordResult.password || tempPassword // Use password from result if available
           );
           
           if (emailResult.emailSent) {
@@ -91,7 +91,7 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
             console.error("Failed to send welcome email:", emailResult.emailError);
           }
         } catch (error) {
-          console.error("Error saving temporary password:", error);
+          console.error("Error setting up client credentials:", error);
           toast.warning("Client created but failed to set up login credentials.");
         }
         

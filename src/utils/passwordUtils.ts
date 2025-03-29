@@ -22,12 +22,54 @@ export const saveClientTempPassword = async (
   tempPassword?: string
 ): Promise<any> => {
   try {
+    // First create or update the Supabase Auth user
+    const generatedPassword = tempPassword || generateTempPassword();
+    
+    // Check if user exists
+    const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+    
+    if (checkError && !checkError.message.includes('User not found')) {
+      console.error("Error checking if user exists:", checkError);
+      throw checkError;
+    }
+    
+    // If user doesn't exist, create it
+    if (!existingUser) {
+      const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: generatedPassword,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: { role: 'client' }
+      });
+      
+      if (createError) {
+        console.error("Error creating auth user:", createError);
+        throw createError;
+      }
+      
+      console.log("Created auth user for:", email);
+    } else {
+      // If user exists, update password
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        existingUser.user.id,
+        { password: generatedPassword }
+      );
+      
+      if (updateError) {
+        console.error("Error updating user password:", updateError);
+        throw updateError;
+      }
+      
+      console.log("Updated password for existing user:", email);
+    }
+    
+    // Also save in our client_temp_passwords table for reference
     const { data, error } = await supabaseAdmin
       .from('client_temp_passwords')
       .insert({
         agent_id: agentId,
         email: email,
-        temp_password: tempPassword || generateTempPassword(),
+        temp_password: generatedPassword,
         created_at: new Date().toISOString()
       });
 
@@ -36,7 +78,7 @@ export const saveClientTempPassword = async (
       throw error;
     }
 
-    return data;
+    return { data, password: generatedPassword };
   } catch (error) {
     console.error("Error in saveClientTempPassword:", error);
     throw error;
