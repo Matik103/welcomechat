@@ -1,3 +1,4 @@
+
 import { Header } from "@/components/layout/Header";
 import { ClientHeader } from "@/components/layout/ClientHeader";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -25,7 +26,6 @@ import { Loader2 } from "lucide-react";
 import { isAdminClientConfigured, initializeBotLogosBucket } from "./integrations/supabase/client-admin";
 import ErrorDisplay from "./components/ErrorDisplay";
 import { useAuthSafetyTimeout } from "./hooks/useAuthSafetyTimeout";
-import NewAdminClientsPage from "./pages/admin/NewAdminClientsPage";
 
 const LoadingFallback = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
@@ -42,6 +42,7 @@ function App() {
   const [adminConfigError, setAdminConfigError] = useState<boolean>(false);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   
+  // Memoize these values to prevent unnecessary re-renders
   const isAuthCallback = useMemo(() => location.pathname.includes('/auth/callback'), [location.pathname]);
   const isAuthPage = useMemo(() => location.pathname === '/auth', [location.pathname]);
   const isClientAuthPage = useMemo(() => location.pathname === '/client/auth', [location.pathname]);
@@ -61,6 +62,7 @@ function App() {
   
   useEffect(() => {
     const initializeApp = async () => {
+      // Prevent multiple initialization attempts
       if (!isInitializing) return;
       
       if (!isAuthCallback) {
@@ -89,6 +91,7 @@ function App() {
     initializeApp();
   }, [isAuthCallback, location.pathname, user, userRole, isLoading, isInitializing]);
   
+  // Use a separate effect for forcing loading state completion
   useEffect(() => {
     if (isLoading && location.pathname.includes('/dashboard')) {
       const timer = setTimeout(() => {
@@ -113,6 +116,7 @@ function App() {
     );
   }
   
+  // Simple loading timeout if still loading after initialization
   useEffect(() => {
     if (isLoading && !isInitializing) {
       const forceLoadingTimeout = setTimeout(() => {
@@ -137,6 +141,7 @@ function App() {
     );
   }
 
+  // Public route rendering
   if (!user && isPublicRoute) {
     return (
       <div className="min-h-screen bg-background">
@@ -154,6 +159,7 @@ function App() {
     );
   }
 
+  // Not authenticated
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
@@ -169,6 +175,7 @@ function App() {
     );
   }
 
+  // User authenticated but role not determined
   if (!userRole && user) {
     console.log('User is authenticated but role is not determined, defaulting to admin');
     return (
@@ -176,6 +183,7 @@ function App() {
     );
   }
 
+  // Admin routes
   if (userRole === 'admin') {
     return (
       <div className="min-h-screen bg-background">
@@ -184,7 +192,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<Index />} />
-            <Route path="/admin/clients" element={<NewAdminClientsPage />} />
+            <Route path="/admin/clients" element={<ClientList />} />
             <Route path="/admin/agents" element={<Agents />} />
             <Route path="/admin/agents/:agentId" element={<Agents />} />
             <Route path="/admin/settings" element={<Settings />} />
@@ -203,6 +211,7 @@ function App() {
     );
   }
 
+  // Client routes
   return (
     <div className="min-h-screen bg-background">
       <ClientHeader />
