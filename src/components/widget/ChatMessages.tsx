@@ -34,7 +34,14 @@ export function ChatMessages({
         >
           {!message.isUser && (
             <Avatar className="mr-2 h-8 w-8 flex-shrink-0">
-              <AvatarImage src={logoUrl} alt="Assistant" />
+              <AvatarImage 
+                src={logoUrl} 
+                alt="Assistant" 
+                onError={(e) => {
+                  console.error("Error loading logo in message:", e);
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
               <AvatarFallback className="bg-primary/10 text-primary text-xs">
                 <Bot className="h-4 w-4" />
               </AvatarFallback>
@@ -64,7 +71,14 @@ export function ChatMessages({
       {isTyping && (
         <div className="flex items-start mb-3">
           <Avatar className="mr-2 h-8 w-8 flex-shrink-0">
-            <AvatarImage src={logoUrl} alt="Assistant" />
+            <AvatarImage 
+              src={logoUrl} 
+              alt="Assistant" 
+              onError={(e) => {
+                console.error("Error loading logo in typing indicator:", e);
+                e.currentTarget.style.display = 'none';
+              }}
+            />
             <AvatarFallback className="bg-primary/10 text-primary text-xs">
               <Bot className="h-4 w-4" />
             </AvatarFallback>

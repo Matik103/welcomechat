@@ -27,17 +27,17 @@ export function ChatHeader({
       style={{ backgroundColor, color: textColor }}
     >
       <div className="flex items-center gap-2">
-        <Avatar className="h-6 w-6">
+        <Avatar className="h-8 w-8 flex-shrink-0">
           <AvatarImage 
             src={logoUrl} 
             alt={displayName}
             onError={(e) => {
-              console.error("Error loading logo in chat header:", logoUrl);
+              console.error("Error loading logo in chat header:", e);
               e.currentTarget.style.display = 'none';
             }}
           />
-          <AvatarFallback className="text-xs bg-transparent text-current">
-            <Bot className="w-4 h-4" />
+          <AvatarFallback className="text-xs bg-primary/10 text-primary">
+            <Bot className="w-5 h-5" />
           </AvatarFallback>
         </Avatar>
         <span className="font-medium truncate max-w-[180px]">{displayName}</span>
