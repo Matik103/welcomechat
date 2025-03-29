@@ -53,22 +53,22 @@ export const sendDeletionEmail = async (
     });
     
     // Send the email
-    const { data, error } = await sendEmail({
+    const emailResult = await sendEmail({
       to: email,
       subject: 'Important: Your Account is Scheduled for Deletion',
       html: html,
       from: 'Welcome.Chat <admin@welcome.chat>'
     });
     
-    if (!data || error) {
-      console.error("Error sending deletion notification email:", error);
+    if (!emailResult.success) {
+      console.error("Error sending deletion notification email:", emailResult.error);
       return {
         emailSent: false,
-        emailError: error?.message || "Unknown error sending email"
+        emailError: emailResult.error || "Unknown error sending email"
       };
     }
     
-    console.log("Deletion notification email sent successfully:", data);
+    console.log("Deletion notification email sent successfully:", emailResult.details);
     return {
       emailSent: true
     };
