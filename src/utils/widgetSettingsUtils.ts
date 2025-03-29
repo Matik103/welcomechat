@@ -135,6 +135,3 @@ export const updateWidgetSettings = async (clientId: string, settings: WidgetSet
 export const widgetSettingsToJson = (settings: Partial<WidgetSettings>): JsonObject => {
   return settings as JsonObject;
 };
-
-// Import supabase at the end to avoid circular dependencies
-import { supabase } from "@/integrations/supabase/client";

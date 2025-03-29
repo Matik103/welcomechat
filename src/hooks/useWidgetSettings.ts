@@ -30,6 +30,31 @@ export const useWidgetSettings = (clientId: string) => {
         throw new Error(`Failed to update agent name: ${agentUpdateError.message}`);
       }
 
+      // Also update the settings object
+      const { data: agentData, error: getError } = await supabase
+        .from('ai_agents')
+        .select('settings')
+        .eq('client_id', clientId)
+        .eq('interaction_type', 'config')
+        .single();
+
+      if (!getError && agentData) {
+        // Update the settings with the new agent name
+        const settings = agentData?.settings as Record<string, any> || {};
+        settings.agent_name = agentName;
+
+        // Update the ai_agents table with the new settings
+        const { error: settingsError } = await supabase
+          .from('ai_agents')
+          .update({ settings })
+          .eq('client_id', clientId)
+          .eq('interaction_type', 'config');
+
+        if (settingsError) {
+          console.error('Error updating settings:', settingsError);
+        }
+      }
+
       toast.success('Agent name updated successfully');
       return true;
     } catch (err) {

@@ -8,12 +8,14 @@ import { useClientActivity } from "@/hooks/useClientActivity";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getWidgetSettings, updateWidgetSettings } from "@/services/widgetSettingsService";
 import { handleLogoUpload } from "@/services/uploadService";
-import { defaultSettings } from "@/types/client-form";
-import type { WidgetSettings as WidgetSettingsType } from "@/types/client-form";
+import { defaultSettings } from "@/types/widget-settings";
+import type { WidgetSettings as WidgetSettingsType } from "@/types/widget-settings";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
+import { useClientData } from "@/hooks/useClientData";
+import { ClientViewLoading } from "@/components/client-view/ClientViewLoading";
 
 export default function WidgetSettings() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -23,6 +25,9 @@ export default function WidgetSettings() {
   const [isUploading, setIsUploading] = useState(false);
   const { logClientActivity } = useClientActivity(clientId);
   const widgetSettingsHook = useWidgetSettings(clientId || "");
+  
+  // Get client data to sync agent name
+  const { client, isLoadingClient } = useClientData(clientId);
 
   // Fetch widget settings
   const { data: settings, isLoading, refetch } = useQuery({
@@ -30,6 +35,19 @@ export default function WidgetSettings() {
     queryFn: () => clientId ? getWidgetSettings(clientId) : Promise.resolve(defaultSettings),
     enabled: !!clientId,
   });
+
+  // Sync agent name from client data when settings load
+  useEffect(() => {
+    if (!isLoadingClient && client && settings && !settings.agent_name) {
+      // If we have client data and settings don't have agent_name, sync it
+      if (client.agent_name) {
+        updateSettingsMutation.mutate({
+          ...settings,
+          agent_name: client.agent_name
+        });
+      }
+    }
+  }, [client, settings, isLoadingClient]);
 
   // Update widget settings mutation
   const updateSettingsMutation = useMutation({
@@ -77,8 +95,8 @@ export default function WidgetSettings() {
     }
   };
 
-  if (isLoading) {
-    return <div className="flex justify-center items-center min-h-screen">Loading widget settings...</div>;
+  if (isLoading || isLoadingClient) {
+    return <ClientViewLoading />;
   }
 
   // Create a wrapper for updateSettingsMutation to match expected props

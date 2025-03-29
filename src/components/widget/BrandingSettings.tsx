@@ -24,6 +24,20 @@ export function BrandingSettings({
   return (
     <div className="space-y-4">
       <div>
+        <Label htmlFor="agent_name">AI Agent Name</Label>
+        <Input
+          id="agent_name"
+          value={settings.agent_name || ''}
+          onChange={(e) => onSettingsChange({ agent_name: e.target.value })}
+          placeholder="AI Assistant"
+          className="mt-1"
+        />
+        <p className="text-sm text-muted-foreground mt-1">
+          This is the name that will be displayed to your users in the chat widget
+        </p>
+      </div>
+
+      <div>
         <Label>Logo</Label>
         <LogoManagement
           logoUrl={settings.logo_url}
