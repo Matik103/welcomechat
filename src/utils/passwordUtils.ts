@@ -33,8 +33,9 @@ export const saveClientTempPassword = async (
       throw listError;
     }
     
-    // Find the user with the exact matching email
-    const existingUser = listData?.users?.find(user => user.email === email);
+    // Find the user with the exact matching email by safely handling potential undefined values
+    const users = listData?.users || [];
+    const existingUser = users.find(user => user?.email === email);
     
     // If user doesn't exist, create it
     if (!existingUser) {
