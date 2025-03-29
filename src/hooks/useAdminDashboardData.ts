@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getAllAgents } from '@/services/agentService';
@@ -103,23 +102,33 @@ export function useAdminDashboardData() {
     }
   });
   
-  const fetchDashboardData = async () => {
-    setIsLoading(true);
+  const lastFetchTimeRef = useRef<number>(0);
+  const initialLoadDoneRef = useRef<boolean>(false);
+  
+  const fetchDashboardData = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastFetchTimeRef.current < 10000) {
+      console.log('Skipping dashboard refresh - too soon after last fetch');
+      return;
+    }
+    
+    lastFetchTimeRef.current = now;
+    
+    if (!initialLoadDoneRef.current) {
+      setIsLoading(true);
+    }
+    
     try {
-      // Get information about agents
       const agents = await getAllAgents();
       const totalAgents = agents.length;
       
-      // Time threshold for "active" clients and agents (48 hours ago)
       const timeAgo = new Date();
       timeAgo.setHours(timeAgo.getHours() - 48);
       
-      // Active agents: agents with activity in last 48 hours
       const activeAgents = agents.filter(agent => 
         agent.last_active && new Date(agent.last_active) > timeAgo
       ).length;
       
-      // Clients: Get all unique client_ids from ai_agents table (exclude deleted)
       const { data: agentsData, error: agentsError } = await supabase
         .from('ai_agents')
         .select('client_id, last_active, status, deleted_at')
@@ -129,7 +138,6 @@ export function useAdminDashboardData() {
       
       if (agentsError) throw agentsError;
       
-      // Get unique client IDs to count total active clients
       const uniqueClientIds = new Set();
       const activeClientIds = new Set();
       
@@ -137,7 +145,6 @@ export function useAdminDashboardData() {
         if (agent.client_id) {
           uniqueClientIds.add(agent.client_id);
           
-          // Count as active if has activity in last 48 hours
           if (agent.last_active && new Date(agent.last_active) > timeAgo) {
             activeClientIds.add(agent.client_id);
           }
@@ -147,13 +154,10 @@ export function useAdminDashboardData() {
       const totalClients = uniqueClientIds.size;
       const activeClients = activeClientIds.size;
       
-      // Calculate client growth rate from active/total ratio
       const clientGrowthRate = totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0;
       
-      // Get the growth rate for agents based on active/total ratio
       const agentGrowthRate = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) : 0;
       
-      // Interactions: Count all chat interactions
       const { count: interactionsCount, error: interactionsError } = await supabase
         .from('ai_agents')
         .select('id', { count: 'exact', head: true })
@@ -161,7 +165,6 @@ export function useAdminDashboardData() {
       
       if (interactionsError) throw interactionsError;
       
-      // Trainings: Combine count of website URLs and document links
       const { count: websiteUrlsCount, error: websiteUrlsError } = await supabase
         .from('website_urls')
         .select('id', { count: 'exact', head: true });
@@ -182,7 +185,6 @@ export function useAdminDashboardData() {
       
       const trainingsTotal = (websiteUrlsCount || 0) + (documentLinksCount || 0) + (driveLinksCount || 0);
       
-      // Administration: Count administration-related activities using activities table
       const { count: adminActivitiesCount, error: adminActivitiesError } = await supabase
         .from('activities')
         .select('id', { count: 'exact', head: true })
@@ -190,14 +192,12 @@ export function useAdminDashboardData() {
       
       if (adminActivitiesError) throw adminActivitiesError;
       
-      // Get activity charts data from RPC function
       const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
       
       if (chartError) throw chartError;
       
       const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
       
-      // Update state with all fetched data
       setDashboardData({
         clients: {
           total: totalClients,
@@ -213,28 +213,62 @@ export function useAdminDashboardData() {
         },
         interactions: {
           total: interactionsCount || 0,
-          changePercentage: 12, // Mock data for now
+          changePercentage: 12,
           chartData: generateChartData()
         },
         trainings: {
           total: trainingsTotal,
-          changePercentage: 15, // Mock data for now
+          changePercentage: 15,
           chartData: generateChartData()
         },
         administration: {
           total: adminActivitiesCount || 0,
-          changePercentage: 3, // Mock data for now
+          changePercentage: 3,
           chartData: generateChartData()
         },
         activityCharts: parsedChartData
       });
+      
+      initialLoadDoneRef.current = true;
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData(true);
+    
+    const pollingInterval = setInterval(() => {
+      fetchDashboardData();
+    }, 5 * 60 * 1000);
+    
+    return () => {
+      clearInterval(pollingInterval);
+    };
+  }, [fetchDashboardData]);
+  
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        if (now - lastFetchTimeRef.current > 30000) {
+          console.log('Page became visible after 30+ seconds - refreshing dashboard data');
+          fetchDashboardData();
+        } else {
+          console.log('Page became visible, but skipping refresh (refreshed recently)');
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchDashboardData]);
 
   return {
     isLoading,

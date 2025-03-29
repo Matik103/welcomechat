@@ -1,11 +1,12 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { Client } from '@/types/client';
 import { callRpcFunctionSafe } from '@/utils/rpcUtils';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export const useClient = (clientId: string, options = {}) => {
+  const lastFetchTimeRef = useRef<number>(0);
+  
   const { 
     data: client, 
     isLoading, 
@@ -18,6 +19,7 @@ export const useClient = (clientId: string, options = {}) => {
       
       try {
         console.log("Fetching client data for ID:", clientId);
+        lastFetchTimeRef.current = Date.now();
         
         // First try with a direct query using client_id
         const { data: clientIdData, error: clientIdError } = await supabase
@@ -76,7 +78,7 @@ export const useClient = (clientId: string, options = {}) => {
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     retry: 2, // Retry failed requests 2 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-    refetchOnWindowFocus: true, // Add this to ensure refetching when window regains focus
+    refetchOnWindowFocus: false, // Disable automatic refetch on window focus
     refetchOnMount: true, // Refetch when component mounts
     refetchOnReconnect: true, // Refetch when network reconnects
     ...options
@@ -86,8 +88,14 @@ export const useClient = (clientId: string, options = {}) => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && clientId) {
-        console.log('Document became visible - refetching client data for:', clientId);
-        refetch();
+        // Only refetch if it's been more than 30 seconds since the last fetch
+        const now = Date.now();
+        if (now - lastFetchTimeRef.current > 30000) {
+          console.log('Document became visible - refetching client data for:', clientId);
+          refetch();
+        } else {
+          console.log('Document became visible, but skipping refetch (fetched recently)');
+        }
       }
     };
     

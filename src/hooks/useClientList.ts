@@ -10,17 +10,23 @@ export const useClientList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<Error | null>(null);
   const lastFetchTime = useRef<number>(0);
+  const initialLoadDone = useRef<boolean>(false);
 
-  const fetchClients = useCallback(async () => {
-    // Don't refetch if we just did within the last 5 seconds
+  const fetchClients = useCallback(async (force = false) => {
+    // Don't refetch if we just did within the last 15 seconds unless forced
     const now = Date.now();
-    if (now - lastFetchTime.current < 5000) {
+    if (!force && now - lastFetchTime.current < 15000) {
       console.log('Skipping fetch - too soon after last fetch');
       return;
     }
     
     lastFetchTime.current = now;
-    setIsLoading(true);
+    
+    // Only show loading state on initial load or forced refresh
+    if (!initialLoadDone.current || force) {
+      setIsLoading(true);
+    }
+    
     setError(null);
     
     try {
@@ -77,6 +83,7 @@ export const useClientList = () => {
       
       console.log(`Fetched ${filteredClients.length} clients successfully`);
       setClients(filteredClients);
+      initialLoadDone.current = true;
     } catch (error) {
       console.error('Error fetching clients:', error);
       setError(error instanceof Error ? error : new Error('Failed to fetch clients'));
@@ -87,15 +94,21 @@ export const useClientList = () => {
   
   // Initial fetch on component mount
   useEffect(() => {
-    fetchClients();
+    fetchClients(true);
   }, [fetchClients]);
   
   // Set up refetch on window focus and auth state restoration
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Document became visible - refetching clients');
-        fetchClients();
+        const now = Date.now();
+        // Only refetch if it's been more than 30 seconds since the last fetch
+        if (now - lastFetchTime.current > 30000) {
+          console.log('Document became visible - refetching clients');
+          fetchClients();
+        } else {
+          console.log('Document became visible, but skipping refetch (fetched recently)');
+        }
       }
     };
     

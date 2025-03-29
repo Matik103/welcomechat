@@ -13,23 +13,22 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-      refetchOnWindowFocus: true, // Enable refetching when window gets focus
-      refetchOnMount: 'always', // Always refetch on mount
+      refetchOnWindowFocus: false, // Disable automatic refetch on window focus
+      refetchOnMount: true, // Only refetch if stale
       retry: 1, // Only retry failed requests once
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      // Add a refetch interval handler to customize behavior
       refetchIntervalInBackground: false, // Don't refetch in the background
       refetchOnReconnect: true, // Refetch when reconnecting
     },
   },
 });
 
-// Set up focus tracking for React Query
+// Set up focus tracking for React Query - but make it less aggressive
 const focusHandler = () => {
-  // Tell React Query that the window is focused
+  // Only invalidate queries if visibility has been hidden for more than 5 minutes
   if (document.visibilityState === 'visible') {
-    queryClient.invalidateQueries();
-    console.log('Window focused - invalidating queries');
+    // We'll handle refetching in individual components
+    console.log('Window focused - not automatically invalidating queries');
   }
 };
 

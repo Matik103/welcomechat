@@ -11,18 +11,26 @@ export function useAuthState() {
   const [authInitialized, setAuthInitialized] = useState(false);
   const focusHandled = useRef(false);
   const lastFocusTime = useRef(0);
+  const lastSessionRestoreTime = useRef(0);
 
   // Handle window focus events - with improved debouncing
   useEffect(() => {
     const handleFocus = () => {
       // Prevent rapid re-focus handling by adding a time threshold
       const now = Date.now();
-      if (now - lastFocusTime.current < 2000) {
+      if (now - lastFocusTime.current < 5000) {
         console.log('Focus event ignored - too soon after last focus');
         return;
       }
       
       lastFocusTime.current = now;
+      
+      // Skip if we've already restored auth state recently
+      if (now - lastSessionRestoreTime.current < 30000) {
+        console.log('Auth state restored recently, skipping focus handling');
+        return;
+      }
+      
       console.log('Window focused - checking auth state');
       
       // Skip if we've already handled this focus event
@@ -50,8 +58,13 @@ export function useAuthState() {
             setUserRole(storedRole);
             setIsLoading(false);
             
+            lastSessionRestoreTime.current = Date.now();
+            
             // Dispatch a custom event to notify the app that auth state has been restored
-            window.dispatchEvent(new CustomEvent('authStateRestored'));
+            // but only if we actually had state to restore
+            if (storedSession && storedUser) {
+              window.dispatchEvent(new CustomEvent('authStateRestored'));
+            }
           } else {
             console.log('Stored auth state is too old, not restoring');
             sessionStorage.removeItem('auth_state');
@@ -67,9 +80,11 @@ export function useAuthState() {
 
     window.addEventListener('focus', handleFocus);
     
-    // Initial check on mount
+    // Initial check on mount - with a small delay to not clash with other initializations
     if (!session && !user) {
-      handleFocus();
+      setTimeout(() => {
+        handleFocus();
+      }, 100);
     }
     
     return () => window.removeEventListener('focus', handleFocus);
@@ -80,12 +95,14 @@ export function useAuthState() {
     setSession(newSession);
     // Update sessionStorage when session changes
     if (newSession && user && userRole) {
-      sessionStorage.setItem('auth_state', JSON.stringify({
+      const authState = {
         session: newSession,
         user,
         userRole,
         timestamp: Date.now()
-      }));
+      };
+      sessionStorage.setItem('auth_state', JSON.stringify(authState));
+      lastSessionRestoreTime.current = Date.now();
     }
   }, [user, userRole]);
 
@@ -93,12 +110,14 @@ export function useAuthState() {
     setUser(newUser);
     // Update sessionStorage when user changes
     if (session && newUser && userRole) {
-      sessionStorage.setItem('auth_state', JSON.stringify({
+      const authState = {
         session,
         user: newUser,
         userRole,
         timestamp: Date.now()
-      }));
+      };
+      sessionStorage.setItem('auth_state', JSON.stringify(authState));
+      lastSessionRestoreTime.current = Date.now();
     }
   }, [session, userRole]);
 
@@ -106,12 +125,14 @@ export function useAuthState() {
     setUserRole(newRole);
     // Update sessionStorage when role changes
     if (session && user && newRole) {
-      sessionStorage.setItem('auth_state', JSON.stringify({
+      const authState = {
         session,
         user,
         userRole: newRole,
         timestamp: Date.now()
-      }));
+      };
+      sessionStorage.setItem('auth_state', JSON.stringify(authState));
+      lastSessionRestoreTime.current = Date.now();
     }
   }, [session, user]);
 

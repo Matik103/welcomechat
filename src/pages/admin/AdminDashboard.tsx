@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { setupRealtimeActivities } from '@/utils/setupRealtimeActivities';
 import { subscribeToAllActivities } from '@/services/activitySubscriptionService';
@@ -7,19 +7,35 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAdminDashboardData } from '@/hooks/useAdminDashboardData';
 import { StatsCardsSection } from '@/components/admin/dashboard/StatsCardsSection';
 import { ActivityChartsSection } from '@/components/admin/dashboard/ActivityChartsSection';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function AdminDashboardPage() {
   const { isLoading, dashboardData, fetchDashboardData } = useAdminDashboardData();
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false);
+  
+  const handleManualRefresh = useCallback(async () => {
+    try {
+      setIsManuallyRefreshing(true);
+      await fetchDashboardData(true);
+    } finally {
+      setTimeout(() => {
+        setIsManuallyRefreshing(false);
+      }, 500); // Show loading state for at least 500ms for better UX
+    }
+  }, [fetchDashboardData]);
   
   useEffect(() => {
     let activitiesChannel: any = null;
     let agentsChannel: any = null;
-    let intervalId: any = null;
+    let initialSetupComplete = false;
     
     const initializeDashboard = async () => {
+      if (initialSetupComplete) return;
+      initialSetupComplete = true;
+      
       try {
         // Setup realtime channels for activities
         const success = await setupRealtimeActivities();
@@ -27,13 +43,14 @@ export default function AdminDashboardPage() {
           console.warn('Failed to set up realtime subscriptions, will use polling fallback');
         }
         
-        // Initial data fetch
-        await fetchDashboardData();
-        
         // Subscribe to all activities
-        activitiesChannel = subscribeToAllActivities(() => {
-          console.log('Activities changed, refreshing dashboard data');
-          fetchDashboardData().catch(err => console.error('Error refreshing data:', err));
+        activitiesChannel = subscribeToAllActivities((payload) => {
+          console.log('Activities changed:', payload);
+          // Only refresh if we received a meaningful change
+          if (payload && payload.new) {
+            console.log('Refreshing dashboard data due to activity change');
+            fetchDashboardData();
+          }
         });
         
         // Subscribe to agent changes
@@ -42,15 +59,15 @@ export default function AdminDashboardPage() {
             event: '*',
             schema: 'public',
             table: 'ai_agents',
-          }, () => {
-            fetchDashboardData().catch(err => console.error('Error refreshing data:', err));
+          }, (payload) => {
+            console.log('Agent changed:', payload);
+            // Only refresh if we received a meaningful change
+            if (payload && payload.new) {
+              console.log('Refreshing dashboard data due to agent change');
+              fetchDashboardData();
+            }
           })
           .subscribe();
-        
-        // Set up polling as a fallback
-        intervalId = setInterval(() => {
-          fetchDashboardData().catch(err => console.error('Error in interval refresh:', err));
-        }, 5 * 60 * 1000);
         
         setIsSetupComplete(true);
       } catch (err) {
@@ -64,11 +81,10 @@ export default function AdminDashboardPage() {
     
     // Cleanup function
     return () => {
-      if (intervalId) clearInterval(intervalId);
       if (activitiesChannel) supabase.removeChannel(activitiesChannel);
       if (agentsChannel) supabase.removeChannel(agentsChannel);
     };
-  }, []);
+  }, [fetchDashboardData]);
   
   // Show loading state while setup is in progress
   if (!isSetupComplete) {
@@ -95,7 +111,7 @@ export default function AdminDashboardPage() {
             <button 
               onClick={() => {
                 setError(null);
-                fetchDashboardData();
+                fetchDashboardData(true);
               }}
               className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
             >
@@ -110,6 +126,28 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="container py-8 max-w-7xl mx-auto">
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleManualRefresh}
+            disabled={isLoading || isManuallyRefreshing}
+            className="flex items-center gap-1"
+          >
+            {isManuallyRefreshing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Refreshing...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCcw className="h-4 w-4" />
+                <span>Refresh</span>
+              </>
+            )}
+          </Button>
+        </div>
+        
         {isLoading ? (
           <div className="flex justify-center items-center h-[60vh]">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
