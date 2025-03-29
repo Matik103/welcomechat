@@ -1,102 +1,85 @@
 import React, { useState } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader2 } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 import { toast } from 'sonner';
-import { Client } from "@/types/client";
 import { supabase } from '@/integrations/supabase/client';
-import { sendEmail } from '@/utils/emailUtils';
+import { sendDeletionEmail } from '@/services/emailService';
+import { Client } from '@/types/client';
 
 interface DeleteClientDialogProps {
-  isOpen: boolean;
+  client: Client;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
-  client: Client | null;
-  onClientsUpdated: () => void;
+  onClose: () => void;
+  onDeleted: () => void;
 }
 
-export const DeleteClientDialog = ({
-  isOpen,
-  onOpenChange,
+export const DeleteClientDialog: React.FC<DeleteClientDialogProps> = ({
   client,
-  onClientsUpdated
-}: DeleteClientDialogProps) => {
-  const [confirmText, setConfirmText] = useState('');
+  open,
+  onOpenChange,
+  onClose,
+  onDeleted
+}) => {
+  const [deleteText, setDeleteText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const confirmationText = "delete schedule";
-  
-  const handleClose = () => {
-    if (!isDeleting) {
-      setConfirmText('');
-      setError(null);
-      onOpenChange(false);
-    }
-  };
-  
-  const isConfirmEnabled = confirmText.toLowerCase() === confirmationText;
-  
-  const handleDelete = async () => {
-    if (!client || !isConfirmEnabled) return;
-    
+
+  const deleteClient = async () => {
     try {
-      setError(null);
       setIsDeleting(true);
       
-      console.log(`Scheduling deletion of client: ${client.id}`);
+      if (deleteText !== 'delete schedule') {
+        toast.error("Please type 'delete schedule' to confirm.");
+        setIsDeleting(false);
+        return;
+      }
       
-      // Set the deletion_scheduled_at timestamp
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      // Validate client data
+      if (!client || !client.id) {
+        toast.error("Invalid client data");
+        setIsDeleting(false);
+        return;
+      }
       
-      const { data, error: updateError } = await supabase
+      // Current date
+      const now = new Date();
+      
+      // Calculate 30 days from now for deletion date
+      const deletionDate = new Date();
+      deletionDate.setDate(now.getDate() + 30);
+      
+      console.log(`Scheduling deletion for ${client.client_name} on ${deletionDate.toISOString()}`);
+      
+      // Update the client with deletion_scheduled_at and status
+      const { error: updateError } = await supabase
         .from('ai_agents')
-        .update({ 
-          deletion_scheduled_at: new Date().toISOString(),
+        .update({
+          deletion_scheduled_at: deletionDate.toISOString(),
           status: 'inactive'
         })
-        .eq('id', client.id);
+        .eq('id', client.id)
+        .eq('interaction_type', 'config');
       
       if (updateError) {
-        console.error("Error scheduling client deletion:", updateError);
-        throw updateError;
+        console.error("Error scheduling deletion:", updateError);
+        toast.error(`Error scheduling deletion: ${updateError.message}`);
+        setIsDeleting(false);
+        return;
       }
       
-      // Send notification email to client
-      const emailResult = await sendEmail({
-        to: client.email,
-        subject: "Your account is scheduled for deletion",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-            <h1 style="color: #333;">Account Deletion Scheduled</h1>
-            <p>Hello ${client.client_name},</p>
-            <p>Your account has been scheduled for deletion. If you did not request this action, or wish to keep your account, you can easily reactivate it by signing in within the next 30 days.</p>
-            <p>After 30 days, your account and all associated data will be permanently deleted.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${window.location.origin}/client/auth" 
-                 style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                Sign In to Reactivate
-              </a>
-            </div>
-            <p>If you have any questions or need assistance, please contact our support team.</p>
-            <p>Thank you for using our service.</p>
-          </div>
-        `
-      });
-      
-      if (!emailResult.success) {
-        console.error("Error sending deletion notification email:", emailResult.error);
-        // Continue with deletion process even if email fails
-      }
+      // Send email notification
+      await sendDeletionEmail(client.email, client.client_name, deletionDate);
       
       // Log the activity using a valid activity type
       const { error: activityError } = await supabase
@@ -110,101 +93,57 @@ export const DeleteClientDialog = ({
           metadata: {
             action: 'deletion_scheduled',
             client_name: client.client_name,
-            email: client.email,
-            scheduled_at: new Date().toISOString(),
-            permanent_deletion_date: thirtyDaysFromNow.toISOString()
+            scheduled_deletion_date: deletionDate.toISOString(),
+            initiated_at: now.toISOString()
           }
         });
       
       if (activityError) {
-        console.error("Error creating activity record:", activityError);
-        // Continue with the process even if activity logging fails
+        console.error("Error logging deletion activity:", activityError);
+        // Continue even if activity logging fails
       }
       
-      // Refresh the client list
-      onClientsUpdated();
-      
-      // Close the dialog
-      toast.success(`${client.client_name} has been scheduled for deletion`);
-      handleClose();
-      
-    } catch (err) {
-      console.error("Error during client deletion:", err);
-      setError(`Failed to schedule deletion: ${err instanceof Error ? err.message : String(err)}`);
+      toast.success(`${client.client_name} has been scheduled for deletion in 30 days`);
+      onClose();
+      onDeleted();
+    } catch (error: any) {
+      console.error("Error in deleteClient:", error);
+      toast.error(`Error: ${error.message || 'Unknown error'}`);
     } finally {
       setIsDeleting(false);
     }
   };
-  
-  return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="text-destructive">Schedule Client Deletion</DialogTitle>
-          <DialogDescription>
-            This will schedule the client account for deletion. The client will have 30 days to reactivate by signing in.
-          </DialogDescription>
-        </DialogHeader>
 
-        {client && (
-          <div className="py-4">
-            <div className="space-y-4">
-              <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">
-                <p className="font-medium">Warning:</p>
-                <p>After 30 days, this will permanently delete:</p>
-                <ul className="list-disc ml-5 mt-1">
-                  <li>Client account for {client.client_name}</li>
-                  <li>All associated website URLs and content</li>
-                  <li>All document links and content</li>
-                  <li>Chat history and interactions</li>
-                  <li>All client settings</li>
-                </ul>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="confirm" className="text-sm">
-                  Type <span className="font-bold">{confirmationText}</span> to confirm
-                </Label>
-                <Input
-                  id="confirm"
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder={confirmationText}
-                  disabled={isDeleting}
-                />
-              </div>
-              
-              {error && (
-                <div className="text-sm text-red-600">
-                  {error}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isDeleting}>
-            Cancel
-          </Button>
-          <Button 
-            variant="destructive" 
-            onClick={handleDelete}
-            disabled={!isConfirmEnabled || isDeleting}
-          >
-            {isDeleting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              'Schedule Deletion'
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" disabled={isDeleting}>
+          Schedule Deletion
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will schedule the client for deletion in 30 days.
+            Please type <span className="font-medium">delete schedule</span> to confirm.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="grid gap-2">
+          <Input
+            type="text"
+            value={deleteText}
+            onChange={(e) => setDeleteText(e.target.value)}
+            placeholder="delete schedule"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={deleteClient} disabled={isDeleting}>
+            {isDeleting ? 'Scheduling...' : 'Schedule Deletion'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };
-
-export default DeleteClientDialog;

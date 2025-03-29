@@ -57,7 +57,7 @@ export const reactivateClientAccount = async (email: string): Promise<boolean> =
             client_id: client.id,
             interaction_type: 'activity_log',
             name: 'Activity Logger',
-            type: 'client_reactivated',
+            type: 'client_reactivated' as ActivityType,
             content: `Client account reactivated: ${client.client_name}`,
             metadata: {
               reactivated_at: new Date().toISOString(),
