@@ -1,15 +1,35 @@
 
 import { supabaseAdmin } from '@/integrations/supabase/admin';
 
-// Generate a temporary password
+// Generate a temporary password that conforms to Supabase Auth requirements
 export const generateTempPassword = (length = 12) => {
-  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+  // Include at least one of each required character type for Supabase Auth:
+  // - Uppercase letters (A-Z)
+  // - Lowercase letters (a-z)
+  // - Numbers (0-9)
+  // - Special characters (!@#$%^&*())
+  
+  const upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lowerChars = 'abcdefghijklmnopqrstuvwxyz';
+  const numberChars = '0123456789';
+  const specialChars = '!@#$%^&*()';
+  
+  // Ensure at least one of each character type
   let password = '';
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
+  password += upperChars.charAt(Math.floor(Math.random() * upperChars.length));
+  password += lowerChars.charAt(Math.floor(Math.random() * lowerChars.length));
+  password += numberChars.charAt(Math.floor(Math.random() * numberChars.length));
+  password += specialChars.charAt(Math.floor(Math.random() * specialChars.length));
+  
+  // Fill the rest of the password length with a mix of all character types
+  const allChars = upperChars + lowerChars + numberChars + specialChars;
+  for (let i = 4; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * allChars.length);
+    password += allChars[randomIndex];
   }
-  return password;
+  
+  // Shuffle the password to avoid predictable pattern
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
 };
 
 // Alias for backward compatibility
