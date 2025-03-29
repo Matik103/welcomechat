@@ -15,7 +15,7 @@ import { Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Client } from "@/types/client";
 import { supabase } from '@/integrations/supabase/client';
-import { sendDeletionEmail } from '@/utils/emailUtils';
+import { sendDeletionEmail } from '@/utils/email/deletionEmail';
 import { generateRecoveryToken } from '@/utils/clientUtils';
 
 interface DeleteClientConfirmDialogProps {

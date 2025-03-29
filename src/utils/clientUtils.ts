@@ -1,8 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { supabaseAdmin } from '@/integrations/supabase/client-admin';
 import { v4 as uuidv4 } from 'uuid';
-import { sendDeletionEmail } from '@/utils/emailUtils';
+import { sendDeletionEmail } from '@/utils/email/deletionEmail';
 
 /**
  * Generates a recovery token for a client scheduled for deletion
