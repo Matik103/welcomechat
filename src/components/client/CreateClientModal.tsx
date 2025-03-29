@@ -69,10 +69,12 @@ export function CreateClientModal({ isOpen, onClose }: CreateClientModalProps) {
       );
       
       if (result.success) {
-        // Store the temporary password
+        // Store the temporary password - using agent.id instead of agentId
+        const agentId = result.agent?.id || tempClientId;
+        
         try {
           await saveClientTempPassword(
-            result.agentId || tempClientId, 
+            agentId, 
             data.email,
             tempPassword
           );
