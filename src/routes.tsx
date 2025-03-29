@@ -24,6 +24,8 @@ const ClientResourceSettingsPage = React.lazy(() => import('./pages/client/Resou
 const ClientSettingsPage = React.lazy(() => import('./pages/client/Settings'));
 const ClientAccountSettingsPage = React.lazy(() => import('./pages/client/AccountSettings'));
 
+const NewAdminClientsPage = React.lazy(() => import('./pages/admin/NewAdminClientsPage'));
+
 export const routes: RouteObject[] = [
   {
     path: '/',
@@ -63,7 +65,7 @@ export const routes: RouteObject[] = [
   },
   {
     path: '/admin/clients',
-    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><ClientListPage /></React.Suspense></ProtectedRoute>,
+    element: <ProtectedRoute requiredRole="admin"><React.Suspense fallback={<div>Loading...</div>}><NewAdminClientsPage /></React.Suspense></ProtectedRoute>,
   },
   {
     path: '/admin/clients/view/:clientId',
@@ -146,6 +148,6 @@ export const adminRoutes = [
   },
   {
     path: "clients",
-    element: <AdminClientsPage />,
+    element: <NewAdminClientsPage />,
   },
 ];
