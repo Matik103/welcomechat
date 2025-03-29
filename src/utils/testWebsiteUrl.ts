@@ -4,9 +4,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || ''; // Use service role key
+const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
 
-const supabase = createClient(supabaseUrl, supabaseKey, {
+if (!supabaseServiceKey) {
+  console.error('Error: VITE_SUPABASE_SERVICE_ROLE_KEY is not set in .env');
+  process.exit(1);
+}
+
+// Create Supabase client with service role key
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -15,7 +21,8 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 
 async function testWebsiteUrl() {
   try {
-    console.log('Starting website URL test...');
+    console.log('Starting website URL test with service role...');
+    console.log('Using Supabase URL:', supabaseUrl);
 
     // First, get a test client ID
     const { data: clients, error: clientError } = await supabase
