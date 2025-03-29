@@ -1,5 +1,7 @@
 
 import { X } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Bot } from "lucide-react";
 
 interface ChatHeaderProps {
   agentName: string;
@@ -25,17 +27,19 @@ export function ChatHeader({
       style={{ backgroundColor, color: textColor }}
     >
       <div className="flex items-center gap-2">
-        {logoUrl && (
-          <img 
+        <Avatar className="h-6 w-6">
+          <AvatarImage 
             src={logoUrl} 
             alt={displayName}
-            className="w-6 h-6 object-contain rounded"
             onError={(e) => {
               console.error("Error loading logo in chat header:", logoUrl);
               e.currentTarget.style.display = 'none';
             }}
           />
-        )}
+          <AvatarFallback className="text-xs bg-transparent text-current">
+            <Bot className="w-4 h-4" />
+          </AvatarFallback>
+        </Avatar>
         <span className="font-medium truncate max-w-[180px]">{displayName}</span>
       </div>
       <button 

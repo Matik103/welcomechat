@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
@@ -141,7 +140,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     }, 1000);
   };
 
-  // Render the appropriate widget based on the display mode
   const renderWidgetPreview = () => {
     switch(settings.display_mode) {
       case 'inline':
@@ -154,7 +152,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     }
   };
 
-  // Render the floating widget preview
   const renderFloatingWidget = () => {
     return (
       <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex justify-end items-end p-4 bg-gray-50">
@@ -201,6 +198,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
                     secondaryColor={settings.secondary_color}
                     isTyping={isTyping}
                     messagesEndRef={messagesEndRef}
+                    logoUrl={settings.logo_url}
                   />
                   
                   <ChatInput 
@@ -240,7 +238,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     );
   };
 
-  // Render the inline widget preview
   const renderInlineWidget = () => {
     return (
       <div className="w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex flex-col justify-center items-center p-4 bg-gray-50">
@@ -325,7 +322,6 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
     );
   };
 
-  // Render the sidebar widget preview
   const renderSidebarWidget = () => {
     return (
       <div className="relative w-full h-[500px] rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center p-4 bg-gray-50">
