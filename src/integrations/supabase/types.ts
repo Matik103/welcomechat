@@ -586,6 +586,41 @@ export type Database = {
         }
         Relationships: []
       }
+      client_activities: {
+        Row: {
+          activity_data: Json | null
+          activity_type: string
+          client_id: string
+          created_at: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          activity_data?: Json | null
+          activity_type: string
+          client_id: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          activity_data?: Json | null
+          activity_type?: string
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_invitations: {
         Row: {
           client_id: string
@@ -3528,34 +3563,54 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string | null
+          error: string | null
           id: number
+          is_sitemap: boolean | null
           last_crawled: string | null
-          notified_at: string | null
-          refresh_rate: number
+          refresh_rate: number | null
+          scrapability: string | null
+          scrapable: boolean | null
           status: string | null
+          updated_at: string | null
           url: string
         }
         Insert: {
           client_id: string
           created_at?: string | null
+          error?: string | null
           id?: number
+          is_sitemap?: boolean | null
           last_crawled?: string | null
-          notified_at?: string | null
-          refresh_rate?: number
+          refresh_rate?: number | null
+          scrapability?: string | null
+          scrapable?: boolean | null
           status?: string | null
+          updated_at?: string | null
           url: string
         }
         Update: {
           client_id?: string
           created_at?: string | null
+          error?: string | null
           id?: number
+          is_sitemap?: boolean | null
           last_crawled?: string | null
-          notified_at?: string | null
-          refresh_rate?: number
+          refresh_rate?: number | null
+          scrapability?: string | null
+          scrapable?: boolean | null
           status?: string | null
+          updated_at?: string | null
           url?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "website_urls_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wechate: {
         Row: {
@@ -3688,6 +3743,14 @@ export type Database = {
             }
             Returns: string
           }
+      disable_website_triggers: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      enable_website_triggers: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       exec_sql: {
         Args: {
           sql_query: string
