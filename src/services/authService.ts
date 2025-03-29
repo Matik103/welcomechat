@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 // Define UserRole type directly as string literals
@@ -19,6 +18,9 @@ export const getUserRole = async (): Promise<UserRole> => {
     
     console.log("Checking role for user:", user.email);
     
+    // Check if this is a Google SSO user
+    const isGoogleUser = user.app_metadata?.provider === 'google';
+    
     // Option 1: Check user_roles table
     try {
       const { data: roleData, error: roleError } = await supabase
@@ -28,6 +30,11 @@ export const getUserRole = async (): Promise<UserRole> => {
         .maybeSingle();
       
       if (!roleError && roleData && roleData.role) {
+        // If user is a Google user and role is client, prevent access
+        if (isGoogleUser && roleData.role === 'client') {
+          console.warn("Google user attempting to access client role");
+          return null;
+        }
         console.log("Role found in user_roles table:", roleData.role);
         return roleData.role as UserRole;
       }
@@ -38,6 +45,11 @@ export const getUserRole = async (): Promise<UserRole> => {
     // Option 2: Check user metadata
     if (user.user_metadata && typeof user.user_metadata === 'object') {
       const role = user.user_metadata.role;
+      // If user is a Google user and role is client, prevent access
+      if (isGoogleUser && role === 'client') {
+        console.warn("Google user attempting to access client role");
+        return null;
+      }
       if (role === 'admin' || role === 'client') {
         console.log("Role found in user metadata:", role);
         return role as UserRole;
@@ -54,6 +66,11 @@ export const getUserRole = async (): Promise<UserRole> => {
         .maybeSingle();
       
       if (!clientError && clientData) {
+        // If user is a Google user, prevent client access
+        if (isGoogleUser) {
+          console.warn("Google user attempting to access client role");
+          return null;
+        }
         console.log("User found as client in ai_agents table");
         return 'client';
       }
