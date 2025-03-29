@@ -7,7 +7,7 @@ import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { NewClientModal } from '@/components/client/NewClientModal';
+import { AddClientModal } from '@/components/client/AddClientModal';
 import { Client } from '@/types/client';
 
 export default function AdminClientsPage() {
@@ -58,9 +58,12 @@ export default function AdminClientsPage() {
         </div>
       </div>
       
-      <NewClientModal 
+      <AddClientModal 
         isOpen={isAddClientModalOpen}
-        onClose={() => setIsAddClientModalOpen(false)}
+        onClose={() => {
+          setIsAddClientModalOpen(false);
+          refetch(); // Refresh the client list after adding a new client
+        }}
       />
     </AdminLayout>
   );
