@@ -1,12 +1,21 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ClientSearchBar } from '@/components/client/ClientSearchBar';
 import { ClientListTable } from '@/components/client/ClientListTable';
 import { useClientList } from '@/hooks/useClientList';
 import { toast } from 'sonner';
+import { DeleteClientDialog } from '@/components/client/DeleteClientDialog';
+import { Client } from '@/types/client';
 
 export default function ClientList() {
-  const { clients, isLoading, searchQuery, handleSearch } = useClientList();
+  const { clients, isLoading, searchQuery, handleSearch, refetch } = useClientList();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
+  const handleDeleteClick = (client: Client) => {
+    setSelectedClient(client);
+    setIsDeleteDialogOpen(true);
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -23,10 +32,17 @@ export default function ClientList() {
         <div className="bg-white rounded-md shadow">
           <ClientListTable
             clients={clients}
-            onDeleteClick={() => toast.info("Client deletion has been disabled")}
+            onDeleteClick={handleDeleteClick}
           />
         </div>
       </div>
+
+      <DeleteClientDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        client={selectedClient}
+        onClientsUpdated={refetch}
+      />
     </div>
   );
 }

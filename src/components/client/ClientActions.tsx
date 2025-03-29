@@ -3,17 +3,20 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Eye, Settings, Trash2, Layout } from 'lucide-react';
+import { Client } from '@/types/client';
 
 interface ClientActionsProps {
   clientId: string;
+  client?: Client;
   onViewClick?: () => void;
   onSettingsClick?: () => void;
-  onDeleteClick?: () => void;
+  onDeleteClick?: (client: Client) => void;
   onWidgetSettingsClick?: () => void;
 }
 
 export function ClientActions({ 
   clientId,
+  client,
   onViewClick,
   onSettingsClick,
   onDeleteClick,
@@ -60,7 +63,7 @@ export function ClientActions({
       <Button
         variant="ghost"
         size="icon"
-        onClick={onDeleteClick}
+        onClick={() => client && onDeleteClick && onDeleteClick(client)}
       >
         <Trash2 className="h-4 w-4 text-destructive" />
         <span className="sr-only">Delete client</span>

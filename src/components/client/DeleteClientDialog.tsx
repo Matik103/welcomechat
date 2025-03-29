@@ -15,7 +15,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Client } from "@/types/client";
 import { supabase } from '@/integrations/supabase/client';
-import { execSql } from '@/utils/rpcUtils';
+import { sendEmail } from '@/utils/emailUtils';
 
 interface DeleteClientDialogProps {
   isOpen: boolean;
@@ -34,7 +34,7 @@ export const DeleteClientDialog = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const confirmationText = client ? client.client_name : 'unknown';
+  const confirmationText = "delete schedule";
   
   const handleClose = () => {
     if (!isDeleting) {
@@ -44,7 +44,7 @@ export const DeleteClientDialog = ({
     }
   };
   
-  const isConfirmEnabled = confirmText === confirmationText;
+  const isConfirmEnabled = confirmText.toLowerCase() === confirmationText;
   
   const handleDelete = async () => {
     if (!client || !isConfirmEnabled) return;
@@ -56,13 +56,14 @@ export const DeleteClientDialog = ({
       console.log(`Scheduling deletion of client: ${client.id}`);
       
       // Set the deletion_scheduled_at timestamp
-      const now = new Date().toISOString();
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
       
       const { data, error: updateError } = await supabase
         .from('ai_agents')
         .update({ 
-          deletion_scheduled_at: now,
-          status: 'deleted'
+          deletion_scheduled_at: new Date().toISOString(),
+          status: 'inactive'
         })
         .eq('id', client.id);
       
@@ -71,13 +72,51 @@ export const DeleteClientDialog = ({
         throw updateError;
       }
       
-      // Log the deletion to console since client_activities table is removed
-      console.log('Deletion notification email sent', {
-        client_id: client.id,
-        client_name: client.client_name,
-        email: client.email,
-        timestamp: now
+      // Send notification email to client
+      const emailResult = await sendEmail({
+        to: client.email,
+        subject: "Your account is scheduled for deletion",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+            <h1 style="color: #333;">Account Deletion Scheduled</h1>
+            <p>Hello ${client.client_name},</p>
+            <p>Your account has been scheduled for deletion. If you did not request this action, or wish to keep your account, you can easily reactivate it by signing in within the next 30 days.</p>
+            <p>After 30 days, your account and all associated data will be permanently deleted.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${window.location.origin}/client/auth" 
+                 style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Sign In to Reactivate
+              </a>
+            </div>
+            <p>If you have any questions or need assistance, please contact our support team.</p>
+            <p>Thank you for using our service.</p>
+          </div>
+        `
       });
+      
+      if (!emailResult.success) {
+        console.error("Error sending deletion notification email:", emailResult.error);
+        // Continue with deletion process even if email fails
+      }
+      
+      // Log the activity
+      const { error: activityError } = await supabase
+        .from('activities')
+        .insert({
+          ai_agent_id: client.id,
+          type: 'client_deletion_scheduled',
+          metadata: {
+            client_name: client.client_name,
+            email: client.email,
+            scheduled_at: new Date().toISOString(),
+            permanent_deletion_date: thirtyDaysFromNow.toISOString()
+          }
+        });
+      
+      if (activityError) {
+        console.error("Error creating activity record:", activityError);
+        // Continue with the process even if activity logging fails
+      }
       
       // Refresh the client list
       onClientsUpdated();
@@ -88,7 +127,7 @@ export const DeleteClientDialog = ({
       
     } catch (err) {
       console.error("Error during client deletion:", err);
-      setError(`Failed to delete client: ${err instanceof Error ? err.message : String(err)}`);
+      setError(`Failed to schedule deletion: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsDeleting(false);
     }
@@ -98,10 +137,9 @@ export const DeleteClientDialog = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="text-destructive">Delete Client</DialogTitle>
+          <DialogTitle className="text-destructive">Schedule Client Deletion</DialogTitle>
           <DialogDescription>
-            This action cannot be undone. This will permanently delete the client 
-            and all associated data.
+            This will schedule the client account for deletion. The client will have 30 days to reactivate by signing in.
           </DialogDescription>
         </DialogHeader>
 
@@ -110,10 +148,11 @@ export const DeleteClientDialog = ({
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">
                 <p className="font-medium">Warning:</p>
-                <p>Deleting this client will remove all their data, including:</p>
+                <p>After 30 days, this will permanently delete:</p>
                 <ul className="list-disc ml-5 mt-1">
-                  <li>Website URLs and content</li>
-                  <li>Document links and content</li>
+                  <li>Client account for {client.client_name}</li>
+                  <li>All associated website URLs and content</li>
+                  <li>All document links and content</li>
                   <li>Chat history and interactions</li>
                   <li>All client settings</li>
                 </ul>
@@ -153,10 +192,10 @@ export const DeleteClientDialog = ({
             {isDeleting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                Processing...
               </>
             ) : (
-              'Delete Client'
+              'Schedule Deletion'
             )}
           </Button>
         </DialogFooter>
