@@ -25,7 +25,7 @@ export const createClientActivity = async (
       .from('activities')
       .insert({
         ai_agent_id: clientId,
-        type: safeActivityType as ActivityTypeString,
+        type: safeActivityType,  // Pass as string literal
         description,
         metadata: {
           ...metadata,

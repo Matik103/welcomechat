@@ -1,4 +1,3 @@
-
 import { ActivityType, ActivityTypeString } from '@/types/activity';
 
 // Map activity types to icon names
@@ -93,9 +92,6 @@ export const getActivityTypeLabel = (activityType: string): string => {
     .join(' ');
 };
 
-// List of valid activity types for type checking
-const VALID_ACTIVITY_TYPES = Object.values(ActivityType);
-
 /**
  * Ensure activity type is a valid enum value for the database
  * 
@@ -113,6 +109,7 @@ export const getSafeActivityType = (type: string): string => {
     'url_removed',
     'url_processed',
     'url_processing_failed',
+    'chat_interaction',
     'chat_message_sent',
     'chat_message_received',
     'client_created',
