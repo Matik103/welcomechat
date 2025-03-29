@@ -45,6 +45,8 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
   });
 
   const handleSubmit = async (data: CreateClientFormValues) => {
+    let toastId = toast.loading("Creating client...");
+    
     try {
       setIsSubmitting(true);
       
@@ -54,6 +56,8 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
       // Generate a temporary password
       const tempPassword = generateTempPassword();
       console.log("Generated temporary password:", tempPassword.substring(0, 3) + "...");
+      
+      toast.loading("Setting up AI agent...", { id: toastId });
       
       // Create AI agent (which also creates the client) but disable activity logging
       const result = await ensureAiAgentExists(
@@ -70,12 +74,16 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
         // Store the temporary password - using agent.id instead of agentId
         const agentId = result.agent?.id || tempClientId;
         
+        toast.loading("Configuring client credentials...", { id: toastId });
+        
         try {
           const passwordResult = await saveClientTempPassword(
             agentId, 
             data.email,
             tempPassword
           );
+          
+          toast.loading("Sending welcome email...", { id: toastId });
           
           // Send welcome email with credentials
           const emailResult = await sendWelcomeEmail(
@@ -85,14 +93,17 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
           );
           
           if (emailResult.emailSent) {
-            toast.success("Client created and welcome email sent successfully!");
+            toast.success("Client created and welcome email sent successfully!", { id: toastId });
           } else {
-            toast.warning(`Client created but failed to send welcome email: ${emailResult.emailError}`);
+            toast.warning("Client created but failed to send welcome email", { 
+              id: toastId,
+              description: emailResult.emailError
+            });
             console.error("Failed to send welcome email:", emailResult.emailError);
           }
         } catch (error) {
           console.error("Error setting up client credentials:", error);
-          toast.warning("Client created but failed to set up login credentials.");
+          toast.warning("Client created but failed to set up login credentials", { id: toastId });
         }
         
         if (onSuccess) {
@@ -102,11 +113,14 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
         }
       } else {
         console.error("Failed to create client:", result.error);
-        toast.error("Failed to create client");
+        toast.error("Failed to create client", { 
+          id: toastId,
+          description: result.error 
+        });
       }
     } catch (error) {
       console.error("Error creating client:", error);
-      toast.error("An error occurred while creating the client");
+      toast.error("An error occurred while creating the client", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
