@@ -15,7 +15,7 @@ export const createClientActivity = async (
 ): Promise<{ success: boolean; error: any | null }> => {
   try {
     // Convert the ActivityType enum to a string value acceptable by the database
-    const safeActivityType = getSafeActivityType(typeof type === 'string' ? type : type.toString());
+    const safeActivityType = getSafeActivityType(typeof type === 'string' ? type : String(type));
     
     // Ensure we have a client name, even if it's a placeholder
     const safeClientName = clientName || "Unknown Client";
@@ -25,7 +25,7 @@ export const createClientActivity = async (
       .from('activities')
       .insert({
         ai_agent_id: clientId,
-        type: safeActivityType,
+        type: safeActivityType as ActivityTypeString,
         description,
         metadata: {
           ...metadata,
