@@ -3,11 +3,24 @@ import { Resend } from 'resend';
 import { createClientActivity } from '@/services/clientActivityService';
 import { ActivityType } from '@/types/activity';
 
-// Use import.meta.env instead of process.env for Vite applications
-const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
+// Make sure we have an API key, with a fallback for development
+const apiKey = import.meta.env.VITE_RESEND_API_KEY;
+
+// Check if API key exists
+if (!apiKey) {
+  console.warn('⚠️ VITE_RESEND_API_KEY is not defined in your environment variables. Email sending will fail.');
+}
+
+// Initialize Resend with the API key
+const resend = new Resend(apiKey);
 
 export const sendWelcomeEmail = async (to: string, clientName: string, password: string) => {
   try {
+    if (!apiKey) {
+      console.error('Cannot send email: Missing Resend API key');
+      return { emailSent: false, emailError: 'Missing Resend API key' };
+    }
+
     const data = await resend.emails.send({
       from: 'Acme <onboarding@resend.dev>',
       to: [to],
