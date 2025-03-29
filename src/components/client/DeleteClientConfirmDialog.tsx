@@ -35,7 +35,7 @@ export const DeleteClientConfirmDialog = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const confirmationText = "delete schedule";
+  const confirmationText = "schedule deletion";
   
   const handleClose = () => {
     if (!isDeleting) {
@@ -138,11 +138,11 @@ export const DeleteClientConfirmDialog = ({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
-        <div className="bg-red-50 p-4 border-b border-red-100">
+        <div className="bg-blue-50 p-4 border-b border-blue-100">
           <DialogHeader>
-            <div className="flex items-center gap-2 text-red-700">
+            <div className="flex items-center gap-2 text-blue-700">
               <AlertTriangle className="h-5 w-5" />
-              <DialogTitle className="text-red-700 text-xl">Schedule Client Deletion</DialogTitle>
+              <DialogTitle className="text-blue-700 text-xl">Schedule Client Deletion</DialogTitle>
             </div>
             <DialogDescription className="text-gray-600 mt-2">
               This action will schedule the client for deletion after a 30-day grace period.
@@ -174,14 +174,14 @@ export const DeleteClientConfirmDialog = ({
               
               <div className="space-y-3">
                 <Label htmlFor="confirm" className="text-sm font-medium block">
-                  Type <span className="font-bold text-red-600 px-1 py-0.5 bg-red-50 rounded">{confirmationText}</span> to confirm
+                  Type <span className="font-bold text-blue-600 px-1 py-0.5 bg-blue-50 rounded">{confirmationText}</span> to confirm
                 </Label>
                 <Input
                   id="confirm"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder={confirmationText}
-                  className="border-gray-300 focus:border-red-300 focus:ring focus:ring-red-200 focus:ring-opacity-50"
+                  className="border-gray-300 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                   disabled={isDeleting}
                 />
                 
@@ -211,10 +211,9 @@ export const DeleteClientConfirmDialog = ({
             Cancel
           </Button>
           <Button 
-            variant="destructive" 
             onClick={handleDelete}
             disabled={!isConfirmEnabled || isDeleting}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isDeleting ? (
               <>
