@@ -155,7 +155,6 @@ const Auth = () => {
       setIsGoogleLoading(true);
       setErrorMessage("");
       
-      // Get the Google auth URL to extract the email
       const { data: { url }, error: urlError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -171,7 +170,6 @@ const Auth = () => {
         throw urlError;
       }
 
-      // Before redirecting to Google, check if the email is registered as a client
       const { data: clientData, error: clientError } = await supabase
         .from('ai_agents')
         .select('id')
@@ -185,7 +183,6 @@ const Auth = () => {
         return;
       }
 
-      // If not a client email, proceed with Google sign in
       window.location.href = url;
       
     } catch (error: any) {
@@ -387,10 +384,6 @@ const Auth = () => {
                 <span className="bg-[#F8F9FA] px-2 text-muted-foreground">Or continue with</span>
               </div>
             </div>
-            
-            <p className="text-sm text-muted-foreground mb-4 text-center">
-              Note: If you are a client, please use email/password login. Google sign-in is only available for administrators.
-            </p>
             
             <Button
               type="button"
