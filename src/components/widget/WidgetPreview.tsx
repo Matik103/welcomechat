@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { WidgetSettings } from "@/types/widget-settings";
 import { ChatHeader } from "./ChatHeader";
@@ -66,6 +67,7 @@ export function WidgetPreview({ settings, clientId }: WidgetPreviewProps) {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isTyping) return;
 
+    // Add the user message to the chat
     setMessages(prev => [...prev, { text: inputValue, isUser: true }]);
     const userQuery = inputValue;
     setInputValue("");
