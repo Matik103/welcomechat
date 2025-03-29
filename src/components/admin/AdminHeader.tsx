@@ -1,69 +1,100 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { cn } from '@/lib/utils';
 
-export const AdminHeader = () => {
-  const { user } = useAuth();
+import React from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/contexts/AuthContext';
+import { Settings, User, LogOut } from 'lucide-react';
+
+export const AdminHeader: React.FC = () => {
+  const { user, signOut } = useAuth();
   const location = useLocation();
-  
+  const navigate = useNavigate();
+
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      await signOut();
+      // Navigation is handled in the signOut function
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
+
+  if (!user) return null;
+
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <header className="border-b bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo on the left */}
-          <div className="flex-shrink-0">
-            <Link to="/admin/dashboard">
+          {/* Logo */}
+          <Link to="/admin/dashboard" className="flex items-center">
+            <div className="h-10">
               <img 
                 src="/lovable-uploads/e262d378-49c1-4219-ae37-ce0264b3500c.png" 
-                alt="Welcome.Chat Logo" 
-                className="h-12" // Increased from h-10 to h-12
+                alt="WelcomeChat Logo" 
+                className="h-full w-auto"
+                loading="eager"
               />
-            </Link>
-          </div>
-          
-          <div className="flex-1 flex justify-center">
-            {/* Search bar would go here if needed */}
-          </div>
+            </div>
+          </Link>
 
-          {/* Navigation links and user info */}
-          <div className="flex items-center gap-4">
-            <nav className="flex items-center space-x-6">
+          {/* Navigation */}
+          <div className="flex items-center gap-6">
+            <nav className="flex items-center gap-6">
               <Link 
                 to="/admin/dashboard" 
-                className={cn(
-                  "text-gray-600 hover:text-primary font-medium transition-colors",
-                  location.pathname === '/admin/dashboard' && "text-primary font-semibold"
-                )}
+                className={`text-gray-600 hover:text-gray-900 font-medium ${
+                  location.pathname === '/admin/dashboard' ? 'text-gray-900' : ''
+                }`}
               >
                 Dashboard
               </Link>
               <Link 
                 to="/admin/clients" 
-                className={cn(
-                  "text-gray-600 hover:text-primary font-medium transition-colors",
-                  location.pathname.includes('/admin/clients') && "text-primary font-semibold"
-                )}
+                className={`text-gray-600 hover:text-gray-900 font-medium ${
+                  location.pathname.includes('/admin/clients') ? 'text-gray-900' : ''
+                }`}
               >
                 Customers
               </Link>
               <Link 
                 to="/admin/agents" 
-                className={cn(
-                  "text-gray-600 hover:text-primary font-medium transition-colors",
-                  location.pathname.includes('/admin/agents') && "text-primary font-semibold"
-                )}
+                className={`text-gray-600 hover:text-gray-900 font-medium ${
+                  location.pathname.includes('/admin/agents') ? 'text-gray-900' : ''
+                }`}
               >
                 Agents
               </Link>
             </nav>
             
-            {/* User name instead of settings icon */}
-            <div className="flex items-center ml-6 pl-6 border-l border-gray-200">
-              <div className="text-sm font-medium text-gray-700 px-3 py-2 rounded-lg bg-gray-100">
-                {user?.user_metadata?.full_name || user?.email}
-              </div>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="hover:bg-gray-100 flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  <span className="font-medium">{user.user_metadata.full_name || user.email}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-white shadow-lg border border-gray-200">
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/settings" className="w-full cursor-pointer">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Account Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

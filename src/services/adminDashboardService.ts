@@ -8,6 +8,7 @@ import { generateChartData } from '@/utils/chartDataUtils';
  */
 export const fetchClientMetrics = async () => {
   try {
+    console.log('Fetching client metrics...');
     // Time threshold for "active" clients (48 hours ago)
     const timeAgo = new Date();
     timeAgo.setHours(timeAgo.getHours() - 48);
@@ -21,6 +22,8 @@ export const fetchClientMetrics = async () => {
       .is('deleted_at', null);
     
     if (agentsError) throw agentsError;
+    
+    console.log(`Retrieved ${agentsData?.length || 0} agents for client metrics`);
     
     // Get unique client IDs to count total active clients
     const uniqueClientIds = new Set();
@@ -42,6 +45,8 @@ export const fetchClientMetrics = async () => {
     
     // Calculate client growth rate from active/total ratio
     const clientGrowthRate = totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0;
+    
+    console.log(`Client metrics: total=${totalClients}, active=${activeClients}, growth=${clientGrowthRate}%`);
     
     return {
       total: totalClients,
@@ -191,10 +196,16 @@ export const fetchAdministrationMetrics = async () => {
  */
 export const fetchActivityChartsData = async () => {
   try {
+    console.log('Fetching activity charts data...');
     // Get activity charts data from RPC function
     const { data: chartData, error: chartError } = await supabase.rpc('get_dashboard_activity_charts');
     
-    if (chartError) throw chartError;
+    if (chartError) {
+      console.error('RPC error:', chartError);
+      throw chartError;
+    }
+    
+    console.log('Activity charts data received:', chartData ? 'success' : 'empty');
     
     const parsedChartData = typeof chartData === 'string' ? JSON.parse(chartData) : chartData;
     
@@ -211,6 +222,7 @@ export const fetchActivityChartsData = async () => {
  */
 export const fetchAllDashboardData = async () => {
   try {
+    console.log('Fetching all dashboard data...');
     const [
       clientMetrics,
       agentMetrics,
@@ -226,6 +238,8 @@ export const fetchAllDashboardData = async () => {
       fetchAdministrationMetrics(),
       fetchActivityChartsData()
     ]);
+    
+    console.log('All dashboard data fetched successfully');
     
     return {
       clients: clientMetrics,

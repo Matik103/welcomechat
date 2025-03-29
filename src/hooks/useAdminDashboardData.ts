@@ -74,9 +74,11 @@ export function useAdminDashboardData() {
   });
   
   const fetchDashboardData = useCallback(async () => {
+    console.log('Fetching dashboard data...');
     setIsLoading(true);
     try {
       const allDashboardData = await fetchAllDashboardData();
+      console.log('Dashboard data fetched successfully:', allDashboardData);
       setDashboardData(allDashboardData);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
