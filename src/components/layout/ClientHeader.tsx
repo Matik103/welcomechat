@@ -1,7 +1,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Settings, Palette, UserCog, Edit, LogOut } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,66 +11,58 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useClientData } from "@/hooks/useClientData";
 
 export const ClientHeader = () => {
   const { user, signOut } = useAuth();
-
+  const { client } = useClientData(user?.user_metadata?.client_id);
+  
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault();
     try {
       await signOut();
-      // Navigation is handled inside signOut function
     } catch (error) {
       console.error('Sign out error:', error);
     }
   };
 
   if (!user) return null;
+  
+  const clientName = client?.client_name || user.user_metadata?.full_name || user.email;
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link to="/client/dashboard" className="text-xl font-semibold text-gray-900">
-              AI Agent Dashboard
+            <Link to="/client/dashboard">
+              <img src="/logo.svg" alt="Logo" className="h-8 w-auto" />
             </Link>
           </div>
           <div className="flex items-center gap-4">
+            <h1 className="text-xl font-semibold text-gray-900 mr-4">
+              Dashboard
+            </h1>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Settings className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-white shadow-lg border border-gray-200" sideOffset={16}>
-                <DropdownMenuLabel className="flex items-center gap-2">
-                  <UserCog className="h-4 w-4" />
-                  {user.user_metadata.full_name || user.email}
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  {clientName}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/client/widget-settings" className="flex items-center">
-                    <Palette className="mr-2 h-4 w-4" />
-                    <span>Widget Settings</span>
-                  </Link>
+                  <Link to="/client/edit-info">Profile Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/client/edit-info" className="flex items-center">
-                    <Edit className="mr-2 h-4 w-4" />
-                    <span>Edit Information</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/client/account-settings" className="flex items-center">
-                    <UserCog className="mr-2 h-4 w-4" />
-                    <span>Account Settings</span>
-                  </Link>
+                  <Link to="/client/widget-settings">Widget Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign Out</span>
+                  Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
